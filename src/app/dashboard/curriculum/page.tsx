@@ -455,9 +455,16 @@ export default function CurriculumPage() {
     if (!canTrack) return;
     fetch('/api/schools', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((j) => setAssignedSchools((j.data ?? []) as { id: string; name: string }[]))
+      .then((j) => {
+        const schools = (j.data ?? []) as { id: string; name: string }[];
+        setAssignedSchools(schools);
+        // Teachers default to their first assigned school, not the platform template
+        if (!isAdmin && schools.length > 0) {
+          setGenerateScope((prev) => (prev === 'platform' ? schools[0].id : prev));
+        }
+      })
       .catch(() => setAssignedSchools([]));
-  }, [canTrack]);
+  }, [canTrack, isAdmin]);
 
   // Build school-based program scope for the quick chooser grid.
   // Runs for all roles so learners (students/parents) also see only their
@@ -3483,7 +3490,9 @@ export default function CurriculumPage() {
                     }}
                     className={SELECT_CLS}
                   >
-                    <option value="platform">All schools — shared Rillcod template</option>
+                    {isAdmin && (
+                      <option value="platform">All schools — shared Rillcod template</option>
+                    )}
                     {assignedSchools.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} only — private to this school
