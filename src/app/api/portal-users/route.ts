@@ -46,14 +46,22 @@ export async function GET(request: NextRequest) {
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
       if (caller.role === 'teacher') {
-        // Teachers only see students in classes they personally teach
-        const { data: myClasses } = await admin
-          .from('classes')
-          .select('id')
+        // Resolve all schools this teacher is assigned to
+        const { data: schoolAssignments } = await admin
+          .from('teacher_schools')
+          .select('school_id')
           .eq('teacher_id', caller.id);
+        const allowedSchoolIds = [...new Set([
+          ...(schoolAssignments ?? []).map((s: any) => s.school_id).filter(Boolean),
+          ...(caller.school_id ? [caller.school_id] : []),
+        ])] as string[];
+
+        // Teachers only see students in their own classes within their assigned schools
+        let classQuery = admin.from('classes').select('id').eq('teacher_id', caller.id);
+        if (allowedSchoolIds.length > 0) classQuery = classQuery.in('school_id', allowedSchoolIds) as any;
+        const { data: myClasses } = await classQuery;
         const myClassIds = (myClasses ?? []).map((c: any) => c.id);
         if (myClassIds.length === 0) {
-          // No classes → return empty (don't fall through to school-wide scope)
           return NextResponse.json({ data: [] });
         }
         query = query.in('class_id', myClassIds) as any;
