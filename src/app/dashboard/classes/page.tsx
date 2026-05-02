@@ -213,8 +213,7 @@ export default function ClassesPage() {
 
               {/* Card top accent by status */}
               <div className={`h-1 w-full ${
-                cls.status === 'active' ? 'bg-emerald-500' :
-                cls.status === 'scheduled' ? 'bg-amber-500' : 'bg-primary'
+                cls.status === 'active' ? 'bg-emerald-500' : 'bg-primary'
               }`} />
 
               <div className="p-5 flex flex-col gap-4 flex-1">
