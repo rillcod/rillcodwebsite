@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import type { Database, Json } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -35,8 +36,13 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false });
 
   if (profile?.role === 'teacher') {
-    // Teachers only see decks they personally created
+    const allowedIds = await getTeacherSchoolIds(user.id, profile.school_id ?? null);
     query = query.eq('created_by', user.id) as any;
+    if (allowedIds.length > 0) {
+      query = query.or(`school_id.in.(${allowedIds.join(',')}),school_id.is.null`) as any;
+    } else {
+      query = query.is('school_id', null) as any;
+    }
   } else if (profile?.school_id) {
     query = query.eq('school_id', profile.school_id);
   }
