@@ -312,6 +312,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Platform templates (school_id = null) are admin-only
+  if (targetSchoolId === null && profile.role !== 'admin') {
+    return NextResponse.json(
+      { error: 'Only Rillcod admins can create or update platform-wide curriculum templates.' },
+      { status: 403 },
+    );
+  }
+
   if (profile.role === 'teacher' && targetSchoolId) {
     const sids = await getTeacherSchoolIds(user.id, profile.school_id ?? null);
     if (!sids.includes(targetSchoolId)) {
