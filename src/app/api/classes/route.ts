@@ -110,13 +110,12 @@ export async function GET(request: NextRequest) {
     const classData = classes ?? [];
     if (classData.length === 0) return NextResponse.json({ data: [] });
 
-    // ── Live student count: count direct class_id assignments only ────────────
-    // The program-enrollment fallback (class_id = null) would inflate counts when
-    // multiple classes share a program, so we count strictly by class_id FK.
+    // ── Live student count ────────────────────────────────────────────────────
     const classIds = classData.map((c: any) => c.id).filter(Boolean) as string[];
     const countMap: Record<string, number> = {};
     classIds.forEach((cid) => { countMap[cid] = 0; });
 
+    // 1. Students directly assigned via class_id FK
     const { data: directStudents } = await admin
       .from('portal_users')
       .select('class_id')
@@ -127,9 +126,34 @@ export async function GET(request: NextRequest) {
       if (s.class_id) countMap[s.class_id] = (countMap[s.class_id] ?? 0) + 1;
     });
 
+    // 2. Also count section_class-matched students whose class_id is not yet set
+    //    (covers legacy / pre-heal students that appear inside the class detail)
+    const schoolIds = [...new Set(classData.map((c: any) => c.school_id).filter(Boolean))] as string[];
+    if (schoolIds.length > 0) {
+      const { data: sectionStudents } = await admin
+        .from('portal_users')
+        .select('school_id, section_class')
+        .eq('role', 'student')
+        .is('class_id', null)
+        .in('school_id', schoolIds);
+
+      // Build lookup: "schoolId::className" → classId
+      const lookup: Record<string, string> = {};
+      classData.forEach((c: any) => {
+        if (c.school_id && c.name) lookup[`${c.school_id}::${c.name}`] = c.id;
+      });
+
+      (sectionStudents ?? []).forEach((s: any) => {
+        const cid = lookup[`${s.school_id}::${s.section_class}`];
+        if (cid) countMap[cid] = (countMap[cid] ?? 0) + 1;
+      });
+    }
+
+    // Fall back to the DB-synced current_students when live count is still 0
+    // (covers program-enrolled students not yet healed by the detail page)
     const enriched = classData.map((c: any) => ({
       ...c,
-      current_students: countMap[c.id] ?? c.current_students ?? 0,
+      current_students: countMap[c.id] || c.current_students || 0,
     }));
 
     return NextResponse.json({ data: enriched });
