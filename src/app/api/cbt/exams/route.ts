@@ -53,13 +53,8 @@ export async function GET(_request: NextRequest) {
         const filterSid = searchParams.get('school_id');
         if (filterSid) query = query.eq('school_id', filterSid) as any;
       } else if (caller.role === 'teacher') {
-        const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-        if (schoolIds.length > 0) {
-          const idFilter = `school_id.in.(${schoolIds.join(',')}),school_id.is.null`;
-          query = query.or(`${idFilter},created_by.eq.${caller.id}`) as any;
-        } else {
-          query = query.or(`school_id.is.null,created_by.eq.${caller.id}`) as any;
-        }
+        // Teachers only see exams they personally created
+        query = query.eq('created_by', caller.id) as any;
       } else if (caller.role === 'school') {
         if (caller.school_id) {
           query = query.or(`school_id.eq.${caller.school_id},school_id.is.null`) as any;
