@@ -70,12 +70,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (caller.role === 'teacher') {
-      const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id ?? null);
-      if (schoolIds.length > 0) {
-        query = query.or(`created_by.eq.${caller.id},school_id.in.(${schoolIds.join(',')})`) as any;
-      } else {
-        query = query.eq('created_by', caller.id) as any;
-      }
+      // Teachers only see lessons they personally created
+      query = query.eq('created_by', caller.id) as any;
     } else if (caller.role === 'school') {
       if (!caller.school_id) {
         return NextResponse.json({ error: 'School context required: account must be linked to a school.' }, { status: 403 });

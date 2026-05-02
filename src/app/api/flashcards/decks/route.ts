@@ -34,7 +34,12 @@ export async function GET(req: NextRequest) {
     .select('*, flashcard_cards(count)')
     .order('created_at', { ascending: false });
 
-  if (profile?.school_id) query = query.eq('school_id', profile.school_id);
+  if (profile?.role === 'teacher') {
+    // Teachers only see decks they personally created
+    query = query.eq('created_by', user.id) as any;
+  } else if (profile?.school_id) {
+    query = query.eq('school_id', profile.school_id);
+  }
   if (courseId) query = query.eq('course_id', courseId);
   if (lessonId) query = query.eq('lesson_id', lessonId);
 

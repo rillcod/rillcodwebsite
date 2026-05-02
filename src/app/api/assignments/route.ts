@@ -73,11 +73,8 @@ export async function GET(request: NextRequest) {
     if (caller.role === 'admin') {
       // No filter — see all
     } else if (caller.role === 'teacher') {
-      // Teachers see assignments they created OR scoped to any of their schools
-      const schoolIds = await teacherSchoolIds(caller.id, caller.school_id);
-      const orParts = [`created_by.eq.${caller.id}`];
-      if (schoolIds.length > 0) orParts.push(`school_id.in.(${schoolIds.join(',')})`);
-      query = query.or(orParts.join(',')) as any;
+      // Teachers only see assignments they personally created
+      query = query.eq('created_by', caller.id) as any;
     } else if (caller.role === 'school') {
       // School role: only their own school's assignments
       const orParts: string[] = [];
