@@ -230,11 +230,20 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
-      // Teachers always see only students in their own classes
-      const { data: myClasses } = await supabase
-        .from('classes')
-        .select('id')
+      // Resolve all schools this teacher is assigned to
+      const { data: schoolAssignments } = await supabase
+        .from('teacher_schools')
+        .select('school_id')
         .eq('teacher_id', caller.id);
+      const allowedSchoolIds = [...new Set([
+        ...(schoolAssignments ?? []).map((a: any) => a.school_id).filter(Boolean),
+        ...(caller.school_id ? [caller.school_id] : []),
+      ])] as string[];
+
+      // Teachers only see students in their own classes within their assigned schools
+      let classQuery = supabase.from('classes').select('id').eq('teacher_id', caller.id);
+      if (allowedSchoolIds.length > 0) classQuery = classQuery.in('school_id', allowedSchoolIds) as any;
+      const { data: myClasses } = await classQuery;
       const myClassIds = (myClasses ?? []).map(c => c.id);
 
       if (myClassIds.length === 0) return NextResponse.json({ data: [] });
