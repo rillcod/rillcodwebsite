@@ -45,46 +45,37 @@ export async function GET(request: NextRequest) {
 
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
-      const schoolIds: string[] = [];
-      if (caller.school_id) schoolIds.push(caller.school_id);
-
-      // For teachers: also check teacher_schools junction table (multi-school support)
       if (caller.role === 'teacher') {
-        const { data: ts } = await admin
-          .from('teacher_schools')
-          .select('school_id')
-          .eq('teacher_id', caller.id);
-        (ts ?? []).forEach((r: any) => {
-          if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id);
-        });
-
-        // Also include school_ids from classes this teacher teaches
-        // (handles teacher reassignment — students at old school still visible via class)
-        const { data: teacherClasses } = await admin
+        // Teachers only see students in classes they personally teach
+        const { data: myClasses } = await admin
           .from('classes')
-          .select('school_id')
+          .select('id')
           .eq('teacher_id', caller.id);
-        (teacherClasses ?? []).forEach((c: any) => {
-          if (c.school_id && !schoolIds.includes(c.school_id)) schoolIds.push(c.school_id);
-        });
-      }
+        const myClassIds = (myClasses ?? []).map((c: any) => c.id);
+        if (myClassIds.length === 0) {
+          // No classes → return empty (don't fall through to school-wide scope)
+          return NextResponse.json({ data: [] });
+        }
+        query = query.in('class_id', myClassIds) as any;
+      } else {
+        // School role: scope to their school
+        const schoolIds: string[] = [];
+        if (caller.school_id) schoolIds.push(caller.school_id);
 
-      if (schoolIds.length > 0) {
-        // Also allow school_name match for legacy records that have name but null school_id
-        const { data: schoolNames } = await admin
-          .from('schools')
-          .select('name')
-          .in('id', schoolIds);
-        const names = (schoolNames ?? []).map((s: any) => s.name).filter(Boolean);
+        if (schoolIds.length > 0) {
+          const { data: schoolNames } = await admin
+            .from('schools')
+            .select('name')
+            .in('id', schoolIds);
+          const names = (schoolNames ?? []).map((s: any) => s.name).filter(Boolean);
 
-        if (names.length > 0) {
-          // Match by school_id OR school_name (covers legacy registrations)
-          // Names must be quoted so PostgREST handles spaces correctly
-          const nameFilters = names.map((n: string) => `school_name.eq.${JSON.stringify(n)}`).join(',');
-          const idFilter = `school_id.in.(${schoolIds.join(',')})`;
-          query = query.or(`${idFilter},${nameFilters}`) as any;
-        } else {
-          query = query.in('school_id', schoolIds) as any;
+          if (names.length > 0) {
+            const nameFilters = names.map((n: string) => `school_name.eq.${JSON.stringify(n)}`).join(',');
+            const idFilter = `school_id.in.(${schoolIds.join(',')})`;
+            query = query.or(`${idFilter},${nameFilters}`) as any;
+          } else {
+            query = query.in('school_id', schoolIds) as any;
+          }
         }
       }
     }

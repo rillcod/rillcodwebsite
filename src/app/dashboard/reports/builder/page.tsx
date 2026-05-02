@@ -531,8 +531,9 @@ function ReportBuilderInner() {
             const coursesRes = await fetch('/api/courses?limit=1000&is_published=true', { cache: 'no-store' });
             const coursesJson = coursesRes.ok ? await coursesRes.json() : { data: [] };
 
-            // 5. Fetch classes via API
-            const classesRes = await fetch('/api/classes', { cache: 'no-store' });
+            // 5. Fetch classes via API — teachers only see their own classes
+            const isTeacher = profile?.role === 'teacher';
+            const classesRes = await fetch(isTeacher ? '/api/classes?mine=true' : '/api/classes', { cache: 'no-store' });
             const classesJson = classesRes.ok ? await classesRes.json() : { data: [] };
 
             // 6. Fetch pre-portal students via API

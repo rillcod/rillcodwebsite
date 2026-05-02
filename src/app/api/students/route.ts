@@ -230,71 +230,27 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
-      // Check if isolation is enabled
-      const { data: isoSetting } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'lms_teacher_isolation')
-        .maybeSingle();
-      const isIsolated = isoSetting?.value === 'true';
-
-      if (isIsolated) {
-        // Teacher ONLY sees students in their own classes
-        // 1. Get all class IDs for this teacher
-        const { data: myClasses } = await supabase
-          .from('classes')
-          .select('id')
-          .eq('teacher_id', caller.id);
-        const myClassIds = (myClasses ?? []).map(c => c.id);
-
-        if (myClassIds.length === 0) return NextResponse.json({ data: [] });
-
-        // 2. class_id lives on portal_users, not students — get user_ids first
-        const { data: portalStudents } = await supabase
-          .from('portal_users')
-          .select('id')
-          .in('class_id', myClassIds)
-          .eq('role', 'student');
-        const studentUserIds = (portalStudents ?? []).map((s: any) => s.id);
-
-        if (studentUserIds.length === 0) return NextResponse.json({ data: [] });
-
-        query = query.in('user_id', studentUserIds) as any;
-      } else {
-        // Collect all school IDs from teacher_schools + teacher's own school_id
-        const schoolIds: string[] = [];
-      if (caller.school_id) schoolIds.push(caller.school_id);
-
-      const { data: ts } = await supabase
-        .from('teacher_schools')
-        .select('school_id')
+      // Teachers always see only students in their own classes
+      const { data: myClasses } = await supabase
+        .from('classes')
+        .select('id')
         .eq('teacher_id', caller.id);
-      (ts ?? []).forEach((r: any) => {
-        if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id);
-      });
+      const myClassIds = (myClasses ?? []).map(c => c.id);
 
-      if (schoolIds.length > 0) {
-        // Filter by school_id UUID OR school_name text match
-        const schoolNames: string[] = [];
-        if (caller.school_name) schoolNames.push(caller.school_name);
-        const { data: schoolRows } = await supabase
-          .from('schools')
-          .select('id, name')
-          .in('id', schoolIds);
-        (schoolRows ?? []).forEach((s: any) => { if (s.name) schoolNames.push(s.name); });
+      if (myClassIds.length === 0) return NextResponse.json({ data: [] });
 
-        // Build OR filter: school_id in list OR school_name in list
-        const parts: string[] = [`school_id.in.(${schoolIds.join(',')})`];
-        if (schoolNames.length > 0) {
-          schoolNames.forEach(n => parts.push(`school_name.eq.${JSON.stringify(n)}`));
-        }
-        query = query.or(parts.join(',')) as any;
-      } else {
-        // Teacher has no school affiliation — return empty
-        return NextResponse.json({ data: [] });
-      }
+      // class_id lives on portal_users, not students — resolve user_ids first
+      const { data: portalStudents } = await supabase
+        .from('portal_users')
+        .select('id')
+        .in('class_id', myClassIds)
+        .eq('role', 'student');
+      const studentUserIds = (portalStudents ?? []).map((s: any) => s.id);
+
+      if (studentUserIds.length === 0) return NextResponse.json({ data: [] });
+
+      query = query.in('user_id', studentUserIds) as any;
     }
-  }
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
