@@ -230,20 +230,12 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
-      // Resolve all schools this teacher is assigned to
-      const { data: schoolAssignments } = await supabase
-        .from('teacher_schools')
-        .select('school_id')
+      // Class ownership is proven by teacher_id alone — no school_id cross-check needed
+      // (school boundary is enforced at class creation time, not on reads)
+      const { data: myClasses } = await supabase
+        .from('classes')
+        .select('id')
         .eq('teacher_id', caller.id);
-      const allowedSchoolIds = [...new Set([
-        ...(schoolAssignments ?? []).map((a: any) => a.school_id).filter(Boolean),
-        ...(caller.school_id ? [caller.school_id] : []),
-      ])] as string[];
-
-      // Resolve portal students in teacher's own classes (within allowed schools)
-      let classQuery = supabase.from('classes').select('id').eq('teacher_id', caller.id);
-      if (allowedSchoolIds.length > 0) classQuery = classQuery.in('school_id', allowedSchoolIds) as any;
-      const { data: myClasses } = await classQuery;
       const myClassIds = (myClasses ?? []).map(c => c.id);
 
       let studentUserIds: string[] = [];
@@ -256,15 +248,8 @@ export async function GET(request: Request) {
         studentUserIds = (portalStudents ?? []).map((s: any) => s.id);
       }
 
-      // Show students this teacher registered (created_by) OR students in their classes.
-      // This ensures pending/pre-portal registrations are never hidden from the teacher
-      // who added them, even before class assignment is complete.
-      const orParts: string[] = [];
-      if (allowedSchoolIds.length > 0) {
-        orParts.push(`and(created_by.eq.${caller.id},school_id.in.(${allowedSchoolIds.join(',')}))`);
-      } else {
-        orParts.push(`created_by.eq.${caller.id}`);
-      }
+      // Show students this teacher registered (created_by) OR students in their classes
+      const orParts: string[] = [`created_by.eq.${caller.id}`];
       if (studentUserIds.length > 0) {
         orParts.push(`user_id.in.(${studentUserIds.join(',')})`);
       }
