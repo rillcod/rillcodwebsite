@@ -271,11 +271,23 @@ export async function GET(request: Request) {
 
       const studentUserIds = Array.from(userIdSet);
 
-      // Show students in teacher's classes OR students the teacher personally registered
-      const orParts: string[] = [`created_by.eq.${caller.id}`];
-      if (studentUserIds.length > 0) {
-        orParts.push(`user_id.in.(${studentUserIds.join(',')})`);
+      // Also catch students whose current_class matches teacher's class names at their school.
+      // Covers admin/school-registered students before portal_users.section_class is synced.
+      // Use a separate pre-query to avoid PostgREST string escaping issues with class names.
+      let currentClassStudentIds: string[] = [];
+      if (myClassNames.length > 0 && assignedIds.length > 0) {
+        const { data: ccRows } = await supabase
+          .from('students')
+          .select('id')
+          .in('current_class', myClassNames)
+          .in('school_id', assignedIds);
+        currentClassStudentIds = (ccRows ?? []).map((s: any) => s.id);
       }
+
+      // Build OR: teacher registered | in teacher's classes | current_class at teacher's school
+      const orParts: string[] = [`created_by.eq.${caller.id}`];
+      if (studentUserIds.length > 0) orParts.push(`user_id.in.(${studentUserIds.join(',')})`);
+      if (currentClassStudentIds.length > 0) orParts.push(`id.in.(${currentClassStudentIds.join(',')})`);
       query = query.or(orParts.join(',')) as any;
     }
 
