@@ -1445,7 +1445,7 @@ export default function LessonPlanDetailPage() {
         >
           <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3 hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-widest text-amber-300/90">Progression seed</p>
+              <p className="text-xs font-black uppercase tracking-widest text-amber-300/90">Starting Template</p>
               <p className="text-sm font-bold text-card-foreground mt-0.5">Grade week-by-week guide (registry)</p>
               <p className="text-[11px] text-card-foreground/55 mt-1 leading-snug">
                 Same catalogue &ldquo;Generate progression&rdquo; uses — ordered by year, term, and week. Use it to align your plan topics before or after syllabus import.
@@ -2163,10 +2163,10 @@ export default function LessonPlanDetailPage() {
                 <div className="relative p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(167,139,250,0.16),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="max-w-2xl">
-                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-300/90">Progression Builder</p>
+                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-300/90">Auto-Plan Builder</p>
                       <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">Design the route, preview the output, then generate with confidence.</h3>
                       <p className="text-sm text-card-foreground/65 mt-2 leading-relaxed">
-                        This builder keeps curriculum, progression, and daily lesson generation aligned. Choose scope, tune the route, preview the impact, then publish the structure your content tools will use.
+                        This builder keeps curriculum, teaching paths, and daily lesson generation aligned. Choose how much to build, tune the route, preview the impact, then publish the structure your content tools will use.
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3 min-w-0 sm:min-w-[18rem]">
@@ -2179,7 +2179,7 @@ export default function LessonPlanDetailPage() {
                         <p className="text-sm font-black text-card-foreground mt-1">{builderWeeksCount}</p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Registry Guide</p>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Teaching Guide</p>
                         <p className="text-sm font-black text-card-foreground mt-1">{guideData?.track ?? 'Ready on open'}</p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
@@ -2893,7 +2893,7 @@ export default function LessonPlanDetailPage() {
                   <SparklesIcon className="w-5 h-5 text-cyan-400" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Progression Builder</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Auto-Plan Builder</p>
                   <h3 className="text-base font-black text-card-foreground">Generate {progressionRunConfirm.scopeLabel}</h3>
                 </div>
               </div>

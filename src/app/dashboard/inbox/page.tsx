@@ -8,7 +8,7 @@ import {
   Loader2, X, MessageSquare, Users, Building2, Plus,
   ChevronLeft, Info, Filter, UserCircle, UserPlus,
   BookUser, Mail, School, GraduationCap, ChevronRight,
-  Pencil, AtSign, FileText, CheckCircle2, Clock, ExternalLink, Trash2,
+  Pencil, AtSign, FileText, CheckCircle2, Clock, ExternalLink, Trash2, Smile, Paperclip,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -1537,7 +1537,7 @@ export default function UnifiedInbox() {
       <div className={`${showSidebar ? 'flex' : 'hidden'} md:flex w-full md:w-[340px] lg:w-[380px] flex-col bg-[#111b21] border-r border-white/[0.07] shrink-0`}>
 
         {/* Sidebar Header */}
-        <div className="h-[56px] px-4 flex items-center justify-between bg-[#1f2c34] shrink-0 border-b border-white/[0.06]">
+        <div className="h-[56px] px-4 flex items-center justify-between bg-[#202c33] shrink-0 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <h2 className="text-white font-black text-[16px] tracking-tight">
               {sidebarView === 'contacts' ? 'Contacts' : 'Inbox'}
@@ -1696,7 +1696,7 @@ export default function UnifiedInbox() {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-0.5">
                           <span className="font-bold text-white text-[15px] truncate">{conv.contact_name}</span>
-                          <span className={`text-[11px] shrink-0 ml-2 ${conv.unread_count > 0 ? 'text-primary' : 'text-white/30'}`}>{formatConvTime(conv.last_message_at)}</span>
+                          <span className={`text-[12px] shrink-0 ml-2 ${conv.unread_count > 0 ? 'text-[#00a884] font-medium' : 'text-[#8696a0]'}`}>{formatConvTime(conv.last_message_at)}</span>
                         </div>
 
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1706,11 +1706,11 @@ export default function UnifiedInbox() {
                         </div>
 
                         <div className="flex justify-between items-center mt-1">
-                          <p className={`text-[13px] truncate mr-2 ${conv.unread_count > 0 ? 'text-white/90 font-medium' : 'text-white/40'}`}>
+                          <p className={`text-[14px] truncate mr-2 ${conv.unread_count > 0 ? 'text-white/90 font-medium' : 'text-[#8696a0]'}`}>
                             {conv.last_message_preview || 'No messages yet'}
                           </p>
                           {conv.unread_count > 0 && (
-                            <span className="bg-primary text-white text-[10px] font-black min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full shrink-0 shadow-sm shadow-primary/50">
+                            <span className="bg-[#00a884] text-[#111b21] text-[11px] font-bold min-w-[20px] h-[20px] flex items-center justify-center px-1 rounded-full shrink-0">
                               {conv.unread_count}
                             </span>
                           )}
@@ -1805,7 +1805,7 @@ export default function UnifiedInbox() {
                     className={`px-3 py-3 cursor-pointer transition-colors border-b border-white/[0.04] group ${activeContact?.id === contact.id ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'}`}>
                     <div className="flex items-center gap-3">
                       <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 ${contact.role === 'student' ? 'bg-emerald-500' : contact.role === 'parent' ? 'bg-primary' :
-                          contact.role === 'teacher' ? 'bg-primary' : contact.role === 'school' ? 'bg-indigo-600' : 'bg-white/20'
+                        contact.role === 'teacher' ? 'bg-primary' : contact.role === 'school' ? 'bg-indigo-600' : 'bg-white/20'
                         }`}>
                         {initials(contact.full_name)}
                       </div>
@@ -1870,7 +1870,7 @@ export default function UnifiedInbox() {
         {activeConv ? (
           <>
             {/* Chat Header */}
-            <div className="h-[56px] px-3 bg-[#1f2c34] flex items-center justify-between border-b border-white/[0.06] shrink-0 z-10">
+            <div className="h-[56px] px-4 bg-[#202c33] flex items-center justify-between border-b border-white/[0.06] shrink-0 z-10">
               <div className="flex items-center flex-1 min-w-0 gap-3">
                 <button onClick={() => { setShowSidebar(true); setActiveConv(null); setShowInfo(false); }} className="md:hidden text-white/50 hover:text-white">
                   <ChevronLeft className="w-6 h-6" />
@@ -1891,7 +1891,7 @@ export default function UnifiedInbox() {
                         {/* Assignment Status Pill */}
                         {activeConv.type === 'students' && (
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${activeConv.assigned_staff_id === profile?.id ? 'bg-primary/20 text-primary' :
-                              activeConv.assigned_staff_id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/30'
+                            activeConv.assigned_staff_id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-white/30'
                             }`}>
                             {activeConv.assigned_staff_id === profile?.id ? 'Assigned to you' :
                               activeConv.assigned_staff_id ? `Assigned to ${staff.find(s => s.id === activeConv.assigned_staff_id)?.full_name || 'Staff'}` : 'Unassigned'}
@@ -2020,8 +2020,8 @@ export default function UnifiedInbox() {
             {/* Chat body */}
             <div className="flex flex-1 overflow-hidden">
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 md:px-6 flex flex-col gap-0.5 custom-scrollbar"
-                style={{ backgroundColor: '#0b141a', backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.018' fill-rule='evenodd'%3E%3Cpath d='M0 0h40v40H0zm40 40h40v40H40z'/%3E%3C/g%3E%3C/svg%3E\")" }}>
+              <div className="flex-1 overflow-y-auto px-4 py-3 md:px-[6%] flex flex-col gap-1 custom-scrollbar"
+                style={{ backgroundColor: '#0b141a', backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath opacity='0.03' fill='%23ffffff' d='M25 25h10v10H25zm30 30h10v10H55zm-20 20h10v10H35zm40-40h10v10H75zM15 65h10v10H15zm50-50h10v10H65z'/%3E%3C/svg%3E\")", backgroundSize: '100px 100px' }}>
                 {msgLoading ? (
                   <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-white/25" /></div>
                 ) : messages.length === 0 ? (
@@ -2047,9 +2047,15 @@ export default function UnifiedInbox() {
                             <span className="bg-[#202c33] text-white/50 text-[11px] font-bold px-3 py-1 rounded-full">{formatDateSep(msg.created_at)}</span>
                           </div>
                         )}
-                        <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-[2px]`}>
-                          <div className={`max-w-[78%] md:max-w-[62%] shadow-sm ${isMine ? 'bg-[#005c4b] text-white rounded-[18px] rounded-tr-[4px] px-3.5 py-2' : 'bg-[#202c33] text-white rounded-[18px] rounded-tl-[4px] px-3.5 pt-2 pb-2'
+                        <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} mb-0.5`}>
+                          <div className={`relative max-w-[85%] md:max-w-[70%] shadow-sm ${isMine ? 'bg-[#005c4b] text-[#e9edef] rounded-lg rounded-tr-none px-2.5 py-1.5' : 'bg-[#202c33] text-[#e9edef] rounded-lg rounded-tl-none px-2.5 pt-1.5 pb-1.5'
                             }`}>
+                            {/* Tail pseudo-elements could be done with pure CSS or SVG, using simple CSS borders here */}
+                            {isMine ? (
+                              <div className="absolute top-0 -right-2 w-0 h-0 border-[4px] border-transparent border-t-[#005c4b] border-l-[#005c4b]" />
+                            ) : (
+                              <div className="absolute top-0 -left-2 w-0 h-0 border-[4px] border-transparent border-t-[#202c33] border-r-[#202c33]" />
+                            )}
                             {/* Inbound meta row — role/school/class for teachers/admins */}
                             {!isMine && (
                               <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
@@ -2068,15 +2074,17 @@ export default function UnifiedInbox() {
                                 )}
                               </div>
                             )}
-                            <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.body}</p>
-                            <div className={`flex items-center justify-end gap-1 mt-1 ${isMine ? 'text-white/50' : 'text-white/30'}`}>
-                              <span className="text-[10px]">{formatMsgTime(msg.created_at)}</span>
-                              {isMine && (
-                                msg.status === 'sending' ? <Clock className="w-3.5 h-3.5 text-white/30 animate-pulse" /> :
-                                msg.is_read || msg.status === 'read' ? <CheckCheck className="w-3.5 h-3.5 text-primary" /> :
-                                  msg.status === 'delivered' ? <CheckCheck className="w-3.5 h-3.5" /> :
-                                    <Check className="w-3.5 h-3.5" />
-                              )}
+                            <div className="flex flex-wrap items-end justify-between gap-2 mt-0.5">
+                              <p className="text-[14.2px] leading-snug whitespace-pre-wrap break-words">{msg.body}</p>
+                              <div className={`flex items-center gap-1 shrink-0 ${isMine ? 'text-[#8696a0]' : 'text-[#8696a0]'}`}>
+                                <span className="text-[11px] leading-none mt-1">{formatMsgTime(msg.created_at)}</span>
+                                {isMine && (
+                                  msg.status === 'sending' ? <Clock className="w-3.5 h-3.5 text-[#8696a0] animate-pulse" /> :
+                                    msg.is_read || msg.status === 'read' ? <CheckCheck className="w-4 h-4 text-[#53bdeb]" /> :
+                                      msg.status === 'delivered' ? <CheckCheck className="w-4 h-4" /> :
+                                        <Check className="w-4 h-4" />
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -2175,7 +2183,7 @@ export default function UnifiedInbox() {
             </div>
 
             {/* Message Input */}
-            <div className="shrink-0 bg-[#1f2c34] border-t border-white/[0.06]">
+            <div className="shrink-0 bg-[#202c33] border-none px-2 py-2 md:px-4 md:py-3">
               {(sendError || cooldownSeconds > 0) && (
                 <div className="px-4 py-2 bg-rose-500/10 text-rose-400 text-xs font-bold flex items-center justify-between border-b border-rose-500/10 gap-3">
                   <span className="flex-1 flex items-center gap-2">
@@ -2232,41 +2240,46 @@ export default function UnifiedInbox() {
                   </div>
                 </div>
               )}
-              <form onSubmit={handleSend} className="flex items-end gap-2 px-3 py-2.5">
+              <form onSubmit={handleSend} className="flex items-end gap-3 mt-1 pb-1">
+                <div className="flex items-center gap-1 shrink-0 mb-1 ml-1">
+                  <button type="button" className="p-2 text-[#8696a0] hover:text-[#d1d7db] transition-colors" title="Emoji">
+                    <Smile className="w-6 h-6" />
+                  </button>
+                  <button type="button" className="p-2 text-[#8696a0] hover:text-[#d1d7db] transition-colors" title="Attach">
+                    <Paperclip className="w-5 h-5" />
+                  </button>
+                </div>
                 <textarea ref={textareaRef} value={newMessage} onChange={handleTextareaChange}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
-                  placeholder="Type a message…" rows={1}
-                  className="flex-1 bg-[#2a3942] text-white text-[14px] rounded-2xl px-4 py-2.5 outline-none resize-none placeholder-white/25 focus:ring-1 focus:ring-white/15 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
+                  placeholder="Type a message" rows={1}
+                  className="flex-1 bg-[#2a3942] text-[#d1d7db] text-[15px] rounded-lg px-4 py-2.5 outline-none resize-none placeholder-[#8696a0] focus:ring-0 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
                 <button type="submit" disabled={!newMessage.trim() || isSending || cooldownSeconds > 0}
-                  className="w-10 h-10 bg-primary hover:bg-primary disabled:bg-white/10 disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-all shrink-0 shadow-lg shadow-primary/20">
-                  {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                   cooldownSeconds > 0 ? <span className="text-[10px] font-black">{cooldownSeconds}</span> :
-                   <Send className="w-[15px] h-[15px] ml-0.5" />}
+                  className="w-10 h-10 bg-transparent text-[#8696a0] hover:text-[#d1d7db] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0 mb-1">
+                  {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> :
+                    cooldownSeconds > 0 ? <span className="text-xs font-black">{cooldownSeconds}</span> :
+                      <Send className="w-6 h-6" />}
                 </button>
               </form>
             </div>
           </>
         ) : (
           /* Empty state — full-bleed, native */
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none"
-            style={{ backgroundColor: '#0b141a', backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.012' fill-rule='evenodd'%3E%3Cpath d='M0 0h40v40H0zm40 40h40v40H40z'/%3E%3C/g%3E%3C/svg%3E\")" }}>
-            {/* Decorative ring */}
-            <div className="relative mb-7">
-              <div className="w-28 h-28 rounded-full border-2 border-white/[0.06] flex items-center justify-center">
-                <div className="w-20 h-20 rounded-full bg-[#202c33] flex items-center justify-center">
-                  <MessageSquare className="w-9 h-9 text-white/20" />
-                </div>
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none border-b-[6px] border-b-[#00a884] overflow-y-auto"
+            style={{ backgroundColor: '#202c33' }}>
+            <div className="max-w-[560px] mx-auto text-center mt-8">
+              {/* Fake laptop illustration to match WA web */}
+              <div className="mx-auto mb-10 w-[280px]">
+                <svg viewBox="0 0 100 100" className="w-full h-auto text-white/[0.04] drop-shadow-md">
+                  <path fill="currentColor" d="M10,70 L90,70 L85,20 L15,20 Z" />
+                  <rect fill="currentColor" x="5" y="72" width="90" height="6" rx="3" />
+                </svg>
               </div>
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-                <div className="w-2 h-2 bg-card rounded-full" />
-              </div>
+              <h1 className="text-[32px] font-light text-[#e9edef] mb-4 tracking-tight">Rillcod Web Hub</h1>
+              <p className="text-[#8696a0] text-[14px] leading-relaxed mb-8 max-w-sm mx-auto">
+                Send and receive messages seamlessly.<br />
+                All your school, teacher, and student communication centralized in one unified inbox.
+              </p>
             </div>
-            <h1 className="text-[22px] font-black text-white/75 mb-2 tracking-tight">Unified Inbox</h1>
-            <p className="text-white/25 max-w-xs text-[13px] leading-relaxed">
-              {isAdmin ? 'All channels in one place — WhatsApp, parents, teachers & schools.' :
-                isSchool ? 'Reach students via WhatsApp and communicate with teachers directly.' :
-                  'Student WhatsApp messages, parent threads, and school communications.'}
-            </p>
             <p className="text-white/15 text-[11px] mt-2 font-bold uppercase tracking-widest">
               Select a conversation to start
             </p>
