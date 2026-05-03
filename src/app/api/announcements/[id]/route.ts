@@ -9,30 +9,57 @@ function adminClient() {
   );
 }
 
-async function requireStaff() {
+async function requireWriteStaff() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('id, role')
+    .select('id, role, school_id')
     .eq('id', user.id)
     .single();
-  if (!profile || profile.role === 'student') return null;
+  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) return null;
   return profile;
 }
 
-// PATCH /api/announcements/[id] — update (e.g. soft-delete: is_active=false)
+async function callerCanManageAnnouncement(
+  caller: { id: string; role: string; school_id: string | null },
+  announcementId: string,
+): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  const admin = adminClient();
+  const { data: ann } = await admin
+    .from('announcements')
+    .select('school_id, author_id')
+    .eq('id', announcementId)
+    .maybeSingle();
+  if (!ann) return false;
+  if (ann.author_id === caller.id) return true;
+  const annSchool = ann.school_id;
+  if (!annSchool) return false;
+  if (caller.school_id === annSchool) return true;
+  const { data: tsRows } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', caller.id);
+  return (tsRows ?? []).some((r: any) => r.school_id === annSchool);
+}
+
+// PATCH /api/announcements/[id]
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireStaff();
+  const caller = await requireWriteStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await context.params;
-  const body = await request.json();
 
+  if (!(await callerCanManageAnnouncement(caller as any, id))) {
+    return NextResponse.json({ error: 'Access denied: announcement belongs to a different school' }, { status: 403 });
+  }
+
+  const body = await request.json();
   const update: Record<string, any> = {};
   const fields = ['title', 'content', 'target_audience', 'is_active'];
   for (const f of fields) {
@@ -51,15 +78,20 @@ export async function PATCH(
   return NextResponse.json({ data });
 }
 
-// DELETE /api/announcements/[id] — hard delete
+// DELETE /api/announcements/[id]
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireStaff();
+  const caller = await requireWriteStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await context.params;
+
+  if (!(await callerCanManageAnnouncement(caller as any, id))) {
+    return NextResponse.json({ error: 'Access denied: announcement belongs to a different school' }, { status: 403 });
+  }
+
   const admin = adminClient();
   const { error } = await admin.from('announcements').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

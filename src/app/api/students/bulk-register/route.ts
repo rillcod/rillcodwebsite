@@ -54,6 +54,26 @@ export async function POST(request: Request) {
     const cId = caller.school_id?.toString().trim() || null;
     
     const resolvedSchoolId: string | null = rId || cId;
+
+    // Teachers must be assigned to the school they're registering students under
+    if (caller.role === 'teacher' && rId) {
+      const { data: tsRows } = await supabaseAdmin
+        .from('teacher_schools')
+        .select('school_id')
+        .eq('teacher_id', user.id);
+      const assignedIds = new Set<string>();
+      if (caller.school_id) assignedIds.add(caller.school_id);
+      for (const r of (tsRows ?? [])) {
+        if ((r as any).school_id) assignedIds.add((r as any).school_id);
+      }
+      if (!assignedIds.has(rId)) {
+        return NextResponse.json(
+          { error: 'You are not assigned to the school you selected for registration.' },
+          { status: 403 },
+        );
+      }
+    }
+
     const resolvedSchoolName: string | null = (body.school_name?.trim() ? body.school_name : null) ?? caller.school_name ?? null;
 
     console.log('[BulkRegister] Auth User:', user.id);
@@ -357,6 +377,11 @@ export async function PATCH(request: Request) {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const { data: patchCaller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+    if (!patchCaller || !['admin', 'teacher'].includes(patchCaller.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
 
     if (body.type === 'batch') {
@@ -404,6 +429,11 @@ export async function DELETE(request: Request) {
     const supabase = await createServerClient();
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { data: deleteCaller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+    if (!deleteCaller || !['admin', 'teacher'].includes(deleteCaller.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { searchParams } = new URL(request.url);
     const batchId = searchParams.get('batchId');

@@ -56,10 +56,21 @@ export async function POST(req: NextRequest) {
     .in('role', targetRoles)
     .eq('is_active', true);
 
-  // Teachers can only send to their school's users
-  const effectiveSchoolId = sender.role === 'teacher' ? sender.school_id : (school_id || null);
-  if (effectiveSchoolId) {
-    userQuery = userQuery.eq('school_id', effectiveSchoolId);
+  // Teachers are scoped to all their assigned schools (teacher_schools + primary)
+  if (sender.role === 'teacher') {
+    const { data: tsRows } = await db.from('teacher_schools').select('school_id').eq('teacher_id', sender.id);
+    const teacherSchoolIds = new Set<string>();
+    if (sender.school_id) teacherSchoolIds.add(sender.school_id);
+    for (const r of tsRows ?? []) {
+      if ((r as any).school_id) teacherSchoolIds.add((r as any).school_id);
+    }
+    const ids = Array.from(teacherSchoolIds);
+    if (ids.length === 0) {
+      return NextResponse.json({ error: 'No school assignment found for this teacher' }, { status: 403 });
+    }
+    userQuery = userQuery.in('school_id', ids);
+  } else if (school_id) {
+    userQuery = userQuery.eq('school_id', school_id);
   }
 
   const { data: recipients } = await userQuery;

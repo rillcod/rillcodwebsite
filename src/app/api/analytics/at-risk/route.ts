@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
@@ -27,12 +28,30 @@ export async function GET(req: NextRequest) {
     }
 
     const searchParams = req.nextUrl.searchParams;
-    const schoolId = searchParams.get('school_id') || profile.school_id;
+    const requestedSchoolId = searchParams.get('school_id') || profile.school_id;
     const classId = searchParams.get('class_id');
     const threshold = parseInt(searchParams.get('threshold') || '50', 10);
 
-    if (!schoolId) {
+    if (!requestedSchoolId) {
       return NextResponse.json({ error: 'School ID required' }, { status: 400 });
+    }
+
+    // Teachers must be assigned to the requested school
+    let schoolId = requestedSchoolId;
+    if (profile.role === 'teacher') {
+      const db = createAdminClient();
+      const { data: tsRows } = await db
+        .from('teacher_schools')
+        .select('school_id')
+        .eq('teacher_id', profile.id);
+      const assignedIds = new Set<string>();
+      if (profile.school_id) assignedIds.add(profile.school_id);
+      for (const r of tsRows ?? []) {
+        if ((r as any).school_id) assignedIds.add((r as any).school_id);
+      }
+      if (!assignedIds.has(requestedSchoolId)) {
+        return NextResponse.json({ error: 'Access denied: school is outside your scope' }, { status: 403 });
+      }
     }
 
     // Use the optimized RPC function
