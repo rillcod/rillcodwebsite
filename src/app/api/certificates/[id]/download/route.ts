@@ -23,7 +23,22 @@ async function downloadHandler(req: Request, ctx: ApiContext) {
     if (user?.role === 'student' && cert.portal_user_id !== user.id) {
         throw new AppError('Unauthorized', 403);
     }
-    // (Staff checks could be added here similar to GET handler)
+    // Staff must be scoped to the certificate's school (same pattern as GET handler)
+    if (user?.role && !['student', 'admin'].includes(user.role)) {
+        const certSchool = ((cert.metadata as Record<string, unknown> | null)?.school_id as string | undefined) || null;
+        if (certSchool) {
+            const scopedIds = new Set<string>();
+            if (user.tenantId) scopedIds.add(user.tenantId);
+            const { createClient: createSC } = await import('@/lib/supabase/server');
+            const sc = await createSC();
+            const { data: tsRows } = await sc.from('teacher_schools').select('school_id').eq('teacher_id', user.id);
+            for (const r of tsRows ?? []) {
+                const sid = (r as { school_id: string | null }).school_id;
+                if (sid) scopedIds.add(sid);
+            }
+            if (!scopedIds.has(certSchool)) throw new AppError('Unauthorized', 403);
+        }
+    }
 
     // 3. Generate signed URL from R2 (via filesService logic or directly)
     // filesService.generateSignedUrl expects a file RECORD ID, but we have a storage_path.

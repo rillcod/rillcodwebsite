@@ -17,7 +17,11 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
 
-  const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'rillcod_webhook_secret_2026';
+  const VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN;
+  if (!VERIFY_TOKEN) {
+    console.error('[WhatsApp Webhook] WHATSAPP_WEBHOOK_VERIFY_TOKEN env var not set');
+    return NextResponse.json({ error: 'Webhook misconfigured' }, { status: 500 });
+  }
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
     console.log('[WhatsApp Webhook] Verification successful');

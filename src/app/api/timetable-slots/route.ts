@@ -15,11 +15,11 @@ async function requireTeacherOrAdmin() {
   if (error || !user) return null;
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('id, role')
+    .select('id, role, school_id')
     .eq('id', user.id)
     .single();
   if (!profile || !['admin', 'teacher'].includes(profile.role)) return null;
-  return profile;
+  return profile as { id: string; role: string; school_id: string | null };
 }
 
 // POST /api/timetable-slots — create slot
@@ -35,6 +35,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'timetable_id and subject are required' }, { status: 400 });
 
   const admin = adminClient();
+
+  // Teacher: verify timetable belongs to their assigned school
+  if (caller.role === 'teacher') {
+    const { data: tsRows } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', caller.id);
+    const schoolIds = new Set<string>();
+    if (caller.school_id) schoolIds.add(caller.school_id);
+    for (const r of tsRows ?? []) { if ((r as any).school_id) schoolIds.add((r as any).school_id); }
+
+    const { data: timetable } = await admin.from('timetables').select('school_id').eq('id', timetable_id).maybeSingle();
+    if (timetable?.school_id && !schoolIds.has(timetable.school_id)) {
+      return NextResponse.json({ error: 'Access denied: timetable belongs to a different school' }, { status: 403 });
+    }
+  }
 
   // Req 13.3 — server-side conflict detection via RPC
   const { data: conflictResult, error: rpcErr } = await admin
