@@ -85,14 +85,23 @@ async function updateHandler(req: Request, ctx: ApiContext) {
         return NextResponse.json(result);
     }
 
-    // Otherwise, generic update
+    // Generic update — whitelist to prevent arbitrary column injection
+    const allowedFields = ['template_id', 'certificate_text'];
+    const safeUpdate: Record<string, unknown> = {};
+    for (const f of allowedFields) {
+        if (f in body) safeUpdate[f] = body[f];
+    }
+    if (Object.keys(safeUpdate).length === 0) {
+        throw new AppError('No valid update fields provided', 400);
+    }
+
     const { data, error } = await supabase
         .from('certificates')
-        .update(body)
+        .update(safeUpdate)
         .eq('id', certId)
         .select()
         .single();
-        
+
     if (error) throw new AppError(error.message, 500);
     return NextResponse.json({ success: true, data });
 }
