@@ -230,28 +230,18 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
-      // Class ownership is proven by teacher_id alone — no school_id cross-check needed
-      // (school boundary is enforced at class creation time, not on reads)
-      const { data: myClasses } = await supabase
-        .from('classes')
-        .select('id')
+      // School-based scope: teacher sees all students at their assigned schools
+      // plus any they personally registered. Does not depend on class_id being set.
+      const { data: schoolAssignments } = await supabase
+        .from('teacher_schools')
+        .select('school_id')
         .eq('teacher_id', caller.id);
-      const myClassIds = (myClasses ?? []).map(c => c.id);
+      const assignedIds = (schoolAssignments ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
+      if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
 
-      let studentUserIds: string[] = [];
-      if (myClassIds.length > 0) {
-        const { data: portalStudents } = await supabase
-          .from('portal_users')
-          .select('id')
-          .in('class_id', myClassIds)
-          .eq('role', 'student');
-        studentUserIds = (portalStudents ?? []).map((s: any) => s.id);
-      }
-
-      // Show students this teacher registered (created_by) OR students in their classes
       const orParts: string[] = [`created_by.eq.${caller.id}`];
-      if (studentUserIds.length > 0) {
-        orParts.push(`user_id.in.(${studentUserIds.join(',')})`);
+      if (assignedIds.length > 0) {
+        assignedIds.forEach(sid => orParts.push(`school_id.eq.${sid}`));
       }
       query = query.or(orParts.join(',')) as any;
     }
