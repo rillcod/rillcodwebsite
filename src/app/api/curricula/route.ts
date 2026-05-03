@@ -410,7 +410,11 @@ export async function DELETE(req: NextRequest) {
   
   // Verify ownership if teacher
   if (profile.role === 'teacher') {
-    const { data: existing } = await admin.from('course_curricula').select('created_by').eq('id', id).single();
+    const { data: existing } = await admin.from('course_curricula').select('created_by, school_id').eq('id', id).single();
+    // Platform curricula (school_id = null) are admin-only to delete; teachers can clone/hide but not delete
+    if (existing && existing.school_id === null) {
+      return NextResponse.json({ error: 'Platform curricula cannot be deleted. Clone it to create your own version.' }, { status: 403 });
+    }
     if (existing && existing.created_by !== user.id) {
       return NextResponse.json({ error: 'You can only delete your own syllabus versions.' }, { status: 403 });
     }

@@ -977,11 +977,7 @@ export default function CurriculumPage() {
           setGenerateScope(scope);
           restoreGradeForScope(scope);
 
-          // Only auto-select if there's exactly one version,
-          // or if we are a learner (learners always see the best/published one).
-          if (items.length === 1 || isLearnerRole) {
-            setCurriculum(curr);
-          }
+          setCurriculum(curr);
 
           // Mark this course as having a curriculum (for sidebar badge)
           setCoursesWithCurricula(prev => { const n = new Set(prev); n.add(courseId); return n; });
