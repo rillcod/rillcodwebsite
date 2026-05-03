@@ -178,6 +178,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Resolve school_id — use profile primary first, then teacher_schools for multi-school teachers
+  let resolvedSchoolId: string | null = profile.school_id ?? null;
+  if (!resolvedSchoolId && profile.role === 'teacher') {
+    const { data: tsRows } = await supabase
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', user.id)
+      .limit(1);
+    resolvedSchoolId = (tsRows?.[0] as any)?.school_id ?? null;
+  }
+
   const insertPayload: FlashcardDeckInsert = {
     title: title.trim(),
     lesson_id: lesson_id || null,
@@ -189,7 +200,7 @@ export async function POST(req: NextRequest) {
     progression_weekly_frequency: progressionContext.weeklyFrequency,
     progression_policy_snapshot: progressionContext.policySnapshot,
   };
-  if (profile.school_id) insertPayload.school_id = profile.school_id;
+  if (resolvedSchoolId) insertPayload.school_id = resolvedSchoolId;
 
   const { data, error } = await supabase
     .from('flashcard_decks')
