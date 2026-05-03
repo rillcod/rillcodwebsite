@@ -2068,27 +2068,33 @@ function ReportBuilderInner() {
                                     )}
                                 </div>
 
-                                {/* Quick-filter chips per class — hidden in override mode */}
+                                {/* Dropdown filter per class — hidden in override mode */}
                                 {!overrideFilters && (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        <button
-                                            onClick={() => setClassFilter('')}
-                                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!classFilter ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <select
+                                            title="Filter by Class"
+                                            value={classFilter}
+                                            onChange={e => setClassFilter(e.target.value)}
+                                            className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg min-w-[200px]"
                                         >
-                                            All ({filteredStudents.length})
-                                        </button>
-                                        {distinctClasses.map(c => {
-                                            const isTeacherClass = teacherClasses.some(tc => tc.name === c);
-                                            return (
-                                                <button key={c}
-                                                    onClick={() => setClassFilter(classFilter === c ? '' : c)}
-                                                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${classFilter === c ? 'bg-primary text-foreground border-primary' : isTeacherClass ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                                    title={isTeacherClass ? 'Teacher-created class' : undefined}
-                                                >
-                                                    {isTeacherClass && <span className="mr-1">🏫</span>}{c}
-                                                </button>
-                                            );
-                                        })}
+                                            <option value="">All Classes ({filteredStudents.length} students)</option>
+                                            {distinctClasses.map(c => {
+                                                const isTeacherClass = teacherClasses.some(tc => tc.name === c);
+                                                return (
+                                                    <option key={c} value={c}>
+                                                        {isTeacherClass ? '🏫 ' : ''}{c}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                        {classFilter && (
+                                            <button
+                                                onClick={() => setClassFilter('')}
+                                                className="text-xs text-primary hover:text-primary font-bold transition-colors px-2"
+                                            >
+                                                Clear filter
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

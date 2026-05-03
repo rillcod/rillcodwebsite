@@ -24,6 +24,7 @@ import {
   type SyllabusPreviewRole,
 } from '@/components/curriculum/SyllabusPreview';
 import { CurriculumPrintDoc } from '@/components/curriculum/CurriculumPrintDoc';
+import { CurriculumOverviewPrintDoc } from '@/components/curriculum/CurriculumOverviewPrintDoc';
 import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 
 // Nigerian term labels
@@ -267,6 +268,7 @@ export default function CurriculumPage() {
   const [implError, setImplError] = useState('');
   const [implementationList, setImplementationList] = useState<any[]>([]);
   const [globalImplementationList, setGlobalImplementationList] = useState<any[]>([]);
+  const [printMode, setPrintMode] = useState<'week' | 'overview'>('week');
   // For teachers with multiple classes using this syllabus — which class context to track against
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [deletingImpl, setDeletingImpl] = useState<string | null>(null);
@@ -1386,9 +1388,15 @@ export default function CurriculumPage() {
     }
   }
 
-  // ── Print lesson plan ─────────────────────────────────────────────────────
+  // ── Print functions ────────────────────────────────────────────────────────
   function printWeek() {
-    window.print();
+    setPrintMode('week');
+    setTimeout(() => window.print(), 50);
+  }
+
+  function printOverview() {
+    setPrintMode('overview');
+    setTimeout(() => window.print(), 50);
   }
 
 
@@ -1558,15 +1566,24 @@ export default function CurriculumPage() {
   // ── Render (staff: teacher / admin) ─────────────────────────────────────
   return (
     <>
-    {/* Official print document — hidden in UI, revealed only by window.print() */}
-    <CurriculumPrintDoc
-      curriculum={curriculum as any}
-      activeWeek={activeWeek}
-      activeTerm={activeTerm}
-      courseTitle={selectedCourse?.title}
-      programName={selectedProgram?.name}
-      teacherName={profile?.full_name ?? undefined}
-    />
+    {/* Official print documents — hidden in UI, revealed only by window.print() */}
+    <div style={{ display: printMode === 'week' ? 'block' : 'none' }}>
+      <CurriculumPrintDoc
+        curriculum={curriculum as any}
+        activeWeek={activeWeek}
+        activeTerm={activeTerm}
+        courseTitle={selectedCourse?.title}
+        programName={selectedProgram?.name}
+        teacherName={profile?.full_name ?? undefined}
+      />
+    </div>
+    <div style={{ display: printMode === 'overview' ? 'block' : 'none' }}>
+      <CurriculumOverviewPrintDoc
+        curriculum={curriculum as any}
+        programName={selectedProgram?.name}
+        isActive={printMode === 'overview'}
+      />
+    </div>
     <div className="flex flex-col min-h-screen bg-background text-foreground print:hidden">
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-card z-20">
@@ -2333,6 +2350,12 @@ export default function CurriculumPage() {
                         )}
 
                         <div className="flex items-center gap-2 border-l border-white/10 pl-2 ml-1">
+                          <button
+                            onClick={printOverview}
+                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <PrinterIcon className="w-3.5 h-3.5" /> Print Syllabus
+                          </button>
                           <Link
                             href="/dashboard/curriculum/progress"
                             className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
