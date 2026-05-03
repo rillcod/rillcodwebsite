@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     const isTeacher = callerRole === 'teacher';
 
     const rows = (data ?? [])
-      .filter((row: any) => isProgramVisibleToRole(row, callerRole ?? null))
+      .filter((row: any) => publicCatalog || isProgramVisibleToRole(row, callerRole ?? null))
       .map((row: any) => {
         if (isAdmin) return row;
         if (isTeacher) return row;

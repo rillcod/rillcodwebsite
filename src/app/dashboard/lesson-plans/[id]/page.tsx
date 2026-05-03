@@ -372,9 +372,9 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
+  draft: { label: 'Draft', cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
   published: { label: 'Published', cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  archived:  { label: 'Archived',  cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  archived: { label: 'Archived', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
 };
 
 const PROGRESSION_SCOPE_OPTIONS: Array<{
@@ -383,31 +383,31 @@ const PROGRESSION_SCOPE_OPTIONS: Array<{
   eyebrow: string;
   description: string;
 }> = [
-  {
-    id: 'week',
-    title: 'Single Week',
-    eyebrow: 'Precise repair',
-    description: 'Generate or replace one week in a specific year and term.',
-  },
-  {
-    id: 'term',
-    title: 'Single Term',
-    eyebrow: 'Focused build',
-    description: 'Build one term route with curriculum-aligned week structure.',
-  },
-  {
-    id: 'session',
-    title: 'Full Session',
-    eyebrow: 'Three-term build',
-    description: 'Generate all three terms for one academic session/year.',
-  },
-  {
-    id: 'full_program',
-    title: 'Three Years',
-    eyebrow: 'Whole pathway',
-    description: 'Auto-build the full 3-year teaching map end to end.',
-  },
-];
+    {
+      id: 'week',
+      title: 'Single Week',
+      eyebrow: 'Precise repair',
+      description: 'Generate or replace one week in a specific year and term.',
+    },
+    {
+      id: 'term',
+      title: 'Single Term',
+      eyebrow: 'Focused build',
+      description: 'Build one term route with curriculum-aligned week structure.',
+    },
+    {
+      id: 'session',
+      title: 'Full Session',
+      eyebrow: 'Three-term build',
+      description: 'Generate all three terms for one academic session/year.',
+    },
+    {
+      id: 'full_program',
+      title: 'Three Years',
+      eyebrow: 'Whole pathway',
+      description: 'Auto-build the full 3-year teaching map end to end.',
+    },
+  ];
 
 export default function LessonPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -643,12 +643,12 @@ export default function LessonPlanDetailPage() {
   }
 
   function addWeek() {
-    const newWeek: WeekEntry = { 
-      week: weeks.length + 1, 
-      topic: '', 
-      completed: false, 
-      objectives: '', 
-      activities: '', 
+    const newWeek: WeekEntry = {
+      week: weeks.length + 1,
+      topic: '',
+      completed: false,
+      objectives: '',
+      activities: '',
       notes: '',
       project: { title: '', description: '' },
       assignment: { title: '', brief: '' },
@@ -778,12 +778,12 @@ export default function LessonPlanDetailPage() {
     const updated = weeks.map((w) =>
       w.week === weekNum
         ? {
-            ...w,
-            gating_state: 'unlocked' as const,
-            override_reason: trimmed,
-            overridden_by: profile?.role ?? 'teacher',
-            overridden_at: new Date().toISOString(),
-          }
+          ...w,
+          gating_state: 'unlocked' as const,
+          override_reason: trimmed,
+          overridden_by: profile?.role ?? 'teacher',
+          overridden_at: new Date().toISOString(),
+        }
         : w,
     );
     saveWeeks(updated);
@@ -1075,7 +1075,7 @@ export default function LessonPlanDetailPage() {
     fetch(url)
       .then(r => r.json())
       .then(j => setMyClasses((j.data ?? []) as { id: string; name: string; teacher_id?: string | null }[]))
-      .catch(() => {});
+      .catch(() => { });
   }, [profile?.id, profile?.role]);
 
   async function assignClass(classId: string | null) {
@@ -1526,21 +1526,19 @@ export default function LessonPlanDetailPage() {
       <div className="flex gap-2 border-b border-white/[0.08] print:hidden">
         <button
           onClick={() => setActiveTab('weeks')}
-          className={`px-4 py-2 text-sm font-bold transition-all ${
-            activeTab === 'weeks'
+          className={`px-4 py-2 text-sm font-bold transition-all ${activeTab === 'weeks'
               ? 'text-primary border-b-2 border-primary'
               : 'text-card-foreground/50 hover:text-card-foreground/70'
-          }`}
+            }`}
         >
           Week-by-Week Plan
         </button>
         <button
           onClick={() => setActiveTab('content')}
-          className={`px-4 py-2 text-sm font-bold transition-all ${
-            activeTab === 'content'
+          className={`px-4 py-2 text-sm font-bold transition-all ${activeTab === 'content'
               ? 'text-primary border-b-2 border-primary'
               : 'text-card-foreground/50 hover:text-card-foreground/70'
-          }`}
+            }`}
         >
           Content Dashboard
         </button>
@@ -1549,54 +1547,54 @@ export default function LessonPlanDetailPage() {
       {/* Week Entries */}
       {activeTab === 'weeks' && (
         <div className="space-y-3">
-        {/* Quick Generate bar */}
-        {canGenerateProgression && plan.course_id && plan.school_id && (
-          <div className="print:hidden bg-card border border-white/[0.08] rounded-2xl p-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40 mb-3">Generate content for this plan</p>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => bulkGenerate('lessons')} disabled={generating !== null}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 hover:bg-primary disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
-                <SparklesIcon className="w-3.5 h-3.5" /> Lessons
-              </button>
-              <button onClick={() => bulkGenerate('assignments')} disabled={generating !== null}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 hover:bg-primary disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
-                <SparklesIcon className="w-3.5 h-3.5" /> Assignments
-              </button>
-              <button onClick={() => bulkGenerate('cbt')} disabled={generating !== null}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/90 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
-                <BoltIcon className="w-3.5 h-3.5" /> CBT Exams
-              </button>
-              <button onClick={() => bulkGenerate('flashcards')} disabled={generating !== null}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600/90 hover:bg-yellow-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
-                <SparklesIcon className="w-3.5 h-3.5" /> Flashcards
-              </button>
-              <button onClick={() => bulkGenerate('projects')} disabled={generating !== null}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
-                <SparklesIcon className="w-3.5 h-3.5" /> Projects
-              </button>
+          {/* Quick Generate bar */}
+          {canGenerateProgression && plan.course_id && plan.school_id && (
+            <div className="print:hidden bg-card border border-white/[0.08] rounded-2xl p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-card-foreground/40 mb-3">Generate content for this plan</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => bulkGenerate('lessons')} disabled={generating !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 hover:bg-primary disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                  <SparklesIcon className="w-3.5 h-3.5" /> Lessons
+                </button>
+                <button onClick={() => bulkGenerate('assignments')} disabled={generating !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 hover:bg-primary disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                  <SparklesIcon className="w-3.5 h-3.5" /> Assignments
+                </button>
+                <button onClick={() => bulkGenerate('cbt')} disabled={generating !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/90 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                  <BoltIcon className="w-3.5 h-3.5" /> CBT Exams
+                </button>
+                <button onClick={() => bulkGenerate('flashcards')} disabled={generating !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-600/90 hover:bg-yellow-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                  <SparklesIcon className="w-3.5 h-3.5" /> Flashcards
+                </button>
+                <button onClick={() => bulkGenerate('projects')} disabled={generating !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition-all">
+                  <SparklesIcon className="w-3.5 h-3.5" /> Projects
+                </button>
+              </div>
+              {genProgress && (
+                <p className="text-xs text-card-foreground/50 mt-2">{genProgress.status} — {genProgress.generated}/{genProgress.total}</p>
+              )}
             </div>
-            {genProgress && (
-              <p className="text-xs text-card-foreground/50 mt-2">{genProgress.status} — {genProgress.generated}/{genProgress.total}</p>
-            )}
-          </div>
-        )}
+          )}
 
-        <div className="flex items-center justify-between print:hidden">
-          <h2 className="text-base font-black text-card-foreground">Week-by-Week Plan</h2>
-          <button onClick={addWeek} disabled={saving || weekDraft !== null}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all">
-            <PlusIcon className="w-4 h-4" /> Add Week
-          </button>
-        </div>
-
-        {weeks.length === 0 ? (
-          <div className="bg-card border border-white/[0.08] rounded-2xl p-8 text-center print:hidden">
-            <p className="text-card-foreground/40 text-sm">No weeks added yet. Click "Add Week" to start building your plan.</p>
+          <div className="flex items-center justify-between print:hidden">
+            <h2 className="text-base font-black text-card-foreground">Week-by-Week Plan</h2>
+            <button onClick={addWeek} disabled={saving || weekDraft !== null}
+              className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all">
+              <PlusIcon className="w-4 h-4" /> Add Week
+            </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {weeks.map(w => (
-              <div key={w.week} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden hover:border-white/[0.14] transition-colors group">
+
+          {weeks.length === 0 ? (
+            <div className="bg-card border border-white/[0.08] rounded-2xl p-8 text-center print:hidden">
+              <p className="text-card-foreground/40 text-sm">No weeks added yet. Click "Add Week" to start building your plan.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {weeks.map(w => (
+                <div key={w.week} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden hover:border-white/[0.14] transition-colors group">
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => startEdit(w)}>
@@ -1617,7 +1615,7 @@ export default function LessonPlanDetailPage() {
                         </div>
                         <h3 className="font-bold text-card-foreground text-sm">{w.topic || <span className="text-card-foreground/30 italic">No topic</span>}</h3>
                         {w.objectives && <p className="text-xs text-card-foreground/50 mt-1 line-clamp-2">{w.objectives}</p>}
-                        
+
                         {/* Seed Data Preview */}
                         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {(w.project?.title || w.project?.description) && (
@@ -1695,9 +1693,8 @@ export default function LessonPlanDetailPage() {
                         </Link>
                         <button
                           onClick={() => toggleWeekCompleted(w.week)}
-                          className={`p-1.5 rounded-lg transition-all ${
-                            w.completed ? 'hover:bg-emerald-500/15' : 'hover:bg-white/10'
-                          }`}
+                          className={`p-1.5 rounded-lg transition-all ${w.completed ? 'hover:bg-emerald-500/15' : 'hover:bg-white/10'
+                            }`}
                           title={w.completed ? 'Mark as not completed' : 'Mark as completed'}
                         >
                           <CheckCircleIcon className={`w-3.5 h-3.5 ${w.completed ? 'text-emerald-400' : 'text-card-foreground/40'}`} />
@@ -1727,16 +1724,16 @@ export default function LessonPlanDetailPage() {
                     </div>
                   </div>
                 </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        {saving && (
-          <div className="flex items-center gap-2 text-xs text-card-foreground/40 print:hidden">
-            <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Saving…
-          </div>
-        )}
-      </div>
+          {saving && (
+            <div className="flex items-center gap-2 text-xs text-card-foreground/40 print:hidden">
+              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Saving…
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Week AI Generator modal ── */}
@@ -1799,23 +1796,21 @@ export default function LessonPlanDetailPage() {
                       {linearOpsFlow.filter(item => phase.steps.includes(item.step)).map((item) => (
                         <div
                           key={item.step}
-                          className={`rounded-2xl border p-4 transition-all duration-300 hover:scale-[1.02] ${
-                            item.state === 'risk'
+                          className={`rounded-2xl border p-4 transition-all duration-300 hover:scale-[1.02] ${item.state === 'risk'
                               ? 'border-rose-400/25 bg-rose-500/[0.08]'
                               : item.state === 'watch'
                                 ? 'border-amber-400/25 bg-amber-500/[0.08]'
                                 : 'border-emerald-400/20 bg-emerald-500/[0.06]'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-[10px] font-black uppercase tracking-[0.24em] text-card-foreground/45">Step {item.step}</span>
-                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${
-                              item.state === 'risk'
+                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${item.state === 'risk'
                                 ? 'text-rose-200'
                                 : item.state === 'watch'
                                   ? 'text-amber-200'
                                   : 'text-emerald-200'
-                            }`}>
+                              }`}>
                               {item.state}
                             </span>
                           </div>
@@ -1911,15 +1906,14 @@ export default function LessonPlanDetailPage() {
                                     <p className="text-xs font-black text-card-foreground">Y{row.year_number} T{row.term_number} W{row.week_number}</p>
                                     <p className="text-sm text-card-foreground/80 mt-1">{row.topic}</p>
                                   </div>
-                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] ${
-                                    row.release_status === 'released'
+                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] ${row.release_status === 'released'
                                       ? 'bg-emerald-500/15 text-emerald-200 border border-emerald-400/20'
                                       : row.release_status === 'partial'
                                         ? 'bg-amber-500/15 text-amber-200 border border-amber-400/20'
                                         : row.release_status === 'draft'
                                           ? 'bg-zinc-500/15 text-zinc-200 border border-zinc-400/20'
                                           : 'bg-rose-500/15 text-rose-200 border border-rose-400/20'
-                                  }`}>
+                                    }`}>
                                     {row.release_status}
                                   </span>
                                 </div>
@@ -2086,15 +2080,14 @@ export default function LessonPlanDetailPage() {
                                 </p>
                                 <p className="text-lg font-black text-card-foreground mt-2">{term.score}/100</p>
                               </div>
-                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] ${
-                                term.readiness === 'excellent'
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] ${term.readiness === 'excellent'
                                   ? 'bg-emerald-500/15 text-emerald-200 border border-emerald-400/20'
                                   : term.readiness === 'good'
                                     ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-400/20'
                                     : term.readiness === 'watch'
                                       ? 'bg-amber-500/15 text-amber-200 border border-amber-400/20'
                                       : 'bg-rose-500/15 text-rose-200 border border-rose-400/20'
-                              }`}>
+                                }`}>
                                 {term.readiness}
                               </span>
                             </div>
@@ -2124,13 +2117,12 @@ export default function LessonPlanDetailPage() {
                                       <p className="text-xs font-black text-card-foreground">
                                         {issue.week ? `Week ${issue.week}` : 'Term rule'}
                                       </p>
-                                      <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${
-                                        issue.severity === 'fail'
+                                      <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${issue.severity === 'fail'
                                           ? 'text-rose-200'
                                           : issue.severity === 'warn'
                                             ? 'text-amber-200'
                                             : 'text-cyan-200'
-                                      }`}>
+                                        }`}>
                                         {issue.severity}
                                       </span>
                                     </div>
@@ -2215,11 +2207,10 @@ export default function LessonPlanDetailPage() {
                                   key={option.id}
                                   type="button"
                                   onClick={() => setProgressionScope(option.id)}
-                                  className={`text-left rounded-[20px] border p-4 transition-all ${
-                                    active
+                                  className={`text-left rounded-[20px] border p-4 transition-all ${active
                                       ? 'border-cyan-400/70 bg-cyan-500/[0.12] shadow-[0_0_0_1px_rgba(34,211,238,0.15)]'
                                       : 'border-white/[0.08] bg-black/20 hover:bg-white/[0.04]'
-                                  }`}
+                                    }`}
                                 >
                                   <p className={`text-[10px] font-black uppercase tracking-[0.22em] ${active ? 'text-cyan-200' : 'text-card-foreground/45'}`}>{option.eyebrow}</p>
                                   <p className="text-sm font-black text-card-foreground mt-2">{option.title}</p>
@@ -2329,22 +2320,20 @@ export default function LessonPlanDetailPage() {
                             {builderReadiness.map((item) => (
                               <div
                                 key={item.key}
-                                className={`rounded-2xl border p-3 ${
-                                  item.status === 'fail'
+                                className={`rounded-2xl border p-3 ${item.status === 'fail'
                                     ? 'border-rose-400/25 bg-rose-500/[0.08]'
                                     : item.status === 'warn'
                                       ? 'border-amber-400/25 bg-amber-500/[0.08]'
                                       : 'border-emerald-400/20 bg-emerald-500/[0.07]'
-                                }`}
+                                  }`}
                               >
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">{item.label}</p>
-                                <p className={`text-sm font-black mt-2 ${
-                                  item.status === 'fail'
+                                <p className={`text-sm font-black mt-2 ${item.status === 'fail'
                                     ? 'text-rose-200'
                                     : item.status === 'warn'
                                       ? 'text-amber-200'
                                       : 'text-emerald-200'
-                                }`}>
+                                  }`}>
                                   {item.status === 'fail' ? 'Needs attention' : item.status === 'warn' ? 'Watch closely' : 'Ready'}
                                 </p>
                                 <p className="text-xs text-card-foreground/70 mt-2 leading-relaxed">{item.detail}</p>
@@ -2368,13 +2357,12 @@ export default function LessonPlanDetailPage() {
                               </div>
                               <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-card-foreground/45">Repetition Risk</p>
-                                <p className={`text-lg font-black mt-2 ${
-                                  progressionPreview.repetition_risk === 'high'
+                                <p className={`text-lg font-black mt-2 ${progressionPreview.repetition_risk === 'high'
                                     ? 'text-rose-300'
                                     : progressionPreview.repetition_risk === 'medium'
                                       ? 'text-amber-300'
                                       : 'text-emerald-300'
-                                }`}>{progressionPreview.repetition_risk ?? 'low'}</p>
+                                  }`}>{progressionPreview.repetition_risk ?? 'low'}</p>
                               </div>
                             </div>
                           ) : (
@@ -2384,13 +2372,12 @@ export default function LessonPlanDetailPage() {
                           )}
 
                           {progressionPreview?.preflight && (
-                            <div className={`mt-4 rounded-2xl border p-4 ${
-                              progressionPreview.preflight.blocking
+                            <div className={`mt-4 rounded-2xl border p-4 ${progressionPreview.preflight.blocking
                                 ? 'border-rose-400/25 bg-rose-500/[0.08]'
                                 : progressionPreview.preflight.status === 'warning'
                                   ? 'border-amber-400/25 bg-amber-500/[0.08]'
                                   : 'border-emerald-400/20 bg-emerald-500/[0.07]'
-                            }`}>
+                              }`}>
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                   <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Hard preflight</p>
@@ -2411,13 +2398,12 @@ export default function LessonPlanDetailPage() {
                                   <div key={check.key} className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
                                     <div className="flex items-center justify-between gap-3">
                                       <p className="text-xs font-black text-card-foreground">{check.label}</p>
-                                      <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${
-                                        check.status === 'fail'
+                                      <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${check.status === 'fail'
                                           ? 'text-rose-200'
                                           : check.status === 'warn'
                                             ? 'text-amber-200'
                                             : 'text-emerald-200'
-                                      }`}>
+                                        }`}>
                                         {check.status}
                                       </span>
                                     </div>
@@ -2911,20 +2897,18 @@ export default function LessonPlanDetailPage() {
                   <p className="text-xl font-black text-card-foreground">{progressionRunConfirm.preview.projected_assignments ?? 0}</p>
                   <p className="text-[9px] font-black uppercase tracking-widest text-card-foreground/40 mt-0.5">Assignments</p>
                 </div>
-                <div className={`border rounded-xl p-3 text-center ${
-                  progressionRunConfirm.preview.repetition_risk === 'high'
+                <div className={`border rounded-xl p-3 text-center ${progressionRunConfirm.preview.repetition_risk === 'high'
                     ? 'bg-rose-500/10 border-rose-500/20'
                     : progressionRunConfirm.preview.repetition_risk === 'medium'
                       ? 'bg-amber-500/10 border-amber-500/20'
                       : 'bg-emerald-500/10 border-emerald-500/20'
-                }`}>
-                  <p className={`text-xl font-black capitalize ${
-                    progressionRunConfirm.preview.repetition_risk === 'high'
+                  }`}>
+                  <p className={`text-xl font-black capitalize ${progressionRunConfirm.preview.repetition_risk === 'high'
                       ? 'text-rose-300'
                       : progressionRunConfirm.preview.repetition_risk === 'medium'
                         ? 'text-amber-300'
                         : 'text-emerald-300'
-                  }`}>{progressionRunConfirm.preview.repetition_risk ?? 'low'}</p>
+                    }`}>{progressionRunConfirm.preview.repetition_risk ?? 'low'}</p>
                   <p className="text-[9px] font-black uppercase tracking-widest text-card-foreground/40 mt-0.5">Repetition Risk</p>
                 </div>
               </div>
@@ -3033,163 +3017,163 @@ export default function LessonPlanDetailPage() {
               <button onClick={cancelEdit} className="p-2 hover:bg-white/10 rounded-xl transition-all min-h-[44px] min-w-[44px] flex items-center justify-center">
                 <XMarkIcon className="w-5 h-5 text-card-foreground/40" />
               </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+              {/* General Details */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-violet-300/70">Curriculum Foundation</h3>
                 </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                  {/* General Details */}
-                  <section className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-violet-300/70">Curriculum Foundation</h3>
-                    </div>
-                    <div className="space-y-4 bg-white/[0.02] border border-white/[0.05] p-4 rounded-2xl">
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Week Topic</span>
-                        <input
-                          type="text"
-                          value={weekDraft.topic}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, topic: e.target.value })}
-                          placeholder="e.g., Introduction to Neural Networks"
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-primary/50 focus:ring-0 transition-all"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Learning Objectives</span>
-                        <textarea
-                          rows={3}
-                          value={weekDraft.objectives}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, objectives: e.target.value })}
-                          placeholder="What should students master this week?"
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Classroom Activities</span>
-                        <textarea
-                          rows={3}
-                          value={weekDraft.activities}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, activities: e.target.value })}
-                          placeholder="Detail the planned flow and exercises."
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Teacher Notes</span>
-                        <textarea
-                          rows={2}
-                          value={weekDraft.notes ?? ''}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, notes: e.target.value })}
-                          placeholder="Internal notes visible only to teachers."
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
-                        />
-                      </label>
-                    </div>
-                  </section>
-
-                  {/* Project Section */}
-                  <section className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-emerald-300/70">Project Seed</h3>
-                    </div>
-                    <div className="space-y-4 bg-emerald-500/[0.02] border border-emerald-500/10 p-4 rounded-2xl">
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/60 ml-1">Project Title</span>
-                        <input
-                          type="text"
-                          value={weekDraft.project?.title || ''}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, project: { ...(weekDraft.project || {}), title: e.target.value } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-emerald-500/50 focus:ring-0 transition-all"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/60 ml-1">Project Description</span>
-                        <textarea
-                          rows={4}
-                          value={weekDraft.project?.description || ''}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, project: { ...(weekDraft.project || {}), description: e.target.value } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-emerald-500/50 focus:ring-0 transition-all resize-none"
-                        />
-                      </label>
-                    </div>
-                  </section>
-
-                  {/* Assignment Section */}
-                  <section className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-blue-300/70">Assignment Brief</h3>
-                    </div>
-                    <div className="space-y-4 bg-primary/[0.02] border border-primary/10 p-4 rounded-2xl">
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-primary/60 ml-1">Task Title</span>
-                        <input
-                          type="text"
-                          value={weekDraft.assignment?.title || ''}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, assignment: { ...(weekDraft.assignment || {}), title: e.target.value } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-primary/50 focus:ring-0 transition-all"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-primary/60 ml-1">Submission Brief</span>
-                        <textarea
-                          rows={4}
-                          value={weekDraft.assignment?.brief || ''}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, assignment: { ...(weekDraft.assignment || {}), brief: e.target.value } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
-                        />
-                      </label>
-                    </div>
-                  </section>
-
-                  {/* Practical Assessment */}
-                  <section className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      <h3 className="text-xs font-black uppercase tracking-widest text-amber-300/70">Practical Assessment</h3>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3 bg-amber-500/[0.02] border border-amber-500/10 p-4 rounded-2xl">
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Max Score</span>
-                        <input
-                          type="number"
-                          value={weekDraft.practical_assessment?.max_score ?? 100}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), max_score: Number(e.target.value) } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Pass %</span>
-                        <input
-                          type="number"
-                          value={weekDraft.practical_assessment?.pass_score ?? 60}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), pass_score: Number(e.target.value) } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
-                        />
-                      </label>
-                      <label className="block space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Score</span>
-                        <input
-                          type="number"
-                          value={weekDraft.practical_assessment?.practical_score ?? 0}
-                          onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), practical_score: Number(e.target.value) } })}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
-                        />
-                      </label>
-                    </div>
-                  </section>
+                <div className="space-y-4 bg-white/[0.02] border border-white/[0.05] p-4 rounded-2xl">
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Week Topic</span>
+                    <input
+                      type="text"
+                      value={weekDraft.topic}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, topic: e.target.value })}
+                      placeholder="e.g., Introduction to Neural Networks"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-primary/50 focus:ring-0 transition-all"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Learning Objectives</span>
+                    <textarea
+                      rows={3}
+                      value={weekDraft.objectives}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, objectives: e.target.value })}
+                      placeholder="What should students master this week?"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Classroom Activities</span>
+                    <textarea
+                      rows={3}
+                      value={weekDraft.activities}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, activities: e.target.value })}
+                      placeholder="Detail the planned flow and exercises."
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40 ml-1">Teacher Notes</span>
+                    <textarea
+                      rows={2}
+                      value={weekDraft.notes ?? ''}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, notes: e.target.value })}
+                      placeholder="Internal notes visible only to teachers."
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
+                    />
+                  </label>
                 </div>
+              </section>
 
-                <div className="p-6 border-t border-white/10 bg-white/[0.02] flex items-center gap-3">
-                  <button onClick={cancelEdit} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/60 font-bold rounded-2xl transition-all">
-                    Cancel Changes
-                  </button>
-                  <button onClick={saveWeekEdit} className="flex-1 py-3 bg-primary hover:bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/20 transition-all">
-                    Save Week
-                  </button>
+              {/* Project Section */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-emerald-300/70">Project Seed</h3>
                 </div>
+                <div className="space-y-4 bg-emerald-500/[0.02] border border-emerald-500/10 p-4 rounded-2xl">
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/60 ml-1">Project Title</span>
+                    <input
+                      type="text"
+                      value={weekDraft.project?.title || ''}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, project: { ...(weekDraft.project || {}), title: e.target.value } })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-emerald-500/50 focus:ring-0 transition-all"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400/60 ml-1">Project Description</span>
+                    <textarea
+                      rows={4}
+                      value={weekDraft.project?.description || ''}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, project: { ...(weekDraft.project || {}), description: e.target.value } })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-emerald-500/50 focus:ring-0 transition-all resize-none"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              {/* Assignment Section */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-blue-300/70">Assignment Brief</h3>
+                </div>
+                <div className="space-y-4 bg-primary/[0.02] border border-primary/10 p-4 rounded-2xl">
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-primary/60 ml-1">Task Title</span>
+                    <input
+                      type="text"
+                      value={weekDraft.assignment?.title || ''}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, assignment: { ...(weekDraft.assignment || {}), title: e.target.value } })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-primary/50 focus:ring-0 transition-all"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-primary/60 ml-1">Submission Brief</span>
+                    <textarea
+                      rows={4}
+                      value={weekDraft.assignment?.brief || ''}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, assignment: { ...(weekDraft.assignment || {}), brief: e.target.value } })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium text-card-foreground/80 focus:border-primary/50 focus:ring-0 transition-all resize-none"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              {/* Practical Assessment */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-amber-300/70">Practical Assessment</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-3 bg-amber-500/[0.02] border border-amber-500/10 p-4 rounded-2xl">
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Max Score</span>
+                    <input
+                      type="number"
+                      value={weekDraft.practical_assessment?.max_score ?? 100}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), max_score: Number(e.target.value) } })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Pass %</span>
+                    <input
+                      type="number"
+                      value={weekDraft.practical_assessment?.pass_score ?? 60}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), pass_score: Number(e.target.value) } })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400/60 ml-1">Score</span>
+                    <input
+                      type="number"
+                      value={weekDraft.practical_assessment?.practical_score ?? 0}
+                      onChange={(e) => setWeekDraft({ ...weekDraft, practical_assessment: { ...(weekDraft.practical_assessment || {}), practical_score: Number(e.target.value) } })}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-bold text-card-foreground focus:border-amber-500/50 focus:ring-0 transition-all"
+                    />
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <div className="p-6 border-t border-white/10 bg-white/[0.02] flex items-center gap-3">
+              <button onClick={cancelEdit} className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-card-foreground/60 font-bold rounded-2xl transition-all">
+                Cancel Changes
+              </button>
+              <button onClick={saveWeekEdit} className="flex-1 py-3 bg-primary hover:bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/20 transition-all">
+                Save Week
+              </button>
             </div>
           </div>
+        </div>
       )}
 
       {/* Practical Score Modal */}
