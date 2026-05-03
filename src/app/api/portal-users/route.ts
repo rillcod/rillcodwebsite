@@ -46,27 +46,42 @@ export async function GET(request: NextRequest) {
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
       if (caller.role === 'teacher') {
-        // Prefer class-based scope; fall back to school-based when no classes exist
         const { data: myClasses } = await admin
           .from('classes')
-          .select('id')
+          .select('id, name')
           .eq('teacher_id', caller.id);
         const myClassIds = (myClasses ?? []).map((c: any) => c.id);
+        const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
 
-        if (myClassIds.length > 0) {
-          query = query.in('class_id', myClassIds) as any;
-        } else {
-          // No classes yet — scope to teacher's assigned schools so students are visible
-          const { data: schoolAssignments } = await admin
-            .from('teacher_schools')
-            .select('school_id')
-            .eq('teacher_id', caller.id);
-          const assignedIds = (schoolAssignments ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
-          if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
-          if (assignedIds.length > 0) {
-            query = query.in('school_id', assignedIds) as any;
-          }
+        if (myClassIds.length === 0) return NextResponse.json({ data: [] });
+
+        // Teacher's assigned schools for section_class fallback scoping
+        const { data: schoolRows } = await admin
+          .from('teacher_schools')
+          .select('school_id')
+          .eq('teacher_id', caller.id);
+        const assignedIds = (schoolRows ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
+        if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
+
+        // Collect student IDs: class_id primary + section_class fallback (handles cleared class_id)
+        const studentIdSet = new Set<string>();
+        const { data: direct } = await admin
+          .from('portal_users').select('id').in('class_id', myClassIds).eq('role', 'student');
+        (direct ?? []).forEach((s: any) => studentIdSet.add(s.id));
+
+        if (myClassNames.length > 0 && assignedIds.length > 0) {
+          const { data: fallback } = await admin
+            .from('portal_users').select('id')
+            .in('section_class', myClassNames)
+            .in('school_id', assignedIds)
+            .is('class_id', null)
+            .eq('role', 'student');
+          (fallback ?? []).forEach((s: any) => studentIdSet.add(s.id));
         }
+
+        const studentIds = Array.from(studentIdSet);
+        if (studentIds.length === 0) return NextResponse.json({ data: [] });
+        query = query.in('id', studentIds) as any;
       } else {
         // School role: scope to their school
         const schoolIds: string[] = [];

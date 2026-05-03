@@ -230,18 +230,52 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
-      // School-based scope: teacher sees all students at their assigned schools
-      // plus any they personally registered. Does not depend on class_id being set.
-      const { data: schoolAssignments } = await supabase
+      // Get teacher's own classes (id + name)
+      const { data: myClasses } = await supabase
+        .from('classes')
+        .select('id, name')
+        .eq('teacher_id', caller.id);
+      const myClassIds = (myClasses ?? []).map((c: any) => c.id);
+      const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
+
+      // Teacher's assigned schools — needed to scope the section_class fallback
+      const { data: schoolRows } = await supabase
         .from('teacher_schools')
         .select('school_id')
         .eq('teacher_id', caller.id);
-      const assignedIds = (schoolAssignments ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
+      const assignedIds = (schoolRows ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
       if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
 
+      const userIdSet = new Set<string>();
+
+      // Primary: portal students directly assigned via class_id
+      if (myClassIds.length > 0) {
+        const { data: direct } = await supabase
+          .from('portal_users')
+          .select('id')
+          .in('class_id', myClassIds)
+          .eq('role', 'student');
+        (direct ?? []).forEach((s: any) => userIdSet.add(s.id));
+      }
+
+      // Fallback: class_id was cleared (e.g. DB repair) but section_class text still matches
+      if (myClassNames.length > 0 && assignedIds.length > 0) {
+        const { data: fallback } = await supabase
+          .from('portal_users')
+          .select('id')
+          .in('section_class', myClassNames)
+          .in('school_id', assignedIds)
+          .is('class_id', null)
+          .eq('role', 'student');
+        (fallback ?? []).forEach((s: any) => userIdSet.add(s.id));
+      }
+
+      const studentUserIds = Array.from(userIdSet);
+
+      // Show students in teacher's classes OR students the teacher personally registered
       const orParts: string[] = [`created_by.eq.${caller.id}`];
-      if (assignedIds.length > 0) {
-        assignedIds.forEach(sid => orParts.push(`school_id.eq.${sid}`));
+      if (studentUserIds.length > 0) {
+        orParts.push(`user_id.in.(${studentUserIds.join(',')})`);
       }
       query = query.or(orParts.join(',')) as any;
     }
