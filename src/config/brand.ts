@@ -33,12 +33,17 @@ export const brandColors = {
 };
 
 // Brand assets
+// logo.png  — color icon mark (primary, no wordmark) — use everywhere by default
+// logoA.png — monochrome icon mark — use on dark/inverted backgrounds
+// logoB.png — full logo with "RILLCOD TECHNOLOGIES" wordmark — use where name can't appear as text
 export const brandAssets = {
   logo: '/images/logo.png',
+  logoMono: '/images/logoA.png',
+  logoFull: '/images/logoB.png',
   logoSvg: '/images/logo.svg',
   logoCloudinary: 'https://res.cloudinary.com/dpigtwit0/image/upload/v1747032682/PhotoRoom-20250512_074926_zgudyt.png',
   favicon: '/favicon.png',
-  ogImage: '/images/logo.png'
+  ogImage: '/images/logoB.png',
 };
 
 // Contact information

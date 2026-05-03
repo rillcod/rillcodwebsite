@@ -113,8 +113,7 @@ export async function GET() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: '28px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(249, 115, 22, 0.3)',
+                background: 'white',
                 padding: '16px',
               }}
             >

@@ -83,14 +83,16 @@ export default async function Image() {
               marginBottom: '40px',
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={logoSrc}
-              alt="Rillcod Technologies"
-              width={80}
-              height={80}
-              style={{ marginRight: '20px', objectFit: 'contain' }}
-            />
+            <div style={{ background: 'white', borderRadius: '16px', padding: '12px', display: 'flex', marginRight: '24px' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoSrc}
+                alt="Rillcod Technologies"
+                width={72}
+                height={72}
+                style={{ objectFit: 'contain' }}
+              />
+            </div>
             <div
               style={{
                 display: 'flex',

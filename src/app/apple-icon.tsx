@@ -1,43 +1,19 @@
 import { ImageResponse } from 'next/og';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-export const runtime = 'edge';
-
-export const size = {
-  width: 180,
-  height: 180,
-};
+export const size = { width: 180, height: 180 };
 export const contentType = 'image/png';
 
-export default function Icon() {
+export default function AppleIcon() {
+  const buf = readFileSync(join(process.cwd(), 'public/apple-touch-icon.png'));
+  const src = `data:image/png;base64,${buf.toString('base64')}`;
   return new ImageResponse(
     (
-      <div
-        style={{
-          background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ffd700 100%)',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontWeight: 'bold',
-          borderRadius: '32px',
-          boxShadow: '0 10px 30px rgba(255, 107, 53, 0.3)',
-        }}
-      >
-        <div
-          style={{
-            fontSize: '80px',
-            fontWeight: 'bold',
-            textShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          R
-        </div>
+      <div style={{ width: '100%', height: '100%', display: 'flex', background: 'white' }}>
+        <img src={src} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
       </div>
     ),
-    {
-      ...size,
-    }
+    { ...size },
   );
 }

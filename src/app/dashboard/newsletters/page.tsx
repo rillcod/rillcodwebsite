@@ -541,8 +541,8 @@ export default function NewslettersPage() {
                      style={{ width: '210mm', minHeight: '297mm', padding: '25mm' }}
                   >
                        <div className="flex items-center gap-6 sm:gap-[30px] border-b-4 border-[#1a1a1a] pb-6 sm:pb-[25px] mb-10 sm:mb-[40px]">
-                         <div className="w-16 h-16 sm:w-[90px] sm:h-[90px] bg-[#1a1a1a] rounded-xl sm:rounded-[18px] flex items-center justify-center p-3 sm:p-[15px]">
-                           <img src="/logo.png" alt="Logo" className="w-full h-full object-contain filter invert" />
+                         <div className="w-16 h-16 sm:w-[90px] sm:h-[90px] bg-white rounded-xl sm:rounded-[18px] flex items-center justify-center p-3 sm:p-[12px] shadow-sm">
+                           <img src="/logo.png" alt="Rillcod" className="w-full h-full object-contain" />
                          </div>
                          <div className="flex-1">
                            <div className="text-lg sm:text-[28px] font-black text-[#1a1a1a] tracking-tight sm:tracking-[-1px] uppercase">RILLCOD TECHNOLOGIES</div>

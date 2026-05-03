@@ -131,7 +131,7 @@ export function CertificateTemplates({
                     <div className="h-full flex flex-col items-center justify-between text-center relative z-10 py-6">
                         <div className="space-y-4">
                             <div className="flex justify-center mb-2">
-                                <img src="/images/logo.png" alt="Rillcod" className="h-16 w-auto grayscale contrast-125 brightness-50" />
+                                <img src="/images/logoA.png" alt="Rillcod" className="h-16 w-auto opacity-85" />
                             </div>
                             <h4 className="text-[12px] text-primary font-serif italic tracking-[0.2em] uppercase">Private Specialized Institution of Technology</h4>
                             <div className="flex items-center justify-center gap-6">
@@ -360,8 +360,8 @@ export function CertificateTemplates({
                         <div className="absolute -bottom-24 -left-12 w-56 h-56 bg-primary rounded-full blur-[60px] opacity-30 mix-blend-multiply" />
 
                         <div className="w-full flex justify-between items-start relative z-10">
-                            <div className="p-3 bg-gradient-to-br from-primary via-amber-500 to-primary/90 rounded-2xl shadow-xl transform -rotate-3 hover:rotate-0 transition-transform">
-                                <img src="/images/logo.png" alt="Rillcod" className="h-8 w-auto invert brightness-200 drop-shadow-md" />
+                            <div className="p-3 bg-white rounded-2xl shadow-xl transform -rotate-3 hover:rotate-0 transition-transform">
+                                <img src="/images/logo.png" alt="Rillcod" className="h-8 w-auto object-contain drop-shadow-sm" />
                             </div>
                             <div className="text-right">
                                 <h3 className="text-[20px] font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/80 italic leading-none mb-1">Creative Spark</h3>
