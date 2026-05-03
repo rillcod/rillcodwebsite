@@ -240,25 +240,35 @@ export async function GET(request: Request) {
         ...(caller.school_id ? [caller.school_id] : []),
       ])] as string[];
 
-      // Teachers only see students in their own classes within their assigned schools
+      // Resolve portal students in teacher's own classes (within allowed schools)
       let classQuery = supabase.from('classes').select('id').eq('teacher_id', caller.id);
       if (allowedSchoolIds.length > 0) classQuery = classQuery.in('school_id', allowedSchoolIds) as any;
       const { data: myClasses } = await classQuery;
       const myClassIds = (myClasses ?? []).map(c => c.id);
 
-      if (myClassIds.length === 0) return NextResponse.json({ data: [] });
+      let studentUserIds: string[] = [];
+      if (myClassIds.length > 0) {
+        const { data: portalStudents } = await supabase
+          .from('portal_users')
+          .select('id')
+          .in('class_id', myClassIds)
+          .eq('role', 'student');
+        studentUserIds = (portalStudents ?? []).map((s: any) => s.id);
+      }
 
-      // class_id lives on portal_users, not students — resolve user_ids first
-      const { data: portalStudents } = await supabase
-        .from('portal_users')
-        .select('id')
-        .in('class_id', myClassIds)
-        .eq('role', 'student');
-      const studentUserIds = (portalStudents ?? []).map((s: any) => s.id);
-
-      if (studentUserIds.length === 0) return NextResponse.json({ data: [] });
-
-      query = query.in('user_id', studentUserIds) as any;
+      // Show students this teacher registered (created_by) OR students in their classes.
+      // This ensures pending/pre-portal registrations are never hidden from the teacher
+      // who added them, even before class assignment is complete.
+      const orParts: string[] = [];
+      if (allowedSchoolIds.length > 0) {
+        orParts.push(`and(created_by.eq.${caller.id},school_id.in.(${allowedSchoolIds.join(',')}))`);
+      } else {
+        orParts.push(`created_by.eq.${caller.id}`);
+      }
+      if (studentUserIds.length > 0) {
+        orParts.push(`user_id.in.(${studentUserIds.join(',')})`);
+      }
+      query = query.or(orParts.join(',')) as any;
     }
 
     const { data, error } = await query;
