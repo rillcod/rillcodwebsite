@@ -86,11 +86,8 @@ async function updateHandler(req: Request, ctx: ApiContext) {
     }
 
     // Generic update — whitelist to prevent arbitrary column injection
-    const allowedFields = ['template_id', 'certificate_text'];
-    const safeUpdate: Record<string, unknown> = {};
-    for (const f of allowedFields) {
-        if (f in body) safeUpdate[f] = body[f];
-    }
+    const safeUpdate: { template_id?: string | null } = {};
+    if ('template_id' in body) safeUpdate.template_id = body.template_id ?? null;
     if (Object.keys(safeUpdate).length === 0) {
         throw new AppError('No valid update fields provided', 400);
     }
