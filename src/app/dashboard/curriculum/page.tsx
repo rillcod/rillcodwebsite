@@ -23,6 +23,7 @@ import {
   type SyllabusContent,
   type SyllabusPreviewRole,
 } from '@/components/curriculum/SyllabusPreview';
+import { CurriculumPrintDoc } from '@/components/curriculum/CurriculumPrintDoc';
 import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 
 // Nigerian term labels
@@ -1556,7 +1557,17 @@ export default function CurriculumPage() {
 
   // ── Render (staff: teacher / admin) ─────────────────────────────────────
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
+    <>
+    {/* Official print document — hidden in UI, revealed only by window.print() */}
+    <CurriculumPrintDoc
+      curriculum={curriculum as any}
+      activeWeek={activeWeek}
+      activeTerm={activeTerm}
+      courseTitle={selectedCourse?.title}
+      programName={selectedProgram?.name}
+      teacherName={profile?.full_name ?? undefined}
+    />
+    <div className="flex flex-col min-h-screen bg-background text-foreground print:hidden">
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-card z-20">
         <div className="px-4 py-3 max-w-[1800px] mx-auto flex flex-col gap-3">
@@ -3860,7 +3871,7 @@ export default function CurriculumPage() {
         )}
       </AnimatePresence>
     </div>
-
+    </>
   );
 }
 
