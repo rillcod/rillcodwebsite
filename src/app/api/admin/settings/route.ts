@@ -66,13 +66,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const db = createAdminClient();
+    const { data: caller } = await db
+      .from('portal_users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!caller || caller.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { config } = body || {};
     const type = (body?.type || 'student').toLowerCase() as 'student' | 'parent' | 'teacher';
     const key = CARD_CONFIG_KEYS[type] || CARD_CONFIG_KEYS.student;
 
-    const db = createAdminClient();
-    
     // Check if it exists
     const { data: existing } = await db
       .from('system_settings')
