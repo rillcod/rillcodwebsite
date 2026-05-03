@@ -141,8 +141,8 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
                 <div ref={pdfRef}>
                     {/* Branded Letterhead */}
                     <div style={{ borderBottom: '4px solid #1a1a1a', paddingBottom: '25px', marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '30px' }}>
-                      <div style={{ width: '90px', height: '90px', background: '#1a1a1a', borderRadius: '18px', display: 'flex', alignItems: 'center', justifySelf: 'center', padding: '15px' }}>
-                        <img src="/logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'invert(1)' }} />
+                      <div style={{ width: '90px', height: '90px', background: '#fff', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
+                        <img src="/logo.png" alt="Rillcod" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '28px', fontWeight: 900, color: '#1a1a1a', letterSpacing: '-1px', textTransform: 'uppercase' }}>RILLCOD TECHNOLOGIES</div>
