@@ -757,14 +757,14 @@ function LessonPlansPageInner() {
                   <DocumentTextIcon className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-white">Academic Plans</h1>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Strategic Implementation Hub</p>
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-white">Lesson Plans</h1>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Your Teaching Hub</p>
                 </div>
               </div>
               <p className="text-lg text-white/60 font-medium max-w-2xl leading-relaxed">
                 {filterCourseId 
                   ? `Active session schedule and milestones for ${courses.find(c => c.id === filterCourseId)?.title}.`
-                  : 'Manage the bridge between syllabus theory and classroom execution. Track progress, schedule sessions, and monitor academic health.'}
+                  : 'Plan your weeks and track your progress easily. Schedule sessions and see how your classes are doing.'}
               </p>
             </div>
             
@@ -789,7 +789,7 @@ function LessonPlansPageInner() {
                   onClick={() => setShowForm(true)}
                   className="flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-[0_0_30px_rgba(255,107,0,0.3)]"
                 >
-                  <PlusIcon className="w-5 h-5" /> Initialize Plan
+                  <PlusIcon className="w-5 h-5" /> Create New Plan
                 </button>
               </div>
             </div>
@@ -938,7 +938,7 @@ function LessonPlansPageInner() {
               <DocumentTextIcon className="w-10 h-10 text-white/20" />
             </div>
             <h3 className="text-2xl font-black text-white mb-2">No Active Plans Found</h3>
-            <p className="text-white/40 text-sm max-w-sm mb-8">Refine your search parameters or initialize a new academic plan for your class.</p>
+            <p className="text-white/40 text-sm max-w-sm mb-8">Refine your search parameters or create a new lesson plan for your class.</p>
             <button
               onClick={() => { setFilterProgramId(''); setFilterCourseId(''); setFilterClassId(''); setFilterTerm(''); setFilterStatus(''); setSearch(''); }}
               className="px-8 py-3.5 bg-primary/10 text-primary border border-primary/20 text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-primary hover:text-white transition-all"
@@ -975,8 +975,8 @@ function LessonPlansPageInner() {
           >
             <div className="flex items-center justify-between p-8 border-b border-white/5">
               <div>
-                <h3 className="text-xl font-black text-white">Initialize Plan</h3>
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary mt-1">Configure Academic Session</p>
+                <h3 className="text-xl font-black text-white">Create New Plan</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary mt-1">Setup Teaching Period</p>
               </div>
               <button onClick={() => { setShowForm(false); resetForm(); }} className="p-3 hover:bg-white/5 rounded-2xl transition-all">
                 <XMarkIcon className="w-6 h-6 text-white/40" />
@@ -985,13 +985,13 @@ function LessonPlansPageInner() {
 
             <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
               <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Select Course Blueprint</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Select Course Content</label>
                 <select
                   value={form.course_id}
                   onChange={e => setForm(f => ({ ...f, course_id: e.target.value, curriculum_version_id: '' }))}
                   className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
                 >
-                  <option value="" className="bg-slate-900">Select course blueprint...</option>
+                  <option value="" className="bg-slate-900">Select course content...</option>
                   {groupedCourses.groups.map(g => (
                     <optgroup key={g.programName} label={g.programName} className="bg-slate-900 text-white/40">
                       {g.list.map(c => <option key={c.id} value={c.id} className="bg-slate-900 text-white">{c.title}</option>)}

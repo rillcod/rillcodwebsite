@@ -405,7 +405,7 @@ const PROGRESSION_SCOPE_OPTIONS: Array<{
     id: 'full_program',
     title: 'Three Years',
     eyebrow: 'Whole pathway',
-    description: 'Auto-build the full 3-year progression map end to end.',
+    description: 'Auto-build the full 3-year teaching map end to end.',
   },
 ];
 
@@ -522,13 +522,13 @@ export default function LessonPlanDetailPage() {
     fetch(`/api/lesson-plans/${id}/progression-week-guide`)
       .then(async (res) => {
         const j = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(typeof j.error === 'string' ? j.error : 'Failed to load progression guide');
+        if (!res.ok) throw new Error(typeof j.error === 'string' ? j.error : 'Failed to load teaching guide');
         if (!cancelled) setGuideData((j.data ?? null) as ProgressionWeekGuidePayload | null);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
           setGuideData(null);
-          setGuideError(err instanceof Error ? err.message : 'Failed to load progression guide');
+          setGuideError(err instanceof Error ? err.message : 'Failed to load teaching guide');
         }
       })
       .finally(() => {
@@ -995,7 +995,7 @@ export default function LessonPlanDetailPage() {
       setProgressionRunConfirm({ scopeLabel: getProgressionScopeLabel(), preview });
       return; // execution resumes in executeProgressionGeneration()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Progression generation failed';
+      const message = err instanceof Error ? err.message : 'Plan generation failed';
       toast.error(message);
     } finally {
       setGenerating(null);
@@ -1018,7 +1018,7 @@ export default function LessonPlanDetailPage() {
       toast.success(`Generated progression route for ${getProgressionScopeLabel()}.`);
       load();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Progression generation failed';
+      const message = err instanceof Error ? err.message : 'Plan generation failed';
       toast.error(message);
     } finally {
       setGenerating(null);
@@ -1174,9 +1174,9 @@ export default function LessonPlanDetailPage() {
   const builderReadiness = [
     {
       key: 'program',
-      label: 'Program progression',
+      label: 'Teaching Path',
       status: plan.courses?.programs?.school_progression_enabled === true ? 'pass' : 'fail',
-      detail: plan.courses?.programs?.school_progression_enabled === true ? 'Enabled on linked program.' : 'Enable school progression on the linked program.',
+      detail: plan.courses?.programs?.school_progression_enabled === true ? 'Enabled on linked program.' : 'Enable teaching path automation on the linked program.',
     },
     {
       key: 'curriculum',
@@ -1188,7 +1188,7 @@ export default function LessonPlanDetailPage() {
       key: 'policy',
       label: 'Policy configured',
       status: programPolicy && Object.keys(programPolicy).length > 0 ? 'pass' : 'warn',
-      detail: programPolicy && Object.keys(programPolicy).length > 0 ? 'Progression policy defaults are available.' : 'Program policy is thin, so more runtime defaults will be used.',
+      detail: programPolicy && Object.keys(programPolicy).length > 0 ? 'Teaching path rules are available.' : 'Program rules are thin, so more runtime defaults will be used.',
     },
     {
       key: 'guide',
@@ -2432,9 +2432,9 @@ export default function LessonPlanDetailPage() {
                             <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 p-4">
                               <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Policy runtime</p>
                               <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-card-foreground/75">
-                                <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Strict route: {progressionPreview.policy_runtime.strict_route ? 'on' : 'off'}</span>
+                                <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Strict path: {progressionPreview.policy_runtime.strict_route ? 'on' : 'off'}</span>
                                 <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Project based: {progressionPreview.policy_runtime.project_based ? 'on' : 'off'}</span>
-                                <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Essential only: {progressionPreview.policy_runtime.essential_routes_only ? 'on' : 'off'}</span>
+                                <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Standard only: {progressionPreview.policy_runtime.essential_routes_only ? 'on' : 'off'}</span>
                                 <span className="rounded-full border border-white/[0.08] px-2.5 py-1">Weeks/term: {progressionPreview.policy_runtime.standard_weeks_per_term ?? builderWeeksCount}</span>
                                 {progressionPreview.policy_runtime.track_candidates?.length ? (
                                   <span className="rounded-full border border-white/[0.08] px-2.5 py-1">
@@ -3248,7 +3248,7 @@ export default function LessonPlanDetailPage() {
                   rows={4}
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
-                  placeholder="e.g., Student has demonstrated mastery through external project..."
+                  placeholder="e.g., Student has fully learned the concept through external project..."
                   className="w-full bg-black/40 border-2 border-white/10 rounded-2xl px-5 py-4 text-sm font-medium text-card-foreground focus:border-cyan-500/50 focus:ring-0 transition-all resize-none"
                 />
               </div>
