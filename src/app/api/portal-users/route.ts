@@ -46,16 +46,27 @@ export async function GET(request: NextRequest) {
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
       if (caller.role === 'teacher') {
-        // Class ownership is proven by teacher_id alone
+        // Prefer class-based scope; fall back to school-based when no classes exist
         const { data: myClasses } = await admin
           .from('classes')
           .select('id')
           .eq('teacher_id', caller.id);
         const myClassIds = (myClasses ?? []).map((c: any) => c.id);
-        if (myClassIds.length === 0) {
-          return NextResponse.json({ data: [] });
+
+        if (myClassIds.length > 0) {
+          query = query.in('class_id', myClassIds) as any;
+        } else {
+          // No classes yet — scope to teacher's assigned schools so students are visible
+          const { data: schoolAssignments } = await admin
+            .from('teacher_schools')
+            .select('school_id')
+            .eq('teacher_id', caller.id);
+          const assignedIds = (schoolAssignments ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
+          if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
+          if (assignedIds.length > 0) {
+            query = query.in('school_id', assignedIds) as any;
+          }
         }
-        query = query.in('class_id', myClassIds) as any;
       } else {
         // School role: scope to their school
         const schoolIds: string[] = [];
