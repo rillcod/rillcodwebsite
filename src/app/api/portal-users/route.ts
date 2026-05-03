@@ -46,22 +46,22 @@ export async function GET(request: NextRequest) {
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
       if (caller.role === 'teacher') {
-        const { data: myClasses } = await admin
-          .from('classes')
-          .select('id, name')
-          .eq('teacher_id', caller.id);
-        const myClassIds = (myClasses ?? []).map((c: any) => c.id);
-        const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
-
-        if (myClassIds.length === 0) return NextResponse.json({ data: [] });
-
-        // Teacher's assigned schools for section_class fallback scoping
+        // Step 1 — school: teacher's assigned schools (outer boundary)
         const { data: schoolRows } = await admin
           .from('teacher_schools')
           .select('school_id')
           .eq('teacher_id', caller.id);
         const assignedIds = (schoolRows ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
         if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
+
+        // Step 2 — class: teacher's classes within those schools
+        let classQ = admin.from('classes').select('id, name').eq('teacher_id', caller.id);
+        if (assignedIds.length > 0) classQ = classQ.in('school_id', assignedIds) as any;
+        const { data: myClasses } = await classQ;
+        const myClassIds = (myClasses ?? []).map((c: any) => c.id);
+        const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
+
+        if (myClassIds.length === 0) return NextResponse.json({ data: [] });
 
         // Collect student IDs: class_id primary + section_class fallback (handles cleared class_id)
         const studentIdSet = new Set<string>();

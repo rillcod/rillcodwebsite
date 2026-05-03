@@ -230,21 +230,20 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
-      // Get teacher's own classes (id + name)
-      const { data: myClasses } = await supabase
-        .from('classes')
-        .select('id, name')
-        .eq('teacher_id', caller.id);
-      const myClassIds = (myClasses ?? []).map((c: any) => c.id);
-      const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
-
-      // Teacher's assigned schools — needed to scope the section_class fallback
+      // Step 1 — school: resolve teacher's assigned schools (outer boundary)
       const { data: schoolRows } = await supabase
         .from('teacher_schools')
         .select('school_id')
         .eq('teacher_id', caller.id);
       const assignedIds = (schoolRows ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
       if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
+
+      // Step 2 — class: teacher's classes within those schools
+      let classQ = supabase.from('classes').select('id, name').eq('teacher_id', caller.id);
+      if (assignedIds.length > 0) classQ = classQ.in('school_id', assignedIds) as any;
+      const { data: myClasses } = await classQ;
+      const myClassIds = (myClasses ?? []).map((c: any) => c.id);
+      const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
 
       const userIdSet = new Set<string>();
 
