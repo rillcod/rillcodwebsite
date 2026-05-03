@@ -53,13 +53,7 @@ export async function GET(_request: NextRequest) {
         const filterSid = searchParams.get('school_id');
         if (filterSid) query = query.eq('school_id', filterSid) as any;
       } else if (caller.role === 'teacher') {
-        const allowedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
         query = query.eq('created_by', caller.id) as any;
-        if (allowedIds.length > 0) {
-          query = query.or(`school_id.in.(${allowedIds.join(',')}),school_id.is.null`) as any;
-        } else {
-          query = query.is('school_id', null) as any;
-        }
       } else if (caller.role === 'school') {
         if (caller.school_id) {
           query = query.or(`school_id.eq.${caller.school_id},school_id.is.null`) as any;

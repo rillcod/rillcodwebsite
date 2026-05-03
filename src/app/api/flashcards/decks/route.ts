@@ -36,13 +36,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false });
 
   if (profile?.role === 'teacher') {
-    const allowedIds = await getTeacherSchoolIds(user.id, profile.school_id ?? null);
     query = query.eq('created_by', user.id) as any;
-    if (allowedIds.length > 0) {
-      query = query.or(`school_id.in.(${allowedIds.join(',')}),school_id.is.null`) as any;
-    } else {
-      query = query.is('school_id', null) as any;
-    }
   } else if (profile?.school_id) {
     query = query.eq('school_id', profile.school_id);
   }
