@@ -104,6 +104,27 @@ export async function POST(request: NextRequest) {
     for (const f of allowed) {
       if (f in body) payload[f] = body[f] ?? null;
     }
+
+    // Resolve school_id — teacher must post to an assigned school
+    let resolvedSchoolId: string | null = null;
+    if (caller.role === 'admin') {
+      resolvedSchoolId = typeof body.school_id === 'string' ? body.school_id : null;
+    } else if (caller.role === 'teacher') {
+      const requestedSchoolId: string | null = typeof body.school_id === 'string' ? body.school_id : null;
+      const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+      if (requestedSchoolId) {
+        if (!scopedIds.includes(requestedSchoolId)) {
+          return NextResponse.json(
+            { error: 'You are not assigned to the school you selected for this lesson.' },
+            { status: 403 },
+          );
+        }
+        resolvedSchoolId = requestedSchoolId;
+      } else {
+        resolvedSchoolId = caller.school_id ?? scopedIds[0] ?? null;
+      }
+    }
+    payload.school_id = resolvedSchoolId;
     if (typeof payload.lesson_type === 'string') {
       payload.lesson_type = normalizeLessonType(payload.lesson_type, 'lesson');
     }
