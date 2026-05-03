@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   // Fetch only needed fields — avoid select('*') for security hygiene
   const { data: student, error: fetchErr } = await admin
     .from('students')
-    .select('id, full_name, student_email, parent_email, school_id, school_name, date_of_birth, status')
+    .select('id, full_name, student_email, parent_email, school_id, school_name, date_of_birth, status, current_class, grade_level')
     .eq('id', id)
     .maybeSingle();
 
@@ -111,6 +111,7 @@ export async function POST(request: Request) {
       school_name: resolvedSchoolName,
       school_id: resolvedSchoolId,
       date_of_birth: student.date_of_birth || null,
+      section_class: (student as any).current_class || (student as any).grade_level || null,
       is_active: true,
       updated_at: new Date().toISOString(),
     }).eq('id', existingPortal.id);
@@ -187,6 +188,7 @@ export async function POST(request: Request) {
     school_name: resolvedSchoolName,
     school_id: resolvedSchoolId,
     date_of_birth: student.date_of_birth || null,
+    section_class: (student as any).current_class || (student as any).grade_level || null,
     is_active: true,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'id' });
