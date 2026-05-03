@@ -91,6 +91,8 @@ export default function CurriculumProgressPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filterSchool, setFilterSchool] = useState('');
   const [filterTerm, setFilterTerm]     = useState('');
+  const [filterQuery, setFilterQuery]   = useState('');
+  const [sortBy, setSortBy]             = useState<'progress_desc' | 'progress_asc' | 'recent'>('progress_desc');
   const [fetchError, setFetchError]     = useState('');
   const [retryKey, setRetryKey]         = useState(0);
   const [togglingId, setTogglingId]     = useState<string | null>(null);
@@ -156,11 +158,43 @@ export default function CurriculumProgressPage() {
   const totalWeeksDelivered  = data.reduce((a, d) => a + d.per_school.reduce((b, s) => b + s.completed, 0), 0);
   const upcomingCount        = data.reduce((a, d) => a + d.per_school.reduce((b, s) => b + s.upcoming_assessments.length, 0), 0);
 
-  const filteredData = data.filter(c =>
-    !filterTerm || c.per_school.some(s =>
+  function exportDataToCsv() {
+    const rows = [['Curriculum', 'Program', 'School', 'Class/Version', 'Completed Weeks', 'Total Weeks', 'Progress %', 'Last Activity']];
+    filteredData.forEach(curr => {
+      curr.per_school.forEach(s => {
+        rows.push([
+          `"${curr.course_title}"`, `"${curr.program_name}"`, `"${s.school_name}"`, `v${curr.version}`,
+          s.completed.toString(), curr.total_weeks.toString(), s.pct.toString() + '%', s.last_activity ? new Date(s.last_activity).toLocaleDateString() : 'N/A'
+        ]);
+      });
+    });
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `curriculum_delivery_progress_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  let filteredData = data.filter(c =>
+    (!filterTerm || c.per_school.some(s =>
       s.term_progress.find(t => t.term === Number(filterTerm) && t.completed > 0)
-    )
+    )) &&
+    (!filterQuery || c.course_title.toLowerCase().includes(filterQuery.toLowerCase()) || c.program_name.toLowerCase().includes(filterQuery.toLowerCase()))
   );
+
+  filteredData = [...filteredData].sort((a, b) => {
+    const aPct = a.per_school.length ? a.per_school.reduce((s, x) => s + x.pct, 0) / a.per_school.length : 0;
+    const bPct = b.per_school.length ? b.per_school.reduce((s, x) => s + x.pct, 0) / b.per_school.length : 0;
+    if (sortBy === 'progress_desc') return bPct - aPct;
+    if (sortBy === 'progress_asc') return aPct - bPct;
+    // recent
+    const aRecent = a.per_school.reduce((s, x) => Math.max(s, x.last_activity ? new Date(x.last_activity).getTime() : 0), 0);
+    const bRecent = b.per_school.reduce((s, x) => Math.max(s, x.last_activity ? new Date(x.last_activity).getTime() : 0), 0);
+    return bRecent - aRecent;
+  });
 
   const schoolClassGrid = useMemo(() => {
     const roster = new Map<string, { schoolName: string; classes: Map<string, number> }>();
@@ -331,37 +365,67 @@ export default function CurriculumProgressPage() {
           ))}
         </div>
 
-        {/* Filters */}
+        {/* Filters and Actions */}
         {!isSchool && (
-          <div className="flex flex-wrap gap-3">
-            <select
-              title="Filter by school"
-              value={filterSchool}
-              onChange={e => setFilterSchool(e.target.value)}
-              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
-            >
-              <option value="">All Schools</option>
-              {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <select
-              title="Filter by term"
-              value={filterTerm}
-              onChange={e => setFilterTerm(e.target.value)}
-              className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
-            >
-              <option value="">All Terms</option>
-              <option value="1">First Term</option>
-              <option value="2">Second Term</option>
-              <option value="3">Third Term</option>
-            </select>
-            {(filterSchool || filterTerm) && (
-              <button
-                onClick={() => { setFilterSchool(''); setFilterTerm(''); }}
-                className="text-xs text-primary hover:text-primary font-bold transition-colors px-2"
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-card border border-border p-3 rounded-xl">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search curricula..."
+                value={filterQuery}
+                onChange={e => setFilterQuery(e.target.value)}
+                className="bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg min-w-[200px]"
+              />
+              <select
+                title="Filter by school"
+                value={filterSchool}
+                onChange={e => setFilterSchool(e.target.value)}
+                className="bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
               >
-                Clear filters
-              </button>
-            )}
+                <option value="">All Schools</option>
+                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <select
+                title="Filter by term"
+                value={filterTerm}
+                onChange={e => setFilterTerm(e.target.value)}
+                className="bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
+              >
+                <option value="">All Terms</option>
+                <option value="1">First Term</option>
+                <option value="2">Second Term</option>
+                <option value="3">Third Term</option>
+              </select>
+              <select
+                title="Sort by"
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as any)}
+                className="bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
+              >
+                <option value="progress_desc">Progress: High to Low</option>
+                <option value="progress_asc">Progress: Low to High</option>
+                <option value="recent">Recently Active</option>
+              </select>
+              {(filterSchool || filterTerm || filterQuery) && (
+                <button
+                  onClick={() => { setFilterSchool(''); setFilterTerm(''); setFilterQuery(''); }}
+                  className="text-xs text-primary hover:text-primary font-bold transition-colors px-2"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+            
+            <button
+              onClick={exportDataToCsv}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 text-sm font-bold rounded-lg transition-all"
+              title="Export delivery progress to CSV"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Export CSV
+            </button>
           </div>
         )}
 

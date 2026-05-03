@@ -70,11 +70,18 @@ export async function GET(req: NextRequest) {
   const trackingArr: any[] = tracking ?? [];
 
   // Fetch schools list for name lookup
-  const { data: schools } = await admin
+  let schoolsQuery = admin
     .from('schools')
     .select('id, name, status')
-    .eq('status', 'approved')
-    .order('name');
+    .eq('status', 'approved');
+
+  if (profile.role === 'school' && profile.school_id) {
+    schoolsQuery = schoolsQuery.eq('id', profile.school_id);
+  } else if (profile.role === 'teacher' && schoolIds.length > 0) {
+    schoolsQuery = schoolsQuery.in('id', schoolIds);
+  }
+
+  const { data: schools } = await schoolsQuery.order('name');
 
   const schoolsArr: any[] = schools ?? [];
 
