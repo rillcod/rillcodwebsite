@@ -685,6 +685,7 @@ function ReportBuilderInner() {
 
         // Pre-portal student (from students table, no portal_users record) — look up by name
         const isPrePortal = s.id?.startsWith('students-');
+        const isTeacher = profile?.role === 'teacher';
         const { data: report } = isPrePortal
             ? await db
                 .from('student_progress_reports')
@@ -693,13 +694,16 @@ function ReportBuilderInner() {
                 .order('updated_at', { ascending: false })
                 .limit(1)
                 .maybeSingle()
-            : await db
-                .from('student_progress_reports')
-                .select('*')
-                .eq('student_id', s.id)
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+            : await (() => {
+                let q = db
+                    .from('student_progress_reports')
+                    .select('*')
+                    .eq('student_id', s.id)
+                    .order('updated_at', { ascending: false })
+                    .limit(1);
+                if (isTeacher && profile?.id) q = q.eq('teacher_id', profile.id) as typeof q;
+                return q.maybeSingle();
+              })();
 
         setExistingReport(report ?? null);
 
@@ -976,7 +980,11 @@ function ReportBuilderInner() {
 
                 // 4. Check for existing report
                 const isPrePortal = s.id?.startsWith('manual-') || s.id?.startsWith('students-');
-                const { data: existing } = isPrePortal ? { data: null } : await db.from('student_progress_reports').select('id').eq('student_id', s.id).eq('report_term', sessionConfig.report_term).order('updated_at', { ascending: false }).maybeSingle();
+                const { data: existing } = isPrePortal ? { data: null } : await (() => {
+                    let q = db.from('student_progress_reports').select('id').eq('student_id', s.id).eq('report_term', sessionConfig.report_term).order('updated_at', { ascending: false });
+                    if (profile?.role === 'teacher' && profile?.id) q = q.eq('teacher_id', profile.id) as typeof q;
+                    return q.maybeSingle();
+                })();
 
                 const overall = Math.round(
                     theory      * WAEC_WEIGHTS.theory      +

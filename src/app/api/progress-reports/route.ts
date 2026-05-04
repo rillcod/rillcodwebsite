@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Always set teacher_id to caller
-  updatePayload.teacher_id = caller.id;
+  // On insert, always stamp teacher_id as caller.
+  // On update, do NOT overwrite — original owner stays (ownership is verified below).
   updatePayload.updated_at = new Date().toISOString();
   insertPayload.teacher_id = caller.id;
   insertPayload.updated_at = new Date().toISOString();
