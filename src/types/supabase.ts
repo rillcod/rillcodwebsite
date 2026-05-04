@@ -6634,8 +6634,8 @@ export type Database = {
           school_progression_enabled: boolean
           session_frequency_per_week: number
           updated_at: string | null
-          visible_to_teachers: boolean
           visible_to_students: boolean
+          visible_to_teachers: boolean
         }
         Insert: {
           created_at?: string | null
@@ -6656,8 +6656,8 @@ export type Database = {
           school_progression_enabled?: boolean
           session_frequency_per_week?: number
           updated_at?: string | null
-          visible_to_teachers?: boolean
           visible_to_students?: boolean
+          visible_to_teachers?: boolean
         }
         Update: {
           created_at?: string | null
@@ -6678,8 +6678,8 @@ export type Database = {
           school_progression_enabled?: boolean
           session_frequency_per_week?: number
           updated_at?: string | null
-          visible_to_teachers?: boolean
           visible_to_students?: boolean
+          visible_to_teachers?: boolean
         }
         Relationships: [
           {

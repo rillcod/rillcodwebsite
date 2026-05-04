@@ -328,6 +328,8 @@ export default function CurriculumPage() {
   const isSchool = profile?.role === 'school';
   const canGenerate = isAdmin || isTeacher;
   const canTrack = isAdmin || isTeacher;
+  // Teachers can only publish their own school's curriculum; platform (school_id=null) is admin-only
+  const canPublish = isAdmin || (isTeacher && (curriculum?.school_id ?? null) !== null);
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
 
@@ -2319,7 +2321,7 @@ export default function CurriculumPage() {
 
                       {/* Bottom Row: Actions */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        {canGenerate && (
+                        {canPublish && (
                           <div className="flex items-center gap-2">
                             {curriculum.is_visible_to_school ? (
                               <button
@@ -3689,22 +3691,26 @@ export default function CurriculumPage() {
               </div>
               <div className="border-t border-border bg-card/70 px-4 py-3 flex items-center justify-between gap-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Preview only — no data is visible to learners in draft mode.
+                  {canPublish
+                    ? 'Preview only — no data is visible to learners in draft mode.'
+                    : 'Platform template — clone to your school to publish.'}
                 </p>
-                <button
-                  onClick={() => togglePublish(!curriculum.is_visible_to_school)}
-                  disabled={publishing}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded border transition disabled:opacity-60 ${curriculum.is_visible_to_school
-                    ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
-                    : 'border-primary/50 text-primary hover:bg-primary/10'
-                    }`}
-                >
-                  {publishing
-                    ? 'Saving…'
-                    : curriculum.is_visible_to_school
-                      ? 'Unpublish'
-                      : 'Publish to school'}
-                </button>
+                {canPublish && (
+                  <button
+                    onClick={() => togglePublish(!curriculum.is_visible_to_school)}
+                    disabled={publishing}
+                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded border transition disabled:opacity-60 ${curriculum.is_visible_to_school
+                      ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
+                      : 'border-primary/50 text-primary hover:bg-primary/10'
+                      }`}
+                  >
+                    {publishing
+                      ? 'Saving…'
+                      : curriculum.is_visible_to_school
+                        ? 'Unpublish'
+                        : 'Publish to school'}
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
