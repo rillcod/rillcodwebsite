@@ -33,6 +33,8 @@ export default function ProgramsPage() {
     max_students: '',
     is_active: true,
     delivery_type: 'compulsory',
+    visible_to_teachers: false,
+    visible_to_students: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -78,6 +80,8 @@ export default function ProgramsPage() {
         max_students: form.max_students ? parseInt(form.max_students) : null,
         is_active: form.is_active,
         delivery_type: form.delivery_type,
+        visible_to_teachers: form.visible_to_teachers,
+        visible_to_students: form.visible_to_students,
       };
 
       if (editing) {
@@ -115,6 +119,8 @@ export default function ProgramsPage() {
       max_students: p.max_students?.toString() ?? '',
       is_active: p.is_active,
       delivery_type: p.delivery_type ?? 'compulsory',
+      visible_to_teachers: p.visible_to_teachers ?? false,
+      visible_to_students: p.visible_to_students ?? false,
     });
     setShowForm(true);
   };
@@ -169,7 +175,7 @@ export default function ProgramsPage() {
             <p className="text-muted-foreground text-sm mt-1">Configure learning programs and their course structure</p>
           </div>
           {isAdmin && (
-            <button onClick={() => { setEditing(null); setForm({ name: '', description: '', duration_weeks: '', difficulty_level: 'beginner', price: '', max_students: '', is_active: true, delivery_type: 'compulsory' }); setShowForm(true); }}
+            <button onClick={() => { setEditing(null); setForm({ name: '', description: '', duration_weeks: '', difficulty_level: 'beginner', price: '', max_students: '', is_active: true, delivery_type: 'compulsory', visible_to_teachers: false, visible_to_students: false }); setShowForm(true); }}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-primary/30">
               <PlusIcon className="w-4 h-4" /> New Program
             </button>
@@ -241,8 +247,11 @@ export default function ProgramsPage() {
                       <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border capitalize ${DIFF_COLORS[p.difficulty_level] ?? 'bg-muted text-muted-foreground border-border'}`}>
                         {p.difficulty_level}
                       </span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.delivery_type === 'optional' ? 'bg-primary/20 text-primary border-primary/30' : 'bg-primary/20 text-primary border-primary/30'}`}>
-                        {p.delivery_type === 'optional' ? 'Elective' : 'Compulsory'}
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.visible_to_teachers ? 'bg-sky-500/20 text-sky-400 border-sky-500/30' : 'bg-muted/50 text-muted-foreground/50 border-border'}`}>
+                        {p.visible_to_teachers ? 'Teachers ✓' : 'Teachers —'}
+                      </span>
+                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${p.visible_to_students ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-muted/50 text-muted-foreground/50 border-border'}`}>
+                        {p.visible_to_students ? 'Students ✓' : 'Students —'}
                       </span>
                     </div>
                     {isAdmin && (
@@ -350,11 +359,36 @@ export default function ProgramsPage() {
                 </select>
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer pt-2">
-                <input type="checkbox" checked={form.is_active} onChange={e => setForm(s => ({ ...s, is_active: e.target.checked }))}
-                        className="w-5 h-5 rounded border-border bg-card shadow-sm text-primary focus:ring-primary" />
-                <span className="text-sm font-semibold text-muted-foreground border-primary">Program is active currently</span>
-              </label>
+              <div className="space-y-3 pt-2 border-t border-border">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest pt-3">Visibility</p>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.is_active} onChange={e => setForm(s => ({ ...s, is_active: e.target.checked }))}
+                    className="w-5 h-5 rounded border-border bg-card shadow-sm text-primary focus:ring-primary" />
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Program is active</span>
+                    <p className="text-xs text-muted-foreground">Inactive programs are hidden from everyone except admin</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.visible_to_teachers} onChange={e => setForm(s => ({ ...s, visible_to_teachers: e.target.checked }))}
+                    className="w-5 h-5 rounded border-border bg-card shadow-sm text-primary focus:ring-primary" />
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Visible to teachers</span>
+                    <p className="text-xs text-muted-foreground">Teachers can see and build curriculum for this program</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.visible_to_students} onChange={e => setForm(s => ({ ...s, visible_to_students: e.target.checked }))}
+                    className="w-5 h-5 rounded border-border bg-card shadow-sm text-primary focus:ring-primary" />
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Visible to students &amp; parents</span>
+                    <p className="text-xs text-muted-foreground">Students and parents can see this program in their portal</p>
+                  </div>
+                </label>
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-muted-foreground hover:text-foreground font-bold transition-all">Cancel</button>
