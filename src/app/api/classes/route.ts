@@ -209,10 +209,22 @@ export async function POST(request: NextRequest) {
       } else if (caller.school_id) {
         // Default to teacher's primary school if none specified
         insertRow.school_id = caller.school_id;
+      } else {
+        return NextResponse.json(
+          { error: 'A class must belong to a school. You are not assigned to any school.' },
+          { status: 400 },
+        );
       }
     } else {
-      // Admin: allow any school_id and teacher_id
-      if ('school_id' in body) insertRow.school_id = body.school_id ?? null;
+      // Admin: school_id is required — classes cannot exist without a school
+      const schoolId = typeof body.school_id === 'string' ? body.school_id : null;
+      if (!schoolId) {
+        return NextResponse.json(
+          { error: 'school_id is required. A class must belong to a school.' },
+          { status: 400 },
+        );
+      }
+      insertRow.school_id = schoolId;
       if ('teacher_id' in body) insertRow.teacher_id = body.teacher_id ?? null;
     }
 
