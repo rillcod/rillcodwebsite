@@ -76,7 +76,10 @@ export default function ClassHealPage() {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Failed');
-      setMsg({ type: 'ok', text: `Fixed ${j.updated ?? 1} record(s).` });
+      const detail = action === 'safe_auto_repair'
+        ? `Auto-repair done — ${j.driftFixed ?? 0} drift fixed, ${j.classAssigned ?? 0} class assigned.`
+        : `Fixed ${j.updated ?? 1} record(s).`;
+      setMsg({ type: 'ok', text: detail });
       await load();
     } catch (e: any) {
       setMsg({ type: 'err', text: e.message });
@@ -156,10 +159,18 @@ export default function ClassHealPage() {
               Scan and fix student–class–school mismatches. Admin only.
             </p>
           </div>
-          <button onClick={load} disabled={working || loading}
-            className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-sm font-bold rounded-xl transition">
-            <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Re-scan
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => applyAction('safe_auto_repair', [])}
+              disabled={working || loading || totalIssues === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition">
+              <CheckCircleIcon className="w-4 h-4" /> Safe Auto-Repair
+            </button>
+            <button onClick={load} disabled={working || loading}
+              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-sm font-bold rounded-xl transition">
+              <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Re-scan
+            </button>
+          </div>
         </div>
 
         {msg && (

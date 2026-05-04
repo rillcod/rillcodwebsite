@@ -201,6 +201,69 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, updated: studentIds.length });
   }
 
+  if (action === 'safe_auto_repair') {
+    // 1. Fix all section drift — sync section_class text to actual class name
+    const { data: driftStudents } = await db
+      .from('portal_users')
+      .select('id, class_id, section_class')
+      .eq('role', 'student')
+      .not('class_id', 'is', null)
+      .not('section_class', 'is', null)
+      .eq('is_deleted', false);
+
+    const { data: allClasses } = await db.from('classes').select('id, name, school_id');
+    const classNameMap: Record<string, string> = {};
+    const classSchoolMap: Record<string, string> = {};
+    (allClasses ?? []).forEach((c: any) => {
+      classNameMap[c.id] = c.name;
+      classSchoolMap[c.id] = c.school_id;
+    });
+
+    // Build section_class → class lookup: school_id+name → class id
+    const sectionToClass: Record<string, string> = {};
+    (allClasses ?? []).forEach((c: any) => {
+      if (c.school_id && c.name) sectionToClass[`${c.school_id}::${c.name}`] = c.id;
+    });
+
+    let driftFixed = 0;
+    for (const s of (driftStudents ?? [])) {
+      const correctName = classNameMap[s.class_id];
+      if (correctName && s.section_class !== correctName) {
+        await db.from('portal_users').update({ section_class: correctName }).eq('id', s.id);
+        driftFixed++;
+      }
+    }
+
+    // 2. Assign class_id to students who have no class but section_class matches a class at their school
+    const { data: noClassStudents } = await db
+      .from('portal_users')
+      .select('id, school_id, section_class')
+      .eq('role', 'student')
+      .is('class_id', null)
+      .not('school_id', 'is', null)
+      .not('section_class', 'is', null)
+      .eq('is_deleted', false);
+
+    let classAssigned = 0;
+    for (const s of (noClassStudents ?? [])) {
+      const key = `${s.school_id}::${s.section_class}`;
+      const matchedClassId = sectionToClass[key];
+      if (matchedClassId) {
+        await db.from('portal_users')
+          .update({ class_id: matchedClassId, section_class: classNameMap[matchedClassId] })
+          .eq('id', s.id);
+        classAssigned++;
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      driftFixed,
+      classAssigned,
+      updated: driftFixed + classAssigned,
+    });
+  }
+
   if (action === 'delete_class') {
     if (!deleteClassId) return NextResponse.json({ error: 'deleteClassId required' }, { status: 400 });
     const { error } = await db.from('classes').delete().eq('id', deleteClassId);
