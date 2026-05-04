@@ -724,15 +724,8 @@ function LessonPlansPageInner() {
   const currentCourse = courses.find(c => c.id === form.course_id);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 selection:bg-primary/30 selection:text-white">
-      {/* Cinematic Background Elements */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-emerald-500/5 rounded-full blur-[100px]" />
-      </div>
-
-      <div className="relative z-10 p-4 sm:p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
         {/* Planning trio breadcrumb */}
         <PlanningBreadcrumb current="lesson-plans" />
 
@@ -748,86 +741,66 @@ function LessonPlansPageInner() {
         </div>
 
         {/* Header */}
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-violet-600 rounded-[40px] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
-          <div className="relative bg-slate-900/50 backdrop-blur-3xl border border-white/10 rounded-[40px] p-8 sm:p-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(255,107,0,0.3)]">
-                  <DocumentTextIcon className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-white">Lesson Plans</h1>
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Your Teaching Hub</p>
-                </div>
-              </div>
-              <p className="text-lg text-white/60 font-medium max-w-2xl leading-relaxed">
-                {filterCourseId 
-                  ? `Active session schedule and milestones for ${courses.find(c => c.id === filterCourseId)?.title}.`
-                  : 'Plan your weeks and track your progress easily. Schedule sessions and see how your classes are doing.'}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <DocumentTextIcon className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-foreground">Lesson Plans</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {filterCourseId
+                  ? `Showing plans for ${courses.find(c => c.id === filterCourseId)?.title}`
+                  : 'Schedule your teaching weeks and track class progress'}
               </p>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-4">
-              {filterCourseId && (
-                <button 
-                  onClick={() => {
-                    setFilterCourseId('');
-                    setFilterProgramId('');
-                    setSearch('');
-                  }}
-                  className="px-6 py-3.5 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-widest border border-white/10 rounded-2xl transition-all"
-                >
-                  Reset Filter
-                </button>
-              )}
-              <div className="flex items-center gap-3">
-                <button onClick={load} className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all">
-                  <ArrowPathIcon className={`w-5 h-5 text-white/50 ${loading ? 'animate-spin' : ''}`} />
-                </button>
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-2xl transition-all shadow-[0_0_30px_rgba(255,107,0,0.3)]"
-                >
-                  <PlusIcon className="w-5 h-5" /> Create New Plan
-                </button>
-              </div>
-            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {filterCourseId && (
+              <button
+                onClick={() => { setFilterCourseId(''); setFilterProgramId(''); setSearch(''); }}
+                className="px-4 py-2 bg-card border border-border text-muted-foreground text-xs font-bold rounded-xl transition-all hover:bg-muted"
+              >
+                Clear filter
+              </button>
+            )}
+            <button onClick={load} className="p-2 bg-card border border-border rounded-xl transition-all hover:bg-muted">
+              <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+            >
+              <PlusIcon className="w-4 h-4" /> New Plan
+            </button>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-4 items-center bg-white/5 backdrop-blur-2xl border border-white/10 p-4 rounded-3xl">
-          <div className="relative flex-1 min-w-[280px]">
-            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
-            <input 
-              value={search} 
-              onChange={e => setSearch(e.target.value)} 
-              placeholder="Search active plans..."
-              className="w-full pl-12 pr-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-primary/50 transition-all" 
+        <div className="flex flex-wrap gap-3 items-center bg-card border border-border p-3 rounded-2xl">
+          <div className="relative flex-1 min-w-[220px]">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by course, class, or term…"
+              className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-all"
             />
           </div>
           <select
             value={filterProgramId}
             onChange={e => setFilterProgramId(e.target.value)}
-            className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white/70 focus:outline-none focus:border-primary/50 transition-all cursor-pointer hover:bg-white/10"
+            className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all cursor-pointer"
           >
-            <option value="" className="bg-slate-900">All Streams</option>
-            {programOptions.map(p => <option key={p.id} value={p.id} className="bg-slate-900">{p.name}</option>)}
+            <option value="">All Programmes</option>
+            {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           {(filterClassId || filterTerm || filterStatus || filterProgramId || filterCourseId || search) && (
             <button
-              onClick={() => {
-                setFilterProgramId('');
-                setFilterCourseId('');
-                setFilterClassId('');
-                setFilterTerm('');
-                setFilterStatus('');
-                setSearch('');
-              }}
-              className="px-6 py-4 text-xs font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors"
+              onClick={() => { setFilterProgramId(''); setFilterCourseId(''); setFilterClassId(''); setFilterTerm(''); setFilterStatus(''); setSearch(''); }}
+              className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
             >
-              Clear
+              Clear all
             </button>
           )}
         </div>
@@ -857,69 +830,86 @@ function LessonPlansPageInner() {
         )}
 
         {/* Plan Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence mode="popLayout">
             {filtered.map(plan => {
               const status = STATUS_BADGE[plan.status ?? 'draft'] ?? STATUS_BADGE.draft;
+              const updatedAgo = (() => {
+                const d = new Date(plan.updated_at);
+                const diff = Date.now() - d.getTime();
+                const days = Math.floor(diff / 86400000);
+                if (days === 0) return 'Updated today';
+                if (days === 1) return 'Updated yesterday';
+                if (days < 30) return `Updated ${days}d ago`;
+                return `Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+              })();
               return (
                 <motion.div
                   key={plan.id}
                   layout
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="group relative"
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  className="group"
                 >
                   <Link
                     href={`/dashboard/lesson-plans/${plan.id}`}
-                    className="block bg-white/5 backdrop-blur-3xl border border-white/10 hover:border-primary/50 p-8 rounded-[32px] transition-all duration-500 hover:shadow-[0_20px_50px_rgba(255,107,0,0.1)] hover:-translate-y-2"
+                    className="block bg-card border border-border hover:border-primary/50 p-5 rounded-2xl transition-all hover:shadow-md"
                   >
-                    <div className="flex items-start justify-between mb-6">
-                      <div className={`px-4 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest ${status.cls}`}>
+                    <div className="flex items-start justify-between mb-4">
+                      <span className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${status.cls}`}>
                         {status.label}
-                      </div>
-                      <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
-                        <AcademicCapIcon className="w-5 h-5 text-primary" />
-                      </div>
+                      </span>
+                      <AcademicCapIcon className="w-4 h-4 text-primary/60" />
                     </div>
 
-                    <div className="space-y-2 mb-8">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">{plan.classes?.name || 'Assigned Class'}</p>
-                      <h3 className="text-xl font-black text-white group-hover:text-primary transition-colors line-clamp-2 leading-tight">
+                    <div className="mb-4 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {plan.classes?.name && (
+                          <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                            {plan.classes.name}
+                          </span>
+                        )}
+                        {plan.schools?.name && (
+                          <span className="text-[10px] text-muted-foreground/70">{plan.schools.name}</span>
+                        )}
+                      </div>
+                      <h3 className="text-base font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mt-1">
                         {plan.courses?.title || 'Course Plan'}
                       </h3>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Term</p>
-                        <p className="text-xs font-bold text-white/70 truncate">{plan.term || 'N/A'}</p>
+                    <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/60 text-xs">
+                      <div>
+                        <p className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[9px] mb-0.5">Term</p>
+                        <p className="font-semibold text-foreground/80 truncate">{plan.term || '—'}</p>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Intensity</p>
-                        <p className="text-xs font-bold text-white/70">{plan.sessions_per_week || 0} Sessions/Week</p>
+                      <div>
+                        <p className="text-muted-foreground/60 font-bold uppercase tracking-wider text-[9px] mb-0.5">Sessions / wk</p>
+                        <p className="font-semibold text-foreground/80">{plan.sessions_per_week ?? '—'}</p>
                       </div>
                     </div>
 
-                    <div className="mt-8 flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                        Open Plan Hub →
-                      </span>
-                      <div className="flex items-center gap-2">
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">{updatedAgo}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-all">
+                          Open →
+                        </span>
                         {canManage && (
                           <button
                             onClick={(e) => { e.preventDefault(); openEdit(plan); }}
-                            className="p-2.5 text-white/30 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                            className="p-1.5 text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded-lg transition-all"
                           >
-                            <PencilIcon className="w-4 h-4" />
+                            <PencilIcon className="w-3.5 h-3.5" />
                           </button>
                         )}
                         {canManage && (
                           <button
                             onClick={(e) => { e.preventDefault(); openDeleteConfirm(plan); }}
-                            className="p-2.5 text-rose-500/30 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                            className="p-1.5 text-rose-400/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
                           >
-                            <TrashIcon className="w-4 h-4" />
+                            <TrashIcon className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
@@ -933,17 +923,15 @@ function LessonPlansPageInner() {
 
         {/* Empty State */}
         {!loading && filtered.length === 0 && (
-          <div className="py-32 flex flex-col items-center justify-center bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[40px] text-center px-6">
-            <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mb-6">
-              <DocumentTextIcon className="w-10 h-10 text-white/20" />
-            </div>
-            <h3 className="text-2xl font-black text-white mb-2">No Active Plans Found</h3>
-            <p className="text-white/40 text-sm max-w-sm mb-8">Refine your search parameters or create a new lesson plan for your class.</p>
+          <div className="py-20 flex flex-col items-center justify-center bg-card border border-border rounded-2xl text-center px-6">
+            <DocumentTextIcon className="w-10 h-10 text-muted-foreground/20 mb-4" />
+            <h3 className="text-lg font-bold text-foreground mb-1">No lesson plans found</h3>
+            <p className="text-muted-foreground text-sm max-w-sm mb-6">Try adjusting your filters, or create your first plan for this class.</p>
             <button
               onClick={() => { setFilterProgramId(''); setFilterCourseId(''); setFilterClassId(''); setFilterTerm(''); setFilterStatus(''); setSearch(''); }}
-              className="px-8 py-3.5 bg-primary/10 text-primary border border-primary/20 text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-primary hover:text-white transition-all"
+              className="px-5 py-2.5 bg-primary/10 text-primary border border-primary/20 text-xs font-bold rounded-xl hover:bg-primary hover:text-white transition-all"
             >
-              Clear All Filters
+              Clear filters
             </button>
           </div>
         )}
@@ -967,51 +955,51 @@ function LessonPlansPageInner() {
 
       {/* Create Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-slate-900 border border-white/10 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl"
+            className="bg-card border border-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
           >
-            <div className="flex items-center justify-between p-8 border-b border-white/5">
+            <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
-                <h3 className="text-xl font-black text-white">Create New Plan</h3>
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary mt-1">Setup Teaching Period</p>
+                <h3 className="text-base font-black text-foreground">New Lesson Plan</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Choose the course, term, and class for this plan</p>
               </div>
-              <button onClick={() => { setShowForm(false); resetForm(); }} className="p-3 hover:bg-white/5 rounded-2xl transition-all">
-                <XMarkIcon className="w-6 h-6 text-white/40" />
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="p-2 hover:bg-muted rounded-xl transition-all">
+                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
-            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Select Course Content</label>
+            <div className="p-5 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Course</label>
                 <select
                   value={form.course_id}
                   onChange={e => setForm(f => ({ ...f, course_id: e.target.value, curriculum_version_id: '' }))}
-                  className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                 >
-                  <option value="" className="bg-slate-900">Select course content...</option>
+                  <option value="">Choose a course…</option>
                   {groupedCourses.groups.map(g => (
-                    <optgroup key={g.programName} label={g.programName} className="bg-slate-900 text-white/40">
-                      {g.list.map(c => <option key={c.id} value={c.id} className="bg-slate-900 text-white">{c.title}</option>)}
+                    <optgroup key={g.programName} label={g.programName}>
+                      {g.list.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                     </optgroup>
                   ))}
                 </select>
               </div>
 
-              <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Academic Term</label>
-                <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Term</label>
+                <div className="grid grid-cols-3 gap-2">
                   {(['First Term', 'Second Term', 'Third Term'] as const).map(t => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setForm(f => ({ ...f, term: t }))}
-                      className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                      className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
                         form.term === t
-                          ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
-                          : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                          ? 'bg-primary border-primary text-white'
+                          : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-muted'
                       }`}
                     >
                       {t.split(' ')[0]}
@@ -1020,32 +1008,32 @@ function LessonPlansPageInner() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Target Class</label>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Class</label>
                 <select
                   value={form.class_id}
                   onChange={e => { setForm(f => ({ ...f, class_id: e.target.value })); if (e.target.value) setAutoClassMatch(false); }}
-                  className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all"
                 >
-                  <option value="" className="bg-slate-900">— Plan for all classes —</option>
-                  {formClasses.map(c => <option key={c.id} value={c.id} className="bg-slate-900">{c.name}</option>)}
+                  <option value="">— All classes —</option>
+                  {formClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
 
-            <div className="p-8 bg-white/5 border-t border-white/10 flex gap-4">
-              <button 
+            <div className="p-5 bg-muted/30 border-t border-border flex gap-3">
+              <button
                 onClick={() => { setShowForm(false); resetForm(); }}
-                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all"
+                className="flex-1 py-2.5 bg-background border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-xl transition-all"
               >
-                Discard
+                Cancel
               </button>
-              <button 
+              <button
                 onClick={save}
                 disabled={submitting || !form.term || !form.course_id}
-                className="flex-1 py-4 bg-primary hover:bg-primary disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-primary/20"
+                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all"
               >
-                {submitting ? 'Initializing...' : 'Confirm Plan'}
+                {submitting ? 'Creating…' : 'Create Plan'}
               </button>
             </div>
           </motion.div>
@@ -1054,53 +1042,61 @@ function LessonPlansPageInner() {
 
       {/* Delete Confirmation Modal */}
       {planToDelete && (
-        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl z-[110] flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-slate-900 border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden"
+            className="bg-card border border-border w-full max-w-sm rounded-2xl overflow-hidden"
           >
-            <div className="p-8 text-center space-y-6">
-              <div className="mx-auto w-20 h-20 bg-rose-500/10 rounded-3xl flex items-center justify-center">
-                <TrashIcon className="w-10 h-10 text-rose-500" />
+            <div className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-rose-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <TrashIcon className="w-5 h-5 text-rose-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-foreground">Delete this plan?</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    <span className="font-bold text-foreground">{planToDelete.courses?.title}</span>
+                    {planToDelete.classes?.name && <> · {planToDelete.classes.name}</>}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-2xl font-black text-white">Permanently Delete?</h3>
-                <p className="text-white/40 text-sm mt-2 leading-relaxed">
-                  You are about to remove <span className="text-white font-bold">{planToDelete.courses?.title}</span> plan for <span className="text-white font-bold">{planToDelete.classes?.name}</span>. This will erase all progress tracking.
-                </p>
-              </div>
-              
+
+              {loadingSummary && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Loading details…
+                </div>
+              )}
               {deletionSummary && (
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-left">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-4">Affected Assets</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Lessons</p>
-                      <p className="text-lg font-black text-white">{deletionSummary.lessons}</p>
+                <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-4 text-sm">
+                  <p className="text-xs font-bold text-rose-400 mb-3">This will also delete:</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-muted-foreground text-xs">Lessons</p>
+                      <p className="font-black text-foreground text-lg">{deletionSummary.lessons}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Audit Trail</p>
-                      <p className="text-lg font-black text-white">{deletionSummary.audit}</p>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Activity records</p>
+                      <p className="font-black text-foreground text-lg">{deletionSummary.audit}</p>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="p-8 bg-white/5 border-t border-white/10 flex gap-4">
-              <button 
+            <div className="p-5 bg-muted/30 border-t border-border flex gap-3">
+              <button
                 onClick={() => setPlanToDelete(null)}
-                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all"
+                className="flex-1 py-2.5 bg-background border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-xl transition-all"
               >
-                Go Back
+                Cancel
               </button>
-              <button 
+              <button
                 onClick={() => deletePlan(planToDelete.id)}
                 disabled={deleting}
-                className="flex-1 py-4 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-rose-600/20"
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all"
               >
-                {deleting ? 'Removing...' : 'Confirm Delete'}
+                {deleting ? 'Deleting…' : 'Yes, delete'}
               </button>
             </div>
           </motion.div>
@@ -1109,34 +1105,34 @@ function LessonPlansPageInner() {
 
       {/* Edit Form Modal */}
       {editingPlan && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-slate-900 border border-white/10 w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl"
+            className="bg-card border border-border w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
           >
-            <div className="flex items-center justify-between p-8 border-b border-white/5">
+            <div className="flex items-center justify-between p-5 border-b border-border">
               <div>
-                <h3 className="text-xl font-black text-white">Modify Plan</h3>
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary mt-1">Status & Parameters</p>
+                <h3 className="text-base font-black text-foreground">Edit Plan</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Update status and sessions per week</p>
               </div>
-              <button onClick={() => setEditingPlan(null)} className="p-3 hover:bg-white/5 rounded-2xl transition-all">
-                <XMarkIcon className="w-6 h-6 text-white/40" />
+              <button onClick={() => setEditingPlan(null)} className="p-2 hover:bg-muted rounded-xl transition-all">
+                <XMarkIcon className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
 
-            <div className="p-8 space-y-6">
-              <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Publication Status</label>
-                <div className="grid grid-cols-3 gap-3">
+            <div className="p-5 space-y-5">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Plan Status</label>
+                <div className="grid grid-cols-3 gap-2">
                   {Object.entries(STATUS_BADGE).map(([key, val]) => (
                     <button
                       key={key}
                       onClick={() => setEditForm(f => ({ ...f, status: key }))}
-                      className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                      className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
                         editForm.status === key
-                          ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20'
-                          : 'bg-white/5 border-white/10 text-white/40 hover:text-white hover:bg-white/10'
+                          ? 'bg-primary border-primary text-white'
+                          : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-muted'
                       }`}
                     >
                       {val.label}
@@ -1145,33 +1141,33 @@ function LessonPlansPageInner() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-white/40">Sessions Per Week</label>
-                <div className="flex items-center gap-6 bg-white/5 p-6 rounded-2xl border border-white/10">
-                  <input 
-                    type="range" min="1" max="5" 
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sessions per week</label>
+                <div className="flex items-center gap-4 bg-background border border-border p-4 rounded-xl">
+                  <input
+                    type="range" min="1" max="5"
                     value={editForm.sessions_per_week}
                     onChange={e => setEditForm(f => ({ ...f, sessions_per_week: e.target.value }))}
-                    className="flex-1 accent-primary" 
+                    className="flex-1 accent-primary"
                   />
-                  <span className="text-2xl font-black text-white w-12 text-center">{editForm.sessions_per_week}</span>
+                  <span className="text-xl font-black text-foreground w-8 text-center">{editForm.sessions_per_week}</span>
                 </div>
               </div>
             </div>
 
-            <div className="p-8 bg-white/5 border-t border-white/10 flex gap-4">
-              <button 
+            <div className="p-5 bg-muted/30 border-t border-border flex gap-3">
+              <button
                 onClick={() => setEditingPlan(null)}
-                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all"
+                className="flex-1 py-2.5 bg-background border border-border hover:bg-muted text-muted-foreground text-xs font-bold rounded-xl transition-all"
               >
-                Discard
+                Cancel
               </button>
-              <button 
-                onClick={saveEdit} 
+              <button
+                onClick={saveEdit}
                 disabled={savingEdit}
-                className="flex-1 py-4 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-primary/20"
+                className="flex-1 py-2.5 bg-primary hover:bg-primary text-white text-xs font-bold rounded-xl transition-all"
               >
-                {savingEdit ? 'Saving...' : 'Update Plan'}
+                {savingEdit ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </motion.div>
