@@ -2816,7 +2816,7 @@ export default function CurriculumPage() {
                   onClick={() => {
                     const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
                     setImplError('');
-                    setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
+                    setImplForm(f => ({ ...f, school_id: sid, class_id: '', term: activeTerm.toString() }));
                     if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
                     else setImplClasses([]);
                     setShowImplement(true);
