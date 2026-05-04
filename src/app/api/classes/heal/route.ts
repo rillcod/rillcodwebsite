@@ -91,25 +91,7 @@ export async function GET(req: NextRequest) {
     return classSchool && classSchool !== s.school_id;
   });
 
-  // 4. Duplicate class membership (student appears in multiple classes — via section_class)
-  // For each school, find students whose section_class doesn't match their class's name
-  const { data: sectionMismatch } = await db
-    .from('portal_users')
-    .select('id, full_name, email, school_id, class_id, section_class')
-    .eq('role', 'student')
-    .not('class_id', 'is', null)
-    .not('section_class', 'is', null)
-    .eq('is_deleted', false);
-
-  const classNameMap: Record<string, string> = {};
-  (allClasses ?? []).forEach((c: any) => { classNameMap[c.id] = c.name; });
-
-  const sectionDrift = (sectionMismatch ?? []).filter((s: any) => {
-    const className = classNameMap[s.class_id];
-    return className && s.section_class && className !== s.section_class;
-  });
-
-  // 5. Classes with no students and no lesson plans
+  // 4. Classes with no students and no lesson plans
   const { data: emptyClasses } = await db
     .from('classes')
     .select('id, name, school_id, created_at, schools(name)')
@@ -138,7 +120,7 @@ export async function GET(req: NextRequest) {
       noSchool: noSchool ?? [],
       noClass: noClass ?? [],
       mismatched,
-      sectionDrift,
+      sectionDrift: [],
       orphanClasses,
       classes: allClasses ?? [],
     },
@@ -182,59 +164,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, updated: studentIds.length });
   }
 
-  if (action === 'fix_section_drift') {
-    // Align section_class to the actual class name
-    if (!studentIds?.length) {
-      return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
-    }
-    const { data: students } = await db
-      .from('portal_users').select('id, class_id').in('id', studentIds);
-    const classIds = [...new Set((students ?? []).map((s: any) => s.class_id).filter(Boolean))];
-    const { data: classes } = await db.from('classes').select('id, name').in('id', classIds);
-    const nameMap: Record<string, string> = {};
-    (classes ?? []).forEach((c: any) => { nameMap[c.id] = c.name; });
-    for (const s of (students ?? [])) {
-      if (s.class_id && nameMap[s.class_id]) {
-        await db.from('portal_users').update({ section_class: nameMap[s.class_id] }).eq('id', s.id);
-      }
-    }
-    return NextResponse.json({ success: true, updated: studentIds.length });
-  }
-
   if (action === 'safe_auto_repair') {
-    // 1. Fix all section drift — sync section_class text to actual class name
-    const { data: driftStudents } = await db
-      .from('portal_users')
-      .select('id, class_id, section_class')
-      .eq('role', 'student')
-      .not('class_id', 'is', null)
-      .not('section_class', 'is', null)
-      .eq('is_deleted', false);
-
+    // Assign class_id to students who have no class but section_class exactly matches
+    // a class name at their school — uses the student's own registration data as the signal.
+    // Does NOT touch section_class text; class names are program-based and may differ from
+    // a student's grade/section label (e.g. "Python SS2" class with SS1+SS2 students is valid).
     const { data: allClasses } = await db.from('classes').select('id, name, school_id');
     const classNameMap: Record<string, string> = {};
-    const classSchoolMap: Record<string, string> = {};
-    (allClasses ?? []).forEach((c: any) => {
-      classNameMap[c.id] = c.name;
-      classSchoolMap[c.id] = c.school_id;
-    });
-
-    // Build section_class → class lookup: school_id+name → class id
     const sectionToClass: Record<string, string> = {};
     (allClasses ?? []).forEach((c: any) => {
+      classNameMap[c.id] = c.name;
       if (c.school_id && c.name) sectionToClass[`${c.school_id}::${c.name}`] = c.id;
     });
 
-    let driftFixed = 0;
-    for (const s of (driftStudents ?? [])) {
-      const correctName = classNameMap[s.class_id];
-      if (correctName && s.section_class !== correctName) {
-        await db.from('portal_users').update({ section_class: correctName }).eq('id', s.id);
-        driftFixed++;
-      }
-    }
-
-    // 2. Assign class_id to students who have no class but section_class matches a class at their school
     const { data: noClassStudents } = await db
       .from('portal_users')
       .select('id, school_id, section_class')
@@ -250,7 +192,7 @@ export async function POST(req: NextRequest) {
       const matchedClassId = sectionToClass[key];
       if (matchedClassId) {
         await db.from('portal_users')
-          .update({ class_id: matchedClassId, section_class: classNameMap[matchedClassId] })
+          .update({ class_id: matchedClassId })
           .eq('id', s.id);
         classAssigned++;
       }
@@ -258,9 +200,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      driftFixed,
+      driftFixed: 0,
       classAssigned,
-      updated: driftFixed + classAssigned,
+      updated: classAssigned,
     });
   }
 

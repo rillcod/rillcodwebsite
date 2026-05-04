@@ -30,7 +30,6 @@ export default function ClassHealPage() {
   const [selNoSchool, setSelNoSchool] = useState<Set<string>>(new Set());
   const [selNoClass, setSelNoClass] = useState<Set<string>>(new Set());
   const [selMismatched, setSelMismatched] = useState<Set<string>>(new Set());
-  const [selDrift, setSelDrift] = useState<Set<string>>(new Set());
 
   const [targetClass, setTargetClass] = useState('');
   const [targetSchool, setTargetSchool] = useState('');
@@ -340,30 +339,6 @@ export default function ClassHealPage() {
               {data!.mismatched.map(s => (
                 <StudentRow key={s.id} student={s} selected={selMismatched.has(s.id)}
                   onToggle={() => toggleSel(selMismatched, setSelMismatched, s.id)} />
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* ── section_class drift ───────────────────────────────── */}
-        {(data?.sectionDrift.length ?? 0) > 0 && (
-          <Section title="Section Name Drift" count={data!.sectionDrift.length}
-            description="Student's section_class text doesn't match their actual class name. Auto-fix syncs them.">
-            <div className="flex items-center gap-3 mb-3">
-              <button onClick={() => selAll(data!.sectionDrift.map(s => s.id), setSelDrift)}
-                className="text-xs font-bold text-primary hover:underline">Select all</button>
-              <button
-                disabled={selDrift.size === 0 || working}
-                onClick={() => applyAction('fix_section_drift', Array.from(selDrift))}
-                className="px-4 py-2 bg-sky-600 text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
-                Auto-fix Selected
-              </button>
-            </div>
-            <div className="space-y-2">
-              {data!.sectionDrift.map(s => (
-                <StudentRow key={s.id} student={s} selected={selDrift.has(s.id)}
-                  onToggle={() => toggleSel(selDrift, setSelDrift, s.id)}
-                  extra={`section_class: "${s.section_class}"`} />
               ))}
             </div>
           </Section>
