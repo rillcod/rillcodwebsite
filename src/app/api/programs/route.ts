@@ -80,11 +80,13 @@ export async function GET(request: NextRequest) {
     // courses are omitted.
     const isAdmin = callerRole === 'admin';
     const isTeacher = callerRole === 'teacher';
+    // True only for unauthenticated public visitors hitting the active catalog
+    const isPublicVisitor = !user && publicCatalog;
 
     const rows = (data ?? [])
-      .filter((row: any) => publicCatalog || isProgramVisibleToRole(row, callerRole ?? null))
+      .filter((row: any) => isPublicVisitor || isProgramVisibleToRole(row, callerRole ?? null))
       .map((row: any) => {
-        if (isAdmin || isTeacher || publicCatalog) return row;
+        if (isAdmin || isTeacher || isPublicVisitor) return row;
         const visibleCourses = (row.courses ?? []).filter((c: any) =>
           isCourseVisibleToLearners(
             { ...c, programs: { name: row.name } },
@@ -94,7 +96,7 @@ export async function GET(request: NextRequest) {
         return { ...row, courses: visibleCourses };
       })
       .filter((row: any) => {
-        if (isAdmin || isTeacher || publicCatalog) return true;
+        if (isAdmin || isTeacher || isPublicVisitor) return true;
         return (row.courses?.length ?? 0) > 0;
       });
 
