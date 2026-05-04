@@ -53,13 +53,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ data: rows });
   }
 
-  // 1. Students with no school_id
-  const { data: noSchool } = await db
+  // 1. Students with no school_id — cross-check against students registry
+  const { data: noSchoolRaw } = await db
     .from('portal_users')
     .select('id, full_name, email, class_id, school_id, section_class')
     .eq('role', 'student')
     .is('school_id', null)
     .eq('is_deleted', false);
+
+  // Look up registry records for each no-school student
+  const noSchoolIds = (noSchoolRaw ?? []).map((s: any) => s.id);
+  let registryMap: Record<string, { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null }> = {};
+  if (noSchoolIds.length > 0) {
+    const { data: regRows } = await db
+      .from('students')
+      .select('user_id, school_id, school_name, section, grade_level, status')
+      .in('user_id', noSchoolIds);
+    (regRows ?? []).forEach((r: any) => {
+      if (r.user_id) registryMap[r.user_id] = {
+        school_id: r.school_id ?? null,
+        school_name: r.school_name ?? null,
+        section: r.section ?? null,
+        grade_level: r.grade_level ?? null,
+        status: r.status ?? null,
+      };
+    });
+  }
+
+  const noSchool = (noSchoolRaw ?? []).map((s: any) => ({
+    ...s,
+    registry: registryMap[s.id] ?? null,
+  }));
 
   // 2. Students with no class_id
   const { data: noClass } = await db
@@ -204,6 +228,38 @@ export async function POST(req: NextRequest) {
       classAssigned,
       updated: classAssigned,
     });
+  }
+
+  if (action === 'delete_portal_user') {
+    // Soft-delete a portal user (marks is_deleted, does not remove auth)
+    if (!studentIds?.length) return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
+    const { error } = await db
+      .from('portal_users')
+      .update({ is_deleted: true, is_active: false })
+      .in('id', studentIds);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, updated: studentIds.length });
+  }
+
+  if (action === 'sync_from_registry') {
+    // For students with no school_id, apply the school from their students registry record
+    if (!studentIds?.length) return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
+    const { data: regRows } = await db
+      .from('students')
+      .select('user_id, school_id, school_name, section')
+      .in('user_id', studentIds)
+      .not('school_id', 'is', null);
+    let synced = 0;
+    for (const r of (regRows ?? [])) {
+      if (!r.user_id || !r.school_id) continue;
+      await db.from('portal_users').update({
+        school_id: r.school_id,
+        school_name: r.school_name ?? null,
+        section_class: r.section ?? null,
+      }).eq('id', r.user_id);
+      synced++;
+    }
+    return NextResponse.json({ success: true, updated: synced });
   }
 
   if (action === 'delete_class') {
