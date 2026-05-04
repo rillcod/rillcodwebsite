@@ -67,8 +67,7 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          body > * { display: none !important; }
-          .curriculum-overview-print-root { display: block !important; }
+          .curriculum-overview-print-root { display: block !important; position: absolute; top: 0; left: 0; width: 100%; z-index: 999999; background: white; min-height: 100vh; }
           @page {
             size: A4 portrait;
             margin: 14mm 15mm 18mm 15mm;
