@@ -3300,137 +3300,21 @@ export default function CurriculumPage() {
                   </div>
                 )}
 
-                {/* Assign this week */}
-                {activeWeek.type === 'lesson' && activeWeek.lesson_plan && (
-                  <div className="bg-primary/5 border border-primary/20 p-3 space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-primary">Publish to Students</p>
-                    <div className="flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
-                      {activeWeek.lesson_plan.assignment?.title && (
-                        <span className="bg-muted border border-border px-2 py-0.5 font-bold">
-                          📝 Assignment: {activeWeek.lesson_plan.assignment.title}
-                        </span>
-                      )}
-                      {activeWeek.lesson_plan.project?.title && (
-                        <span className="bg-muted border border-border px-2 py-0.5 font-bold">
-                          🚀 Project: {activeWeek.lesson_plan.project.title}
-                        </span>
-                      )}
-                    </div>
-                    {assignResult && (
-                      <p className="text-[10px] text-emerald-400 font-bold">
-                        ✓ Published:{assignResult.assignment ? ' Assignment' : ''}{assignResult.project ? ' + Project' : ''} — visible in student dashboards
-                      </p>
-                    )}
-                    <button
-                      onClick={() => assignWeek(activeWeek)}
-                      disabled={assigning || (!activeWeek.lesson_plan?.assignment?.title && !activeWeek.lesson_plan?.project?.title)}
-                      className="w-full py-2 bg-primary hover:bg-primary disabled:opacity-40 text-white text-xs font-bold transition-colors"
-                    >
-                      {assigning ? 'Publishing…' : '⚡ Assign This Week'}
-                    </button>
-                  </div>
-                )}
 
-                {/* Quick-create actions — all content types in one place */}
-                {activeWeek.type === 'lesson' && canTrack && (
-                  <div className="space-y-3">
+                {/* Quick-create actions — simplified */}
+                {canTrack && (
+                  <div className="space-y-3 bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-center">
                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Add content for this week</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => createLessonFromWeek(activeWeek)}
-                        disabled={creatingLesson}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-40 min-h-[52px]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-bold">
-                          <PencilIcon className="w-3.5 h-3.5" />
-                          {creatingLesson ? 'Opening…' : 'Lesson'}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground leading-snug">Write & deliver the week's teaching content</span>
-                      </button>
-                      <button
-                        onClick={() => createAssignmentFromWeek(activeWeek)}
-                        disabled={creatingAssignment}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[52px]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-bold">
-                          <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                          {creatingAssignment ? 'Creating…' : 'Assignment'}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground leading-snug">Set a task for students to complete and submit</span>
-                      </button>
-                      <button
-                        onClick={() => createProjectFromWeek(activeWeek)}
-                        disabled={creatingProject}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[52px]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-bold">
-                          <RocketLaunchIcon className="w-3.5 h-3.5" />
-                          {creatingProject ? 'Creating…' : 'Project'}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground leading-snug">Longer-form hands-on project work (2-week window)</span>
-                      </button>
-                      <button
-                        onClick={() => createCbtFromWeek(activeWeek)}
-                        disabled={creatingCbt}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-40 min-h-[52px]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-bold">
-                          <BoltIcon className="w-3.5 h-3.5" />
-                          {creatingCbt ? 'Opening…' : 'CBT Quiz'}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground leading-snug">Computer-based test — auto-marked multiple choice</span>
-                      </button>
-                      <button
-                        onClick={() => createFlashcardsFromWeek(activeWeek)}
-                        disabled={creatingLesson}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors disabled:opacity-40 min-h-[52px]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-bold">
-                          <StarIcon className="w-3.5 h-3.5" />
-                          Flashcards
-                        </span>
-                        <span className="text-[10px] text-muted-foreground leading-snug">Quick revision cards students can self-test with</span>
-                      </button>
-                      <button
-                        onClick={printWeek}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[52px]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-bold">
-                          <PrinterIcon className="w-3.5 h-3.5" />
-                          Print Plan
-                        </span>
-                        <span className="text-[10px] text-muted-foreground leading-snug">Print this week's lesson plan as a PDF</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {(activeWeek.type === 'assessment' || activeWeek.type === 'examination') && canTrack && (
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                      {activeWeek.type === 'examination' ? 'End-of-term exam' : 'Mid-term assessment'} — create test
+                    <p className="text-xs text-muted-foreground mt-2 mb-4">
+                      Please head over to your <Link href="/dashboard/lesson-plans" className="text-primary hover:underline">Lesson Plans</Link> to create and manage lessons, assignments, projects, and exams for your classes.
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => createCbtFromWeek(activeWeek)}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[52px]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-bold">
-                          <BoltIcon className="w-3.5 h-3.5" />
-                          {activeWeek.type === 'examination' ? 'Create Exam (CBT)' : 'Create Assessment (CBT)'}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground leading-snug">Auto-marked computer-based test for this {activeWeek.type === 'examination' ? 'exam' : 'assessment'} week</span>
-                      </button>
-                      <button
-                        onClick={printWeek}
-                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-border text-muted-foreground hover:text-foreground transition-colors min-h-[52px]"
-                      >
-                        <span className="flex items-center gap-1.5 text-xs font-bold">
-                          <PrinterIcon className="w-3.5 h-3.5" />
-                          Print Plan
-                        </span>
-                        <span className="text-[10px] text-muted-foreground leading-snug">Print this week's plan as a PDF</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={printWeek}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
+                    >
+                      <PrinterIcon className="w-4 h-4" />
+                      <span className="text-xs font-bold">Print Week Syllabus</span>
+                    </button>
                   </div>
                 )}
 

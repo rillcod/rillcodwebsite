@@ -9,6 +9,7 @@ import {
   ArrowLeftIcon, PencilIcon, CheckCircleIcon, PrinterIcon,
   PlusIcon, TrashIcon, ArrowPathIcon, BookOpenIcon, SparklesIcon,
   BoltIcon, LockOpenIcon, XMarkIcon, TrophyIcon, AcademicCapIcon, ArrowUpTrayIcon,
+  ClipboardDocumentListIcon, RocketLaunchIcon, StarIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
@@ -419,6 +420,9 @@ export default function LessonPlanDetailPage() {
   const [weeks, setWeeks] = useState<WeekEntry[]>([]);
   const [weekPanelOpen, setWeekPanelOpen] = useState(false);
   const [weekDraft, setWeekDraft] = useState<WeekEntry | null>(null);
+  const [viewWeek, setViewWeek] = useState<WeekEntry | null>(null);
+  const [creatingAssignment, setCreatingAssignment] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
   const [practicalModal, setPracticalModal] = useState<{ weekNum: number; passScore: number } | null>(null);
   const [practicalInput, setPracticalInput] = useState('0');
   const [overrideModal, setOverrideModal] = useState<{ weekNum: number } | null>(null);
@@ -473,6 +477,70 @@ export default function LessonPlanDetailPage() {
   }>({ enabled: false, types: ['lessons', 'assignments'], maxWeeksPerBatch: 0 });
   const [savingLms, setSavingLms] = useState(false);
   const canGenerateProgression = ['teacher', 'admin'].includes(profile?.role ?? '');
+
+  function printWeek() {
+    setTimeout(() => window.print(), 50);
+  }
+
+  async function createAssignmentFromWeek(week: WeekEntry) {
+    if (!plan || !plan.course_id) return;
+    setCreatingAssignment(true);
+    try {
+      const weekTag = `Week ${week.week}: ${week.topic}`;
+      const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
+      const res = await fetch('/api/assignments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: week.assignment?.title || `${weekTag} — Assignment`,
+          instructions: week.assignment?.brief || week.activities || `Assignment for ${weekTag}`,
+          assignment_type: 'homework',
+          due_date: dueDate,
+          max_points: 100,
+          is_active: true,
+          course_id: plan.course_id,
+          lesson_plan_id: plan.id,
+          metadata: { source: 'lesson-plan', lesson_plan_id: plan.id, curriculum_id: plan.curriculum_version_id, term: plan.term, week: week.week },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create assignment');
+      router.push(`/dashboard/assignments/${json.data.id}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Could not create assignment');
+    } finally {
+      setCreatingAssignment(false);
+    }
+  }
+
+  async function createProjectFromWeek(week: WeekEntry) {
+    if (!plan || !plan.course_id) return;
+    setCreatingProject(true);
+    try {
+      const weekTag = `Week ${week.week}: ${week.topic}`;
+      const dueDate = new Date(Date.now() + 14 * 864e5).toISOString().split('T')[0];
+      const res = await fetch('/api/assignments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: week.project?.title || `${weekTag} — Project`,
+          instructions: week.project?.description || week.activities || `Project for ${weekTag}`,
+          assignment_type: 'project',
+          due_date: dueDate,
+          max_points: 100,
+          is_active: true,
+          course_id: plan.course_id,
+          lesson_plan_id: plan.id,
+          metadata: { source: 'lesson-plan', lesson_plan_id: plan.id, curriculum_id: plan.curriculum_version_id, term: plan.term, week: week.week },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create project');
+      router.push(`/dashboard/assignments/${json.data.id}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Could not create project');
+    } finally {
+      setCreatingProject(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1597,7 +1665,7 @@ export default function LessonPlanDetailPage() {
                 <div key={w.week} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden hover:border-white/[0.14] transition-colors group">
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => startEdit(w)}>
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setViewWeek(w)}>
                         <div className="flex items-center flex-wrap gap-1.5 mb-2">
                           <span className="text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">Week {w.week}</span>
                           {(w.gating_state ?? 'unlocked') === 'locked' && (
@@ -2996,6 +3064,168 @@ export default function LessonPlanDetailPage() {
                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Deploying plan…
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Week View Panel */}
+      {viewWeek && (
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end md:flex-row md:justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setViewWeek(null)} />
+          <div className="relative w-full md:max-w-md md:h-full flex flex-col max-h-[92vh] md:max-h-none bg-card md:border-l border-t md:border-t-0 border-white/10 shadow-2xl rounded-t-2xl md:rounded-none overflow-hidden">
+            {/* Mobile drag handle */}
+            <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-white/20" />
+            </div>
+            
+            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">Week {viewWeek.week}</span>
+                  {(viewWeek.gating_state ?? 'unlocked') === 'locked' && (
+                    <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">Locked</span>
+                  )}
+                  {viewWeek.completed && (
+                    <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">Completed</span>
+                  )}
+                </div>
+                <h2 className="text-base font-black text-card-foreground">{viewWeek.topic || 'Untitled Week'}</h2>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => { setViewWeek(null); startEdit(viewWeek); }} className="p-2 hover:bg-white/10 rounded-xl transition-all flex items-center justify-center">
+                  <PencilIcon className="w-5 h-5 text-card-foreground/40" />
+                </button>
+                <button onClick={() => setViewWeek(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all flex items-center justify-center">
+                  <XMarkIcon className="w-5 h-5 text-card-foreground/40" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              {/* Content Generation Actions */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Add content for this week</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href={buildPlanWeekCreateLessonUrl({ plan: plan!, week: viewWeek, courseTitle: plan?.courses?.title || '' })}
+                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors min-h-[52px] rounded-xl"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-bold">
+                      <BookOpenIcon className="w-3.5 h-3.5" />
+                      Lesson
+                    </span>
+                    <span className="text-[10px] text-muted-foreground leading-snug">Write & deliver teaching content</span>
+                  </Link>
+                  <button
+                    onClick={() => createAssignmentFromWeek(viewWeek)}
+                    disabled={creatingAssignment}
+                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[52px] rounded-xl"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-bold">
+                      <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                      {creatingAssignment ? 'Creating…' : 'Assignment'}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground leading-snug">Set task for submission</span>
+                  </button>
+                  <button
+                    onClick={() => createProjectFromWeek(viewWeek)}
+                    disabled={creatingProject}
+                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[52px] rounded-xl"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-bold">
+                      <RocketLaunchIcon className="w-3.5 h-3.5" />
+                      {creatingProject ? 'Creating…' : 'Project'}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground leading-snug">Longer-form hands-on project</span>
+                  </button>
+                  <Link
+                    href={buildPlanWeekCreateCbtUrl({ plan: plan!, week: viewWeek, courseTitle: plan?.courses?.title || '' })}
+                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[52px] rounded-xl"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-bold">
+                      <BoltIcon className="w-3.5 h-3.5" />
+                      CBT Quiz
+                    </span>
+                    <span className="text-[10px] text-muted-foreground leading-snug">Auto-marked multiple choice test</span>
+                  </Link>
+                  <Link
+                    href={buildPlanWeekFlashcardUrl({ plan: plan!, week: viewWeek })}
+                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors min-h-[52px] rounded-xl"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-bold">
+                      <StarIcon className="w-3.5 h-3.5" />
+                      Flashcards
+                    </span>
+                    <span className="text-[10px] text-muted-foreground leading-snug">Quick revision cards</span>
+                  </Link>
+                  <button
+                    onClick={printWeek}
+                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[52px] rounded-xl"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-bold">
+                      <PrinterIcon className="w-3.5 h-3.5" />
+                      Print Plan
+                    </span>
+                    <span className="text-[10px] text-muted-foreground leading-snug">Print plan as PDF</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Seed Data Previews */}
+              <div className="space-y-3">
+                {(viewWeek.project?.title || viewWeek.project?.description) && (
+                  <div className="bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-3 space-y-2">
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Project Seed</p>
+                    <p className="text-sm font-bold text-emerald-100">{viewWeek.project.title || 'Untitled Project'}</p>
+                    {viewWeek.project.description && <p className="text-xs text-emerald-300/60 leading-relaxed">{viewWeek.project.description}</p>}
+                  </div>
+                )}
+                {(viewWeek.assignment?.title || viewWeek.assignment?.brief) && (
+                  <div className="bg-primary/[0.03] border border-primary/10 rounded-xl p-3 space-y-2">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Assignment Brief</p>
+                    <p className="text-sm font-bold text-blue-100">{viewWeek.assignment.title || 'Untitled Task'}</p>
+                    {viewWeek.assignment.brief && <p className="text-xs text-blue-300/60 leading-relaxed">{viewWeek.assignment.brief}</p>}
+                  </div>
+                )}
+                {viewWeek.objectives && (
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 space-y-2">
+                    <p className="text-[10px] font-black text-card-foreground/40 uppercase tracking-widest">Objectives</p>
+                    <p className="text-xs text-card-foreground/70 leading-relaxed">{viewWeek.objectives}</p>
+                  </div>
+                )}
+                {viewWeek.activities && (
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 space-y-2">
+                    <p className="text-[10px] font-black text-card-foreground/40 uppercase tracking-widest">Activities</p>
+                    <p className="text-xs text-card-foreground/70 leading-relaxed">{viewWeek.activities}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-white/10 bg-white/[0.02] flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setViewWeek(null);
+                  setAiWeek(viewWeek);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary/20 to-fuchsia-600/20 hover:from-primary/30 hover:to-fuchsia-600/30 text-primary font-black rounded-xl border border-primary/40 hover:border-primary transition-all"
+              >
+                <SparklesIcon className="w-4 h-4" /> AI Generate
+              </button>
+              <button
+                onClick={() => {
+                  toggleWeekCompleted(viewWeek.week);
+                  setViewWeek(prev => prev ? { ...prev, completed: !prev.completed } : null);
+                }}
+                className={`w-full flex items-center justify-center gap-2 py-3 font-black rounded-xl border transition-all ${
+                  viewWeek.completed 
+                    ? 'bg-white/5 border-white/10 text-card-foreground/60 hover:bg-white/10' 
+                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                }`}
+              >
+                <CheckCircleIcon className="w-4 h-4" /> {viewWeek.completed ? 'Mark as Incomplete' : 'Mark as Complete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
