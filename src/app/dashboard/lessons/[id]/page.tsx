@@ -13,7 +13,8 @@ import {
   PhotoIcon, BoltIcon, CheckBadgeIcon, LockClosedIcon,
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
-  RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon, PlusIcon, TrashIcon, ArrowsPointingOutIcon
+  RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon, PlusIcon, TrashIcon, ArrowsPointingOutIcon,
+  SpeakerWaveIcon, SparklesIcon,
 } from '@/lib/icons';
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -2345,6 +2346,8 @@ export default function LessonDetailPage() {
   const [newResource, setNewResource] = useState({ title: '', file_url: '', file_type: 'link' });
   const [savingResource, setSavingResource] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [ttsOpen, setTtsOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const [completed, setCompleted] = useState(false);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -2632,19 +2635,33 @@ export default function LessonDetailPage() {
         )}
       </AnimatePresence>
       {/* Mobile Header (Techy & Clean) */}
-      <div className="md:hidden p-5 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0">
-        <div className="flex items-center gap-4">
-          <button onClick={() => setSidebarOpen(true)} className="p-3 bg-card shadow-sm rounded-xl text-cyan-400 hover:bg-cyan-500/10 transition-all border border-border active:scale-95 shadow-xl">
+      <div className="md:hidden px-4 py-3 border-b border-border bg-background/80 backdrop-blur-xl flex items-center justify-between z-50 sticky top-0 gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={() => setSidebarOpen(true)} className="p-2.5 bg-card shadow-sm rounded-xl text-cyan-400 hover:bg-cyan-500/10 transition-all border border-border active:scale-95 shrink-0">
             <RectangleGroupIcon className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-1">Lesson</p>
-            <h2 className="text-xs font-bold text-foreground truncate max-w-[150px]">{lesson.title}</h2>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none mb-0.5">Lesson</p>
+            <h2 className="text-xs font-bold text-foreground truncate max-w-[120px]">{lesson.title}</h2>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Live</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {lesson.lesson_notes && (
+            <button
+              onClick={() => setTtsOpen(v => !v)}
+              className={`p-2.5 rounded-xl border transition-all active:scale-95 ${ttsOpen ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-card border-border text-muted-foreground hover:text-indigo-400 hover:border-indigo-500/40'}`}
+              title="Listen to lesson"
+            >
+              <SpeakerWaveIcon className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => setAiOpen(v => !v)}
+            className={`p-2.5 rounded-xl border transition-all active:scale-95 ${aiOpen ? 'bg-primary border-primary/60 text-white' : 'bg-card border-border text-muted-foreground hover:text-primary hover:border-primary/40'}`}
+            title="Ask AI"
+          >
+            <SparklesIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -2898,7 +2915,7 @@ export default function LessonDetailPage() {
                         blocks={lesson.content_layout || []}
                         lessonType={lesson.lesson_type}
                         onInteraction={handleInteraction}
-                        onExplainRequest={(text) => setExplainRequest(`${text}__${Date.now()}`)}
+                        onExplainRequest={(text) => { setExplainRequest(`${text}__${Date.now()}`); setAiOpen(true); }}
                         lessonContext={{
                           lessonTitle: lesson.title,
                           courseTitle: lesson.courses?.title ?? undefined,
@@ -3262,6 +3279,8 @@ export default function LessonDetailPage() {
           <NeuralVoiceReader
             content={lesson.lesson_notes}
             title={lesson.title}
+            isOpen={ttsOpen}
+            onClose={() => setTtsOpen(false)}
           />
         )}
         {lesson && (
@@ -3273,6 +3292,8 @@ export default function LessonDetailPage() {
             gradeLevel={lesson.grade_level ?? undefined}
             lessonObjectives={Array.isArray(lesson.objectives) ? lesson.objectives : undefined}
             externalMessage={explainRequest ?? undefined}
+            isOpen={aiOpen}
+            onClose={() => setAiOpen(false)}
           />
         )}
       </main>

@@ -1288,7 +1288,7 @@ export default function UnifiedInbox() {
   // ── Open email compose pre-filled from a contact or conversation ──────────
   const openEmailCompose = (contact?: Contact | Conversation | null) => {
     setEmailForm({
-      to: (contact as any)?.email || (contact as any)?.phone_number || '',
+      to: (contact as any)?.email || '',
       to_name: (contact as any)?.full_name || (contact as any)?.contact_name || '',
       subject: '',
       body: '',
@@ -2817,17 +2817,14 @@ export default function UnifiedInbox() {
         </div>
       )}
 
-      {/* ══ QUICK CHAT BY NUMBER (FLOATING BUTTON) ═════════════════════════ */}
-      {activeTab === 'students' && !showQuickChat && !isParentOrStudent && (
+      {/* ══ FLOATING ACTION BUTTON — new conversation / compose ════════════ */}
+      {!showQuickChat && !isParentOrStudent && (
         <button
-          onClick={() => setShowQuickChat(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 z-40 group"
-          title="Quick chat by number"
+          onClick={() => activeTab === 'students' ? setShowQuickChat(true) : openEmailCompose()}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 z-40"
+          title={activeTab === 'students' ? 'New WhatsApp chat' : 'New email'}
         >
-          <MessageSquare className="w-6 h-6" />
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-            <Plus className="w-3 h-3" />
-          </span>
+          <Plus className="w-6 h-6" />
         </button>
       )}
 
