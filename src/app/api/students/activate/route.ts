@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Admin or teacher access required' }, { status: 403 });
     }
 
-    const { studentId } = await req.json();
+    const body = await req.json();
+    const { studentId, classId } = body;
     if (!studentId) {
       return NextResponse.json({ error: 'studentId is required' }, { status: 400 });
     }
@@ -122,6 +123,21 @@ export async function POST(req: NextRequest) {
 
     const portalUserId = authData.user.id;
 
+    // Resolve class assignment (if provided)
+    let resolvedClassId: string | null = classId ?? null;
+    let resolvedClassName: string | null = student.section_class || student.grade_level || null;
+    if (resolvedClassId) {
+      const { data: cls } = await supabaseAdmin
+        .from('classes')
+        .select('name, school_id')
+        .eq('id', resolvedClassId)
+        .single();
+      if (!cls) {
+        return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+      }
+      resolvedClassName = cls.name;
+    }
+
     // Create portal_users profile
     const { error: profileErr } = await supabaseAdmin.from('portal_users').insert({
       id: portalUserId,
@@ -130,8 +146,9 @@ export async function POST(req: NextRequest) {
       role: 'student',
       is_active: true,
       school_id: student.school_id ?? null,
+      class_id: resolvedClassId,
       enrollment_type: student.enrollment_type || 'in_person',
-      section_class: student.section_class || student.grade_level || null,
+      section_class: resolvedClassName,
       created_at: new Date().toISOString(),
     });
 
@@ -155,8 +172,8 @@ export async function POST(req: NextRequest) {
       const card = await ensureStudentCardIssued(supabaseAdmin as any, {
         holderId: portalUserId,
         schoolId: student.school_id ?? null,
-        classId: (student as any).class_id ?? null,
         actorId: user.id,
+        classId: resolvedClassId,
         metadata: { source: 'student_activate', student_id: studentId },
       });
       cardIssued = card.created;

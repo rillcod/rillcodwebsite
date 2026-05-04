@@ -41,10 +41,12 @@ async function canModifyReport(caller: any, reportId: string) {
   const teacherSchoolIds = await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null);
   const { data: report } = await admin
     .from('student_progress_reports')
-    .select('id, school_id, student_id')
+    .select('id, school_id, student_id, teacher_id')
     .eq('id', reportId)
     .maybeSingle();
   if (!report) return false;
+  // Ownership: teachers can only modify their own reports
+  if ((report as any).teacher_id !== caller.id) return false;
   const reportSchoolId = (report as any).school_id as string | null;
   if (reportSchoolId) return teacherSchoolIds.includes(reportSchoolId);
   const { data: student } = await admin

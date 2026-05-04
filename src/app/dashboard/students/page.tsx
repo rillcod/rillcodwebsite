@@ -176,6 +176,8 @@ export default function StudentsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [activating, setActivating] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<{ email: string; tempPassword: string; name: string } | null>(null);
+  const [activatePending, setActivatePending] = useState<{ id: string; name: string; school_id: string | null } | null>(null);
+  const [activateClassId, setActivateClassId] = useState('');
   const [editingStudent, setEditingStudent] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [linkParentTarget, setLinkParentTarget] = useState<any | null>(null); // student for inline link-parent form
@@ -468,22 +470,31 @@ export default function StudentsPage() {
   };
 
   // ── Activate portal account ─────────────────────────────────
-  const activatePortalAccount = async (studentId: string, studentName: string) => {
+  const openActivatePicker = async (student: any) => {
+    // Lazily load classes if not already loaded
+    if (classList.length === 0) {
+      const j = await fetch('/api/classes', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] }));
+      setClassList(j.data ?? []);
+    }
+    setActivateClassId('');
+    setActivatePending({ id: student.id, name: student.full_name, school_id: student.school_id ?? null });
+  };
+
+  const activatePortalAccount = async (studentId: string, studentName: string, classId?: string) => {
     setActivating(studentId);
+    setActivatePending(null);
     try {
       const res = await fetch('/api/students/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId }),
+        body: JSON.stringify({ studentId, classId: classId || undefined }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Activation failed');
       if (json.alreadyActivated) {
         alert(`${studentName} already has a portal account (${json.email}).`);
       } else {
-        // Show credentials modal
         setCredentials({ email: json.email, tempPassword: json.tempPassword, name: studentName });
-        // Update local state to reflect user_id is now set
         setStudents(prev => prev.map(s => s.id === studentId
           ? { ...s, user_id: json.portalUserId, status: 'approved' } : s));
       }
@@ -1988,9 +1999,35 @@ export default function StudentsPage() {
                                     <ShieldCheckIcon className="w-3.5 h-3.5" />
                                     Portal Active
                                   </div>
+                                ) : activatePending?.id === s.id ? (
+                                  <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/50 border border-border rounded-xl">
+                                    <p className="w-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">Assign to class before activating</p>
+                                    <select
+                                      value={activateClassId}
+                                      onChange={e => setActivateClassId(e.target.value)}
+                                      className="select-premium flex-1 text-xs px-2 py-1.5 min-w-[160px]"
+                                    >
+                                      <option value="">— Pick a class (optional) —</option>
+                                      {classList
+                                        .filter((c: any) => !activatePending?.school_id || c.school_id === activatePending?.school_id)
+                                        .map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                    <button
+                                      onClick={() => activatePortalAccount(s.id, s.full_name, activateClassId || undefined)}
+                                      disabled={activating === s.id}
+                                      className="flex items-center gap-1.5 px-4 py-2 bg-primary text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl disabled:opacity-50 transition-all active:scale-95">
+                                      <KeyIcon className="w-3.5 h-3.5" />
+                                      {activating === s.id ? 'Creating…' : 'Confirm & Activate'}
+                                    </button>
+                                    <button
+                                      onClick={() => setActivatePending(null)}
+                                      className="px-3 py-2 text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors">
+                                      Cancel
+                                    </button>
+                                  </div>
                                 ) : (
                                   <button
-                                    onClick={() => activatePortalAccount(s.id, s.full_name)}
+                                    onClick={() => openActivatePicker(s)}
                                     disabled={activating === s.id}
                                     className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-2xl active:scale-95">
                                     <KeyIcon className="w-4 h-4" />

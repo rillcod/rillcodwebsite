@@ -1,12 +1,13 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon } from '@/lib/icons';
+import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon } from '@/lib/icons';
 
 type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null };
 type AnomalyClass = { id: string; name: string; school_id: string; created_at: string; schools?: { name: string } | null };
 type ClassOption = { id: string; name: string; school_id: string | null };
+type SearchStudent = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; section_class: string | null; class_name: string | null };
 
 export default function ClassHealPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -33,6 +34,13 @@ export default function ClassHealPage() {
 
   const [targetClass, setTargetClass] = useState('');
   const [targetSchool, setTargetSchool] = useState('');
+
+  // Manual reassign state
+  const [searchQ, setSearchQ] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchStudent[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [reassignTarget, setReassignTarget] = useState<Record<string, string>>({});
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAdmin = profile?.role === 'admin';
 
@@ -69,6 +77,47 @@ export default function ClassHealPage() {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Failed');
       setMsg({ type: 'ok', text: `Fixed ${j.updated ?? 1} record(s).` });
+      await load();
+    } catch (e: any) {
+      setMsg({ type: 'err', text: e.message });
+    } finally { setWorking(false); }
+  }
+
+  function handleSearchInput(val: string) {
+    setSearchQ(val);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!val.trim()) { setSearchResults([]); return; }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/classes/heal?search=${encodeURIComponent(val.trim())}`);
+        const j = await res.json();
+        setSearchResults(j.data ?? []);
+      } catch { /* ignore */ }
+      finally { setSearching(false); }
+    }, 350);
+  }
+
+  async function reassignStudent(studentId: string) {
+    const classId = reassignTarget[studentId];
+    if (!classId) return;
+    setWorking(true); setMsg(null);
+    try {
+      const res = await fetch('/api/classes/heal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'assign_class', studentIds: [studentId], classId }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed');
+      setMsg({ type: 'ok', text: 'Student reassigned.' });
+      // refresh search results
+      setSearchResults(prev => prev.map(s => {
+        if (s.id !== studentId) return s;
+        const cls = data?.classes.find(c => c.id === classId);
+        return { ...s, class_id: classId, class_name: cls?.name ?? classId, section_class: cls?.name ?? s.section_class };
+      }));
+      setReassignTarget(prev => { const n = { ...prev }; delete n[studentId]; return n; });
       await load();
     } catch (e: any) {
       setMsg({ type: 'err', text: e.message });
@@ -130,6 +179,75 @@ export default function ClassHealPage() {
             {totalIssues} issue{totalIssues !== 1 ? 's' : ''} found
           </div>
         )}
+
+        {/* ── Manual Reassign ──────────────────────────────────── */}
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+            <MagnifyingGlassIcon className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1">
+              <h2 className="text-sm font-extrabold text-foreground">Manual Student Placement</h2>
+              <p className="text-xs text-muted-foreground">Search any student and manually move them to the correct class.</p>
+            </div>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={searchQ}
+                onChange={e => handleSearchInput(e.target.value)}
+                placeholder="Search by name or email…"
+                className="w-full pl-9 pr-4 py-2.5 bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              {searching && <ArrowPathIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />}
+            </div>
+
+            {searchResults.length > 0 && (
+              <div className="space-y-2">
+                {searchResults.map(s => (
+                  <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 bg-muted/30 rounded-xl border border-border">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {s.email}
+                        {s.school_name ? ` · ${s.school_name}` : s.school_id ? ` · ${s.school_id}` : ' · No school'}
+                      </p>
+                      <p className="text-xs mt-0.5">
+                        <span className="text-muted-foreground">Current class: </span>
+                        <span className={s.class_name ? 'text-foreground font-medium' : 'text-amber-400 italic'}>
+                          {s.class_name ?? (s.section_class ? `section_class: "${s.section_class}" (unlinked)` : 'None')}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <select
+                        value={reassignTarget[s.id] ?? ''}
+                        onChange={e => setReassignTarget(prev => ({ ...prev, [s.id]: e.target.value }))}
+                        className="select-premium text-xs px-2 py-1.5 max-w-[200px]"
+                      >
+                        <option value="">— Move to class —</option>
+                        {(data?.classes ?? []).map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        disabled={!reassignTarget[s.id] || working}
+                        onClick={() => reassignStudent(s.id)}
+                        className="px-3 py-1.5 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-40 transition"
+                      >
+                        Move
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {searchQ.trim() && !searching && searchResults.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No students found for "{searchQ}".</p>
+            )}
+          </div>
+        </div>
 
         {/* ── Students with no school ───────────────────────────── */}
         {(data?.noSchool.length ?? 0) > 0 && (
