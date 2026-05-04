@@ -396,6 +396,9 @@ function ReportBuilderInner() {
     // ── Refs for restoring session after data load ────────────────────────────
     const pendingRestoreStudentId = useRef<string | null>(null);
     const pendingRestoreStudentIdx = useRef<number>(-1);
+    // Frozen nav list — captured when teacher first picks a student in a session;
+    // prevents filteredStudents recomputation from breaking Prev/Next navigation.
+    const sessionStudents = useRef<PortalUser[]>([]);
 
     const [branding, setBranding] = useState({
         org_name: '', org_tagline: '', org_address: '',
@@ -749,9 +752,12 @@ function ReportBuilderInner() {
             }
         }
 
-        // If an existing report has session-level fields, hydrate sessionConfig so
-        // editing via direct URL (?student=id) doesn't overwrite them with blanks on save.
-        if (report) {
+        // Hydrate sessionConfig from the existing report — but ONLY when no session is
+        // active yet (sessionDone=false). Once a teacher has clicked "Start Grading" and
+        // is navigating between students, we must NOT let one student's old report overwrite
+        // the session-level school/class/course selection; that would change filteredStudents
+        // mid-navigation and cause the list to jump to a different school or class.
+        if (report && !sessionDone) {
             // Hydrate sessionProgramId from the report's course
             if (report.course_id) {
                 const reportCourse = courses.find(c => c.id === report.course_id);
@@ -778,6 +784,12 @@ function ReportBuilderInner() {
                 fee_amount: (report as any).fee_amount ?? prev.fee_amount,
                 show_payment_notice: (report as any).show_payment_notice ?? prev.show_payment_notice,
             }));
+        }
+
+        // Freeze the navigation list the first time a student is selected in an active
+        // session so that Prev/Next always walks the same ordered set.
+        if (sessionDone && sessionStudents.current.length === 0) {
+            sessionStudents.current = [...filteredStudents];
         }
 
         const existingMetrics = (report as any)?.engagement_metrics ?? {};
@@ -2005,6 +2017,7 @@ function ReportBuilderInner() {
 
                         <button
                             onClick={() => {
+                                sessionStudents.current = []; // reset frozen nav list for new session
                                 setSessionDone(true);
                                 setSessionExpanded(false);
                                 setClassFilter(sessionConfig.section_class); // pre-filter by selected class
@@ -2198,7 +2211,7 @@ function ReportBuilderInner() {
                                 <p className="text-emerald-300/60 text-xs mt-0.5">Session details are pre-filled. Just enter scores and evaluation for this student.</p>
                             </div>
                             <span className="text-muted-foreground text-xs font-mono flex-shrink-0">
-                                {currentStudentIdx + 1} / {filteredStudents.length}
+                                {currentStudentIdx + 1} / {(sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents).length}
                             </span>
                         </div>
 
@@ -2206,49 +2219,58 @@ function ReportBuilderInner() {
                         <SessionSummaryBar />
 
                         {/* Student navigator */}
-                        <div className="bg-[#0d1526] border border-border rounded-xl px-4 py-3 flex items-center gap-3">
-                            <button onClick={() => setStep('pick')}
-                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
-                                <ArrowLeftIcon className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">All Students</span>
-                            </button>
-                            <div className="w-px h-4 bg-muted" />
-                            <button
-                                disabled={currentStudentIdx <= 0}
-                                onClick={async () => {
-                                    if (saving || publishing) return;
-                                    await handleSave(false);
-                                    const idx = currentStudentIdx - 1;
-                                    if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, idx);
-                                }}
-                                className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
-                                <ArrowLeftIcon className="w-3.5 h-3.5" />
-                            </button>
-                            <div className="flex-1 flex items-center gap-2 min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
-                                    {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
+                        {(() => {
+                            // Use the frozen list captured at session-start so Prev/Next always
+                            // walks the same class-filtered set regardless of reactive state changes.
+                            const navList = sessionStudents.current.length > 0
+                                ? sessionStudents.current
+                                : filteredStudents;
+                            return (
+                            <div className="bg-[#0d1526] border border-border rounded-xl px-4 py-3 flex items-center gap-3">
+                                <button onClick={() => { sessionStudents.current = []; setStep('pick'); }}
+                                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                                    <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">All Students</span>
+                                </button>
+                                <div className="w-px h-4 bg-muted" />
+                                <button
+                                    disabled={currentStudentIdx <= 0}
+                                    onClick={async () => {
+                                        if (saving || publishing) return;
+                                        await handleSave(false);
+                                        const idx = currentStudentIdx - 1;
+                                        if (idx >= 0) await selectStudent(navList[idx] as PortalUser, idx);
+                                    }}
+                                    className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
+                                    <ArrowLeftIcon className="w-3.5 h-3.5" />
+                                </button>
+                                <div className="flex-1 flex items-center gap-2 min-w-0">
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
+                                        {selectedStudent.full_name ? selectedStudent.full_name[0] : '?'}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-foreground text-sm truncate">{selectedStudent.full_name}</p>
+                                        {existingReport && (
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                                {form.is_published ? '✓ Published' : 'Draft'}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="font-bold text-foreground text-sm truncate">{selectedStudent.full_name}</p>
-                                    {existingReport && (
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                                            {form.is_published ? '✓ Published' : 'Draft'}
-                                        </span>
-                                    )}
-                                </div>
+                                <button
+                                    disabled={currentStudentIdx >= navList.length - 1}
+                                    onClick={async () => {
+                                        if (saving || publishing) return;
+                                        await handleSave(false);
+                                        const idx = currentStudentIdx + 1;
+                                        if (idx < navList.length) await selectStudent(navList[idx] as PortalUser, idx);
+                                    }}
+                                    className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
+                                    <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
+                                </button>
                             </div>
-                            <button
-                                disabled={currentStudentIdx >= filteredStudents.length - 1}
-                                onClick={async () => {
-                                    if (saving || publishing) return;
-                                    await handleSave(false);
-                                    const idx = currentStudentIdx + 1;
-                                    if (idx < filteredStudents.length) await selectStudent(filteredStudents[idx] as PortalUser, idx);
-                                }}
-                                className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
-                                <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
-                            </button>
-                        </div>
+                            );
+                        })()}
 
                         {/* Smart module suggestion banner */}
                         {suggestedModule && (
