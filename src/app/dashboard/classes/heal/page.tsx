@@ -4,7 +4,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon } from '@/lib/icons';
 
-type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null };
+type RegistryHint = { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null };
+type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null; registry?: RegistryHint | null };
 type AnomalyClass = { id: string; name: string; school_id: string; created_at: string; schools?: { name: string } | null };
 type ClassOption = { id: string; name: string; school_id: string | null };
 type SearchStudent = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; section_class: string | null; class_name: string | null };
@@ -40,6 +41,13 @@ export default function ClassHealPage() {
   const [searching, setSearching] = useState(false);
   const [reassignTarget, setReassignTarget] = useState<Record<string, string>>({});
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // No-school manager state
+  const [nsSort, setNsSort] = useState<'name' | 'registry'>('registry');
+  const [nsFilter, setNsFilter] = useState('');
+  const [nsSchool, setNsSchool] = useState<Record<string, string>>({});
+  const [nsClass, setNsClass] = useState<Record<string, string>>({});
+  const [nsConfirmDelete, setNsConfirmDelete] = useState<string | null>(null);
 
   const isAdmin = profile?.role === 'admin';
 
@@ -259,32 +267,161 @@ export default function ClassHealPage() {
           </div>
         </div>
 
-        {/* ── Students with no school ───────────────────────────── */}
+        {/* ── Students without a school — full management panel ─── */}
         {(data?.noSchool.length ?? 0) > 0 && (
-          <Section title="Students Without a School" count={data!.noSchool.length}
-            description="These students have no school_id. Assign them to a school.">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-3">
-                <select value={targetSchool} onChange={e => setTargetSchool(e.target.value)}
-                  className="select-premium flex-1 text-sm px-3 py-2">
-                  <option value="">— Select school —</option>
-                  {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-                <button onClick={() => selAll(data!.noSchool.map(s => s.id), setSelNoSchool)}
-                  className="text-xs font-bold text-primary hover:underline">Select all</button>
-                <button
-                  disabled={!targetSchool || selNoSchool.size === 0 || working}
-                  onClick={() => applyAction('assign_school', Array.from(selNoSchool), { schoolId: targetSchool })}
-                  className="px-4 py-2 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
-                  Assign School
-                </button>
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            {/* Panel header */}
+            <div className="px-4 sm:px-5 py-4 border-b border-border flex flex-wrap items-center gap-3">
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm font-extrabold text-foreground">Students Without a School</h2>
+                <p className="text-xs text-muted-foreground">Cross-checked against the registration registry. Assign, sync, or delete each student.</p>
               </div>
-              {data!.noSchool.map(s => (
-                <StudentRow key={s.id} student={s} selected={selNoSchool.has(s.id)}
-                  onToggle={() => toggleSel(selNoSchool, setSelNoSchool, s.id)} />
-              ))}
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">{data!.noSchool.length}</span>
             </div>
-          </Section>
+
+            {/* Sort + filter bar */}
+            <div className="px-4 sm:px-5 py-3 border-b border-border flex flex-wrap gap-2 items-center bg-muted/20">
+              <div className="relative flex-1 min-w-[160px]">
+                <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <input value={nsFilter} onChange={e => setNsFilter(e.target.value)}
+                  placeholder="Filter by name or email…"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+              </div>
+              <div className="flex items-center gap-1 text-xs font-bold text-muted-foreground shrink-0">
+                <span>Sort:</span>
+                <button onClick={() => setNsSort('registry')}
+                  className={`px-2.5 py-1 rounded-lg transition ${nsSort === 'registry' ? 'bg-primary text-white' : 'hover:bg-muted'}`}>Registry first</button>
+                <button onClick={() => setNsSort('name')}
+                  className={`px-2.5 py-1 rounded-lg transition ${nsSort === 'name' ? 'bg-primary text-white' : 'hover:bg-muted'}`}>A–Z</button>
+              </div>
+            </div>
+
+            {/* Student cards */}
+            <div className="p-4 sm:p-5 space-y-3">
+              {(() => {
+                let rows = [...data!.noSchool];
+                if (nsFilter.trim()) {
+                  const q = nsFilter.toLowerCase();
+                  rows = rows.filter(s => s.full_name?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q));
+                }
+                if (nsSort === 'registry') {
+                  rows.sort((a, b) => (b.registry?.school_id ? 1 : 0) - (a.registry?.school_id ? 1 : 0));
+                } else {
+                  rows.sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+                }
+                return rows.map(s => {
+                  const hasRegistry = !!s.registry?.school_id;
+                  const chosenSchool = nsSchool[s.id] ?? '';
+                  const chosenClass = nsClass[s.id] ?? '';
+                  const classesForChosenSchool = (data?.classes ?? []).filter(c =>
+                    chosenSchool ? c.school_id === chosenSchool : true
+                  );
+                  return (
+                    <div key={s.id} className={`rounded-xl border p-3 sm:p-4 space-y-3 ${hasRegistry ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-border bg-muted/20'}`}>
+                      {/* Student identity */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate">{s.full_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                        </div>
+                        {hasRegistry && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">Registry found</span>
+                        )}
+                      </div>
+
+                      {/* Registry hint */}
+                      {s.registry && (
+                        <div className="text-[11px] text-muted-foreground bg-background/60 rounded-lg px-3 py-2 border border-border space-y-0.5">
+                          <p className="font-bold text-foreground/70 uppercase tracking-widest text-[9px] mb-1">Registry says</p>
+                          {s.registry.school_name && <p>School: <span className="text-foreground font-semibold">{s.registry.school_name}</span></p>}
+                          {s.registry.section && <p>Section: <span className="text-foreground font-semibold">{s.registry.section}</span></p>}
+                          {s.registry.grade_level && <p>Grade: <span className="text-foreground font-semibold">{s.registry.grade_level}</span></p>}
+                          {s.registry.status && <p>Status: <span className={`font-semibold ${s.registry.status === 'approved' ? 'text-emerald-400' : 'text-amber-400'}`}>{s.registry.status}</span></p>}
+                        </div>
+                      )}
+
+                      {/* Actions row */}
+                      <div className="flex flex-wrap gap-2">
+                        {/* School picker */}
+                        <select
+                          value={chosenSchool}
+                          onChange={e => setNsSchool(prev => ({ ...prev, [s.id]: e.target.value }))}
+                          className="select-premium text-xs px-2 py-1.5 flex-1 min-w-[130px]"
+                        >
+                          <option value="">— Pick school —</option>
+                          {schools.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                        </select>
+
+                        {/* Class picker (filtered to chosen school) */}
+                        <select
+                          value={chosenClass}
+                          onChange={e => setNsClass(prev => ({ ...prev, [s.id]: e.target.value }))}
+                          className="select-premium text-xs px-2 py-1.5 flex-1 min-w-[130px]"
+                        >
+                          <option value="">— Pick class (opt.) —</option>
+                          {classesForChosenSchool.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap gap-2">
+                        {/* Assign class (sets school too) */}
+                        {chosenClass && (
+                          <button
+                            disabled={working}
+                            onClick={() => applyAction('assign_class', [s.id], { classId: chosenClass })}
+                            className="px-3 py-1.5 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                          >
+                            Assign Class + School
+                          </button>
+                        )}
+                        {/* Assign school only */}
+                        {chosenSchool && !chosenClass && (
+                          <button
+                            disabled={working}
+                            onClick={() => applyAction('assign_school', [s.id], { schoolId: chosenSchool })}
+                            className="px-3 py-1.5 bg-sky-600 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                          >
+                            Assign School Only
+                          </button>
+                        )}
+                        {/* Sync from registry */}
+                        {hasRegistry && (
+                          <button
+                            disabled={working}
+                            onClick={() => applyAction('sync_from_registry', [s.id])}
+                            className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                          >
+                            Sync from Registry
+                          </button>
+                        )}
+                        {/* Delete */}
+                        {nsConfirmDelete === s.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-rose-400 font-bold">Confirm delete?</span>
+                            <button disabled={working}
+                              onClick={() => { applyAction('delete_portal_user', [s.id]); setNsConfirmDelete(null); }}
+                              className="px-2.5 py-1 bg-rose-600 text-white text-xs font-black rounded-xl disabled:opacity-40">Yes</button>
+                            <button onClick={() => setNsConfirmDelete(null)}
+                              className="px-2.5 py-1 bg-muted text-muted-foreground text-xs font-bold rounded-xl">No</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setNsConfirmDelete(s.id)}
+                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-400 ml-auto"
+                            title="Delete this portal account"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
         )}
 
         {/* ── Students with no class ────────────────────────────── */}
