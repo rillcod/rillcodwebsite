@@ -7,14 +7,15 @@
  * Rendered hidden in the DOM; becomes the only visible element when the user
  * invokes window.print() via the "Print Plan" button.
  *
- * Design: Rillcod Technologies official letterhead, structured content
- * sections, signature/stamp lines — suitable as a formal school handout
- * or archival record.
+ * Design: Professional official letterhead, Markdown rendering for content,
+ * structured metadata grid, and approval signature blocks.
  */
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
-// ── Prop types (mirrors the curriculum page's local interfaces) ──────────────
+// ── Prop types ──────────────────────────────────────────────────────────────
 
 interface LessonPlan {
   duration_minutes?: number;
@@ -47,6 +48,9 @@ interface ActiveWeek {
   lesson_plan?: LessonPlan | null;
   assessment_plan?: AssessmentPlan | null;
   termNumber?: number;
+  activities?: string;
+  objectives?: string;
+  notes?: string;
 }
 
 interface CurriculumTerm {
@@ -114,25 +118,43 @@ function mins(m?: number): string {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: '18px', breakInside: 'avoid' }}>
+    <div style={{ marginBottom: '20px', breakInside: 'avoid' }}>
       <div style={{
-        background: '#1e3a8a', color: 'white', fontSize: '9px', fontWeight: 900,
-        textTransform: 'uppercase', letterSpacing: '2px', padding: '5px 10px',
-        marginBottom: '8px',
+        borderLeft: '4px solid #111827',
+        background: '#f9fafb',
+        color: '#111827',
+        fontSize: '10px',
+        fontWeight: 900,
+        textTransform: 'uppercase',
+        letterSpacing: '1.5px',
+        padding: '6px 12px',
+        marginBottom: '10px',
+        borderBottom: '1px solid #e5e7eb'
       }}>
         {title}
       </div>
-      <div style={{ padding: '0 4px' }}>{children}</div>
+      <div style={{ padding: '0 8px' }}>{children}</div>
+    </div>
+  );
+}
+
+function MarkdownArea({ content }: { content?: string }) {
+  if (!content) return <p style={{ fontSize: '10.5px', color: '#9ca3af', fontStyle: 'italic' }}>No content specified.</p>;
+  return (
+    <div className="prose prose-sm max-w-none print-markdown">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }
 
 function BulletList({ items, empty = '—' }: { items?: string[]; empty?: string }) {
-  if (!items?.length) return <p style={{ fontSize: '10px', color: '#6b7280' }}>{empty}</p>;
+  if (!items?.length) return <p style={{ fontSize: '10.5px', color: '#6b7280' }}>{empty}</p>;
   return (
-    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+    <ul style={{ margin: 0, paddingLeft: '18px' }}>
       {items.map((item, i) => (
-        <li key={i} style={{ fontSize: '10.5px', color: '#111827', marginBottom: '3px', lineHeight: 1.5 }}>{item}</li>
+        <li key={i} style={{ fontSize: '10.5px', color: '#111827', marginBottom: '4px', lineHeight: 1.6 }}>{item}</li>
       ))}
     </ul>
   );
@@ -140,10 +162,10 @@ function BulletList({ items, empty = '—' }: { items?: string[]; empty?: string
 
 function InfoGrid({ rows }: { rows: Array<{ label: string; value: React.ReactNode }> }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', marginBottom: '4px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 30px', marginBottom: '6px' }}>
       {rows.map(({ label, value }) => (
-        <div key={label} style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '5px' }}>
-          <div style={{ fontSize: '8px', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>{label}</div>
+        <div key={label} style={{ borderBottom: '0.5px solid #f3f4f6', paddingBottom: '6px' }}>
+          <div style={{ fontSize: '8px', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>{label}</div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#111827' }}>{value || '—'}</div>
         </div>
       ))}
@@ -177,100 +199,87 @@ export function CurriculumPrintDoc({
 
   return (
     <>
-      {/* Print-only global styles injected as a style tag */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           .curriculum-print-root { display: block !important; position: absolute; top: 0; left: 0; width: 100%; z-index: 999999; background: white; min-height: 100vh; }
           @page {
             size: A4 portrait;
-            margin: 14mm 15mm 18mm 15mm;
+            margin: 15mm 15mm 20mm 15mm;
           }
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          .print-markdown h1, .print-markdown h2, .print-markdown h3 { 
+            font-weight: 800; color: #111827; margin-top: 1em; margin-bottom: 0.5em; font-size: 1.1em;
+          }
+          .print-markdown p { font-size: 10.5px; color: #374151; line-height: 1.6; margin-bottom: 0.8em; }
+          .print-markdown ul, .print-markdown ol { padding-left: 1.2em; margin-bottom: 0.8em; }
+          .print-markdown li { font-size: 10.5px; color: #374151; margin-bottom: 0.3em; }
+          .print-markdown table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
+          .print-markdown th, .print-markdown td { border: 1px solid #e5e7eb; padding: 6px; font-size: 9.5px; text-align: left; }
+          .print-markdown th { background: #f9fafb; font-weight: 800; }
         }
         .curriculum-print-root { display: none; }
       `}} />
 
-      <div className="curriculum-print-root" style={{ fontFamily: "'Segoe UI', Arial, sans-serif", background: '#fff', color: '#111827' }}>
+      <div className="curriculum-print-root" style={{ fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif", background: '#fff', color: '#111827', padding: '0' }}>
 
         {/* ── LETTERHEAD ────────────────────────────────────────────── */}
-        <div style={{ borderBottom: '4px solid #1e3a8a', paddingBottom: '14px', marginBottom: '16px', display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-          {/* Logo badge */}
-          <div style={{ width: '72px', height: '72px', background: '#fff', border: '2px solid #1e3a8a', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', flexShrink: 0 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+        <div style={{ borderBottom: '2px solid #111827', paddingBottom: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ width: '80px', height: '80px', background: '#fff', border: '1.5px solid #111827', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', flexShrink: 0 }}>
             <img src="/logo.png" alt="Rillcod" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
 
-          {/* Brand block */}
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '20px', fontWeight: 900, color: '#1e3a8a', letterSpacing: '-0.5px', lineHeight: 1, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: '24px', fontWeight: 900, color: '#111827', letterSpacing: '-0.8px', lineHeight: 1, textTransform: 'uppercase' }}>
               RILLCOD TECHNOLOGIES
             </div>
-            <div style={{ fontSize: '10px', color: '#6b7280', marginTop: '3px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase' }}>
-              Coding Today, Innovating Tomorrow
+            <div style={{ fontSize: '11px', color: '#4b5563', marginTop: '4px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
+              Official Academic & Instructional Document
             </div>
-            <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '5px' }}>
-              26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Edo State&nbsp;&nbsp;·&nbsp;&nbsp;08116600091&nbsp;&nbsp;·&nbsp;&nbsp;support@rillcod.com&nbsp;&nbsp;·&nbsp;&nbsp;academy.rillcod.com
+            <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '6px', lineHeight: 1.4 }}>
+              26 Ogiesoba Avenue, GRA, Benin City, Edo State&nbsp;&nbsp;·&nbsp;&nbsp;+234 811 660 0091&nbsp;&nbsp;·&nbsp;&nbsp;support@rillcod.com
             </div>
-            {school && (
-              <div style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '3px 8px' }}>
-                <span style={{ fontSize: '9px', fontWeight: 800, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '1px' }}>Partner School:</span>
-                <span style={{ fontSize: '10px', fontWeight: 800, color: '#1e3a8a' }}>{school}</span>
-              </div>
-            )}
           </div>
 
-          {/* Doc ref */}
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: '8px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px' }}>Document Ref.</div>
-            <div style={{ fontSize: '11px', fontWeight: 900, color: '#1e3a8a', fontFamily: 'monospace', marginTop: '2px' }}>{ref}</div>
-            <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '4px' }}>Issued: {today}</div>
+            <div style={{ fontSize: '8px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1.2px' }}>Document No.</div>
+            <div style={{ fontSize: '12px', fontWeight: 900, color: '#111827', fontFamily: 'monospace', marginTop: '2px' }}>{ref}</div>
+            <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '6px' }}>Issued: {today}</div>
             <div style={{ fontSize: '9px', color: '#6b7280' }}>Academic Year: {academicYear}</div>
           </div>
         </div>
 
-        {/* ── DOCUMENT TITLE BANNER ──────────────────────────────────── */}
-        <div style={{ background: '#1e3a8a', color: '#fff', padding: '10px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderRadius: '2px' }}>
-          <div>
-            <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '3px', textTransform: 'uppercase', color: '#93c5fd', marginBottom: '2px' }}>
-              Official Curriculum Document
-            </div>
-            <div style={{ fontSize: '16px', fontWeight: 900, letterSpacing: '-0.3px', textTransform: 'uppercase' }}>
-              {docType} — Week {activeWeek.week}
-            </div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: '#93c5fd' }}>Classification</div>
-            <div style={{ fontSize: '11px', fontWeight: 900, background: '#fff', color: '#1e3a8a', padding: '2px 10px', borderRadius: '12px', marginTop: '3px' }}>
-              {activeWeek.type === 'lesson' ? 'INSTRUCTIONAL' : activeWeek.type === 'assessment' ? 'ASSESSMENT' : 'EXAMINATION'}
-            </div>
-          </div>
+        {/* ── DOCUMENT TITLE ────────────────────────────────────────── */}
+        <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '2px', color: '#111827', margin: 0 }}>
+            {docType}
+          </h1>
+          <div style={{ height: '3px', width: '60px', background: '#111827', margin: '8px auto' }}></div>
+          <p style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '1px' }}>
+            Week {activeWeek.week} — {activeWeek.topic}
+          </p>
         </div>
 
-        {/* ── DOCUMENT META GRID ─────────────────────────────────────── */}
-        <Section title="Document Information">
+        {/* ── METADATA GRID ─────────────────────────────────────────── */}
+        <Section title="Institutional Context">
           <InfoGrid rows={[
-            { label: 'Programme', value: programName || 'Rillcod STEM Programme' },
-            { label: 'Course / Subject', value: course },
-            { label: 'Term', value: `${termLabel(activeTerm)} — ${termTitle}` },
-            { label: 'Week', value: `Week ${activeWeek.week}` },
-            { label: 'Topic', value: activeWeek.topic },
-            { label: 'Week Type', value: docType },
-            ...(isLesson && plan?.duration_minutes ? [{ label: 'Duration', value: mins(plan.duration_minutes) }] : []),
-            ...(!isLesson && assessment?.duration_minutes ? [{ label: 'Duration', value: mins(assessment.duration_minutes) }] : []),
-            { label: 'Teacher / Instructor', value: teacherName || 'Class Teacher' },
-            { label: 'School', value: school || 'Rillcod Academy' },
+            { label: 'Programme Name', value: programName || 'Rillcod STEM Path' },
+            { label: 'Course / Module', value: course },
+            { label: 'Academic Term', value: `${termLabel(activeTerm)} (${termTitle})` },
+            { label: 'Target School', value: school || 'Rillcod Managed Academy' },
+            { label: 'Instructor / Lead', value: teacherName || 'Authorized Instructor' },
+            { label: 'Duration / Session', value: isLesson ? mins(plan?.duration_minutes) : mins(assessment?.duration_minutes) },
           ]} />
         </Section>
 
-        {/* ── SUBTOPICS ──────────────────────────────────────────────── */}
+        {/* ── CONTENT RENDERING ─────────────────────────────────────── */}
         {activeWeek.subtopics?.length ? (
-          <Section title="Sub-topics / Coverage">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <Section title="Scope of Work">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {activeWeek.subtopics.map((s, i) => (
-                <span key={i} style={{ fontSize: '10px', fontWeight: 700, background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '2px 8px' }}>
+                <span key={i} style={{ fontSize: '10px', fontWeight: 700, background: '#f3f4f6', color: '#111827', border: '1px solid #e5e7eb', borderRadius: '4px', padding: '3px 10px' }}>
                   {s}
                 </span>
               ))}
@@ -278,171 +287,91 @@ export function CurriculumPrintDoc({
           </Section>
         ) : null}
 
-        {/* ══════════════════════════════════════════════════════════════
-            LESSON PLAN CONTENT
-        ══════════════════════════════════════════════════════════════ */}
-        {isLesson && plan && (
-          <>
-            {plan.objectives?.length ? (
-              <Section title="Learning Objectives">
-                <BulletList items={plan.objectives} />
-              </Section>
-            ) : null}
+        {/* OBJECTIVES */}
+        <Section title="Learning Objectives">
+          {activeWeek.objectives ? (
+            <MarkdownArea content={activeWeek.objectives} />
+          ) : (
+            <BulletList items={plan?.objectives} />
+          )}
+        </Section>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px', breakInside: 'avoid' }}>
-              {plan.teacher_activities?.length ? (
-                <Section title="Teacher Activities">
+        {/* ACTIVITIES / METHODOLOGY */}
+        <Section title="Instructional Methodology">
+          {activeWeek.activities ? (
+            <MarkdownArea content={activeWeek.activities} />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              {plan?.teacher_activities?.length ? (
+                <div>
+                  <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px' }}>Teacher Led</p>
                   <BulletList items={plan.teacher_activities} />
-                </Section>
-              ) : null}
-              {plan.student_activities?.length ? (
-                <Section title="Student Activities">
-                  <BulletList items={plan.student_activities} />
-                </Section>
-              ) : null}
-            </div>
-
-            {plan.classwork?.title && (
-              <Section title="Classwork">
-                <p style={{ fontSize: '11px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>{plan.classwork.title}</p>
-                {plan.classwork.instructions && (
-                  <p style={{ fontSize: '10.5px', color: '#374151', marginBottom: '6px', lineHeight: 1.5 }}>{plan.classwork.instructions}</p>
-                )}
-                {plan.classwork.materials?.length ? (
-                  <div>
-                    <span style={{ fontSize: '9px', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1px' }}>Materials: </span>
-                    <span style={{ fontSize: '10px', color: '#374151' }}>{plan.classwork.materials.join(', ')}</span>
-                  </div>
-                ) : null}
-              </Section>
-            )}
-
-            {plan.assignment?.title && (
-              <Section title="Assignment">
-                <p style={{ fontSize: '11px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>{plan.assignment.title}</p>
-                {plan.assignment.instructions && (
-                  <p style={{ fontSize: '10.5px', color: '#374151', marginBottom: '6px', lineHeight: 1.5 }}>{plan.assignment.instructions}</p>
-                )}
-                {plan.assignment.due && (
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#dc2626' }}>Due: {plan.assignment.due}</p>
-                )}
-              </Section>
-            )}
-
-            {plan.project?.title && (
-              <Section title="Project / Practical">
-                <p style={{ fontSize: '11px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>{plan.project.title}</p>
-                {plan.project.description && (
-                  <p style={{ fontSize: '10.5px', color: '#374151', marginBottom: '6px', lineHeight: 1.5 }}>{plan.project.description}</p>
-                )}
-                {plan.project.deliverables?.length ? (
-                  <BulletList items={plan.project.deliverables} />
-                ) : null}
-              </Section>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
-              {plan.resources?.length ? (
-                <Section title="Resources / Materials">
-                  <BulletList items={plan.resources} />
-                </Section>
-              ) : null}
-              {plan.engagement_tips?.length ? (
-                <Section title="Engagement Tips">
-                  <BulletList items={plan.engagement_tips} />
-                </Section>
-              ) : null}
-            </div>
-          </>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════════
-            ASSESSMENT / EXAMINATION PLAN CONTENT
-        ══════════════════════════════════════════════════════════════ */}
-        {!isLesson && assessment && (
-          <>
-            <Section title="Assessment Details">
-              <InfoGrid rows={[
-                { label: 'Assessment Title', value: assessment.title },
-                { label: 'Type', value: assessment.type },
-                { label: 'Format', value: assessment.format },
-                { label: 'Duration', value: mins(assessment.duration_minutes) },
-                { label: 'Scoring Guide', value: assessment.scoring_guide },
-              ]} />
-            </Section>
-
-            {assessment.coverage?.length ? (
-              <Section title="Topics Covered / Scope">
-                <BulletList items={assessment.coverage} />
-              </Section>
-            ) : null}
-
-            {assessment.teacher_prep?.length ? (
-              <Section title="Teacher Preparation Checklist">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
-                  {assessment.teacher_prep.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '10.5px', color: '#111827', marginBottom: '4px' }}>
-                      <span style={{ width: '12px', height: '12px', border: '1.5px solid #6b7280', borderRadius: '2px', flexShrink: 0, marginTop: '1px', display: 'inline-block' }} />
-                      {item}
-                    </div>
-                  ))}
                 </div>
-              </Section>
-            ) : null}
+              ) : null}
+              {plan?.student_activities?.length ? (
+                <div>
+                  <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px' }}>Student Led</p>
+                  <BulletList items={plan.student_activities} />
+                </div>
+              ) : null}
+            </div>
+          )}
+        </Section>
 
-            {assessment.sample_questions?.length ? (
-              <Section title="Sample / Practice Questions">
-                <ol style={{ margin: 0, paddingLeft: '16px' }}>
-                  {assessment.sample_questions.map((q, i) => (
-                    <li key={i} style={{ fontSize: '10.5px', color: '#111827', marginBottom: '5px', lineHeight: 1.5 }}>{q}</li>
-                  ))}
-                </ol>
-              </Section>
-            ) : null}
-          </>
-        )}
-
-        {/* ── TERM OBJECTIVES (context) ──────────────────────────────── */}
-        {termObj?.objectives?.length ? (
-          <Section title="Term Learning Outcomes (Context)">
-            <BulletList items={termObj.objectives} />
+        {/* RESOURCES */}
+        {plan?.resources?.length ? (
+          <Section title="Teaching Materials & Resources">
+            <BulletList items={plan.resources} />
           </Section>
         ) : null}
 
-        {/* ── SIGNATURE BLOCK ────────────────────────────────────────── */}
-        <div style={{ marginTop: '28px', borderTop: '2px solid #1e3a8a', paddingTop: '20px', breakInside: 'avoid' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
+        {/* ASSESSMENT / NOTES */}
+        {assessment && !isLesson && (
+          <Section title="Assessment Specifications">
+             <MarkdownArea content={assessment.scoring_guide} />
+             {assessment.sample_questions?.length ? (
+               <div style={{ marginTop: '12px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px' }}>Sample Questions</p>
+                  <ol style={{ paddingLeft: '1.2em' }}>
+                    {assessment.sample_questions.map((q, i) => <li key={i} style={{ fontSize: '10.5px', marginBottom: '4px' }}>{q}</li>)}
+                  </ol>
+               </div>
+             ) : null}
+          </Section>
+        )}
+
+        {activeWeek.notes && (
+          <Section title="Instructor Special Notes">
+            <MarkdownArea content={activeWeek.notes} />
+          </Section>
+        )}
+
+        {/* ── APPROVAL BLOCK ────────────────────────────────────────── */}
+        <div style={{ marginTop: 'auto', paddingTop: '40px', breakInside: 'avoid' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '30px' }}>
             {[
-              { role: 'Class Teacher / Instructor', name: teacherName },
-              { role: 'Head of Department / HOD', name: '' },
-              { role: 'School Administrator', name: '' },
+              { role: 'Course Instructor', name: teacherName },
+              { role: 'Quality Assurance / HOD', name: '' },
+              { role: 'School Registry / Admin', name: '' },
             ].map(({ role, name }) => (
               <div key={role} style={{ textAlign: 'center' }}>
-                {name && (
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>{name}</div>
-                )}
-                <div style={{ height: '36px', borderBottom: '1.5px solid #374151', marginBottom: '5px' }} />
-                <div style={{ fontSize: '8.5px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', lineHeight: 1.4 }}>{role}</div>
-                <div style={{ fontSize: '8px', color: '#9ca3af', marginTop: '3px' }}>Signature &amp; Date</div>
+                <div style={{ height: '40px', borderBottom: '1px solid #111827', marginBottom: '6px', position: 'relative' }}>
+                  {name && <span style={{ fontSize: '10px', fontWeight: 700, position: 'absolute', bottom: '2px', left: 0, right: 0 }}>{name}</span>}
+                </div>
+                <div style={{ fontSize: '8px', fontWeight: 800, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{role}</div>
+                <div style={{ fontSize: '7px', color: '#9ca3af', marginTop: '2px' }}>Date & Signature</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ── OFFICIAL STAMP AREA ────────────────────────────────────── */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-          <div style={{ width: '110px', height: '110px', border: '2px dashed #d1d5db', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', textAlign: 'center', padding: '10px' }}>
-            <div style={{ fontSize: '8px', fontWeight: 800, color: '#d1d5db', textTransform: 'uppercase', letterSpacing: '1px', lineHeight: 1.4 }}>Official<br />School Stamp</div>
-          </div>
-        </div>
-
         {/* ── FOOTER ─────────────────────────────────────────────────── */}
-        <div style={{ marginTop: '20px', borderTop: '1px solid #e5e7eb', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: '8px', color: '#9ca3af' }}>
-            © {new Date().getFullYear()} Rillcod Technologies — Confidential Curriculum Document — Not for External Distribution
+        <div style={{ marginTop: '30px', borderTop: '1px solid #e5e7eb', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '8px', color: '#9ca3af', fontWeight: 600 }}>
+            © {new Date().getFullYear()} RILLCOD TECHNOLOGIES&nbsp;&nbsp;·&nbsp;&nbsp;STRICTLY CONFIDENTIAL&nbsp;&nbsp;·&nbsp;&nbsp;FOR AUTHORIZED USE ONLY
           </div>
           <div style={{ fontSize: '8px', color: '#9ca3af', fontFamily: 'monospace' }}>
-            {ref} &nbsp;·&nbsp; v{curriculum.version ?? 1}
+            ID: {curriculum.id.slice(0, 8)} &nbsp;·&nbsp; VER: {curriculum.version ?? 1} &nbsp;·&nbsp; PAGE 1 OF 1
           </div>
         </div>
 
