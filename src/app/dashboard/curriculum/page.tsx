@@ -2001,31 +2001,47 @@ export default function CurriculumPage() {
                           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Active Class Plans</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {globalImplementationList.map(plan => (
+                          {globalImplementationList.map(plan => {
+                            const totalWeeks = plan.plan_data?.weeks?.length || 0;
+                            const completedWeeks = plan.plan_data?.weeks?.filter((w: any) => w.completed)?.length || 0;
+                            const progressPct = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
+                            
+                            return (
                             <Link
                               key={plan.id}
                               href={`/dashboard/lesson-plans/${plan.id}`}
-                              className="group bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl"
+                              className="group bg-card border border-white/5 hover:border-primary/40 p-5 space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1 rounded-xl flex flex-col justify-between min-h-[160px]"
                             >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
-                                    {plan.classes?.name}
-                                  </p>
-                                  <h5 className="text-sm font-black text-white group-hover:text-primary transition-colors truncate">
-                                    {plan.courses?.title}
-                                  </h5>
+                              <div>
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
+                                      {plan.classes?.name || 'Unnamed Class'}
+                                    </p>
+                                    <h5 className="text-sm font-black text-white group-hover:text-primary transition-colors truncate">
+                                      {plan.courses?.title || 'Unknown Course'}
+                                    </h5>
+                                  </div>
+                                  <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-1 rounded shrink-0">
+                                    {plan.term || 'Term 1'}
+                                  </span>
                                 </div>
-                                <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-1 rounded">
-                                  {plan.term}
-                                </span>
+                                <div className="space-y-1.5">
+                                  <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground">
+                                    <span className="uppercase tracking-widest">Progress</span>
+                                    <span>{completedWeeks} / {totalWeeks} Weeks</span>
+                                  </div>
+                                  <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/5">
+                                    <div className="h-full bg-gradient-to-r from-primary to-fuchsia-500 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                                  </div>
+                                </div>
                               </div>
-                              <div className="pt-2 flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">Launch Class Plan →</span>
-                                <span className="text-[9px] text-muted-foreground">Active Implementation</span>
+                              <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-80 group-hover:opacity-100 transition-opacity">Open Lesson Plan →</span>
+                                <span className="text-[9px] font-medium text-muted-foreground flex items-center gap-1"><CheckCircleIcon className="w-3 h-3 text-emerald-500" /> Active Plan</span>
                               </div>
                             </Link>
-                          ))}
+                          )})}
                         </div>
                       </div>
                     )}
@@ -2826,44 +2842,55 @@ export default function CurriculumPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {implementationList.map((plan: any) => (
+                  {implementationList.map((plan: any) => {
+                    const totalWeeks = plan.plan_data?.weeks?.length || 0;
+                    const completedWeeks = plan.plan_data?.weeks?.filter((w: any) => w.completed)?.length || 0;
+                    const progressPct = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
+                    
+                    return (
                     <Link
                       key={plan.id}
                       href={`/dashboard/lesson-plans/${plan.id}`}
-                      className="group relative bg-card border border-white/5 hover:border-primary/40 p-6 transition-all duration-300 flex flex-col gap-5 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1"
+                      className="group relative bg-card border border-white/5 hover:border-primary/40 p-6 transition-all duration-300 flex flex-col gap-5 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 rounded-xl min-h-[180px]"
                     >
-                      <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ArrowRightIcon className="w-4 h-4 text-primary" />
-                      </div>
                       <div className="flex items-start justify-between relative z-10">
-                        <div className="min-w-0">
-                          <h5 className="text-[15px] font-black group-hover:text-primary transition-colors truncate mb-1">{plan.classes?.name || 'Unnamed Class'}</h5>
+                        <div className="min-w-0 pr-6">
+                          <h5 className="text-base font-black text-white group-hover:text-primary transition-colors truncate mb-1">{plan.classes?.name || 'Unnamed Class'}</h5>
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                             <p className="text-[10px] text-muted-foreground uppercase font-black tracking-[0.1em]">{plan.term || 'No Term'}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md border ${plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'border-white/10 text-muted-foreground bg-white/5'
-                            }`}>
+                          <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md border ${plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'border-white/10 text-muted-foreground bg-white/5'}`}>
                             {plan.status || 'draft'}
                           </span>
-                          <button
-                            onClick={(e) => deleteImplementation(plan.id, e)}
-                            disabled={deletingImpl === plan.id}
-                            className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-all disabled:opacity-30"
-                            title="Delete this implementation"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
                         </div>
                       </div>
-                      <div className="mt-auto flex items-center gap-6 text-[10px] text-muted-foreground font-black uppercase tracking-[0.15em] opacity-70">
-                        <span className="flex items-center gap-2"><CalendarDaysIcon className="w-3.5 h-3.5" /> {new Date(plan.term_start).toLocaleDateString()}</span>
-                        <span className="flex items-center gap-2"><RocketLaunchIcon className="w-3.5 h-3.5" /> {plan.sessions_per_week || 0} sessions</span>
+
+                      <div className="space-y-2 flex-1 mt-2">
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                          <span className="text-muted-foreground uppercase tracking-widest">Delivery Progress</span>
+                          <span className="text-primary">{completedWeeks} / {totalWeeks} Weeks</span>
+                        </div>
+                        <div className="h-2 w-full bg-black/40 rounded-full overflow-hidden border border-white/5">
+                          <div className="h-full bg-gradient-to-r from-primary/80 to-fuchsia-500 rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPct}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-80 group-hover:opacity-100 transition-opacity">Open Lesson Plan →</span>
+                        <button
+                          onClick={(e) => deleteImplementation(plan.id, e)}
+                          disabled={deletingImpl === plan.id}
+                          className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-all disabled:opacity-30 relative z-20"
+                          title="Delete this implementation"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
                       </div>
                     </Link>
-                  ))}
+                  )})}
                 </div>
               )}
 
