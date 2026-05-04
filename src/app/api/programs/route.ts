@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const isPublicVisitor = !user && publicCatalog;
 
     const rows = (data ?? [])
-      .filter((row: any) => isPublicVisitor || isProgramVisibleToRole(row, callerRole ?? null))
+      .filter((row: any) => isPublicVisitor || isAdmin || isTeacher || isProgramVisibleToRole(row, callerRole ?? null))
       .map((row: any) => {
         if (isAdmin || isTeacher || isPublicVisitor) return row;
         const visibleCourses = (row.courses ?? []).filter((c: any) =>
