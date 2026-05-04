@@ -137,6 +137,8 @@ export async function PUT(
       'school_progression_enabled',
       'session_frequency_per_week',
       'progression_policy',
+      'visible_to_teachers',
+      'visible_to_students',
     ];
     for (const f of fields) {
       if (f in body) allowed[f] = body[f] ?? null;

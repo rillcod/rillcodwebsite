@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { isCourseVisibleToLearners, isProgramVisibleToRole } from '@/lib/courses/visibility';
+import { isCourseVisibleToLearners } from '@/lib/courses/visibility';
 
 function adminClient() {
   return createClient(
@@ -80,11 +80,19 @@ export async function GET(request: NextRequest) {
     // courses are omitted.
     const isAdmin = callerRole === 'admin';
     const isTeacher = callerRole === 'teacher';
+    const isLearner = callerRole === 'student' || callerRole === 'parent';
     // True only for unauthenticated public visitors hitting the active catalog
     const isPublicVisitor = !user && publicCatalog;
 
     const rows = (data ?? [])
-      .filter((row: any) => isPublicVisitor || isAdmin || isTeacher || isProgramVisibleToRole(row, callerRole ?? null))
+      .filter((row: any) => {
+        if (row.is_active === false) return false;
+        if (isAdmin) return true;
+        if (isPublicVisitor) return true;           // public sees all active programs
+        if (isTeacher) return row.visible_to_teachers === true;
+        if (isLearner) return row.visible_to_students === true;
+        return row.visible_to_students === true;    // school role: same as learner
+      })
       .map((row: any) => {
         if (isAdmin || isTeacher || isPublicVisitor) return row;
         const visibleCourses = (row.courses ?? []).filter((c: any) =>
@@ -174,6 +182,8 @@ export async function POST(request: NextRequest) {
           normalizedScope === 'regular_school' ? Boolean(school_progression_enabled) : false,
         session_frequency_per_week: normalizedFreq,
         progression_policy: normalizedPolicy,
+        visible_to_teachers: body.visible_to_teachers ?? false,
+        visible_to_students: body.visible_to_students ?? false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
