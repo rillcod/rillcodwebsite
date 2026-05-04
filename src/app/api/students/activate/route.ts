@@ -79,6 +79,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // A student must be assigned to a school before activation
+    if (!student.school_id) {
+      return NextResponse.json({
+        error: 'This student has no school assigned. Assign them to a school before activating their account.',
+      }, { status: 400 });
+    }
+
     // Determine login email: prefer student_email, fall back to parent_email
     const loginEmail = student.student_email?.trim() || student.parent_email?.trim();
     if (!loginEmail) {
