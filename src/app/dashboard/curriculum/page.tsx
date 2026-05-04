@@ -3335,13 +3335,22 @@ export default function CurriculumPage() {
                     <p className="text-xs text-muted-foreground mt-2 mb-4">
                       Please head over to your <Link href="/dashboard/lesson-plans" className="text-primary hover:underline">Lesson Plans</Link> to create and manage lessons, assignments, projects, and exams for your classes.
                     </p>
-                    <button
-                      onClick={printWeek}
-                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
-                    >
-                      <PrinterIcon className="w-4 h-4" />
-                      <span className="text-xs font-bold">Print Week Syllabus</span>
-                    </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        onClick={printWeek}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
+                      >
+                        <PrinterIcon className="w-4 h-4" />
+                        <span className="text-xs font-bold">Print Week</span>
+                      </button>
+                      <button
+                        onClick={printOverview}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
+                      >
+                        <PrinterIcon className="w-4 h-4" />
+                        <span className="text-xs font-bold">Print Syllabus</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
