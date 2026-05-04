@@ -19,12 +19,39 @@ async function requireAdmin() {
   return profile;
 }
 
+// GET /api/classes/heal?search=... — search students for manual reassign
 // GET /api/classes/heal — scan for anomalies
-export async function GET() {
+export async function GET(req: NextRequest) {
   const caller = await requireAdmin();
   if (!caller) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
   const db = adminClient();
+
+  const q = req.nextUrl.searchParams.get('search');
+  if (q !== null) {
+    const term = q.trim();
+    if (!term) return NextResponse.json({ data: [] });
+    const { data: students } = await db
+      .from('portal_users')
+      .select('id, full_name, email, school_id, school_name, class_id, section_class')
+      .eq('role', 'student')
+      .eq('is_deleted', false)
+      .or(`full_name.ilike.%${term}%,email.ilike.%${term}%`)
+      .order('full_name')
+      .limit(30);
+    // Enrich each student with their class name
+    const classIds = [...new Set((students ?? []).map((s: any) => s.class_id).filter(Boolean))];
+    let classNameMap: Record<string, string> = {};
+    if (classIds.length) {
+      const { data: classes } = await db.from('classes').select('id, name').in('id', classIds);
+      (classes ?? []).forEach((c: any) => { classNameMap[c.id] = c.name; });
+    }
+    const rows = (students ?? []).map((s: any) => ({
+      ...s,
+      class_name: s.class_id ? (classNameMap[s.class_id] ?? s.section_class ?? null) : null,
+    }));
+    return NextResponse.json({ data: rows });
+  }
 
   // 1. Students with no school_id
   const { data: noSchool } = await db

@@ -77,64 +77,6 @@ export async function GET(
 
     const knownIds = new Set((directStudents ?? []).map((s: any) => s.id));
 
-    // ── Fallback: program-enrolled students whose class_id is missing/stale ──
-    // Only auto-heals students with no class_id or a stale class_id (not students
-    // intentionally in a DIFFERENT active class — that would be a cross-class steal).
-    // Also enforces school boundary during heal.
-    let programStudents: any[] = [];
-    if (cls.program_id) {
-      const { data: enrolledRows } = await admin
-        .from('enrollments')
-        .select('user_id')
-        .eq('program_id', cls.program_id)
-        .in('status', ['active', 'enrolled', 'approved']);
-
-      const candidateIds = (enrolledRows ?? [])
-        .map((e: any) => e.user_id)
-        .filter((uid: any) => uid && !knownIds.has(uid));
-
-      if (candidateIds.length > 0) {
-        // Fetch candidates — include school_id so we can enforce boundary
-        let psQuery = admin
-          .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class, class_id')
-          .in('id', candidateIds)
-          .eq('role', 'student')
-          .order('full_name');
-
-        // Scope to class's school — prevents cross-school heal
-        if (cls.school_id) {
-          psQuery = psQuery.or(
-            `school_id.eq.${cls.school_id},and(school_id.is.null,school_name.eq.${JSON.stringify(cls.name)})`,
-          ) as any;
-        }
-
-        const { data: ps } = await psQuery;
-        // Only heal students with NO class_id or whose class_id is this class (stale/same)
-        // Students actively in another class are excluded — don't steal them
-        programStudents = (ps ?? []).filter(
-          (s: any) => !s.class_id || s.class_id === classId,
-        );
-      }
-    }
-
-    // Auto-heal program fallback students → assign class_id so primary lookup catches them next time
-    if (programStudents.length > 0) {
-      const fallbackIds = programStudents.map((s: any) => s.id);
-      await admin
-        .from('portal_users')
-        .update({ class_id: classId, section_class: cls.name })
-        .in('id', fallbackIds)
-        .eq('role', 'student');
-      programStudents = programStudents.map((s: any) => ({
-        ...s,
-        class_id: classId,
-        section_class: cls.name,
-      }));
-      console.log(`[students API] class="${cls.name}" (${classId}) auto-healed ${fallbackIds.length} program-enrolled student(s)`);
-      fallbackIds.forEach((id: string) => knownIds.add(id));
-    }
-
     // ── Section-name fallback: students at same school whose section_class text ─
     // matches the class name but class_id was never set (legacy bulk registration)
     let sectionStudents: any[] = [];
@@ -162,7 +104,7 @@ export async function GET(
       }
     }
 
-    const students = [...(directStudents ?? []), ...programStudents, ...sectionStudents];
+    const students = [...(directStudents ?? []), ...sectionStudents];
 
     // ── Sync current_students count from DB (not from local array) ───────────
     const { count: liveCount } = await admin

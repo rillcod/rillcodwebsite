@@ -105,6 +105,18 @@ export async function POST(request: NextRequest) {
   }
 
   if (existing_id) {
+    // Ownership check: non-admin teachers can only edit their own reports
+    if (caller.role !== 'admin') {
+      const { data: existingReport } = await admin
+        .from('student_progress_reports')
+        .select('teacher_id')
+        .eq('id', existing_id)
+        .maybeSingle();
+      if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+      if ((existingReport as any).teacher_id !== caller.id) {
+        return NextResponse.json({ error: 'You can only edit your own reports' }, { status: 403 });
+      }
+    }
     const { data, error } = await admin
       .from('student_progress_reports')
       .update(updatePayload)
