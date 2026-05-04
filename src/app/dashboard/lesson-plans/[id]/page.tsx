@@ -1376,11 +1376,11 @@ export default function LessonPlanDetailPage() {
             {(profile?.role === 'teacher' || profile?.role === 'admin') && myClasses.filter(c => c.id !== plan.class_id).length > 0 && (
               <button
                 onClick={() => setCloneModalOpen(true)}
-                title="Deploy a copy of this plan to another class or school"
+                title="Copy this plan to another class"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-card-foreground/70 hover:text-card-foreground text-sm font-bold rounded-xl transition-all"
               >
                 <ArrowUpTrayIcon className="w-3.5 h-3.5" />
-                Deploy to…
+                Copy to class…
               </button>
             )}
             {nextStatuses.map(ns => (
@@ -1396,7 +1396,7 @@ export default function LessonPlanDetailPage() {
           {plan.term_start && <div><span className="font-bold text-card-foreground/70">Start:</span> {new Date(plan.term_start).toLocaleDateString('en-GB')}</div>}
           {plan.term_end && <div><span className="font-bold text-card-foreground/70">End:</span> {new Date(plan.term_end).toLocaleDateString('en-GB')}</div>}
           {plan.sessions_per_week && <div><span className="font-bold text-card-foreground/70">Sessions/wk:</span> {plan.sessions_per_week}</div>}
-          <div><span className="font-bold text-card-foreground/70">Path Progress:</span> {completedWeeks}/{weeks.length || 0}</div>
+          <div><span className="font-bold text-card-foreground/70">Progress:</span> {completedWeeks}/{weeks.length || 0} weeks</div>
           {plan.schools?.name && <div><span className="font-bold text-card-foreground/70">School:</span> {plan.schools.name}</div>}
         </div>
 
@@ -1415,7 +1415,7 @@ export default function LessonPlanDetailPage() {
                   href={`/dashboard/curriculum?course=${plan.course_id}${plan.courses?.program_id ? `&program=${plan.courses.program_id}` : ''}`}
                   className="font-bold text-sky-300 hover:text-sky-200 underline underline-offset-2 shrink-0"
                 >
-                  Open in curriculum hub
+                  View syllabus
                 </Link>
               )}
             </div>
@@ -1445,10 +1445,10 @@ export default function LessonPlanDetailPage() {
         >
           <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3 hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden">
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-widest text-amber-300/90">Starting Template</p>
-              <p className="text-sm font-bold text-card-foreground mt-0.5">Grade week-by-week guide (registry)</p>
+              <p className="text-xs font-black uppercase tracking-widest text-amber-300/90">Teaching Reference</p>
+              <p className="text-sm font-bold text-card-foreground mt-0.5">Week-by-week topic guide for this grade</p>
               <p className="text-[11px] text-card-foreground/55 mt-1 leading-snug">
-                Same catalogue &ldquo;Generate progression&rdquo; uses — ordered by year, term, and week. Use it to align your plan topics before or after syllabus import.
+                Suggested weekly topics in the order they should be taught. Use this to check your plan matches the expected teaching sequence.
               </p>
             </div>
             <BookOpenIcon className="w-5 h-5 text-amber-400/80 shrink-0" />
@@ -1475,12 +1475,12 @@ export default function LessonPlanDetailPage() {
                   <table className="w-full text-left text-[11px]">
                     <thead className="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-white/[0.08]">
                       <tr className="text-card-foreground/50 uppercase tracking-wide">
-                        <th className="px-2 py-2 font-bold">Y</th>
-                        <th className="px-2 py-2 font-bold">T</th>
-                        <th className="px-2 py-2 font-bold">W</th>
-                        <th className="px-2 py-2 font-bold">Idx</th>
-                        <th className="px-2 py-2 font-bold min-w-[8rem]">Title</th>
-                        <th className="px-2 py-2 font-bold hidden sm:table-cell">Classwork focus</th>
+                        <th className="px-2 py-2 font-bold">Yr</th>
+                        <th className="px-2 py-2 font-bold">Term</th>
+                        <th className="px-2 py-2 font-bold">Wk</th>
+                        <th className="px-2 py-2 font-bold">#</th>
+                        <th className="px-2 py-2 font-bold min-w-[8rem]">Topic</th>
+                        <th className="px-2 py-2 font-bold hidden sm:table-cell">Classwork</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1540,7 +1540,7 @@ export default function LessonPlanDetailPage() {
               : 'text-card-foreground/50 hover:text-card-foreground/70'
             }`}
         >
-          Content Dashboard
+          Content &amp; Overview
         </button>
       </div>
 
@@ -1769,10 +1769,10 @@ export default function LessonPlanDetailPage() {
           <div className="bg-card border border-white/[0.08] rounded-[28px] overflow-hidden">
             <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.14),transparent_30%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.10),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
               <div className="max-w-3xl">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-300/90">Linear Operating Flow</p>
-                <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">Policies define rules → syllabus defines truth → QA checks → builder routes → lesson tools generate → release and analytics track</h3>
+                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-amber-300/90">How this plan works</p>
+                <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">From setup to delivery — the 8 steps of this lesson plan</h3>
                 <p className="text-sm text-card-foreground/65 mt-2 leading-relaxed">
-                  This strip is the direct operating line for this plan. Read it left to right whenever you want to know what comes first, what validates it, what generates it, and what monitors it after release.
+                  Each step below shows what has been set up, what still needs attention, and what runs automatically. Green = ready, amber = needs attention, red = blocked.
                 </p>
               </div>
             </div>
@@ -1780,10 +1780,10 @@ export default function LessonPlanDetailPage() {
               <div className="grid grid-cols-1 gap-6">
                 {/* Phases Mapping */}
                 {[
-                  { name: 'Academic Design', steps: ['01', '02'], icon: 'DesignIcon', color: 'blue' },
-                  { name: 'Instructional Building', steps: ['03', '04'], icon: 'BuildIcon', color: 'indigo' },
+                  { name: 'Plan Setup', steps: ['01', '02'], icon: 'DesignIcon', color: 'blue' },
+                  { name: 'Content Checks', steps: ['03', '04'], icon: 'BuildIcon', color: 'indigo' },
                   { name: 'Classroom Delivery', steps: ['05', '06'], icon: 'DeliverIcon', color: 'violet' },
-                  { name: 'Operational Audit', steps: ['07', '08'], icon: 'AuditIcon', color: 'fuchsia' }
+                  { name: 'Tracking & Review', steps: ['07', '08'], icon: 'AuditIcon', color: 'fuchsia' }
                 ].map((phase, pIdx) => (
                   <div key={phase.name} className="space-y-3">
                     <div className="flex items-center gap-2 mb-1">
@@ -1831,10 +1831,10 @@ export default function LessonPlanDetailPage() {
                 <div className="p-5 sm:p-6 border-b border-white/[0.06] bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_30%),radial-gradient(circle_at_top_right,rgba(236,72,153,0.12),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="max-w-2xl">
-                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-300/90">Operations Center</p>
-                      <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">Schedule, release, analytics, and audit in one lesson-plan view</h3>
+                      <p className="text-[11px] font-black uppercase tracking-[0.25em] text-cyan-300/90">Live Activity</p>
+                      <h3 className="text-xl sm:text-2xl font-black text-card-foreground mt-2">Schedule, releases, results, and activity in one view</h3>
                       <p className="text-sm text-card-foreground/65 mt-2 leading-relaxed">
-                        This board gives your operators one place to monitor cadence, release state, performance, and override activity without leaving the lesson-plan workflow.
+                        Everything happening on this plan right now — when content releases to students, how they are performing, and a log of changes made by the team.
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3 min-w-0 sm:min-w-[18rem]">
@@ -1847,11 +1847,11 @@ export default function LessonPlanDetailPage() {
                         <p className="text-sm font-black text-card-foreground mt-1">{operations?.schedule?.current_week ?? 0}</p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Release Rows</p>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Weeks tracked</p>
                         <p className="text-sm font-black text-card-foreground mt-1">{operations?.release_board?.length ?? 0}</p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Audit Events</p>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-card-foreground/45 font-black">Activity log</p>
                         <p className="text-sm font-black text-card-foreground mt-1">{operations?.audit.summary.total_events ?? 0}</p>
                       </div>
                     </div>
@@ -1872,15 +1872,15 @@ export default function LessonPlanDetailPage() {
                     <>
                       <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-4">
                         <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Schedule Dashboard</p>
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Schedule</p>
                           <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
                             <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
                               <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Status</p>
                               <p className="text-card-foreground font-black mt-2">{operations.schedule?.is_active ? 'Active' : 'Not active'}</p>
                             </div>
                             <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
-                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Cadence</p>
-                              <p className="text-card-foreground font-black mt-2">{operations.schedule?.cadence_days ?? 7} day(s)</p>
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Every</p>
+                              <p className="text-card-foreground font-black mt-2">{operations.schedule?.cadence_days ?? 7} days</p>
                             </div>
                             <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
                               <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Term Start</p>
@@ -1895,8 +1895,8 @@ export default function LessonPlanDetailPage() {
 
                         <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Release Board</p>
-                            <span className="text-xs text-card-foreground/55">Draft, partial, and fully released week state</span>
+                            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Weekly releases</p>
+                            <span className="text-xs text-card-foreground/55">What has been released to students each week</span>
                           </div>
                           <div className="mt-4 space-y-3 max-h-[28rem] overflow-auto pr-1">
                             {operations.release_board.map((row) => (
@@ -1939,10 +1939,10 @@ export default function LessonPlanDetailPage() {
 
                       <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
                         <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Plan Analytics</p>
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Student Results</p>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-xs">
                             <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
-                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Records</p>
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Students</p>
                               <p className="text-card-foreground font-black mt-2">{operations.analytics.summary.total_records}</p>
                             </div>
                             <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
@@ -1954,7 +1954,7 @@ export default function LessonPlanDetailPage() {
                               <p className="text-card-foreground font-black mt-2">{operations.analytics.summary.average_practical_score}</p>
                             </div>
                             <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
-                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Avg Retry</p>
+                              <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">Avg Retries</p>
                               <p className="text-card-foreground font-black mt-2">{operations.analytics.summary.average_retry_count}</p>
                             </div>
                           </div>
@@ -1976,7 +1976,7 @@ export default function LessonPlanDetailPage() {
                         </section>
 
                         <section className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Audit Visualization</p>
+                          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-card-foreground/45">Activity log</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-xs">
                             <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
                               <p className="text-card-foreground/45 uppercase tracking-[0.18em] font-black">By Action</p>
