@@ -150,6 +150,7 @@ export default function DashboardNavigation() {
           { name: 'Programs', href: '/dashboard/programs', icon: PresentationChartLineIcon },
           { name: 'Courses', href: '/dashboard/courses', icon: BookOpenIcon },
           { name: 'Classes', href: '/dashboard/classes', icon: UserGroupIcon },
+          { name: 'Class Health', href: '/dashboard/classes/heal', icon: UserGroupIcon },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
           { name: 'Assignments', href: '/dashboard/assignments', icon: ClipboardDocumentListIcon },
           { name: 'Projects', href: '/dashboard/projects', icon: RocketLaunchIcon },
