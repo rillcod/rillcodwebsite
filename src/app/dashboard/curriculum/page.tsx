@@ -14,7 +14,7 @@ import {
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
   Squares2X2Icon, PlusIcon, CalendarDaysIcon, TrashIcon, PresentationChartLineIcon,
-  BuildingOfficeIcon, LockClosedIcon,
+  BuildingOfficeIcon, LockClosedIcon, ArrowDownTrayIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -205,6 +205,7 @@ export default function CurriculumPage() {
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState<{ assignment?: boolean; project?: boolean } | null>(null);
   const [showcaseCount, setShowcaseCount] = useState<number | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -1417,6 +1418,166 @@ export default function CurriculumPage() {
     setTimeout(() => window.print(), 50);
   }
 
+  function pdfFileName(title: string): string {
+    const stem = `${title || 'curriculum'}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return `${stem || 'curriculum'}.pdf`;
+  }
+
+  async function exportCurriculumPdf(mode: 'overview' | 'week' = 'overview') {
+    if (!curriculum) {
+      toast.error('Select a curriculum before exporting.');
+      return;
+    }
+    if (mode === 'week' && !activeWeek) {
+      toast.error('Select a week before exporting.');
+      return;
+    }
+
+    setExportingPdf(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const margin = 15;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let y = margin;
+
+      const addPageIfNeeded = (needed = 12) => {
+        if (y + needed > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+      };
+      const text = (value: string, size = 10, style: 'normal' | 'bold' = 'normal', color: [number, number, number] = [17, 24, 39]) => {
+        addPageIfNeeded(size * 0.8);
+        doc.setFont('helvetica', style);
+        doc.setFontSize(size);
+        doc.setTextColor(...color);
+        const lines = doc.splitTextToSize(value || '-', pageWidth - margin * 2);
+        doc.text(lines, margin, y);
+        y += lines.length * (size * 0.45) + 3;
+      };
+      const heading = (value: string) => {
+        addPageIfNeeded(16);
+        doc.setFillColor(17, 24, 39);
+        doc.rect(margin, y, pageWidth - margin * 2, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text(value.toUpperCase(), margin + 3, y + 5.5);
+        y += 12;
+      };
+      const bullets = (items?: string[]) => {
+        if (!items?.length) {
+          text('-', 9);
+          return;
+        }
+        items.forEach((item) => text(`- ${item}`, 9));
+      };
+
+      const content = curriculum.content;
+      const course = content?.course_title || selectedCourse?.title || 'Curriculum';
+      const school = curriculum.schools?.name || 'Rillcod Managed Academy';
+
+      doc.setTextColor(17, 24, 39);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('RILLCOD TECHNOLOGIES', margin, y);
+      y += 7;
+      doc.setFontSize(9);
+      doc.setTextColor(75, 85, 99);
+      doc.text('Official Curriculum Export', margin, y);
+      y += 8;
+      doc.setDrawColor(17, 24, 39);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 10;
+
+      text(mode === 'week' && activeWeek ? `Week ${activeWeek.week}: ${activeWeek.topic}` : course, 15, 'bold');
+      text(`Programme: ${selectedProgram?.name || 'Rillcod STEM Path'}`, 9);
+      text(`School: ${school}`, 9);
+      text(`Version: ${curriculum.version ?? 1} | Exported: ${new Date().toLocaleDateString('en-GB')}`, 9);
+
+      if (mode === 'week' && activeWeek) {
+        heading('Week Plan');
+        text(`Term: ${TERM_LABEL[activeTerm] ?? `Term ${activeTerm}`}`, 10, 'bold');
+        text(`Type: ${WEEK_META[activeWeek.type]?.label ?? activeWeek.type}`, 9);
+        text(`Topic: ${activeWeek.topic}`, 10, 'bold');
+        if (activeWeek.subtopics?.length) {
+          text('Subtopics', 10, 'bold');
+          bullets(activeWeek.subtopics);
+        }
+        const plan = activeWeek.lesson_plan;
+        const assessment = activeWeek.assessment_plan;
+        if (plan) {
+          heading('Lesson Details');
+          text(`Duration: ${plan.duration_minutes ?? '-'} minutes`, 9);
+          text('Objectives', 10, 'bold');
+          bullets(plan.objectives);
+          text('Teacher Activities', 10, 'bold');
+          bullets(plan.teacher_activities);
+          text('Student Activities', 10, 'bold');
+          bullets(plan.student_activities);
+          if (plan.classwork) text(`Classwork: ${plan.classwork.title || ''}\n${plan.classwork.instructions || ''}`, 9);
+          if (plan.assignment) text(`Assignment: ${plan.assignment.title || ''}\n${plan.assignment.instructions || ''}`, 9);
+          if (plan.project) text(`Project: ${plan.project.title || ''}\n${plan.project.description || ''}`, 9);
+        }
+        if (assessment) {
+          heading('Assessment Details');
+          text(`Title: ${assessment.title || '-'}`, 10, 'bold');
+          text(`Format: ${assessment.format || '-'}`, 9);
+          text(`Scoring Guide: ${assessment.scoring_guide || '-'}`, 9);
+          text('Coverage', 10, 'bold');
+          bullets(assessment.coverage);
+        }
+      } else {
+        if (content?.overview) {
+          heading('Overview');
+          text(content.overview, 9);
+        }
+        if (content?.learning_outcomes?.length) {
+          heading('Learning Outcomes');
+          bullets(content.learning_outcomes);
+        }
+        (content?.terms ?? []).forEach((term) => {
+          heading(`${TERM_LABEL[term.term] ?? `Term ${term.term}`}: ${term.title}`);
+          if (term.objectives?.length) {
+            text('Term Objectives', 10, 'bold');
+            bullets(term.objectives);
+          }
+          (term.weeks ?? []).forEach((week) => {
+            addPageIfNeeded(18);
+            text(`Week ${week.week}: ${week.topic}`, 10, 'bold');
+            text(`Type: ${WEEK_META[week.type]?.label ?? week.type}`, 8);
+            if (week.subtopics?.length) text(`Coverage: ${week.subtopics.join(', ')}`, 8);
+          });
+        });
+        if (content?.assessment_strategy) {
+          heading('Assessment Strategy');
+          text(content.assessment_strategy, 9);
+        }
+        if (content?.materials_required?.length) {
+          heading('Materials Required');
+          bullets(content.materials_required);
+        }
+        if (content?.recommended_tools?.length) {
+          heading('Recommended Tools');
+          bullets(content.recommended_tools);
+        }
+      }
+
+      const name = pdfFileName(mode === 'week' && activeWeek ? `${course}-week-${activeWeek.week}` : `${course}-syllabus`);
+      doc.save(name);
+      toast.success('PDF exported');
+    } catch (e: any) {
+      toast.error(e.message || 'Could not export PDF');
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
 
   // ── Teacher: publish / unpublish the syllabus to school, students & parents ──
   async function togglePublish(next: boolean) {
@@ -2387,6 +2548,14 @@ export default function CurriculumPage() {
                             className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                           >
                             <PrinterIcon className="w-3.5 h-3.5" /> Print Syllabus
+                          </button>
+                          <button
+                            onClick={() => exportCurriculumPdf('overview')}
+                            disabled={exportingPdf}
+                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                          >
+                            {exportingPdf ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
+                            Export PDF
                           </button>
                           <Link
                             href="/dashboard/curriculum/progress"
@@ -3360,11 +3529,27 @@ export default function CurriculumPage() {
                         <span className="text-xs font-bold">Print Week</span>
                       </button>
                       <button
+                        onClick={() => exportCurriculumPdf('week')}
+                        disabled={exportingPdf}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5 disabled:opacity-50"
+                      >
+                        {exportingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
+                        <span className="text-xs font-bold">Export Week PDF</span>
+                      </button>
+                      <button
                         onClick={printOverview}
                         className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
                       >
                         <PrinterIcon className="w-4 h-4" />
                         <span className="text-xs font-bold">Print Syllabus</span>
+                      </button>
+                      <button
+                        onClick={() => exportCurriculumPdf('overview')}
+                        disabled={exportingPdf}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5 disabled:opacity-50"
+                      >
+                        {exportingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
+                        <span className="text-xs font-bold">Export Syllabus PDF</span>
                       </button>
                     </div>
                   </div>

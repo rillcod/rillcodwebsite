@@ -77,14 +77,55 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          .curriculum-overview-print-root { display: block !important; position: absolute; top: 0; left: 0; width: 100%; z-index: 999999; background: white; min-height: 100vh; }
+          html, body {
+            width: 210mm !important;
+            min-width: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            background: #ffffff !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          .curriculum-overview-print-root,
+          .curriculum-overview-print-root * {
+            visibility: visible !important;
+          }
+          .curriculum-overview-print-root {
+            display: block !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 210mm !important;
+            max-width: 210mm !important;
+            min-height: 297mm !important;
+            z-index: 999999 !important;
+            background: white !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+          }
           @page {
             size: A4 portrait;
             margin: 15mm 15mm 20mm 15mm;
           }
           * {
+            box-sizing: border-box !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+          .curriculum-overview-print-root table {
+            width: 100% !important;
+            table-layout: fixed !important;
+          }
+          .curriculum-overview-print-root th,
+          .curriculum-overview-print-root td {
+            overflow-wrap: anywhere !important;
+            word-break: break-word !important;
+          }
+          .curriculum-overview-print-root img {
+            max-width: 100% !important;
+            height: auto !important;
           }
           .print-markdown h1, .print-markdown h2, .print-markdown h3 { 
             font-weight: 800; color: #111827; margin-top: 1em; margin-bottom: 0.5em; font-size: 1.1em;
