@@ -9,6 +9,54 @@ const supabaseAdmin = createAdminClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+type StaffCaller = { role: string; id: string; school_id: string | null };
+
+async function callerCanAccessSchool(caller: StaffCaller, schoolId: string | null): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  if (!schoolId) return true;
+  if (caller.school_id === schoolId) return true;
+  if (caller.role !== 'teacher') return false;
+
+  const { data } = await supabaseAdmin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', caller.id)
+    .eq('school_id', schoolId)
+    .maybeSingle();
+  return !!data;
+}
+
+async function resolveClassForStudent(
+  schoolId: string | null,
+  classId: string | null,
+  classNames: Array<string | null | undefined>,
+): Promise<{ id: string | null; name: string | null; error?: string }> {
+  if (classId) {
+    const { data: cls } = await supabaseAdmin
+      .from('classes')
+      .select('id, name, school_id')
+      .eq('id', classId)
+      .maybeSingle();
+    if (!cls) return { id: null, name: null, error: 'Class not found' };
+    if (schoolId && cls.school_id && cls.school_id !== schoolId) {
+      return { id: null, name: null, error: 'Selected class belongs to a different school' };
+    }
+    return { id: cls.id, name: cls.name };
+  }
+
+  const names = Array.from(new Set(classNames.map((name) => name?.trim()).filter(Boolean))) as string[];
+  if (!schoolId || names.length === 0) return { id: null, name: names[0] ?? null };
+
+  const { data: cls } = await supabaseAdmin
+    .from('classes')
+    .select('id, name')
+    .eq('school_id', schoolId)
+    .in('name', names)
+    .limit(1)
+    .maybeSingle();
+  return { id: cls?.id ?? null, name: cls?.name ?? names[0] ?? null };
+}
+
 // POST /api/students/activate
 // Body: { studentId: string }
 // Admin/Teacher only — creates a portal_users account for an approved student
@@ -21,14 +69,15 @@ export async function POST(req: NextRequest) {
     if (authErr || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const { data: caller } = await supabase
+    const { data: caller } = await supabaseAdmin
       .from('portal_users')
-      .select('role')
+      .select('role, id, school_id')
       .eq('id', user.id)
       .single();
     if (!caller || !['admin', 'teacher'].includes(caller.role)) {
       return NextResponse.json({ error: 'Admin or teacher access required' }, { status: 403 });
     }
+    const staff = caller as StaffCaller;
 
     const body = await req.json();
     const { studentId, classId } = body;
@@ -39,7 +88,7 @@ export async function POST(req: NextRequest) {
     // Fetch the student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, user_id, status, school_id, enrollment_type, section_class, grade_level')
+      .select('id, name, full_name, student_email, parent_email, user_id, status, school_id, school_name, enrollment_type, class_id, current_class, section_class, grade_level')
       .eq('id', studentId)
       .single();
 
@@ -87,6 +136,10 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    if (!(await callerCanAccessSchool(staff, student.school_id))) {
+      return NextResponse.json({ error: 'Access denied: this student belongs to a different school' }, { status: 403 });
+    }
+
     // Determine login email: prefer student_email, fall back to parent_email
     const loginEmail = student.student_email?.trim() || student.parent_email?.trim();
     if (!loginEmail) {
@@ -123,20 +176,16 @@ export async function POST(req: NextRequest) {
 
     const portalUserId = authData.user.id;
 
-    // Resolve class assignment (if provided)
-    let resolvedClassId: string | null = classId ?? null;
-    let resolvedClassName: string | null = student.section_class || student.grade_level || null;
-    if (resolvedClassId) {
-      const { data: cls } = await supabaseAdmin
-        .from('classes')
-        .select('name, school_id')
-        .eq('id', resolvedClassId)
-        .single();
-      if (!cls) {
-        return NextResponse.json({ error: 'Class not found' }, { status: 404 });
-      }
-      resolvedClassName = cls.name;
+    const resolvedClass = await resolveClassForStudent(
+      student.school_id ?? null,
+      classId ?? (student as any).class_id ?? null,
+      [student.current_class, student.section_class, student.grade_level],
+    );
+    if (resolvedClass.error) {
+      return NextResponse.json({ error: resolvedClass.error }, { status: 400 });
     }
+    const resolvedClassId = resolvedClass.id;
+    const resolvedClassName = resolvedClass.name;
 
     // Create portal_users profile
     const { error: profileErr } = await supabaseAdmin.from('portal_users').insert({
@@ -146,6 +195,7 @@ export async function POST(req: NextRequest) {
       role: 'student',
       is_active: true,
       school_id: student.school_id ?? null,
+      school_name: student.school_name ?? null,
       class_id: resolvedClassId,
       enrollment_type: student.enrollment_type || 'in_person',
       section_class: resolvedClassName,

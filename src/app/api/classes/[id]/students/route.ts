@@ -106,6 +106,34 @@ export async function GET(
 
     const students = [...(directStudents ?? []), ...sectionStudents];
 
+    // Recovery: if this teacher has already entered progress reports for this
+    // class, keep those students visible on the roster even if their class_id
+    // drifted. This preserves the intentional teacher-owned class boundary.
+    if (caller.role === 'teacher') {
+      const knownStudentIds = new Set(students.map((s: any) => s.id));
+      let reportQuery = admin
+        .from('student_progress_reports')
+        .select('student_id')
+        .eq('teacher_id', caller.id)
+        .eq('section_class', cls.name)
+        .not('student_id', 'is', null);
+      if (cls.school_id) reportQuery = reportQuery.eq('school_id', cls.school_id);
+      const { data: reportRows } = await reportQuery;
+      const reportStudentIds = (reportRows ?? [])
+        .map((r: any) => r.student_id)
+        .filter((sid: any) => sid && !knownStudentIds.has(sid));
+
+      if (reportStudentIds.length > 0) {
+        const { data: reportLinkedStudents } = await admin
+          .from('portal_users')
+          .select('id, full_name, email, school_id, school_name, section_class, class_id')
+          .in('id', reportStudentIds)
+          .eq('role', 'student')
+          .order('full_name');
+        students.push(...(reportLinkedStudents ?? []));
+      }
+    }
+
     // ── Sync current_students count from DB (not from local array) ───────────
     const { count: liveCount } = await admin
       .from('portal_users')

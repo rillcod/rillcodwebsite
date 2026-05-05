@@ -54,16 +54,9 @@ export async function GET(request: NextRequest) {
         const assignedIds = (schoolRows ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
         if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
 
-        // Step 2 — class: any class the teacher can legitimately teach from
-        // their assigned school(s). Some imported/school-owned classes do not
-        // have teacher_id set, but the teacher still needs those students for
-        // reports and progress views.
-        let classQ = admin.from('classes').select('id, name, teacher_id, school_id');
-        if (assignedIds.length > 0) {
-          classQ = classQ.or(`teacher_id.eq.${caller.id},school_id.in.(${assignedIds.join(',')})`) as any;
-        } else {
-          classQ = classQ.eq('teacher_id', caller.id) as any;
-        }
+        // Step 2 — class: teacher's own classes only.
+        let classQ = admin.from('classes').select('id, name').eq('teacher_id', caller.id);
+        if (assignedIds.length > 0) classQ = classQ.in('school_id', assignedIds) as any;
         const { data: myClasses } = await classQ;
         const myClassIds = (myClasses ?? []).map((c: any) => c.id);
         const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
@@ -85,6 +78,20 @@ export async function GET(request: NextRequest) {
             .eq('role', 'student');
           (fallback ?? []).forEach((s: any) => studentIdSet.add(s.id));
         }
+
+        // Recovery: students who already have reports entered by this teacher
+        // should remain visible to that teacher even if a profile/class link
+        // drifted during approval, activation, or a later data sync.
+        const reportQuery = admin
+          .from('student_progress_reports')
+          .select('student_id')
+          .eq('teacher_id', caller.id)
+          .not('student_id', 'is', null);
+        if (assignedIds.length > 0) reportQuery.in('school_id', assignedIds);
+        const { data: reportStudents } = await reportQuery;
+        (reportStudents ?? []).forEach((r: any) => {
+          if (r.student_id) studentIdSet.add(r.student_id);
+        });
 
         const studentIds = Array.from(studentIdSet);
         if (studentIds.length === 0) return NextResponse.json({ data: [] });

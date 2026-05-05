@@ -10,6 +10,41 @@ function adminClient() {
   );
 }
 
+type StaffCaller = { role: string; id: string; school_id: string | null };
+
+async function callerCanAccessSchool(admin: ReturnType<typeof adminClient>, caller: StaffCaller, schoolId: string | null): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  if (!schoolId) return true;
+  if (caller.school_id === schoolId) return true;
+  if (caller.role !== 'teacher') return false;
+
+  const { data } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', caller.id)
+    .eq('school_id', schoolId)
+    .maybeSingle();
+  return !!data;
+}
+
+async function resolveStudentClassId(
+  admin: ReturnType<typeof adminClient>,
+  schoolId: string | null,
+  classNames: Array<string | null | undefined>,
+): Promise<string | null> {
+  const names = Array.from(new Set(classNames.map((name) => name?.trim()).filter(Boolean))) as string[];
+  if (!schoolId || names.length === 0) return null;
+
+  const { data } = await admin
+    .from('classes')
+    .select('id')
+    .eq('school_id', schoolId)
+    .in('name', names)
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 async function requireStaff() {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -21,7 +56,7 @@ async function requireStaff() {
     .eq('id', user.id)
     .single();
   if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
-  return caller as { role: string; id: string; school_id: string | null };
+  return caller as StaffCaller;
 }
 
 // POST /api/approvals/students
@@ -49,8 +84,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Student not found' }, { status: 404 });
   }
 
-  // School boundary: non-admin may only approve students from their own school
-  if (caller.role !== 'admin' && student.school_id && student.school_id !== caller.school_id) {
+  // School boundary: non-admin may only approve students from their assigned school(s)
+  if (!(await callerCanAccessSchool(admin, caller, student.school_id ?? null))) {
     return NextResponse.json(
       { error: 'Access denied: this student belongs to a different school' },
       { status: 403 },
@@ -96,6 +131,12 @@ export async function POST(request: Request) {
     }
   }
 
+  const resolvedClassName = (student as any).current_class || (student as any).grade_level || null;
+  const resolvedClassId = await resolveStudentClassId(admin, resolvedSchoolId, [
+    (student as any).current_class,
+    (student as any).grade_level,
+  ]);
+
   // ── Step 1: Check portal_users by email FIRST ────────────────────────────
   const { data: existingPortal } = await admin
     .from('portal_users')
@@ -110,8 +151,9 @@ export async function POST(request: Request) {
       full_name: student.full_name,
       school_name: resolvedSchoolName,
       school_id: resolvedSchoolId,
+      class_id: resolvedClassId,
       date_of_birth: student.date_of_birth || null,
-      section_class: (student as any).current_class || (student as any).grade_level || null,
+      section_class: resolvedClassName,
       is_active: true,
       updated_at: new Date().toISOString(),
     }).eq('id', existingPortal.id);
@@ -187,8 +229,9 @@ export async function POST(request: Request) {
     role: 'student',
     school_name: resolvedSchoolName,
     school_id: resolvedSchoolId,
+    class_id: resolvedClassId,
     date_of_birth: student.date_of_birth || null,
-    section_class: (student as any).current_class || (student as any).grade_level || null,
+    section_class: resolvedClassName,
     is_active: true,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'id' });
