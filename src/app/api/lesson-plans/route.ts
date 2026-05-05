@@ -28,6 +28,10 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const lessonId = searchParams.get('lesson_id');
+  const courseId = searchParams.get('course_id');
+  const curriculumVersionId = searchParams.get('curriculum_version_id');
+  const classId = searchParams.get('class_id');
+  const limitRaw = Number(searchParams.get('limit') ?? 0);
 
   const db = createAdminClient();
 
@@ -44,6 +48,18 @@ export async function GET(request: Request) {
 
   if (lessonId) {
     query = query.eq('lesson_id', lessonId);
+  }
+  if (courseId) {
+    query = query.eq('course_id', courseId);
+  }
+  if (curriculumVersionId) {
+    query = query.eq('curriculum_version_id', curriculumVersionId);
+  }
+  if (classId) {
+    query = query.eq('class_id', classId);
+  }
+  if (Number.isInteger(limitRaw) && limitRaw > 0) {
+    query = query.limit(Math.min(limitRaw, 100));
   }
 
   const { data, error } = await query;
@@ -94,6 +110,13 @@ export async function POST(request: Request) {
   if (course_id || (!lesson_id && (term_start || term_end))) {
     const targetSchoolId = school_id || user.school_id || null;
 
+    if (!course_id) {
+      return NextResponse.json({ error: 'course_id is required for class lesson plans' }, { status: 400 });
+    }
+    if (!class_id) {
+      return NextResponse.json({ error: 'Assign a class before creating a lesson plan' }, { status: 400 });
+    }
+
     // Validate teacher can only create plans inside assigned schools.
     if (user.role === 'teacher') {
       const teacherSchoolIds = await getTeacherSchoolIds(user.id, user.school_id);
@@ -141,6 +164,26 @@ export async function POST(request: Request) {
       } else if (curr.school_id) {
         return NextResponse.json({ error: 'Platform plans cannot link school-specific curriculum' }, { status: 400 });
       }
+    }
+
+    let duplicateQuery = db
+      .from('lesson_plans')
+      .select('id')
+      .eq('course_id', course_id)
+      .eq('class_id', class_id);
+    if (term) duplicateQuery = duplicateQuery.eq('term', term);
+    if (curriculum_version_id) duplicateQuery = duplicateQuery.eq('curriculum_version_id', curriculum_version_id);
+    if (targetSchoolId) {
+      duplicateQuery = duplicateQuery.eq('school_id', targetSchoolId) as typeof duplicateQuery;
+    } else {
+      duplicateQuery = duplicateQuery.is('school_id', null) as typeof duplicateQuery;
+    }
+    const { data: duplicatePlan } = await duplicateQuery.maybeSingle();
+    if (duplicatePlan) {
+      return NextResponse.json({
+        error: 'A lesson plan already exists for this course, class, curriculum, and term.',
+        existing_id: (duplicatePlan as { id: string }).id,
+      }, { status: 409 });
     }
 
     // Auto-import weeks from linked curriculum if no plan_data provided

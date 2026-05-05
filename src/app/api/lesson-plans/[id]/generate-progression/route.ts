@@ -679,7 +679,7 @@ export async function POST(
   if (usageErr) return NextResponse.json({ error: usageErr.message }, { status: 500 });
   const usedProjectIds = new Set((usageRows ?? []).map((r) => r.project_id));
   const runUsedProjectIds = new Set<string>();
-  const pickProjectsForTerm = (): SelectedProject[] => {
+  const pickProjectsForTerm = (targetWeekCount: number): SelectedProject[] => {
     const selected: SelectedProject[] = [];
     if (strictRoute) {
       const platformFresh = registry.filter((p) => !p.school_id && !usedProjectIds.has(p.id) && !runUsedProjectIds.has(p.id));
@@ -692,7 +692,7 @@ export async function POST(
         ...platformRepeat.map((p) => ({ project: p, isRepeat: true })),
         ...schoolRepeat.map((p) => ({ project: p, isRepeat: true })),
       ];
-      for (let i = 0; i < effectiveWeeksCount; i++) {
+      for (let i = 0; i < targetWeekCount; i++) {
         const picked = strictPool[i % strictPool.length];
         selected.push({ project: picked.project, isRepeat: picked.isRepeat });
         runUsedProjectIds.add(picked.project.id);
@@ -701,7 +701,7 @@ export async function POST(
     }
     const freshProjects = registry.filter((p) => !usedProjectIds.has(p.id) && !runUsedProjectIds.has(p.id));
     const fallbackProjects = registry.filter((p) => usedProjectIds.has(p.id) || runUsedProjectIds.has(p.id));
-    for (let i = 0; i < effectiveWeeksCount; i++) {
+    for (let i = 0; i < targetWeekCount; i++) {
       if (freshProjects.length > 0) {
         const project = freshProjects[i % freshProjects.length];
         selected.push({ project, isRepeat: false });
@@ -730,6 +730,15 @@ export async function POST(
   const lockedTermWarnings: string[] = [];
   let generatedWeekCount = 0;
   const makeTerm = (yearNo: number, termNo: number, startWeekNumber = 1) => {
+    const termCurriculumWeeks = getSyllabusTermWeeks(curriculumContent, termNo);
+    const termWeeksCount =
+      requestedScope === 'week'
+        ? 1
+        : Number.isFinite(requestedWeeksCount)
+          ? Math.max(1, requestedWeeksCount)
+          : termCurriculumWeeks.length > 0
+            ? termCurriculumWeeks.length
+            : weeksCount;
     const key = `y${yearNo}t${termNo}`;
     const existingTerm = asObject(generatedTerms[key]);
     const existingStatus = existingTerm.term_status;
@@ -740,7 +749,7 @@ export async function POST(
     const existingWeeks = Array.isArray(existingTerm.weeks) ? (existingTerm.weeks as GeneratedWeek[]) : [];
     if (requestedScope !== 'week' && !overwriteExisting && generatedTerms[key]) return;
     if (requestedScope === 'week' && !overwriteExisting && existingWeeks.some((w) => w.week === startWeekNumber)) return;
-    const selected = pickProjectsForTerm();
+    const selected = pickProjectsForTerm(termWeeksCount);
     termSelections.set(key, selected);
     const generatedWeeksForRun = buildWeekEntries({
       selected,
@@ -753,9 +762,9 @@ export async function POST(
       termNumber: termNo,
       syllabusPhase,
       startWeekNumber,
-      totalWeeks: effectiveWeeksCount,
+      totalWeeks: termWeeksCount,
       masteryMode,
-      curriculumWeeks: getSyllabusTermWeeks(curriculumContent, termNo),
+      curriculumWeeks: termCurriculumWeeks,
       projectBased,
     });
     const generatedWeeks =
@@ -810,7 +819,7 @@ export async function POST(
   if (dryRun) {
     const previewTerms = generatedKeys.map((key) => {
       const termObj = asObject(generatedTerms[key]);
-      const weeks = Array.isArray(termObj.weeks) ? (termObj.weeks as GeneratedWeek[]) : [];
+      const weeks = termGeneratedWeekMap.get(key) ?? (Array.isArray(termObj.weeks) ? (termObj.weeks as GeneratedWeek[]) : []);
       const repeatedWeeks = weeks.filter((w) => w.repeated_project).length;
       return {
         key,
@@ -929,8 +938,7 @@ export async function POST(
     key: string;
   }> = [];
   for (const key of generatedKeys) {
-    const termObj = asObject(generatedTerms[key]);
-    const weeks = Array.isArray(termObj.weeks) ? (termObj.weeks as GeneratedWeek[]) : [];
+    const weeks = termGeneratedWeekMap.get(key) ?? [];
     for (const week of weeks) {
       desiredWorkItems.push({ marker: `PGRA:${key}:w${week.week}`, type: 'homework', week, key });
       desiredWorkItems.push({ marker: `PGRP:${key}:w${week.week}`, type: 'project', week, key });
@@ -982,6 +990,7 @@ export async function POST(
             lesson_plan_id: plan.id,
             year_number: w.week.syllabus_ref.year_number,
             term_number: w.week.syllabus_ref.term_number,
+            week: w.week.week,
             week_number: w.week.week,
             track,
             marker: w.marker,
@@ -1001,8 +1010,7 @@ export async function POST(
   if (autoFlashcards) {
     const desiredDecks: Array<{ marker: string; title: string; week: GeneratedWeek }> = [];
     for (const key of generatedKeys) {
-      const termObj = asObject(generatedTerms[key]);
-      const weeks = Array.isArray(termObj.weeks) ? (termObj.weeks as GeneratedWeek[]) : [];
+      const weeks = termGeneratedWeekMap.get(key) ?? [];
       for (const week of weeks) {
         const marker = `PGR:${key}:w${week.week}`;
         desiredDecks.push({

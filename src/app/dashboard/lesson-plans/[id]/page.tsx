@@ -55,6 +55,11 @@ interface WeekEntry {
     pass_score?: number;
     practical_score?: number;
   };
+  syllabus_ref?: {
+    year_number?: number | null;
+    term_number?: number | null;
+    week_number?: number | null;
+  };
 }
 
 interface LessonPlan {
@@ -378,6 +383,20 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   archived: { label: 'Archived', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
 };
 
+function metadataMatchesWeek(metadata: Record<string, unknown> | null | undefined, week: WeekEntry): boolean {
+  const weekNumber = Number(metadata?.week_number ?? metadata?.week ?? -1);
+  if (weekNumber !== week.week) return false;
+
+  const weekYear = Number(week.syllabus_ref?.year_number ?? 0);
+  const weekTerm = Number(week.syllabus_ref?.term_number ?? 0);
+  const metadataYear = Number(metadata?.year_number ?? 0);
+  const metadataTerm = Number(metadata?.term_number ?? 0);
+
+  const yearMatches = !weekYear || !metadataYear || weekYear === metadataYear;
+  const termMatches = !weekTerm || !metadataTerm || weekTerm === metadataTerm;
+  return yearMatches && termMatches;
+}
+
 const PROGRESSION_SCOPE_OPTIONS: Array<{
   id: ProgressionScope;
   title: string;
@@ -430,7 +449,7 @@ export default function LessonPlanDetailPage() {
   const [activeTab, setActiveTab] = useState<'weeks' | 'content'>('weeks');
   const [generating, setGenerating] = useState<'lessons' | 'assignments' | 'projects' | 'progression' | null>(null);
   const [genProgress, setGenProgress] = useState<{ generated: number; total: number; status: string } | null>(null);
-  const [linkedLessons, setLinkedLessons] = useState<{ id: string; title: string; status: string; metadata?: { week?: number } | null }[]>([]);
+  const [linkedLessons, setLinkedLessons] = useState<{ id: string; title: string; status: string; metadata?: Record<string, unknown> | null }[]>([]);
   const [linkedAssignments, setLinkedAssignments] = useState<{ id: string; title: string; assignment_type: string; metadata?: Record<string, unknown> | null }[]>([]);
   const [linkedProjects, setLinkedProjects] = useState<{ id: string; title: string; metadata?: Record<string, unknown> | null }[]>([]);
   const [progressionScope, setProgressionScope] = useState<ProgressionScope>('term');
@@ -500,7 +519,16 @@ export default function LessonPlanDetailPage() {
           course_id: plan.course_id,
           class_id: plan.class_id,
           lesson_plan_id: plan.id,
-          metadata: { source: 'lesson-plan', lesson_plan_id: plan.id, curriculum_id: plan.curriculum_version_id, term: plan.term, week: week.week },
+          metadata: {
+            source: 'lesson-plan',
+            lesson_plan_id: plan.id,
+            curriculum_id: plan.curriculum_version_id,
+            term: plan.term,
+            week: week.week,
+            week_number: week.week,
+            year_number: week.syllabus_ref?.year_number ?? null,
+            term_number: week.syllabus_ref?.term_number ?? null,
+          },
         }),
       });
       const json = await res.json();
@@ -531,7 +559,16 @@ export default function LessonPlanDetailPage() {
           course_id: plan.course_id,
           class_id: plan.class_id,
           lesson_plan_id: plan.id,
-          metadata: { source: 'lesson-plan', lesson_plan_id: plan.id, curriculum_id: plan.curriculum_version_id, term: plan.term, week: week.week },
+          metadata: {
+            source: 'lesson-plan',
+            lesson_plan_id: plan.id,
+            curriculum_id: plan.curriculum_version_id,
+            term: plan.term,
+            week: week.week,
+            week_number: week.week,
+            year_number: week.syllabus_ref?.year_number ?? null,
+            term_number: week.syllabus_ref?.term_number ?? null,
+          },
         }),
       });
       const json = await res.json();
@@ -1124,7 +1161,11 @@ export default function LessonPlanDetailPage() {
       const res = await fetch(`/api/lesson-plans/${id}/release-week`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ week_number: progressionWeek }),
+        body: JSON.stringify({
+          week_number: progressionWeek,
+          year_number: progressionYear,
+          term_number: progressionTerm,
+        }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Failed to release week');
@@ -1197,6 +1238,12 @@ export default function LessonPlanDetailPage() {
         }),
       });
       const json = await res.json();
+      if (res.status === 409 && json.existing_id) {
+        toast.success('That class already has this lesson plan. Opening it now.');
+        setCloneModalOpen(false);
+        router.push(`/dashboard/lesson-plans/${json.existing_id}`);
+        return;
+      }
       if (!res.ok) throw new Error(json.error || 'Deploy failed');
       toast.success('Plan deployed — opening new plan');
       setCloneModalOpen(false);
@@ -1219,6 +1266,12 @@ export default function LessonPlanDetailPage() {
   const nextStatuses = STATUS_TRANSITIONS[status] ?? [];
   const courseTitle = plan.courses?.title ?? 'Unknown Course';
   const completedWeeks = weeks.filter((w) => w.completed).length;
+  const contentSummary = {
+    weeks: weeks.length,
+    lessons: linkedLessons.length,
+    assignments: linkedAssignments.length,
+    projects: linkedProjects.length,
+  };
   const selectedScopeConfig = PROGRESSION_SCOPE_OPTIONS.find((option) => option.id === progressionScope) ?? PROGRESSION_SCOPE_OPTIONS[1];
   const builderWeeksCount = getProgressionWeeksCount();
   const builderScopeLabel = getProgressionScopeLabel();
@@ -1321,7 +1374,7 @@ export default function LessonPlanDetailPage() {
   ] as const;
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-4xl mx-auto print:p-0 print:space-y-4">
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto print:p-0 print:space-y-4">
       {/* Print letterhead */}
       <div className="hidden print:block border-b border-black pb-3 mb-2">
         <div className="flex items-start gap-3">
@@ -1352,10 +1405,10 @@ export default function LessonPlanDetailPage() {
         />
 
         {/* AI Lesson Assistant banner — discoverable entry point */}
-        {weeks.some(w => !linkedLessons.find(l => l.metadata?.week === w.week)) && (
-          <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 to-fuchsia-500/10">
+        {weeks.some(w => !linkedLessons.find(l => metadataMatchesWeek(l.metadata, w))) && (
+          <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-lg border border-primary/30 bg-primary/[0.05]">
             <div className="flex items-start gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-md bg-primary/20 flex items-center justify-center shrink-0">
                 <SparklesIcon className="w-4 h-4 text-violet-300" />
               </div>
               <div className="min-w-0">
@@ -1380,7 +1433,7 @@ export default function LessonPlanDetailPage() {
       </div>
 
       {/* Header */}
-      <div className="bg-card border border-white/[0.08] rounded-2xl p-5">
+      <div className="bg-card border border-white/[0.08] rounded-lg p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -1462,18 +1515,32 @@ export default function LessonPlanDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-xs text-card-foreground/50">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-5">
+          {[
+            ['Weeks', contentSummary.weeks],
+            ['Complete', `${completedWeeks}/${weeks.length || 0}`],
+            ['Lessons', contentSummary.lessons],
+            ['Assignments', contentSummary.assignments],
+            ['Projects', contentSummary.projects],
+            ['Sessions/wk', plan.sessions_per_week ?? '-'],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-card-foreground/40">{label}</p>
+              <p className="text-base font-black text-card-foreground mt-1">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 text-xs text-card-foreground/55">
           {plan.term_start && <div><span className="font-bold text-card-foreground/70">Start:</span> {new Date(plan.term_start).toLocaleDateString('en-GB')}</div>}
           {plan.term_end && <div><span className="font-bold text-card-foreground/70">End:</span> {new Date(plan.term_end).toLocaleDateString('en-GB')}</div>}
-          {plan.sessions_per_week && <div><span className="font-bold text-card-foreground/70">Sessions/wk:</span> {plan.sessions_per_week}</div>}
-          <div><span className="font-bold text-card-foreground/70">Progress:</span> {completedWeeks}/{weeks.length || 0} weeks</div>
           {plan.schools?.name && <div><span className="font-bold text-card-foreground/70">School:</span> {plan.schools.name}</div>}
         </div>
 
         {/* Linked curriculum + visible syllabus (this term) */}
         {plan.curriculum_version_id && (
           <div className="mt-3 space-y-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded-xl px-3 py-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
               <div className="flex items-center gap-2 min-w-0">
                 <BookOpenIcon className="w-4 h-4 flex-shrink-0" />
                 <span className="min-w-0">
@@ -1490,7 +1557,7 @@ export default function LessonPlanDetailPage() {
               )}
             </div>
             {syllabusTermContent ? (
-              <details className="print:hidden rounded-xl border border-primary/25 bg-primary/[0.04] overflow-hidden">
+              <details className="print:hidden rounded-lg border border-primary/25 bg-primary/[0.04] overflow-hidden">
                 <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-black text-blue-200 uppercase tracking-widest hover:bg-white/[0.03] [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2">
                   <span>Show syllabus for this term (reference)</span>
                   <BookOpenIcon className="w-4 h-4 opacity-70" />
@@ -1817,15 +1884,15 @@ export default function LessonPlanDetailPage() {
           curriculumId={plan?.curriculum_version_id}
           programId={plan?.courses?.program_id}
           existing={{
-            lessonId: linkedLessons.find(l => l.metadata?.week === aiWeek.week)?.id,
-            assignmentId: linkedAssignments.find(a => (a.metadata as any)?.week === aiWeek.week)?.id,
+            lessonId: linkedLessons.find(l => metadataMatchesWeek(l.metadata, aiWeek))?.id,
+            assignmentId: linkedAssignments.find(a => metadataMatchesWeek(a.metadata, aiWeek))?.id,
           }}
           onDone={(res) => {
             if (res.lessonId && !linkedLessons.find(l => l.id === res.lessonId)) {
-              setLinkedLessons(prev => [...prev, { id: res.lessonId!, title: `Week ${aiWeek.week} Lesson`, status: 'draft', metadata: { week: aiWeek.week } }]);
+              setLinkedLessons(prev => [...prev, { id: res.lessonId!, title: `Week ${aiWeek.week} Lesson`, status: 'draft', metadata: { week: aiWeek.week, week_number: aiWeek.week } }]);
             }
             if (res.assignmentId && !linkedAssignments.find(a => a.id === res.assignmentId)) {
-              setLinkedAssignments(prev => [...prev, { id: res.assignmentId!, title: `Week ${aiWeek.week} Assignment`, assignment_type: 'homework', metadata: { week: aiWeek.week } }]);
+              setLinkedAssignments(prev => [...prev, { id: res.assignmentId!, title: `Week ${aiWeek.week} Assignment`, assignment_type: 'homework', metadata: { week: aiWeek.week, week_number: aiWeek.week } }]);
             }
             toast.success('AI package complete — lesson, flashcards & assignment ready!');
           }}
@@ -1850,15 +1917,15 @@ export default function LessonPlanDetailPage() {
               <div className="grid grid-cols-1 gap-6">
                 {/* Phases Mapping */}
                 {[
-                  { name: 'Plan Setup', steps: ['01', '02'], icon: 'DesignIcon', color: 'blue' },
-                  { name: 'Content Checks', steps: ['03', '04'], icon: 'BuildIcon', color: 'indigo' },
-                  { name: 'Classroom Delivery', steps: ['05', '06'], icon: 'DeliverIcon', color: 'violet' },
-                  { name: 'Tracking & Review', steps: ['07', '08'], icon: 'AuditIcon', color: 'fuchsia' }
+                  { name: 'Plan Setup', steps: ['01', '02'], dotClass: 'bg-blue-400/60', textClass: 'text-blue-300/80' },
+                  { name: 'Content Checks', steps: ['03', '04'], dotClass: 'bg-indigo-400/60', textClass: 'text-indigo-300/80' },
+                  { name: 'Classroom Delivery', steps: ['05', '06'], dotClass: 'bg-violet-400/60', textClass: 'text-violet-300/80' },
+                  { name: 'Tracking & Review', steps: ['07', '08'], dotClass: 'bg-fuchsia-400/60', textClass: 'text-fuchsia-300/80' }
                 ].map((phase, pIdx) => (
                   <div key={phase.name} className="space-y-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <div className={`w-1.5 h-1.5 rounded-full bg-${phase.color}-400/60 shadow-[0_0_8px_rgba(129,140,248,0.4)]`} />
-                      <span className={`text-[10px] font-black uppercase tracking-[0.2em] text-${phase.color}-300/80`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${phase.dotClass}`} />
+                      <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${phase.textClass}`}>
                         Phase {pIdx + 1}: {phase.name}
                       </span>
                     </div>
@@ -2828,9 +2895,9 @@ export default function LessonPlanDetailPage() {
             ) : (
               <div className="space-y-2">
                 {weeks.map(w => {
-                  const weekLesson = linkedLessons.find(l => l.metadata?.week === w.week);
-                  const weekAssignment = linkedAssignments.find(a => (a.metadata as any)?.week_number === w.week);
-                  const weekProject = linkedProjects.find(p => (p.metadata as any)?.week_number === w.week);
+                  const weekLesson = linkedLessons.find(l => metadataMatchesWeek(l.metadata, w));
+                  const weekAssignment = linkedAssignments.find(a => metadataMatchesWeek(a.metadata, w));
+                  const weekProject = linkedProjects.find(p => metadataMatchesWeek(p.metadata, w));
                   const addLessonHref = buildPlanWeekCreateLessonUrl({ plan, week: w, courseTitle });
                   const addAssignmentHref = `/dashboard/assignments/new?lesson_plan_id=${id}&week=${w.week}${plan.course_id ? `&course_id=${plan.course_id}` : ''}`;
                   const addProjectHref = `/dashboard/projects/new?lesson_plan_id=${id}&week=${w.week}${plan.course_id ? `&course_id=${plan.course_id}` : ''}`;

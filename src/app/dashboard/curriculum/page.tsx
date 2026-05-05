@@ -26,6 +26,7 @@ import {
 import { CurriculumPrintDoc } from '@/components/curriculum/CurriculumPrintDoc';
 import { CurriculumOverviewPrintDoc } from '@/components/curriculum/CurriculumOverviewPrintDoc';
 import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
+import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -33,6 +34,17 @@ const TERM_LABEL: Record<number, string> = {
   2: 'Second Term',
   3: 'Third Term',
 };
+
+function getLessonPlanOperationStats(planData: unknown): { totalWeeks: number; completedWeeks: number; progressPct: number } {
+  const weeks = extractLessonPlanOperationWeeks(planData);
+  const completedWeeks = weeks.filter((week) => week.completed === true).length;
+  const totalWeeks = weeks.length;
+  return {
+    totalWeeks,
+    completedWeeks,
+    progressPct: totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0,
+  };
+}
 
 function academicYearOptions(): string[] {
   const y = new Date().getFullYear();
@@ -268,7 +280,7 @@ export default function CurriculumPage() {
   const [implError, setImplError] = useState('');
   const [implementationList, setImplementationList] = useState<any[]>([]);
   const [globalImplementationList, setGlobalImplementationList] = useState<any[]>([]);
-  const [printMode, setPrintMode] = useState<'week' | 'overview'>('week');
+  const [printMode, setPrintMode] = useState<'week' | 'overview' | null>(null);
   // For teachers with multiple classes using this syllabus — which class context to track against
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [deletingImpl, setDeletingImpl] = useState<string | null>(null);
@@ -711,7 +723,9 @@ export default function CurriculumPage() {
   // Auto-load implementations when delivery OR implementations tab active, or course changes
   useEffect(() => {
     if ((activeTab === 'implementations' || activeTab === 'delivery') && selectedCourse) {
-      fetch(`/api/lesson-plans?course_id=${selectedCourse.id}`)
+      const params = new URLSearchParams({ course_id: selectedCourse.id });
+      if (curriculum?.id) params.set('curriculum_version_id', curriculum.id);
+      fetch(`/api/lesson-plans?${params.toString()}`)
         .then(r => r.json())
         .then(j => setImplementationList(j.data || []))
         .catch(() => setImplementationList([]));
@@ -723,7 +737,7 @@ export default function CurriculumPage() {
         .then(j => setGlobalImplementationList(j.data || []))
         .catch(() => setGlobalImplementationList([]));
     }
-  }, [selectedCourse, activeTab]);
+  }, [selectedCourse, activeTab, curriculum?.id]);
 
   const deleteImplementation = useCallback(async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -801,6 +815,12 @@ export default function CurriculumPage() {
       });
       const j = await res.json();
       if (!res.ok) {
+        if (res.status === 409 && j.existing_id) {
+          toast.success('Lesson plan already exists for this class and term');
+          setShowImplement(false);
+          router.push(`/dashboard/lesson-plans/${j.existing_id}`);
+          return;
+        }
         setImplError(j.error || 'Failed to implement syllabus');
         return;
       }
@@ -1387,15 +1407,26 @@ export default function CurriculumPage() {
   }
 
   // ── Print functions ────────────────────────────────────────────────────────
+  function queueCurriculumPrint(mode: 'week' | 'overview') {
+    setPrintMode(mode);
+    window.setTimeout(() => {
+      window.requestAnimationFrame(() => window.print());
+    }, 150);
+  }
+
   function printWeek() {
-    setPrintMode('week');
-    setTimeout(() => window.print(), 50);
+    queueCurriculumPrint('week');
   }
 
   function printOverview() {
-    setPrintMode('overview');
-    setTimeout(() => window.print(), 50);
+    queueCurriculumPrint('overview');
   }
+
+  useEffect(() => {
+    const resetPrintMode = () => setPrintMode(null);
+    window.addEventListener('afterprint', resetPrintMode);
+    return () => window.removeEventListener('afterprint', resetPrintMode);
+  }, []);
 
 
   // ── Teacher: publish / unpublish the syllabus to school, students & parents ──
@@ -1910,7 +1941,7 @@ export default function CurriculumPage() {
                               </span>
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">{lastVisited.progName}</span>
                             </div>
-                            <h3 className="text-3xl font-black text-white tracking-tighter mb-2 group-hover:text-primary transition-colors">{lastVisited.courseTitle}</h3>
+                            <h3 className="text-3xl font-black text-foreground tracking-tighter mb-2 group-hover:text-primary transition-colors">{lastVisited.courseTitle}</h3>
                             <p className="text-sm text-muted-foreground font-medium max-w-md">Pick up exactly where you left off in your syllabus.</p>
                           </div>
                           <button
@@ -2002,9 +2033,7 @@ export default function CurriculumPage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {globalImplementationList.map(plan => {
-                            const totalWeeks = plan.plan_data?.weeks?.length || 0;
-                            const completedWeeks = plan.plan_data?.weeks?.filter((w: any) => w.completed)?.length || 0;
-                            const progressPct = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
+                            const { totalWeeks, completedWeeks, progressPct } = getLessonPlanOperationStats(plan.plan_data);
                             
                             return (
                             <Link
@@ -2140,7 +2169,7 @@ export default function CurriculumPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <h1 className="text-4xl font-black leading-tight tracking-tighter text-white drop-shadow-sm">
+                        <h1 className="text-4xl font-black leading-tight tracking-tighter text-foreground">
                           {selectedCourse.title}
                         </h1>
                         <p className="text-sm text-muted-foreground font-medium max-w-xl">
@@ -2152,7 +2181,7 @@ export default function CurriculumPage() {
                     {canGenerate && (
                       <button
                         onClick={openGenerateModal}
-                        className="relative z-10 flex items-center gap-3 px-6 py-3.5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 rounded-xl shrink-0"
+                    className="relative z-10 flex items-center gap-3 px-6 py-3.5 bg-primary hover:bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] transition-all rounded-lg shrink-0"
                       >
                         <SparklesIcon className="w-4 h-4" /> Generate Syllabus
                       </button>
@@ -2264,11 +2293,11 @@ export default function CurriculumPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <h1 className="text-4xl font-black leading-tight tracking-tighter text-white drop-shadow-sm">
+                        <h1 className="text-4xl font-black leading-tight tracking-tighter text-foreground">
                           {curriculum.content.course_title}
                         </h1>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
-                          <span className="text-white font-bold px-2 py-0.5 bg-white/5 rounded border border-white/10">v{curriculum.version}</span>
+                          <span className="text-foreground font-bold px-2 py-0.5 bg-muted/30 rounded border border-border">v{curriculum.version}</span>
                           <span className="w-1 h-1 rounded-full bg-white/20" />
                           <span className="flex items-center gap-1.5"><BookOpenIcon className="w-3.5 h-3.5" /> {termCount} Terms</span>
                           <span className="w-1 h-1 rounded-full bg-white/20" />
@@ -2843,19 +2872,17 @@ export default function CurriculumPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {implementationList.map((plan: any) => {
-                    const totalWeeks = plan.plan_data?.weeks?.length || 0;
-                    const completedWeeks = plan.plan_data?.weeks?.filter((w: any) => w.completed)?.length || 0;
-                    const progressPct = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
+                    const { totalWeeks, completedWeeks, progressPct } = getLessonPlanOperationStats(plan.plan_data);
                     
                     return (
                     <Link
                       key={plan.id}
                       href={`/dashboard/lesson-plans/${plan.id}`}
-                      className="group relative bg-card border border-white/5 hover:border-primary/40 p-6 transition-all duration-300 flex flex-col gap-5 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 rounded-xl min-h-[180px]"
+                      className="group relative bg-card border border-border hover:border-primary/40 p-6 transition-all duration-300 flex flex-col gap-5 overflow-hidden shadow-sm hover:shadow-xl rounded-lg min-h-[180px]"
                     >
                       <div className="flex items-start justify-between relative z-10">
                         <div className="min-w-0 pr-6">
-                          <h5 className="text-base font-black text-white group-hover:text-primary transition-colors truncate mb-1">{plan.classes?.name || 'Unnamed Class'}</h5>
+                          <h5 className="text-base font-black text-foreground group-hover:text-primary transition-colors truncate mb-1">{plan.classes?.name || 'Unnamed Class'}</h5>
                           <div className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                             <p className="text-[10px] text-muted-foreground uppercase font-black tracking-[0.1em]">{plan.term || 'No Term'}</p>
@@ -2873,8 +2900,8 @@ export default function CurriculumPage() {
                           <span className="text-muted-foreground uppercase tracking-widest">Delivery Progress</span>
                           <span className="text-primary">{completedWeeks} / {totalWeeks} Weeks</span>
                         </div>
-                        <div className="h-2 w-full bg-black/40 rounded-full overflow-hidden border border-white/5">
-                          <div className="h-full bg-gradient-to-r from-primary/80 to-fuchsia-500 rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPct}%` }} />
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border">
+                          <div className="h-full bg-primary rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPct}%` }} />
                         </div>
                       </div>
 
@@ -3009,7 +3036,7 @@ export default function CurriculumPage() {
                         <span className="text-primary">{pct}%</span>
                       </div>
                       <div className="h-2 bg-primary/10 overflow-hidden border border-primary/20">
-                        <div className="h-full bg-gradient-to-r from-primary to-indigo-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+                        <div className="h-full bg-primary transition-all duration-700" style={{ width: `${pct}%` }} />
                       </div>
                       <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{completed} taught</span>

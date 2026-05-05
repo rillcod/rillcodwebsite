@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
+import { extractLessonPlanOperationWeeks, metadataMatchesWeek } from '@/lib/progression/lessonPlanOperation';
 
 type Dict = Record<string, unknown>;
 type LessonRow = {
@@ -147,16 +147,10 @@ export async function GET(
     const week = asObject(rawWeek);
     const ref = getYearTermWeek(week);
     const lessons = lessonRows.filter((row) => {
-      const metadata = asObject(row.metadata);
-      return Number(metadata.week ?? -1) === ref.week
-        && Number(metadata.year_number ?? ref.year) === ref.year
-        && Number(metadata.term_number ?? ref.term) === ref.term;
+      return metadataMatchesWeek(row.metadata, week, ref.year, ref.term);
     });
     const assignments = assignmentRows.filter((row) => {
-      const metadata = asObject(row.metadata);
-      return Number(metadata.week_number ?? -1) === ref.week
-        && Number(metadata.year_number ?? ref.year) === ref.year
-        && Number(metadata.term_number ?? ref.term) === ref.term;
+      return metadataMatchesWeek(row.metadata, week, ref.year, ref.term);
     });
     const publishedLessons = lessons.filter((row) => row.status === 'published').length;
     const activeAssignments = assignments.filter((row) => row.is_active === true).length;

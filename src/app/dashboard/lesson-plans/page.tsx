@@ -329,7 +329,7 @@ function LessonPlansPageInner() {
   async function save() {
     if (!form.term) { toast.error('Please select a term'); return; }
     if (!form.course_id) { toast.error('Please select a course'); return; }
-    if (isTeacher && !form.class_id) { toast.error('Select the class you are teaching before creating a lesson plan'); return; }
+    if (!form.class_id) { toast.error('Select the class before creating a lesson plan'); return; }
     if (!form.term_start || !form.term_end) { toast.error('Start and end dates are required'); return; }
     const startDate = new Date(form.term_start);
     const endDate = new Date(form.term_end);
@@ -722,6 +722,12 @@ function LessonPlansPageInner() {
   }
 
   const currentCourse = courses.find(c => c.id === form.course_id);
+  const planSummary = {
+    total: filtered.length,
+    published: filtered.filter((p) => (p.status ?? 'draft') === 'published').length,
+    draft: filtered.filter((p) => (p.status ?? 'draft') === 'draft').length,
+    linked: filtered.filter((p) => Boolean(p.curriculum_version_id)).length,
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -730,7 +736,7 @@ function LessonPlansPageInner() {
         <PlanningBreadcrumb current="lesson-plans" />
 
         {/* Shared pipeline stepper */}
-        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-2 sm:p-3 rounded-2xl w-full">
+        <div className="bg-card border border-border p-2 sm:p-3 rounded-lg w-full">
           <PipelineStepper
             current="plans"
             courseId={form.course_id || null}
@@ -743,7 +749,7 @@ function LessonPlansPageInner() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
               <DocumentTextIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
@@ -759,38 +765,52 @@ function LessonPlansPageInner() {
             {filterCourseId && (
               <button
                 onClick={() => { setFilterCourseId(''); setFilterProgramId(''); setSearch(''); }}
-                className="px-4 py-2 bg-card border border-border text-muted-foreground text-xs font-bold rounded-xl transition-all hover:bg-muted"
+                className="px-4 py-2 bg-card border border-border text-muted-foreground text-xs font-bold rounded-lg transition-all hover:bg-muted"
               >
                 Clear filter
               </button>
             )}
-            <button onClick={load} className="p-2 bg-card border border-border rounded-xl transition-all hover:bg-muted">
+            <button onClick={load} className="p-2 bg-card border border-border rounded-lg transition-all hover:bg-muted" title="Refresh plans">
               <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-wider rounded-lg transition-all"
             >
               <PlusIcon className="w-4 h-4" /> New Plan
             </button>
           </div>
         </div>
 
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            ['Plans', planSummary.total],
+            ['Published', planSummary.published],
+            ['Draft', planSummary.draft],
+            ['Syllabus linked', planSummary.linked],
+          ].map(([label, value]) => (
+            <div key={label} className="bg-card border border-border rounded-lg p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{label}</p>
+              <p className="text-2xl font-black text-foreground mt-1">{value}</p>
+            </div>
+          ))}
+        </div>
+
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-center bg-card border border-border p-3 rounded-2xl">
+        <div className="flex flex-wrap gap-3 items-center bg-card border border-border p-3 rounded-lg">
           <div className="relative flex-1 min-w-[220px]">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by course, class, or term…"
-              className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-all"
             />
           </div>
           <select
             value={filterProgramId}
             onChange={e => setFilterProgramId(e.target.value)}
-            className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all cursor-pointer"
+            className="px-3 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-all cursor-pointer"
           >
             <option value="">All Programmes</option>
             {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -854,13 +874,13 @@ function LessonPlansPageInner() {
                 >
                   <Link
                     href={`/dashboard/lesson-plans/${plan.id}`}
-                    className="block bg-card border border-border hover:border-primary/50 p-5 rounded-2xl transition-all hover:shadow-md"
+                    className="block bg-card border border-border hover:border-primary/50 p-5 rounded-lg transition-all hover:shadow-md"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <span className={`px-2.5 py-1 rounded-full border text-[10px] font-bold ${status.cls}`}>
                         {status.label}
                       </span>
-                      <AcademicCapIcon className="w-4 h-4 text-primary/60" />
+                        <span className="text-[10px] font-bold text-muted-foreground">{getWeekEntries(plan.plan_data).length || 0} weeks</span>
                     </div>
 
                     <div className="mb-4 space-y-1">
@@ -899,7 +919,7 @@ function LessonPlansPageInner() {
                         {canManage && (
                           <button
                             onClick={(e) => { e.preventDefault(); openEdit(plan); }}
-                            className="p-1.5 text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded-lg transition-all"
+                            className="p-1.5 text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded-md transition-all"
                           >
                             <PencilIcon className="w-3.5 h-3.5" />
                           </button>
@@ -907,7 +927,7 @@ function LessonPlansPageInner() {
                         {canManage && (
                           <button
                             onClick={(e) => { e.preventDefault(); openDeleteConfirm(plan); }}
-                            className="p-1.5 text-rose-400/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                            className="p-1.5 text-rose-400/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-all"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
                           </button>
@@ -923,13 +943,13 @@ function LessonPlansPageInner() {
 
         {/* Empty State */}
         {!loading && filtered.length === 0 && (
-          <div className="py-20 flex flex-col items-center justify-center bg-card border border-border rounded-2xl text-center px-6">
+          <div className="py-20 flex flex-col items-center justify-center bg-card border border-border rounded-lg text-center px-6">
             <DocumentTextIcon className="w-10 h-10 text-muted-foreground/20 mb-4" />
             <h3 className="text-lg font-bold text-foreground mb-1">No lesson plans found</h3>
             <p className="text-muted-foreground text-sm max-w-sm mb-6">Try adjusting your filters, or create your first plan for this class.</p>
             <button
               onClick={() => { setFilterProgramId(''); setFilterCourseId(''); setFilterClassId(''); setFilterTerm(''); setFilterStatus(''); setSearch(''); }}
-              className="px-5 py-2.5 bg-primary/10 text-primary border border-primary/20 text-xs font-bold rounded-xl hover:bg-primary hover:text-white transition-all"
+              className="px-5 py-2.5 bg-primary/10 text-primary border border-primary/20 text-xs font-bold rounded-lg hover:bg-primary hover:text-white transition-all"
             >
               Clear filters
             </button>

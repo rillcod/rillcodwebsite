@@ -13,7 +13,7 @@ function asWeekArray(value: unknown): Array<Record<string, unknown>> {
 }
 
 function getWeekNumber(week: Record<string, unknown>): number {
-  return Number(week.week ?? 0);
+  return Number(week.week_number ?? week.week ?? 0);
 }
 
 function getYearTermFromWeek(
@@ -39,6 +39,31 @@ export function getWeekCompositeKey(
   const { year, term } = getYearTermFromWeek(week, fallbackYear, fallbackTerm);
   if (year && term) return `y${year}t${term}w${weekNumber}`;
   return `legacy:w${weekNumber}`;
+}
+
+export function getMetadataWeekCompositeKey(
+  metadata: Record<string, unknown> | null | undefined,
+  fallbackYear?: number | null,
+  fallbackTerm?: number | null,
+): string {
+  const m = asObject(metadata);
+  return getWeekCompositeKey({
+    week: Number(m.week_number ?? m.week ?? -1),
+    syllabus_ref: {
+      year_number: Number(m.year_number ?? fallbackYear ?? 0),
+      term_number: Number(m.term_number ?? fallbackTerm ?? 0),
+    },
+  }, fallbackYear, fallbackTerm);
+}
+
+export function metadataMatchesWeek(
+  metadata: Record<string, unknown> | null | undefined,
+  week: Record<string, unknown>,
+  fallbackYear?: number | null,
+  fallbackTerm?: number | null,
+): boolean {
+  return getMetadataWeekCompositeKey(metadata, fallbackYear, fallbackTerm)
+    === getWeekCompositeKey(week, fallbackYear, fallbackTerm);
 }
 
 export function extractLessonPlanOperationWeeks(

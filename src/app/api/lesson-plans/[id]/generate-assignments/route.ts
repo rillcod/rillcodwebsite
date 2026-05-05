@@ -8,7 +8,7 @@ import {
 } from '@/lib/lesson-plans/syllabusImport';
 import { AIFetchError, fetchAIGenerate } from '@/lib/lesson-plans/ai-fetch';
 import { validateLessonPlanForGeneration } from '@/lib/api-guards';
-import { extractLessonPlanOperationWeeks, getWeekCompositeKey, parseWeekTermRefs } from '@/lib/progression/lessonPlanOperation';
+import { extractLessonPlanOperationWeeks, getMetadataWeekCompositeKey, getWeekCompositeKey, parseWeekTermRefs } from '@/lib/progression/lessonPlanOperation';
 import { requireStaffUser } from '@/app/api/lesson-plans/authz';
 import { createSSEResponse } from '@/lib/sse-stream';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
@@ -63,16 +63,7 @@ export async function POST(
           const metadata = (a.metadata as Record<string, unknown> | null) ?? null;
           return metadata?.lesson_plan_id === id;
         })
-        .map((a) => {
-          const metadata = (a.metadata as Record<string, unknown> | null) ?? null;
-          return getWeekCompositeKey({
-            week: Number(metadata?.week_number ?? -1),
-            syllabus_ref: {
-              year_number: Number(metadata?.year_number ?? 0),
-              term_number: Number(metadata?.term_number ?? 0),
-            },
-          });
-        }),
+        .map((a) => getMetadataWeekCompositeKey(a.metadata as Record<string, unknown> | null)),
     );
 
     const projectedSkips = weeks.filter((w) =>
@@ -165,6 +156,7 @@ export async function POST(
             metadata: {
               ...(d.metadata as Record<string, unknown> | undefined),
               lesson_plan_id: plan.id,
+              week: week.week,
               week_number: week.week,
               year_number: Number.isFinite(yearNumber) && yearNumber > 0 ? yearNumber : null,
               term_number: Number.isFinite(effectiveTermNum) && effectiveTermNum > 0 ? effectiveTermNum : null,

@@ -262,7 +262,13 @@ export async function POST(req: NextRequest) {
 
     // Determine message status based on API result
     let messageStatus = 'sent';
-    const metadata: any = { sent_by: caller.id, sent_by_name: caller.full_name };
+    const metadata: any = {
+      sent_by: caller.id,
+      sent_by_name: caller.full_name,
+      sent_by_role: caller.role,
+      channel_label: 'Rillcod Company WhatsApp',
+      company_representative: true,
+    };
 
     if (whatsappResult.success) {
       messageStatus = 'sent';
@@ -311,7 +317,7 @@ export async function POST(req: NextRequest) {
         success: true, 
         data: newMessage,
         whatsapp_status: 'sent',
-        message: 'Message sent via WhatsApp Business API',
+        message: 'Message sent through the Rillcod company WhatsApp channel',
         policy: {
           remaining_daily: policy.remainingDaily ?? null,
           recommendation: policy.recommendation ?? 'none',
@@ -330,10 +336,10 @@ export async function POST(req: NextRequest) {
         message: whatsappResult.reason === 'credentials_missing'
           ? 'Message saved. WhatsApp API credentials pending - add WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN to environment variables.'
           : isNotWhatsAppUser
-          ? `This number (+${conversation.phone_number}) is not registered on WhatsApp. Message saved but cannot be delivered via WhatsApp.`
+          ? `This number (+${conversation.phone_number}) is not registered on WhatsApp. Message saved on the Rillcod company channel but cannot be delivered via WhatsApp.`
           : isRateLimitError
           ? `⚠️ Rate limit reached! You've hit WhatsApp's message limit (1,000 conversations/month or 250 messages/day). Message saved but not sent. Consider upgrading to paid tier.`
-          : `Message saved but WhatsApp API failed: ${whatsappResult.error || whatsappResult.reason}. You can send manually via wa.me link.`,
+          : `Message saved on the Rillcod company channel but WhatsApp delivery failed: ${whatsappResult.error || whatsappResult.reason}. You can send manually via wa.me link.`,
         fallback_url: `https://wa.me/${conversation.phone_number.replace(/\D/g, '')}?text=${encodeURIComponent(message.trim())}`,
         policy: {
           remaining_daily: policy.remainingDaily ?? null,

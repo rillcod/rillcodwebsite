@@ -321,7 +321,7 @@ export default function UnifiedInbox() {
   // ── Tabs ─────────────────────────────────────────────────────────────────
   // School is a channel to students AND parents — show both tabs for school role
   const tabs = [
-    { id: 'students' as const, label: isParentOrStudent ? 'Contact Center' : 'Students & Contacts', icon: MessageSquare },
+    { id: 'students' as const, label: 'WhatsApp', icon: MessageSquare },
     ...(!isParentOrStudent ? [{ id: 'parents' as const, label: 'Parents', icon: Users }] : []),
     ...(isAdmin ? [{ id: 'teachers' as const, label: 'Teachers', icon: GraduationCap }] : []),
     ...(!isParentOrStudent ? [{ id: 'school' as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 }] : []),
@@ -1287,22 +1287,31 @@ export default function UnifiedInbox() {
 
   // ── Open email compose pre-filled from a contact or conversation ──────────
   const openEmailCompose = (contact?: Contact | Conversation | null) => {
+    const recipientEmail = (contact as any)?.email || '';
     setEmailForm({
-      to: (contact as any)?.email || '',
+      to: recipientEmail,
       to_name: (contact as any)?.full_name || (contact as any)?.contact_name || '',
-      subject: '',
+      subject: (contact as any)?.contact_name || (contact as any)?.full_name
+        ? `Rillcod follow-up: ${(contact as any)?.contact_name || (contact as any)?.full_name}`
+        : '',
       body: '',
       cc: '',
     });
-    setEmailError(''); setEmailSuccess('');
+    setEmailError(recipientEmail ? '' : 'No email is saved for this contact yet. Add one before sending a company email.');
+    setEmailSuccess('');
     setShowEmailCompose(true);
   };
 
   const openSupportEmailCompose = () => {
+    const roleLabel =
+      profile?.role === 'teacher' ? 'Teacher' :
+      profile?.role === 'school' ? 'School' :
+      profile?.role === 'parent' ? 'Parent' :
+      profile?.role === 'admin' ? 'Admin' : 'Student';
     setEmailForm({
       to: 'support@rillcod.com',
-      to_name: 'Rillcod Support',
-      subject: `${profile?.role === 'teacher' ? 'Teacher' : profile?.role === 'parent' ? 'Parent' : 'Student'} support request`,
+      to_name: 'Rillcod Client Support',
+      subject: `${roleLabel} support request`,
       body: '',
       cc: '',
     });
@@ -1314,8 +1323,8 @@ export default function UnifiedInbox() {
   const openAdminEmailCompose = () => {
     setEmailForm({
       to: 'support@rillcod.com',
-      to_name: 'Rillcod Admin Team',
-      subject: 'Attention: Admin Team',
+      to_name: 'Rillcod Company Operations',
+      subject: 'Attention: Company Operations Team',
       body: '',
       cc: '',
     });
@@ -1888,6 +1897,12 @@ export default function UnifiedInbox() {
                             activeConv.student_name ? `Re: ${activeConv.student_name}` :
                               activeConv.role || 'Chat'}
 
+                        {activeConv.type === 'students' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase">
+                            Company WhatsApp
+                          </span>
+                        )}
+
                         {/* Assignment Status Pill */}
                         {activeConv.type === 'students' && (
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${activeConv.assigned_staff_id === profile?.id ? 'bg-primary/20 text-primary' :
@@ -1976,7 +1991,7 @@ export default function UnifiedInbox() {
 
                 <button
                   onClick={() => openEmailCompose(activeConv)}
-                  title="Send email via SendPulse"
+                  title="Send branded company email"
                   className="p-2 text-white/50 hover:text-primary hover:bg-white/10 rounded-full transition-colors"
                 >
                   <Mail className="w-5 h-5" />
@@ -2110,7 +2125,7 @@ export default function UnifiedInbox() {
                     <div className="flex gap-2">
                       <button onClick={() => openEmailCompose(activeConv)}
                         className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-primary/15 hover:bg-primary/25 text-violet-300 text-[11px] font-black rounded-lg transition-colors">
-                        <Mail className="w-3.5 h-3.5" /> Email
+                        <Mail className="w-3.5 h-3.5" /> Company Email
                       </button>
                       {activeConv.phone_number && (
                         <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
@@ -2138,6 +2153,11 @@ export default function UnifiedInbox() {
                         className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-lg transition-colors mt-3">
                         <Phone className="w-4 h-4" /> Open in WhatsApp
                       </a>
+                    )}
+                    {activeConv.type === 'students' && (
+                      <div className="rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-200 leading-relaxed">
+                        Staff reply here through the official Rillcod company WhatsApp line. Assignment and project alerts continue through the learning and assignment system.
+                      </div>
                     )}
                     {isStaff && activeConv.type === 'students' && (
                       <div className="mt-3 rounded-lg border border-white/10 bg-[#111b21]/70 p-3 space-y-2">
@@ -2277,7 +2297,7 @@ export default function UnifiedInbox() {
               <h1 className="text-[32px] font-light text-[#e9edef] mb-4 tracking-tight">Rillcod Web Hub</h1>
               <p className="text-[#8696a0] text-[14px] leading-relaxed mb-8 max-w-sm mx-auto">
                 Send and receive messages seamlessly.<br />
-                All your school, teacher, and student communication centralized in one unified inbox.
+                Company WhatsApp, teacher, parent, and student communication in one workspace.
               </p>
             </div>
             <p className="text-white/15 text-[11px] mt-2 font-bold uppercase tracking-widest">
@@ -2290,7 +2310,7 @@ export default function UnifiedInbox() {
                 </button>
               )}
               <button onClick={isTeacher ? openAdminEmailCompose : isParentOrStudent ? openSupportEmailCompose : () => openEmailCompose()} className="flex items-center gap-2 px-4 py-2.5 bg-primary/20 hover:bg-primary/30 text-violet-300 text-[13px] font-black rounded-full border border-primary/20 transition-colors">
-                <Mail className="w-4 h-4" /> {isTeacher ? 'Email Admin' : isParentOrStudent ? 'Email Support' : 'Email'}
+                <Mail className="w-4 h-4" /> {isTeacher ? 'Company Email' : isParentOrStudent ? 'Support Email' : 'Company Email'}
               </button>
               <button onClick={() => setSidebarView('contacts')} className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] text-white/50 text-[13px] font-black rounded-full border border-white/[0.07] transition-colors">
                 <BookUser className="w-4 h-4" /> Contacts
@@ -2328,9 +2348,9 @@ export default function UnifiedInbox() {
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mb-3 group-hover:bg-primary/30 transition-colors">
                   <Mail className="w-5 h-5 text-primary" />
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Email Rillcod</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Company Email</p>
                 <h3 className="text-base font-black text-white mt-2">Contact Support Team</h3>
-                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded email to <span className="text-violet-300">support@rillcod.com</span>.</p>
+                <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Send a branded company email to <span className="text-violet-300">support@rillcod.com</span>.</p>
                 <div className="mt-4 flex items-center gap-1.5 text-primary text-[10px] font-black uppercase tracking-widest">
                   Send Email <ChevronRight className="w-3 h-3" />
                 </div>
@@ -2348,21 +2368,28 @@ export default function UnifiedInbox() {
                 >
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Teacher Contact</p>
                   <h3 className="text-sm font-black text-white mt-2">Find Teachers</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Open the contacts directory already filtered to teacher contacts.</p>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Open the directory filtered to teachers who can reply through the company WhatsApp lane.</p>
                 </button>
                 <button onClick={openAdminEmailCompose} className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 hover:border-rose-400/40 transition-colors text-left">
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-rose-300">Admin Escalation</p>
                   <h3 className="text-sm font-black text-white mt-2">Contact Admin Team</h3>
                   <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Escalate urgent academic or account issues for admin review.</p>
                 </button>
+                {profile?.role === 'student' && (
+                  <Link href="/dashboard/assignments" className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 hover:border-emerald-400/40 transition-colors">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">Assignment Alerts</p>
+                    <h3 className="text-sm font-black text-white mt-2">Assignments & Projects</h3>
+                    <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Coursework updates continue inside your assignment system alongside this WhatsApp lane.</p>
+                  </Link>
+                )}
               </div>
             )}
             {isTeacher && (
               <div className="w-full max-w-3xl mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
                 <button onClick={openAdminEmailCompose} className="rounded-2xl border border-primary/20 bg-primary/10 p-4 hover:border-primary/40 transition-colors text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Admin Channel</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-300">Company Email</p>
                   <h3 className="text-sm font-black text-white mt-2">Email Admin</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Use the branded email flow for escalations and formal teacher-to-admin communication.</p>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Use the branded company email flow for escalations and formal teacher-to-admin communication.</p>
                 </button>
                 <button
                   onClick={() => {
@@ -2374,7 +2401,7 @@ export default function UnifiedInbox() {
                 >
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">Peer Contact</p>
                   <h3 className="text-sm font-black text-white mt-2">Open Teacher Contacts</h3>
-                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Jump straight into the teacher directory when you need to coordinate with colleagues.</p>
+                  <p className="text-[11px] text-white/55 mt-2 leading-relaxed">Jump straight into the teacher directory when you need to coordinate as a company representative.</p>
                 </button>
                 <Link href="/dashboard/support" className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4 hover:border-cyan-400/40 transition-colors">
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-300">Support</p>
@@ -2641,7 +2668,7 @@ export default function UnifiedInbox() {
         </div>
       )}
 
-      {/* ══ EMAIL COMPOSE MODAL (via SendPulse) ════════════════════════════ */}
+      {/* ══ EMAIL COMPOSE MODAL ════════════════════════════ */}
       {showEmailCompose && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-[#202c33] md:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
@@ -2652,8 +2679,8 @@ export default function UnifiedInbox() {
                   <Mail className="w-4 h-4 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-white font-black text-[16px]">Compose Email</h2>
-                  <p className="text-white/30 text-xs">Sent via SendPulse · support@rillcod.com</p>
+                  <h2 className="text-white font-black text-[16px]">Company Email</h2>
+                  <p className="text-white/30 text-xs">Sent from Rillcod Academy · support@rillcod.com</p>
                 </div>
               </div>
               <button onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); setEmailSuccess(''); }}
@@ -2733,7 +2760,7 @@ export default function UnifiedInbox() {
               <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 flex items-start gap-2">
                 <Mail className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-[11px] text-white/40 leading-relaxed">
-                  Emails are sent using the <strong className="text-white/60">Rillcod Academy branded template</strong> via SendPulse SMTP from <strong className="text-primary">support@rillcod.com</strong>. Recipients can reply directly to this address.
+                  Emails are sent using the <strong className="text-white/60">Rillcod Academy branded template</strong> from <strong className="text-primary">support@rillcod.com</strong>. Recipients can reply directly to this address.
                 </p>
               </div>
             </div>
@@ -2747,7 +2774,7 @@ export default function UnifiedInbox() {
               <button onClick={sendEmail} disabled={sendingEmail || !emailForm.to.trim() || !emailForm.subject.trim() || !emailForm.body.trim()}
                 className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
                 {sendingEmail
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending via SendPulse…</>
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending from Rillcod…</>
                   : <><Send className="w-4 h-4" /> Send Email</>
                 }
               </button>
