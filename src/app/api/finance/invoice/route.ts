@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { classifyInvoiceStream } from '@/lib/finance/streams';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -66,6 +67,11 @@ export async function POST(request: Request) {
   const invoiceItems = items.length > 0 ? items : [
     { description: description ?? (subscription_id ? 'Subscription Fee' : 'Invoice'), quantity: 1, unit_price: Number(amount), total: Number(amount) },
   ];
+  const stream = classifyInvoiceStream({
+    school_id: school_id ?? null,
+    portal_user_id: portal_user_id ?? null,
+    billing_cycle_id: billing_cycle_id ?? null,
+  });
 
   const { data: invoice, error: invErr } = await db.from('invoices').insert({
     invoice_number,
@@ -77,6 +83,8 @@ export async function POST(request: Request) {
     due_date,
     items: invoiceItems,
     notes: notes ?? null,
+    stream,
+    billing_cycle_id: billing_cycle_id ?? null,
   } as any).select().single();
 
   if (invErr) return NextResponse.json({ error: invErr.message }, { status: 500 });

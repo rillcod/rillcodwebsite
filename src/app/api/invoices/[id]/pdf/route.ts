@@ -32,21 +32,46 @@ async function getCallerAndInvoice(req: NextRequest, invoiceId: string) {
 
   if (!invoice) return null;
 
-  // Access control: admin sees all, school sees own school, parent/student sees own
-  if (profile.role === 'school' && invoice.school_id !== profile.school_id) return null;
-  if (['parent', 'student'].includes(profile.role) && invoice.portal_user_id !== profile.id) return null;
-
-  // For SCHOOL-stream invoices load the linked billing cycle so we
-  // can render the term / retain / settlement breakdown.
+  // Load the linked billing cycle. Some older invoices are only linked
+  // from billing_cycles.invoice_id, so recover that relationship too.
   let cycle: any = null;
+  const cycleSelect = 'id, owner_type, owner_school_id, school_id, term_label, items, rillcod_retain_amount, school_settlement_amount, due_date, period_start, period_end';
   if (invoice.billing_cycle_id) {
     const { data } = await admin
       .from('billing_cycles')
-      .select('id, term_label, items, rillcod_retain_amount, school_settlement_amount, due_date, period_start, period_end')
+      .select(cycleSelect)
       .eq('id', invoice.billing_cycle_id)
       .single();
     cycle = data;
   }
+  if (!cycle) {
+    const { data } = await admin
+      .from('billing_cycles')
+      .select(cycleSelect)
+      .eq('invoice_id', invoiceId)
+      .maybeSingle();
+    cycle = data;
+  }
+
+  const cycleSchoolId = cycle?.owner_school_id || cycle?.school_id || null;
+  if (cycle?.id && !invoice.billing_cycle_id) invoice.billing_cycle_id = cycle.id;
+
+  if (cycleSchoolId && (!invoice.school_id || !invoice.schools)) {
+    invoice.school_id = invoice.school_id || cycleSchoolId;
+    const { data: school } = await admin
+      .from('schools')
+      .select('id, name, address, commission_rate')
+      .eq('id', cycleSchoolId)
+      .maybeSingle();
+    if (school) invoice.schools = school;
+  }
+
+  // Access control: admin sees all, school sees own school/cycle, parent/student sees own.
+  if (profile.role === 'school') {
+    const schoolMatches = invoice.school_id === profile.school_id || cycleSchoolId === profile.school_id;
+    if (!schoolMatches) return null;
+  }
+  if (['parent', 'student'].includes(profile.role) && invoice.portal_user_id !== profile.id) return null;
 
   return { profile, invoice, cycle };
 }
@@ -66,7 +91,13 @@ export async function GET(
   if (!ctx) return NextResponse.json({ error: 'Not found or forbidden' }, { status: 404 });
 
   const { invoice, cycle } = ctx;
-  const stream = classifyInvoiceStream(invoice);
+  const cycleIsSchool = cycle?.owner_type === 'school' || Boolean(cycle?.owner_school_id);
+  const stream = cycleIsSchool
+    ? 'school'
+    : classifyInvoiceStream({
+        ...invoice,
+        billing_cycle_id: invoice.billing_cycle_id ?? cycle?.id ?? null,
+      });
 
   const html = stream === 'school'
     ? renderSchoolInvoiceHtml(invoice, cycle)

@@ -22,6 +22,25 @@ async function requireStaff() {
   return profile;
 }
 
+async function getLinkedCycleSchoolId(admin: ReturnType<typeof adminClient>, invoice: any) {
+  const cycleSelect = 'id, owner_school_id, school_id';
+  if (invoice.billing_cycle_id) {
+    const { data } = await admin
+      .from('billing_cycles')
+      .select(cycleSelect)
+      .eq('id', invoice.billing_cycle_id)
+      .maybeSingle();
+    if (data?.owner_school_id || data?.school_id) return data.owner_school_id || data.school_id;
+  }
+
+  const { data } = await admin
+    .from('billing_cycles')
+    .select(cycleSelect)
+    .eq('invoice_id', invoice.id)
+    .maybeSingle();
+  return data?.owner_school_id || data?.school_id || null;
+}
+
 // GET /api/invoices/[id] — fetch single invoice with related data
 export async function GET(
   _req: NextRequest,
@@ -42,9 +61,12 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // School-scoped users can only see their own invoices
-  if (caller.role === 'school' && data.school_id !== caller.school_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // School-scoped users can only see their own invoices or linked school cycles.
+  if (caller.role === 'school') {
+    const cycleSchoolId = await getLinkedCycleSchoolId(admin, data);
+    if (data.school_id !== caller.school_id && cycleSchoolId !== caller.school_id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
   return NextResponse.json({ data });
@@ -65,10 +87,13 @@ export async function PATCH(
   const admin = adminClient();
 
   // Verify invoice exists and caller has access
-  const { data: existing } = await admin.from('invoices').select('school_id, status').eq('id', id).single();
+  const { data: existing } = await admin.from('invoices').select('id, school_id, billing_cycle_id, status').eq('id', id).single();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (caller.role === 'school' && existing.school_id !== caller.school_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (caller.role === 'school') {
+    const cycleSchoolId = await getLinkedCycleSchoolId(admin, existing);
+    if (existing.school_id !== caller.school_id && cycleSchoolId !== caller.school_id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
   if (existing.status === 'paid') {
     return NextResponse.json({ error: 'Cannot edit a paid invoice' }, { status: 400 });
@@ -106,7 +131,7 @@ export async function DELETE(
 
   const { data: existing } = await admin
     .from('invoices')
-    .select('id, school_id, status, invoice_number')
+    .select('id, school_id, billing_cycle_id, status, invoice_number')
     .eq('id', id)
     .single();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -115,8 +140,11 @@ export async function DELETE(
   if (caller.role !== 'admin' && caller.role !== 'school') {
     return NextResponse.json({ error: 'Only admin can delete invoices' }, { status: 403 });
   }
-  if (caller.role === 'school' && existing.school_id !== caller.school_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (caller.role === 'school') {
+    const cycleSchoolId = await getLinkedCycleSchoolId(admin, existing);
+    if (existing.school_id !== caller.school_id && cycleSchoolId !== caller.school_id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
   // Refuse to delete paid invoices — finance ledger integrity
   if (existing.status === 'paid') {
