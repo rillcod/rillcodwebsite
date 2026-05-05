@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   resolveDefaultTrackFromPolicy,
   resolveGradeKeyFromClassName,
@@ -1008,6 +1009,7 @@ export async function POST(
   }
 
   if (autoFlashcards) {
+    const flashcardSupabase = createAdminClient();
     const desiredDecks: Array<{ marker: string; title: string; week: GeneratedWeek }> = [];
     for (const key of generatedKeys) {
       const weeks = termGeneratedWeekMap.get(key) ?? [];
@@ -1020,7 +1022,7 @@ export async function POST(
         });
       }
     }
-    const { data: existingDecks, error: existingDeckErr } = await supabase
+    const { data: existingDecks, error: existingDeckErr } = await flashcardSupabase
       .from('flashcard_decks')
       .select('id,progression_policy_snapshot,course_id')
       .eq('created_by', user.id)
@@ -1038,7 +1040,7 @@ export async function POST(
         .map((d) => existingByMarker.get(d.marker)?.id ?? null)
         .filter((id): id is string => id !== null);
       if (toDeleteIds.length > 0) {
-        const { error: deleteErr } = await supabase
+        const { error: deleteErr } = await flashcardSupabase
           .from('flashcard_decks')
           .delete()
           .in('id', toDeleteIds);
@@ -1048,7 +1050,7 @@ export async function POST(
     }
     for (const deckDef of desiredDecks) {
       if (existingByMarker.has(deckDef.marker)) continue;
-      const { data: createdDeck, error: deckErr } = await supabase
+      const { data: createdDeck, error: deckErr } = await flashcardSupabase
         .from('flashcard_decks')
         .insert({
           title: deckDef.title,
@@ -1078,7 +1080,7 @@ export async function POST(
         { front: 'Project Deliverables', back: deckDef.week.project.deliverables.join(' | ') },
         { front: 'Practical Checkpoints', back: deckDef.week.practical_assessment.skill_checkpoints.join(' | ') },
       ];
-      const { error: cardsErr } = await supabase
+      const { error: cardsErr } = await flashcardSupabase
         .from('flashcard_cards')
         .insert(cards.map((card, idx) => ({
           deck_id: createdDeck.id,

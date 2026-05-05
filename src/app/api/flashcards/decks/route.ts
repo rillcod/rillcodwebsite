@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import type { Database, Json } from '@/types/supabase';
 
@@ -202,7 +203,8 @@ export async function POST(req: NextRequest) {
   };
   if (resolvedSchoolId) insertPayload.school_id = resolvedSchoolId;
 
-  const { data, error } = await supabase
+  const adminSupabase = createAdminClient();
+  const { data, error } = await adminSupabase
     .from('flashcard_decks')
     .insert(insertPayload)
     .select()

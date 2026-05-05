@@ -280,7 +280,7 @@ export default function CurriculumPage() {
   const [implError, setImplError] = useState('');
   const [implementationList, setImplementationList] = useState<any[]>([]);
   const [globalImplementationList, setGlobalImplementationList] = useState<any[]>([]);
-  const [printMode, setPrintMode] = useState<'week' | 'overview' | null>(null);
+  const [printMode, setPrintMode] = useState<'week' | 'overview'>('week');
   // For teachers with multiple classes using this syllabus — which class context to track against
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [deletingImpl, setDeletingImpl] = useState<string | null>(null);
@@ -1407,26 +1407,15 @@ export default function CurriculumPage() {
   }
 
   // ── Print functions ────────────────────────────────────────────────────────
-  function queueCurriculumPrint(mode: 'week' | 'overview') {
-    setPrintMode(mode);
-    window.setTimeout(() => {
-      window.requestAnimationFrame(() => window.print());
-    }, 150);
-  }
-
   function printWeek() {
-    queueCurriculumPrint('week');
+    setPrintMode('week');
+    setTimeout(() => window.print(), 50);
   }
 
   function printOverview() {
-    queueCurriculumPrint('overview');
+    setPrintMode('overview');
+    setTimeout(() => window.print(), 50);
   }
-
-  useEffect(() => {
-    const resetPrintMode = () => setPrintMode(null);
-    window.addEventListener('afterprint', resetPrintMode);
-    return () => window.removeEventListener('afterprint', resetPrintMode);
-  }, []);
 
 
   // ── Teacher: publish / unpublish the syllabus to school, students & parents ──
