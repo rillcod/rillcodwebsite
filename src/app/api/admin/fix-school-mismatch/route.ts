@@ -32,25 +32,47 @@ export async function GET(request: NextRequest) {
 
     if (stuErr) return NextResponse.json({ error: stuErr.message }, { status: 500 });
 
-    // Fetch all classes that have a school assigned
+    // Fetch all classes that have a school assigned (include teacher_id for conflict detection)
     const { data: classes, error: clsErr } = await admin
       .from('classes')
-      .select('id, name, school_id')
+      .select('id, name, school_id, teacher_id')
       .not('school_id', 'is', null);
 
     if (clsErr) return NextResponse.json({ error: clsErr.message }, { status: 500 });
 
     const classMap = new Map(classes.map(c => [c.id, c]));
-    
+
+    // Fetch report authorship so we can flag students whose class teacher ≠ report teacher
+    const studentIds = students.map(s => s.id);
+    const { data: allReports } = await admin
+      .from('student_progress_reports')
+      .select('student_id, teacher_id')
+      .in('student_id', studentIds)
+      .not('teacher_id', 'is', null);
+
+    // Build student_id → primary report teacher
+    const reportCountMap = new Map<string, Map<string, number>>();
+    (allReports ?? []).forEach((r: any) => {
+      const tc = reportCountMap.get(r.student_id) || new Map<string, number>();
+      tc.set(r.teacher_id, (tc.get(r.teacher_id) || 0) + 1);
+      reportCountMap.set(r.student_id, tc);
+    });
+    const primaryReportTeacherMap = new Map<string, string>();
+    for (const [sid, tc] of reportCountMap.entries()) {
+      const top = [...tc.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (top) primaryReportTeacherMap.set(sid, top[0]);
+    }
+
     // Identify mismatches
     const mismatches = students.filter(s => {
       const cls = classMap.get(s.class_id!);
-      if (!cls) return false; // Class has no school or doesn't exist
-      
-      // Mismatch if school IDs are different
+      if (!cls) return false;
       return s.school_id !== cls.school_id;
     }).map(s => {
       const cls = classMap.get(s.class_id!)!;
+      const primaryReportTeacher = primaryReportTeacherMap.get(s.id);
+      // Flag if student is also in the wrong class (class teacher ≠ report teacher)
+      const classTeacherConflict = !!(cls.teacher_id && primaryReportTeacher && primaryReportTeacher !== cls.teacher_id);
       return {
         student_id: s.id,
         student_name: s.full_name,
@@ -59,20 +81,24 @@ export async function GET(request: NextRequest) {
         class_id: s.class_id,
         class_name: s.section_class || cls.name,
         class_school_id: cls.school_id,
+        // When true: heal tool must fix class first before alignment can run
+        class_teacher_conflict: classTeacherConflict,
       };
     });
 
-    return NextResponse.json({ 
-      count: mismatches.length, 
-      mismatches 
+    return NextResponse.json({
+      count: mismatches.length,
+      mismatches
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-// GET /api/admin/fix-school-mismatch/suggestions
-// Cross-references current students with bulk registration history to suggest restoration.
+// PATCH /api/admin/fix-school-mismatch
+// Generates intelligent restoration suggestions using report authorship as the primary truth signal.
+// Report authorship outweighs registration history — a batch-enroll overwrite corrupts history
+// but cannot corrupt who actually wrote the student's progress reports.
 export async function PATCH(request: NextRequest) {
   try {
     const supabase = await createServerClient();
@@ -91,28 +117,75 @@ export async function PATCH(request: NextRequest) {
       .select('id, full_name, email, school_id, school_name, class_id, section_class')
       .eq('role', 'student');
 
-    // Fetch registration history
+    const allStudentIds = students?.map(s => s.id) ?? [];
+
+    // Fetch registration history — group by email so we handle multiple batches per student
     const { data: histResults } = await admin.from('registration_results').select('email, batch_id');
     const batchIds = [...new Set(histResults?.map(r => r.batch_id) ?? [])];
     const { data: batches } = await admin.from('registration_batches').select('*').in('id', batchIds);
-    
-    // Forensic: Fetch activity indicators
+
+    // email → Set of batch_ids (student may have been registered multiple times)
+    const studentHistMultiMap = new Map<string, string[]>();
+    histResults?.forEach(r => {
+      const email = r.email.toLowerCase();
+      const existing = studentHistMultiMap.get(email) || [];
+      existing.push(r.batch_id);
+      studentHistMultiMap.set(email, existing);
+    });
+
+    // Forensic: activity logs per user per school
     const { data: activityLogs } = await admin
       .from('activity_logs')
       .select('user_id, school_id')
-      .in('user_id', students?.map(s => s.id) ?? [])
+      .in('user_id', allStudentIds)
       .not('school_id', 'is', null);
 
+    // Report authorship — the highest-trust signal for class/school assignment.
+    // A batch-enroll overwrite corrupts class_id and may add a new registration_results row,
+    // but it cannot retroactively change who wrote prior progress reports.
+    const { data: allReports } = await admin
+      .from('student_progress_reports')
+      .select('student_id, teacher_id')
+      .in('student_id', allStudentIds)
+      .not('teacher_id', 'is', null);
+
     const { data: allSchools } = await admin.from('schools').select('id, name');
-    const { data: allClasses } = await admin.from('classes').select('id, name, school_id');
+    // Include teacher_id so we can match batches to report authors
+    const { data: allClasses } = await admin.from('classes').select('id, name, school_id, teacher_id');
 
     const batchMap = new Map(batches?.map(b => [b.id, b]) ?? []);
-    const studentHistMap = new Map(histResults?.map(r => [r.email.toLowerCase(), r.batch_id]) ?? []);
     const schoolMap = new Map(allSchools?.map(s => [s.id, s.name]) ?? []);
-    
-    // Map activity logs to counts per school per user
+
+    // Build student_id → primary report teacher_id
+    const reportCountMap = new Map<string, Map<string, number>>();
+    (allReports ?? []).forEach((r: any) => {
+      const tc = reportCountMap.get(r.student_id) || new Map<string, number>();
+      tc.set(r.teacher_id, (tc.get(r.teacher_id) || 0) + 1);
+      reportCountMap.set(r.student_id, tc);
+    });
+    const primaryReportTeacherMap = new Map<string, string>();
+    const reportCountTotalMap = new Map<string, number>();
+    for (const [sid, tc] of reportCountMap.entries()) {
+      const top = [...tc.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (top) {
+        primaryReportTeacherMap.set(sid, top[0]);
+        reportCountTotalMap.set(sid, top[1]);
+      }
+    }
+
+    // Build teacher_id → classes[]
+    const teacherClassesMap = new Map<string, typeof allClasses>();
+    (allClasses ?? []).forEach((c: any) => {
+      if (c.teacher_id) {
+        const arr = teacherClassesMap.get(c.teacher_id) || [];
+        arr.push(c);
+        teacherClassesMap.set(c.teacher_id, arr);
+      }
+    });
+
+    // Activity map: user_id → school_id → count
     const activityMap = new Map<string, Map<string, number>>();
-    (activityLogs ?? []).forEach(log => {
+    (activityLogs ?? []).forEach((log: any) => {
       const userSchools = activityMap.get(log.user_id) || new Map<string, number>();
       userSchools.set(log.school_id, (userSchools.get(log.school_id) || 0) + 1);
       activityMap.set(log.user_id, userSchools);
@@ -120,80 +193,125 @@ export async function PATCH(request: NextRequest) {
 
     const suggestions = (students ?? []).map(s => {
       const emailKey = s.email?.toLowerCase() || '';
-      const batchId = studentHistMap.get(emailKey);
-      const batch = batchId ? batchMap.get(batchId) : null;
+      const candidateBatchIds = studentHistMultiMap.get(emailKey) || [];
       const userActivity = activityMap.get(s.id);
+      const primaryReportTeacher = primaryReportTeacherMap.get(s.id);
+      const reportCount = reportCountTotalMap.get(s.id) || 0;
 
-      // Scoring Heuristic
-      let bestSchoolId = s.school_id;
+      let bestSchoolId: string | null = s.school_id;
+      let finalTargetClassId: string | null = s.class_id;
       let score = 0;
       const evidence: string[] = [];
 
-      // 1. History (Weight 100)
-      if (batch) {
-        bestSchoolId = batch.school_id;
-        score += 100;
-        evidence.push('Original Registration Record');
+      // ── Signal 1: Report Authorship (Weight 150 — highest trust) ──────────
+      // Who wrote this student's progress reports? That teacher's class is the correct placement.
+      // This signal cannot be corrupted by a batch-enroll overwrite.
+      if (primaryReportTeacher && reportCount > 0) {
+        const teacherClasses = teacherClassesMap.get(primaryReportTeacher) || [];
+        // Prefer a class at the student's current school, otherwise take first available
+        const bestClass = teacherClasses.find((c: any) => c.school_id === s.school_id) || teacherClasses[0];
+        if (bestClass) {
+          bestSchoolId = bestClass.school_id;
+          finalTargetClassId = bestClass.id;
+          score += 150;
+          evidence.push(`Report Author (${reportCount} report${reportCount !== 1 ? 's' : ''})`);
+        }
       }
 
-      // 2. Activity (Weight 40 per school match)
-      if (userActivity) {
+      // ── Signal 2: Registration History (Weight 100) ───────────────────────
+      // When there are multiple batches, prefer the batch whose class teacher matches
+      // the primary report author — that batch represents the original correct enrollment.
+      // If still ambiguous, use the first/only batch (not last, as last = likely overwrite).
+      let selectedBatch: any = null;
+      if (candidateBatchIds.length > 0) {
+        if (candidateBatchIds.length === 1) {
+          selectedBatch = batchMap.get(candidateBatchIds[0]);
+        } else {
+          // Multiple batches: pick the one whose class teacher = primary report teacher
+          for (const bid of candidateBatchIds) {
+            const b = batchMap.get(bid);
+            if (!b) continue;
+            const bClass = allClasses?.find((c: any) =>
+              c.id === b.class_id || (c.name === b.class_name && c.school_id === b.school_id)
+            );
+            if (bClass && primaryReportTeacher && bClass.teacher_id === primaryReportTeacher) {
+              selectedBatch = b;
+              break;
+            }
+          }
+          // Fallback: first batch (earliest registration ≈ original, before overwrite)
+          if (!selectedBatch) selectedBatch = batchMap.get(candidateBatchIds[0]);
+        }
+
+        if (selectedBatch) {
+          if (score === 0) {
+            // No report signal — history is the best we have
+            bestSchoolId = selectedBatch.school_id;
+            score += 100;
+            evidence.push('Registration Record');
+            // Resolve class from history
+            let histClassId = selectedBatch.class_id || null;
+            if (!histClassId && selectedBatch.class_name && selectedBatch.school_id) {
+              const mc = allClasses?.find((c: any) => c.school_id === selectedBatch.school_id && c.name === selectedBatch.class_name);
+              if (mc) histClassId = mc.id;
+            }
+            finalTargetClassId = histClassId;
+          } else if (selectedBatch.school_id === bestSchoolId) {
+            // History confirms the report-based school — extra confidence
+            score += 50;
+            evidence.push('Confirmed by Registration Record');
+          }
+        }
+      }
+
+      // ── Signal 3: Activity Logs (Weight 30) ───────────────────────────────
+      if (userActivity && score < 80) {
         let topActivitySchool = '';
         let maxLogs = 0;
         for (const [schId, count] of userActivity.entries()) {
-          if (count > maxLogs) {
-            maxLogs = count;
-            topActivitySchool = schId;
-          }
+          if (count > maxLogs) { maxLogs = count; topActivitySchool = schId; }
         }
         if (topActivitySchool) {
           if (topActivitySchool === bestSchoolId) {
-            score += 50;
-            evidence.push(`Recent Academic Activity (${maxLogs} events)`);
-          } else if (score < 50) {
-             // If history is missing, trust activity
-             bestSchoolId = topActivitySchool;
-             score += 50;
-             evidence.push(`Primary School Activity Found (${maxLogs} events)`);
+            score += 30;
+            evidence.push(`Activity Confirmed (${maxLogs} events)`);
+          } else if (score === 0) {
+            bestSchoolId = topActivitySchool;
+            score += 30;
+            evidence.push(`Primary Activity School (${maxLogs} events)`);
           }
         }
       }
 
-      // 3. Class Match (Weight 30)
-      const currentClassId = s.class_id;
-      const targetClassId = batch?.class_id || null;
-      let finalTargetClassId = targetClassId;
-
-      if (!finalTargetClassId && batch?.class_name) {
-        const matchedClass = allClasses?.find(c => c.school_id === bestSchoolId && c.name === batch.class_name);
-        if (matchedClass) finalTargetClassId = matchedClass.id;
-      }
-
       const needsRepair = s.school_id !== bestSchoolId || s.class_id !== finalTargetClassId;
+      if (!needsRepair || score === 0) return null;
 
-      if (needsRepair) {
-        return {
-          student_id: s.id,
-          student_name: s.full_name,
-          email: s.email,
-          score,
-          evidence,
-          current: {
-            school_id: s.school_id,
-            school_name: s.school_name,
-            class_id: s.class_id,
-            class_name: s.section_class,
-          },
-          suggested: {
-            school_id: bestSchoolId,
-            school_name: schoolMap.get(bestSchoolId || '') || batch?.school_name || 'Unknown School',
-            class_id: finalTargetClassId,
-            class_name: batch?.class_name || (finalTargetClassId ? allClasses?.find(c => c.id === finalTargetClassId)?.name : null),
-          },
-          batch_id: batchId
-        };
-      }
-      return null;
+      return {
+        student_id: s.id,
+        student_name: s.full_name,
+        email: s.email,
+        score,
+        evidence,
+        // Flag so UI can warn: heal tool must run first if report ≠ current class teacher
+        report_teacher_conflict: !!(
+          primaryReportTeacher &&
+          s.class_id &&
+          (() => { const cls = allClasses?.find((c: any) => c.id === s.class_id); return cls?.teacher_id && cls.teacher_id !== primaryReportTeacher; })()
+        ),
+        current: {
+          school_id: s.school_id,
+          school_name: s.school_name,
+          class_id: s.class_id,
+          class_name: s.section_class,
+        },
+        suggested: {
+          school_id: bestSchoolId,
+          school_name: schoolMap.get(bestSchoolId || '') || selectedBatch?.school_name || 'Unknown School',
+          class_id: finalTargetClassId,
+          class_name: finalTargetClassId ? allClasses?.find((c: any) => c.id === finalTargetClassId)?.name : null,
+        },
+        batch_id: selectedBatch?.id,
+      };
     }).filter(Boolean);
 
     return NextResponse.json({ suggestions });
@@ -203,8 +321,8 @@ export async function PATCH(request: NextRequest) {
 }
 
 // POST /api/admin/fix-school-mismatch
-// Repairs mismatches. 
-// Body: { action: 'align_student' | 'unenroll', studentIds: string[] }
+// Repairs mismatches.
+// Body: { action: 'align_student' | 'restore_from_history' | 'unenroll', studentIds: string[] }
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient();
@@ -226,54 +344,128 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
 
     if (action === 'restore_from_history') {
-      const { data: students } = await admin.from('portal_users').select('id, email').in('id', studentIds);
+      const { data: students } = await admin.from('portal_users').select('id, email, full_name').in('id', studentIds);
       const emails = students?.map(s => s.email?.toLowerCase()).filter(Boolean) as string[];
-      
+
       const { data: histResults } = await admin.from('registration_results').select('email, batch_id').in('email', emails);
       const batchIds = [...new Set(histResults?.map(r => r.batch_id) ?? [])];
       const { data: batches } = await admin.from('registration_batches').select('*').in('id', batchIds);
-      const { data: allClasses } = await admin.from('classes').select('id, name, school_id');
+      // Include teacher_id so we can match against report authorship
+      const { data: allClasses } = await admin.from('classes').select('id, name, school_id, teacher_id');
 
       const batchMap = new Map(batches?.map(b => [b.id, b]) ?? []);
-      const studentHistMap = new Map(histResults?.map(r => [r.email.toLowerCase(), r.batch_id]) ?? []);
+
+      // Group by email → multiple batch_ids (handles re-registration after overwrite)
+      const studentHistMultiMap = new Map<string, string[]>();
+      histResults?.forEach(r => {
+        const email = r.email.toLowerCase();
+        const existing = studentHistMultiMap.get(email) || [];
+        existing.push(r.batch_id);
+        studentHistMultiMap.set(email, existing);
+      });
+
+      // Fetch progress reports for all these students to determine primary report teacher
+      const { data: allReports } = await admin
+        .from('student_progress_reports')
+        .select('student_id, teacher_id')
+        .in('student_id', studentIds)
+        .not('teacher_id', 'is', null);
+
+      const reportCountMap = new Map<string, Map<string, number>>();
+      (allReports ?? []).forEach((r: any) => {
+        const tc = reportCountMap.get(r.student_id) || new Map<string, number>();
+        tc.set(r.teacher_id, (tc.get(r.teacher_id) || 0) + 1);
+        reportCountMap.set(r.student_id, tc);
+      });
+      const primaryReportTeacherMap = new Map<string, string>();
+      for (const [sid, tc] of reportCountMap.entries()) {
+        const top = [...tc.entries()].sort((a, b) => b[1] - a[1])[0];
+        if (top) primaryReportTeacherMap.set(sid, top[0]);
+      }
+
+      const skippedConflict: string[] = [];
 
       for (const s of (students ?? [])) {
         try {
-          const batchId = studentHistMap.get(s.email?.toLowerCase() || '');
-          if (!batchId) {
+          const emailKey = s.email?.toLowerCase() || '';
+          const candidateBatchIds = studentHistMultiMap.get(emailKey) || [];
+          if (candidateBatchIds.length === 0) {
             errors.push(`No history for ${s.email}`);
             continue;
           }
-          const batch = batchMap.get(batchId);
-          if (!batch) {
-             errors.push(`Batch ${batchId} not found for ${s.email}`);
-             continue;
+
+          const primaryReportTeacher = primaryReportTeacherMap.get(s.id);
+
+          // When there are multiple batches, pick the one whose class teacher = primary report teacher.
+          // This ensures we restore to the original correct enrollment, not an overwrite batch.
+          let selectedBatch: any = null;
+          if (candidateBatchIds.length === 1) {
+            selectedBatch = batchMap.get(candidateBatchIds[0]);
+          } else {
+            for (const bid of candidateBatchIds) {
+              const b = batchMap.get(bid);
+              if (!b) continue;
+              const bClass = allClasses?.find((c: any) =>
+                c.id === b.class_id || (c.name === b.class_name && c.school_id === b.school_id)
+              );
+              if (bClass && primaryReportTeacher && bClass.teacher_id === primaryReportTeacher) {
+                selectedBatch = b;
+                break;
+              }
+            }
+            // Fallback to first batch (earliest = original registration before any overwrite)
+            if (!selectedBatch) selectedBatch = batchMap.get(candidateBatchIds[0]);
           }
 
-          let targetClassId = batch.class_id;
-          let targetClassName = batch.class_name;
+          if (!selectedBatch) {
+            errors.push(`Batch not found for ${s.email}`);
+            continue;
+          }
+
+          let targetClassId = selectedBatch.class_id;
+          let targetClassName = selectedBatch.class_name;
 
           // Resolve class by name if ID missing
-          if (!targetClassId && targetClassName && batch.school_id) {
-            const matchedClass = allClasses?.find(c => c.school_id === batch.school_id && c.name === targetClassName);
+          if (!targetClassId && targetClassName && selectedBatch.school_id) {
+            const matchedClass = allClasses?.find((c: any) =>
+              c.school_id === selectedBatch.school_id && c.name === targetClassName
+            );
             if (matchedClass) targetClassId = matchedClass.id;
           }
 
+          // Guard: if the target class teacher ≠ this student's primary report teacher,
+          // the history is pointing to a corrupt batch (an overwrite).
+          // Skip and direct admin to the heal tool.
+          if (targetClassId && primaryReportTeacher) {
+            const targetClass = allClasses?.find((c: any) => c.id === targetClassId);
+            if (targetClass?.teacher_id && targetClass.teacher_id !== primaryReportTeacher) {
+              skippedConflict.push(s.full_name || s.email || s.id);
+              continue;
+            }
+          }
+
           const update = {
-            school_id: batch.school_id,
-            school_name: batch.school_name,
+            school_id: selectedBatch.school_id,
+            school_name: selectedBatch.school_name,
             class_id: targetClassId || null,
             section_class: targetClassName || null,
           };
 
           await admin.from('portal_users').update(update).eq('id', s.id);
           await admin.from('students').update(update).eq('user_id', s.id);
-          
+
           successCount++;
         } catch (e: any) {
           errors.push(`Failed for ${s.id}: ${e.message}`);
         }
       }
+
+      if (skippedConflict.length > 0) {
+        errors.push(
+          `Skipped ${skippedConflict.length} student(s) whose registration history points to a different teacher than their report author — the history likely reflects a batch-enroll overwrite. Fix class assignments in the Class Health & Repair tool first, then re-run: ${skippedConflict.join(', ')}`
+        );
+      }
+
     } else if (action === 'align_student') {
       // Sync school_id to match the student's current class school.
       // SAFE GUARD: if the student's current class is owned by Teacher A but their
@@ -342,10 +534,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      applied: successCount, 
-      errors: errors.length > 0 ? errors : undefined 
+    return NextResponse.json({
+      success: true,
+      applied: successCount,
+      errors: errors.length > 0 ? errors : undefined
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
