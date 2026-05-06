@@ -279,9 +279,26 @@ function ResultsPageInner() {
                     finalQuery = finalQuery.eq('school_id', profile.school_id);
                 } else if (!isAdmin) {
                     if (isTeacher) {
-                        // Teacher: ONLY their own classes — never school-wide
-                        if (teacherClassIds.length > 0) {
-                            finalQuery = finalQuery.in('class_id', teacherClassIds);
+                        // Teacher scope:
+                        //   1. Students currently in the teacher's classes (class_id FK)
+                        //   2. Students who have at least one report authored by this teacher
+                        //      (covers cases where a student was moved to another class but the
+                        //      teacher still owns the report record — e.g. after a class reshuffle)
+                        const { data: ownedReports } = await db
+                            .from('student_progress_reports')
+                            .select('student_id')
+                            .eq('teacher_id', profile!.id)
+                            .not('student_id', 'is', null);
+                        const reportedStudentIds = [...new Set(
+                            (ownedReports ?? []).map((r: any) => r.student_id).filter(Boolean)
+                        )];
+
+                        const orParts: string[] = [];
+                        if (teacherClassIds.length > 0) orParts.push(`class_id.in.(${teacherClassIds.join(',')})`);
+                        if (reportedStudentIds.length > 0) orParts.push(`id.in.(${reportedStudentIds.join(',')})`);
+
+                        if (orParts.length > 0) {
+                            finalQuery = finalQuery.or(orParts.join(','));
                         } else {
                             finalQuery = finalQuery.eq('id', '00000000-0000-0000-0000-000000000000');
                         }

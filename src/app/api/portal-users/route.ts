@@ -64,6 +64,18 @@ export async function GET(request: NextRequest) {
         const myClassIds = (myClasses ?? []).map((c: any) => c.id);
         const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
 
+        // Always include students this teacher has authored reports for — ensures
+        // visibility is preserved even when students are moved to another class
+        // (e.g. after a class reshuffle overwrites class_id on portal_users).
+        const { data: authoredReports } = await admin
+          .from('student_progress_reports')
+          .select('student_id')
+          .eq('teacher_id', caller.id)
+          .not('student_id', 'is', null);
+        const reportedStudentIds = new Set<string>(
+          (authoredReports ?? []).map((r: any) => r.student_id).filter(Boolean)
+        );
+
         if (myClassIds.length > 0) {
           // Collect student IDs: class_id primary + section_class fallback
           const studentIdSet = new Set<string>();
@@ -81,6 +93,9 @@ export async function GET(request: NextRequest) {
             (fallback ?? []).forEach((s: any) => studentIdSet.add(s.id));
           }
 
+          // Also add students this teacher has authored reports for
+          reportedStudentIds.forEach((id) => studentIdSet.add(id));
+
           const studentIds = Array.from(studentIdSet);
           if (studentIds.length > 0) {
             query = query.in('id', studentIds) as any;
@@ -90,13 +105,14 @@ export async function GET(request: NextRequest) {
           }
         } else {
           // No personal classes set up — fall back to school-level scoping.
-          // Client-side filteredStudents handles class-level narrowing.
+          // Also include any report-authored students not captured by school scope.
           const { data: schoolNames } = await admin.from('schools').select('name').in('id', assignedIds);
           const names = (schoolNames ?? []).map((s: any) => s.name).filter(Boolean);
-          const idFilter = `school_id.in.(${assignedIds.join(',')})`;
+          const idFilter = assignedIds.length > 0 ? `school_id.in.(${assignedIds.join(',')})` : '';
           const nameFilters = names.map((n: string) => `school_name.eq.${JSON.stringify(n)}`).join(',');
-          const orFilter = nameFilters ? `${idFilter},${nameFilters}` : idFilter;
-          query = query.or(orFilter) as any;
+          const reportedFilter = reportedStudentIds.size > 0 ? `id.in.(${Array.from(reportedStudentIds).join(',')})` : '';
+          const orFilter = [idFilter, nameFilters, reportedFilter].filter(Boolean).join(',');
+          if (orFilter) query = query.or(orFilter) as any;
         }
       } else {
         // School role: scope to their school

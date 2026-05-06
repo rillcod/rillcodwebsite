@@ -179,13 +179,15 @@ export async function POST(
   }
 
   // ── School boundary guard (hard reject) ──────────────────────────────────
+  let studentProfile: any = null;
   if (caller.role !== 'admin' && cls.school_id) {
     const { data: clsSchool } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
     const { data: student } = await admin
       .from('portal_users')
-      .select('school_id, school_name, full_name')
+      .select('school_id, school_name, full_name, class_id')
       .eq('id', studentId)
       .single();
+    studentProfile = student;
 
     const sameById   = student?.school_id === cls.school_id;
     const sameByName = clsSchool?.name && student?.school_name === clsSchool.name;
@@ -196,6 +198,26 @@ export async function POST(
         },
         { status: 403 },
       );
+    }
+  }
+
+  // ── Teacher-class ownership guard (single enroll) ─────────────────────────
+  if (caller.role === 'teacher') {
+    const currentClassId = studentProfile?.class_id ?? null;
+    if (currentClassId && currentClassId !== classId) {
+      const { data: currentClass } = await admin
+        .from('classes')
+        .select('teacher_id, name')
+        .eq('id', currentClassId)
+        .maybeSingle();
+      if (currentClass?.teacher_id && currentClass.teacher_id !== caller.id) {
+        return NextResponse.json(
+          {
+            error: `"${studentProfile?.full_name ?? studentId}" is already in "${currentClass.name}" which belongs to another teacher. Only an admin can reassign them.`,
+          },
+          { status: 409 },
+        );
+      }
     }
   }
 
@@ -370,6 +392,51 @@ export async function PUT(
     }
   }
 
+  // ── Teacher-class ownership guard ─────────────────────────────────────────
+  // Teachers cannot silently poach students out of another teacher's class.
+  // Only admins can move students across teacher-owned classes.
+  let rejectedOtherTeacher: string[] = [];
+  if (caller.role === 'teacher' && allowedIds.length > 0) {
+    const { data: studentsWithClass } = await admin
+      .from('portal_users')
+      .select('id, full_name, class_id')
+      .in('id', allowedIds)
+      .not('class_id', 'is', null)
+      .neq('class_id', classId)
+      .eq('role', 'student');
+
+    if ((studentsWithClass ?? []).length > 0) {
+      const occupiedClassIds = [...new Set((studentsWithClass ?? []).map((s: any) => s.class_id))];
+      const { data: occupiedClasses } = await admin
+        .from('classes')
+        .select('id, teacher_id')
+        .in('id', occupiedClassIds);
+
+      const otherTeacherClassIds = new Set(
+        (occupiedClasses ?? [])
+          .filter((c: any) => c.teacher_id && c.teacher_id !== caller.id)
+          .map((c: any) => c.id),
+      );
+
+      if (otherTeacherClassIds.size > 0) {
+        const protected_ = (studentsWithClass ?? []).filter((s: any) => otherTeacherClassIds.has(s.class_id));
+        const protectedIds = new Set(protected_.map((s: any) => s.id));
+        rejectedOtherTeacher = protected_.map((s: any) => s.full_name ?? s.id);
+        allowedIds = allowedIds.filter((id) => !protectedIds.has(id));
+
+        if (allowedIds.length === 0) {
+          return NextResponse.json(
+            {
+              error: `Cannot move students: ${rejectedOtherTeacher.length} student(s) already belong to another teacher's class and can only be moved by an admin.`,
+              protectedStudents: rejectedOtherTeacher,
+            },
+            { status: 409 },
+          );
+        }
+      }
+    }
+  }
+
   // ── Capacity guard ────────────────────────────────────────────────────────
   if (cls.max_students != null && cls.max_students > 0) {
     // Students already IN this class being re-assigned don't consume extra seats
@@ -487,6 +554,7 @@ export async function PUT(
     enrolled: allowedIds.length,
     skipped: studentIds.length - allowedIds.length,
     rejectedSchoolBoundary: rejectedNames,
+    rejectedOtherTeacher,
     total: count ?? 0,
   });
 }
