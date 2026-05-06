@@ -6,8 +6,11 @@ import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, Mag
 
 type RegistryHint = { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null };
 type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null; registry?: RegistryHint | null };
+type ConflictStudent = AnomalyStudent & { current_class_name: string | null; current_class_teacher_id: string | null; current_class_teacher_name: string | null; report_teacher_id: string | null; report_teacher_name: string | null };
 type AnomalyClass = { id: string; name: string; school_id: string; created_at: string; schools?: { name: string } | null };
-type ClassOption = { id: string; name: string; school_id: string | null };
+type ClassOption = { id: string; name: string; school_id: string | null; teacher_id?: string | null };
+type TeacherOption = { id: string; full_name: string };
+type MissingTs = { teacher_id: string; school_id: string; teacher_name: string | null; school_name: string | null; class_ids: string[] };
 type SearchStudent = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; section_class: string | null; class_name: string | null };
 
 export default function ClassHealPage() {
@@ -20,9 +23,15 @@ export default function ClassHealPage() {
     mismatched: AnomalyStudent[];
     sectionDrift: AnomalyStudent[];
     orphanClasses: AnomalyClass[];
+    teacherConflict: ConflictStudent[];
+    missingTeacherSchools: MissingTs[];
     classes: ClassOption[];
+    teachers: TeacherOption[];
   } | null>(null);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+  // Restore-to-teacher panel state
+  const [restoreTeacherId, setRestoreTeacherId] = useState('');
+  const [restoreClassId, setRestoreClassId] = useState('');
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -85,6 +94,12 @@ export default function ClassHealPage() {
       if (!res.ok) throw new Error(j.error || 'Failed');
       const detail = action === 'safe_auto_repair'
         ? `Auto-repair done — ${j.driftFixed ?? 0} drift fixed, ${j.classAssigned ?? 0} class assigned.`
+        : action === 'auto_align_by_reports'
+        ? `Auto-align done — ${j.updated ?? 0} student(s) moved to their report teacher's class.`
+        : action === 'restore_by_reports'
+        ? `Restored ${j.updated ?? 0} student(s) to their teacher's class.`
+        : action === 'sync_teacher_schools'
+        ? `Added ${j.updated ?? 0} missing teacher–school link(s). Teacher profiles should now show all their students.`
         : `Fixed ${j.updated ?? 1} record(s).`;
       setMsg({ type: 'ok', text: detail });
       await load();
@@ -153,7 +168,8 @@ export default function ClassHealPage() {
   );
 
   const totalIssues = (data?.noSchool.length ?? 0) + (data?.noClass.length ?? 0) +
-    (data?.mismatched.length ?? 0) + (data?.sectionDrift.length ?? 0) + (data?.orphanClasses.length ?? 0);
+    (data?.mismatched.length ?? 0) + (data?.sectionDrift.length ?? 0) + (data?.orphanClasses.length ?? 0) +
+    (data?.teacherConflict.length ?? 0) + (data?.missingTeacherSchools.length ?? 0);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -166,10 +182,18 @@ export default function ClassHealPage() {
               Scan and fix student–class–school mismatches. Admin only.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => applyAction('auto_align_by_reports', [])}
+              disabled={working || loading || (data?.teacherConflict.length ?? 0) === 0}
+              title="For every student whose class teacher doesn't match their primary report author, move them to a class owned by the report teacher at the same school."
+              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition">
+              <ArrowPathIcon className="w-4 h-4" /> Auto-Align by Reports
+            </button>
             <button
               onClick={() => applyAction('safe_auto_repair', [])}
               disabled={working || loading || totalIssues === 0}
+              title="Assigns class_id to students who have no class but whose section_class text exactly matches a class name at their school."
               className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition">
               <CheckCircleIcon className="w-4 h-4" /> Safe Auto-Repair
             </button>
@@ -266,6 +290,182 @@ export default function ClassHealPage() {
             )}
           </div>
         </div>
+
+        {/* ── Restore Students to Teacher ─────────────────────── */}
+        <div className="bg-card border border-violet-500/20 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+            <ArrowPathIcon className="w-5 h-5 text-violet-400 shrink-0" />
+            <div className="flex-1">
+              <h2 className="text-sm font-extrabold text-foreground">Restore Students to Teacher</h2>
+              <p className="text-xs text-muted-foreground">
+                Select a teacher and one of their classes. All students who have progress reports authored by
+                that teacher but are currently in a different teacher's class will be moved back.
+                Use this to fix the Sulemani/Amaka overwrite scenario.
+              </p>
+            </div>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">1. Select Teacher</label>
+                <select
+                  value={restoreTeacherId}
+                  onChange={e => { setRestoreTeacherId(e.target.value); setRestoreClassId(''); }}
+                  className="select-premium w-full text-sm px-3 py-2"
+                >
+                  <option value="">— Choose a teacher —</option>
+                  {(data?.teachers ?? []).map(t => (
+                    <option key={t.id} value={t.id}>{t.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">2. Select Destination Class</label>
+                <select
+                  value={restoreClassId}
+                  onChange={e => setRestoreClassId(e.target.value)}
+                  disabled={!restoreTeacherId}
+                  className="select-premium w-full text-sm px-3 py-2 disabled:opacity-40"
+                >
+                  <option value="">— Choose a class —</option>
+                  {(data?.classes ?? [])
+                    .filter(c => !restoreTeacherId || c.teacher_id === restoreTeacherId)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                disabled={!restoreTeacherId || !restoreClassId || working}
+                onClick={() => applyAction('restore_by_reports', [], { teacherId: restoreTeacherId, classId: restoreClassId })}
+                className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
+              >
+                Restore Students
+              </button>
+              <p className="text-xs text-muted-foreground">
+                Only students who were displaced will be moved. Students already correctly assigned are untouched.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Missing Teacher–School Links ─────────────────────── */}
+        {(data?.missingTeacherSchools.length ?? 0) > 0 && (
+          <div className="bg-card border border-rose-500/30 rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+              <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 shrink-0" />
+              <div className="flex-1">
+                <h2 className="text-sm font-extrabold text-foreground">Missing Teacher–School Links</h2>
+                <p className="text-xs text-muted-foreground">
+                  These teachers own classes at a school but have no <code className="bg-muted px-1 rounded text-[10px]">teacher_schools</code> row for it.
+                  This is why a teacher's students at that school completely disappear from their profile —
+                  the scoping query only checks <code className="bg-muted px-1 rounded text-[10px]">teacher_schools</code>, so a missing row hides the entire school.
+                  Click "Fix" to add the missing link, or "Fix All" to repair all teachers at once.
+                </p>
+              </div>
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                {data!.missingTeacherSchools.length}
+              </span>
+            </div>
+            <div className="p-5 space-y-3">
+              <button
+                disabled={working}
+                onClick={() => applyAction('sync_teacher_schools', [], {})}
+                className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
+              >
+                <CheckCircleIcon className="w-4 h-4" /> Fix All Missing Links
+              </button>
+              {data!.missingTeacherSchools.map(m => (
+                <div key={`${m.teacher_id}::${m.school_id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 bg-rose-500/5 border border-rose-500/20 rounded-xl">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-foreground">
+                      {m.teacher_name ?? 'Unknown teacher'}
+                      <span className="text-muted-foreground font-normal"> → </span>
+                      {m.school_name ?? m.school_id}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Teacher has {m.class_ids.length} class(es) at this school but no <code className="text-[10px]">teacher_schools</code> entry — students are invisible to them.
+                    </p>
+                  </div>
+                  <button
+                    disabled={working}
+                    onClick={() => applyAction('sync_teacher_schools', [], { teacherId: m.teacher_id })}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                  >
+                    Fix
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Teacher–Class Conflict ────────────────────────────── */}
+        {(data?.teacherConflict.length ?? 0) > 0 && (
+          <div className="bg-card border border-violet-500/30 rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+              <ExclamationTriangleIcon className="w-5 h-5 text-violet-400 shrink-0" />
+              <div className="flex-1">
+                <h2 className="text-sm font-extrabold text-foreground">Teacher–Class Conflict</h2>
+                <p className="text-xs text-muted-foreground">
+                  These students are enrolled in a class owned by one teacher, but their progress reports
+                  were written by a different teacher. This happens when a batch enrollment overwrites
+                  class assignments — the student's visible class changes but report history stays.
+                  Use "Restore Students to Teacher" above to fix in bulk, or reassign individually below.
+                </p>
+              </div>
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                {data!.teacherConflict.length}
+              </span>
+            </div>
+            <div className="p-5 space-y-3">
+              {data!.teacherConflict.map(s => (
+                <div key={s.id} className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 sm:p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">{s.full_name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                    </div>
+                  </div>
+                  <div className="text-[11px] bg-background/60 rounded-lg px-3 py-2 border border-border space-y-1">
+                    <p>
+                      <span className="text-muted-foreground">Currently in class: </span>
+                      <span className="font-semibold text-foreground">{s.current_class_name ?? '?'}</span>
+                      <span className="text-muted-foreground"> (owned by </span>
+                      <span className="font-semibold text-amber-400">{s.current_class_teacher_name ?? 'Unknown teacher'}</span>
+                      <span className="text-muted-foreground">)</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Progress reports written by: </span>
+                      <span className="font-semibold text-violet-400">{s.report_teacher_name ?? 'Unknown teacher'}</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={reassignTarget[s.id] ?? ''}
+                      onChange={e => setReassignTarget(prev => ({ ...prev, [s.id]: e.target.value }))}
+                      className="select-premium text-xs px-2 py-1.5 flex-1"
+                    >
+                      <option value="">— Move to class —</option>
+                      {(data?.classes ?? [])
+                        .filter(c => !s.report_teacher_id || c.teacher_id === s.report_teacher_id)
+                        .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <button
+                      disabled={!reassignTarget[s.id] || working}
+                      onClick={() => reassignStudent(s.id)}
+                      className="px-3 py-1.5 bg-violet-600 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                    >
+                      Move
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Students without a school — full management panel ─── */}
         {(data?.noSchool.length ?? 0) > 0 && (

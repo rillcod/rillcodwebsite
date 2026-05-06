@@ -254,6 +254,12 @@ export default function BulkRegisterPage() {
   const [dupOverride, setDupOverride] = useState(false); // user confirmed they want to proceed despite name matches
   const [activeTab, setActiveTab] = useState<'register' | 'vault'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
+  // Vault/history batch actions
+  const [batchAssignPanel, setBatchAssignPanel] = useState<string | null>(null);
+  const [batchAssignSchool, setBatchAssignSchool] = useState('');
+  const [batchAssignClass, setBatchAssignClass] = useState('');
+  const [vaultSchools, setVaultSchools] = useState<{id: string; name: string}[]>([]);
+  const [vaultClasses, setVaultClasses] = useState<{id: string; name: string; school_id: string}[]>([]);
 
   const handleExportRosterPDF = (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
@@ -657,17 +663,25 @@ export default function BulkRegisterPage() {
 
   const fetchHistory = useCallback(async () => {
     setLoadingHistory(true);
-    const { data, error } = await (supabase as any)
-      .from('registration_batches')
-      .select('*, registration_results(count)')
-      .order('created_at', { ascending: false });
-    if (!error && data) {
-      // Use live count from registration_results join; fall back to stored student_count
-      const hydrated = data.map((b: any) => ({
+    const [batchRes, schoolRes, classRes] = await Promise.all([
+      (supabase as any).from('registration_batches').select('*, registration_results(count)').order('created_at', { ascending: false }),
+      fetch('/api/schools', { cache: 'no-store' }),
+      fetch('/api/classes', { cache: 'no-store' }),
+    ]);
+    if (!batchRes.error && batchRes.data) {
+      const hydrated = batchRes.data.map((b: any) => ({
         ...b,
         student_count: b.registration_results?.[0]?.count ?? b.student_count ?? 0,
       }));
       setHistory(hydrated);
+    }
+    if (schoolRes.ok) {
+      const sj = await schoolRes.json();
+      setVaultSchools(sj.data ?? []);
+    }
+    if (classRes.ok) {
+      const cj = await classRes.json();
+      setVaultClasses(cj.data ?? []);
     }
     setLoadingHistory(false);
   }, [supabase]);
@@ -728,6 +742,74 @@ export default function BulkRegisterPage() {
       toast.success('Batch Archive Permanently Deleted');
     } catch (err: any) {
       toast.error('Delete failed: ' + err.message);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleExportCredentialsCSV = async (batch: any) => {
+    setLoadingHistory(true);
+    try {
+      const { data: rows } = await (supabase as any).from('registration_results').select('*').eq('batch_id', batch.id);
+      if (!rows?.length) { toast.error('No records found.'); return; }
+      const header = 'Full Name,Email,Password,Class';
+      const lines = rows.map((r: any) =>
+        `"${(r.full_name || '').replace(/"/g, '""')}","${r.email || ''}","${r.password || ''}","${r.class_name || ''}"`
+      );
+      const csv = [header, ...lines].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `credentials-${(batch.class_name || 'batch').replace(/\s+/g, '-')}-${new Date(batch.created_at).toLocaleDateString('en-GB').replace(/\//g, '-')}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Credentials CSV downloaded.');
+    } catch (e: any) {
+      toast.error('Export failed: ' + e.message);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleBatchAssignClass = async (batchId: string) => {
+    if (!batchAssignClass) { toast.error('Select a class first.'); return; }
+    setLoadingHistory(true);
+    try {
+      const res = await fetch('/api/students/bulk-register', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'batch_assign_class', batchId, classId: batchAssignClass }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed');
+      toast.success(`${j.updated} student(s) assigned to class.`);
+      setBatchAssignPanel(null);
+      setBatchAssignSchool('');
+      setBatchAssignClass('');
+      fetchHistory();
+    } catch (e: any) {
+      toast.error('Assign failed: ' + e.message);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleBatchToggleActive = async (batchId: string, isActive: boolean) => {
+    const label = isActive ? 'activate' : 'deactivate';
+    if (!confirm(`${label.charAt(0).toUpperCase() + label.slice(1)} all students in this batch?`)) return;
+    setLoadingHistory(true);
+    try {
+      const res = await fetch('/api/students/bulk-register', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'batch_toggle_active', batchId, isActive }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Failed');
+      toast.success(`${j.updated} student(s) ${label}d.`);
+    } catch (e: any) {
+      toast.error('Failed: ' + e.message);
     } finally {
       setLoadingHistory(false);
     }
@@ -1929,10 +2011,18 @@ Yusuf Ibrahim SS1A`}
                               {batch.class_name || 'General Batch'}
                             </h3>
                           )}
-                          <div className="flex items-center gap-4 sm:gap-6 mt-3 sm:mt-5 bg-card shadow-sm w-fit px-3 py-1.5 sm:px-4 sm:py-2 border border-border">
-                            <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
-                            <div className="w-1 h-1 bg-muted rounded-xl" />
-                            <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] italic">{batch.student_count} Students</span>
+                          <div className="flex flex-wrap items-center gap-3 sm:gap-6 mt-3 sm:mt-5">
+                            <div className="flex items-center gap-3 sm:gap-6 bg-card shadow-sm w-fit px-3 py-1.5 sm:px-4 sm:py-2 border border-border">
+                              <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{new Date(batch.created_at).toLocaleDateString()}</span>
+                              <div className="w-1 h-1 bg-muted rounded-xl" />
+                              <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] italic">{batch.student_count} Students</span>
+                            </div>
+                            {batch.school_name && (
+                              <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-primary/10 text-primary border border-primary/20 font-black uppercase tracking-widest">{batch.school_name}</span>
+                            )}
+                            {batch.class_name && batch.school_name && (
+                              <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black uppercase tracking-widest">{batch.class_name}</span>
+                            )}
                           </div>
                         </div>
                         {['admin', 'teacher'].includes(profile?.role || '') && (
@@ -2009,6 +2099,88 @@ Yusuf Ibrahim SS1A`}
                           </button>
                         </div>
                       </div>
+
+                      {/* ── Batch Smart Actions ─────────────────────────────── */}
+                      <div className="mt-4 flex flex-wrap gap-2 border-t border-border/40 pt-4">
+                        {/* Export Credentials CSV */}
+                        <button
+                          onClick={() => handleExportCredentialsCSV(batch)}
+                          disabled={loadingHistory}
+                          title="Download a spreadsheet with name, email and password for every student in this batch. Use this to hand out login cards or import into another system."
+                          className="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                        >
+                          Export Credentials CSV
+                        </button>
+
+                        {/* Assign to Class */}
+                        <button
+                          onClick={() => {
+                            if (batchAssignPanel === batch.id) { setBatchAssignPanel(null); } else {
+                              setBatchAssignPanel(batch.id);
+                              setBatchAssignSchool('');
+                              setBatchAssignClass('');
+                            }
+                          }}
+                          title="Assign all students in this batch to a class. Sets class_id, school_id, and section_class on each student's account."
+                          className="px-3 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[9px] font-black uppercase tracking-widest transition-all"
+                        >
+                          {batchAssignPanel === batch.id ? 'Cancel' : 'Assign to Class'}
+                        </button>
+
+                        {/* Activate / Deactivate all */}
+                        <button
+                          onClick={() => handleBatchToggleActive(batch.id, true)}
+                          disabled={loadingHistory}
+                          title="Mark every student in this batch as active so they can log in."
+                          className="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                        >
+                          Activate All
+                        </button>
+                        <button
+                          onClick={() => handleBatchToggleActive(batch.id, false)}
+                          disabled={loadingHistory}
+                          title="Deactivate all students in this batch. They won't be able to log in until reactivated."
+                          className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                        >
+                          Deactivate All
+                        </button>
+                      </div>
+
+                      {/* Assign-to-class panel */}
+                      {batchAssignPanel === batch.id && (
+                        <div className="mt-4 p-4 bg-sky-500/5 border border-sky-500/20 space-y-3 animate-in fade-in slide-in-from-top-3 duration-300">
+                          <p className="text-[10px] text-sky-400 font-black uppercase tracking-widest">Assign all {batch.student_count} students to a class</p>
+                          <p className="text-[10px] text-muted-foreground">Select the school first, then the class. All student accounts from this batch will be linked to that class. This also updates their school assignment.</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <select
+                              value={batchAssignSchool}
+                              onChange={e => { setBatchAssignSchool(e.target.value); setBatchAssignClass(''); }}
+                              className="bg-background border border-border text-foreground text-xs px-3 py-2 focus:outline-none focus:border-primary"
+                            >
+                              <option value="">— Select school —</option>
+                              {vaultSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                            <select
+                              value={batchAssignClass}
+                              onChange={e => setBatchAssignClass(e.target.value)}
+                              disabled={!batchAssignSchool}
+                              className="bg-background border border-border text-foreground text-xs px-3 py-2 focus:outline-none focus:border-primary disabled:opacity-40"
+                            >
+                              <option value="">— Select class —</option>
+                              {vaultClasses.filter(c => c.school_id === batchAssignSchool).map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <button
+                            disabled={!batchAssignClass || loadingHistory}
+                            onClick={() => handleBatchAssignClass(batch.id)}
+                            className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                          >
+                            {loadingHistory ? 'Assigning…' : 'Assign Now'}
+                          </button>
+                        </div>
+                      )}
 
                       {selectedBatchId === batch.id && (
                         <div className="mt-12 pt-12 border-t border-border space-y-4 animate-in fade-in slide-in-from-top-6 duration-700">

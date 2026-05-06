@@ -411,6 +411,61 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true });
     }
 
+    // Assign all students from a batch to a class (sets class_id, school_id, section_class).
+    // Safe: only targets portal_users with role='student' and email in the batch.
+    if (body.type === 'batch_assign_class') {
+      const { batchId, classId } = body;
+      if (!batchId || !classId) return NextResponse.json({ error: 'batchId and classId required' }, { status: 400 });
+
+      const { data: cls } = await supabaseAdmin.from('classes').select('school_id, name').eq('id', classId).single();
+      if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+      const { data: results } = await supabaseAdmin.from('registration_results').select('email').eq('batch_id', batchId);
+      const emails = (results ?? []).map((r: any) => r.email).filter(Boolean);
+      if (emails.length === 0) return NextResponse.json({ updated: 0 });
+
+      const { data: users } = await supabaseAdmin.from('portal_users').select('id').in('email', emails).eq('role', 'student').eq('is_deleted', false);
+      const userIds = (users ?? []).map((u: any) => u.id);
+      if (userIds.length === 0) return NextResponse.json({ updated: 0, message: 'No matching student accounts found' });
+
+      const { error } = await supabaseAdmin.from('portal_users').update({
+        class_id: classId,
+        school_id: cls.school_id,
+        section_class: cls.name,
+        updated_at: new Date().toISOString(),
+      }).in('id', userIds).eq('role', 'student');
+      if (error) throw error;
+
+      // Also update the batch record so future exports reflect the class
+      await supabaseAdmin.from('registration_batches').update({
+        class_name: cls.name,
+        school_id: cls.school_id,
+      }).eq('id', batchId);
+
+      return NextResponse.json({ success: true, updated: userIds.length });
+    }
+
+    // Activate or deactivate all students in a batch
+    if (body.type === 'batch_toggle_active') {
+      const { batchId, isActive } = body;
+      if (!batchId || typeof isActive !== 'boolean') return NextResponse.json({ error: 'batchId and isActive required' }, { status: 400 });
+
+      const { data: results } = await supabaseAdmin.from('registration_results').select('email').eq('batch_id', batchId);
+      const emails = (results ?? []).map((r: any) => r.email).filter(Boolean);
+      if (emails.length === 0) return NextResponse.json({ updated: 0 });
+
+      const { data: users } = await supabaseAdmin.from('portal_users').select('id').in('email', emails).eq('role', 'student').eq('is_deleted', false);
+      const userIds = (users ?? []).map((u: any) => u.id);
+      if (userIds.length === 0) return NextResponse.json({ updated: 0 });
+
+      const { error } = await supabaseAdmin.from('portal_users').update({
+        is_active: isActive,
+        updated_at: new Date().toISOString(),
+      }).in('id', userIds);
+      if (error) throw error;
+      return NextResponse.json({ success: true, updated: userIds.length });
+    }
+
     const results: any[] = body.results;
     if (Array.isArray(results)) {
        for (const r of results) {
