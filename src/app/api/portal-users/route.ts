@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     let query = admin
       .from('portal_users')
       .select('id, full_name, email, role, school_id, school_name, class_id, section_class, is_active, created_at, updated_at')
+      .eq('is_deleted', false)
       .order('full_name');
 
     if (roleFilter) query = query.eq('role', roleFilter) as any;
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
       if (caller.role === 'teacher') {
-        // Step 1 — school: teacher's assigned schools (outer boundary)
+        // Step 1 — resolve teacher's assigned school IDs
         const { data: schoolRows } = await admin
           .from('teacher_schools')
           .select('school_id')
@@ -54,48 +55,49 @@ export async function GET(request: NextRequest) {
         const assignedIds = (schoolRows ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
         if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
 
-        // Step 2 — class: teacher's own classes only.
+        if (assignedIds.length === 0) return NextResponse.json({ data: [] });
+
+        // Step 2 — try to narrow by teacher's personal classes (teacher_id match)
         let classQ = admin.from('classes').select('id, name').eq('teacher_id', caller.id);
-        if (assignedIds.length > 0) classQ = classQ.in('school_id', assignedIds) as any;
+        classQ = classQ.in('school_id', assignedIds) as any;
         const { data: myClasses } = await classQ;
         const myClassIds = (myClasses ?? []).map((c: any) => c.id);
         const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
 
-        if (myClassIds.length === 0) return NextResponse.json({ data: [] });
+        if (myClassIds.length > 0) {
+          // Collect student IDs: class_id primary + section_class fallback
+          const studentIdSet = new Set<string>();
+          const { data: direct } = await admin
+            .from('portal_users').select('id').in('class_id', myClassIds).eq('role', 'student');
+          (direct ?? []).forEach((s: any) => studentIdSet.add(s.id));
 
-        // Collect student IDs: class_id primary + section_class fallback (handles cleared class_id)
-        const studentIdSet = new Set<string>();
-        const { data: direct } = await admin
-          .from('portal_users').select('id').in('class_id', myClassIds).eq('role', 'student');
-        (direct ?? []).forEach((s: any) => studentIdSet.add(s.id));
+          if (myClassNames.length > 0) {
+            const { data: fallback } = await admin
+              .from('portal_users').select('id')
+              .in('section_class', myClassNames)
+              .in('school_id', assignedIds)
+              .is('class_id', null)
+              .eq('role', 'student');
+            (fallback ?? []).forEach((s: any) => studentIdSet.add(s.id));
+          }
 
-        if (myClassNames.length > 0 && assignedIds.length > 0) {
-          const { data: fallback } = await admin
-            .from('portal_users').select('id')
-            .in('section_class', myClassNames)
-            .in('school_id', assignedIds)
-            .is('class_id', null)
-            .eq('role', 'student');
-          (fallback ?? []).forEach((s: any) => studentIdSet.add(s.id));
+          const studentIds = Array.from(studentIdSet);
+          if (studentIds.length > 0) {
+            query = query.in('id', studentIds) as any;
+          } else {
+            // Classes exist but no students yet — scope to school so teacher can see all
+            query = query.in('school_id', assignedIds) as any;
+          }
+        } else {
+          // No personal classes set up — fall back to school-level scoping.
+          // Client-side filteredStudents handles class-level narrowing.
+          const { data: schoolNames } = await admin.from('schools').select('name').in('id', assignedIds);
+          const names = (schoolNames ?? []).map((s: any) => s.name).filter(Boolean);
+          const idFilter = `school_id.in.(${assignedIds.join(',')})`;
+          const nameFilters = names.map((n: string) => `school_name.eq.${JSON.stringify(n)}`).join(',');
+          const orFilter = nameFilters ? `${idFilter},${nameFilters}` : idFilter;
+          query = query.or(orFilter) as any;
         }
-
-        // Recovery: students who already have reports entered by this teacher
-        // should remain visible to that teacher even if a profile/class link
-        // drifted during approval, activation, or a later data sync.
-        const reportQuery = admin
-          .from('student_progress_reports')
-          .select('student_id')
-          .eq('teacher_id', caller.id)
-          .not('student_id', 'is', null);
-        if (assignedIds.length > 0) reportQuery.in('school_id', assignedIds);
-        const { data: reportStudents } = await reportQuery;
-        (reportStudents ?? []).forEach((r: any) => {
-          if (r.student_id) studentIdSet.add(r.student_id);
-        });
-
-        const studentIds = Array.from(studentIdSet);
-        if (studentIds.length === 0) return NextResponse.json({ data: [] });
-        query = query.in('id', studentIds) as any;
       } else {
         // School role: scope to their school
         const schoolIds: string[] = [];

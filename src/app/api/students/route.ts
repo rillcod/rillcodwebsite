@@ -285,9 +285,14 @@ export async function GET(request: Request) {
       }
 
       // Build OR: teacher registered | in teacher's classes | current_class at teacher's school
+      // If teacher has no personal classes, fall back to school-level so they see all their students.
       const orParts: string[] = [`created_by.eq.${caller.id}`];
       if (studentUserIds.length > 0) orParts.push(`user_id.in.(${studentUserIds.join(',')})`);
-      if (currentClassStudentIds.length > 0) orParts.push(`id.in.(${currentClassStudentIds.join(',')})`);
+      if (currentClassStudentIds.length > 0) orParts.push(`id.in.(${currentClassStudentIds.join(',')})`)
+      if (myClassIds.length === 0 && assignedIds.length > 0) {
+        // No teacher-id classes found — include all students registered at teacher's schools
+        orParts.push(`school_id.in.(${assignedIds.join(',')})`);
+      }
       query = query.or(orParts.join(',')) as any;
     }
 
