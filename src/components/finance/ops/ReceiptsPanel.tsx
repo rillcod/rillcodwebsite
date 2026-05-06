@@ -126,6 +126,13 @@ export function ReceiptsPanel() {
             },
           ];
 
+    const stream = classifyReceiptStream({
+      stream: r.stream,
+      school_id: r.school_id ?? null,
+      student_id: r.portal_user_id ?? null,
+      metadata: r.metadata ?? null,
+    });
+
     setPreview({
       id: r.id,
       number: r.receipt_number,
@@ -135,12 +142,11 @@ export function ReceiptsPanel() {
       amount: r.amount,
       currency: r.currency || 'NGN',
       notes: meta.notes,
-      studentName:
-        meta.payer_name ||
-        r.portal_users?.full_name ||
-        r.schools?.name ||
-        'Client',
-      studentEmail: r.portal_users?.email,
+      stream,
+      studentName: stream === 'school'
+        ? (r.schools?.name || meta.payer_name || 'Partner School')
+        : (meta.payer_name || r.portal_users?.full_name || 'Client'),
+      studentEmail: stream === 'school' ? undefined : r.portal_users?.email,
       schoolName: 'RILLCOD TECHNOLOGIES',
       paymentMethod: meta.payment_method,
       depositAccount: meta.deposit_account,

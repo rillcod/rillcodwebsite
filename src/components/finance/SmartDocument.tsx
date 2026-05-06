@@ -30,10 +30,13 @@ interface SmartDocumentProps {
     amount: number;
     currency: string;
     notes?: string;
+    /** The payer / recipient name. For school invoices this is the school name. */
     studentName: string;
     studentEmail?: string;
     schoolName: string;
     schoolAddress?: string;
+    /** 'school' = B2B partner-school billing; 'individual' = direct learner. */
+    stream?: 'school' | 'individual';
     instructorName?: string;
     transactionRef?: string;
     processingFee?: number;
@@ -57,6 +60,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 
 export default function SmartDocument({ type, data, defaultTemplate = 'classic' }: SmartDocumentProps) {
   const isReceipt = type === 'receipt';
+  const isSchoolStream = data.stream === 'school';
   const currencySymbol = data.currency === 'NGN' ? '₦' : data.currency === 'USD' ? '$' : data.currency;
   const [template, setTemplate] = useState<'classic' | 'bold'>(defaultTemplate);
   const [copied, setCopied] = useState(false);
@@ -278,11 +282,16 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
           <div className="relative z-10 grid grid-cols-2 gap-12 mb-12">
             <div className="space-y-4">
               <p className={`text-[10px] font-black uppercase tracking-[0.2em] border-b pb-2 ${template === 'bold' ? 'text-white/30 border-white/10' : 'text-slate-300 border-slate-100'}`}>
-                {isReceipt ? 'Received From' : 'Client Details'}
+                {isReceipt
+                  ? (isSchoolStream ? 'Received From (School)' : 'Received From')
+                  : (isSchoolStream ? 'Invoice To (School)' : 'Client Details')}
               </p>
               <div className="flex items-start gap-4">
                 <div className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 ${template === 'bold' ? 'bg-white/10 border-white/10' : 'bg-background border-slate-100'}`}>
-                  <UserIcon className={`w-5 h-5 ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`} />
+                  {isSchoolStream
+                    ? <BuildingOfficeIcon className={`w-5 h-5 ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`} />
+                    : <UserIcon className={`w-5 h-5 ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`} />
+                  }
                 </div>
                 <div>
                   <p className={`font-extrabold uppercase tracking-tight ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>{data.studentName}</p>
@@ -294,7 +303,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
             </div>
             <div className="space-y-4">
               <p className={`text-[10px] font-black uppercase tracking-[0.2em] border-b pb-2 ${template === 'bold' ? 'text-white/30 border-white/10' : 'text-slate-300 border-slate-100'}`}>
-                {isReceipt ? 'Payment Details' : 'Invoice Details'}
+                {isReceipt ? 'Payment Details' : (isSchoolStream ? 'School Invoice Details' : 'Invoice Details')}
               </p>
               <div className="grid grid-cols-2 gap-4">
                 {isReceipt ? (

@@ -23,9 +23,12 @@ export interface DocPreviewData {
   amount: number;
   currency: string;
   notes?: string;
+  /** The payer / recipient name. For school invoices this is the school name. */
   studentName: string;
   studentEmail?: string;
   schoolName: string;
+  /** 'school' = B2B partner-school billing; 'individual' = direct learner. */
+  stream?: 'school' | 'individual';
   paymentMethod?: string;
   depositAccount?: { bank_name: string; account_number: string; account_name: string };
   receivedBy?: string;

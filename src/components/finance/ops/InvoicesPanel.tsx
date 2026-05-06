@@ -189,6 +189,13 @@ export function InvoicesPanel() {
         }))
       : [{ description: 'Payment', quantity: 1, unit_price: inv.amount, total: inv.amount }];
 
+    const stream = classifyInvoiceStream({
+      stream: inv.stream,
+      school_id: inv.school_id ?? null,
+      billing_cycle_id: inv.billing_cycle_id ?? null,
+      portal_user_id: inv.portal_user_id ?? null,
+    });
+
     setPreview({
       id: inv.id,
       number: inv.invoice_number,
@@ -198,9 +205,11 @@ export function InvoicesPanel() {
       items,
       amount: inv.amount,
       currency: inv.currency,
-      studentName:
-        inv.portal_users?.full_name || inv.schools?.name || 'Client',
-      studentEmail: inv.portal_users?.email,
+      stream,
+      studentName: stream === 'school'
+        ? (inv.schools?.name || 'Partner School')
+        : (inv.portal_users?.full_name || 'Client'),
+      studentEmail: stream === 'school' ? undefined : inv.portal_users?.email,
       schoolName: 'RILLCOD TECHNOLOGIES',
     });
   };
