@@ -1251,12 +1251,13 @@ export default function SettingsPage() {
                         <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center justify-between">
                           <p className="text-xs font-bold text-rose-400">Found {mismatches.length} students with incorrect school assignments.</p>
                           <div className="flex gap-2">
-                            <button 
-                              onClick={() => runRepair('align_student', mismatches.map(m => m.student_id))}
-                              disabled={repairing}
+                            <button
+                              onClick={() => runRepair('align_student', mismatches.filter((m: any) => !m.class_teacher_conflict).map((m: any) => m.student_id))}
+                              disabled={repairing || mismatches.every((m: any) => m.class_teacher_conflict)}
                               className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50"
+                              title="Only aligns students whose class assignment is confirmed correct. Students flagged 'Fix class first' are skipped."
                             >
-                              Align All to Class
+                              Align Safe Students
                             </button>
                             <button 
                               onClick={() => runRepair('unenroll', mismatches.map(m => m.student_id))}
@@ -1270,27 +1271,38 @@ export default function SettingsPage() {
 
                         <div className="max-h-[400px] overflow-y-auto border border-border rounded-xl divide-y divide-border">
                           {mismatches.map((m: any) => (
-                            <div key={m.student_id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                            <div key={m.student_id} className={`p-4 flex items-center justify-between hover:bg-muted/50 transition-colors ${m.class_teacher_conflict ? 'bg-amber-500/5' : ''}`}>
                               <div className="min-w-0 flex-1 mr-4">
-                                <p className="text-sm font-bold text-foreground truncate">{m.student_name}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-bold text-foreground truncate">{m.student_name}</p>
+                                  {m.class_teacher_conflict && (
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded uppercase font-black whitespace-nowrap shrink-0">
+                                      Fix class first
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                                   <span className="text-[10px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded uppercase font-bold whitespace-nowrap">
                                     Current: {m.student_school_name || 'No School'}
                                   </span>
                                   <span className="text-[10px] text-muted-foreground">→</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded uppercase font-bold whitespace-nowrap">
+                                  <span className={`text-[10px] px-1.5 py-0.5 border rounded uppercase font-bold whitespace-nowrap ${m.class_teacher_conflict ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                                     Class: {m.class_name}
                                   </span>
                                 </div>
+                                {m.class_teacher_conflict && (
+                                  <p className="text-[10px] text-amber-500/70 mt-1">Student is in the wrong class — alignment will be skipped. Use <a href="/dashboard/classes/heal" className="underline">Class Health</a> to fix the class assignment first.</p>
+                                )}
                               </div>
                               <div className="flex gap-1 shrink-0">
-                                <button 
+                                <button
                                   onClick={() => runRepair('align_student', [m.student_id])}
-                                  className="p-1.5 hover:bg-primary/10 text-primary rounded-lg transition-colors" title="Align Student to School"
+                                  disabled={m.class_teacher_conflict}
+                                  className="p-1.5 hover:bg-primary/10 text-primary rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title={m.class_teacher_conflict ? 'Fix class assignment in Class Health first' : 'Align Student to School'}
                                 >
                                   <CheckIcon className="w-4 h-4" />
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => runRepair('unenroll', [m.student_id])}
                                   className="p-1.5 hover:bg-rose-500/10 text-rose-400 rounded-lg transition-colors" title="Unenroll Student"
                                 >
