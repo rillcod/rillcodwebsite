@@ -27,6 +27,100 @@ export async function GET(req: NextRequest) {
 
   const db = adminClient();
 
+  // Teacher audit: full breakdown of a teacher's schools, classes, and displaced students.
+  // Used by the heal UI to show a per-school picture without making the admin guess.
+  const teacherAuditId = req.nextUrl.searchParams.get('teacher_audit');
+  if (teacherAuditId) {
+    // 1. Resolve teacher's assigned schools
+    const { data: tsRows } = await db.from('teacher_schools').select('school_id').eq('teacher_id', teacherAuditId);
+    const { data: tProfile } = await db.from('portal_users').select('school_id, school_name, full_name').eq('id', teacherAuditId).single();
+    const assignedSchoolIds = [...new Set([
+      ...((tsRows ?? []).map((r: any) => r.school_id).filter(Boolean)),
+      ...(tProfile?.school_id ? [tProfile.school_id] : []),
+    ])] as string[];
+
+    // 2. Get all schools info
+    const { data: schoolRows } = assignedSchoolIds.length > 0
+      ? await db.from('schools').select('id, name').in('id', assignedSchoolIds)
+      : { data: [] };
+    const schoolNameMap: Record<string, string> = {};
+    (schoolRows ?? []).forEach((s: any) => { schoolNameMap[s.id] = s.name; });
+
+    // 3. Get teacher's classes across all schools
+    const { data: teacherClasses } = await db
+      .from('classes')
+      .select('id, name, school_id')
+      .eq('teacher_id', teacherAuditId);
+
+    // Collect all relevant school IDs (assigned + where classes exist)
+    const allRelevantSchoolIds = [...new Set([
+      ...assignedSchoolIds,
+      ...((teacherClasses ?? []).map((c: any) => c.school_id).filter(Boolean)),
+    ])] as string[];
+
+    // Enrich school names for class-only schools
+    if (allRelevantSchoolIds.length > assignedSchoolIds.length) {
+      const extra = allRelevantSchoolIds.filter(id => !schoolNameMap[id]);
+      if (extra.length > 0) {
+        const { data: extraSchools } = await db.from('schools').select('id, name').in('id', extra);
+        (extraSchools ?? []).forEach((s: any) => { schoolNameMap[s.id] = s.name; });
+      }
+    }
+
+    // 4. Students currently in teacher's classes
+    const classIds = (teacherClasses ?? []).map((c: any) => c.id);
+    const { data: classStudents } = classIds.length > 0
+      ? await db.from('portal_users').select('id, full_name, email, school_id, class_id, section_class').in('class_id', classIds).eq('role', 'student').eq('is_deleted', false)
+      : { data: [] };
+
+    // 5. Students who have reports authored by this teacher but are NOT in their class
+    const { data: rptRows } = await db.from('student_progress_reports').select('student_id').eq('teacher_id', teacherAuditId).not('student_id', 'is', null);
+    const rptStudentIds = [...new Set((rptRows ?? []).map((r: any) => r.student_id).filter(Boolean))] as string[];
+    const classStudentIdSet = new Set((classStudents ?? []).map((s: any) => s.id));
+    const displacedIds = rptStudentIds.filter(id => !classStudentIdSet.has(id));
+
+    const { data: displacedStudents } = displacedIds.length > 0
+      ? await db.from('portal_users').select('id, full_name, email, school_id, school_name, class_id, section_class').in('id', displacedIds).eq('role', 'student').eq('is_deleted', false)
+      : { data: [] };
+
+    // Enrich displaced with current class name and its teacher name
+    const dispClassIds = [...new Set((displacedStudents ?? []).map((s: any) => s.class_id).filter(Boolean))];
+    let dispClassMap: Record<string, { name: string; teacher_id: string | null; teacher_name: string | null }> = {};
+    if (dispClassIds.length > 0) {
+      const { data: dispClasses } = await db.from('classes').select('id, name, teacher_id').in('id', dispClassIds);
+      const dispTeacherIds = [...new Set((dispClasses ?? []).map((c: any) => c.teacher_id).filter(Boolean))];
+      let dispTeacherNames: Record<string, string> = {};
+      if (dispTeacherIds.length > 0) {
+        const { data: dtRows } = await db.from('portal_users').select('id, full_name').in('id', dispTeacherIds);
+        (dtRows ?? []).forEach((t: any) => { dispTeacherNames[t.id] = t.full_name; });
+      }
+      (dispClasses ?? []).forEach((c: any) => {
+        dispClassMap[c.id] = { name: c.name, teacher_id: c.teacher_id, teacher_name: c.teacher_id ? (dispTeacherNames[c.teacher_id] ?? null) : null };
+      });
+    }
+
+    const enrichedDisplaced = (displacedStudents ?? []).map((s: any) => ({
+      ...s,
+      current_class_name: s.class_id ? (dispClassMap[s.class_id]?.name ?? s.section_class ?? null) : null,
+      current_class_teacher_name: s.class_id ? (dispClassMap[s.class_id]?.teacher_name ?? null) : null,
+    }));
+
+    // Build per-school structure
+    const schoolAudit = allRelevantSchoolIds.map(sid => ({
+      school_id: sid,
+      school_name: schoolNameMap[sid] ?? sid,
+      in_teacher_schools: assignedSchoolIds.includes(sid),
+      classes: (teacherClasses ?? []).filter((c: any) => c.school_id === sid).map((c: any) => ({
+        ...c,
+        student_count: (classStudents ?? []).filter((s: any) => s.class_id === c.id).length,
+      })),
+      students_in_classes: (classStudents ?? []).filter((s: any) => s.school_id === sid),
+      displaced_students: enrichedDisplaced.filter((s: any) => s.school_id === sid),
+    }));
+
+    return NextResponse.json({ data: { teacher_name: tProfile?.full_name ?? null, schoolAudit, allClasses: teacherClasses ?? [] } });
+  }
+
   const q = req.nextUrl.searchParams.get('search');
   if (q !== null) {
     const term = q.trim();
@@ -420,13 +514,19 @@ export async function POST(req: NextRequest) {
   // Finds every student who has a progress report authored by `teacherId` but
   // whose current class is owned by a different teacher, then moves them to `classId`.
   if (action === 'restore_by_reports') {
+    // ── SAFE VERSION ────────────────────────────────────────────────────────
+    // Only moves students who:
+    //   1. Have a report authored by teacherId
+    //   2. Currently have a class_id pointing to someone else's class
+    //   3. Belong to the SAME school as the destination class (school boundary)
+    // Does NOT touch students with no class, and does NOT cross school lines.
     const { teacherId, classId } = body;
     if (!teacherId || !classId) return NextResponse.json({ error: 'teacherId and classId required' }, { status: 400 });
 
     const { data: cls } = await db.from('classes').select('school_id, name').eq('id', classId).single();
     if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
-    // All students this teacher has ever written a report for
+    // Students with reports authored by this teacher
     const { data: reports } = await db
       .from('student_progress_reports')
       .select('student_id')
@@ -435,12 +535,14 @@ export async function POST(req: NextRequest) {
     const reportStudentIds = [...new Set((reports ?? []).map((r: any) => r.student_id).filter(Boolean))];
     if (reportStudentIds.length === 0) return NextResponse.json({ updated: 0, message: 'No students found with reports by this teacher' });
 
-    // Find which of those students are currently in a class not owned by this teacher
+    // Fetch students: must have class_id AND school_id must match destination class school
     const { data: students } = await db
       .from('portal_users')
-      .select('id, class_id')
+      .select('id, class_id, school_id')
       .in('id', reportStudentIds)
-      .eq('role', 'student');
+      .eq('role', 'student')
+      .eq('school_id', cls.school_id) // ← school boundary guard
+      .not('class_id', 'is', null);   // ← only students already in a class
 
     const classIds = [...new Set((students ?? []).map((s: any) => s.class_id).filter(Boolean))];
     const cTeacherMap: Record<string, string | null> = {};
@@ -449,8 +551,9 @@ export async function POST(req: NextRequest) {
       (classes ?? []).forEach((c: any) => { cTeacherMap[c.id] = c.teacher_id; });
     }
 
+    // Only move students whose current class is owned by a DIFFERENT teacher
     const toMove = (students ?? [])
-      .filter((s: any) => !s.class_id || cTeacherMap[s.class_id] !== teacherId)
+      .filter((s: any) => cTeacherMap[s.class_id] !== teacherId)
       .map((s: any) => s.id);
     if (toMove.length === 0) return NextResponse.json({ updated: 0, message: 'All students already in this teacher\'s class' });
 
@@ -503,15 +606,17 @@ export async function POST(req: NextRequest) {
     let moved = 0;
     for (const s of (students ?? [])) {
       const classTeacher = cMap[s.class_id]?.teacher_id;
+      const classSchool = cMap[s.class_id]?.school_id;
       const reportTeacher = rptTeacher[s.id];
       if (!classTeacher || !reportTeacher || classTeacher === reportTeacher) continue;
 
+      // Destination must be at the SAME school as the student — no cross-school moves
       const key = `${reportTeacher}::${s.school_id}`;
       const destClassId = teacherSchoolClass[key];
       if (!destClassId) continue;
 
       const destCls = cMap[destClassId];
-      if (!destCls) continue;
+      if (!destCls || destCls.school_id !== s.school_id) continue; // extra school guard
 
       await db.from('portal_users').update({
         class_id: destClassId,
@@ -522,6 +627,32 @@ export async function POST(req: NextRequest) {
       moved++;
     }
     return NextResponse.json({ success: true, updated: moved });
+  }
+
+  // Direct assign: move a specific list of student IDs to a class.
+  // Used by the Teacher Audit UI for per-school targeted restore.
+  // Enforces school boundary — students whose school_id doesn't match are skipped.
+  if (action === 'direct_assign') {
+    const { classId: destClassId, studentIds: sids } = body;
+    if (!destClassId || !sids?.length) return NextResponse.json({ error: 'classId and studentIds required' }, { status: 400 });
+    const { data: cls } = await db.from('classes').select('school_id, name').eq('id', destClassId).single();
+    if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+    // Verify school boundary — silently skip cross-school students
+    const { data: eligible } = await db.from('portal_users')
+      .select('id')
+      .in('id', sids)
+      .eq('school_id', cls.school_id)
+      .eq('role', 'student');
+    const eligibleIds = (eligible ?? []).map((s: any) => s.id);
+    if (eligibleIds.length === 0) return NextResponse.json({ updated: 0, skipped: sids.length, message: 'No students match the class school' });
+
+    const { error } = await db.from('portal_users')
+      .update({ class_id: destClassId, section_class: cls.name, updated_at: new Date().toISOString() })
+      .in('id', eligibleIds);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const skipped = sids.length - eligibleIds.length;
+    return NextResponse.json({ success: true, updated: eligibleIds.length, skipped });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
