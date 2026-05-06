@@ -1211,6 +1211,21 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="p-6 space-y-6">
+                  {/* Important ordering notice */}
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-amber-400 mb-0.5">Run Class Health & Repair first</p>
+                      <p className="text-xs text-amber-500/80">
+                        &quot;Align All to Class&quot; sets a student&apos;s school to match their current class. If a student is in the <em>wrong class</em> (e.g. from a batch-enroll overwrite), this will lock in the wrong assignment instead of fixing it.{' '}
+                        <a href="/dashboard/classes/heal" className="underline font-bold text-amber-400 hover:text-amber-300">
+                          Fix class assignments in the Class Health & Repair tool
+                        </a>{' '}
+                        before running alignment here. Students already flagged as being in the wrong class will be skipped automatically.
+                      </p>
+                    </div>
+                  </div>
+
                   {/* School Mismatch Section */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
