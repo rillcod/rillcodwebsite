@@ -73,14 +73,48 @@ export async function GET(req: NextRequest) {
       ? await db.from('portal_users').select('id, full_name, email, school_id, class_id, section_class').in('class_id', classIds).eq('role', 'student').eq('is_deleted', false)
       : { data: [] };
 
-    // 5. Students who have reports authored by this teacher but are NOT in their class
+    const classStudentIdSet = new Set((classStudents ?? []).map((s: any) => s.id));
+
+    // 5a. Students who have reports authored by this teacher but are NOT in their class
     const { data: rptRows } = await db.from('student_progress_reports').select('student_id').eq('teacher_id', teacherAuditId).not('student_id', 'is', null);
     const rptStudentIds = [...new Set((rptRows ?? []).map((r: any) => r.student_id).filter(Boolean))] as string[];
-    const classStudentIdSet = new Set((classStudents ?? []).map((s: any) => s.id));
-    const displacedIds = rptStudentIds.filter(id => !classStudentIdSet.has(id));
+    const reportDisplacedIds = new Set(rptStudentIds.filter(id => !classStudentIdSet.has(id)));
 
-    const { data: displacedStudents } = displacedIds.length > 0
-      ? await db.from('portal_users').select('id, full_name, email, school_id, school_name, class_id, section_class').in('id', displacedIds).eq('role', 'student').eq('is_deleted', false)
+    // 5b. Students originally registered BY this teacher (batch creator) who are NOT in their class.
+    // This catches new students with no reports yet — the batch creator is who brought them in.
+    const { data: teacherBatches } = await db
+      .from('registration_batches')
+      .select('id')
+      .eq('created_by', teacherAuditId);
+    const teacherBatchIds = (teacherBatches ?? []).map((b: any) => b.id);
+    const batchDisplacedIds = new Set<string>();
+    if (teacherBatchIds.length > 0) {
+      const { data: batchResultRows } = await db
+        .from('registration_results')
+        .select('email')
+        .in('batch_id', teacherBatchIds);
+      const batchEmails = [...new Set((batchResultRows ?? []).map((r: any) => r.email?.toLowerCase()).filter(Boolean))];
+      if (batchEmails.length > 0) {
+        const { data: batchStudentRows } = await db
+          .from('portal_users')
+          .select('id')
+          .in('email', batchEmails)
+          .eq('role', 'student')
+          .eq('is_deleted', false);
+        (batchStudentRows ?? []).forEach((s: any) => {
+          if (!classStudentIdSet.has(s.id)) batchDisplacedIds.add(s.id);
+        });
+      }
+    }
+
+    // Union of both displacement signals — tag each student with what flagged them
+    const allDisplacedIds = [...new Set([...reportDisplacedIds, ...batchDisplacedIds])];
+    const displacementSources = new Map<string, string[]>();
+    reportDisplacedIds.forEach(id => { displacementSources.set(id, [...(displacementSources.get(id) ?? []), 'report_authored']); });
+    batchDisplacedIds.forEach(id => { displacementSources.set(id, [...(displacementSources.get(id) ?? []), 'batch_registered']); });
+
+    const { data: displacedStudents } = allDisplacedIds.length > 0
+      ? await db.from('portal_users').select('id, full_name, email, school_id, school_name, class_id, section_class').in('id', allDisplacedIds).eq('role', 'student').eq('is_deleted', false)
       : { data: [] };
 
     // Enrich displaced with current class name and its teacher name
@@ -103,6 +137,8 @@ export async function GET(req: NextRequest) {
       ...s,
       current_class_name: s.class_id ? (dispClassMap[s.class_id]?.name ?? s.section_class ?? null) : null,
       current_class_teacher_name: s.class_id ? (dispClassMap[s.class_id]?.teacher_name ?? null) : null,
+      // How we know this student belongs here: 'report_authored', 'batch_registered', or both
+      displacement_sources: displacementSources.get(s.id) ?? [],
     }));
 
     // Build per-school structure

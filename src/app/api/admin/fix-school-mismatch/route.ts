@@ -218,37 +218,49 @@ export async function PATCH(request: NextRequest) {
         }
       }
 
-      // ── Signal 2: Registration History (Weight 100) ───────────────────────
-      // When there are multiple batches, prefer the batch whose class teacher matches
-      // the primary report author — that batch represents the original correct enrollment.
-      // If still ambiguous, use the first/only batch (not last, as last = likely overwrite).
+      // ── Signal 2: Registration History + Batch Creator (Weight 100–200) ──
+      // When there are multiple batches (re-registrations), prefer the batch whose
+      // creator matches the primary report teacher — that's the original teacher's batch.
+      // If only batch creator matches (no reports yet), that alone scores 120.
+      // If still ambiguous, fallback to the first/earliest batch (original enrollment).
       let selectedBatch: any = null;
       if (candidateBatchIds.length > 0) {
         if (candidateBatchIds.length === 1) {
           selectedBatch = batchMap.get(candidateBatchIds[0]);
         } else {
-          // Multiple batches: pick the one whose class teacher = primary report teacher
+          // Multiple batches: prefer by creator = report teacher, then by class teacher = report teacher
           for (const bid of candidateBatchIds) {
             const b = batchMap.get(bid);
             if (!b) continue;
-            const bClass = allClasses?.find((c: any) =>
-              c.id === b.class_id || (c.name === b.class_name && c.school_id === b.school_id)
-            );
-            if (bClass && primaryReportTeacher && bClass.teacher_id === primaryReportTeacher) {
+            // Strongest: batch was created BY the same teacher who wrote the reports
+            if (primaryReportTeacher && b.created_by === primaryReportTeacher) {
               selectedBatch = b;
               break;
             }
           }
-          // Fallback: first batch (earliest registration ≈ original, before overwrite)
+          if (!selectedBatch) {
+            for (const bid of candidateBatchIds) {
+              const b = batchMap.get(bid);
+              if (!b) continue;
+              const bClass = allClasses?.find((c: any) =>
+                c.id === b.class_id || (c.name === b.class_name && c.school_id === b.school_id)
+              );
+              if (bClass && primaryReportTeacher && bClass.teacher_id === primaryReportTeacher) {
+                selectedBatch = b;
+                break;
+              }
+            }
+          }
+          // Fallback: first batch (earliest = original registration before any overwrite)
           if (!selectedBatch) selectedBatch = batchMap.get(candidateBatchIds[0]);
         }
 
         if (selectedBatch) {
+          const batchCreatorMatchesReportTeacher = primaryReportTeacher && selectedBatch.created_by === primaryReportTeacher;
+
           if (score === 0) {
-            // No report signal — history is the best we have
+            // No report signal yet — use batch creator as the ownership signal
             bestSchoolId = selectedBatch.school_id;
-            score += 100;
-            evidence.push('Registration Record');
             // Resolve class from history
             let histClassId = selectedBatch.class_id || null;
             if (!histClassId && selectedBatch.class_name && selectedBatch.school_id) {
@@ -256,10 +268,27 @@ export async function PATCH(request: NextRequest) {
               if (mc) histClassId = mc.id;
             }
             finalTargetClassId = histClassId;
-          } else if (selectedBatch.school_id === bestSchoolId) {
-            // History confirms the report-based school — extra confidence
-            score += 50;
-            evidence.push('Confirmed by Registration Record');
+            if (batchCreatorMatchesReportTeacher) {
+              // Batch creator = report teacher: very high confidence
+              score += 200;
+              evidence.push('Batch Creator + Report Author agree');
+            } else if (selectedBatch.created_by) {
+              // Batch creator is known — teacher who registered them is the likely owner
+              score += 120;
+              evidence.push('Batch Creator (original registrar)');
+            } else {
+              score += 100;
+              evidence.push('Registration Record');
+            }
+          } else {
+            if (batchCreatorMatchesReportTeacher) {
+              // Batch creator confirms the report-based result — strongest possible agreement
+              score += 80;
+              evidence.push('Batch Creator confirms Report Author');
+            } else if (selectedBatch.school_id === bestSchoolId) {
+              score += 50;
+              evidence.push('Confirmed by Registration Record');
+            }
           }
         }
       }
