@@ -275,32 +275,45 @@ export async function POST(request: NextRequest) {
         }
       }
     } else if (action === 'align_student') {
-      // Update student's school to match their current class
+      // Sync school_id to match the student's current class school.
+      // SAFE GUARD: if the student's current class is owned by Teacher A but their
+      // progress reports were primarily written by Teacher B, the class assignment is
+      // likely wrong (a batch-enroll overwrite). Skip those students and flag them —
+      // they should be fixed in the Class Health tool first, then re-aligned here.
+      const skippedConflict: string[] = [];
       for (const sid of studentIds) {
         try {
-          const { data: student } = await admin.from('portal_users').select('class_id').eq('id', sid).single();
+          const { data: student } = await admin.from('portal_users').select('class_id, full_name').eq('id', sid).single();
           if (!student?.class_id) continue;
 
-          const { data: cls } = await admin.from('classes').select('school_id, name').eq('id', student.class_id).single();
+          const { data: cls } = await admin.from('classes').select('school_id, name, teacher_id').eq('id', student.class_id).single();
           if (!cls?.school_id) continue;
 
+          // Check if class teacher matches primary report teacher
+          if (cls.teacher_id) {
+            const { data: rpts } = await admin.from('student_progress_reports').select('teacher_id').eq('student_id', sid).not('teacher_id', 'is', null);
+            const counts: Record<string, number> = {};
+            (rpts ?? []).forEach((r: any) => { counts[r.teacher_id] = (counts[r.teacher_id] || 0) + 1; });
+            const topEntry = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+            const primaryReportTeacher = topEntry?.[0];
+            if (primaryReportTeacher && primaryReportTeacher !== cls.teacher_id) {
+              // Class teacher ≠ report teacher → student is likely in the wrong class
+              // Skip this student; use Class Health & Repair to fix the class first
+              skippedConflict.push(student.full_name || sid);
+              continue;
+            }
+          }
+
           const { data: school } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
-
-          await admin.from('portal_users').update({
-            school_id: cls.school_id,
-            school_name: school?.name ?? null
-          }).eq('id', sid);
-          
-          // Also sync to 'students' (pre-portal) table if it exists
-          await admin.from('students').update({
-            school_id: cls.school_id,
-            school_name: school?.name ?? null
-          }).eq('user_id', sid);
-
+          await admin.from('portal_users').update({ school_id: cls.school_id, school_name: school?.name ?? null }).eq('id', sid);
+          await admin.from('students').update({ school_id: cls.school_id, school_name: school?.name ?? null }).eq('user_id', sid);
           successCount++;
         } catch (e: any) {
           errors.push(`Failed for ${sid}: ${e.message}`);
         }
+      }
+      if (skippedConflict.length > 0) {
+        errors.push(`Skipped ${skippedConflict.length} student(s) whose class teacher doesn't match their report teacher — fix class assignment in Class Health first: ${skippedConflict.join(', ')}`);
       }
     } else if (action === 'unenroll') {
       // Remove student from the class
