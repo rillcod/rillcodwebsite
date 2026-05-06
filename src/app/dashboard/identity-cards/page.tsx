@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
 import {
   CreditCardIcon,
@@ -48,6 +49,17 @@ type ParentUser = {
   children?: Array<{ id: string; full_name: string; school_name?: string | null }>;
 };
 
+type DbCard = {
+  id: string;
+  card_number: string;
+  verification_code: string;
+  status: string;
+  issued_at: string | null;
+  expires_at: string | null;
+  holder_id: string;
+  holder_type: string;
+};
+
 type CardRecord = {
   id: string;
   name: string;
@@ -58,6 +70,7 @@ type CardRecord = {
   /** Raw class/section value – used for grouping */
   sectionClass: string;
   profileUrl: string;
+  schoolId: string | null;
 };
 
 const FALLBACK_CONFIG: Required<CardConfig> = {
@@ -80,6 +93,10 @@ export default function IdentityCardsPage() {
   const [records, setRecords] = useState<CardRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dbCardsMap, setDbCardsMap] = useState<Map<string, DbCard>>(new Map());
+  const [isIssuingIds, setIsIssuingIds] = useState<Set<string>>(new Set());
+  const [bulkIssuing, setBulkIssuing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Sorting / grouping state
   const [selectedClass, setSelectedClass] = useState<string>('all');
@@ -115,6 +132,7 @@ export default function IdentityCardsPage() {
       badge: r.section_class || (type === 'teacher' ? 'Staff' : 'Student'),
       sectionClass: r.section_class || '',
       profileUrl: `${window.location.origin}/dashboard/profile`,
+      schoolId: (r as any).school_id ?? null,
     }));
 
   const mapParents = (rows: ParentUser[]): CardRecord[] =>
@@ -127,6 +145,7 @@ export default function IdentityCardsPage() {
       badge: `${r.children?.length || 0} child${(r.children?.length || 0) === 1 ? '' : 'ren'}`,
       sectionClass: '',
       profileUrl: `${window.location.origin}/dashboard/parent-feedback`,
+      schoolId: null,
     }));
 
   const loadRecords = async (type: CardType) => {
@@ -151,6 +170,7 @@ export default function IdentityCardsPage() {
               badge: 'Parent',
               sectionClass: '',
               profileUrl: `${window.location.origin}/dashboard/parent-feedback`,
+              schoolId: (r as any).school_id ?? null,
             })),
           );
         } else {
@@ -170,6 +190,50 @@ export default function IdentityCardsPage() {
       setError(e?.message || 'Failed to load card holders');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCards = async (type: CardType) => {
+    try {
+      const res = await fetch(`/api/cards?holder_type=${type}`, { cache: 'no-store' });
+      if (!res.ok) {
+        toast.warning('Could not load card status data');
+        return;
+      }
+      const json = await res.json();
+      const map = new Map<string, DbCard>();
+      for (const c of json.data ?? []) {
+        if (c.holder_id) map.set(c.holder_id, c);
+      }
+      setDbCardsMap(map);
+    } catch {
+      toast.warning('Could not load card status data');
+    }
+  };
+
+  const issueCard = async (record: CardRecord) => {
+    setIsIssuingIds((prev) => new Set(prev).add(record.id));
+    try {
+      const res = await fetch('/api/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          holder_type: activeType,
+          holder_id: record.id,
+          school_id: record.schoolId,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        toast.error(j.error || 'Failed to issue card');
+        return;
+      }
+      toast.success(`Card issued for ${record.name}`);
+      await loadCards(activeType);
+    } catch (e: any) {
+      toast.error(e.message || 'Error issuing card');
+    } finally {
+      setIsIssuingIds((prev) => { const s = new Set(prev); s.delete(record.id); return s; });
     }
   };
 
@@ -196,6 +260,7 @@ export default function IdentityCardsPage() {
   useEffect(() => {
     if (!canAccess) return;
     loadRecords(activeType);
+    loadCards(activeType);
   }, [activeType, canAccess]);
 
   useEffect(() => {
@@ -272,7 +337,7 @@ export default function IdentityCardsPage() {
   // ─── print ────────────────────────────────────────────────────────────────
 
   const printCards = (list: CardRecord[], title: string) => {
-    if (!list.length) { alert('No records to print.'); return; }
+    if (!list.length) { toast.error('No records to print.'); return; }
     const acc = config.accentColor;
     const org = config.orgName;
     const site = config.orgWebsite;
@@ -311,8 +376,12 @@ export default function IdentityCardsPage() {
       <div class="grid">
       ${list
         .map((r) => {
-          const code = `RC-${r.id.slice(0, 8).toUpperCase()}`;
-          const qr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(r.profileUrl)}`;
+          const dbCard = dbCardsMap.get(r.id);
+          const code = dbCard?.card_number ?? `RC-${r.id.slice(0, 8).toUpperCase()}`;
+          const verifyUrl = dbCard?.verification_code
+            ? `${window.location.origin}/verify/${dbCard.verification_code}`
+            : r.profileUrl;
+          const qr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verifyUrl)}`;
           const hdrClass = hStyle === 'border' ? 'hdr-border' : hStyle === 'minimal' ? 'hdr-min' : 'hdr-band';
           return `<div class="card">
               <div class="${hdrClass}">
@@ -342,7 +411,7 @@ export default function IdentityCardsPage() {
       </body></html>`;
 
     const win = window.open('', '_blank');
-    if (!win) { alert('Pop-up blocked. Please allow pop-ups for printing.'); return; }
+    if (!win) { toast.error('Pop-up blocked. Please allow pop-ups for printing.'); return; }
     win.document.write(html);
     win.document.close();
   };
@@ -380,8 +449,12 @@ export default function IdentityCardsPage() {
       {list.map((r) => {
         const isSelected = selectedIds.has(r.id);
         const acc = config.accentColor;
-        const code = `RC-${r.id.slice(0, 8).toUpperCase()}`;
-        const qr = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(r.profileUrl)}`;
+        const dbCard = dbCardsMap.get(r.id);
+        const code = dbCard?.card_number ?? `RC-${r.id.slice(0, 8).toUpperCase()}`;
+        const verifyUrl = dbCard?.verification_code
+          ? `${window.location.origin}/verify/${dbCard.verification_code}`
+          : r.profileUrl;
+        const qr = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl)}`;
         const hStyle = config.headerStyle;
 
         return (
@@ -474,6 +547,27 @@ export default function IdentityCardsPage() {
               >
                 <PrinterIcon className="w-3 h-3" /> Print
               </button>
+              {/* Status badge or Issue button */}
+              {dbCard ? (
+                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 border ${
+                  dbCard.status === 'active' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : dbCard.status === 'revoked' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  : dbCard.status === 'expired' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  : 'bg-primary/10 border-primary/30 text-primary'
+                }`}>
+                  {dbCard.status}
+                </span>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); issueCard(r); }}
+                  disabled={isIssuingIds.has(r.id)}
+                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 border border-dashed border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                >
+                  {isIssuingIds.has(r.id) ? (
+                    <span className="w-2.5 h-2.5 border border-primary border-t-transparent rounded-full animate-spin inline-block" />
+                  ) : '+'} Issue
+                </button>
+              )}
             </div>
           </article>
         );
@@ -552,7 +646,7 @@ export default function IdentityCardsPage() {
                   </button>
                 </div>
                 <button
-                  onClick={() => { loadConfig(activeType); loadRecords(activeType); }}
+                  onClick={() => { loadConfig(activeType); loadRecords(activeType); loadCards(activeType); }}
                   className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
                 >
                   <ArrowPathIcon className="w-4 h-4" /> Refresh
@@ -794,6 +888,48 @@ export default function IdentityCardsPage() {
                   <PrinterIcon className="w-4 h-4" />
                   {selectedClass !== 'all' ? `Print Class` : 'Print Bulk'}
                 </button>
+                {filtered.some(r => !dbCardsMap.has(r.id)) && (
+                  <button
+                    disabled={bulkIssuing}
+                    onClick={async () => {
+                      const unissued = filtered.filter(r => !dbCardsMap.has(r.id));
+                      if (!unissued.length) return;
+                      if (!confirm(`Issue cards for ${unissued.length} holder(s) without cards?`)) return;
+                      setBulkIssuing(true);
+                      setBulkProgress({ done: 0, total: unissued.length });
+                      let done = 0;
+                      const results = await Promise.allSettled(
+                        unissued.map(async (r) => {
+                          const res = await fetch('/api/cards', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ holder_type: activeType, holder_id: r.id, school_id: r.schoolId }),
+                          });
+                          if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed'); }
+                          done += 1;
+                          setBulkProgress({ done, total: unissued.length });
+                        })
+                      );
+                      const failed = results.filter(r => r.status === 'rejected').length;
+                      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+                      if (failed > 0) toast.error(`${failed} card(s) failed to issue`);
+                      if (succeeded > 0) toast.success(`${succeeded} card(s) issued successfully`);
+                      await loadCards(activeType);
+                      setBulkIssuing(false);
+                      setBulkProgress(null);
+                    }}
+                    className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-primary/40 hover:bg-primary/10 text-primary rounded-xl transition-all inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {bulkIssuing ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        {bulkProgress ? `${bulkProgress.done}/${bulkProgress.total}` : 'Issuing…'}
+                      </>
+                    ) : (
+                      `Issue Missing (${filtered.filter(r => !dbCardsMap.has(r.id)).length})`
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 

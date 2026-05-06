@@ -15,12 +15,14 @@ export async function GET(request: Request) {
   const status = searchParams.get('status');
   const schoolId = searchParams.get('school_id');
 
+  const holderId = searchParams.get('holder_id');
+
   const db = createAdminClient();
   let q = (db as any)
     .from('identity_cards')
     .select('*, portal_users!identity_cards_holder_id_fkey(id, full_name, email, school_id, school_name, section_class)', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(200);
+    .limit(500);
 
   if (holderType) q = q.eq('holder_type', holderType);
   if (holderType === 'teacher' && ctx.role !== 'admin') {
@@ -28,6 +30,7 @@ export async function GET(request: Request) {
   }
   if (status) q = q.eq('status', status);
   if (schoolId) q = q.eq('school_id', schoolId);
+  if (holderId) q = q.eq('holder_id', holderId);
 
   if (ctx.role !== 'admin') {
     if (ctx.school_ids.length === 0) return NextResponse.json({ data: [], total: 0 });
@@ -54,16 +57,19 @@ export async function POST(request: Request) {
     metadata = {},
   } = body || {};
 
-  if (!holder_type || !holder_id || !school_id) {
-    return NextResponse.json({ error: 'holder_type, holder_id, and school_id are required' }, { status: 400 });
+  if (!holder_type || !holder_id) {
+    return NextResponse.json({ error: 'holder_type and holder_id are required' }, { status: 400 });
   }
   if (!['student', 'parent', 'teacher'].includes(holder_type)) {
     return NextResponse.json({ error: 'Invalid holder_type' }, { status: 400 });
   }
+  if (holder_type !== 'parent' && !school_id) {
+    return NextResponse.json({ error: 'school_id is required for student and teacher cards' }, { status: 400 });
+  }
   if (holder_type === 'teacher' && ctx.role !== 'admin') {
     return NextResponse.json({ error: 'Teacher cards can only be issued by admin' }, { status: 403 });
   }
-  if (!canAccessSchool(ctx, school_id)) {
+  if (school_id && !canAccessSchool(ctx, school_id)) {
     return NextResponse.json({ error: 'Forbidden for this school scope' }, { status: 403 });
   }
 

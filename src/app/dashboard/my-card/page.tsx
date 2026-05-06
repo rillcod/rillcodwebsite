@@ -55,19 +55,32 @@ export default function MyCardPage() {
   const [cfg, setCfg] = useState<CardConfig>(DEFAULT_CFG);
   const [loading, setLoading] = useState(true);
   const [printed, setPrinted] = useState(false);
+  const [myCard, setMyCard] = useState<any | null>(null);
+  const [cardLoading, setCardLoading] = useState(true);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/admin/settings')
-      .then(r => r.json())
-      .then(j => {
-        if (j.config) setCfg({ ...DEFAULT_CFG, ...j.config });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (!profile) return;
+    const fetchAll = async () => {
+      try {
+        const [settingsRes, cardRes] = await Promise.all([
+          fetch('/api/admin/settings'),
+          fetch('/api/cards/mine'),
+        ]);
+        const settingsJson = await settingsRes.json();
+        if (settingsJson.config) setCfg({ ...DEFAULT_CFG, ...settingsJson.config });
+        const cardJson = await cardRes.json();
+        const cards = cardJson.data ?? [];
+        // Prefer active card, then most recent
+        const active = cards.find((c: any) => c.status === 'active') ?? cards[0] ?? null;
+        setMyCard(active);
+      } catch {}
+      finally { setLoading(false); setCardLoading(false); }
+    };
+    fetchAll();
+  }, [profile?.id]);
 
-  if (authLoading || loading) {
+  if (authLoading || loading || cardLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -90,14 +103,28 @@ export default function MyCardPage() {
 
   const acc = cfg.accentColor;
   const [r, g, b] = hex2rgb(acc);
-  const code = `RC-${profile.id.slice(0, 8).toUpperCase()}`;
+  const code = myCard?.card_number ?? `RC-${profile.id.slice(0, 8).toUpperCase()}`;
   const roleLabel = profile.role === 'student' ? 'Student'
     : profile.role === 'teacher' ? 'Teacher'
     : profile.role === 'admin' ? 'Administrator'
     : profile.role === 'school' ? 'School Partner'
     : 'Parent';
-  const verifyUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}/verify/${profile.id}`;
+  const idLabel = profile.role === 'student' ? 'Student ID'
+    : profile.role === 'teacher' ? 'Staff ID'
+    : profile.role === 'parent' ? 'Parent Card ID'
+    : profile.role === 'school' ? 'Partner ID'
+    : 'Card ID';
+  const verifyUrl = myCard?.verification_code
+    ? `${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}/verify/${myCard.verification_code}`
+    : `${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}/verify/${profile.id}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
+  const cardStatusLabel = myCard
+    ? myCard.status === 'active' ? 'Active'
+      : myCard.status === 'issued' ? 'Issued (Pending Activation)'
+      : myCard.status === 'revoked' ? 'Revoked'
+      : myCard.status === 'expired' ? 'Expired'
+      : myCard.status
+    : 'Not Issued';
 
   const buildPrintHtml = () => {
     const logo = `${window.location.origin}/images/logo.png`;
@@ -151,7 +178,7 @@ export default function MyCardPage() {
           <div class="sep"></div>
           ${profile.school_name ? `<div class="field"><div class="lbl">School</div><div class="val-a">${profile.school_name}</div></div>` : ''}
           <div class="field"><div class="lbl">Email</div><div class="val">${profile.email || '—'}</div></div>
-          <div class="field"><div class="lbl">Student ID</div><div class="val-a">${code}</div></div>
+          <div class="field"><div class="lbl">${idLabel}</div><div class="val-a">${code}</div></div>
         </div>
         <div class="qrp">
           <img src="${qrUrl}" class="qr" crossorigin="anonymous" />
@@ -221,7 +248,7 @@ export default function MyCardPage() {
     const fields = [
       { label: 'SCHOOL', value: profile.school_name || 'Rillcod Academy', accent: true },
       { label: 'EMAIL', value: profile.email || '—', accent: false },
-      { label: 'STUDENT ID', value: code, accent: true },
+      { label: idLabel.toUpperCase(), value: code, accent: true },
     ];
     fields.forEach(f => {
       doc.setFontSize(5.5); doc.setTextColor(156, 163, 175); doc.setFont('helvetica', 'normal');
@@ -278,6 +305,16 @@ export default function MyCardPage() {
           Present this card to school staff for identity verification. The QR code links to your profile verification page.
         </p>
       </div>
+
+      {/* No card notice */}
+      {!myCard && !cardLoading && (
+        <div className="flex items-start gap-3 bg-amber-500/[0.07] border border-amber-500/20 rounded-xl p-4 text-sm">
+          <CreditCardIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-amber-400/70">
+            No card has been issued for your account yet. The preview below is a placeholder. Contact your school administrator to get a card issued.
+          </p>
+        </div>
+      )}
 
       {/* Card Preview */}
       <div className="bg-card border border-white/[0.08] rounded-2xl p-6">
@@ -337,7 +374,7 @@ export default function MyCardPage() {
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#111', wordBreak: 'break-all' }}>{profile.email || '—'}</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <div style={{ fontSize: 7, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1 }}>Student ID</div>
+                <div style={{ fontSize: 7, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1 }}>{idLabel}</div>
                 <div style={{ fontSize: 11, fontWeight: 800, fontFamily: 'monospace', color: acc }}>{code}</div>
               </div>
             </div>
@@ -380,8 +417,8 @@ export default function MyCardPage() {
             { icon: EnvelopeIcon, label: 'Email', value: profile.email || '—' },
             { icon: BuildingOfficeIcon, label: 'School', value: profile.school_name || 'Rillcod Academy' },
             { icon: AcademicCapIcon, label: 'Role', value: roleLabel },
-            { icon: CreditCardIcon, label: 'Card ID', value: code },
-            { icon: CreditCardIcon, label: 'Card Status', value: 'Valid & Active' },
+            { icon: CreditCardIcon, label: idLabel, value: code },
+            { icon: CreditCardIcon, label: 'Card Status', value: cardStatusLabel },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-start gap-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3">
               <Icon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />

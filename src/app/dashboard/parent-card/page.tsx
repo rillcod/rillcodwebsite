@@ -4,9 +4,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  CreditCardIcon, PrinterIcon, ArrowDownTrayIcon, UserGroupIcon,
-  UserIcon, EnvelopeIcon, BuildingOfficeIcon, CheckCircleIcon,
+  CreditCardIcon, PrinterIcon, UserGroupIcon,
+  CheckCircleIcon,
   ShieldCheckIcon, InformationCircleIcon,
+  ExclamationTriangleIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
 
@@ -28,6 +29,16 @@ interface Child {
   role: string;
 }
 
+type DbCard = {
+  id: string;
+  card_number: string;
+  verification_code: string;
+  status: string;
+  issued_at: string | null;
+  expires_at: string | null;
+  holder_id: string;
+};
+
 const DEFAULT_CFG: CardConfig = {
   accentColor: '#ea580c',
   orgName: 'RILLCOD TECHNOLOGIES',
@@ -37,14 +48,34 @@ const DEFAULT_CFG: CardConfig = {
   headerStyle: 'band',
 };
 
-function hex2rgb(hex: string) {
-  const h = hex.replace('#', '');
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)] as [number, number, number];
+function cardStatusLabel(dbCard: DbCard | undefined): string {
+  if (!dbCard) return 'Not Issued';
+  switch (dbCard.status) {
+    case 'active': return 'Active';
+    case 'issued': return 'Issued (Pending Activation)';
+    case 'revoked': return 'Revoked';
+    case 'expired': return 'Expired';
+    default: return dbCard.status;
+  }
 }
 
-function MiniCard({ child, cfg }: { child: Child; cfg: CardConfig }) {
+function cardStatusColors(dbCard: DbCard | undefined): string {
+  if (!dbCard) return 'bg-muted/50 text-muted-foreground border-border';
+  switch (dbCard.status) {
+    case 'active': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+    case 'issued': return 'bg-primary/15 text-primary border-primary/30';
+    case 'revoked': return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
+    case 'expired': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+    default: return 'bg-muted/50 text-muted-foreground border-border';
+  }
+}
+
+function MiniCard({ child, cfg, dbCard }: { child: Child; cfg: CardConfig; dbCard?: DbCard | null }) {
   const acc = cfg.accentColor;
-  const code = `RC-${child.id.slice(0, 8).toUpperCase()}`;
+  const code = dbCard?.card_number ?? 'PENDING';
+  const verifyUrl = dbCard?.verification_code
+    ? `${window.location.origin}/verify/${dbCard.verification_code}`
+    : null;
 
   return (
     <div className="w-full overflow-hidden shadow-lg" style={{ border: `1px solid #d1d5db`, borderLeft: cfg.headerStyle === 'border' ? `4px solid ${acc}` : `1px solid #d1d5db`, background: '#fff', color: '#111' }}>
@@ -93,18 +124,29 @@ function MiniCard({ child, cfg }: { child: Child; cfg: CardConfig }) {
           )}
           <div>
             <div style={{ fontSize: 6, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 1 }}>Card ID</div>
-            <div style={{ fontSize: 9, fontWeight: 800, fontFamily: 'monospace', color: acc }}>{code}</div>
+            <div style={{ fontSize: 9, fontWeight: 800, fontFamily: 'monospace', color: dbCard ? acc : '#9ca3af' }}>{code}</div>
           </div>
         </div>
         <div style={{ width: 90, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '10px 8px', background: '#fafafa', flexShrink: 0 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`https://rillcod.com/verify/${child.id}`)}`}
-            alt="QR Code"
-            style={{ width: 70, height: 70, border: '1px solid #e5e7eb' }}
-          />
-          <div style={{ fontSize: 6, color: '#9ca3af', textTransform: 'uppercase', textAlign: 'center', fontWeight: 600 }}>Scan to verify</div>
-          <div style={{ fontSize: 7, fontWeight: 900, fontFamily: 'monospace', color: acc, textAlign: 'center' }}>{code}</div>
+          {verifyUrl ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(verifyUrl)}`}
+                alt="QR Code"
+                style={{ width: 70, height: 70, border: '1px solid #e5e7eb' }}
+              />
+              <div style={{ fontSize: 6, color: '#9ca3af', textTransform: 'uppercase', textAlign: 'center', fontWeight: 600 }}>Scan to verify</div>
+              <div style={{ fontSize: 7, fontWeight: 900, fontFamily: 'monospace', color: acc, textAlign: 'center' }}>{code}</div>
+            </>
+          ) : (
+            <>
+              <div style={{ width: 70, height: 70, border: '1px dashed #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb' }}>
+                <span style={{ fontSize: 7, color: '#9ca3af', textAlign: 'center', fontWeight: 600 }}>No Card Issued</span>
+              </div>
+              <div style={{ fontSize: 6, color: '#9ca3af', textTransform: 'uppercase', textAlign: 'center', fontWeight: 600 }}>Pending</div>
+            </>
+          )}
         </div>
       </div>
 
@@ -121,6 +163,7 @@ export default function ParentCardPage() {
   const { profile, loading: authLoading } = useAuth();
   const [cfg, setCfg] = useState<CardConfig>(DEFAULT_CFG);
   const [children, setChildren] = useState<Child[]>([]);
+  const [childCardsMap, setChildCardsMap] = useState<Map<string, DbCard>>(new Map());
   const [loading, setLoading] = useState(true);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
@@ -130,9 +173,10 @@ export default function ParentCardPage() {
     Promise.all([
       fetch('/api/admin/settings').then(r => r.json()),
       fetch('/api/parents/portal?section=children').then(r => r.json()),
-    ]).then(([cfgJson, childrenJson]) => {
+      fetch('/api/cards/children').then(r => r.json()),
+    ]).then(([cfgJson, childrenJson, cardsJson]) => {
       if (cfgJson.config) setCfg({ ...DEFAULT_CFG, ...cfgJson.config });
-      // portal returns children from students table linked by parent_email
+
       const kids: Child[] = (childrenJson.children ?? []).map((c: any) => ({
         id: c.id,
         full_name: c.full_name || 'Unknown',
@@ -142,6 +186,12 @@ export default function ParentCardPage() {
         role: 'student',
       }));
       setChildren(kids);
+
+      const map = new Map<string, DbCard>();
+      for (const card of cardsJson.data ?? []) {
+        if (card.holder_id) map.set(card.holder_id, card);
+      }
+      setChildCardsMap(map);
     }).catch(() => {
       toast.error('Failed to load card data');
     }).finally(() => setLoading(false));
@@ -165,10 +215,14 @@ export default function ParentCardPage() {
   }
 
   const printCard = (child: Child) => {
+    const dbCard = childCardsMap.get(child.id);
     const acc = cfg.accentColor;
-    const code = `RC-${child.id.slice(0, 8).toUpperCase()}`;
+    const code = dbCard?.card_number ?? 'PENDING';
+    const verifyUrl = dbCard?.verification_code
+      ? `${window.location.origin}/verify/${dbCard.verification_code}`
+      : `${window.location.origin}/dashboard/profile`;
     const logo = `${window.location.origin}/images/logo.png`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/verify/${child.id}`)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
     const hdrBand = `<div class="chdr"><img src="${logo}" class="logo" /><div><div class="org">${cfg.orgName}</div><div class="web">${cfg.orgWebsite}</div></div><div class="cbadge">${cfg.cardLabel}</div></div>`;
     const hdrBorder = `<div class="bhdr"><img src="${logo}" class="logo" /><div><div class="org-b">${cfg.orgName}</div><div class="web-b">${cfg.orgWebsite}</div></div><div class="bbadge">${cfg.cardLabel}</div></div>`;
     const hdrMin = `<div class="mhdr"><img src="${logo}" class="logo" /><div class="org-m">${cfg.orgName}</div><div class="mbadge">${cfg.cardLabel}</div></div>`;
@@ -220,7 +274,7 @@ export default function ParentCardPage() {
           ${child.school_name ? `<div class="field"><div class="lbl">School</div><div class="val-a">${child.school_name}</div></div>` : ''}
           ${child.section_class ? `<div class="field"><div class="lbl">Class</div><div class="val">${child.section_class}</div></div>` : ''}
           ${child.email ? `<div class="field"><div class="lbl">Email</div><div class="val">${child.email}</div></div>` : ''}
-          <div class="field"><div class="lbl">Student ID</div><div class="val-a">${code}</div></div>
+          <div class="field"><div class="lbl">Card ID</div><div class="val-a">${code}</div></div>
         </div>
         <div class="qrp">
           <img src="${qrUrl}" class="qr" crossorigin="anonymous" />
@@ -248,8 +302,12 @@ export default function ParentCardPage() {
     const logo = `${window.location.origin}/images/logo.png`;
 
     const cardHtml = (child: Child) => {
-      const code = `RC-${child.id.slice(0, 8).toUpperCase()}`;
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}/verify/${child.id}`)}`;
+      const dbCard = childCardsMap.get(child.id);
+      const code = dbCard?.card_number ?? 'PENDING';
+      const verifyUrl = dbCard?.verification_code
+        ? `${window.location.origin}/verify/${dbCard.verification_code}`
+        : `${window.location.origin}/dashboard/profile`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(verifyUrl)}`;
       const hdrClass = cfg.headerStyle === 'border' ? 'hdr-border' : cfg.headerStyle === 'minimal' ? 'hdr-min' : 'hdr-band';
       return `<div class="card">
         <div class="${hdrClass}">
@@ -356,7 +414,10 @@ export default function ParentCardPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {children.map(child => {
-            const code = `RC-${child.id.slice(0, 8).toUpperCase()}`;
+            const dbCard = childCardsMap.get(child.id);
+            const code = dbCard?.card_number ?? 'PENDING';
+            const statusLabel = cardStatusLabel(dbCard);
+            const statusColors = cardStatusColors(dbCard);
             return (
               <div key={child.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 space-y-4">
                 {/* Header row */}
@@ -365,13 +426,21 @@ export default function ParentCardPage() {
                     <p className="font-black text-card-foreground text-base">{child.full_name}</p>
                     <p className="text-card-foreground/40 text-xs mt-0.5">{child.school_name || 'Rillcod Academy'}</p>
                   </div>
-                  <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-2 py-0.5 rounded-full">
-                    Student
+                  <span className={`border text-xs font-bold px-2 py-0.5 rounded-full ${statusColors}`}>
+                    {statusLabel}
                   </span>
                 </div>
 
                 {/* Card preview */}
-                <MiniCard child={child} cfg={cfg} />
+                <MiniCard child={child} cfg={cfg} dbCard={dbCard} />
+
+                {/* No card notice */}
+                {!dbCard && (
+                  <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                    No card issued yet. Ask your school admin to issue an access card.
+                  </div>
+                )}
 
                 {/* Details */}
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -379,7 +448,7 @@ export default function ParentCardPage() {
                     { label: 'Card ID', value: code },
                     { label: 'Class', value: child.section_class || '—' },
                     { label: 'Email', value: child.email || '—' },
-                    { label: 'Status', value: 'Valid' },
+                    { label: 'Status', value: statusLabel },
                   ].map(d => (
                     <div key={d.label} className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-2">
                       <p className="text-card-foreground/40 text-[10px] uppercase tracking-wider font-bold">{d.label}</p>
@@ -390,10 +459,20 @@ export default function ParentCardPage() {
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-1">
-                  <button onClick={() => printCard(child)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${printingId === child.id ? 'bg-emerald-500 text-white' : 'bg-primary hover:bg-primary/90 text-white'}`}>
+                  <button
+                    onClick={() => printCard(child)}
+                    disabled={!dbCard}
+                    title={!dbCard ? 'Card not issued yet — contact your school admin' : undefined}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                      !dbCard
+                        ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                        : printingId === child.id
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-primary hover:bg-primary/90 text-white'
+                    }`}
+                  >
                     {printingId === child.id ? <CheckCircleIcon className="w-4 h-4" /> : <PrinterIcon className="w-4 h-4" />}
-                    {printingId === child.id ? 'Opened!' : 'Print Card'}
+                    {printingId === child.id ? 'Opened!' : dbCard ? 'Print Card' : 'Not Issued'}
                   </button>
                 </div>
               </div>
