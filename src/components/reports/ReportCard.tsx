@@ -251,7 +251,9 @@ export default function ReportCard({ report, orgSettings }: {
                     )}
                     <div>
                         <p className="text-[9px] font-black text-muted-foreground/70 uppercase tracking-widest mb-0.5">Verify</p>
-                        <p className="text-[12px] font-black text-foreground">rillcod.com/verify</p>
+                        <p className="text-[12px] font-black text-foreground">
+                            rillcod.com/verify/{report.id?.slice(0, 8)?.toUpperCase() ?? '—'}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -314,28 +316,28 @@ export default function ReportCard({ report, orgSettings }: {
                                 <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: 6, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <span style={{ fontSize: 8, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key</span>
                                     {[
-                                        { label: 'Exam', pts: 40, color: '#4f46e5' },
-                                        { label: 'Eval', pts: 20, color: '#0891b2' },
-                                        { label: 'Assign', pts: 20, color: '#059669' },
-                                        { label: 'Project', pts: 20, color: '#7c3aed' },
+                                        { label: 'Theory',    pts: 20, color: '#6366f1' },
+                                        { label: 'Practical', pts: 25, color: '#06b6d4' },
+                                        { label: 'Assign',    pts: 20, color: '#10b981' },
+                                        { label: 'Attend',    pts: 10, color: '#8b5cf6' },
+                                        { label: 'Class',     pts: 10, color: '#f97316' },
+                                        { label: 'Assess',    pts: 15, color: '#f59e0b' },
                                     ].map((item, i) => (
                                         <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
                                             {i > 0 && <span style={{ color: '#d1d5db', marginRight: 4, fontSize: 8 }}>·</span>}
                                             <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: item.color, display: 'inline-block', marginRight: 3, flexShrink: 0 }} />
                                             <span style={{ fontSize: 8, fontWeight: 800, color: item.color }}>{item.label}</span>
-                                            <span style={{ fontSize: 8, fontWeight: 600, color: '#9ca3af', marginLeft: 1 }}>/{item.pts}</span>
+                                            <span style={{ fontSize: 8, fontWeight: 600, color: '#9ca3af', marginLeft: 1 }}>/{item.pts}%</span>
                                         </span>
                                     ))}
-                                    <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100 pts</span>
+                                    <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', marginLeft: 4 }}>= 100%</span>
                                 </div>
                                 <MetricBar label="Theory / Written (20%)" value={theory} color="#6366f1" />
                                 <MetricBar label="Practical / Projects (25%)" value={practical} color="#06b6d4" />
                                 <MetricBar label="Assignments (20%)" value={assignments} color="#10b981" />
                                 <MetricBar label="Attendance (10%)" value={attendance} color="#8b5cf6" />
-                                {(classwork > 0 || assessment > 0) && <>
-                                    <MetricBar label="Classwork (10%)" value={classwork} color="#f97316" />
-                                    <MetricBar label="Mid-term Assessment (15%)" value={assessment} color="#f59e0b" />
-                                </>}
+                                <MetricBar label="Classwork (10%)" value={classwork} color="#f97316" />
+                                <MetricBar label="Mid-term Assessment (15%)" value={assessment} color="#f59e0b" />
                             </div>
 
                             {/* Right — weighted grade display */}
@@ -440,7 +442,7 @@ export default function ReportCard({ report, orgSettings }: {
                         {/* Right — QR */}
                         <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <div style={{ padding: 10, backgroundColor: '#fff', border: '3px solid #f3f4f6', borderRadius: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 6 }}>
-                                <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) ?? 'preview'}`} size={72} />
+                                <QRCode value={`https://rillcod.com/verify/${report.id ?? 'preview'}`} size={72} />
                             </div>
                             <p style={{ fontSize: 10, fontWeight: 900, color: '#111827', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
                                 VERIFY {report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}

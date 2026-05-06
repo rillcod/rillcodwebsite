@@ -30,6 +30,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 
 
 import { cn } from '@/lib/utils';
+import { getActivityCap } from '@/lib/grading';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -359,6 +360,7 @@ function ReportBuilderInner() {
         assignments: 0, totalAssignments: 0,
         cbtScore: 0,
         assignmentAvg: 0,
+        evalScore: 0,
         assignmentPct: 0,
         projects: 0,
     });
@@ -882,7 +884,8 @@ function ReportBuilderInner() {
                 assignments: gradedAsgn,
                 totalAssignments: totalAsgn,
                 cbtScore,
-                assignmentAvg: evalScore || assignmentAvg, // prefer eval CBT score, fall back to assignment avg
+                assignmentAvg,
+                evalScore,
                 assignmentPct,
                 projects: projectCount,
             });
@@ -911,7 +914,7 @@ function ReportBuilderInner() {
     }
 
     // ── WAEC weighted overall (6 components, mirrors grading.ts SCORE_WEIGHTS) ──
-    const overallScore = Math.round(
+    const rawOverallScore = Math.round(
         (parseFloat(form.theory_score)        || 0) * WAEC_WEIGHTS.theory      +  // 20%
         (parseFloat(form.classwork_score)     || 0) * WAEC_WEIGHTS.classwork   +  // 10%
         (parseFloat(form.practical_score)     || 0) * WAEC_WEIGHTS.practical   +  // 25%
@@ -919,6 +922,11 @@ function ReportBuilderInner() {
         (parseFloat(form.participation_score) || 0) * WAEC_WEIGHTS.attendance  +  // 10%
         (parseFloat(form.assessment_score)    || 0) * WAEC_WEIGHTS.assessment     // 15%
     );
+    // Activity cap: students with low assignment submission % are grade-capped.
+    // When no assignments exist (totalAssignments=0) pct defaults to 100 → no cap.
+    const assignmentSubmissionPct = studentStats.totalAssignments > 0 ? studentStats.assignmentPct : 100;
+    const activityCap = getActivityCap(assignmentSubmissionPct);
+    const overallScore = Math.min(rawOverallScore, activityCap.maxScore);
 
     // ── WAEC grade code (A1–F9) for display and save ─────────────────────────
     const overallGradeObj = reportGrade(overallScore); // kept for Standard report card
@@ -1147,9 +1155,10 @@ function ReportBuilderInner() {
     // ── Save & move to next student ───────────────────────────────────────────
     async function saveAndNext(publish = false) {
         await handleSave(publish);
+        const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
         const nextIdx = currentStudentIdx + 1;
-        if (nextIdx < filteredStudents.length) {
-            await selectStudent(filteredStudents[nextIdx] as PortalUser, nextIdx);
+        if (nextIdx < navList.length) {
+            await selectStudent(navList[nextIdx] as PortalUser, nextIdx);
         } else {
             setStep('pick');
         }
@@ -1357,6 +1366,9 @@ function ReportBuilderInner() {
         fee_label: sessionConfig.fee_label || undefined,
         fee_amount: sessionConfig.fee_amount || undefined,
         school_section: sessionConfig.school_section || undefined,
+        // Per-student module overrides take precedence over session-level defaults
+        current_module: form.student_current_module || sessionConfig.current_module || undefined,
+        next_module: form.student_next_module || sessionConfig.next_module || undefined,
     };
 
     // ── Guards ────────────────────────────────────────────────────────────────
@@ -2343,7 +2355,7 @@ function ReportBuilderInner() {
                                     <div className="bg-cyan-500/5 border border-cyan-500/20 px-2.5 py-2">
                                         <p className="text-[8px] font-black text-cyan-400 uppercase tracking-widest mb-1">Classwork (10%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.assignmentAvg > 0 ? `${studentStats.assignmentAvg}%` : '—'}</p>
-                                        <p className="text-[8px] text-muted-foreground">Assignment avg</p>
+                                        <p className="text-[8px] text-muted-foreground">Graded asgn avg</p>
                                     </div>
                                     <div className="bg-primary/5 border border-primary/20 px-2.5 py-2">
                                         <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Practical (25%)</p>
@@ -2362,7 +2374,7 @@ function ReportBuilderInner() {
                                     </div>
                                     <div className="bg-rose-500/5 border border-rose-500/20 px-2.5 py-2">
                                         <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">Assessment (15%)</p>
-                                        <p className="text-[11px] font-black text-foreground">{studentStats.assignmentAvg > 0 ? `${studentStats.assignmentAvg}%` : '—'}</p>
+                                        <p className="text-[11px] font-black text-foreground">{studentStats.evalScore > 0 ? `${studentStats.evalScore}%` : '—'}</p>
                                         <p className="text-[8px] text-muted-foreground">CBT evaluation</p>
                                     </div>
                                 </div>
@@ -2371,6 +2383,21 @@ function ReportBuilderInner() {
                         {fetchingStats && (
                             <div className="flex items-center gap-2 px-5 py-2.5 bg-[#0d1526] border border-border text-[10px] text-muted-foreground">
                                 <ArrowPathIcon className="w-3 h-3 animate-spin" /> Fetching student stats...
+                            </div>
+                        )}
+
+                        {/* Activity cap notice — shown only when a cap is actively reducing the score */}
+                        {!fetchingStats && selectedStudent && activityCap.maxScore < 100 && rawOverallScore > activityCap.maxScore && (
+                            <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+                                <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">
+                                        Grade Cap Applied — {activityCap.label}
+                                    </p>
+                                    <p className="text-[11px] text-amber-300/70 mt-0.5">
+                                        Raw score {rawOverallScore}% → capped to <strong className="text-amber-300">{overallScore}%</strong> ({activityCap.message})
+                                    </p>
+                                </div>
                             </div>
                         )}
 
@@ -2833,7 +2860,10 @@ function ReportBuilderInner() {
                                                 if (saving || publishing || currentStudentIdx <= 0) return;
                                                 await handleSave(false);
                                                 const idx = currentStudentIdx - 1;
-                                                if (idx >= 0) await selectStudent(filteredStudents[idx] as PortalUser, idx);
+                                                if (idx >= 0) {
+                                                    const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
+                                                    await selectStudent(navList[idx] as PortalUser, idx);
+                                                }
                                             }}
                                             title="Previous student"
                                             className="flex items-center gap-1 px-2.5 sm:px-3 py-2 sm:py-2.5 bg-card shadow-sm hover:bg-muted text-muted-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-25 border border-border">
@@ -2841,7 +2871,7 @@ function ReportBuilderInner() {
                                             <span className="hidden sm:inline">Prev</span>
                                         </button>
                                         {/* Next student / finish */}
-                                        {currentStudentIdx < filteredStudents.length - 1 ? (
+                                        {currentStudentIdx < (sessionStudents.current.length > 0 ? sessionStudents.current.length : filteredStudents.length) - 1 ? (
                                             <button onClick={() => saveAndNext(false)} disabled={saving || publishing}
                                                 className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary hover:to-indigo-500 text-white text-[10px] sm:text-xs font-black rounded-xl transition-all disabled:opacity-50 shadow-xl shadow-primary/30">
                                                 <span>Next</span>

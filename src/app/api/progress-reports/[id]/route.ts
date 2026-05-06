@@ -74,9 +74,17 @@ export async function PATCH(
 
   const allowed: Record<string, any> = {};
   const fields = [
-    'course_name', 'report_term', 'theory_score', 'practical_score',
-    'attendance_score', 'overall_score', 'overall_grade', 'is_published',
-    'learning_milestones', 'instructor_name', 'report_date',
+    'course_name', 'report_term', 'report_period', 'report_date',
+    'theory_score', 'practical_score', 'attendance_score', 'overall_score',
+    'overall_grade', 'is_published', 'learning_milestones', 'instructor_name',
+    'participation_score', 'engagement_metrics',
+    'participation_grade', 'projects_grade', 'homework_grade',
+    'proficiency_level', 'has_certificate', 'certificate_text',
+    'course_completed', 'photo_url',
+    'fee_status', 'fee_amount', 'fee_label', 'show_payment_notice',
+    'school_section', 'course_id', 'course_duration',
+    'key_strengths', 'areas_for_growth',
+    'current_module', 'next_module',
   ];
   fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
   allowed.updated_at = new Date().toISOString();
@@ -85,7 +93,7 @@ export async function PATCH(
     .from('student_progress_reports')
     .update(allowed)
     .eq('id', id)
-    .select('id, student_id, course_name, overall_score, is_published')
+    .select('id, student_id, course_name, overall_score, overall_grade, is_published')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
