@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon } from '@/lib/icons';
 
 type RegistryHint = { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null };
-type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null; registry?: RegistryHint | null };
+type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null; registry?: RegistryHint | null; class_name?: string | null; class_school_id?: string | null; class_school_name?: string | null; class_teacher_conflict?: boolean };
 type ConflictStudent = AnomalyStudent & { current_class_name: string | null; current_class_teacher_id: string | null; current_class_teacher_name: string | null; report_teacher_id: string | null; report_teacher_name: string | null };
 type AnomalyClass = { id: string; name: string; school_id: string; created_at: string; schools?: { name: string } | null };
 type ClassOption = { id: string; name: string; school_id: string | null; teacher_id?: string | null };
@@ -811,27 +811,74 @@ export default function ClassHealPage() {
         {/* ── School–class mismatch ─────────────────────────────── */}
         {(data?.mismatched.length ?? 0) > 0 && (
           <Section title="School–Class Mismatch" count={data!.mismatched.length}
-            description="Student's school_id doesn't match their class's school. Move them to the correct class.">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-3">
-                <select value={targetClass} onChange={e => setTargetClass(e.target.value)}
-                  className="select-premium flex-1 text-sm px-3 py-2">
-                  <option value="">— Move to class —</option>
-                  {(data?.classes ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <button onClick={() => selAll(data!.mismatched.map(s => s.id), setSelMismatched)}
-                  className="text-xs font-bold text-primary hover:underline">Select all</button>
-                <button
-                  disabled={!targetClass || selMismatched.size === 0 || working}
-                  onClick={() => applyAction('assign_class', Array.from(selMismatched), { classId: targetClass })}
-                  className="px-4 py-2 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
-                  Reassign
-                </button>
-              </div>
-              {data!.mismatched.map(s => (
-                <StudentRow key={s.id} student={s} selected={selMismatched.has(s.id)}
-                  onToggle={() => toggleSel(selMismatched, setSelMismatched, s.id)} />
-              ))}
+            description="Student's school_id doesn't match their class's school. Verified by both report authorship and registration history.">
+            <div className="space-y-4">
+              {/* Safe students (class assignment confirmed) */}
+              {(() => {
+                const safe = data!.mismatched.filter(s => !s.class_teacher_conflict);
+                const conflicted = data!.mismatched.filter(s => s.class_teacher_conflict);
+                return (
+                  <>
+                    {safe.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">{safe.length} safe to align</p>
+                          <div className="flex gap-2">
+                            <button onClick={() => selAll(safe.map(s => s.id), setSelMismatched)}
+                              className="text-xs font-bold text-primary hover:underline">Select all safe</button>
+                            <button
+                              disabled={selMismatched.size === 0 || working}
+                              onClick={() => applyAction('align_to_class_school', Array.from(selMismatched))}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
+                              Align to Class School
+                            </button>
+                            <button
+                              disabled={selMismatched.size === 0 || working}
+                              onClick={() => applyAction('restore_from_history', Array.from(selMismatched))}
+                              className="px-3 py-1.5 bg-primary hover:bg-primary/80 text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
+                              Restore from History
+                            </button>
+                          </div>
+                        </div>
+                        {safe.map(s => (
+                          <label key={s.id} className={`flex items-start gap-3 px-4 py-2.5 rounded-xl border cursor-pointer transition ${selMismatched.has(s.id) ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-muted/30 border-border hover:bg-muted/50'}`}>
+                            <input type="checkbox" checked={selMismatched.has(s.id)} onChange={() => toggleSel(selMismatched, setSelMismatched, s.id)}
+                              className="w-4 h-4 rounded border-border text-primary mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {s.school_name || 'No school'} → class belongs to <span className="font-bold text-emerald-400">{s.class_school_name || s.class_school_id || 'Unknown'}</span>
+                                {s.class_name ? ` (${s.class_name})` : ''}
+                              </p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {conflicted.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                          <p className="text-xs font-bold text-amber-400 mb-1">{conflicted.length} student(s) — fix class assignment first</p>
+                          <p className="text-xs text-amber-500/70">These students are in the wrong class (class teacher ≠ report author). Fix them in the Teacher–Class Conflict section above, then alignment will work correctly.</p>
+                        </div>
+                        {conflicted.map(s => (
+                          <div key={s.id} className="flex items-start gap-3 px-4 py-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                                <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded font-black uppercase shrink-0">Fix class first</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {s.school_name || 'No school'} · class: {s.class_name || s.class_school_name || 'Unknown'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </Section>
         )}

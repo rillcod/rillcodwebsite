@@ -246,39 +246,66 @@ export async function GET(req: NextRequest) {
     classNameMap2[c.id] = c.name;
   });
 
-  const mismatched = (allStudents ?? []).filter((s: any) => {
+  // Build report-author map for ALL students with a class — used for both
+  // school-mismatch enrichment and teacher-conflict detection below.
+  const studentsWithClass = allStudents ?? [];
+  const reportTeacherMap: Record<string, string> = {};
+  if (studentsWithClass.length > 0) {
+    const allSids = studentsWithClass.map((s: any) => s.id);
+    const { data: allRpts } = await db
+      .from('student_progress_reports')
+      .select('student_id, teacher_id')
+      .in('student_id', allSids)
+      .not('teacher_id', 'is', null);
+    const rptCounts: Record<string, Record<string, number>> = {};
+    (allRpts ?? []).forEach((r: any) => {
+      if (!r.student_id || !r.teacher_id) return;
+      if (!rptCounts[r.student_id]) rptCounts[r.student_id] = {};
+      rptCounts[r.student_id][r.teacher_id] = (rptCounts[r.student_id][r.teacher_id] || 0) + 1;
+    });
+    for (const [sid, tc] of Object.entries(rptCounts)) {
+      const top = Object.entries(tc).sort((a, b) => b[1] - a[1])[0];
+      if (top) reportTeacherMap[sid] = top[0];
+    }
+  }
+
+  // 3a. Enrich mismatched with class name, class school, and conflict flag
+  const rawMismatched = (allStudents ?? []).filter((s: any) => {
     const classSchool = classSchoolMap[s.class_id];
     return classSchool && classSchool !== s.school_id;
+  });
+
+  // Fetch school names for the class school IDs that appear in mismatches
+  const mismatchClassSchoolIds = [...new Set(rawMismatched.map((s: any) => classSchoolMap[s.class_id]).filter(Boolean))] as string[];
+  let mismatchSchoolNames: Record<string, string> = {};
+  if (mismatchClassSchoolIds.length > 0) {
+    const { data: mSchools } = await db.from('schools').select('id, name').in('id', mismatchClassSchoolIds);
+    (mSchools ?? []).forEach((s: any) => { mismatchSchoolNames[s.id] = s.name; });
+  }
+
+  const mismatched = rawMismatched.map((s: any) => {
+    const clsSchoolId = classSchoolMap[s.class_id] ?? null;
+    const clsTeacherId = classTeacherMap[s.class_id] ?? null;
+    const reportTeacherId = reportTeacherMap[s.id] ?? null;
+    return {
+      ...s,
+      class_name: classNameMap2[s.class_id] ?? null,
+      class_school_id: clsSchoolId,
+      class_school_name: mismatchSchoolNames[clsSchoolId ?? ''] ?? null,
+      // When true: class assignment is suspect — align will be skipped for this student.
+      // Use the Teacher Conflict section to fix the class first.
+      class_teacher_conflict: !!(clsTeacherId && reportTeacherId && clsTeacherId !== reportTeacherId),
+    };
   });
 
   // 5. Teacher–class conflict: students whose class is owned by Teacher A but whose
   //    progress reports were authored primarily by Teacher B. Surfaces the
   //    "Sulemani overwrote Amaka's students" scenario.
-  const studentsWithClass = allStudents ?? [];
   let teacherConflict: any[] = [];
   if (studentsWithClass.length > 0) {
-    const studentIds = studentsWithClass.map((s: any) => s.id);
-    const { data: reports } = await db
-      .from('student_progress_reports')
-      .select('student_id, teacher_id')
-      .in('student_id', studentIds)
-      .not('teacher_id', 'is', null);
-
-    const counts: Record<string, Record<string, number>> = {};
-    (reports ?? []).forEach((r: any) => {
-      if (!r.student_id || !r.teacher_id) return;
-      if (!counts[r.student_id]) counts[r.student_id] = {};
-      counts[r.student_id][r.teacher_id] = (counts[r.student_id][r.teacher_id] || 0) + 1;
-    });
-    const reportTeacherMap: Record<string, string> = {};
-    for (const [sid, tc] of Object.entries(counts)) {
-      const top = Object.entries(tc).sort((a, b) => b[1] - a[1])[0];
-      if (top) reportTeacherMap[sid] = top[0];
-    }
-
     const conflictRaw = studentsWithClass.filter((s: any) => {
       const ct = classTeacherMap[s.class_id];
-      const rt = reportTeacherMap[s.id];
+      const rt = reportTeacherMap[s.id];  // already computed above
       return ct && rt && ct !== rt;
     });
 
@@ -689,6 +716,150 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const skipped = sids.length - eligibleIds.length;
     return NextResponse.json({ success: true, updated: eligibleIds.length, skipped });
+  }
+
+  // Align school_id to match the student's current class school.
+  // GUARD: skips students whose class teacher ≠ their primary report teacher —
+  // those students are likely in the wrong class (batch-enroll overwrite).
+  // Fix the class assignment in Teacher Conflict section first, then re-run.
+  if (action === 'align_to_class_school') {
+    if (!studentIds?.length) return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
+    const skippedConflict: string[] = [];
+    let updated = 0;
+    for (const sid of studentIds) {
+      try {
+        const { data: student } = await db.from('portal_users').select('class_id, full_name').eq('id', sid).single();
+        if (!student?.class_id) continue;
+        const { data: cls } = await db.from('classes').select('school_id, name, teacher_id').eq('id', student.class_id).single();
+        if (!cls?.school_id) continue;
+        // Report-author guard — same logic as fix-school-mismatch align_student
+        if (cls.teacher_id) {
+          const { data: rpts } = await db.from('student_progress_reports').select('teacher_id').eq('student_id', sid).not('teacher_id', 'is', null);
+          const counts: Record<string, number> = {};
+          (rpts ?? []).forEach((r: any) => { counts[r.teacher_id] = (counts[r.teacher_id] || 0) + 1; });
+          const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+          const primaryReportTeacher = top?.[0];
+          if (primaryReportTeacher && primaryReportTeacher !== cls.teacher_id) {
+            skippedConflict.push(student.full_name || sid);
+            continue;
+          }
+        }
+        const { data: school } = await db.from('schools').select('name').eq('id', cls.school_id).single();
+        await db.from('portal_users').update({ school_id: cls.school_id, school_name: school?.name ?? null }).eq('id', sid);
+        await db.from('students').update({ school_id: cls.school_id, school_name: school?.name ?? null }).eq('user_id', sid);
+        updated++;
+      } catch { /* skip individual failures */ }
+    }
+    return NextResponse.json({
+      success: true,
+      updated,
+      skipped: skippedConflict.length > 0 ? skippedConflict : undefined,
+      message: skippedConflict.length > 0
+        ? `${skippedConflict.length} student(s) skipped — their class teacher doesn't match their report author. Fix the class assignment in Teacher Conflict first: ${skippedConflict.join(', ')}`
+        : undefined,
+    });
+  }
+
+  // Restore from batch registration history.
+  // When a student has multiple batch records (registered + re-registered), prefers the
+  // batch whose creator matches the student's primary report teacher.
+  // GUARD: skips restoration if the target batch's class teacher ≠ report teacher.
+  if (action === 'restore_from_history') {
+    if (!studentIds?.length) return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
+    const { data: students } = await db.from('portal_users').select('id, email, full_name').in('id', studentIds);
+    const emails = (students ?? []).map((s: any) => s.email?.toLowerCase()).filter(Boolean) as string[];
+
+    const { data: histResults } = await db.from('registration_results').select('email, batch_id').in('email', emails);
+    const batchIds = [...new Set((histResults ?? []).map((r: any) => r.batch_id))];
+    const { data: batches } = await db.from('registration_batches').select('*').in('id', batchIds);
+    const { data: allClasses } = await db.from('classes').select('id, name, school_id, teacher_id');
+    const { data: allReports } = await db.from('student_progress_reports').select('student_id, teacher_id').in('student_id', studentIds).not('teacher_id', 'is', null);
+
+    const batchMap = new Map((batches ?? []).map((b: any) => [b.id, b]));
+    // email → [batch_ids] — a student may have been in multiple batches
+    const emailBatchMap = new Map<string, string[]>();
+    (histResults ?? []).forEach((r: any) => {
+      const e = r.email.toLowerCase();
+      const arr = emailBatchMap.get(e) || [];
+      arr.push(r.batch_id);
+      emailBatchMap.set(e, arr);
+    });
+    // Build primary report teacher per student
+    const rptCounts = new Map<string, Map<string, number>>();
+    (allReports ?? []).forEach((r: any) => {
+      const tc = rptCounts.get(r.student_id) || new Map<string, number>();
+      tc.set(r.teacher_id, (tc.get(r.teacher_id) || 0) + 1);
+      rptCounts.set(r.student_id, tc);
+    });
+    const primaryRptTeacher = new Map<string, string>();
+    for (const [sid, tc] of rptCounts.entries()) {
+      const top = [...tc.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (top) primaryRptTeacher.set(sid, top[0]);
+    }
+
+    let updated = 0;
+    const skippedConflict: string[] = [];
+    const errors: string[] = [];
+
+    for (const s of (students ?? [])) {
+      const emailKey = s.email?.toLowerCase() || '';
+      const candidateBatchIds = emailBatchMap.get(emailKey) || [];
+      if (candidateBatchIds.length === 0) { errors.push(`No history for ${s.email}`); continue; }
+
+      const reportTeacher = primaryRptTeacher.get(s.id);
+      // Pick batch: prefer one whose creator = report teacher, then class teacher = report teacher, else first
+      let selectedBatch: any = null;
+      for (const bid of candidateBatchIds) {
+        const b = batchMap.get(bid);
+        if (!b) continue;
+        if (reportTeacher && b.created_by === reportTeacher) { selectedBatch = b; break; }
+      }
+      if (!selectedBatch) {
+        for (const bid of candidateBatchIds) {
+          const b = batchMap.get(bid);
+          if (!b) continue;
+          const bc = (allClasses ?? []).find((c: any) => c.id === b.class_id || (c.name === b.class_name && c.school_id === b.school_id));
+          if (bc && reportTeacher && bc.teacher_id === reportTeacher) { selectedBatch = b; break; }
+        }
+      }
+      if (!selectedBatch) selectedBatch = batchMap.get(candidateBatchIds[0]);
+      if (!selectedBatch) { errors.push(`Batch not found for ${s.email}`); continue; }
+
+      let targetClassId = selectedBatch.class_id;
+      if (!targetClassId && selectedBatch.class_name && selectedBatch.school_id) {
+        const mc = (allClasses ?? []).find((c: any) => c.school_id === selectedBatch.school_id && c.name === selectedBatch.class_name);
+        if (mc) targetClassId = mc.id;
+      }
+
+      // Guard: target class teacher must match report teacher
+      if (targetClassId && reportTeacher) {
+        const tc = (allClasses ?? []).find((c: any) => c.id === targetClassId);
+        if (tc?.teacher_id && tc.teacher_id !== reportTeacher) {
+          skippedConflict.push(s.full_name || s.email || s.id);
+          continue;
+        }
+      }
+
+      const update = {
+        school_id: selectedBatch.school_id,
+        school_name: selectedBatch.school_name,
+        class_id: targetClassId || null,
+        section_class: selectedBatch.class_name || null,
+      };
+      await db.from('portal_users').update(update).eq('id', s.id);
+      await db.from('students').update(update).eq('user_id', s.id);
+      updated++;
+    }
+
+    return NextResponse.json({
+      success: true,
+      updated,
+      errors: errors.length > 0 ? errors : undefined,
+      skipped: skippedConflict.length > 0 ? skippedConflict : undefined,
+      message: skippedConflict.length > 0
+        ? `${skippedConflict.length} student(s) skipped — history points to a different teacher than their report author (likely an overwrite batch). Fix class assignment in Teacher Conflict first: ${skippedConflict.join(', ')}`
+        : undefined,
+    });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

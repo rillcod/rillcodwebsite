@@ -1206,223 +1206,28 @@ export default function SettingsPage() {
                   <CommandLineIcon className="w-4 h-4 text-rose-400" />
                   <div>
                     <h2 className="font-bold text-foreground">Database Repair Tools</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">Detect and fix school boundary violations and data inconsistencies.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">All repair tools have moved to the unified Class Health & Repair tool.</p>
                   </div>
                 </div>
 
                 <div className="p-6 space-y-6">
-                  {/* Important ordering notice */}
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2">
-                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-bold text-amber-400 mb-0.5">Run Class Health & Repair first</p>
-                      <p className="text-xs text-amber-500/80">
-                        &quot;Align All to Class&quot; sets a student&apos;s school to match their current class. If a student is in the <em>wrong class</em> (e.g. from a batch-enroll overwrite), this will lock in the wrong assignment instead of fixing it.{' '}
-                        <a href="/dashboard/classes/heal" className="underline font-bold text-amber-400 hover:text-amber-300">
-                          Fix class assignments in the Class Health & Repair tool
-                        </a>{' '}
-                        before running alignment here. Students already flagged as being in the wrong class will be skipped automatically.
+                  {/* Redirect to heal tool */}
+                  <div className="p-5 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-4">
+                    <CommandLineIcon className="w-6 h-6 text-primary shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-foreground mb-1">All repair tools are now in Class Health & Repair</p>
+                      <p className="text-xs text-muted-foreground mb-4">
+                        School-class mismatches, batch registration restoration, teacher-class conflicts, missing teacher-school links, and student displacement — all in one place, in the right order, verified by both report authorship and registration history.
                       </p>
+                      <a
+                        href="/dashboard/classes/heal"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-primary/90 transition"
+                      >
+                        Open Class Health &amp; Repair →
+                      </a>
                     </div>
                   </div>
 
-                  {/* School Mismatch Section */}
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-sm font-bold text-foreground">School-Class Mismatches</h3>
-                        <p className="text-xs text-muted-foreground">Students enrolled in classes belonging to a different school.</p>
-                      </div>
-                      <button onClick={loadMismatches} disabled={repairLoading} className="p-2 hover:bg-muted rounded-lg transition-colors">
-                        <ArrowPathIcon className={`w-4 h-4 ${repairLoading ? 'animate-spin' : ''}`} />
-                      </button>
-                    </div>
-
-                    {repairLoading ? (
-                      <div className="py-8 flex justify-center"><div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" /></div>
-                    ) : mismatches.length === 0 ? (
-                      <div className="py-8 text-center bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
-                        <CheckCircleIcon className="w-8 h-8 text-emerald-500/40 mx-auto mb-2" />
-                        <p className="text-sm font-bold text-emerald-400">Integrity Check Passed</p>
-                        <p className="text-xs text-emerald-500/60">No school boundary violations detected.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center justify-between">
-                          <p className="text-xs font-bold text-rose-400">Found {mismatches.length} students with incorrect school assignments.</p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => runRepair('align_student', mismatches.filter((m: any) => !m.class_teacher_conflict).map((m: any) => m.student_id))}
-                              disabled={repairing || mismatches.every((m: any) => m.class_teacher_conflict)}
-                              className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50"
-                              title="Only aligns students whose class assignment is confirmed correct. Students flagged 'Fix class first' are skipped."
-                            >
-                              Align Safe Students
-                            </button>
-                            <button 
-                              onClick={() => runRepair('unenroll', mismatches.map(m => m.student_id))}
-                              disabled={repairing}
-                              className="px-3 py-1.5 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-lg hover:shadow-rose-500/20 transition-all disabled:opacity-50"
-                            >
-                              Unenroll All
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="max-h-[400px] overflow-y-auto border border-border rounded-xl divide-y divide-border">
-                          {mismatches.map((m: any) => (
-                            <div key={m.student_id} className={`p-4 flex items-center justify-between hover:bg-muted/50 transition-colors ${m.class_teacher_conflict ? 'bg-amber-500/5' : ''}`}>
-                              <div className="min-w-0 flex-1 mr-4">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-bold text-foreground truncate">{m.student_name}</p>
-                                  {m.class_teacher_conflict && (
-                                    <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded uppercase font-black whitespace-nowrap shrink-0">
-                                      Fix class first
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                  <span className="text-[10px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded uppercase font-bold whitespace-nowrap">
-                                    Current: {m.student_school_name || 'No School'}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground">→</span>
-                                  <span className={`text-[10px] px-1.5 py-0.5 border rounded uppercase font-bold whitespace-nowrap ${m.class_teacher_conflict ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
-                                    Class: {m.class_name}
-                                  </span>
-                                </div>
-                                {m.class_teacher_conflict && (
-                                  <p className="text-[10px] text-amber-500/70 mt-1">Student is in the wrong class — alignment will be skipped. Use <a href="/dashboard/classes/heal" className="underline">Class Health</a> to fix the class assignment first.</p>
-                                )}
-                              </div>
-                              <div className="flex gap-1 shrink-0">
-                                <button
-                                  onClick={() => runRepair('align_student', [m.student_id])}
-                                  disabled={m.class_teacher_conflict}
-                                  className="p-1.5 hover:bg-primary/10 text-primary rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title={m.class_teacher_conflict ? 'Fix class assignment in Class Health first' : 'Align Student to School'}
-                                >
-                                  <CheckIcon className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => runRepair('unenroll', [m.student_id])}
-                                  className="p-1.5 hover:bg-rose-500/10 text-rose-400 rounded-lg transition-colors" title="Unenroll Student"
-                                >
-                                  <XMarkIcon className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="h-px bg-border" />
-
-                  {/* Historical Restoration Section */}
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-sm font-bold text-foreground">Registration Session Recovery</h3>
-                        <p className="text-xs text-muted-foreground">Restore students to their original school and class from bulk registration history.</p>
-                      </div>
-                      <button onClick={loadSuggestions} disabled={suggestionsLoading} className="p-2 hover:bg-muted rounded-lg transition-colors">
-                        <ArrowPathIcon className={`w-4 h-4 ${suggestionsLoading ? 'animate-spin' : ''}`} />
-                      </button>
-                    </div>
-
-                    {suggestionsLoading ? (
-                      <div className="py-8 flex justify-center"><div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" /></div>
-                    ) : suggestions.length === 0 ? (
-                      <div className="py-8 text-center bg-white/[0.02] border border-border rounded-xl">
-                        <CheckBadgeIcon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                        <p className="text-sm font-bold text-muted-foreground">All Clear</p>
-                        <p className="text-xs text-muted-foreground/60">No drifted students found in registration history.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-between">
-                          <p className="text-xs font-bold text-primary">Detected {suggestions.length} students who have moved from their original registration batch settings.</p>
-                          <button 
-                            onClick={() => runRepair('restore_from_history', suggestions.map(s => s.student_id))}
-                            disabled={repairing}
-                            className="px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-lg hover:shadow-primary/20 transition-all disabled:opacity-50"
-                          >
-                            Restore All
-                          </button>
-                        </div>
-
-                        <div className="max-h-[400px] overflow-y-auto border border-border rounded-xl divide-y divide-border">
-                          {suggestions.map((s: any) => (
-                            <div key={s.student_id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                              <div className="min-w-0 flex-1 mr-4">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="text-sm font-bold text-foreground truncate">{s.student_name}</p>
-                                  <div className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                                    s.score >= 100 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                                  }`}>
-                                    {s.score}% Match
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-wrap gap-1 mb-2">
-                                  {s.evidence?.map((e: string) => (
-                                    <span key={e} className="text-[8px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded-full font-bold uppercase">
-                                      {e}
-                                    </span>
-                                  ))}
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  <div className="space-y-1">
-                                    <p className="text-[9px] font-black uppercase text-muted-foreground tracking-wider">Current Location</p>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[10px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded font-bold truncate">
-                                        {s.current.school_name || 'No School'}
-                                      </span>
-                                      <span className="text-[10px] px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20 rounded font-bold truncate">
-                                        {s.current.class_name || 'No Class'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-[9px] font-black uppercase text-primary tracking-wider">Smart Recommendation</p>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-bold truncate">
-                                        {s.suggested.school_name}
-                                      </span>
-                                      <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-bold truncate">
-                                        {s.suggested.class_name || 'No Class'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <button 
-                                onClick={() => runRepair('restore_from_history', [s.student_id])}
-                                className="p-2 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg transition-all shrink-0" title="Restore to Recommended"
-                              >
-                                <ArrowPathIcon className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl">
-                    <div className="flex gap-3">
-                      <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 shrink-0" />
-                      <div>
-                        <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">Safety Note</p>
-                        <p className="text-[11px] text-amber-600/80 leading-relaxed">
-                          Aligning a student will update their record to match the school of the class they are currently in. 
-                          Unenrolling will remove them from the class so they can be placed in a correct one. 
-                          These actions are permanent and affect reporting.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
