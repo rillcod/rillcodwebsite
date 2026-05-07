@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon } from '@/lib/icons';
+import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon, PlusIcon, ChevronDownIcon } from '@/lib/icons';
 
 type RegistryHint = { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null };
 type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null; primary_teacher_id?: string | null; registry?: RegistryHint | null; class_name?: string | null; class_school_id?: string | null; class_school_name?: string | null; class_teacher_conflict?: boolean };
@@ -13,7 +13,8 @@ type TeacherOption = { id: string; full_name: string };
 type MissingTs = { teacher_id: string; school_id: string; teacher_name: string | null; school_name: string | null; class_ids: string[] };
 type SearchStudent = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; section_class: string | null; class_name: string | null };
 type AuditStudent = { id: string; full_name: string; email: string; school_id: string | null; class_id: string | null; section_class: string | null; current_class_name: string | null; current_class_teacher_name: string | null; displacement_sources?: string[] };
-type AuditSchool = { school_id: string; school_name: string; in_teacher_schools: boolean; classes: { id: string; name: string; school_id: string; student_count: number }[]; students_in_classes: AuditStudent[]; displaced_students: AuditStudent[] };
+type AuditClass = { id: string; name: string; school_id: string; student_count: number; students: AuditStudent[] };
+type AuditSchool = { school_id: string; school_name: string; in_teacher_schools: boolean; classes: AuditClass[]; students_in_classes: AuditStudent[]; displaced_students: AuditStudent[] };
 
 export default function ClassHealPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -40,7 +41,10 @@ export default function ClassHealPage() {
   const [auditData, setAuditData] = useState<{ teacher_name: string | null; schoolAudit: AuditSchool[]; allClasses: ClassOption[] } | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditDestClass, setAuditDestClass] = useState<Record<string, string>>({}); // schoolId => classId
-  const [auditSelDisplaced, setAuditSelDisplaced] = useState<Record<string, Set<string>>>({}); // schoolId => Set<studentId>
+  // Unified selection: covers both in-class and displaced students per school
+  const [auditSel, setAuditSel] = useState<Record<string, Set<string>>>({}); // schoolId => Set<studentId>
+  const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set()); // class IDs with roster open
+  const [createClassForm, setCreateClassForm] = useState<Record<string, { name: string; autoFill: boolean }>>({});
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -353,7 +357,9 @@ export default function ClassHealPage() {
                     const j = await res.json();
                     setAuditData(j.data ?? null);
                     setAuditDestClass({});
-                    setAuditSelDisplaced({});
+                    setAuditSel({});
+                    setExpandedClasses(new Set());
+                    setCreateClassForm({});
                   } catch { /* ignore */ }
                   setAuditLoading(false);
                 }}
@@ -368,17 +374,49 @@ export default function ClassHealPage() {
                 <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">
                   Audit results for {auditData.teacher_name} — {auditData.schoolAudit.length} school(s)
                 </p>
-                {auditData.schoolAudit.map(school => (
+                {auditData.schoolAudit.map(school => {
+                  const schoolSel = auditSel[school.school_id] ?? new Set<string>();
+                  const selCount = schoolSel.size;
+
+                  function toggleSt(id: string) {
+                    setAuditSel(prev => {
+                      const cur = new Set(prev[school.school_id] ?? []);
+                      cur.has(id) ? cur.delete(id) : cur.add(id);
+                      return { ...prev, [school.school_id]: cur };
+                    });
+                  }
+                  function selectIds(ids: string[]) {
+                    setAuditSel(prev => {
+                      const cur = new Set(prev[school.school_id] ?? []);
+                      ids.forEach(id => cur.add(id));
+                      return { ...prev, [school.school_id]: cur };
+                    });
+                  }
+                  function deselectIds(ids: string[]) {
+                    setAuditSel(prev => {
+                      const cur = new Set(prev[school.school_id] ?? []);
+                      ids.forEach(id => cur.delete(id));
+                      return { ...prev, [school.school_id]: cur };
+                    });
+                  }
+
+                  return (
                   <div key={school.school_id} className={`rounded-xl border p-4 space-y-4 ${school.displaced_students.length > 0 ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-muted/10'}`}>
-                    {/* School header */}
-                    <div className="flex items-center gap-3">
+                    {/* ── School header ── */}
+                    <div className="flex items-start gap-3">
                       <div className="flex-1">
                         <p className="text-sm font-extrabold text-foreground">{school.school_name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {school.classes.length} class(es) · {school.students_in_classes.length} student(s) enrolled
+                        <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <span>{school.classes.length} class(es)</span>
+                          <span>·</span>
+                          <span>{school.students_in_classes.length} enrolled</span>
+                          {school.displaced_students.length > 0 && <>
+                            <span>·</span>
+                            <span className="text-amber-400 font-bold">{school.displaced_students.length} displaced</span>
+                          </>}
                           {!school.in_teacher_schools && (
-                            <span className="ml-2 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-black border border-rose-500/30">
-                              Missing teacher_schools link — run Fix below
+                            <span className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-black border border-rose-500/30">
+                              Missing teacher_schools link
                             </span>
                           )}
                         </p>
@@ -387,40 +425,104 @@ export default function ClassHealPage() {
                         <button
                           disabled={working}
                           onClick={() => applyAction('sync_teacher_schools', [], { teacherId: auditTeacherId })}
-                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
                         >
                           Fix Link
                         </button>
                       )}
                     </div>
 
-                    {/* Classes */}
+                    {/* ── Class roster workspace ── */}
                     {school.classes.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {school.classes.map(cls => (
-                          <span key={cls.id} className="px-3 py-1.5 bg-background border border-border rounded-xl text-xs font-semibold text-foreground">
-                            {cls.name} · {cls.student_count} student{cls.student_count !== 1 ? 's' : ''}
-                          </span>
-                        ))}
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Class Roster — select to shift</p>
+                        {school.classes.map(cls => {
+                          const isExpanded = expandedClasses.has(cls.id);
+                          const allInClass = cls.students.map((s: AuditStudent) => s.id);
+                          const allSelected = allInClass.length > 0 && allInClass.every(id => schoolSel.has(id));
+                          return (
+                            <div key={cls.id} className="border border-border rounded-xl overflow-hidden bg-background">
+                              {/* Class header */}
+                              <div
+                                className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition"
+                                onClick={() => setExpandedClasses(prev => {
+                                  const n = new Set(prev);
+                                  n.has(cls.id) ? n.delete(cls.id) : n.add(cls.id);
+                                  return n;
+                                })}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm font-bold text-foreground">{cls.name}</span>
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    {cls.student_count} student{cls.student_count !== 1 ? 's' : ''}
+                                    {allInClass.some(id => schoolSel.has(id)) && (
+                                      <span className="ml-2 text-violet-400 font-bold">
+                                        · {allInClass.filter(id => schoolSel.has(id)).length} selected
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                                <ChevronDownIcon className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              </div>
+                              {/* Expanded roster */}
+                              {isExpanded && (
+                                <div className="border-t border-border p-2 space-y-1">
+                                  {cls.students.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground italic px-2 py-1">No students currently in this class.</p>
+                                  ) : (
+                                    <>
+                                      <div className="flex items-center gap-3 px-2 py-1">
+                                        <button onClick={() => allSelected ? deselectIds(allInClass) : selectIds(allInClass)}
+                                          className="text-xs font-bold text-primary hover:underline">
+                                          {allSelected ? 'Deselect all' : 'Select all'}
+                                        </button>
+                                        <span className="text-xs text-muted-foreground">in {cls.name}</span>
+                                      </div>
+                                      <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
+                                        {cls.students.map((s: AuditStudent) => (
+                                          <label key={s.id} className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition border ${schoolSel.has(s.id) ? 'bg-violet-500/10 border-violet-500/30' : 'border-transparent hover:bg-muted/30'}`}>
+                                            <input type="checkbox" checked={schoolSel.has(s.id)} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                                              <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
+                                            </div>
+                                          </label>
+                                        ))}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
 
-                    {/* Displaced students */}
+                    {/* ── No classes yet — warn + offer create ── */}
+                    {school.classes.length === 0 && school.displaced_students.length > 0 && (
+                      <div className="px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                        <p className="text-xs font-bold text-amber-400">No class exists for this teacher at {school.school_name} yet.</p>
+                        <p className="text-xs text-amber-500/70 mt-0.5">Create a class below to assign the {school.displaced_students.length} displaced student(s).</p>
+                      </div>
+                    )}
+
+                    {/* ── Displaced students ── */}
                     {school.displaced_students.length > 0 && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">
-                            {school.displaced_students.length} displaced student(s)
+                            {school.displaced_students.length} displaced — need placement
                           </p>
-                          <span className="text-[10px] text-muted-foreground">·</span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {school.displaced_students.filter(s => (s.displacement_sources ?? []).length >= 2).length} confirmed by 2+ signals
-                          </span>
+                          {school.displaced_students.filter(s => (s.displacement_sources ?? []).length >= 2).length > 0 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              · {school.displaced_students.filter(s => (s.displacement_sources ?? []).length >= 2).length} confirmed by 2+ signals
+                            </span>
+                          )}
                         </div>
                         <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                           {school.displaced_students.map(s => {
-                            const sel = auditSelDisplaced[school.school_id] ?? new Set();
-                            const checked = sel.has(s.id);
+                            const checked = schoolSel.has(s.id);
                             const sources = s.displacement_sources ?? [];
                             const hasReports = sources.includes('report_authored');
                             const hasBatch = sources.includes('batch_registered');
@@ -428,13 +530,7 @@ export default function ClassHealPage() {
                             const multiSignal = sources.length >= 2;
                             return (
                               <label key={s.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl border cursor-pointer transition ${checked ? 'bg-violet-500/10 border-violet-500/30' : 'bg-background border-border hover:bg-muted/30'}`}>
-                                <input type="checkbox" checked={checked} onChange={() => {
-                                  setAuditSelDisplaced(prev => {
-                                    const cur = new Set(prev[school.school_id] ?? []);
-                                    checked ? cur.delete(s.id) : cur.add(s.id);
-                                    return { ...prev, [school.school_id]: cur };
-                                  });
-                                }} className="w-4 h-4 rounded text-violet-500" />
+                                <input type="checkbox" checked={checked} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
@@ -443,15 +539,9 @@ export default function ClassHealPage() {
                                         {hasReports && hasBatch && hasRegistered ? 'All 3 Signals' : hasReports && hasBatch ? 'Reports + Batch' : hasReports && hasRegistered ? 'Reports + Registered' : 'Batch + Registered'}
                                       </span>
                                     )}
-                                    {!multiSignal && hasReports && (
-                                      <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Has Reports</span>
-                                    )}
-                                    {!multiSignal && hasBatch && (
-                                      <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Batch Registered</span>
-                                    )}
-                                    {!multiSignal && hasRegistered && (
-                                      <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Registered By</span>
-                                    )}
+                                    {!multiSignal && hasReports && <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Has Reports</span>}
+                                    {!multiSignal && hasBatch && <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Batch Registered</span>}
+                                    {!multiSignal && hasRegistered && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Registered By</span>}
                                   </div>
                                   <p className="text-xs text-muted-foreground truncate mt-0.5">
                                     {s.current_class_name
@@ -463,36 +553,50 @@ export default function ClassHealPage() {
                             );
                           })}
                         </div>
+                      </div>
+                    )}
 
-                        {/* Destination class + move button */}
-                        <div className="space-y-2 pt-1">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                const all = new Set(school.displaced_students.map(s => s.id));
-                                setAuditSelDisplaced(prev => ({ ...prev, [school.school_id]: all }));
-                              }}
-                              className="text-xs font-bold text-violet-400 hover:underline shrink-0"
-                            >
-                              Select all
-                            </button>
-                            <span className="text-xs text-muted-foreground">
-                              {auditSelDisplaced[school.school_id]?.size ?? 0} selected
-                            </span>
-                          </div>
-                          <div className="flex flex-col sm:flex-row gap-2">
+                    {/* ── Unified move controls ── */}
+                    <div className="border-t border-border pt-3 space-y-3">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          onClick={() => selectIds(school.displaced_students.map(s => s.id))}
+                          className="text-xs font-bold text-amber-400 hover:underline"
+                        >
+                          Select all displaced
+                        </button>
+                        {school.classes.length > 0 && (
+                          <button
+                            onClick={() => selectIds(school.students_in_classes.map((s: AuditStudent) => s.id))}
+                            className="text-xs font-bold text-muted-foreground hover:underline"
+                          >
+                            Select all enrolled
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setAuditSel(prev => { const n = { ...prev }; delete n[school.school_id]; return n; })}
+                          className="text-xs font-bold text-muted-foreground hover:underline"
+                        >
+                          Clear
+                        </button>
+                        <span className="text-xs text-muted-foreground ml-auto">{selCount} selected</span>
+                      </div>
+
+                      {/* Move to existing class */}
+                      {school.classes.length > 0 && (
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <select
                             value={auditDestClass[school.school_id] ?? ''}
                             onChange={e => setAuditDestClass(prev => ({ ...prev, [school.school_id]: e.target.value }))}
                             className="select-premium text-xs px-2 py-1.5 flex-1"
                           >
-                            <option value="">— Move to class —</option>
-                            {school.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            <option value="">— Move selected to class —</option>
+                            {school.classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.student_count} students)</option>)}
                           </select>
                           <button
-                            disabled={!auditDestClass[school.school_id] || !(auditSelDisplaced[school.school_id]?.size) || working}
+                            disabled={!auditDestClass[school.school_id] || selCount === 0 || working}
                             onClick={async () => {
-                              const ids = Array.from(auditSelDisplaced[school.school_id] ?? []);
+                              const ids = Array.from(schoolSel);
                               const destId = auditDestClass[school.school_id];
                               if (!ids.length || !destId) return;
                               setWorking(true); setMsg(null);
@@ -504,33 +608,101 @@ export default function ClassHealPage() {
                                 });
                                 const j = await res.json();
                                 if (!res.ok) throw new Error(j.error || 'Failed');
-                                setMsg({ type: 'ok', text: `Moved ${j.updated} student(s) to class.${j.skipped ? ` ${j.skipped} skipped (school mismatch).` : ''}` });
-                                // Refresh audit
+                                setMsg({ type: 'ok', text: `Moved ${j.updated} student(s).${j.skipped ? ` ${j.skipped} skipped (school mismatch).` : ''}` });
                                 const r2 = await fetch(`/api/classes/heal?teacher_audit=${auditTeacherId}`, { cache: 'no-store' });
                                 const j2 = await r2.json();
                                 setAuditData(j2.data ?? null);
-                                setAuditSelDisplaced(prev => { const n = { ...prev }; delete n[school.school_id]; return n; });
+                                setAuditSel(prev => { const n = { ...prev }; delete n[school.school_id]; return n; });
                                 await load();
                               } catch (e: any) {
                                 setMsg({ type: 'err', text: e.message });
                               } finally { setWorking(false); }
                             }}
-                            className="w-full sm:w-auto px-3 py-2 sm:py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
+                            className="w-full sm:w-auto px-4 py-2 sm:py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
                           >
-                            Move Selected
+                            Move Selected →
                           </button>
+                        </div>
+                      )}
+
+                      {/* Create new class form */}
+                      {createClassForm[school.school_id] !== undefined ? (
+                        <div className="border border-dashed border-primary/40 rounded-xl p-3 space-y-2.5 bg-primary/5">
+                          <p className="text-xs font-black text-primary uppercase tracking-wide">Create New Class</p>
+                          <input
+                            type="text"
+                            value={createClassForm[school.school_id]?.name ?? ''}
+                            onChange={e => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { ...prev[school.school_id], name: e.target.value } }))}
+                            placeholder="Class name (e.g. Python SS2)"
+                            className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                          />
+                          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={createClassForm[school.school_id]?.autoFill ?? true}
+                              onChange={e => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { ...prev[school.school_id], autoFill: e.target.checked } }))}
+                              className="w-4 h-4 rounded"
+                            />
+                            Auto-assign all {school.displaced_students.length} displaced student(s) to this new class
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              disabled={!createClassForm[school.school_id]?.name?.trim() || working}
+                              onClick={async () => {
+                                const form = createClassForm[school.school_id];
+                                if (!form?.name?.trim() || !auditTeacherId) return;
+                                const fillIds = form.autoFill
+                                  ? school.displaced_students.map(s => s.id)
+                                  : selCount > 0 ? Array.from(schoolSel) : [];
+                                setWorking(true); setMsg(null);
+                                try {
+                                  const res = await fetch('/api/classes/heal', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'create_class_for_teacher', teacherId: auditTeacherId, schoolId: school.school_id, className: form.name.trim(), studentIds: fillIds }),
+                                  });
+                                  const j = await res.json();
+                                  if (!res.ok) throw new Error(j.error || 'Failed');
+                                  setMsg({ type: 'ok', text: `Class "${j.className}" created. ${j.enrolled} student(s) assigned.` });
+                                  setCreateClassForm(prev => { const n = { ...prev }; delete n[school.school_id]; return n; });
+                                  setAuditSel(prev => { const n = { ...prev }; delete n[school.school_id]; return n; });
+                                  const r2 = await fetch(`/api/classes/heal?teacher_audit=${auditTeacherId}`, { cache: 'no-store' });
+                                  const j2 = await r2.json();
+                                  setAuditData(j2.data ?? null);
+                                  setExpandedClasses(prev => { const n = new Set(prev); if (j.classId) n.add(j.classId); return n; });
+                                  await load();
+                                } catch (e: any) {
+                                  setMsg({ type: 'err', text: e.message });
+                                } finally { setWorking(false); }
+                              }}
+                              className="flex-1 sm:flex-none px-4 py-2 bg-primary hover:bg-primary/80 text-white text-xs font-black rounded-xl disabled:opacity-40 transition"
+                            >
+                              Create &amp; Fill
+                            </button>
+                            <button
+                              onClick={() => setCreateClassForm(prev => { const n = { ...prev }; delete n[school.school_id]; return n; })}
+                              className="px-3 py-2 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-bold rounded-xl transition"
+                            >
+                              Cancel
+                            </button>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <button
+                          onClick={() => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { name: '', autoFill: true } }))}
+                          className="flex items-center gap-1.5 text-xs font-bold text-primary/70 hover:text-primary transition"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5" /> Create new class for this teacher at {school.school_name}
+                        </button>
+                      )}
+                    </div>
+
                     {school.displaced_students.length === 0 && school.classes.length > 0 && (
-                      <p className="text-xs text-emerald-400 font-semibold">All students are correctly assigned to this teacher's classes.</p>
-                    )}
-                    {school.classes.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic">No classes found for this teacher at this school.</p>
+                      <p className="text-xs text-emerald-400 font-semibold">All students correctly assigned to this teacher's classes.</p>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -156,17 +156,25 @@ export async function GET(req: NextRequest) {
     }));
 
     // Build per-school structure
-    const schoolAudit = allRelevantSchoolIds.map(sid => ({
-      school_id: sid,
-      school_name: schoolNameMap[sid] ?? sid,
-      in_teacher_schools: assignedSchoolIds.includes(sid),
-      classes: (teacherClasses ?? []).filter((c: any) => c.school_id === sid).map((c: any) => ({
-        ...c,
-        student_count: (classStudents ?? []).filter((s: any) => s.class_id === c.id).length,
-      })),
-      students_in_classes: (classStudents ?? []).filter((s: any) => s.school_id === sid),
-      displaced_students: enrichedDisplaced.filter((s: any) => s.school_id === sid),
-    }));
+    const schoolAudit = allRelevantSchoolIds.map(sid => {
+      const schoolClasses = (teacherClasses ?? []).filter((c: any) => c.school_id === sid);
+      const schoolClassIdSet = new Set(schoolClasses.map((c: any) => c.id));
+      return {
+        school_id: sid,
+        school_name: schoolNameMap[sid] ?? sid,
+        in_teacher_schools: assignedSchoolIds.includes(sid),
+        // Each class carries its enrolled students so the UI can render the roster
+        classes: schoolClasses.map((c: any) => ({
+          ...c,
+          students: (classStudents ?? []).filter((s: any) => s.class_id === c.id),
+          student_count: (classStudents ?? []).filter((s: any) => s.class_id === c.id).length,
+        })),
+        // students_in_classes: all students whose class belongs to this teacher at this school
+        // Use class membership rather than school_id so we catch students with stale school_id
+        students_in_classes: (classStudents ?? []).filter((s: any) => schoolClassIdSet.has(s.class_id)),
+        displaced_students: enrichedDisplaced.filter((s: any) => s.school_id === sid),
+      };
+    });
 
     return NextResponse.json({ data: { teacher_name: tProfile?.full_name ?? null, schoolAudit, allClasses: teacherClasses ?? [] } });
   }
@@ -906,6 +914,52 @@ export async function POST(req: NextRequest) {
         ? `${skippedConflict.length} student(s) skipped — history points to a different teacher than their report author (likely an overwrite batch). Fix class assignment in Teacher Conflict first: ${skippedConflict.join(', ')}`
         : undefined,
     });
+  }
+
+  // Create a new class for a teacher at a given school, then optionally fill it with students.
+  // Used by the Teacher Audit workspace when a teacher has displaced students but no class at a school yet.
+  if (action === 'create_class_for_teacher') {
+    const { teacherId, schoolId, className, studentIds: sids } = body;
+    if (!teacherId || !schoolId || !className?.trim()) {
+      return NextResponse.json({ error: 'teacherId, schoolId, className required' }, { status: 400 });
+    }
+    // Create the class
+    const { data: newClass, error: classErr } = await db
+      .from('classes')
+      .insert({ name: className.trim(), school_id: schoolId, teacher_id: teacherId })
+      .select('id, name')
+      .single();
+    if (classErr || !newClass) return NextResponse.json({ error: classErr?.message ?? 'Class creation failed' }, { status: 500 });
+
+    // Ensure teacher_schools row exists so the teacher can see this school
+    const { data: existingTs } = await db
+      .from('teacher_schools')
+      .select('id')
+      .eq('teacher_id', teacherId)
+      .eq('school_id', schoolId)
+      .maybeSingle();
+    if (!existingTs) {
+      await db.from('teacher_schools').insert({ teacher_id: teacherId, school_id: schoolId });
+    }
+
+    // Assign students to the new class (school boundary enforced — only same-school students)
+    let enrolled = 0;
+    if (sids?.length) {
+      const { error: updateErr } = await db
+        .from('portal_users')
+        .update({
+          class_id: newClass.id,
+          section_class: newClass.name,
+          primary_teacher_id: teacherId,
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', sids)
+        .eq('school_id', schoolId)
+        .eq('role', 'student');
+      if (!updateErr) enrolled = sids.length;
+    }
+
+    return NextResponse.json({ success: true, classId: newClass.id, className: newClass.name, enrolled });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
