@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon } from '@/lib/icons';
 
 type RegistryHint = { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null };
-type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null; registry?: RegistryHint | null; class_name?: string | null; class_school_id?: string | null; class_school_name?: string | null; class_teacher_conflict?: boolean };
+type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null; primary_teacher_id?: string | null; registry?: RegistryHint | null; class_name?: string | null; class_school_id?: string | null; class_school_name?: string | null; class_teacher_conflict?: boolean };
 type ConflictStudent = AnomalyStudent & { current_class_name: string | null; current_class_teacher_id: string | null; current_class_teacher_name: string | null; report_teacher_id: string | null; report_teacher_name: string | null };
 type AnomalyClass = { id: string; name: string; school_id: string; created_at: string; schools?: { name: string } | null };
 type ClassOption = { id: string; name: string; school_id: string | null; teacher_id?: string | null };
@@ -29,6 +29,7 @@ export default function ClassHealPage() {
     missingTeacherSchools: MissingTs[];
     classes: ClassOption[];
     teachers: TeacherOption[];
+    protectedCount: number;
   } | null>(null);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
   // Restore-to-teacher panel state
@@ -219,14 +220,31 @@ export default function ClassHealPage() {
           </div>
         )}
 
-        {totalIssues === 0 ? (
+        {/* Stats summary panel */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-card border border-border rounded-xl px-4 py-3 flex flex-col gap-1">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Total Issues</span>
+            <span className={`text-2xl font-black ${totalIssues > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>{totalIssues}</span>
+          </div>
+          <div className="bg-card border border-violet-500/20 rounded-xl px-4 py-3 flex flex-col gap-1">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Conflicts</span>
+            <span className="text-2xl font-black text-violet-400">{data?.teacherConflict.length ?? 0}</span>
+          </div>
+          <div className="bg-card border border-emerald-500/20 rounded-xl px-4 py-3 flex flex-col gap-1">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Protected</span>
+            <span className="text-2xl font-black text-emerald-400">{data?.protectedCount ?? 0}</span>
+            <span className="text-[10px] text-muted-foreground leading-tight">students with a primary teacher lock</span>
+          </div>
+          <div className="bg-card border border-sky-500/20 rounded-xl px-4 py-3 flex flex-col gap-1">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No Class</span>
+            <span className="text-2xl font-black text-sky-400">{data?.noClass.length ?? 0}</span>
+          </div>
+        </div>
+
+        {totalIssues === 0 && (
           <div className="text-center py-16 bg-card border border-emerald-500/20 rounded-xl">
             <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-400 mb-3" />
             <p className="text-lg font-bold text-foreground">All clear — no anomalies found.</p>
-          </div>
-        ) : (
-          <div className="text-xs font-bold text-amber-400 uppercase tracking-widest">
-            {totalIssues} issue{totalIssues !== 1 ? 's' : ''} found
           </div>
         )}
 
@@ -276,9 +294,7 @@ export default function ClassHealPage() {
                         className="select-premium text-xs px-2 py-1.5 flex-1"
                       >
                         <option value="">— Move to class —</option>
-                        {(data?.classes ?? []).map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
+                        <ClassOptions classes={data?.classes ?? []} schools={schools} />
                       </select>
                       <button
                         disabled={!reassignTarget[s.id] || working}
@@ -617,10 +633,11 @@ export default function ClassHealPage() {
                       onChange={e => setReassignTarget(prev => ({ ...prev, [s.id]: e.target.value }))}
                       className="select-premium text-xs px-2 py-1.5 flex-1"
                     >
-                      <option value="">— Move to class —</option>
-                      {(data?.classes ?? [])
-                        .filter(c => !s.report_teacher_id || c.teacher_id === s.report_teacher_id)
-                        .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      <option value="">— Move to report teacher's class —</option>
+                      <ClassOptions
+                        classes={(data?.classes ?? []).filter(c => !s.report_teacher_id || c.teacher_id === s.report_teacher_id)}
+                        schools={schools}
+                      />
                     </select>
                     <button
                       disabled={!reassignTarget[s.id] || working}
@@ -729,7 +746,7 @@ export default function ClassHealPage() {
                           className="select-premium text-xs px-2 py-1.5 flex-1 min-w-[130px]"
                         >
                           <option value="">— Pick class (opt.) —</option>
-                          {classesForChosenSchool.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          <ClassOptions classes={classesForChosenSchool} schools={schools} />
                         </select>
                       </div>
 
@@ -802,7 +819,7 @@ export default function ClassHealPage() {
                 <select value={targetClass} onChange={e => setTargetClass(e.target.value)}
                   className="select-premium flex-1 text-sm px-3 py-2">
                   <option value="">— Select class —</option>
-                  {(data?.classes ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <ClassOptions classes={data?.classes ?? []} schools={schools} />
                 </select>
                 <div className="flex items-center gap-2">
                   <button onClick={() => selAll(data!.noClass.map(s => s.id), setSelNoClass)}
@@ -817,8 +834,7 @@ export default function ClassHealPage() {
               </div>
               {data!.noClass.map(s => (
                 <StudentRow key={s.id} student={s} selected={selNoClass.has(s.id)}
-                  onToggle={() => toggleSel(selNoClass, setSelNoClass, s.id)}
-                  extra={`School: ${s.school_name ?? s.school_id ?? '?'}`} />
+                  onToggle={() => toggleSel(selNoClass, setSelNoClass, s.id)} />
               ))}
             </div>
           </Section>
@@ -926,30 +942,77 @@ export default function ClassHealPage() {
   );
 }
 
-function Section({ title, count, description, children }: { title: string; count: number; description: string; children: React.ReactNode }) {
+function Section({ title, count, description, children, color = 'amber' }: { title: string; count: number; description: string; children: React.ReactNode; color?: 'amber' | 'rose' | 'violet' | 'sky' }) {
+  const colors = {
+    amber: { icon: 'text-amber-400', badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30', border: 'border-border' },
+    rose:  { icon: 'text-rose-400',  badge: 'bg-rose-500/20 text-rose-400 border-rose-500/30',   border: 'border-rose-500/20' },
+    violet:{ icon: 'text-violet-400',badge: 'bg-violet-500/20 text-violet-400 border-violet-500/30', border: 'border-violet-500/20' },
+    sky:   { icon: 'text-sky-400',   badge: 'bg-sky-500/20 text-sky-400 border-sky-500/30',     border: 'border-sky-500/20' },
+  }[color];
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className={`bg-card border ${colors.border} rounded-xl overflow-hidden`}>
       <div className="px-4 sm:px-5 py-4 border-b border-border flex items-start gap-3">
-        <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <ExclamationTriangleIcon className={`w-5 h-5 ${colors.icon} shrink-0 mt-0.5`} />
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-extrabold text-foreground">{title}</h2>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
-        <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">{count}</span>
+        <span className={`text-xs font-black px-2.5 py-1 rounded-full border shrink-0 ${colors.badge}`}>{count}</span>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-4 sm:p-5">{children}</div>
     </div>
   );
 }
 
-function StudentRow({ student, selected, onToggle, extra }: { student: AnomalyStudent; selected: boolean; onToggle: () => void; extra?: string }) {
+/** Renders class options grouped by school for a <select> element. */
+function ClassOptions({ classes, schools }: { classes: ClassOption[]; schools: { id: string; name: string }[] }) {
+  const schoolNameMap = Object.fromEntries(schools.map(s => [s.id, s.name]));
+  // Group by school
+  const grouped: Record<string, ClassOption[]> = {};
+  const noSchoolClasses: ClassOption[] = [];
+  for (const c of classes) {
+    if (!c.school_id) { noSchoolClasses.push(c); continue; }
+    const sname = schoolNameMap[c.school_id] ?? c.school_id;
+    if (!grouped[sname]) grouped[sname] = [];
+    grouped[sname].push(c);
+  }
   return (
-    <label className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 cursor-pointer transition">
+    <>
+      {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([school, cls]) => (
+        <optgroup key={school} label={school}>
+          {cls.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </optgroup>
+      ))}
+      {noSchoolClasses.length > 0 && (
+        <optgroup label="No School">
+          {noSchoolClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </optgroup>
+      )}
+    </>
+  );
+}
+
+function StudentRow({ student, selected, onToggle }: { student: AnomalyStudent; selected: boolean; onToggle: () => void }) {
+  const isProtected = !!student.primary_teacher_id;
+  return (
+    <label className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition border ${selected ? 'bg-primary/10 border-primary/30' : 'bg-muted/20 border-border hover:bg-muted/40'}`}>
       <input type="checkbox" checked={selected} onChange={onToggle}
-        className="w-4 h-4 rounded border-border text-primary" />
+        className="w-4 h-4 rounded border-border text-primary shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
-        <p className="text-xs text-muted-foreground truncate">{student.email}{extra ? ` · ${extra}` : ''}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
+          {student.school_name && (
+            <span className="text-[10px] px-1.5 py-0.5 bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded font-bold shrink-0 truncate max-w-[120px]">
+              {student.school_name}
+            </span>
+          )}
+          {isProtected && (
+            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-bold shrink-0">
+              Protected
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground truncate mt-0.5">{student.email}</p>
       </div>
     </label>
   );

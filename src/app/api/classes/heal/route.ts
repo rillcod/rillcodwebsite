@@ -229,19 +229,31 @@ export async function GET(req: NextRequest) {
     registry: registryMap[s.id] ?? null,
   }));
 
-  // 2. Students with no class_id
-  const { data: noClass } = await db
+  // 2. Students with no class_id — also fetch primary_teacher_id for protection badge
+  const { data: noClassRaw } = await db
     .from('portal_users')
-    .select('id, full_name, email, class_id, school_id, section_class, school_name')
+    .select('id, full_name, email, class_id, school_id, section_class, school_name, primary_teacher_id')
     .eq('role', 'student')
     .is('class_id', null)
     .not('school_id', 'is', null)
     .eq('is_deleted', false);
 
+  // Enrich school_name for noClass students where it's missing from the DB
+  const noClassMissingSchoolIds = [...new Set((noClassRaw ?? []).filter((s: any) => !s.school_name && s.school_id).map((s: any) => s.school_id))] as string[];
+  const noClassSchoolNameMap: Record<string, string> = {};
+  if (noClassMissingSchoolIds.length > 0) {
+    const { data: ncSchools } = await db.from('schools').select('id, name').in('id', noClassMissingSchoolIds);
+    (ncSchools ?? []).forEach((s: any) => { noClassSchoolNameMap[s.id] = s.name; });
+  }
+  const noClass = (noClassRaw ?? []).map((s: any) => ({
+    ...s,
+    school_name: s.school_name || noClassSchoolNameMap[s.school_id] || null,
+  }));
+
   // 3. Students whose class belongs to a different school than their school_id
   const { data: allStudents } = await db
     .from('portal_users')
-    .select('id, full_name, email, school_id, class_id, school_name')
+    .select('id, full_name, email, school_id, class_id, school_name, primary_teacher_id')
     .eq('role', 'student')
     .not('school_id', 'is', null)
     .not('class_id', 'is', null)
@@ -427,6 +439,14 @@ export async function GET(req: NextRequest) {
     .eq('is_deleted', false)
     .order('full_name');
 
+  // Count students with protection active (primary_teacher_id set)
+  const { count: protectedCount } = await db
+    .from('portal_users')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'student')
+    .not('primary_teacher_id', 'is', null)
+    .eq('is_deleted', false);
+
   return NextResponse.json({
     data: {
       noSchool: noSchool ?? [],
@@ -437,6 +457,7 @@ export async function GET(req: NextRequest) {
       teacherConflict,
       missingTeacherSchools,
       classes: allClasses ?? [],
+      protectedCount: protectedCount ?? 0,
       teachers: teacherRows ?? [],
     },
   });
