@@ -12,7 +12,7 @@ type ClassOption = { id: string; name: string; school_id: string | null; teacher
 type TeacherOption = { id: string; full_name: string };
 type MissingTs = { teacher_id: string; school_id: string; teacher_name: string | null; school_name: string | null; class_ids: string[] };
 type SearchStudent = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; section_class: string | null; class_name: string | null };
-type AuditStudent = { id: string; full_name: string; email: string; school_id: string | null; class_id: string | null; section_class: string | null; current_class_name: string | null; current_class_teacher_name: string | null };
+type AuditStudent = { id: string; full_name: string; email: string; school_id: string | null; class_id: string | null; section_class: string | null; current_class_name: string | null; current_class_teacher_name: string | null; displacement_sources?: string[] };
 type AuditSchool = { school_id: string; school_name: string; in_teacher_schools: boolean; classes: { id: string; name: string; school_id: string; student_count: number }[]; students_in_classes: AuditStudent[]; displaced_students: AuditStudent[] };
 
 export default function ClassHealPage() {
@@ -392,13 +392,22 @@ export default function ClassHealPage() {
                     {/* Displaced students */}
                     {school.displaced_students.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">
-                          {school.displaced_students.length} student(s) have reports by this teacher but are in a different class
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+                            {school.displaced_students.length} displaced student(s)
+                          </p>
+                          <span className="text-[10px] text-muted-foreground">·</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {school.displaced_students.filter(s => (s.displacement_sources ?? []).includes('report_authored') && (s.displacement_sources ?? []).includes('batch_registered')).length} confirmed by both signals
+                          </span>
+                        </div>
                         <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                           {school.displaced_students.map(s => {
                             const sel = auditSelDisplaced[school.school_id] ?? new Set();
                             const checked = sel.has(s.id);
+                            const sources = s.displacement_sources ?? [];
+                            const hasReports = sources.includes('report_authored');
+                            const hasBatch = sources.includes('batch_registered');
                             return (
                               <label key={s.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl border cursor-pointer transition ${checked ? 'bg-violet-500/10 border-violet-500/30' : 'bg-background border-border hover:bg-muted/30'}`}>
                                 <input type="checkbox" checked={checked} onChange={() => {
@@ -409,8 +418,19 @@ export default function ClassHealPage() {
                                   });
                                 }} className="w-4 h-4 rounded text-violet-500" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
-                                  <p className="text-xs text-muted-foreground truncate">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                                    {hasReports && hasBatch && (
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Reports + Batch</span>
+                                    )}
+                                    {hasReports && !hasBatch && (
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Has Reports</span>
+                                    )}
+                                    {hasBatch && !hasReports && (
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Batch Registered</span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground truncate mt-0.5">
                                     {s.current_class_name
                                       ? `Currently in: ${s.current_class_name}${s.current_class_teacher_name ? ` (${s.current_class_teacher_name})` : ''}`
                                       : 'Not in any class'}
