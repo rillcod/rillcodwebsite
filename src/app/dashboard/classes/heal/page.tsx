@@ -183,31 +183,31 @@ export default function ClassHealPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-extrabold text-foreground">Class Health &amp; Repair</h1>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-foreground">Class Health &amp; Repair</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Scan and fix student–class–school mismatches. Admin only.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => applyAction('auto_align_by_reports', [])}
               disabled={working || loading || (data?.teacherConflict.length ?? 0) === 0}
               title="For every student whose class teacher doesn't match their primary report author, move them to a class owned by the report teacher at the same school."
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition">
-              <ArrowPathIcon className="w-4 h-4" /> Auto-Align by Reports
+              className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+              <ArrowPathIcon className="w-4 h-4 shrink-0" /> Auto-Align by Reports
             </button>
             <button
               onClick={() => applyAction('safe_auto_repair', [])}
               disabled={working || loading || totalIssues === 0}
               title="Assigns class_id to students who have no class but whose section_class text exactly matches a class name at their school."
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition">
-              <CheckCircleIcon className="w-4 h-4" /> Safe Auto-Repair
+              className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+              <CheckCircleIcon className="w-4 h-4 shrink-0" /> Safe Auto-Repair
             </button>
             <button onClick={load} disabled={working || loading}
-              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-sm font-bold rounded-xl transition">
-              <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Re-scan
+              className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-xs font-bold rounded-xl transition">
+              <ArrowPathIcon className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} /> Re-scan
             </button>
           </div>
         </div>
@@ -255,8 +255,8 @@ export default function ClassHealPage() {
             {searchResults.length > 0 && (
               <div className="space-y-2">
                 {searchResults.map(s => (
-                  <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3 bg-muted/30 rounded-xl border border-border">
-                    <div className="flex-1 min-w-0">
+                  <div key={s.id} className="flex flex-col gap-2 px-4 py-3 bg-muted/30 rounded-xl border border-border">
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
                       <p className="text-xs text-muted-foreground truncate">
                         {s.email}
@@ -265,15 +265,15 @@ export default function ClassHealPage() {
                       <p className="text-xs mt-0.5">
                         <span className="text-muted-foreground">Current class: </span>
                         <span className={s.class_name ? 'text-foreground font-medium' : 'text-amber-400 italic'}>
-                          {s.class_name ?? (s.section_class ? `section_class: "${s.section_class}" (unlinked)` : 'None')}
+                          {s.class_name ?? (s.section_class ? `"${s.section_class}" (unlinked)` : 'None')}
                         </span>
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2">
                       <select
                         value={reassignTarget[s.id] ?? ''}
                         onChange={e => setReassignTarget(prev => ({ ...prev, [s.id]: e.target.value }))}
-                        className="select-premium text-xs px-2 py-1.5 max-w-[200px]"
+                        className="select-premium text-xs px-2 py-1.5 flex-1"
                       >
                         <option value="">— Move to class —</option>
                         {(data?.classes ?? []).map(c => (
@@ -283,7 +283,7 @@ export default function ClassHealPage() {
                       <button
                         disabled={!reassignTarget[s.id] || working}
                         onClick={() => reassignStudent(s.id)}
-                        className="px-3 py-1.5 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-40 transition"
+                        className="px-3 py-1.5 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-40 transition shrink-0"
                       >
                         Move
                       </button>
@@ -313,7 +313,7 @@ export default function ClassHealPage() {
             </div>
           </div>
           <div className="p-5 space-y-4">
-            <div className="flex items-end gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
               <div className="flex-1">
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Select Teacher to Audit</label>
                 <select
@@ -341,9 +341,9 @@ export default function ClassHealPage() {
                   } catch { /* ignore */ }
                   setAuditLoading(false);
                 }}
-                className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition"
               >
-                {auditLoading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : 'Run Audit'}
+                {auditLoading ? <ArrowPathIcon className="w-4 h-4 animate-spin mx-auto" /> : 'Run Audit'}
               </button>
             </div>
 
@@ -449,20 +449,26 @@ export default function ClassHealPage() {
                         </div>
 
                         {/* Destination class + move button */}
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <button
-                            onClick={() => {
-                              const all = new Set(school.displaced_students.map(s => s.id));
-                              setAuditSelDisplaced(prev => ({ ...prev, [school.school_id]: all }));
-                            }}
-                            className="text-xs font-bold text-violet-400 hover:underline"
-                          >
-                            Select all
-                          </button>
+                        <div className="space-y-2 pt-1">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                const all = new Set(school.displaced_students.map(s => s.id));
+                                setAuditSelDisplaced(prev => ({ ...prev, [school.school_id]: all }));
+                              }}
+                              className="text-xs font-bold text-violet-400 hover:underline shrink-0"
+                            >
+                              Select all
+                            </button>
+                            <span className="text-xs text-muted-foreground">
+                              {auditSelDisplaced[school.school_id]?.size ?? 0} selected
+                            </span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2">
                           <select
                             value={auditDestClass[school.school_id] ?? ''}
                             onChange={e => setAuditDestClass(prev => ({ ...prev, [school.school_id]: e.target.value }))}
-                            className="select-premium text-xs px-2 py-1.5 flex-1 min-w-[160px]"
+                            className="select-premium text-xs px-2 py-1.5 flex-1"
                           >
                             <option value="">— Move to class —</option>
                             {school.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -493,10 +499,11 @@ export default function ClassHealPage() {
                                 setMsg({ type: 'err', text: e.message });
                               } finally { setWorking(false); }
                             }}
-                            className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                            className="w-full sm:w-auto px-3 py-2 sm:py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
                           >
                             Move Selected
                           </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -791,20 +798,22 @@ export default function ClassHealPage() {
           <Section title="Students Without a Class" count={data!.noClass.length}
             description="Active students not assigned to any class. Teachers can't see them.">
             <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
                 <select value={targetClass} onChange={e => setTargetClass(e.target.value)}
                   className="select-premium flex-1 text-sm px-3 py-2">
                   <option value="">— Select class —</option>
                   {(data?.classes ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-                <button onClick={() => selAll(data!.noClass.map(s => s.id), setSelNoClass)}
-                  className="text-xs font-bold text-primary hover:underline">Select all</button>
-                <button
-                  disabled={!targetClass || selNoClass.size === 0 || working}
-                  onClick={() => applyAction('assign_class', Array.from(selNoClass), { classId: targetClass })}
-                  className="px-4 py-2 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
-                  Assign Class
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => selAll(data!.noClass.map(s => s.id), setSelNoClass)}
+                    className="text-xs font-bold text-primary hover:underline">Select all</button>
+                  <button
+                    disabled={!targetClass || selNoClass.size === 0 || working}
+                    onClick={() => applyAction('assign_class', Array.from(selNoClass), { classId: targetClass })}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-primary text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
+                    Assign Class
+                  </button>
+                </div>
               </div>
               {data!.noClass.map(s => (
                 <StudentRow key={s.id} student={s} selected={selNoClass.has(s.id)}
@@ -828,11 +837,11 @@ export default function ClassHealPage() {
                   <>
                     {safe.length > 0 && (
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">{safe.length} safe to align</p>
-                          <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest shrink-0">{safe.length} safe to align</p>
+                          <div className="flex flex-wrap gap-2">
                             <button onClick={() => selAll(safe.map(s => s.id), setSelMismatched)}
-                              className="text-xs font-bold text-primary hover:underline">Select all safe</button>
+                              className="text-xs font-bold text-primary hover:underline">Select all</button>
                             <button
                               disabled={selMismatched.size === 0 || working}
                               onClick={() => applyAction('align_to_class_school', Array.from(selMismatched))}
@@ -920,13 +929,13 @@ export default function ClassHealPage() {
 function Section({ title, count, description, children }: { title: string; count: number; description: string; children: React.ReactNode }) {
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-        <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0" />
-        <div className="flex-1">
+      <div className="px-4 sm:px-5 py-4 border-b border-border flex items-start gap-3">
+        <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
           <h2 className="text-sm font-extrabold text-foreground">{title}</h2>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
-        <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">{count}</span>
+        <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">{count}</span>
       </div>
       <div className="p-5">{children}</div>
     </div>
