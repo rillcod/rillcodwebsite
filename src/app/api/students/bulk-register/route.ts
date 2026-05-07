@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       email: string;
       password: string;
       class_name?: string;
-      status: 'created' | 'updated' | 'skipped' | 'failed';
+      status: 'created' | 'updated' | 'skipped' | 'failed' | 'name_swap_conflict';
       error?: string;
       userId?: string;
       cardIssued?: boolean;
@@ -118,12 +118,25 @@ export async function POST(request: Request) {
       .from('portal_users')
       .select('id, full_name, email')
       .eq('school_id', resolvedSchoolId)
-      .eq('role', 'student');
+      .eq('role', 'student')
+      .eq('is_deleted', false);
 
-    const existingByName = new Map<string, { id: string; email: string }>();
+    // Build lookup maps for exact name AND reversed-name (first/last swapped)
+    const existingByName = new Map<string, { id: string; email: string; full_name: string }>();
+    const existingByReversedName = new Map<string, { id: string; email: string; full_name: string }>();
     for (const s of (existingStudents ?? [])) {
-      existingByName.set(s.full_name.trim().toLowerCase(), { id: s.id, email: s.email });
+      const norm = s.full_name.trim().toLowerCase();
+      existingByName.set(norm, { id: s.id, email: s.email, full_name: s.full_name });
+      // Build reversed version: "Ada Ngozi" → "Ngozi Ada"
+      const parts = norm.split(/\s+/);
+      if (parts.length >= 2) {
+        const reversed = [...parts].reverse().join(' ');
+        existingByReversedName.set(reversed, { id: s.id, email: s.email, full_name: s.full_name });
+      }
     }
+
+    // allowNameSwap: caller explicitly confirmed this is a different student from the name-swapped match
+    const allowNameSwap: boolean = body.allow_name_swap === true;
 
     for (const student of students) {
       const { full_name, email, password, class_name } = student;
@@ -133,15 +146,28 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Block duplicate by name at same school (unless admin confirmed different students share a name)
       const nameKey = full_name.trim().toLowerCase();
-      const existingMatch = existingByName.get(nameKey);
-      if (existingMatch && !allowSameName) {
+
+      // 1. Exact name match — block unless caller confirmed same name = different student
+      const exactMatch = existingByName.get(nameKey);
+      if (exactMatch && !allowSameName) {
         results.push({
           full_name, email, password, class_name,
           status: 'skipped',
-          error: `Already registered at this school (existing login: ${existingMatch.email})`,
-          userId: existingMatch.id,
+          error: `Already registered at this school as "${exactMatch.full_name}" (login: ${exactMatch.email}). If this is a different student with the same name, re-upload with "allow same name" confirmed.`,
+          userId: exactMatch.id,
+        });
+        continue;
+      }
+
+      // 2. Swapped first/last name — block unless caller confirmed it's intentional
+      const swapMatch = !exactMatch ? existingByReversedName.get(nameKey) : null;
+      if (swapMatch && !allowNameSwap && !allowSameName) {
+        results.push({
+          full_name, email, password, class_name,
+          status: 'name_swap_conflict',
+          error: `Possible duplicate: "${full_name}" looks like "${swapMatch.full_name}" with first and last name swapped (existing login: ${swapMatch.email}). Confirm this is a different student to proceed.`,
+          userId: swapMatch.id,
         });
         continue;
       }
@@ -193,6 +219,32 @@ export async function POST(request: Request) {
         if (!authUserId) {
           results.push({ full_name, email, password, class_name, status: 'failed', error: 'No user ID returned' });
           continue;
+        }
+
+        // Ghost-row guard: if portal_users already has a NON-DELETED row with this email
+        // but a DIFFERENT id (created outside the auth flow or by a stale import), that row
+        // would become an unreachable duplicate. Soft-delete it so the auth user's row wins.
+        const { data: ghostRows } = await supabaseAdmin
+          .from('portal_users')
+          .select('id, primary_teacher_id')
+          .ilike('email', email.trim())
+          .eq('is_deleted', false)
+          .neq('id', authUserId);
+        for (const ghost of (ghostRows ?? [])) {
+          // Don't silently nuke a protected student — flag instead
+          if (ghost.primary_teacher_id) {
+            results.push({
+              full_name, email, password, class_name, status: 'skipped',
+              error: `Duplicate account conflict: existing protected account (${ghost.id}) for this email. Resolve in Class Health & Repair first.`,
+            });
+            continue;
+          }
+          await supabaseAdmin.from('portal_users')
+            .update({ is_deleted: true, is_active: false, class_id: null })
+            .eq('id', ghost.id);
+          await supabaseAdmin.from('students')
+            .update({ status: 'inactive' })
+            .eq('user_id', ghost.id);
         }
 
         // Upsert into portal_users — never include primary_teacher_id here so that

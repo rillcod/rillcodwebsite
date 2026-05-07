@@ -455,6 +455,47 @@ export async function GET(req: NextRequest) {
     .not('primary_teacher_id', 'is', null)
     .eq('is_deleted', false);
 
+  // Duplicate account detection: same email registered as student more than once
+  // Happens when a bulk-register CSV re-registers an existing student under a
+  // slightly different name / school, creating two portal_users rows for one real child.
+  const { data: allActiveStudents } = await db
+    .from('portal_users')
+    .select('id, full_name, email, school_id, school_name, class_id, section_class, created_at, primary_teacher_id')
+    .eq('role', 'student')
+    .eq('is_deleted', false)
+    .not('email', 'is', null)
+    .order('email');
+
+  const emailGroupMap: Record<string, any[]> = {};
+  (allActiveStudents ?? []).forEach((s: any) => {
+    const e = (s.email ?? '').toLowerCase().trim();
+    if (!e) return;
+    if (!emailGroupMap[e]) emailGroupMap[e] = [];
+    emailGroupMap[e].push(s);
+  });
+  // Enrich each duplicate group with class names
+  const dupClassIds = [...new Set(
+    Object.values(emailGroupMap)
+      .filter(g => g.length > 1)
+      .flat()
+      .map((s: any) => s.class_id)
+      .filter(Boolean)
+  )] as string[];
+  const dupClassNameMap: Record<string, string> = {};
+  if (dupClassIds.length > 0) {
+    const { data: dupClasses } = await db.from('classes').select('id, name').in('id', dupClassIds);
+    (dupClasses ?? []).forEach((c: any) => { dupClassNameMap[c.id] = c.name; });
+  }
+  const duplicateAccounts = Object.values(emailGroupMap)
+    .filter(g => g.length > 1)
+    .map(group => ({
+      email: group[0].email,
+      accounts: group.map((s: any) => ({
+        ...s,
+        class_name: s.class_id ? (dupClassNameMap[s.class_id] ?? null) : null,
+      })),
+    }));
+
   return NextResponse.json({
     data: {
       noSchool: noSchool ?? [],
@@ -464,6 +505,7 @@ export async function GET(req: NextRequest) {
       orphanClasses,
       teacherConflict,
       missingTeacherSchools,
+      duplicateAccounts,
       classes: allClasses ?? [],
       protectedCount: protectedCount ?? 0,
       teachers: teacherRows ?? [],

@@ -15,6 +15,8 @@ type SearchStudent = { id: string; full_name: string; email: string; school_id: 
 type AuditStudent = { id: string; full_name: string; email: string; school_id: string | null; class_id: string | null; section_class: string | null; current_class_name: string | null; current_class_teacher_name: string | null; displacement_sources?: string[] };
 type AuditClass = { id: string; name: string; school_id: string; student_count: number; students: AuditStudent[] };
 type AuditSchool = { school_id: string; school_name: string; in_teacher_schools: boolean; classes: AuditClass[]; students_in_classes: AuditStudent[]; displaced_students: AuditStudent[] };
+type DupAccount = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; class_name: string | null; section_class: string | null; created_at: string; primary_teacher_id: string | null };
+type DuplicateGroup = { email: string; accounts: DupAccount[] };
 
 export default function ClassHealPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -28,6 +30,7 @@ export default function ClassHealPage() {
     orphanClasses: AnomalyClass[];
     teacherConflict: ConflictStudent[];
     missingTeacherSchools: MissingTs[];
+    duplicateAccounts: DuplicateGroup[];
     classes: ClassOption[];
     teachers: TeacherOption[];
     protectedCount: number;
@@ -184,7 +187,8 @@ export default function ClassHealPage() {
 
   const totalIssues = (data?.noSchool.length ?? 0) + (data?.noClass.length ?? 0) +
     (data?.mismatched.length ?? 0) + (data?.sectionDrift.length ?? 0) + (data?.orphanClasses.length ?? 0) +
-    (data?.teacherConflict.length ?? 0) + (data?.missingTeacherSchools.length ?? 0);
+    (data?.teacherConflict.length ?? 0) + (data?.missingTeacherSchools.length ?? 0) +
+    (data?.duplicateAccounts.length ?? 0);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -244,6 +248,11 @@ export default function ClassHealPage() {
           <div className="bg-card border border-sky-500/20 rounded-xl px-4 py-3 flex flex-col gap-1">
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No Class</span>
             <span className="text-2xl font-black text-sky-400">{data?.noClass.length ?? 0}</span>
+          </div>
+          <div className="bg-card border border-rose-500/20 rounded-xl px-4 py-3 flex flex-col gap-1 col-span-2 sm:col-span-1">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Duplicates</span>
+            <span className="text-2xl font-black text-rose-400">{data?.duplicateAccounts.length ?? 0}</span>
+            <span className="text-[10px] text-muted-foreground leading-tight">same email, multiple accounts</span>
           </div>
         </div>
 
@@ -808,6 +817,65 @@ export default function ClassHealPage() {
                   >
                     Fix
                   </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Duplicate Accounts ───────────────────────────────── */}
+        {(data?.duplicateAccounts.length ?? 0) > 0 && (
+          <div className="bg-card border border-rose-500/30 rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+              <ExclamationTriangleIcon className="w-5 h-5 text-rose-400 shrink-0" />
+              <div className="flex-1">
+                <h2 className="text-sm font-extrabold text-foreground">Duplicate Student Accounts</h2>
+                <p className="text-xs text-muted-foreground">
+                  Multiple active accounts share the same email. This usually happens when a bulk-register
+                  CSV re-registers an existing student, creating a ghost account. Keep the account with
+                  the correct class and school, then delete the other(s).
+                </p>
+              </div>
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                {data!.duplicateAccounts.length}
+              </span>
+            </div>
+            <div className="p-5 space-y-4">
+              {data!.duplicateAccounts.map(group => (
+                <div key={group.email} className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-black text-rose-400 uppercase tracking-widest">Duplicate Email</p>
+                    <p className="text-xs text-foreground font-mono bg-muted px-2 py-0.5 rounded">{group.email}</p>
+                    <span className="text-xs text-muted-foreground">· {group.accounts.length} accounts</span>
+                  </div>
+                  <div className="space-y-2">
+                    {group.accounts.map((acc, i) => (
+                      <div key={acc.id} className="flex items-start gap-3 px-3 py-2.5 bg-background border border-border rounded-xl">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold text-foreground truncate">{acc.full_name}</p>
+                            {acc.primary_teacher_id && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-bold shrink-0">Protected</span>
+                            )}
+                            <span className="text-[10px] px-1.5 py-0.5 bg-muted text-muted-foreground rounded font-mono shrink-0">#{i + 1}</span>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
+                            <p>School: <span className="text-foreground font-medium">{acc.school_name ?? acc.school_id ?? '—'}</span></p>
+                            <p>Class: <span className={acc.class_name ? 'text-foreground font-medium' : 'text-amber-400 italic'}>{acc.class_name ?? (acc.section_class ? `"${acc.section_class}" (unlinked)` : 'None')}</span></p>
+                            <p>Created: <span className="text-foreground">{new Date(acc.created_at).toLocaleDateString()}</span></p>
+                          </div>
+                        </div>
+                        <button
+                          disabled={working}
+                          onClick={() => applyAction('delete_portal_user', [acc.id])}
+                          title="Delete this duplicate account"
+                          className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-400 shrink-0 mt-0.5"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

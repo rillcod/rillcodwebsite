@@ -107,7 +107,7 @@ interface GeneratedStudent {
 }
 
 interface RegisterResult extends GeneratedStudent {
-  status: 'created' | 'updated' | 'skipped' | 'failed';
+  status: 'created' | 'updated' | 'skipped' | 'failed' | 'name_swap_conflict';
   error?: string;
   batch_id?: string;
   portal_user_id?: string;
@@ -250,7 +250,9 @@ export default function BulkRegisterPage() {
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [selectedResultIds, setSelectedResultIds] = useState<string[]>([]);
   const [dbDupNames, setDbDupNames] = useState<Set<string>>(new Set()); // names already in DB at selected school
+  const [dbSwapNames, setDbSwapNames] = useState<Map<string, string>>(new Map()); // incoming name → existing swapped name
   const [checkingDups, setCheckingDups] = useState(false);
+  const [nameSwapOverride, setNameSwapOverride] = useState(false); // user confirmed swapped names are different students
   const [dupOverride, setDupOverride] = useState(false); // user confirmed they want to proceed despite name matches
   const [activeTab, setActiveTab] = useState<'register' | 'vault'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
@@ -992,7 +994,9 @@ export default function BulkRegisterPage() {
     if (!built.length) return;
     setPreview(built);
     setDbDupNames(new Set());
+    setDbSwapNames(new Map());
     setDupOverride(false);
+    setNameSwapOverride(false);
     setStep('preview');
 
     // ── Check DB for existing students at this school by name ────────────
@@ -1003,15 +1007,31 @@ export default function BulkRegisterPage() {
           .from('portal_users')
           .select('full_name')
           .eq('school_id', selectedSchoolId)
-          .eq('role', 'student');
+          .eq('role', 'student')
+          .eq('is_deleted', false);
         if (data) {
-          const existingNames = new Set(data.map((s: any) => s.full_name.trim().toLowerCase()));
-          const dupSet = new Set<string>(
-            built
-              .map(s => s.full_name.trim().toLowerCase())
-              .filter(n => existingNames.has(n))
+          const existingNames = new Map<string, string>( // normalised → original
+            data.map((s: any) => [s.full_name.trim().toLowerCase(), s.full_name.trim()])
           );
+          const dupSet = new Set<string>();
+          const swapMap = new Map<string, string>(); // incoming normalised → existing original name
+          for (const s of built) {
+            const norm = s.full_name.trim().toLowerCase();
+            if (existingNames.has(norm)) {
+              dupSet.add(norm);
+            } else {
+              // Check reversed (swap first/last name)
+              const parts = norm.split(/\s+/);
+              if (parts.length >= 2) {
+                const reversed = [...parts].reverse().join(' ');
+                if (existingNames.has(reversed)) {
+                  swapMap.set(norm, existingNames.get(reversed)!);
+                }
+              }
+            }
+          }
           setDbDupNames(dupSet);
+          setDbSwapNames(swapMap);
         }
       } catch { /* non-blocking */ } finally {
         setCheckingDups(false);
@@ -1052,7 +1072,8 @@ export default function BulkRegisterPage() {
           students: batch,
           class_id: selectedRegistryClass || null,
           class_name: effectiveClassCode || null,
-          allow_same_name: dupOverride, // user confirmed different students with same name
+          allow_same_name: dupOverride,
+          allow_name_swap: nameSwapOverride,
         };
         if (selectedSchoolId) {
           body.school_id = selectedSchoolId;
@@ -1579,6 +1600,36 @@ Yusuf Ibrahim SS1A`}
                       </label>
                     </div>
                   )}
+                  {!checkingDups && dbSwapNames.size > 0 && (
+                    <div className="px-4 py-3 bg-rose-500/10 rounded-xl border border-rose-500/30 text-xs space-y-2">
+                      <div className="flex items-start gap-2">
+                        <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-rose-400 font-bold">{dbSwapNames.size} name{dbSwapNames.size !== 1 ? 's look' : ' looks'} like a swapped version of an existing student:</p>
+                          <div className="space-y-0.5">
+                            {[...dbSwapNames.entries()].map(([norm, existing]) => {
+                              const incomingOriginal = preview.find(s => s.full_name.trim().toLowerCase() === norm)?.full_name ?? norm;
+                              return (
+                                <p key={norm} className="text-rose-400/80 font-mono">
+                                  &quot;{incomingOriginal}&quot; → matches existing &quot;{existing}&quot;
+                                </p>
+                              );
+                            })}
+                          </div>
+                          <p className="text-rose-300/60">This usually means the same student's first and last name were entered in reverse order. If this is genuinely a different student, confirm below.</p>
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 pl-6 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={nameSwapOverride}
+                          onChange={(e) => setNameSwapOverride(e.target.checked)}
+                          className="accent-rose-500 w-3.5 h-3.5"
+                        />
+                        <span className="text-rose-400 font-bold">Different student, not a name swap — register anyway</span>
+                      </label>
+                    </div>
+                  )}
                   {incompleteRows.length > 0 && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs">
                       <ExclamationTriangleIcon className="w-4 h-4 text-amber-400" />
@@ -1744,7 +1795,7 @@ Yusuf Ibrahim SS1A`}
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={handleRegister}
-                      disabled={registering || dups.size > 0 || (dbDupNames.size > 0 && !dupOverride) || checkingDups || validCount === 0}
+                      disabled={registering || dups.size > 0 || (dbDupNames.size > 0 && !dupOverride) || (dbSwapNames.size > 0 && !nameSwapOverride) || checkingDups || validCount === 0}
                       className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                     >
                       {registering
@@ -1754,8 +1805,10 @@ Yusuf Ibrahim SS1A`}
                           : dups.size > 0
                             ? 'Fix duplicate emails first'
                             : dbDupNames.size > 0 && !dupOverride
-                              ? `Tick the box above to continue`
-                              : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                              ? 'Tick the box above to confirm same-name students'
+                              : dbSwapNames.size > 0 && !nameSwapOverride
+                                ? 'Confirm the name-swap check above to continue'
+                                : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
                     </button>
                     {registering && registerProgress && (
                       <div className="space-y-1">
