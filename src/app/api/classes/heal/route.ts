@@ -481,17 +481,19 @@ export async function POST(req: NextRequest) {
   const db = adminClient();
 
   if (action === 'assign_class') {
-    // Assign students to a class and set school_id from that class
     if (!classId || !studentIds?.length) {
       return NextResponse.json({ error: 'classId and studentIds required' }, { status: 400 });
     }
     const { data: cls } = await db.from('classes').select('school_id, name, teacher_id').eq('id', classId).single();
     if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+    const { data: school } = await db.from('schools').select('name').eq('id', cls.school_id).maybeSingle();
     const { error } = await db
       .from('portal_users')
       .update({ class_id: classId, school_id: cls.school_id, section_class: cls.name, primary_teacher_id: cls.teacher_id ?? null })
       .in('id', studentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Cascade to students registry
+    await db.from('students').update({ class_id: classId, school_id: cls.school_id, school_name: school?.name ?? null, section_class: cls.name }).in('user_id', studentIds);
     return NextResponse.json({ success: true, updated: studentIds.length });
   }
 
@@ -505,6 +507,8 @@ export async function POST(req: NextRequest) {
       .update({ school_id: schoolId, school_name: school?.name ?? null })
       .in('id', studentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Cascade to students registry
+    await db.from('students').update({ school_id: schoolId, school_name: school?.name ?? null }).in('user_id', studentIds);
     return NextResponse.json({ success: true, updated: studentIds.length });
   }
 
@@ -538,6 +542,8 @@ export async function POST(req: NextRequest) {
         await db.from('portal_users')
           .update({ class_id: match.id, primary_teacher_id: match.teacher_id })
           .eq('id', s.id);
+        // Cascade to students registry
+        await db.from('students').update({ class_id: match.id, section_class: s.section_class }).eq('user_id', s.id);
         classAssigned++;
       }
     }
@@ -551,13 +557,26 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'delete_portal_user') {
-    // Soft-delete a portal user (marks is_deleted, does not remove auth)
     if (!studentIds?.length) return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
     const { error } = await db
       .from('portal_users')
-      .update({ is_deleted: true, is_active: false })
+      .update({ is_deleted: true, is_active: false, class_id: null, section_class: null })
       .in('id', studentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Cascade: deactivate in students registry and clear enrollment
+    await db.from('students').update({ status: 'inactive', class_id: null, section_class: null }).in('user_id', studentIds);
+    return NextResponse.json({ success: true, updated: studentIds.length });
+  }
+
+  if (action === 'remove_from_class') {
+    // Unenroll students from their class without deleting them
+    if (!studentIds?.length) return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
+    const { error } = await db
+      .from('portal_users')
+      .update({ class_id: null, section_class: null })
+      .in('id', studentIds);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await db.from('students').update({ class_id: null, section_class: null }).in('user_id', studentIds);
     return NextResponse.json({ success: true, updated: studentIds.length });
   }
 
@@ -667,6 +686,8 @@ export async function POST(req: NextRequest) {
       .update({ class_id: classId, school_id: cls.school_id, section_class: cls.name, primary_teacher_id: teacherId, updated_at: new Date().toISOString() })
       .in('id', toMove);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Cascade to students registry
+    await db.from('students').update({ class_id: classId, school_id: cls.school_id, section_class: cls.name }).in('user_id', toMove);
     return NextResponse.json({ success: true, updated: toMove.length });
   }
 
@@ -731,6 +752,8 @@ export async function POST(req: NextRequest) {
         primary_teacher_id: reportTeacher,
         updated_at: new Date().toISOString(),
       }).eq('id', s.id);
+      // Cascade to students registry
+      await db.from('students').update({ class_id: destClassId, school_id: destCls.school_id, section_class: destCls.name }).eq('user_id', s.id);
       moved++;
     }
     return NextResponse.json({ success: true, updated: moved });
@@ -758,6 +781,8 @@ export async function POST(req: NextRequest) {
       .update({ class_id: destClassId, section_class: cls.name, primary_teacher_id: cls.teacher_id ?? null, updated_at: new Date().toISOString() })
       .in('id', eligibleIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Cascade to students registry
+    await db.from('students').update({ class_id: destClassId, school_id: cls.school_id, section_class: cls.name }).in('user_id', eligibleIds);
     const skipped = sids.length - eligibleIds.length;
     return NextResponse.json({ success: true, updated: eligibleIds.length, skipped });
   }
@@ -956,7 +981,11 @@ export async function POST(req: NextRequest) {
         .in('id', sids)
         .eq('school_id', schoolId)
         .eq('role', 'student');
-      if (!updateErr) enrolled = sids.length;
+      if (!updateErr) {
+        enrolled = sids.length;
+        // Cascade to students registry
+        await db.from('students').update({ class_id: newClass.id, school_id: schoolId, section_class: newClass.name }).in('user_id', sids);
+      }
     }
 
     return NextResponse.json({ success: true, classId: newClass.id, className: newClass.name, enrolled });

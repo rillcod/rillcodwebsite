@@ -45,6 +45,8 @@ export default function ClassHealPage() {
   const [auditSel, setAuditSel] = useState<Record<string, Set<string>>>({}); // schoolId => Set<studentId>
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set()); // class IDs with roster open
   const [createClassForm, setCreateClassForm] = useState<Record<string, { name: string; autoFill: boolean }>>({});
+  const [auditConfirmDelete, setAuditConfirmDelete] = useState<string | null>(null); // student id pending delete in audit
+  const [noClassConfirmDelete, setNoClassConfirmDelete] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -480,13 +482,20 @@ export default function ClassHealPage() {
                                       </div>
                                       <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1">
                                         {cls.students.map((s: AuditStudent) => (
-                                          <label key={s.id} className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition border ${schoolSel.has(s.id) ? 'bg-violet-500/10 border-violet-500/30' : 'border-transparent hover:bg-muted/30'}`}>
-                                            <input type="checkbox" checked={schoolSel.has(s.id)} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0" />
+                                          <div key={s.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition border ${schoolSel.has(s.id) ? 'bg-violet-500/10 border-violet-500/30' : 'border-transparent hover:bg-muted/30'}`}>
+                                            <input type="checkbox" checked={schoolSel.has(s.id)} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0 cursor-pointer" />
                                             <div className="flex-1 min-w-0">
                                               <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
                                               <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
                                             </div>
-                                          </label>
+                                            <button
+                                              title="Remove from class"
+                                              onClick={() => applyAction('remove_from_class', [s.id])}
+                                              disabled={working}
+                                              className="p-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition shrink-0">
+                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
+                                          </div>
                                         ))}
                                       </div>
                                     </>
@@ -529,8 +538,8 @@ export default function ClassHealPage() {
                             const hasRegistered = sources.includes('registered_by');
                             const multiSignal = sources.length >= 2;
                             return (
-                              <label key={s.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl border cursor-pointer transition ${checked ? 'bg-violet-500/10 border-violet-500/30' : 'bg-background border-border hover:bg-muted/30'}`}>
-                                <input type="checkbox" checked={checked} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0" />
+                              <div key={s.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl border transition ${checked ? 'bg-violet-500/10 border-violet-500/30' : 'bg-background border-border hover:bg-muted/30'}`}>
+                                <input type="checkbox" checked={checked} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0 cursor-pointer" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
@@ -549,7 +558,23 @@ export default function ClassHealPage() {
                                       : 'Not in any class'}
                                   </p>
                                 </div>
-                              </label>
+                                {auditConfirmDelete === s.id ? (
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    <button disabled={working} onClick={async () => {
+                                      setAuditConfirmDelete(null);
+                                      await applyAction('delete_portal_user', [s.id]);
+                                      const r2 = await fetch(`/api/classes/heal?teacher_audit=${auditTeacherId}`, { cache: 'no-store' });
+                                      setAuditData((await r2.json()).data ?? null);
+                                    }} className="px-2 py-1 bg-rose-600 text-white text-[10px] font-black rounded-lg disabled:opacity-40">Yes</button>
+                                    <button onClick={() => setAuditConfirmDelete(null)} className="px-2 py-1 bg-muted text-[10px] font-bold rounded-lg">No</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => setAuditConfirmDelete(s.id)} title="Delete student"
+                                    className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition shrink-0">
+                                    <TrashIcon className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
@@ -593,6 +618,36 @@ export default function ClassHealPage() {
                             <option value="">— Move selected to class —</option>
                             {school.classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.student_count} students)</option>)}
                           </select>
+                          {/* Restore All Displaced in one click when destination is chosen */}
+                          {school.displaced_students.length > 0 && auditDestClass[school.school_id] && (
+                            <button
+                              disabled={working}
+                              onClick={async () => {
+                                const ids = school.displaced_students.map(s => s.id);
+                                const destId = auditDestClass[school.school_id];
+                                if (!ids.length || !destId) return;
+                                setWorking(true); setMsg(null);
+                                try {
+                                  const res = await fetch('/api/classes/heal', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action: 'direct_assign', classId: destId, studentIds: ids }),
+                                  });
+                                  const j = await res.json();
+                                  if (!res.ok) throw new Error(j.error || 'Failed');
+                                  setMsg({ type: 'ok', text: `Restored all ${j.updated} displaced student(s).${j.skipped ? ` ${j.skipped} skipped (school mismatch).` : ''}` });
+                                  const r2 = await fetch(`/api/classes/heal?teacher_audit=${auditTeacherId}`, { cache: 'no-store' });
+                                  setAuditData((await r2.json()).data ?? null);
+                                  setAuditSel(prev => { const n = { ...prev }; delete n[school.school_id]; return n; });
+                                  await load();
+                                } catch (e: any) { setMsg({ type: 'err', text: e.message }); }
+                                finally { setWorking(false); }
+                              }}
+                              className="w-full sm:w-auto px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95 shrink-0"
+                            >
+                              Restore All ({school.displaced_students.length}) →
+                            </button>
+                          )}
                           <button
                             disabled={!auditDestClass[school.school_id] || selCount === 0 || working}
                             onClick={async () => {
@@ -818,6 +873,14 @@ export default function ClassHealPage() {
                     >
                       Move
                     </button>
+                    <button
+                      disabled={working}
+                      onClick={() => applyAction('delete_portal_user', [s.id])}
+                      title="Delete student account"
+                      className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-400 shrink-0"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1005,8 +1068,19 @@ export default function ClassHealPage() {
                 </div>
               </div>
               {data!.noClass.map(s => (
-                <StudentRow key={s.id} student={s} selected={selNoClass.has(s.id)}
-                  onToggle={() => toggleSel(selNoClass, setSelNoClass, s.id)} />
+                noClassConfirmDelete === s.id ? (
+                  <div key={s.id} className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                    <span className="text-xs text-rose-400 font-bold flex-1">Delete {s.full_name}?</span>
+                    <button disabled={working} onClick={() => { applyAction('delete_portal_user', [s.id]); setNoClassConfirmDelete(null); }}
+                      className="px-2.5 py-1 bg-rose-600 text-white text-xs font-black rounded-xl disabled:opacity-40">Yes, delete</button>
+                    <button onClick={() => setNoClassConfirmDelete(null)}
+                      className="px-2.5 py-1 bg-muted text-muted-foreground text-xs font-bold rounded-xl">Cancel</button>
+                  </div>
+                ) : (
+                  <StudentRow key={s.id} student={s} selected={selNoClass.has(s.id)}
+                    onToggle={() => toggleSel(selNoClass, setSelNoClass, s.id)}
+                    onDelete={() => setNoClassConfirmDelete(s.id)} />
+                )
               ))}
             </div>
           </Section>
@@ -1164,28 +1238,50 @@ function ClassOptions({ classes, schools }: { classes: ClassOption[]; schools: {
   );
 }
 
-function StudentRow({ student, selected, onToggle }: { student: AnomalyStudent; selected: boolean; onToggle: () => void }) {
+function StudentRow({ student, selected, onToggle, onDelete, onRemoveFromClass }: {
+  student: AnomalyStudent;
+  selected: boolean;
+  onToggle: () => void;
+  onDelete?: () => void;
+  onRemoveFromClass?: () => void;
+}) {
   const isProtected = !!student.primary_teacher_id;
   return (
-    <label className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition border ${selected ? 'bg-primary/10 border-primary/30' : 'bg-muted/20 border-border hover:bg-muted/40'}`}>
-      <input type="checkbox" checked={selected} onChange={onToggle}
-        className="w-4 h-4 rounded border-border text-primary shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
-          {student.school_name && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded font-bold shrink-0 truncate max-w-[120px]">
-              {student.school_name}
-            </span>
-          )}
-          {isProtected && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-bold shrink-0">
-              Protected
-            </span>
-          )}
+    <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition ${selected ? 'bg-primary/10 border-primary/30' : 'bg-muted/20 border-border hover:bg-muted/40'}`}>
+      <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+        <input type="checkbox" checked={selected} onChange={onToggle}
+          className="w-4 h-4 rounded border-border text-primary shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
+            {student.school_name && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded font-bold shrink-0 truncate max-w-[120px]">
+                {student.school_name}
+              </span>
+            )}
+            {isProtected && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-bold shrink-0">
+                Protected
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{student.email}</p>
         </div>
-        <p className="text-xs text-muted-foreground truncate mt-0.5">{student.email}</p>
+      </label>
+      <div className="flex items-center gap-1 shrink-0">
+        {onRemoveFromClass && (
+          <button onClick={onRemoveFromClass} title="Remove from class"
+            className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        )}
+        {onDelete && (
+          <button onClick={onDelete} title="Delete student account"
+            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition">
+            <TrashIcon className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
-    </label>
+    </div>
   );
 }
