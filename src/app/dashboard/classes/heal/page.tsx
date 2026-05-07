@@ -17,6 +17,9 @@ type AuditClass = { id: string; name: string; school_id: string; student_count: 
 type AuditSchool = { school_id: string; school_name: string; in_teacher_schools: boolean; classes: AuditClass[]; students_in_classes: AuditStudent[]; displaced_students: AuditStudent[] };
 type DupAccount = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; class_name: string | null; section_class: string | null; created_at: string; primary_teacher_id: string | null };
 type DuplicateGroup = { duplicateType: 'email' | 'name_school'; label: string; reason: string; accounts: DupAccount[] };
+type ClassAuditStudent = { id: string; full_name: string; email: string; school_name: string | null; signal_teacher_id: string | null; signal_teacher_name: string | null; displacement_sources: string[]; dest_class_id: string | null; dest_class_name: string | null };
+type ClassAuditResult = { class_name: string; class_teacher_id: string | null; teacher_name: string | null; school_name: string | null; correct: ClassAuditStudent[]; misplaced: ClassAuditStudent[]; noSignal: ClassAuditStudent[] };
+type DrainDetail = { student_id: string; student_name: string; signal_teacher_name: string; from_class: string; to_class: string };
 
 export default function ClassHealPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -50,6 +53,12 @@ export default function ClassHealPage() {
   const [createClassForm, setCreateClassForm] = useState<Record<string, { name: string; autoFill: boolean }>>({});
   const [auditConfirmDelete, setAuditConfirmDelete] = useState<string | null>(null); // student id pending delete in audit
   const [noClassConfirmDelete, setNoClassConfirmDelete] = useState<string | null>(null);
+  // Class Ownership Drain state
+  const [classAuditId, setClassAuditId] = useState('');
+  const [classAuditData, setClassAuditData] = useState<ClassAuditResult | null>(null);
+  const [classAuditLoading, setClassAuditLoading] = useState(false);
+  const [drainResult, setDrainResult] = useState<{ moved: number; skipped: number; details: DrainDetail[] } | null>(null);
+  const [draining, setDraining] = useState(false);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -767,6 +776,225 @@ export default function ClassHealPage() {
                   </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Class Ownership Drain ───────────────────────────── */}
+        <div className="bg-card border border-orange-500/20 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 text-orange-400 shrink-0" />
+            <div className="flex-1">
+              <h2 className="text-sm font-extrabold text-foreground">Class Ownership Drain</h2>
+              <p className="text-xs text-muted-foreground">
+                Pick a class that has absorbed too many students (e.g. Amaka&apos;s class holding the whole school).
+                The analyzer checks every student&apos;s signal (reports → batch → registration) and classifies them
+                as correctly placed, misplaced, or unknown. You see exactly who will move and where before confirming.
+              </p>
+            </div>
+          </div>
+          <div className="p-5 space-y-4">
+            {/* Class picker + Analyze */}
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Select Class to Audit</label>
+                <select
+                  value={classAuditId}
+                  onChange={e => { setClassAuditId(e.target.value); setClassAuditData(null); setDrainResult(null); }}
+                  className="select-premium w-full text-sm px-3 py-2"
+                >
+                  <option value="">— Choose a class —</option>
+                  <ClassOptions classes={data?.classes ?? []} schools={schools} />
+                </select>
+              </div>
+              <button
+                disabled={!classAuditId || classAuditLoading}
+                onClick={async () => {
+                  setClassAuditLoading(true); setClassAuditData(null); setDrainResult(null);
+                  try {
+                    const res = await fetch(`/api/classes/heal?class_audit=${classAuditId}`, { cache: 'no-store' });
+                    const j = await res.json();
+                    setClassAuditData(j.data ?? null);
+                  } catch { /* ignore */ }
+                  setClassAuditLoading(false);
+                }}
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition"
+              >
+                {classAuditLoading ? <ArrowPathIcon className="w-4 h-4 animate-spin mx-auto" /> : 'Analyze Class'}
+              </button>
+            </div>
+
+            {/* Analysis results */}
+            {classAuditData && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-xs font-bold text-orange-400 uppercase tracking-widest">{classAuditData.class_name}</p>
+                  <span className="text-xs text-muted-foreground">· Teacher: {classAuditData.teacher_name ?? '—'}</span>
+                  <span className="text-xs text-muted-foreground">· {classAuditData.school_name ?? '—'}</span>
+                </div>
+
+                {/* Summary counts */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2.5 text-center">
+                    <p className="text-2xl font-black text-emerald-400">{classAuditData.correct.length}</p>
+                    <p className="text-[10px] font-black text-emerald-400/70 uppercase tracking-widest">Correct</p>
+                  </div>
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5 text-center">
+                    <p className="text-2xl font-black text-amber-400">{classAuditData.misplaced.length}</p>
+                    <p className="text-[10px] font-black text-amber-400/70 uppercase tracking-widest">Misplaced</p>
+                  </div>
+                  <div className="bg-muted/30 border border-border rounded-xl px-3 py-2.5 text-center">
+                    <p className="text-2xl font-black text-muted-foreground">{classAuditData.noSignal.length}</p>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No Signal</p>
+                  </div>
+                </div>
+
+                {/* Misplaced — show who moves where before draining */}
+                {classAuditData.misplaced.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">
+                        {classAuditData.misplaced.length} misplaced — preview of what drain will do
+                      </p>
+                    </div>
+                    <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+                      {classAuditData.misplaced.map(s => (
+                        <div key={s.id} className="px-3 py-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                          <div className="flex items-start gap-2 flex-wrap">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{s.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap text-[11px]">
+                            <span className="text-muted-foreground">Signal:</span>
+                            <span className="font-bold text-violet-400">{s.signal_teacher_name ?? s.signal_teacher_id ?? '?'}</span>
+                            {s.displacement_sources.length > 0 && (
+                              <span className="px-1.5 py-0.5 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded text-[9px] font-black uppercase">
+                                {s.displacement_sources.map(src => src === 'report_authored' ? 'Reports' : src === 'batch_registered' ? 'Batch' : 'Registered').join(' + ')}
+                              </span>
+                            )}
+                            {s.dest_class_id ? (
+                              <>
+                                <span className="text-muted-foreground">→ move to</span>
+                                <span className="font-bold text-emerald-400">{s.dest_class_name}</span>
+                              </>
+                            ) : (
+                              <span className="text-rose-400 italic">No dest class found — will be skipped</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      disabled={draining || working || classAuditData.misplaced.filter(s => s.dest_class_id).length === 0}
+                      onClick={async () => {
+                        setDraining(true); setDrainResult(null); setMsg(null);
+                        try {
+                          const res = await fetch('/api/classes/heal', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'drain_class', classId: classAuditId }),
+                          });
+                          const j = await res.json();
+                          if (!res.ok) throw new Error(j.error || 'Failed');
+                          setDrainResult({ moved: j.moved, skipped: j.skipped ?? 0, details: j.details ?? [] });
+                          setClassAuditData(null);
+                          setMsg({ type: 'ok', text: `Drain complete — ${j.moved} student(s) moved${j.skipped ? `, ${j.skipped} skipped (no destination class)` : ''}.` });
+                          await load();
+                        } catch (e: any) {
+                          setMsg({ type: 'err', text: e.message });
+                        } finally { setDraining(false); }
+                      }}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
+                    >
+                      {draining && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
+                      Drain All Misplaced ({classAuditData.misplaced.filter(s => s.dest_class_id).length}) →
+                    </button>
+                  </div>
+                )}
+
+                {/* Correctly placed — collapsible */}
+                {classAuditData.correct.length > 0 && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-xs font-bold text-emerald-400 flex items-center gap-2 select-none list-none">
+                      <ChevronDownIcon className="w-3.5 h-3.5 group-open:rotate-180 transition-transform shrink-0" />
+                      {classAuditData.correct.length} correctly placed (stays in class)
+                    </summary>
+                    <div className="mt-2 space-y-1 max-h-52 overflow-y-auto pr-1">
+                      {classAuditData.correct.map(s => (
+                        <div key={s.id} className="flex items-center gap-3 px-3 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {/* No signal — collapsible */}
+                {classAuditData.noSignal.length > 0 && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-xs font-bold text-muted-foreground flex items-center gap-2 select-none list-none">
+                      <ChevronDownIcon className="w-3.5 h-3.5 group-open:rotate-180 transition-transform shrink-0" />
+                      {classAuditData.noSignal.length} no signal — manual placement needed
+                    </summary>
+                    <div className="mt-2 px-3 py-2 bg-muted/20 border border-border rounded-xl">
+                      <p className="text-[11px] text-muted-foreground">
+                        No reports, batch history, or registration record ties these students to a teacher.
+                        Use Manual Student Placement above to move them individually.
+                      </p>
+                    </div>
+                    <div className="mt-2 space-y-1 max-h-52 overflow-y-auto pr-1">
+                      {classAuditData.noSignal.map(s => (
+                        <div key={s.id} className="flex items-center gap-3 px-3 py-2 bg-muted/20 border border-border rounded-lg">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {classAuditData.misplaced.length === 0 && (
+                  <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <p className="text-xs font-bold text-emerald-400">All signals agree — no drain needed for this class.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Post-drain result — who moved where */}
+            {drainResult && (
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <p className="text-sm font-bold text-emerald-400">
+                    Drain complete — {drainResult.moved} moved
+                    {drainResult.skipped > 0 ? `, ${drainResult.skipped} skipped (no destination class)` : ''}
+                  </p>
+                </div>
+                {drainResult.details.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Moved students</p>
+                    <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
+                      {drainResult.details.map(d => (
+                        <div key={d.student_id} className="flex items-center gap-2 px-3 py-2 bg-background border border-border rounded-lg text-xs">
+                          <p className="font-semibold text-foreground truncate flex-1 min-w-0">{d.student_name}</p>
+                          <span className="text-muted-foreground shrink-0 hidden sm:inline">{d.from_class}</span>
+                          <span className="text-muted-foreground shrink-0">→</span>
+                          <span className="font-bold text-emerald-400 shrink-0 truncate max-w-[120px]">{d.to_class}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

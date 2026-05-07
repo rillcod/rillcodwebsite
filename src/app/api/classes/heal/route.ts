@@ -27,6 +27,136 @@ export async function GET(req: NextRequest) {
 
   const db = adminClient();
 
+  // Class ownership audit: for a given class, classify every enrolled student by whether
+  // their signals (reports, batch, created_by) agree with the current class teacher.
+  // Used to drain a class that over-registered students from other teachers (e.g. Amaka scenario).
+  const classAuditId = req.nextUrl.searchParams.get('class_audit');
+  if (classAuditId) {
+    const { data: cls } = await db.from('classes').select('id, name, school_id, teacher_id').eq('id', classAuditId).single();
+    if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+    const { data: clsTeacherProfile } = cls.teacher_id
+      ? await db.from('portal_users').select('full_name').eq('id', cls.teacher_id).single()
+      : { data: null };
+    const { data: clsSchool } = cls.school_id
+      ? await db.from('schools').select('name').eq('id', cls.school_id).single()
+      : { data: null };
+
+    // All students currently in this class
+    const { data: enrolled } = await db
+      .from('portal_users')
+      .select('id, full_name, email, school_id, school_name, primary_teacher_id')
+      .eq('class_id', classAuditId)
+      .eq('role', 'student')
+      .eq('is_deleted', false);
+    const studentIds = (enrolled ?? []).map((s: any) => s.id);
+
+    if (studentIds.length === 0) {
+      return NextResponse.json({ data: { class_name: cls.name, class_teacher_id: cls.teacher_id, teacher_name: clsTeacherProfile?.full_name ?? null, school_name: clsSchool?.name ?? null, correct: [], misplaced: [], noSignal: [] } });
+    }
+
+    // Signal 1: reports
+    const { data: allRpts } = await db.from('student_progress_reports').select('student_id, teacher_id').in('student_id', studentIds).not('teacher_id', 'is', null);
+    const rptCounts: Record<string, Record<string, number>> = {};
+    (allRpts ?? []).forEach((r: any) => {
+      if (!rptCounts[r.student_id]) rptCounts[r.student_id] = {};
+      rptCounts[r.student_id][r.teacher_id] = (rptCounts[r.student_id][r.teacher_id] || 0) + 1;
+    });
+    const reportTeacher: Record<string, string> = {};
+    for (const [sid, tc] of Object.entries(rptCounts)) {
+      const top = Object.entries(tc).sort((a, b) => b[1] - a[1])[0];
+      if (top) reportTeacher[sid] = top[0];
+    }
+
+    // Signal 2: batch registration
+    const { data: regResults } = await db.from('registration_results').select('email, batch_id').in('email', (enrolled ?? []).map((s: any) => s.email?.toLowerCase()).filter(Boolean));
+    const batchIds = [...new Set((regResults ?? []).map((r: any) => r.batch_id))];
+    const { data: batches } = batchIds.length > 0 ? await db.from('registration_batches').select('id, created_by').in('id', batchIds) : { data: [] };
+    const batchCreatorMap = new Map((batches ?? []).map((b: any) => [b.id, b.created_by]));
+    const emailBatchTeacher: Record<string, string> = {};
+    (regResults ?? []).forEach((r: any) => {
+      const creator = batchCreatorMap.get(r.batch_id);
+      if (creator) emailBatchTeacher[r.email?.toLowerCase()] = creator;
+    });
+    const batchTeacher: Record<string, string> = {};
+    (enrolled ?? []).forEach((s: any) => {
+      const t = emailBatchTeacher[s.email?.toLowerCase()];
+      if (t) batchTeacher[s.id] = t;
+    });
+
+    // Signal 3: students.created_by
+    const { data: studentRows } = await db.from('students').select('user_id, created_by').in('user_id', studentIds).not('created_by', 'is', null);
+    const createdByTeacher: Record<string, string> = {};
+    (studentRows ?? []).forEach((r: any) => { if (r.user_id && r.created_by) createdByTeacher[r.user_id] = r.created_by; });
+
+    // Best signal: reports > batch > created_by > primary_teacher_id (ownership stamp)
+    // Collect all teacher IDs we need to name
+    const allSignalTeacherIds = new Set<string>();
+    (enrolled ?? []).forEach((s: any) => {
+      const t = reportTeacher[s.id] ?? batchTeacher[s.id] ?? createdByTeacher[s.id] ?? s.primary_teacher_id;
+      if (t) allSignalTeacherIds.add(t);
+    });
+    if (cls.teacher_id) allSignalTeacherIds.add(cls.teacher_id);
+
+    const { data: teacherProfiles } = allSignalTeacherIds.size > 0
+      ? await db.from('portal_users').select('id, full_name').in('id', Array.from(allSignalTeacherIds))
+      : { data: [] };
+    const teacherNameMap: Record<string, string> = {};
+    (teacherProfiles ?? []).forEach((t: any) => { teacherNameMap[t.id] = t.full_name; });
+
+    // For misplaced students: find their signal teacher's class at the same school
+    const { data: schoolClasses } = cls.school_id
+      ? await db.from('classes').select('id, name, teacher_id').eq('school_id', cls.school_id)
+      : { data: [] };
+    const teacherClassAtSchool: Record<string, { id: string; name: string }> = {};
+    (schoolClasses ?? []).forEach((c: any) => {
+      if (c.teacher_id && !teacherClassAtSchool[c.teacher_id]) {
+        teacherClassAtSchool[c.teacher_id] = { id: c.id, name: c.name };
+      }
+    });
+
+    const correct: any[] = [], misplaced: any[] = [], noSignal: any[] = [];
+    (enrolled ?? []).forEach((s: any) => {
+      const signalTeacherId = reportTeacher[s.id] ?? batchTeacher[s.id] ?? createdByTeacher[s.id] ?? s.primary_teacher_id ?? null;
+      const sources: string[] = [];
+      if (reportTeacher[s.id]) sources.push('report_authored');
+      if (batchTeacher[s.id]) sources.push('batch_registered');
+      if (createdByTeacher[s.id]) sources.push('registered_by');
+
+      const base = {
+        id: s.id,
+        full_name: s.full_name,
+        email: s.email,
+        school_name: s.school_name,
+        signal_teacher_id: signalTeacherId,
+        signal_teacher_name: signalTeacherId ? (teacherNameMap[signalTeacherId] ?? null) : null,
+        displacement_sources: sources,
+        dest_class_id: signalTeacherId ? (teacherClassAtSchool[signalTeacherId]?.id ?? null) : null,
+        dest_class_name: signalTeacherId ? (teacherClassAtSchool[signalTeacherId]?.name ?? null) : null,
+      };
+
+      if (!signalTeacherId) {
+        noSignal.push(base);
+      } else if (signalTeacherId === cls.teacher_id) {
+        correct.push(base);
+      } else {
+        misplaced.push(base);
+      }
+    });
+
+    return NextResponse.json({
+      data: {
+        class_name: cls.name,
+        class_teacher_id: cls.teacher_id,
+        teacher_name: clsTeacherProfile?.full_name ?? null,
+        school_name: clsSchool?.name ?? null,
+        correct,
+        misplaced,
+        noSignal,
+      },
+    });
+  }
+
   // Teacher audit: full breakdown of a teacher's schools, classes, and displaced students.
   // Used by the heal UI to show a per-school picture without making the admin guess.
   const teacherAuditId = req.nextUrl.searchParams.get('teacher_audit');
@@ -1052,6 +1182,131 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, classId: newClass.id, className: newClass.name, enrolled });
+  }
+
+  // Drain a class that absorbed too many students from other teachers.
+  // Re-runs all 3 signals (reports, batch, created_by) per student, then bulk-moves
+  // every misplaced student to their signal teacher's class at the same school.
+  if (action === 'drain_class') {
+    const { classId: drainClassId } = body;
+    if (!drainClassId) return NextResponse.json({ error: 'classId required' }, { status: 400 });
+
+    const { data: cls } = await db.from('classes').select('id, name, school_id, teacher_id').eq('id', drainClassId).single();
+    if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+    const { data: enrolled } = await db.from('portal_users')
+      .select('id, full_name, email, school_id, school_name, primary_teacher_id')
+      .eq('class_id', drainClassId).eq('role', 'student').eq('is_deleted', false);
+    const studentIds = (enrolled ?? []).map((s: any) => s.id);
+    if (studentIds.length === 0) return NextResponse.json({ success: true, moved: 0, skipped: 0, details: [] });
+
+    // Signal 1: reports
+    const { data: drainRpts } = await db.from('student_progress_reports').select('student_id, teacher_id').in('student_id', studentIds).not('teacher_id', 'is', null);
+    const drainRptCounts: Record<string, Record<string, number>> = {};
+    (drainRpts ?? []).forEach((r: any) => {
+      if (!drainRptCounts[r.student_id]) drainRptCounts[r.student_id] = {};
+      drainRptCounts[r.student_id][r.teacher_id] = (drainRptCounts[r.student_id][r.teacher_id] || 0) + 1;
+    });
+    const drainReportTeacher: Record<string, string> = {};
+    for (const [sid, tc] of Object.entries(drainRptCounts)) {
+      const top = Object.entries(tc).sort((a, b) => b[1] - a[1])[0];
+      if (top) drainReportTeacher[sid] = top[0];
+    }
+
+    // Signal 2: batch registration
+    const { data: drainRegResults } = await db.from('registration_results').select('email, batch_id')
+      .in('email', (enrolled ?? []).map((s: any) => s.email?.toLowerCase()).filter(Boolean));
+    const drainBatchIds = [...new Set((drainRegResults ?? []).map((r: any) => r.batch_id))];
+    const { data: drainBatches } = drainBatchIds.length > 0
+      ? await db.from('registration_batches').select('id, created_by').in('id', drainBatchIds)
+      : { data: [] };
+    const drainBatchCreatorMap = new Map((drainBatches ?? []).map((b: any) => [b.id, b.created_by]));
+    const drainEmailBatchTeacher: Record<string, string> = {};
+    (drainRegResults ?? []).forEach((r: any) => {
+      const creator = drainBatchCreatorMap.get(r.batch_id);
+      if (creator) drainEmailBatchTeacher[r.email?.toLowerCase()] = creator;
+    });
+    const drainBatchTeacher: Record<string, string> = {};
+    (enrolled ?? []).forEach((s: any) => {
+      const t = drainEmailBatchTeacher[s.email?.toLowerCase()];
+      if (t) drainBatchTeacher[s.id] = t;
+    });
+
+    // Signal 3: students.created_by
+    const { data: drainStudentRows } = await db.from('students').select('user_id, created_by').in('user_id', studentIds).not('created_by', 'is', null);
+    const drainCreatedByTeacher: Record<string, string> = {};
+    (drainStudentRows ?? []).forEach((r: any) => { if (r.user_id && r.created_by) drainCreatedByTeacher[r.user_id] = r.created_by; });
+
+    // Fetch school name once for cascade
+    const { data: drainSchool } = cls.school_id
+      ? await db.from('schools').select('name').eq('id', cls.school_id).maybeSingle()
+      : { data: null };
+
+    // All classes at this school for destination lookup
+    const { data: drainSchoolClasses } = cls.school_id
+      ? await db.from('classes').select('id, name, teacher_id').eq('school_id', cls.school_id)
+      : { data: [] };
+    const drainTeacherClassAtSchool: Record<string, { id: string; name: string }> = {};
+    (drainSchoolClasses ?? []).forEach((c: any) => {
+      if (c.teacher_id && !drainTeacherClassAtSchool[c.teacher_id]) {
+        drainTeacherClassAtSchool[c.teacher_id] = { id: c.id, name: c.name };
+      }
+    });
+
+    // Resolve teacher names for detail output
+    const drainSignalTeacherIds = new Set<string>();
+    (enrolled ?? []).forEach((s: any) => {
+      const t = drainReportTeacher[s.id] ?? drainBatchTeacher[s.id] ?? drainCreatedByTeacher[s.id] ?? s.primary_teacher_id;
+      if (t) drainSignalTeacherIds.add(t);
+    });
+    const { data: drainTeacherProfiles } = drainSignalTeacherIds.size > 0
+      ? await db.from('portal_users').select('id, full_name').in('id', Array.from(drainSignalTeacherIds))
+      : { data: [] };
+    const drainTeacherNameMap: Record<string, string> = {};
+    (drainTeacherProfiles ?? []).forEach((t: any) => { drainTeacherNameMap[t.id] = t.full_name; });
+
+    // Classify and batch by destination
+    const details: any[] = [];
+    const toMoveByDest: Record<string, string[]> = {};
+    let skipped = 0;
+
+    for (const s of (enrolled ?? [])) {
+      const signalTeacherId = drainReportTeacher[s.id] ?? drainBatchTeacher[s.id] ?? drainCreatedByTeacher[s.id] ?? s.primary_teacher_id ?? null;
+      if (!signalTeacherId || signalTeacherId === cls.teacher_id) continue;
+
+      const destClass = drainTeacherClassAtSchool[signalTeacherId];
+      if (!destClass) { skipped++; continue; }
+
+      if (!toMoveByDest[destClass.id]) toMoveByDest[destClass.id] = [];
+      toMoveByDest[destClass.id].push(s.id);
+      details.push({
+        student_id: s.id,
+        student_name: s.full_name,
+        signal_teacher_name: drainTeacherNameMap[signalTeacherId] ?? signalTeacherId,
+        from_class: cls.name,
+        to_class: destClass.name,
+      });
+    }
+
+    // Bulk-move per destination class
+    for (const [destClassId, ids] of Object.entries(toMoveByDest)) {
+      const destCls = (drainSchoolClasses ?? []).find((c: any) => c.id === destClassId);
+      if (!destCls) continue;
+      await db.from('portal_users').update({
+        class_id: destClassId,
+        section_class: destCls.name,
+        primary_teacher_id: destCls.teacher_id ?? null,
+        updated_at: new Date().toISOString(),
+      }).in('id', ids);
+      await db.from('students').update({
+        class_id: destClassId,
+        school_id: cls.school_id,
+        school_name: drainSchool?.name ?? null,
+        section_class: destCls.name,
+      }).in('user_id', ids);
+    }
+
+    return NextResponse.json({ success: true, moved: details.length, skipped, details });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
