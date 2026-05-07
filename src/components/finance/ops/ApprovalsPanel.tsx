@@ -187,6 +187,7 @@ export function ApprovalsPanel() {
           school_id: tx.school_id ?? tx.invoices?.school_id ?? null,
           billing_cycle_id: tx.invoices?.billing_cycle_id ?? null,
           portal_user_id: tx.portal_user_id,
+          schools: tx.schools ?? null,
         }),
       }))
       .filter((tx) => matchStream(tx.stream))
@@ -209,6 +210,7 @@ export function ApprovalsPanel() {
           school_id: inv.school_id,
           billing_cycle_id: inv.billing_cycle_id ?? null,
           portal_user_id: inv.portal_user_id ?? null,
+          schools: inv.schools ?? null,
         }),
       }))
       .filter((inv) => matchStream(inv.stream))

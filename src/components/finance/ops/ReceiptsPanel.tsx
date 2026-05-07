@@ -91,6 +91,7 @@ export function ReceiptsPanel() {
           school_id: r.school_id ?? null,
           student_id: r.portal_user_id ?? null,
           metadata: r.metadata ?? null,
+          schools: r.schools ?? null,
         }),
       }))
       .filter((r) => (streamFilter === 'all' ? true : r.stream === streamFilter))
@@ -131,6 +132,7 @@ export function ReceiptsPanel() {
       school_id: r.school_id ?? null,
       student_id: r.portal_user_id ?? null,
       metadata: r.metadata ?? null,
+      schools: r.schools ?? null,
     });
 
     setPreview({

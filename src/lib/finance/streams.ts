@@ -70,6 +70,8 @@ export interface InvoiceClassifierInput {
   portal_user_id?: string | null;
   billing_cycle_id?: string | null;
   metadata?: Record<string, any> | null;
+  /** Pass the joined schools row when available — its presence is definitive. */
+  schools?: { name?: string } | null;
 }
 
 /**
@@ -79,15 +81,18 @@ export interface InvoiceClassifierInput {
  *   1. Explicit `stream` column wins.
  *   2. A billing_cycle linkage → school.
  *   3. metadata.stream hint → trust it.
- *   4. school_id present AND portal_user_id missing → school.
- *   5. Fallback → individual.
+ *   4. Joined schools record present → school (authoritative, no ambiguity).
+ *   5. school_id present → school (even if portal_user_id is also set —
+ *      that's just the school admin's account, not an individual learner).
+ *   6. Fallback → individual.
  */
 export function classifyInvoiceStream(row: InvoiceClassifierInput): FinanceStream {
   if (row.stream === 'school' || row.stream === 'individual') return row.stream;
   if (row.billing_cycle_id) return 'school';
   const hint = row.metadata?.stream;
   if (hint === 'school' || hint === 'individual') return hint;
-  if (row.school_id && !row.portal_user_id) return 'school';
+  if (row.schools?.name) return 'school';
+  if (row.school_id) return 'school';
   return 'individual';
 }
 
@@ -96,6 +101,8 @@ export interface ReceiptClassifierInput {
   school_id?: string | null;
   student_id?: string | null;
   metadata?: Record<string, any> | null;
+  /** Pass the joined schools row when available — its presence is definitive. */
+  schools?: { name?: string } | null;
 }
 
 /**
@@ -106,7 +113,8 @@ export function classifyReceiptStream(row: ReceiptClassifierInput): FinanceStrea
   if (row.stream === 'school' || row.stream === 'individual') return row.stream;
   const hint = row.metadata?.stream;
   if (hint === 'school' || hint === 'individual') return hint;
-  if (row.school_id && !row.student_id) return 'school';
+  if (row.schools?.name) return 'school';
+  if (row.school_id) return 'school';
   return 'individual';
 }
 

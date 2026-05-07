@@ -194,6 +194,7 @@ export function InvoicesPanel() {
       school_id: inv.school_id ?? null,
       billing_cycle_id: inv.billing_cycle_id ?? null,
       portal_user_id: inv.portal_user_id ?? null,
+      schools: inv.schools ?? null,
     });
 
     setPreview({
@@ -241,6 +242,7 @@ export function InvoicesPanel() {
           school_id: inv.school_id,
           billing_cycle_id: inv.billing_cycle_id ?? null,
           portal_user_id: inv.portal_user_id ?? null,
+          schools: inv.schools ?? null,
         }),
       }))
       .filter((inv) => (streamFilter === 'all' ? true : inv.stream === streamFilter))
