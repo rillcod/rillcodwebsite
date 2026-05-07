@@ -94,6 +94,13 @@ export async function POST(request: Request) {
     const batchClassName: string | null = (body.class_name as string | undefined) ?? null;
     const allowSameName: boolean = body.allow_same_name === true; // user confirmed different students share a name
 
+    // Resolve the batch class's teacher — used to stamp primary_teacher_id on NEW students only
+    let batchClassTeacherId: string | null = null;
+    if (batchClassId) {
+      const { data: batchCls } = await supabaseAdmin.from('classes').select('teacher_id').eq('id', batchClassId).single();
+      batchClassTeacherId = batchCls?.teacher_id ?? null;
+    }
+
     const results: Array<{
       full_name: string;
       email: string;
@@ -188,7 +195,9 @@ export async function POST(request: Request) {
           continue;
         }
 
-        // Upsert into portal_users
+        // Upsert into portal_users — never include primary_teacher_id here so that
+        // existing students' ownership is never overwritten by a batch registration.
+        // primary_teacher_id is stamped separately below, only for newly created students.
         const { error: profileErr } = await supabaseAdmin.from('portal_users').upsert(
           {
             id: authUserId,
@@ -212,6 +221,15 @@ export async function POST(request: Request) {
             error: `Profile error: ${profileErr.message}`,
           });
           continue;
+        }
+
+        // For NEW students only: stamp primary_teacher_id so the DB trigger protects them
+        // going forward. Never do this for existing students (status = 'updated').
+        if (status === 'created' && batchClassTeacherId) {
+          await supabaseAdmin.from('portal_users')
+            .update({ primary_teacher_id: batchClassTeacherId })
+            .eq('id', authUserId)
+            .is('primary_teacher_id', null); // safety: only if not already set
         }
 
         // --- NEW: Also ensure a record exists in the 'students' table ---
@@ -413,27 +431,46 @@ export async function PATCH(request: Request) {
 
     // Assign all students from a batch to a class (sets class_id, school_id, section_class).
     // Safe: only targets portal_users with role='student' and email in the batch.
+    // Protected students (primary_teacher_id set to a different teacher) are skipped.
     if (body.type === 'batch_assign_class') {
       const { batchId, classId } = body;
       if (!batchId || !classId) return NextResponse.json({ error: 'batchId and classId required' }, { status: 400 });
 
-      const { data: cls } = await supabaseAdmin.from('classes').select('school_id, name').eq('id', classId).single();
+      const { data: cls } = await supabaseAdmin.from('classes').select('school_id, name, teacher_id').eq('id', classId).single();
       if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
       const { data: results } = await supabaseAdmin.from('registration_results').select('email').eq('batch_id', batchId);
       const emails = (results ?? []).map((r: any) => r.email).filter(Boolean);
       if (emails.length === 0) return NextResponse.json({ updated: 0 });
 
-      const { data: users } = await supabaseAdmin.from('portal_users').select('id').in('email', emails).eq('role', 'student').eq('is_deleted', false);
-      const userIds = (users ?? []).map((u: any) => u.id);
-      if (userIds.length === 0) return NextResponse.json({ updated: 0, message: 'No matching student accounts found' });
+      const { data: users } = await supabaseAdmin
+        .from('portal_users')
+        .select('id, primary_teacher_id')
+        .in('email', emails)
+        .eq('role', 'student')
+        .eq('is_deleted', false);
+
+      // Skip students protected by a different teacher
+      const allowedIds = (users ?? [])
+        .filter((u: any) => !u.primary_teacher_id || u.primary_teacher_id === cls.teacher_id)
+        .map((u: any) => u.id);
+      const protectedCount = (users ?? []).length - allowedIds.length;
+
+      if (allowedIds.length === 0) {
+        return NextResponse.json({
+          updated: 0,
+          protected: protectedCount,
+          message: `All ${protectedCount} student(s) in this batch belong to a different teacher's class and are protected. Use the Class Health tool to transfer them.`,
+        });
+      }
 
       const { error } = await supabaseAdmin.from('portal_users').update({
         class_id: classId,
         school_id: cls.school_id,
         section_class: cls.name,
+        primary_teacher_id: cls.teacher_id ?? null,
         updated_at: new Date().toISOString(),
-      }).in('id', userIds).eq('role', 'student');
+      }).in('id', allowedIds).eq('role', 'student');
       if (error) throw error;
 
       // Also update the batch record so future exports reflect the class
@@ -442,7 +479,7 @@ export async function PATCH(request: Request) {
         school_id: cls.school_id,
       }).eq('id', batchId);
 
-      return NextResponse.json({ success: true, updated: userIds.length });
+      return NextResponse.json({ success: true, updated: allowedIds.length, protected: protectedCount });
     }
 
     // Activate or deactivate all students in a batch

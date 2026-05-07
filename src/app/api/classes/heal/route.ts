@@ -456,11 +456,11 @@ export async function POST(req: NextRequest) {
     if (!classId || !studentIds?.length) {
       return NextResponse.json({ error: 'classId and studentIds required' }, { status: 400 });
     }
-    const { data: cls } = await db.from('classes').select('school_id, name').eq('id', classId).single();
+    const { data: cls } = await db.from('classes').select('school_id, name, teacher_id').eq('id', classId).single();
     if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
     const { error } = await db
       .from('portal_users')
-      .update({ class_id: classId, school_id: cls.school_id, section_class: cls.name })
+      .update({ class_id: classId, school_id: cls.school_id, section_class: cls.name, primary_teacher_id: cls.teacher_id ?? null })
       .in('id', studentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, updated: studentIds.length });
@@ -484,12 +484,12 @@ export async function POST(req: NextRequest) {
     // a class name at their school — uses the student's own registration data as the signal.
     // Does NOT touch section_class text; class names are program-based and may differ from
     // a student's grade/section label (e.g. "Python SS2" class with SS1+SS2 students is valid).
-    const { data: allClasses } = await db.from('classes').select('id, name, school_id');
+    const { data: allClasses } = await db.from('classes').select('id, name, school_id, teacher_id');
     const classNameMap: Record<string, string> = {};
-    const sectionToClass: Record<string, string> = {};
+    const sectionToClass: Record<string, { id: string; teacher_id: string | null }> = {};
     (allClasses ?? []).forEach((c: any) => {
       classNameMap[c.id] = c.name;
-      if (c.school_id && c.name) sectionToClass[`${c.school_id}::${c.name}`] = c.id;
+      if (c.school_id && c.name) sectionToClass[`${c.school_id}::${c.name}`] = { id: c.id, teacher_id: c.teacher_id ?? null };
     });
 
     const { data: noClassStudents } = await db
@@ -504,10 +504,10 @@ export async function POST(req: NextRequest) {
     let classAssigned = 0;
     for (const s of (noClassStudents ?? [])) {
       const key = `${s.school_id}::${s.section_class}`;
-      const matchedClassId = sectionToClass[key];
-      if (matchedClassId) {
+      const match = sectionToClass[key];
+      if (match) {
         await db.from('portal_users')
-          .update({ class_id: matchedClassId })
+          .update({ class_id: match.id, primary_teacher_id: match.teacher_id })
           .eq('id', s.id);
         classAssigned++;
       }
@@ -635,7 +635,7 @@ export async function POST(req: NextRequest) {
     if (toMove.length === 0) return NextResponse.json({ updated: 0, message: 'All students already in this teacher\'s class' });
 
     const { error } = await db.from('portal_users')
-      .update({ class_id: classId, school_id: cls.school_id, section_class: cls.name, updated_at: new Date().toISOString() })
+      .update({ class_id: classId, school_id: cls.school_id, section_class: cls.name, primary_teacher_id: teacherId, updated_at: new Date().toISOString() })
       .in('id', toMove);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, updated: toMove.length });
@@ -699,6 +699,7 @@ export async function POST(req: NextRequest) {
         class_id: destClassId,
         school_id: destCls.school_id,
         section_class: destCls.name,
+        primary_teacher_id: reportTeacher,
         updated_at: new Date().toISOString(),
       }).eq('id', s.id);
       moved++;
@@ -712,7 +713,7 @@ export async function POST(req: NextRequest) {
   if (action === 'direct_assign') {
     const { classId: destClassId, studentIds: sids } = body;
     if (!destClassId || !sids?.length) return NextResponse.json({ error: 'classId and studentIds required' }, { status: 400 });
-    const { data: cls } = await db.from('classes').select('school_id, name').eq('id', destClassId).single();
+    const { data: cls } = await db.from('classes').select('school_id, name, teacher_id').eq('id', destClassId).single();
     if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
 
     // Verify school boundary — silently skip cross-school students
@@ -725,7 +726,7 @@ export async function POST(req: NextRequest) {
     if (eligibleIds.length === 0) return NextResponse.json({ updated: 0, skipped: sids.length, message: 'No students match the class school' });
 
     const { error } = await db.from('portal_users')
-      .update({ class_id: destClassId, section_class: cls.name, updated_at: new Date().toISOString() })
+      .update({ class_id: destClassId, section_class: cls.name, primary_teacher_id: cls.teacher_id ?? null, updated_at: new Date().toISOString() })
       .in('id', eligibleIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const skipped = sids.length - eligibleIds.length;
@@ -862,14 +863,16 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const targetCls = targetClassId ? (allClasses ?? []).find((c: any) => c.id === targetClassId) : null;
       const update = {
         school_id: selectedBatch.school_id,
         school_name: selectedBatch.school_name,
         class_id: targetClassId || null,
         section_class: selectedBatch.class_name || null,
+        primary_teacher_id: targetCls?.teacher_id ?? ownerTeacher ?? null,
       };
       await db.from('portal_users').update(update).eq('id', s.id);
-      await db.from('students').update(update).eq('user_id', s.id);
+      await db.from('students').update({ school_id: update.school_id, school_name: update.school_name, class_id: update.class_id, section_class: update.section_class }).eq('user_id', s.id);
       updated++;
     }
 
