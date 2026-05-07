@@ -257,42 +257,8 @@ export async function GET(req: NextRequest) {
     batchDisplacedIds.forEach(id => { displacementSources.set(id, [...(displacementSources.get(id) ?? []), 'batch_registered']); });
     registeredByIds.forEach(id => { displacementSources.set(id, [...(displacementSources.get(id) ?? []), 'registered_by']); });
 
-    // Dominant-signal filter: a student is only truly displaced from this teacher if their
-    // STRONGEST signal points here. Without this, students correctly moved by the Drain still
-    // appear displaced because Amaka has a historical batch-registration record for them, even
-    // though Suleiman authored all their reports and is their real teacher.
-    // Priority: report count (strongest) > batch_registered > registered_by
-    const dominantDisplacedIds: string[] = [];
-    if (allDisplacedIds.length > 0) {
-      const { data: allDispRpts } = await db.from('student_progress_reports')
-        .select('student_id, teacher_id')
-        .in('student_id', allDisplacedIds)
-        .not('teacher_id', 'is', null);
-      const dispRptCounts: Record<string, Record<string, number>> = {};
-      (allDispRpts ?? []).forEach((r: any) => {
-        if (!dispRptCounts[r.student_id]) dispRptCounts[r.student_id] = {};
-        dispRptCounts[r.student_id][r.teacher_id] = (dispRptCounts[r.student_id][r.teacher_id] || 0) + 1;
-      });
-      const dominantRptTeacher: Record<string, string> = {};
-      for (const [sid, tc] of Object.entries(dispRptCounts)) {
-        const top = Object.entries(tc).sort((a, b) => b[1] - a[1])[0];
-        if (top) dominantRptTeacher[sid] = top[0];
-      }
-      for (const id of allDisplacedIds) {
-        const domRpt = dominantRptTeacher[id];
-        if (domRpt) {
-          // Reports exist — only genuinely displaced if this teacher is the dominant author
-          if (domRpt === teacherAuditId) dominantDisplacedIds.push(id);
-        } else {
-          // No reports at all — batch/registered_by is the definitive signal
-          // (those sets already pre-filter to only this teacher's students)
-          dominantDisplacedIds.push(id);
-        }
-      }
-    }
-
-    const { data: displacedStudents } = dominantDisplacedIds.length > 0
-      ? await db.from('portal_users').select('id, full_name, email, school_id, school_name, class_id, section_class').in('id', dominantDisplacedIds).eq('role', 'student').eq('is_deleted', false)
+    const { data: displacedStudents } = allDisplacedIds.length > 0
+      ? await db.from('portal_users').select('id, full_name, email, school_id, school_name, class_id, section_class').in('id', allDisplacedIds).eq('role', 'student').eq('is_deleted', false)
       : { data: [] };
 
     // Enrich displaced with current class name and its teacher name
@@ -924,7 +890,7 @@ export async function POST(req: NextRequest) {
   if (action === 'auto_align_by_reports') {
     const { data: students } = await db
       .from('portal_users')
-      .select('id, school_id, class_id')
+      .select('id, school_id, class_id, primary_teacher_id')
       .eq('role', 'student')
       .not('class_id', 'is', null)
       .eq('is_deleted', false);
@@ -963,6 +929,11 @@ export async function POST(req: NextRequest) {
       const classSchool = cMap[s.class_id]?.school_id;
       const reportTeacher = rptTeacher[s.id];
       if (!classTeacher || !reportTeacher || classTeacher === reportTeacher) continue;
+      // Respect the primary_teacher_id lock. When a heal action (Drain, direct_assign,
+      // restore_by_reports) moves a student, it stamps primary_teacher_id = class teacher.
+      // If that stamp matches the current class teacher, an admin placed them here
+      // intentionally — Auto-Align must not override it with stale report history.
+      if (s.primary_teacher_id && s.primary_teacher_id === classTeacher) continue;
 
       // Destination must be at the SAME school as the student — no cross-school moves
       const key = `${reportTeacher}::${s.school_id}`;
