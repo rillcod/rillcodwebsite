@@ -213,7 +213,7 @@ export default function ClassHealPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => applyAction('auto_align_by_reports', [])}
-              disabled={working || loading || (data?.teacherConflict.length ?? 0) === 0}
+              disabled={working || loading || !data}
               title="For every student whose class teacher doesn't match their primary report author, move them to a class owned by the report teacher at the same school."
               className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
               <ArrowPathIcon className="w-4 h-4 shrink-0" /> Auto-Align by Reports
