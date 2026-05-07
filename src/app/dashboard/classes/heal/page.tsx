@@ -53,6 +53,9 @@ export default function ClassHealPage() {
   const [createClassForm, setCreateClassForm] = useState<Record<string, { name: string; autoFill: boolean }>>({});
   const [auditConfirmDelete, setAuditConfirmDelete] = useState<string | null>(null); // student id pending delete in audit
   const [noClassConfirmDelete, setNoClassConfirmDelete] = useState<string | null>(null);
+  // Claim a class state
+  const [claimClassId, setClaimClassId] = useState('');
+  const [claimTeacherId, setClaimTeacherId] = useState('');
   // Class Ownership Drain state
   const [classAuditId, setClassAuditId] = useState('');
   const [classAuditData, setClassAuditData] = useState<ClassAuditResult | null>(null);
@@ -778,6 +781,76 @@ export default function ClassHealPage() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ── Claim a Class ───────────────────────────────────── */}
+        <div className="bg-card border border-sky-500/20 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+            <CheckCircleIcon className="w-5 h-5 text-sky-400 shrink-0" />
+            <div className="flex-1">
+              <h2 className="text-sm font-extrabold text-foreground">Claim a Class for a Teacher</h2>
+              <p className="text-xs text-muted-foreground">
+                Override any signal. Pick a class and a teacher — the class teacher is updated immediately,
+                every student in the class is locked to that teacher (<code className="bg-muted px-1 rounded text-[10px]">primary_teacher_id</code>),
+                and the teacher–school link is created if missing.
+                Use this when the automated signals are wrong.
+              </p>
+            </div>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Class</label>
+                <select
+                  value={claimClassId}
+                  onChange={e => setClaimClassId(e.target.value)}
+                  className="select-premium w-full text-sm px-3 py-2"
+                >
+                  <option value="">— Choose a class —</option>
+                  <ClassOptions classes={data?.classes ?? []} schools={schools} />
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Assign to Teacher</label>
+                <select
+                  value={claimTeacherId}
+                  onChange={e => setClaimTeacherId(e.target.value)}
+                  className="select-premium w-full text-sm px-3 py-2"
+                >
+                  <option value="">— Choose a teacher —</option>
+                  {(data?.teachers ?? []).map(t => (
+                    <option key={t.id} value={t.id}>{t.full_name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              disabled={!claimClassId || !claimTeacherId || working}
+              onClick={async () => {
+                setWorking(true); setMsg(null);
+                try {
+                  const res = await fetch('/api/classes/heal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'claim_class', classId: claimClassId, teacherId: claimTeacherId }),
+                  });
+                  const j = await res.json();
+                  if (!res.ok) throw new Error(j.error || 'Failed');
+                  const teacher = (data?.teachers ?? []).find(t => t.id === claimTeacherId);
+                  const cls = (data?.classes ?? []).find(c => c.id === claimClassId);
+                  setMsg({ type: 'ok', text: `Class "${cls?.name ?? claimClassId}" claimed for ${teacher?.full_name ?? 'teacher'}. ${j.studentsStamped} student(s) locked to this teacher.` });
+                  setClaimClassId('');
+                  setClaimTeacherId('');
+                  await load();
+                } catch (e: any) {
+                  setMsg({ type: 'err', text: e.message });
+                } finally { setWorking(false); }
+              }}
+              className="w-full sm:w-auto px-5 py-2.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-sm font-black rounded-xl transition active:scale-95"
+            >
+              Claim Class →
+            </button>
           </div>
         </div>
 

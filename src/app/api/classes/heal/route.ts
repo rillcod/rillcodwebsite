@@ -1189,6 +1189,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, classId: newClass.id, className: newClass.name, enrolled });
   }
 
+  // Claim a class for a teacher — admin manual override, no signal logic.
+  // Sets classes.teacher_id, stamps primary_teacher_id on every student in the class,
+  // and ensures the teacher_schools row exists so the teacher can see the school.
+  if (action === 'claim_class') {
+    const { classId: claimClassId, teacherId: claimTeacherId } = body;
+    if (!claimClassId || !claimTeacherId) return NextResponse.json({ error: 'classId and teacherId required' }, { status: 400 });
+
+    const { data: cls } = await db.from('classes').select('id, name, school_id').eq('id', claimClassId).single();
+    if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+
+    // 1. Reassign the class itself
+    const { error: clsErr } = await db.from('classes').update({ teacher_id: claimTeacherId }).eq('id', claimClassId);
+    if (clsErr) return NextResponse.json({ error: clsErr.message }, { status: 500 });
+
+    // 2. Stamp every student in this class with the new teacher
+    const { data: claimStudents } = await db.from('portal_users')
+      .select('id')
+      .eq('class_id', claimClassId)
+      .eq('role', 'student')
+      .eq('is_deleted', false);
+    const claimIds = (claimStudents ?? []).map((s: any) => s.id);
+    if (claimIds.length > 0) {
+      await db.from('portal_users')
+        .update({ primary_teacher_id: claimTeacherId, updated_at: new Date().toISOString() })
+        .in('id', claimIds);
+      // Cascade to students registry
+      await db.from('students')
+        .update({ class_id: claimClassId, school_id: cls.school_id, section_class: cls.name })
+        .in('user_id', claimIds);
+    }
+
+    // 3. Ensure teacher_schools row exists
+    if (cls.school_id) {
+      const { data: existingTs } = await db.from('teacher_schools')
+        .select('id').eq('teacher_id', claimTeacherId).eq('school_id', cls.school_id).maybeSingle();
+      if (!existingTs) {
+        await db.from('teacher_schools').insert({ teacher_id: claimTeacherId, school_id: cls.school_id });
+      }
+    }
+
+    return NextResponse.json({ success: true, studentsStamped: claimIds.length });
+  }
+
   // Drain a class that absorbed too many students from other teachers.
   // Re-runs all 3 signals (reports, batch, created_by) per student, then bulk-moves
   // every misplaced student to their signal teacher's class at the same school.
