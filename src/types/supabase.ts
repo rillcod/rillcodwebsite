@@ -6445,6 +6445,7 @@ export type Database = {
           photo_url: string | null
           portfolio_share_token: string | null
           portfolio_share_token_expires_at: string | null
+          primary_teacher_id: string | null
           profile_image_url: string | null
           reputation_score: number | null
           role: string
@@ -6477,6 +6478,7 @@ export type Database = {
           photo_url?: string | null
           portfolio_share_token?: string | null
           portfolio_share_token_expires_at?: string | null
+          primary_teacher_id?: string | null
           profile_image_url?: string | null
           reputation_score?: number | null
           role: string
@@ -6509,6 +6511,7 @@ export type Database = {
           photo_url?: string | null
           portfolio_share_token?: string | null
           portfolio_share_token_expires_at?: string | null
+          primary_teacher_id?: string | null
           profile_image_url?: string | null
           reputation_score?: number | null
           role?: string
@@ -6537,6 +6540,20 @@ export type Database = {
           {
             foreignKeyName: "portal_users_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "portal_users_primary_teacher_id_fkey"
+            columns: ["primary_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_users_primary_teacher_id_fkey"
+            columns: ["primary_teacher_id"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
