@@ -107,11 +107,25 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Union of both displacement signals — tag each student with what flagged them
-    const allDisplacedIds = [...new Set([...reportDisplacedIds, ...batchDisplacedIds])];
+    // 5c. Students whose official registry record (students table) was created by this teacher.
+    // This captures individual registrations made outside the CSV batch flow.
+    // students.created_by is set on every POST /api/students call.
+    const { data: createdByRows } = await db
+      .from('students')
+      .select('user_id')
+      .eq('created_by', teacherAuditId)
+      .not('user_id', 'is', null);
+    const registeredByIds = new Set<string>();
+    (createdByRows ?? []).forEach((s: any) => {
+      if (s.user_id && !classStudentIdSet.has(s.user_id)) registeredByIds.add(s.user_id);
+    });
+
+    // Union of all three displacement signals — tag each student with what flagged them
+    const allDisplacedIds = [...new Set([...reportDisplacedIds, ...batchDisplacedIds, ...registeredByIds])];
     const displacementSources = new Map<string, string[]>();
     reportDisplacedIds.forEach(id => { displacementSources.set(id, [...(displacementSources.get(id) ?? []), 'report_authored']); });
     batchDisplacedIds.forEach(id => { displacementSources.set(id, [...(displacementSources.get(id) ?? []), 'batch_registered']); });
+    registeredByIds.forEach(id => { displacementSources.set(id, [...(displacementSources.get(id) ?? []), 'registered_by']); });
 
     const { data: displacedStudents } = allDisplacedIds.length > 0
       ? await db.from('portal_users').select('id, full_name, email, school_id, school_name, class_id, section_class').in('id', allDisplacedIds).eq('role', 'student').eq('is_deleted', false)
@@ -774,6 +788,9 @@ export async function POST(req: NextRequest) {
     const { data: batches } = await db.from('registration_batches').select('*').in('id', batchIds);
     const { data: allClasses } = await db.from('classes').select('id, name, school_id, teacher_id');
     const { data: allReports } = await db.from('student_progress_reports').select('student_id, teacher_id').in('student_id', studentIds).not('teacher_id', 'is', null);
+    // students.created_by — who individually registered each student (fallback when no reports)
+    const { data: studentRegistry } = await db.from('students').select('user_id, created_by').in('user_id', studentIds).not('created_by', 'is', null);
+    const registryCreatorMap = new Map<string, string>((studentRegistry ?? []).map((r: any) => [r.user_id, r.created_by]));
 
     const batchMap = new Map((batches ?? []).map((b: any) => [b.id, b]));
     // email → [batch_ids] — a student may have been in multiple batches
@@ -807,19 +824,24 @@ export async function POST(req: NextRequest) {
       if (candidateBatchIds.length === 0) { errors.push(`No history for ${s.email}`); continue; }
 
       const reportTeacher = primaryRptTeacher.get(s.id);
-      // Pick batch: prefer one whose creator = report teacher, then class teacher = report teacher, else first
+      // Fallback ownership signal: students.created_by (used when no reports exist yet)
+      const registryCreator = registryCreatorMap.get(s.id);
+      // Effective teacher: prefer report author, fall back to registry creator
+      const ownerTeacher = reportTeacher ?? registryCreator;
+
+      // Pick batch: prefer one whose creator = owner teacher, then class teacher = owner teacher, else first
       let selectedBatch: any = null;
       for (const bid of candidateBatchIds) {
         const b = batchMap.get(bid);
         if (!b) continue;
-        if (reportTeacher && b.created_by === reportTeacher) { selectedBatch = b; break; }
+        if (ownerTeacher && b.created_by === ownerTeacher) { selectedBatch = b; break; }
       }
       if (!selectedBatch) {
         for (const bid of candidateBatchIds) {
           const b = batchMap.get(bid);
           if (!b) continue;
           const bc = (allClasses ?? []).find((c: any) => c.id === b.class_id || (c.name === b.class_name && c.school_id === b.school_id));
-          if (bc && reportTeacher && bc.teacher_id === reportTeacher) { selectedBatch = b; break; }
+          if (bc && ownerTeacher && bc.teacher_id === ownerTeacher) { selectedBatch = b; break; }
         }
       }
       if (!selectedBatch) selectedBatch = batchMap.get(candidateBatchIds[0]);
@@ -831,10 +853,10 @@ export async function POST(req: NextRequest) {
         if (mc) targetClassId = mc.id;
       }
 
-      // Guard: target class teacher must match report teacher
-      if (targetClassId && reportTeacher) {
+      // Guard: target class teacher must match owner teacher (report author or registry creator)
+      if (targetClassId && ownerTeacher) {
         const tc = (allClasses ?? []).find((c: any) => c.id === targetClassId);
-        if (tc?.teacher_id && tc.teacher_id !== reportTeacher) {
+        if (tc?.teacher_id && tc.teacher_id !== ownerTeacher) {
           skippedConflict.push(s.full_name || s.email || s.id);
           continue;
         }

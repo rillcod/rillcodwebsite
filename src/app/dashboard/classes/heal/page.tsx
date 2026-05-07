@@ -398,7 +398,7 @@ export default function ClassHealPage() {
                           </p>
                           <span className="text-[10px] text-muted-foreground">·</span>
                           <span className="text-[10px] text-muted-foreground">
-                            {school.displaced_students.filter(s => (s.displacement_sources ?? []).includes('report_authored') && (s.displacement_sources ?? []).includes('batch_registered')).length} confirmed by both signals
+                            {school.displaced_students.filter(s => (s.displacement_sources ?? []).length >= 2).length} confirmed by 2+ signals
                           </span>
                         </div>
                         <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
@@ -408,6 +408,8 @@ export default function ClassHealPage() {
                             const sources = s.displacement_sources ?? [];
                             const hasReports = sources.includes('report_authored');
                             const hasBatch = sources.includes('batch_registered');
+                            const hasRegistered = sources.includes('registered_by');
+                            const multiSignal = sources.length >= 2;
                             return (
                               <label key={s.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl border cursor-pointer transition ${checked ? 'bg-violet-500/10 border-violet-500/30' : 'bg-background border-border hover:bg-muted/30'}`}>
                                 <input type="checkbox" checked={checked} onChange={() => {
@@ -420,14 +422,19 @@ export default function ClassHealPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
-                                    {hasReports && hasBatch && (
-                                      <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Reports + Batch</span>
+                                    {multiSignal && (
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">
+                                        {hasReports && hasBatch && hasRegistered ? 'All 3 Signals' : hasReports && hasBatch ? 'Reports + Batch' : hasReports && hasRegistered ? 'Reports + Registered' : 'Batch + Registered'}
+                                      </span>
                                     )}
-                                    {hasReports && !hasBatch && (
+                                    {!multiSignal && hasReports && (
                                       <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Has Reports</span>
                                     )}
-                                    {hasBatch && !hasReports && (
+                                    {!multiSignal && hasBatch && (
                                       <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Batch Registered</span>
+                                    )}
+                                    {!multiSignal && hasRegistered && (
+                                      <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Registered By</span>
                                     )}
                                   </div>
                                   <p className="text-xs text-muted-foreground truncate mt-0.5">
