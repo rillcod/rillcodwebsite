@@ -113,13 +113,14 @@ export async function POST(request: Request) {
       cardId?: string | null;
     }> = [];
 
-    // ── Duplicate barricade: fetch all existing students at this school by name ──
+    // ── Duplicate barricade: fetch existing students at this school OR any school with same name ──
+    // Rule: same full_name + same school_name = strict duplicate, even across different school_ids
     const { data: existingStudents } = await supabaseAdmin
       .from('portal_users')
-      .select('id, full_name, email')
-      .eq('school_id', resolvedSchoolId)
+      .select('id, full_name, email, school_id, school_name')
       .eq('role', 'student')
-      .eq('is_deleted', false);
+      .eq('is_deleted', false)
+      .or(`school_id.eq.${resolvedSchoolId},school_name.ilike.${resolvedSchoolName ?? ''}`);
 
     // Build lookup maps for exact name AND reversed-name (first/last swapped)
     const existingByName = new Map<string, { id: string; email: string; full_name: string }>();

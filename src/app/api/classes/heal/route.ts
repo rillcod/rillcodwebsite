@@ -455,46 +455,67 @@ export async function GET(req: NextRequest) {
     .not('primary_teacher_id', 'is', null)
     .eq('is_deleted', false);
 
-  // Duplicate account detection: same email registered as student more than once
-  // Happens when a bulk-register CSV re-registers an existing student under a
-  // slightly different name / school, creating two portal_users rows for one real child.
+  // Two strict duplicate rules:
+  //   1. Same email (any school)          → always a duplicate
+  //   2. Same full_name + same school_name → duplicate even across different school_ids
   const { data: allActiveStudents } = await db
     .from('portal_users')
     .select('id, full_name, email, school_id, school_name, class_id, section_class, created_at, primary_teacher_id')
     .eq('role', 'student')
     .eq('is_deleted', false)
-    .not('email', 'is', null)
-    .order('email');
+    .order('created_at');
 
-  const emailGroupMap: Record<string, any[]> = {};
-  (allActiveStudents ?? []).forEach((s: any) => {
-    const e = (s.email ?? '').toLowerCase().trim();
-    if (!e) return;
-    if (!emailGroupMap[e]) emailGroupMap[e] = [];
-    emailGroupMap[e].push(s);
-  });
-  // Enrich each duplicate group with class names
-  const dupClassIds = [...new Set(
-    Object.values(emailGroupMap)
-      .filter(g => g.length > 1)
-      .flat()
-      .map((s: any) => s.class_id)
-      .filter(Boolean)
-  )] as string[];
+  // Enrich all duplicate groups with class names upfront
+  const allDupClassIds = [...new Set((allActiveStudents ?? []).map((s: any) => s.class_id).filter(Boolean))] as string[];
   const dupClassNameMap: Record<string, string> = {};
-  if (dupClassIds.length > 0) {
-    const { data: dupClasses } = await db.from('classes').select('id, name').in('id', dupClassIds);
+  if (allDupClassIds.length > 0) {
+    const { data: dupClasses } = await db.from('classes').select('id, name').in('id', allDupClassIds);
     (dupClasses ?? []).forEach((c: any) => { dupClassNameMap[c.id] = c.name; });
   }
-  const duplicateAccounts = Object.values(emailGroupMap)
+  function enrichAccount(s: any) {
+    return { ...s, class_name: s.class_id ? (dupClassNameMap[s.class_id] ?? null) : null };
+  }
+
+  // Rule 1 — same email
+  const emailGroupMap: Record<string, any[]> = {};
+  (allActiveStudents ?? []).forEach((s: any) => {
+    const key = (s.email ?? '').toLowerCase().trim();
+    if (!key) return;
+    if (!emailGroupMap[key]) emailGroupMap[key] = [];
+    emailGroupMap[key].push(s);
+  });
+  const emailDuplicates = Object.values(emailGroupMap)
     .filter(g => g.length > 1)
     .map(group => ({
-      email: group[0].email,
-      accounts: group.map((s: any) => ({
-        ...s,
-        class_name: s.class_id ? (dupClassNameMap[s.class_id] ?? null) : null,
-      })),
+      duplicateType: 'email' as const,
+      label: group[0].email,
+      reason: 'Same email address across multiple accounts',
+      accounts: group.map(enrichAccount),
     }));
+
+  // Rule 2 — same full_name + same school_name (case-insensitive)
+  // Catches the same child registered twice when a school has two different school_ids
+  const nameSchoolGroupMap: Record<string, any[]> = {};
+  (allActiveStudents ?? []).forEach((s: any) => {
+    const name = s.full_name?.trim().toLowerCase();
+    const school = s.school_name?.trim().toLowerCase();
+    if (!name || !school) return;
+    const key = `${name}||${school}`;
+    // Skip if already captured by email rule (avoid double-listing)
+    if ((emailGroupMap[(s.email ?? '').toLowerCase().trim()]?.length ?? 0) > 1) return;
+    if (!nameSchoolGroupMap[key]) nameSchoolGroupMap[key] = [];
+    nameSchoolGroupMap[key].push(s);
+  });
+  const nameSchoolDuplicates = Object.values(nameSchoolGroupMap)
+    .filter(g => g.length > 1)
+    .map(group => ({
+      duplicateType: 'name_school' as const,
+      label: `${group[0].full_name} @ ${group[0].school_name}`,
+      reason: 'Same full name at the same school — different emails but likely the same student',
+      accounts: group.map(enrichAccount),
+    }));
+
+  const duplicateAccounts = [...emailDuplicates, ...nameSchoolDuplicates];
 
   return NextResponse.json({
     data: {

@@ -16,7 +16,7 @@ type AuditStudent = { id: string; full_name: string; email: string; school_id: s
 type AuditClass = { id: string; name: string; school_id: string; student_count: number; students: AuditStudent[] };
 type AuditSchool = { school_id: string; school_name: string; in_teacher_schools: boolean; classes: AuditClass[]; students_in_classes: AuditStudent[]; displaced_students: AuditStudent[] };
 type DupAccount = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; class_name: string | null; section_class: string | null; created_at: string; primary_teacher_id: string | null };
-type DuplicateGroup = { email: string; accounts: DupAccount[] };
+type DuplicateGroup = { duplicateType: 'email' | 'name_school'; label: string; reason: string; accounts: DupAccount[] };
 
 export default function ClassHealPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -842,12 +842,15 @@ export default function ClassHealPage() {
             </div>
             <div className="p-5 space-y-4">
               {data!.duplicateAccounts.map(group => (
-                <div key={group.email} className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-black text-rose-400 uppercase tracking-widest">Duplicate Email</p>
-                    <p className="text-xs text-foreground font-mono bg-muted px-2 py-0.5 rounded">{group.email}</p>
+                <div key={group.label} className={`rounded-xl border p-4 space-y-3 ${group.duplicateType === 'email' ? 'border-rose-500/20 bg-rose-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border shrink-0 ${group.duplicateType === 'email' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
+                      {group.duplicateType === 'email' ? 'Same Email' : 'Same Name + School'}
+                    </span>
+                    <p className="text-xs text-foreground font-mono bg-muted px-2 py-0.5 rounded">{group.label}</p>
                     <span className="text-xs text-muted-foreground">· {group.accounts.length} accounts</span>
                   </div>
+                  <p className="text-[11px] text-muted-foreground">{group.reason}</p>
                   <div className="space-y-2">
                     {group.accounts.map((acc, i) => (
                       <div key={acc.id} className="flex items-start gap-3 px-3 py-2.5 bg-background border border-border rounded-xl">
