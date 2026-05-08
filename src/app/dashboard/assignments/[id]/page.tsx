@@ -385,6 +385,13 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         </div>
                     </div>
 
+                    {assignment.description && (
+                        <div className="p-5 border-b border-white/8">
+                            <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Description</p>
+                            <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">{assignment.description}</p>
+                        </div>
+                    )}
+
                     {assignment.instructions && (
                         <div className="p-5 border-b border-white/8">
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Instructions</p>
@@ -456,6 +463,12 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                     <p className="text-sm font-bold text-white">{assignment.title}</p>
                                     <p className="text-[10px] text-white/30 mt-0.5">{max} pts · {assignment.assignment_type}</p>
                                 </div>
+                                {assignment.description && (
+                                    <div>
+                                        <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5">Description</p>
+                                        <p className="text-xs text-white/80 leading-relaxed whitespace-pre-wrap">{assignment.description}</p>
+                                    </div>
+                                )}
                                 {assignment.instructions && (
                                     <div>
                                         <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5">Instructions</p>
