@@ -258,7 +258,7 @@ export async function GET(req: NextRequest) {
     registeredByIds.forEach(id => { displacementSources.set(id, [...(displacementSources.get(id) ?? []), 'registered_by']); });
 
     const { data: displacedStudents } = allDisplacedIds.length > 0
-      ? await db.from('portal_users').select('id, full_name, email, school_id, school_name, class_id, section_class').in('id', allDisplacedIds).eq('role', 'student').eq('is_deleted', false)
+      ? await db.from('portal_users').select('id, full_name, email, school_id, school_name, class_id, section_class, primary_teacher_id').in('id', allDisplacedIds).eq('role', 'student').eq('is_deleted', false)
       : { data: [] };
 
     // Enrich displaced with current class name and its teacher name
@@ -277,7 +277,18 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const enrichedDisplaced = (displacedStudents ?? []).map((s: any) => ({
+    // Filter out students already correctly locked to their current class.
+    // If primary_teacher_id === current class teacher_id, an admin action (Claim, Drain,
+    // direct_assign) has intentionally settled this student — they are not displaced.
+    // This prevents historical signals (old batch records, old reports) from continuing
+    // to show a student as displaced after ownership has been corrected.
+    const settledDisplaced = (displacedStudents ?? []).filter((s: any) => {
+      if (!s.primary_teacher_id || !s.class_id) return true; // no lock → still a candidate
+      const clsTeacher = dispClassMap[s.class_id]?.teacher_id;
+      return s.primary_teacher_id !== clsTeacher; // locked to a DIFFERENT teacher → still displaced
+    });
+
+    const enrichedDisplaced = settledDisplaced.map((s: any) => ({
       ...s,
       current_class_name: s.class_id ? (dispClassMap[s.class_id]?.name ?? s.section_class ?? null) : null,
       current_class_teacher_name: s.class_id ? (dispClassMap[s.class_id]?.teacher_name ?? null) : null,
