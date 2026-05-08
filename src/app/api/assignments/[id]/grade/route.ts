@@ -91,29 +91,14 @@ export async function POST(
 
     if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
-    // School boundary: teacher must own the assignment or be at its school
-    if (caller.role === 'teacher') {
-      const ownAssignment = assignment.created_by === caller.id;
-      const sameSchool = assignment.school_id && caller.school_id === assignment.school_id;
-      const assignmentSchoolId = assignment.school_id;
-      const inTeacherSchools = !ownAssignment && !sameSchool && assignment.school_id
-        ? await (async () => {
-            const { data: ts } = await admin
-              .from('teacher_schools')
-              .select('school_id')
-              .eq('teacher_id', caller.id)
-              .eq('school_id', assignmentSchoolId as string)
-              .maybeSingle();
-            return !!ts;
-          })()
-        : false;
-
-      if (!ownAssignment && !sameSchool && !inTeacherSchools) {
-        return NextResponse.json(
-          { error: 'Access denied: assignment belongs to a school you are not assigned to' },
-          { status: 403 },
-        );
-      }
+    // Strict ownership: only the teacher who created the assignment can grade it.
+    // Being at the same school is not enough — that would allow cross-teacher grading.
+    // Admin and school roles retain full access.
+    if (caller.role === 'teacher' && assignment.created_by !== caller.id) {
+      return NextResponse.json(
+        { error: 'Access denied: you can only grade your own assignments' },
+        { status: 403 },
+      );
     }
     if (caller.role === 'school' && assignment.school_id && assignment.school_id !== caller.school_id) {
       return NextResponse.json(

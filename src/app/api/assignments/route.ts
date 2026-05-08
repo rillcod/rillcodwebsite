@@ -181,6 +181,25 @@ export async function POST(request: NextRequest) {
       resolvedSchoolName = body.school_name ?? caller.school_name ?? null;
     }
 
+    // Validate that a class-scoped assignment targets a class this teacher owns.
+    // Without this, Suleiman could create an assignment targeting Amaka's class_id.
+    if (caller.role === 'teacher' && body.metadata?.target_class_id) {
+      const { data: targetCls } = await admin
+        .from('classes')
+        .select('teacher_id')
+        .eq('id', body.metadata.target_class_id)
+        .maybeSingle();
+      if (!targetCls) {
+        return NextResponse.json({ error: 'Target class not found' }, { status: 400 });
+      }
+      if (targetCls.teacher_id !== caller.id) {
+        return NextResponse.json(
+          { error: 'You can only target classes you own' },
+          { status: 403 },
+        );
+      }
+    }
+
     const allowedFields = [
       'title', 'description', 'instructions', 'course_id', 'lesson_id',
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',

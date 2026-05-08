@@ -27,10 +27,10 @@ export async function GET(
 
     const admin = adminClient();
 
-    // Fetch caller profile
+    // Fetch caller profile — class_id needed for class-scoped visibility check
     const { data: caller } = await admin
       .from('portal_users')
-      .select('role, id, school_id')
+      .select('role, id, school_id, class_id')
       .eq('id', user.id)
       .single();
 
@@ -63,7 +63,7 @@ export async function GET(
     const [asgnRes, subRes] = await Promise.all([
       admin
         .from('assignments')
-        .select('id, title, description, instructions, due_date, max_points, assignment_type, is_active, created_at, questions, school_id, courses ( id, title, programs ( name ) )')
+        .select('id, title, description, instructions, due_date, max_points, assignment_type, is_active, created_at, questions, school_id, metadata, courses ( id, title, programs ( name ) )')
         .eq('id', id)
         .maybeSingle(),
       admin
@@ -85,6 +85,15 @@ export async function GET(
     }
     if (asgn.school_id && asgn.school_id !== caller.school_id) {
       return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
+    }
+    // Class boundary: if the assignment targets a specific class, the student must be in it.
+    // The list endpoint already filters this, but a student could bypass it by fetching
+    // a class-scoped assignment directly by ID if only school_id is checked here.
+    const meta = (asgn as any).metadata || {};
+    if (meta.visibility === 'class' && meta.target_class_id) {
+      if ((caller as any).class_id !== meta.target_class_id) {
+        return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
+      }
     }
 
     // Strip correct_answer from questions so students can't cheat

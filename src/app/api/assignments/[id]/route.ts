@@ -25,25 +25,17 @@ async function getCaller(): Promise<Caller | null> {
   return (caller as Caller) ?? null;
 }
 
-/** Returns true if caller can manage this assignment (created it or is in its school). */
-async function callerCanManageAssignment(
+/** Returns true if caller can manage this assignment. Teachers: creator only. */
+function callerCanManageAssignment(
   caller: Caller,
-  assignmentSchoolId: string | null,
+  _assignmentSchoolId: string | null,
   createdBy: string | null,
-): Promise<boolean> {
+): boolean {
   if (caller.role === 'admin') return true;
-  if (caller.role === 'teacher') {
-    if (createdBy === caller.id) return true;
-    if (!assignmentSchoolId) return false;
-    if (caller.school_id === assignmentSchoolId) return true;
-    const { data: ts } = await adminClient()
-      .from('teacher_schools')
-      .select('school_id')
-      .eq('teacher_id', caller.id)
-      .eq('school_id', assignmentSchoolId)
-      .maybeSingle();
-    return !!ts;
-  }
+  // Strict: a teacher can only edit/delete assignments they personally created.
+  // Being at the same school is NOT sufficient — that would let Suleiman delete
+  // Amaka's assignments and vice versa.
+  if (caller.role === 'teacher') return createdBy === caller.id;
   return false;
 }
 
