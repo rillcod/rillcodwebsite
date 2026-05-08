@@ -79,6 +79,7 @@ export default function LessonsPage() {
   const [planSaveError, setPlanSaveError] = useState<string | null>(null);
   const [planCourseId, setPlanCourseId] = useState('');
   const [courses, setCourses] = useState<any[]>([]);
+  const [planMap, setPlanMap] = useState<Record<string, { class_name: string | null; course_title: string | null; term: string | null }>>({});
 
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete lesson "${title}"? This cannot be undone.`)) return;
@@ -228,6 +229,29 @@ export default function LessonsPage() {
     load();
     return () => { cancelled = true; };
   }, [profile?.id, authLoading, lessonPlanId]); // eslint-disable-line
+
+  // Batch-fetch lesson plan details (class + term) for generated lessons
+  useEffect(() => {
+    const planIds = [...new Set(
+      lessons.map((l: any) => l.metadata?.lesson_plan_id).filter(Boolean)
+    )];
+    if (planIds.length === 0) return;
+    const db = createClient();
+    db.from('lesson_plans')
+      .select('id, term, classes(name), courses(title)')
+      .in('id', planIds)
+      .then(({ data }) => {
+        const map: Record<string, { class_name: string | null; course_title: string | null; term: string | null }> = {};
+        for (const p of (data ?? [])) {
+          map[(p as any).id] = {
+            class_name: (p as any).classes?.name ?? null,
+            course_title: (p as any).courses?.title ?? null,
+            term: (p as any).term ?? null,
+          };
+        }
+        setPlanMap(map);
+      });
+  }, [lessons]);
 
   const filtered = lessons.filter(l => {
     const q = search.toLowerCase();
@@ -472,6 +496,41 @@ export default function LessonsPage() {
                         </span>
                       )}
                     </div>
+
+                    {/* Origin badges for AI-generated lessons */}
+                    {lesson.metadata?.lesson_plan_id && (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
+                          <SparklesIcon className="w-3 h-3" />
+                          AI Generated
+                        </span>
+                        {lesson.metadata.week_number && (
+                          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                            Week {lesson.metadata.week_number}
+                            {lesson.metadata.term_number ? ` · T${lesson.metadata.term_number}` : ''}
+                            {lesson.metadata.year_number ? ` · Y${lesson.metadata.year_number}` : ''}
+                          </span>
+                        )}
+                        {planMap[lesson.metadata.lesson_plan_id]?.class_name && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                            <UserGroupIcon className="w-3 h-3" />
+                            {planMap[lesson.metadata.lesson_plan_id].class_name}
+                          </span>
+                        )}
+                        {planMap[lesson.metadata.lesson_plan_id]?.term && (
+                          <span className="px-2 py-0.5 bg-muted border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest rounded-full">
+                            {planMap[lesson.metadata.lesson_plan_id].term}
+                          </span>
+                        )}
+                        <Link
+                          href={`/dashboard/lesson-plans/${lesson.metadata.lesson_plan_id}`}
+                          onClick={e => e.stopPropagation()}
+                          className="text-[10px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors"
+                        >
+                          → View Plan
+                        </Link>
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
