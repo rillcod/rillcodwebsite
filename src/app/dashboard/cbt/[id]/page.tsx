@@ -506,7 +506,12 @@ ${mode === 'staff' ? `
                 <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">{exam.programs?.name}</span>
               </div>
               <h1 className="text-2xl font-extrabold mb-2">{exam.title}</h1>
-              {exam.description && <p className="text-muted-foreground text-sm">{exam.description}</p>}
+              {exam.description && (
+                <div className="mt-1">
+                  <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest mb-1">Description</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{exam.description}</p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <span className={`px-3 py-1 rounded-full text-xs font-bold border ${exam.is_active ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
