@@ -85,20 +85,50 @@ export async function POST(
     // Fetch assignment to verify access + get weight/max_points
     const { data: assignment } = await admin
       .from('assignments')
-      .select('weight, max_points, school_id, created_by, title')
+      .select('weight, max_points, school_id, created_by, title, metadata')
       .eq('id', assignment_id)
       .maybeSingle();
 
     if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
-    // Strict ownership: only the teacher who created the assignment can grade it.
-    // Being at the same school is not enough — that would allow cross-teacher grading.
-    // Admin and school roles retain full access.
+    // Teacher grading access — three tiers:
+    // 1. Creator: always allowed
+    // 2. Class-targeted assignment: only the teacher who owns that class can grade
+    //    (admin may create platform work for Suleiman's class; Suleiman grades it)
+    // 3. School-wide platform assignment: any teacher at that school can grade
     if (caller.role === 'teacher' && assignment.created_by !== caller.id) {
-      return NextResponse.json(
-        { error: 'Access denied: you can only grade your own assignments' },
-        { status: 403 },
-      );
+      const meta = (assignment as any).metadata || {};
+      const targetClassId = meta.target_class_id;
+
+      if (targetClassId) {
+        // Class-targeted: only the class owner can grade
+        const { data: targetClass } = await admin
+          .from('classes').select('teacher_id').eq('id', targetClassId).maybeSingle();
+        if (!targetClass || targetClass.teacher_id !== caller.id) {
+          return NextResponse.json(
+            { error: 'Access denied: you do not teach the class this assignment targets' },
+            { status: 403 },
+          );
+        }
+      } else if (assignment.school_id) {
+        // School-wide platform assignment: teacher must be at this school
+        const atSchool = caller.school_id === assignment.school_id || await (async () => {
+          const { data: ts } = await admin.from('teacher_schools').select('id')
+            .eq('teacher_id', caller.id).eq('school_id', assignment.school_id!).maybeSingle();
+          return !!ts;
+        })();
+        if (!atSchool) {
+          return NextResponse.json(
+            { error: 'Access denied: assignment is outside your school' },
+            { status: 403 },
+          );
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Access denied: not your assignment' },
+          { status: 403 },
+        );
+      }
     }
     if (caller.role === 'school' && assignment.school_id && assignment.school_id !== caller.school_id) {
       return NextResponse.json(

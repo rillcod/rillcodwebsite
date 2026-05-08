@@ -73,7 +73,15 @@ export async function GET(request: NextRequest) {
     if (caller.role === 'admin') {
       // No filter — see all
     } else if (caller.role === 'teacher') {
-      query = query.eq('created_by', caller.id) as any;
+      // Fetch own assignments + any assignment at their schools (school-wide platform work).
+      // Class-targeted assignments from other teachers are excluded in post-filter below.
+      const schoolIds = await teacherSchoolIds(caller.id, caller.school_id);
+      if (schoolIds.length > 0) {
+        const orParts = [`created_by.eq.${caller.id}`, ...schoolIds.map(sid => `school_id.eq.${sid}`)];
+        query = query.or(orParts.join(',')) as any;
+      } else {
+        query = query.eq('created_by', caller.id) as any;
+      }
     } else if (caller.role === 'school') {
       // School role: only their own school's assignments
       const orParts: string[] = [];
@@ -92,6 +100,18 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     let rows = data ?? [];
+
+    // Teacher post-filter: the DB query fetched own + school assignments.
+    // Strip out class-targeted assignments that belong to other teachers —
+    // those are private to their creator (only visible via direct assignment view).
+    if (caller.role === 'teacher') {
+      rows = rows.filter((a: any) => {
+        if (a.created_by === caller.id) return true;
+        // Platform / admin school-wide assignment: visible if NOT class-scoped
+        const vis = (a.metadata || {}).visibility;
+        return vis !== 'class';
+      });
+    }
 
     // Student: apply visibility + work-mode targeting from metadata
     if (caller.role === 'student') {
