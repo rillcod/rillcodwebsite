@@ -193,6 +193,7 @@ export default function UnifiedInbox() {
 
   // Quick chat by number (floating button)
   const [showQuickChat, setShowQuickChat] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
   const [quickChatNumber, setQuickChatNumber] = useState('');
   const [quickChatError, setQuickChatError] = useState('');
 
@@ -2844,18 +2845,43 @@ export default function UnifiedInbox() {
         </div>
       )}
 
-      {/* ══ FLOATING ACTION BUTTON — mobile only; desktop uses sidebar header ═ */}
+      {/* ══ FLOATING ACTION BUTTON (speed-dial) — mobile only ══════════════ */}
       {!showQuickChat && !isParentOrStudent && (
-        <button
-          onClick={() => {
-            if (activeTab === 'students') { setShowQuickChat(true); return; }
-            setShowNewChat(true);
-          }}
-          className="md:hidden fixed bottom-20 right-5 w-14 h-14 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white rounded-full shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all z-40"
-          title={activeTab === 'students' ? 'New WhatsApp chat' : 'New in-app message'}
-        >
-          <Plus className="w-6 h-6" />
-        </button>
+        <div className="md:hidden fixed bottom-20 right-5 z-40 flex flex-col items-end gap-3">
+          {fabOpen && (
+            <>
+              {/* WhatsApp */}
+              <button
+                onClick={() => { setFabOpen(false); setShowQuickChat(true); }}
+                className="flex items-center gap-2 pr-3 pl-2 h-10 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-full shadow-lg transition-all text-[11px] font-black uppercase tracking-widest"
+              >
+                <Phone className="w-4 h-4" /> WhatsApp
+              </button>
+              {/* Email */}
+              <button
+                onClick={() => { setFabOpen(false); openEmailCompose(); }}
+                className="flex items-center gap-2 pr-3 pl-2 h-10 bg-violet-600 hover:bg-violet-500 active:scale-95 text-white rounded-full shadow-lg transition-all text-[11px] font-black uppercase tracking-widest"
+              >
+                <Mail className="w-4 h-4" /> Email
+              </button>
+              {/* In-app message */}
+              <button
+                onClick={() => { setFabOpen(false); setShowNewChat(true); }}
+                className="flex items-center gap-2 pr-3 pl-2 h-10 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white rounded-full shadow-lg transition-all text-[11px] font-black uppercase tracking-widest"
+              >
+                <MessageSquare className="w-4 h-4" /> In-App
+              </button>
+            </>
+          )}
+          {/* Main toggle button */}
+          <button
+            onClick={() => setFabOpen(o => !o)}
+            className={`w-14 h-14 flex items-center justify-center rounded-full shadow-2xl shadow-emerald-900/50 transition-all active:scale-95 ${fabOpen ? 'bg-white/10 rotate-45' : 'bg-emerald-500 hover:bg-emerald-400'} text-white`}
+            title="Compose"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        </div>
       )}
 
       {/* ══ QUICK CHAT MODAL ════════════════════════════════════════════════ */}
