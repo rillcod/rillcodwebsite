@@ -2166,7 +2166,7 @@ export default function UnifiedInbox() {
                 <button onClick={() => setShowInfo(v => !v)} className={`p-2 rounded-full transition-colors ${showInfo ? 'text-primary bg-white/10' : 'text-white/50 hover:bg-white/10'}`} title="Contact info">
                   <Info className="w-5 h-5" />
                 </button>
-                {isStaff && (
+                {(isStaff || (profile?.role === 'student' && activeConv.type === 'teachers')) && (
                   <button
                     onClick={() => deleteConversation(activeConv)}
                     title="Delete conversation"
@@ -2724,7 +2724,7 @@ export default function UnifiedInbox() {
                 <div>
                   <h2 className="text-white font-black text-[16px]">New In-App Message</h2>
                   <p className="text-[11px]" style={{ color: '#8696a0' }}>
-                    {activeTab === 'students' ? 'Search students' : activeTab === 'parents' ? 'Search parents' : isSchool ? 'Search teachers' : 'Search partner schools'}
+                    {activeTab === 'students' ? 'Search students' : activeTab === 'parents' ? 'Search parents' : activeTab === 'teachers' ? 'Search teachers' : isSchool ? 'Search teachers' : 'Search partner schools'}
                   </p>
                 </div>
               </div>
