@@ -194,6 +194,7 @@ export default function UnifiedInbox() {
   // Quick chat by number (floating button)
   const [showQuickChat, setShowQuickChat] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [showNewMessagePicker, setShowNewMessagePicker] = useState(false);
   const [quickChatNumber, setQuickChatNumber] = useState('');
   const [quickChatError, setQuickChatError] = useState('');
 
@@ -1570,7 +1571,7 @@ export default function UnifiedInbox() {
                 <button onClick={() => openEmailCompose()} className="p-2 text-white/50 hover:text-primary hover:bg-white/10 rounded-full transition-colors" title="Compose email">
                   <Mail className="w-4 h-4" />
                 </button>
-                <button onClick={isParentOrStudent ? startSupportConversation : () => setShowNewChat(true)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New chat">
+                <button onClick={isParentOrStudent ? startSupportConversation : () => setShowNewMessagePicker(true)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New message">
                   <Plus className="w-5 h-5" />
                 </button>
               </>
@@ -2415,87 +2416,110 @@ export default function UnifiedInbox() {
         )}
       </div>
 
-      {/* ══ NEW CHAT MODAL ═══════════════════════════════════════════════════ */}
+      {/* ══ NEW CHAT MODAL — WhatsApp style ════════════════════════════════ */}
       {showNewChat && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-[2px]">
-          <div className="w-full max-w-lg bg-[#1f2c34] md:rounded-2xl rounded-t-2xl overflow-hidden shadow-2xl flex flex-col max-h-[88vh] border border-white/[0.07]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
-              <div>
-                <h2 className="text-white font-black text-[16px]">
-                  New {activeTab === 'teachers' ? 'Teacher' : activeTab === 'school' && isSchool ? 'Teacher' : activeTab === 'parents' ? 'Parent' : activeTab === 'students' ? 'Student' : 'School'} Chat
-                </h2>
-                <p className="text-white/30 text-[11px] mt-0.5">
-                  {activeTab === 'students' ? 'Search students by name or school' :
-                    activeTab === 'parents' ? 'Search parents by name' :
-                      isSchool ? 'Search teachers in your school' : 'Search partner schools'}
-                </p>
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.72)' }}
+          onClick={() => setShowNewChat(false)}
+        >
+          <div
+            className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl"
+            style={{ background: '#1f2c34', maxHeight: '88vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-4 px-5 py-4 shrink-0" style={{ background: '#2a3942' }}>
+              <button onClick={() => setShowNewChat(false)} className="p-1.5 hover:bg-white/10 rounded-full transition-colors shrink-0">
+                <ChevronLeft className="w-5 h-5 text-white/70" />
+              </button>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: '#0284c7' }}>
+                  <MessageSquare className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-white font-black text-[16px]">New In-App Message</h2>
+                  <p className="text-[11px]" style={{ color: '#8696a0' }}>
+                    {activeTab === 'students' ? 'Search students' : activeTab === 'parents' ? 'Search parents' : isSchool ? 'Search teachers' : 'Search partner schools'}
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setShowNewChat(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-5 h-5 text-white/40" /></button>
             </div>
-            <div className="px-4 py-3 border-b border-white/[0.05] shrink-0">
+
+            {/* Search */}
+            <div className="px-4 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: '#1f2c34' }}>
               <div className="relative">
-                <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                 <input autoFocus value={directorySearch} onChange={e => setDirectorySearch(e.target.value)}
-                  placeholder="Type to search…"
-                  className="w-full bg-[#2a3942] text-white text-[13px] rounded-lg pl-9 pr-4 py-2.5 outline-none placeholder-white/25 focus:ring-1 focus:ring-primary/30" />
+                  placeholder="Search by name, school…"
+                  className="w-full text-white text-[14px] rounded-xl pl-9 pr-4 py-2.5 outline-none"
+                  style={{ background: '#2a3942', caretColor: '#00a884' }}
+                />
               </div>
             </div>
+
+            {/* Results */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {loadingDirectory ? (
-                <div className="p-12 text-center"><Loader2 className="w-7 h-7 animate-spin mx-auto text-primary" /></div>
+                <div className="p-12 text-center">
+                  <Loader2 className="w-7 h-7 animate-spin mx-auto" style={{ color: '#00a884' }} />
+                </div>
               ) : (
                 <>
                   {directoryResults.map(item => (
                     <button key={item.id} onClick={() => startNewConversation(item)}
-                      className="w-full flex items-center px-4 py-3 hover:bg-white/[0.05] transition-colors text-left group border-b border-white/[0.04]">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 mr-3 ${AVATAR_COLORS[activeTab]}`}>
+                      className="w-full flex items-center px-4 py-3.5 hover:bg-white/[0.05] active:bg-white/10 transition-colors text-left group"
+                      style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div className={`w-11 h-11 rounded-full flex items-center justify-center font-black text-[15px] text-white shrink-0 mr-3.5 ${AVATAR_COLORS[activeTab]}`}>
                         {initials(item.full_name || item.name || 'U')}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-white text-[13px] truncate">{item.full_name || item.name}</p>
+                        <p className="font-bold text-white text-[14px] truncate">{item.full_name || item.name}</p>
                         <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                          {item.phone && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
-                          {item.school_name && <span className="text-[10px] text-white/30 truncate">{item.school_name}</span>}
-                          {item.email && <span className="text-[10px] text-white/25 truncate">{item.email}</span>}
+                          {item.phone && <span className="text-[11px] flex items-center gap-0.5" style={{ color: '#00a884' }}><Phone className="w-2.5 h-2.5" />+{item.phone.replace(/\D/g, '')}</span>}
+                          {item.school_name && <span className="text-[11px] truncate" style={{ color: '#8696a0' }}>{item.school_name}</span>}
                           {item.role && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${ROLE_COLORS[item.role] || 'bg-white/10 text-white/40'}`}>{item.role}</span>}
-                          {!item.phone && activeTab === 'students' && <span className="text-[10px] text-rose-400 font-bold">No phone</span>}
+                          {!item.phone && activeTab === 'students' && <span className="text-[10px] font-bold" style={{ color: '#f87171' }}>No phone</span>}
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-white/15 group-hover:text-primary transition-colors" />
+                      <ChevronRight className="w-4 h-4 shrink-0 group-hover:opacity-80 transition-opacity" style={{ color: '#8696a0' }} />
                     </button>
                   ))}
 
-                  {/* Message by Number Option */}
                   {activeTab === 'students' && directorySearch.replace(/\D/g, '').length >= 7 && (
                     <button
                       onClick={() => {
                         const phone = directorySearch.replace(/\D/g, '');
-                        startNewConversation({ id: phone, full_name: `+${phone}`, phone: phone, role: 'external' });
+                        startNewConversation({ id: phone, full_name: `+${phone}`, phone, role: 'external' });
                       }}
-                      className="w-full flex items-center px-4 py-4 bg-primary/5 hover:bg-primary/10 transition-colors text-left group border-b border-primary/10"
+                      className="w-full flex items-center px-4 py-4 hover:bg-white/[0.05] active:bg-white/10 transition-colors text-left group"
+                      style={{ background: 'rgba(0,168,132,0.05)', borderBottom: '1px solid rgba(0,168,132,0.12)' }}
                     >
-                      <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 mr-3">
+                      <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 mr-3.5" style={{ background: '#00a884' }}>
                         <Plus className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-black text-white text-[14px]">Message +{directorySearch.replace(/\D/g, '')} directly</p>
-                        <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Start WhatsApp conversation</p>
+                        <p className="font-black text-white text-[14px]">Message +{directorySearch.replace(/\D/g, '')} via WhatsApp</p>
+                        <p className="text-[11px] font-bold uppercase tracking-widest mt-0.5" style={{ color: '#00a884' }}>Start WhatsApp conversation</p>
                       </div>
-                      <MessageSquare className="w-5 h-5 text-primary mr-2" />
                     </button>
                   )}
 
-                  {directoryResults.length === 0 && (!directorySearch || (activeTab === 'students' && directorySearch.replace(/\D/g, '').length < 7)) && (
-                    <div className="p-12 text-center text-white/25 text-[13px]">{directorySearch ? 'No results found.' : 'Start typing to search…'}</div>
+                  {directoryResults.length === 0 && (
+                    <div className="p-12 text-center text-[13px]" style={{ color: '#8696a0' }}>
+                      {directorySearch ? 'No results found.' : 'Start typing to search…'}
+                    </div>
                   )}
                 </>
               )}
             </div>
+
             {activeTab === 'parents' && (
-              <div className="px-5 py-3 bg-[#111b21] border-t border-white/[0.05] text-[11px] text-white/25 text-center">
+              <div className="px-5 py-3 text-[11px] text-center" style={{ background: '#111b21', borderTop: '1px solid rgba(255,255,255,0.05)', color: '#8696a0' }}>
                 To start a parent conversation, initiate from the student&apos;s profile.
               </div>
             )}
+            <div className="pb-4 shrink-0" />
           </div>
         </div>
       )}
@@ -2671,115 +2695,134 @@ export default function UnifiedInbox() {
 
       {/* ══ EMAIL COMPOSE MODAL ════════════════════════════ */}
       {showEmailCompose && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[#202c33] md:rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.72)' }}
+          onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); setEmailSuccess(''); }}
+        >
+          <div
+            className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl"
+            style={{ background: '#1f2c34', maxHeight: '92vh' }}
+            onClick={e => e.stopPropagation()}
+          >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center border border-primary/20">
-                  <Mail className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-4 px-5 py-4 shrink-0" style={{ background: '#2a3942' }}>
+              <button onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); setEmailSuccess(''); }}
+                className="p-1.5 hover:bg-white/10 rounded-full transition-colors shrink-0">
+                <ChevronLeft className="w-5 h-5 text-white/70" />
+              </button>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7c3aed' }}>
+                  <Mail className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-white font-black text-[16px]">Company Email</h2>
-                  <p className="text-white/30 text-xs">Sent from Rillcod Academy · support@rillcod.com</p>
+                  <h2 className="text-white font-black text-[16px]">New Email</h2>
+                  <p className="text-[11px]" style={{ color: '#8696a0' }}>via support@rillcod.com</p>
                 </div>
               </div>
-              <button onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); setEmailSuccess(''); }}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <X className="w-5 h-5 text-white/50" />
-              </button>
             </div>
 
             {/* Form */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4">
               {emailError && (
-                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm font-bold flex items-center gap-2">
+                <div className="rounded-xl px-4 py-3 text-sm font-bold flex items-center gap-2"
+                  style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
                   <X className="w-4 h-4 shrink-0" />{emailError}
                 </div>
               )}
               {emailSuccess && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-400 text-sm font-bold flex items-center gap-2">
+                <div className="rounded-xl px-4 py-3 text-sm font-bold flex items-center gap-2"
+                  style={{ background: 'rgba(0,168,132,0.12)', border: '1px solid rgba(0,168,132,0.3)', color: '#00a884' }}>
                   <CheckCircle2 className="w-4 h-4 shrink-0" />{emailSuccess}
                 </div>
               )}
 
               {/* To */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
-                  To <span className="text-rose-400">*</span>
+                <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5" style={{ color: '#8696a0' }}>
+                  To <span style={{ color: '#f87171' }}>*</span>
                 </label>
                 <div className="relative">
-                  <AtSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <AtSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                   <input value={emailForm.to} onChange={e => setEmailForm(f => ({ ...f, to: e.target.value }))}
                     placeholder="recipient@email.com" type="email" autoFocus={!emailForm.to}
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full text-white text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
+                    style={{ background: '#2a3942', caretColor: '#7c3aed' }} />
                 </div>
                 {emailForm.to_name && (
-                  <p className="text-[10px] text-primary font-bold mt-1 ml-1">Recipient: {emailForm.to_name}</p>
+                  <p className="text-[10px] font-bold mt-1 ml-1" style={{ color: '#7c3aed' }}>To: {emailForm.to_name}</p>
                 )}
               </div>
 
               {/* CC */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">CC (optional)</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5" style={{ color: '#8696a0' }}>CC (optional)</label>
                 <div className="relative">
-                  <AtSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <AtSign className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                   <input value={emailForm.cc} onChange={e => setEmailForm(f => ({ ...f, cc: e.target.value }))}
                     placeholder="cc@email.com"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full text-white text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
+                    style={{ background: '#2a3942', caretColor: '#7c3aed' }} />
                 </div>
               </div>
 
               {/* Subject */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
-                  Subject <span className="text-rose-400">*</span>
+                <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5" style={{ color: '#8696a0' }}>
+                  Subject <span style={{ color: '#f87171' }}>*</span>
                 </label>
                 <div className="relative">
-                  <FileText className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <FileText className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                   <input value={emailForm.subject} onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))}
                     placeholder="e.g. Student Progress Update – Term 2"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-2.5 outline-none placeholder-white/30 focus:ring-1 focus:ring-primary/40" />
+                    className="w-full text-white text-[14px] rounded-xl pl-10 pr-4 py-3 outline-none"
+                    style={{ background: '#2a3942', caretColor: '#7c3aed' }} />
                 </div>
               </div>
 
               {/* Body */}
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
-                  Message <span className="text-rose-400">*</span>
+                <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5" style={{ color: '#8696a0' }}>
+                  Message <span style={{ color: '#f87171' }}>*</span>
                 </label>
                 <textarea
                   value={emailForm.body}
                   onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))}
-                  placeholder="Write your message here…&#10;&#10;The Rillcod branded template will be applied automatically."
+                  placeholder="Write your message…"
                   rows={7}
-                  className="w-full bg-[#2a3942] text-white text-sm rounded-xl px-4 py-3 outline-none resize-none placeholder-white/30 focus:ring-1 focus:ring-primary/40 leading-relaxed"
+                  className="w-full text-white text-[14px] rounded-xl px-4 py-3 outline-none resize-none leading-relaxed"
+                  style={{ background: '#2a3942', caretColor: '#7c3aed' }}
                 />
               </div>
 
-              {/* Branding note */}
-              <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 flex items-start gap-2">
-                <Mail className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <p className="text-[11px] text-white/40 leading-relaxed">
-                  Emails are sent using the <strong className="text-white/60">Rillcod Academy branded template</strong> from <strong className="text-primary">support@rillcod.com</strong>. Recipients can reply directly to this address.
+              {/* Info strip */}
+              <div className="rounded-xl p-3 flex items-start gap-2.5"
+                style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.18)' }}>
+                <Mail className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#7c3aed' }} />
+                <p className="text-[11px] leading-relaxed" style={{ color: '#8696a0' }}>
+                  Sent as a branded Rillcod Academy email from <strong style={{ color: '#a78bfa' }}>support@rillcod.com</strong>.
+                  Rillcod.com addresses are delivered as in-app notifications instead.
                 </p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 border-t border-white/[0.08] shrink-0 flex gap-3">
+            <div className="px-5 py-4 flex gap-3 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
               <button onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); }}
-                className="px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black transition-colors">
+                className="px-5 py-3 rounded-xl text-sm font-black transition-colors"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)' }}>
                 Discard
               </button>
               <button onClick={sendEmail} disabled={sendingEmail || !emailForm.to.trim() || !emailForm.subject.trim() || !emailForm.body.trim()}
-                className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+                className="flex-1 py-3 rounded-xl text-white text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                style={{ background: '#7c3aed' }}>
                 {sendingEmail
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending from Rillcod…</>
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
                   : <><Send className="w-4 h-4" /> Send Email</>
                 }
               </button>
             </div>
+            <div className="pb-2 shrink-0" />
           </div>
         </div>
       )}
@@ -2845,126 +2888,205 @@ export default function UnifiedInbox() {
         </div>
       )}
 
-      {/* ══ FLOATING ACTION BUTTON (speed-dial) — mobile only ══════════════ */}
-      {!showQuickChat && !isParentOrStudent && (
-        <div className="md:hidden fixed bottom-20 right-5 z-40 flex flex-col items-end gap-3">
-          {fabOpen && (
-            <>
+      {/* ══ FAB — mobile only, opens New Message picker ═════════════════════ */}
+      {!isParentOrStudent && (
+        <button
+          onClick={() => setShowNewMessagePicker(true)}
+          style={{ backgroundColor: '#00a884' }}
+          className="md:hidden fixed bottom-20 right-5 z-40 w-14 h-14 flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-all text-white"
+          title="New Message"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* ══ NEW MESSAGE PICKER — WhatsApp-style channel chooser ════════════ */}
+      {showNewMessagePicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.72)' }}
+          onClick={() => setShowNewMessagePicker(false)}
+        >
+          <div
+            className="w-full max-w-md flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl"
+            style={{ background: '#1f2c34', maxHeight: '90vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-4 px-5 py-4 shrink-0" style={{ background: '#2a3942' }}>
+              <button
+                onClick={() => setShowNewMessagePicker(false)}
+                className="p-1.5 hover:bg-white/10 rounded-full transition-colors shrink-0"
+              >
+                <ChevronLeft className="w-5 h-5 text-white/70" />
+              </button>
+              <div>
+                <h2 className="text-white font-black text-[17px] tracking-tight">New Message</h2>
+                <p className="text-[11px] mt-0.5" style={{ color: '#8696a0' }}>Choose how to reach out</p>
+              </div>
+            </div>
+
+            {/* Channel rows */}
+            <div className="flex-1 overflow-y-auto py-2">
+
               {/* WhatsApp */}
               <button
-                onClick={() => { setFabOpen(false); setShowQuickChat(true); }}
-                className="flex items-center gap-2 pr-3 pl-2 h-10 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-full shadow-lg transition-all text-[11px] font-black uppercase tracking-widest"
+                onClick={() => { setShowNewMessagePicker(false); setShowQuickChat(true); }}
+                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.06] active:bg-white/10 transition-colors text-left"
               >
-                <Phone className="w-4 h-4" /> WhatsApp
+                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: '#00a884' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                    <path d="M12 0C5.374 0 0 5.373 0 12c0 2.117.554 4.103 1.522 5.827L.057 23.882a.5.5 0 00.613.613l6.056-1.465A11.945 11.945 0 0012 24c6.626 0 12-5.373 12-12S18.626 0 12 0zm0 21.818a9.808 9.808 0 01-5.029-1.388l-.36-.215-3.733.903.921-3.626-.235-.372A9.8 9.8 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-[15px]">WhatsApp</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: '#8696a0' }}>Start a chat with any phone number</p>
+                </div>
+                <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#8696a0' }} />
               </button>
+
+              <div className="mx-5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }} />
+
               {/* Email */}
               <button
-                onClick={() => { setFabOpen(false); openEmailCompose(); }}
-                className="flex items-center gap-2 pr-3 pl-2 h-10 bg-violet-600 hover:bg-violet-500 active:scale-95 text-white rounded-full shadow-lg transition-all text-[11px] font-black uppercase tracking-widest"
+                onClick={() => { setShowNewMessagePicker(false); openEmailCompose(); }}
+                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.06] active:bg-white/10 transition-colors text-left"
               >
-                <Mail className="w-4 h-4" /> Email
+                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: '#7c3aed' }}>
+                  <Mail className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-[15px]">Email</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: '#8696a0' }}>Send branded email via support@rillcod.com</p>
+                </div>
+                <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#8696a0' }} />
               </button>
-              {/* In-app message */}
+
+              <div className="mx-5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }} />
+
+              {/* In-App */}
               <button
-                onClick={() => { setFabOpen(false); setShowNewChat(true); }}
-                className="flex items-center gap-2 pr-3 pl-2 h-10 bg-sky-600 hover:bg-sky-500 active:scale-95 text-white rounded-full shadow-lg transition-all text-[11px] font-black uppercase tracking-widest"
+                onClick={() => { setShowNewMessagePicker(false); setShowNewChat(true); }}
+                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.06] active:bg-white/10 transition-colors text-left"
               >
-                <MessageSquare className="w-4 h-4" /> In-App
+                <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: '#0284c7' }}>
+                  <MessageSquare className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-[15px]">In-App Message</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: '#8696a0' }}>Message students, teachers or schools in the platform</p>
+                </div>
+                <ChevronRight className="w-4 h-4 shrink-0" style={{ color: '#8696a0' }} />
               </button>
-            </>
-          )}
-          {/* Main toggle button */}
-          <button
-            onClick={() => setFabOpen(o => !o)}
-            className={`w-14 h-14 flex items-center justify-center rounded-full shadow-2xl shadow-emerald-900/50 transition-all active:scale-95 ${fabOpen ? 'bg-white/10 rotate-45' : 'bg-emerald-500 hover:bg-emerald-400'} text-white`}
-            title="Compose"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
+
+            </div>
+
+            {/* Safe area spacer for mobile */}
+            <div className="shrink-0 h-safe-area-inset-bottom pb-4" />
+          </div>
         </div>
       )}
 
-      {/* ══ QUICK CHAT MODAL ════════════════════════════════════════════════ */}
+      {/* ══ QUICK CHAT MODAL — WhatsApp style ══════════════════════════════ */}
       {showQuickChat && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm bg-[#202c33] md:rounded-2xl rounded-t-2xl overflow-hidden shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-                  <MessageSquare className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div>
-                  <h2 className="text-white font-black text-[16px]">Quick Chat</h2>
-                  <p className="text-white/30 text-xs">Start WhatsApp conversation</p>
-                </div>
-              </div>
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.72)' }}
+          onClick={() => { setShowQuickChat(false); setQuickChatNumber(''); setQuickChatError(''); }}
+        >
+          <div
+            className="w-full max-w-sm flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl"
+            style={{ background: '#1f2c34' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* WA-style header */}
+            <div className="flex items-center gap-4 px-5 py-4 shrink-0" style={{ background: '#2a3942' }}>
               <button
                 onClick={() => { setShowQuickChat(false); setQuickChatNumber(''); setQuickChatError(''); }}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                className="p-1.5 hover:bg-white/10 rounded-full transition-colors shrink-0"
               >
-                <X className="w-5 h-5 text-white/50" />
+                <ChevronLeft className="w-5 h-5 text-white/70" />
               </button>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: '#00a884' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                    <path d="M12 0C5.374 0 0 5.373 0 12c0 2.117.554 4.103 1.522 5.827L.057 23.882a.5.5 0 00.613.613l6.056-1.465A11.945 11.945 0 0012 24c6.626 0 12-5.373 12-12S18.626 0 12 0zm0 21.818a9.808 9.808 0 01-5.029-1.388l-.36-.215-3.733.903.921-3.626-.235-.372A9.8 9.8 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-white font-black text-[16px]">New WhatsApp Chat</h2>
+                  <p className="text-[11px]" style={{ color: '#8696a0' }}>Enter any phone number</p>
+                </div>
+              </div>
             </div>
 
             {/* Form */}
             <div className="p-5 space-y-4">
               {quickChatError && (
-                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm font-bold flex items-center gap-2">
+                <div className="rounded-xl px-4 py-3 text-sm font-bold flex items-center gap-2"
+                  style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
                   <X className="w-4 h-4 shrink-0" />{quickChatError}
                 </div>
               )}
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-1.5">
-                  Phone Number <span className="text-rose-400">*</span>
+                <label className="block text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: '#00a884' }}>
+                  Phone / WhatsApp Number
                 </label>
                 <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                  <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: '#8696a0' }} />
                   <input
                     autoFocus
                     value={quickChatNumber}
                     onChange={e => { setQuickChatNumber(e.target.value); setQuickChatError(''); }}
                     onKeyDown={e => { if (e.key === 'Enter') startQuickChat(); }}
-                    placeholder="e.g. +234 800 000 0000 or 2348000000000"
+                    placeholder="+234 800 000 0000"
                     type="tel"
-                    className="w-full bg-[#2a3942] text-white text-sm rounded-xl pl-10 pr-4 py-3 outline-none placeholder-white/30 focus:ring-2 focus:ring-emerald-500/40"
+                    className="w-full text-white text-[15px] rounded-xl pl-10 pr-4 py-3.5 outline-none placeholder-white/20"
+                    style={{ background: '#2a3942', caretColor: '#00a884' }}
                   />
                 </div>
-                <p className="text-[10px] text-white/30 mt-2 ml-1">
-                  Enter any phone number to start a WhatsApp conversation. The number doesn&apos;t need to be in your contacts.
+                <p className="text-[11px] mt-2 ml-1" style={{ color: '#8696a0' }}>
+                  The number doesn&apos;t need to be saved in your contacts.
                 </p>
               </div>
 
-              {/* Preview if valid number */}
+              {/* Preview card — WA style */}
               {quickChatNumber.replace(/\D/g, '').length >= 7 && (
-                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                    <Phone className="w-5 h-5 text-white" />
+                <div className="rounded-xl p-3.5 flex items-center gap-3"
+                  style={{ background: 'rgba(0,168,132,0.08)', border: '1px solid rgba(0,168,132,0.25)' }}>
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-white font-black text-lg"
+                    style={{ background: '#00a884' }}>
+                    {quickChatNumber.replace(/\D/g, '').slice(-2)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-bold truncate">+{quickChatNumber.replace(/\D/g, '')}</p>
-                    <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">Ready to chat</p>
+                    <p className="text-white text-[14px] font-bold truncate">+{quickChatNumber.replace(/\D/g, '')}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-widest mt-0.5" style={{ color: '#00a884' }}>Ready to message</p>
                   </div>
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: '#00a884' }} />
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-5 pb-5 flex gap-3">
+            <div className="px-5 pb-6 flex gap-3">
               <button
                 onClick={() => { setShowQuickChat(false); setQuickChatNumber(''); setQuickChatError(''); }}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-sm font-black transition-colors"
+                className="px-5 py-3 rounded-xl text-sm font-black transition-colors"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)' }}
               >
                 Cancel
               </button>
               <button
                 onClick={startQuickChat}
                 disabled={!quickChatNumber.trim() || quickChatNumber.replace(/\D/g, '').length < 7}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 disabled:text-white/30 text-white text-sm font-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+                className="flex-1 py-3 rounded-xl text-white text-sm font-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                style={{ background: '#00a884' }}
               >
-                <MessageSquare className="w-4 h-4" /> Start Chat
+                <Send className="w-4 h-4" /> Start Chat
               </button>
             </div>
           </div>
