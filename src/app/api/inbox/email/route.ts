@@ -77,8 +77,23 @@ async function canParentOrStudentEmailRecipient(sender: any, toEmail: string): P
 }
 
 /**
+ * Returns true if the address is an @rillcod.com address that is NOT a real
+ * SMTP mailbox (i.e. not support@rillcod.com). These are in-app-only handles
+ * and must be delivered as in-app notifications rather than real SMTP mail.
+ */
+function isInAppRillcodEmail(email: string): boolean {
+  const lower = email.trim().toLowerCase();
+  return lower.endsWith('@rillcod.com') && lower !== 'support@rillcod.com';
+}
+
+/**
  * POST /api/inbox/email
- * Send a real email via SendPulse from the unified inbox.
+ * Smart-routes outbound messages:
+ *   • to = @rillcod.com (except support@) → in-app notification (no SMTP)
+ *   • to = support@rillcod.com or external  → real email via SendPulse SMTP
+ *   When the recipient is an in-app rillcod.com user the sender ALSO gets a
+ *   sent-confirmation notification, and the recipient gets an unread in-app
+ *   notification — mirroring how real email works but through the platform.
  * Body: { to: string, to_name?: string, subject: string, body: string, cc?: string }
  */
 export async function POST(req: NextRequest) {
@@ -126,7 +141,60 @@ export async function POST(req: NextRequest) {
   const senderClass = (effectiveSender as any).section_class || 'Unspecified';
   const senderRole = String((effectiveSender as any).role || 'user').toUpperCase();
 
-  // Build branded HTML email
+  const toAddress = to.trim();
+  const displayRecipient = to_name ? `${to_name} <${toAddress}>` : toAddress;
+  const now = new Date().toISOString();
+
+  // ── In-app rillcod.com address → deliver as in-app notification ────────────
+  if (isInAppRillcodEmail(toAddress)) {
+    try {
+      // Look up the recipient user by their in-app email handle
+      const { data: recipient } = await supabase
+        .from('portal_users')
+        .select('id, full_name')
+        .ilike('email', toAddress)
+        .maybeSingle();
+
+      if (recipient) {
+        // Deliver to recipient's notification bell
+        await supabase.from('notifications').insert({
+          user_id:    recipient.id,
+          title:      subject.trim(),
+          message:    `From ${senderName} (${senderRole}): ${body.slice(0, 200)}`,
+          type:       'info',
+          is_read:    false,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+
+      // Sent-confirmation for the sender
+      await supabase.from('notifications').insert({
+        user_id:    effectiveSender.id,
+        title:      `Message sent: ${subject}`,
+        message:    `To: ${displayRecipient} — ${body.slice(0, 120)}`,
+        type:       'info',
+        is_read:    true,
+        created_at: now,
+        updated_at: now,
+      });
+
+      return NextResponse.json({
+        success: true,
+        to: toAddress,
+        subject,
+        channel: 'in_app',
+        note: recipient
+          ? 'Delivered as in-app notification (rillcod.com in-app address)'
+          : 'Sent — recipient address is an in-app handle but no matching user was found',
+      });
+    } catch (err: any) {
+      console.error('[inbox/email] in-app delivery error:', err);
+      return NextResponse.json({ error: err.message || 'In-app delivery failed' }, { status: 500 });
+    }
+  }
+
+  // ── External address or support@rillcod.com → send via SendPulse SMTP ─────
   const html = buildRillcodTransactionalEmailHtml({
     title:    subject,
     eyebrow:  senderOrg,
@@ -148,22 +216,22 @@ export async function POST(req: NextRequest) {
 
   try {
     await notificationsService.sendExternalEmail({
-      to:        to.trim(),
+      to:        toAddress,
       subject:   subject.trim(),
       html,
       fromName:  `${senderName} (Rillcod Academy)`,
       fromEmail: 'support@rillcod.com',
     });
 
-    // Log to DB for history
+    // Sent-confirmation log for the sender
     await supabase.from('notifications').insert({
       user_id:    effectiveSender.id,
       title:      `Email sent: ${subject}`,
-      message:    `To: ${to_name ? `${to_name} <${to}>` : to} — ${body.slice(0, 120)}`,
+      message:    `To: ${displayRecipient} — ${body.slice(0, 120)}`,
       type:       'info',
       is_read:    true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
     }).throwOnError();
 
     // Soft customer-book capture from support email channel.
@@ -179,18 +247,18 @@ export async function POST(req: NextRequest) {
         source: 'self_confirmed_support_email',
         last_channel: 'email',
         metadata: {
-          recipient_email: to.trim().toLowerCase(),
+          recipient_email: toAddress.toLowerCase(),
           sender_role: effectiveSender.role,
         },
-        confirmed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        confirmed_at: now,
+        updated_at: now,
       };
       await supabase
         .from('customer_contact_book')
         .upsert(row, { onConflict: 'user_id' });
     }
 
-    return NextResponse.json({ success: true, to, subject });
+    return NextResponse.json({ success: true, to: toAddress, subject, channel: 'smtp' });
   } catch (err: any) {
     console.error('[inbox/email] SendPulse error:', err);
     return NextResponse.json({ error: err.message || 'Email delivery failed' }, { status: 500 });
