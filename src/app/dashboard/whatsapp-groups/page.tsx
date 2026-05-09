@@ -1120,17 +1120,38 @@ export default function WhatsAppGroupsPage() {
                       <div className="p-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin" style={{ color: '#00a884' }} /></div>
                     ) : assignments.length === 0 ? (
                       <div className="p-5 text-center text-[11px]" style={{ color: '#8696a0' }}>No active assignments found.</div>
-                    ) : assignments.map(a => (
-                      <button key={a.id} onClick={() => { setSelAssignment(a); setPusherMsg(formatAssignment(a)); }}
-                        className="w-full text-left px-3 py-3 transition-colors"
-                        style={{ background: selAssignment?.id === a.id ? 'rgba(0,168,132,0.1)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                        <p className="font-bold text-white text-[12px] leading-tight line-clamp-2">{a.title}</p>
-                        {a.due_date && <p className="text-[10px] mt-1 flex items-center gap-1" style={{ color: '#8696a0' }}>
-                          <CalendarDays className="w-3 h-3" /> {new Date(a.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
-                        </p>}
-                        {a.courses?.title && <p className="text-[10px] truncate" style={{ color: '#8696a0' }}>{a.courses.title}</p>}
-                      </button>
-                    ))
+                    ) : assignments.map(a => {
+                      const cls = a.metadata?.target_class_name;
+                      return (
+                        <button key={a.id} onClick={() => {
+                          setSelAssignment(a);
+                          setPusherMsg(formatAssignment(a));
+                          // Auto-select groups matching this assignment's class
+                          if (cls) {
+                            const matching = groups
+                              .filter(g => g.status === 'active' && g.class_name && g.class_name.toLowerCase().trim() === cls.toLowerCase().trim())
+                              .map(g => g.id);
+                            if (matching.length > 0) {
+                              setPusherGroups(new Set(matching));
+                              showToast(`Auto-selected ${matching.length} group${matching.length !== 1 ? 's' : ''} for ${cls}`);
+                            }
+                          }
+                        }}
+                          className="w-full text-left px-3 py-3 transition-colors"
+                          style={{ background: selAssignment?.id === a.id ? 'rgba(0,168,132,0.1)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <p className="font-bold text-white text-[12px] leading-tight line-clamp-2">{a.title}</p>
+                          {cls && (
+                            <span className="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-full mt-1" style={{ background: 'rgba(0,168,132,0.15)', color: '#00a884' }}>
+                              {cls}
+                            </span>
+                          )}
+                          {a.due_date && <p className="text-[10px] mt-1 flex items-center gap-1" style={{ color: '#8696a0' }}>
+                            <CalendarDays className="w-3 h-3" /> {new Date(a.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                          </p>}
+                          {a.courses?.title && <p className="text-[10px] truncate" style={{ color: '#8696a0' }}>{a.courses.title}</p>}
+                        </button>
+                      );
+                    })
                   )}
                   {pusherTab === 'newsletter' && NEWSLETTER_TPLS.map(t => (
                     <button key={t.id} onClick={() => setPusherMsg(t.body)}

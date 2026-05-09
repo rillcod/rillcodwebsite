@@ -393,7 +393,7 @@ export default function DashboardNavigation() {
         : profile?.role === 'admin'
           ? ['Dashboard', 'Students', 'Lesson Plans', 'Progress Reports', 'WhatsApp Inbox']
           : profile?.role === 'teacher'
-            ? ['Dashboard', 'My Classes', 'Lesson Plans', 'Lessons', 'WhatsApp Inbox']
+            ? ['Dashboard', 'My Classes', 'Lesson Plans', 'WhatsApp Groups', 'WhatsApp Inbox']
             : profile?.role === 'parent'
               ? ['Dashboard', 'My Children', 'Report Cards', 'Invoices & Payments', 'WhatsApp Inbox']
               : ['Dashboard']

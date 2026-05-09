@@ -240,10 +240,54 @@ export default function UnifiedInbox() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeConvRef = useRef<Conversation | null>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiSearch, setEmojiSearch] = useState('');
 
   const isSchool = profile?.role === 'school';
   const isTeacher = profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
+
+  // ── Emoji picker ────────────────────────────────────────────────────────────
+  const EMOJI_LIST = [
+    '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛',
+    '😜','😝','🤑','🤗','🤭','🤫','🤔','😐','😑','🙄','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖',
+    '😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🥳','😎',
+    '🤓','🧐','😴','😷','🤒','🤕','🤧','🥴','😬','🙃','🫠','🥹','🫡','🤫','🫣','🫢','🫥','😶','🤥',
+    '👍','👎','👊','✊','🤛','🤜','🤞','✌️','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👋','🤚','🖐️','✋',
+    '👌','🤌','🤏','👏','🙌','🤲','🙏','🤝','💪','🦾','💅','🫶','🫱','🫲','🫳','🫴',
+    '📚','📖','✏️','📝','📋','📊','📈','💻','📱','⌨️','🖥️','📌','📎','📅','📆','🔍','📓','📔','📒',
+    '📕','📗','📘','📙','🔑','🔒','🔔','📢','📣','💬','💭','🗣️','👁️','👀','📩','📨','📧','📮',
+    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','💕','💞','💓','💗','💖','💘','💝','❣️',
+    '✅','❌','⚠️','⭐','🌟','💫','🔥','💥','✨','🎯','🏆','🥇','🎉','🎊','🎈','🎁','💡','🔖','🚀','🎓',
+  ];
+
+  function insertEmoji(emoji: string) {
+    const ta = textareaRef.current;
+    if (!ta) { setNewMessage(prev => prev + emoji); return; }
+    const start = ta.selectionStart ?? newMessage.length;
+    const end   = ta.selectionEnd   ?? newMessage.length;
+    const next  = newMessage.slice(0, start) + emoji + newMessage.slice(end);
+    setNewMessage(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const pos = start + emoji.length;
+      ta.setSelectionRange(pos, pos);
+    });
+  }
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    function handle(e: MouseEvent) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showEmojiPicker]);
   const hasAccess = ['teacher', 'admin', 'school', 'staff', 'parent', 'student'].includes(profile?.role ?? '');
   const isParentOrStudent = ['parent', 'student'].includes(profile?.role ?? '');
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
@@ -2263,11 +2307,46 @@ export default function UnifiedInbox() {
                 </div>
               )}
               <form onSubmit={handleSend} className="flex items-end gap-3 mt-1 pb-1">
-                <div className="flex items-center gap-1 shrink-0 mb-1 ml-1">
-                  <button type="button" className="p-2 text-[#8696a0] hover:text-[#d1d7db] transition-colors" title="Emoji">
+                <div className="flex items-center gap-1 shrink-0 mb-1 ml-1 relative" ref={emojiPickerRef}>
+                  {/* Emoji picker popup */}
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 w-[300px] sm:w-[340px] rounded-2xl shadow-2xl overflow-hidden z-[80]"
+                      style={{ background: '#233138', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      {/* Search bar */}
+                      <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                        <input
+                          value={emojiSearch} onChange={e => setEmojiSearch(e.target.value)}
+                          placeholder="Search emoji…"
+                          className="w-full text-[#d1d7db] text-[13px] rounded-lg px-3 py-1.5 outline-none"
+                          style={{ background: '#2a3942', caretColor: '#00a884' }}
+                          autoFocus
+                        />
+                      </div>
+                      {/* Grid */}
+                      <div className="p-2 grid grid-cols-8 gap-0.5 max-h-[220px] overflow-y-auto">
+                        {EMOJI_LIST
+                          .filter(e => !emojiSearch || e.includes(emojiSearch))
+                          .map((emoji, i) => (
+                            <button key={i} type="button"
+                              onClick={() => { insertEmoji(emoji); setShowEmojiPicker(false); setEmojiSearch(''); }}
+                              className="w-9 h-9 flex items-center justify-center text-[20px] rounded-lg hover:bg-white/10 transition-colors leading-none">
+                              {emoji}
+                            </button>
+                          ))}
+                        {EMOJI_LIST.filter(e => !emojiSearch || e.includes(emojiSearch)).length === 0 && (
+                          <div className="col-span-8 py-4 text-center text-[12px]" style={{ color: '#8696a0' }}>No match</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <button type="button"
+                    onClick={() => { setShowEmojiPicker(v => !v); setEmojiSearch(''); }}
+                    className="p-2 transition-colors"
+                    style={{ color: showEmojiPicker ? '#00a884' : '#8696a0' }}
+                    title="Emoji">
                     <Smile className="w-6 h-6" />
                   </button>
-                  <button type="button" className="p-2 text-[#8696a0] hover:text-[#d1d7db] transition-colors" title="Attach">
+                  <button type="button" className="p-2 text-[#8696a0] hover:text-[#d1d7db] transition-colors" title="Attach (file sharing requires WhatsApp app)">
                     <Paperclip className="w-5 h-5" />
                   </button>
                 </div>
