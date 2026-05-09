@@ -29,7 +29,7 @@ async function getCaller(): Promise<Caller | null> {
   return (caller as Caller) ?? null;
 }
 
-async function sendGradeEmail(
+async function sendGradeNotifications(
   admin: ReturnType<typeof adminClient>,
   studentId: string,
   assignmentTitle: string,
@@ -40,7 +40,22 @@ async function sendGradeEmail(
 ) {
   const { data: student } = await admin
     .from('portal_users').select('email, full_name').eq('id', studentId).single();
-  if (!student?.email) return;
+  if (!student) return;
+
+  // ── In-app notification (always) ──────────────────────────────────────────
+  const scoreLabel = grade != null ? `${grade}/${assignMax}` : 'graded';
+  await admin.from('notifications').insert({
+    user_id: studentId,
+    title: 'Assignment Graded',
+    message: `"${assignmentTitle}" has been graded — score: ${scoreLabel}.${feedback ? ' Feedback left by your teacher.' : ''}`,
+    type: 'success',
+    is_read: false,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).then(({ error }) => { if (error) console.error('[grade notification]', error.message); });
+
+  // ── Email (only if address exists) ────────────────────────────────────────
+  if (!student.email) return;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
   const html = buildRillcodTransactionalEmailHtml({
     title: 'Assignment Graded',
@@ -182,7 +197,7 @@ export async function POST(
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       
       if (updatePayload.graded_by && data?.portal_user_id) {
-        sendGradeEmail(
+        sendGradeNotifications(
           admin, data.portal_user_id, assignment.title || 'Assignment',
           data.grade, assignMax, data.weighted_score, feedback,
         ).catch(console.error);
@@ -213,7 +228,7 @@ export async function POST(
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
       if (data?.portal_user_id) {
-        sendGradeEmail(
+        sendGradeNotifications(
           admin, data.portal_user_id, assignment.title || 'Assignment',
           data.grade, assignMax, data.weighted_score, feedback,
         ).catch(console.error);

@@ -2844,12 +2844,20 @@ export default function UnifiedInbox() {
         </div>
       )}
 
-      {/* ══ FLOATING ACTION BUTTON — new conversation / compose ════════════ */}
+      {/* ══ FLOATING ACTION BUTTON — mobile only; desktop uses sidebar header ═ */}
       {!showQuickChat && !isParentOrStudent && (
         <button
-          onClick={() => activeTab === 'students' ? setShowQuickChat(true) : openEmailCompose()}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all hover:scale-110 z-40"
-          title={activeTab === 'students' ? 'New WhatsApp chat' : 'New email'}
+          onClick={() => {
+            if (activeTab === 'students') { setShowQuickChat(true); return; }
+            if (activeTab === 'email') { openEmailCompose(); return; }
+            setShowNewChat(true);
+          }}
+          className="md:hidden fixed bottom-20 right-5 w-14 h-14 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white rounded-full shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all z-40"
+          title={
+            activeTab === 'students' ? 'New WhatsApp chat' :
+            activeTab === 'email'    ? 'New email' :
+            'New in-app message'
+          }
         >
           <Plus className="w-6 h-6" />
         </button>
