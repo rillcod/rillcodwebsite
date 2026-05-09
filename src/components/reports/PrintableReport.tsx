@@ -116,29 +116,29 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             }}
         >
             <style dangerouslySetInnerHTML={{ __html: `
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
                 @media print {
-                    @page { size: A4 portrait; margin: 8mm; }
-                    html, body { margin: 0; padding: 0; width: 100%; height: auto; }
+                    @page { size: A4 portrait; margin: 0; }
+                    html, body { margin: 0 !important; padding: 0 !important; }
                     .printable-modern {
                         box-shadow: none !important;
-                        margin: 0 auto !important;
-                        width: 194mm !important;
-                        height: auto !important;
-                        min-height: 0 !important;
-                        max-height: 281mm !important;
-                        padding: 10mm !important;
+                        margin: 0 !important;
+                        width: 210mm !important;
+                        height: 297mm !important;
+                        min-height: 297mm !important;
+                        max-height: 297mm !important;
+                        padding: 14mm 16mm 12mm 16mm !important;
                         overflow: hidden !important;
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
+                        page-break-inside: avoid !important;
                     }
                     .printable-modern * {
-                        max-width: 100% !important;
                         box-sizing: border-box !important;
                     }
-                    /* Prevent fixed hero text from spilling outside A4 printable area */
-                    .printable-modern h1 { font-size: 24px !important; line-height: 1.05 !important; }
-                    .printable-modern h2 { font-size: 38px !important; line-height: 1.05 !important; }
-                    .printable-modern h3 { font-size: 56px !important; line-height: 1 !important; }
+                    .printable-modern h2 { font-size: 30px !important; line-height: 1.05 !important; }
+                    .printable-modern h3 { font-size: 60px !important; line-height: 1 !important; }
+                    .no-print { display: none !important; }
                 }
             ` }} />
 
@@ -218,20 +218,54 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             {/* Performance Hub */}
             <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '20px', marginBottom: '14px' }}>
                 {/* Metric Bars */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.6em', color: C.black, fontStyle: 'italic', whiteSpace: 'nowrap' }}>Performance Breakdown</h3>
                         <div style={{ height: '2px', width: '100%', background: C.slate100 }} />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '32px', rowGap: '16px' }}>
+                    {/* ── Scoring Key (matches ModernReportCard) ── */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', paddingBottom: '8px', borderBottom: `1px solid ${C.slate200}` }}>
+                        <span style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4 }}>Key:</span>
+                        {metrics.map((m, i) => (
+                            <span key={m.label} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                {i > 0 && <span style={{ color: C.slate300, marginRight: 4, fontSize: '8px' }}>·</span>}
+                                <span style={{ width: 7, height: 7, borderRadius: 0, backgroundColor: m.bar, display: 'inline-block', marginRight: 3, flexShrink: 0 }} />
+                                <span style={{ fontSize: '8px', fontWeight: 800, color: C.black }}>{m.label}</span>
+                            </span>
+                        ))}
+                        <span style={{ fontSize: '8px', fontWeight: 700, color: C.slate400, marginLeft: 4 }}>= 100 pts</span>
+                    </div>
+
+                    {/* ── WAEC Grade Key ── */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', paddingBottom: '8px', borderBottom: `1px solid ${C.slate100}` }}>
+                        <span style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em', marginRight: 4, alignSelf: 'center' }}>WAEC:</span>
+                        {[
+                            { code: 'A1', label: 'Distinction',  range: '75–100', color: '#059669' },
+                            { code: 'B2', label: 'Very Good',    range: '70–74',  color: '#0891b2' },
+                            { code: 'B3', label: 'Good',         range: '65–69',  color: '#4f46e5' },
+                            { code: 'C4', label: 'Credit',       range: '60–64',  color: '#0284c7' },
+                            { code: 'C5', label: 'Credit',       range: '55–59',  color: '#0369a1' },
+                            { code: 'C6', label: 'Credit',       range: '50–54',  color: '#0369a1' },
+                            { code: 'D7', label: 'Pass',         range: '45–49',  color: '#d97706' },
+                            { code: 'E8', label: 'Marginal',     range: '40–44',  color: '#ea580c' },
+                            { code: 'F9', label: 'Fail',         range: '0–39',   color: '#dc2626' },
+                        ].map(g => (
+                            <span key={g.code} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 5px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
+                                <span style={{ fontSize: '8px', fontWeight: 900, color: g.color }}>{g.code}</span>
+                                <span style={{ fontSize: '7px', fontWeight: 700, color: C.slate400 }}>{g.range}</span>
+                            </span>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '32px', rowGap: '12px' }}>
                         {metrics.map(m => (
                             <div key={m.label}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '6px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '4px' }}>
                                     <span style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.15em' }}>{m.label}</span>
-                                    <span style={{ fontSize: '15px', fontWeight: 900, fontStyle: 'italic', fontVariantNumeric: 'tabular-nums', color: C.black }}>{m.value}%</span>
+                                    <span style={{ fontSize: '14px', fontWeight: 900, fontStyle: 'italic', fontVariantNumeric: 'tabular-nums', color: C.black }}>{m.value}%</span>
                                 </div>
-                                <div style={{ height: '8px', width: '100%', background: C.slate50, border: `1px solid ${C.slate100}` }}>
+                                <div style={{ height: '7px', width: '100%', background: C.slate50, border: `1px solid ${C.slate100}` }}>
                                     <div style={{ height: '100%', width: `${m.value}%`, background: m.bar }} />
                                 </div>
                             </div>
