@@ -21,7 +21,6 @@ import {
   XMarkIcon,
   InformationCircleIcon
 } from '@/lib/icons';
-import { generateReportPDF } from '@/lib/pdf-utils';
 
 // Strip markdown symbols for clean document display
 function stripMarkdown(text: string): string {
@@ -69,7 +68,83 @@ export default function NewslettersPage() {
   const [aiError, setAiError] = useState<string | null>(null);
 
   const supabase = createClient();
-  const pdfRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<HTMLDivElement>(null); // kept for preview scroll ref only
+
+  function handlePrintNewsletter() {
+    const schoolName = (profile as any)?.school_name || 'RILLCOD TECHNOLOGIES';
+    const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+    const logoUrl = window.location.origin + '/logo.png';
+    const title = activeNewsletter?.title || 'Untitled Newsletter';
+    const raw = stripMarkdown(activeNewsletter?.content || '');
+
+    const formattedContent = raw
+      .split('\n')
+      .map(line => {
+        if (!line.trim()) return '<br/>';
+        if (line.startsWith('• ')) return `<p style="margin:0 0 6pt 16pt;text-indent:-12pt">&bull;&nbsp;${line.slice(2)}</p>`;
+        return `<p style="margin:0 0 9pt;line-height:1.85">${line}</p>`;
+      })
+      .join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>${title}</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Times New Roman',Georgia,serif;background:#fff;color:#111827;font-size:11.5pt}
+  @page{size:A4 portrait;margin:20mm 22mm}
+  .header{display:flex;align-items:center;gap:18pt;border-bottom:3pt double #000;padding-bottom:14pt;margin-bottom:26pt}
+  .logo{width:58pt;height:58pt;object-fit:contain;flex-shrink:0}
+  .org{flex:1}
+  .org-name{font-size:15pt;font-weight:900;text-transform:uppercase;letter-spacing:1pt}
+  .org-sub{font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:2pt;color:#555;margin-top:2pt}
+  .org-addr{font-size:8pt;color:#888;margin-top:5pt}
+  .vol{text-align:right}
+  .vol-year{font-size:11pt;font-weight:900;text-transform:uppercase;letter-spacing:1pt}
+  .vol-date{font-size:8.5pt;color:#333;margin-top:3pt;font-weight:700;text-transform:uppercase}
+  .topic-label{font-size:9pt;font-weight:900;text-transform:uppercase;letter-spacing:3pt;color:#111;margin-bottom:10pt}
+  .nl-title{font-size:26pt;font-weight:900;text-transform:uppercase;letter-spacing:-0.5pt;line-height:1.1;margin-bottom:26pt}
+  .nl-body{font-size:11.5pt;line-height:1.85;color:#374151;font-family:Georgia,'Times New Roman',serif;text-align:justify}
+  .footer{margin-top:36pt;border-top:1.5pt solid #e5e7eb;padding-top:18pt;display:flex;justify-content:space-between;align-items:flex-end;page-break-inside:avoid}
+  .sig-name{font-size:12pt;font-weight:900;text-transform:uppercase}
+  .sig-role{font-size:8.5pt;color:#6b7280;text-transform:uppercase;letter-spacing:1pt;font-weight:700;margin-top:2pt}
+  .stamp{width:72pt;height:72pt;border:2pt dashed #d1d5db;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:7pt;color:#d1d5db;font-weight:900;text-transform:uppercase;letter-spacing:1pt;line-height:1.4}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.footer{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+  <div class="header">
+    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+    <div class="org">
+      <div class="org-name">${schoolName}</div>
+      <div class="org-sub">Official Institutional Communication</div>
+      <div class="org-addr">26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
+    </div>
+    <div class="vol">
+      <div class="vol-year">VOL. ${new Date().getFullYear()}</div>
+      <div class="vol-date">${today}</div>
+    </div>
+  </div>
+  <div class="topic-label">Topic / Subject</div>
+  <h1 class="nl-title">${title}</h1>
+  <div class="nl-body">${formattedContent}</div>
+  <div class="footer">
+    <div>
+      <div class="sig-name">The Administrator</div>
+      <div class="sig-role">Rillcod Technologies Executive Office</div>
+    </div>
+    <div class="stamp">Official<br/>Academy<br/>Stamp</div>
+  </div>
+<script>window.onload=()=>{window.print()}</script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    win?.document.write(html);
+    win?.document.close();
+  }
 
   useEffect(() => {
     if (profile?.role) {
@@ -231,10 +306,6 @@ export default function NewslettersPage() {
     setNewsletters(prev => prev.filter(n => n.id !== id));
   }
 
-  async function handleDownloadPDF() {
-    if (!pdfRef.current) return;
-    await generateReportPDF(pdfRef.current, `${activeNewsletter?.title || 'Newsletter'}.pdf`);
-  }
 
   const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -431,11 +502,11 @@ export default function NewslettersPage() {
 
                 <div className="pt-6 lg:pt-8 border-t border-border flex flex-col gap-3">
                   <button 
-                    onClick={handleDownloadPDF}
+                    onClick={handlePrintNewsletter}
                     className="w-full flex items-center gap-3 px-4 py-3 bg-card shadow-sm hover:bg-muted rounded-xl text-[10px] font-black transition-all border border-border group"
                   >
                     <PrinterIcon className="w-4 h-4 text-primary" /> 
-                    <span className="uppercase tracking-widest">Export PDF</span>
+                    <span className="uppercase tracking-widest">Print / Export PDF</span>
                   </button>
                   {activeNewsletter?.id && (
                     <button 
@@ -519,10 +590,10 @@ export default function NewslettersPage() {
                </div>
                <div className="flex items-center gap-3">
                   <button 
-                    onClick={handleDownloadPDF}
+                    onClick={handlePrintNewsletter}
                     className="hidden sm:flex items-center gap-2 px-6 py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                   >
-                    <PrinterIcon className="w-4 h-4 text-primary" /> Export PDF
+                    <PrinterIcon className="w-4 h-4 text-primary" /> Print / Export PDF
                   </button>
                   <button 
                     onClick={() => setShowPreview(false)}
