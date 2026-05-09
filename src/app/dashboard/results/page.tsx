@@ -153,6 +153,7 @@ function ResultsPageInner() {
     const [isBulkPrinting, setIsBulkPrinting] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; mode: 'download' | 'print' } | null>(null);
     const [captureReport, setCaptureReport] = useState<StudentReport | null>(null);
+    const [bulkPrintReports, setBulkPrintReports] = useState<StudentReport[] | null>(null);
 
     const pdfRef = useRef<HTMLDivElement>(null);  // single-student capture (legacy/standard)
     const printableRef = useRef<HTMLDivElement>(null); // modern capture
@@ -541,12 +542,10 @@ function ResultsPageInner() {
         setCaptureReport(queue[0]);
     }
 
-    // ── Bulk Print — selects all filtered students and generates a combined PDF ──
+    // ── Bulk Print — DOM native ──
     async function startBulkPrint(targetIds?: string[]) {
         const ids = targetIds ?? (selectedIds.size > 0 ? [...selectedIds] : filtered.map(s => s.id));
         if (ids.length === 0) return;
-        batchMode.current = 'print';
-        pdfPages.current = [];
         setIsBulkPrinting(true);
 
         const { data: reports } = await createClient()
@@ -567,10 +566,17 @@ function ResultsPageInner() {
             if (!seen.has(r.student_id)) { seen.add(r.student_id); queue.push(r as StudentReport); }
         }
 
-        captureQueue.current = queue;
-        captureIdx.current = 0;
-        setBatchProgress({ current: 0, total: queue.length, mode: 'print' });
-        setCaptureReport(queue[0]);
+        setBulkPrintReports(queue);
+        
+        // Wait a short moment for React to render the components into the hidden print div
+        setTimeout(() => {
+            window.print();
+            // Wait before cleaning up so the print dialog completes setup
+            setTimeout(() => {
+                setIsBulkPrinting(false);
+                setBulkPrintReports(null);
+            }, 1000);
+        }, 1500);
     }
 
     // ── Batch capture effect ───────────────────────────────────────────────────
@@ -592,12 +598,6 @@ function ResultsPageInner() {
                 if (mode === 'download') {
                     const name = (captureReport.student_name ?? 'Student').replace(/\s+/g, '_');
                     await generateReportPDF(captureRef.current, `Report_${name}.pdf`);
-                } else {
-                    // Print mode — collect JPEG pages to drastically reduce base64 size and memory
-                    const { toJpeg } = await import('html-to-image');
-                    const el = captureRef.current;
-                    const dataUrl = await toJpeg(el, { pixelRatio: 2, quality: 0.95, cacheBust: true });
-                    pdfPages.current.push({ dataUrl, w: el.offsetWidth, h: el.offsetHeight });
                 }
             } catch (err) {
                 console.error('Capture failed for:', captureReport.student_name, err);
@@ -618,46 +618,6 @@ function ResultsPageInner() {
                 if (mode === 'download') {
                     setIsBatchDownloading(false);
                     setSelectedIds(new Set());
-                } else {
-                    // Send to a new window for native browser printing to avoid Array.join string length limits
-                    setIsBulkPrinting(false);
-                    try {
-                        const pages = pdfPages.current;
-                        if (pages.length === 0) return;
-                        
-                        const win = window.open('', '_blank');
-                        if (!win) {
-                            alert('Pop-up blocked. Please allow pop-ups to print reports.');
-                            return;
-                        }
-                        
-                        win.document.open();
-                        win.document.write('<!DOCTYPE html><html><head><title>Bulk Report Print</title>');
-                        win.document.write('<style>');
-                        win.document.write('@page { size: auto; margin: 0; }');
-                        win.document.write('body { margin: 0; padding: 0; background: #fff; }');
-                        win.document.write('.page { width: 100vw; height: 100vh; page-break-after: auto; display: flex; justify-content: center; align-items: center; overflow: hidden; }');
-                        win.document.write('img { max-width: 100%; max-height: 100%; object-fit: contain; }');
-                        win.document.write('@media print { .page { height: 100vh; page-break-after: always; } }');
-                        win.document.write('</style></head><body>');
-                        
-                        // Write sequentially instead of mapping to an array and joining,
-                        // this avoids the 'Invalid string length' error for huge bulk batches.
-                        for (let i = 0; i < pages.length; i++) {
-                            win.document.write('<div class="page"><img src="' + pages[i].dataUrl + '" /></div>');
-                        }
-                        
-                        win.document.write('</body></html>');
-                        win.document.close();
-                        
-                        win.focus();
-                        // Give time for base64 images to decode in the new window before triggering print
-                        setTimeout(() => win.print(), 1500);
-                        pdfPages.current = [];
-                    } catch (err) {
-                        console.error('Combined print failed:', err);
-                        alert('Failed to create print PDF. Try downloading individually instead.');
-                    }
                 }
             }
         }, 450); // wait for DOM paint
@@ -933,7 +893,7 @@ tbody tr:hover{background:#f3f4f6}
                                     : <PrinterIcon className="w-4 h-4" />}
                                 {isBulkPrinting && batchProgress
                                     ? `Building ${batchProgress.current}/${batchProgress.total}…`
-                                    : `Print Class (${filtered.length})`}
+                                    : isBulkPrinting ? 'Preparing...' : `Print Class (${filtered.length})`}
                             </button>
                         )}
                         {/* Batch download button */}
@@ -1403,7 +1363,7 @@ tbody tr:hover{background:#f3f4f6}
             </div>
 
             {/* ══ Print view — branded letterhead + performance table (list only, no report selected) ══ */}
-            <div className={selectedReport ? 'hidden' : 'hidden print:block'} style={{ fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
+            <div className={(selectedReport || bulkPrintReports) ? 'hidden' : 'hidden print:block'} style={{ fontFamily: 'system-ui, sans-serif', color: '#111827' }}>
 
               {/* Letterhead */}
               <div style={{ borderBottom: '3px solid #1d4ed8', paddingBottom: '14px', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -1514,7 +1474,21 @@ tbody tr:hover{background:#f3f4f6}
             </div>
 
             {/* ══ Print view — individual report card (untouched) ══ */}
-            {reportToDisplay && (
+            {bulkPrintReports ? (
+                <div className="hidden print:block print:w-[794px] print:mx-auto">
+                    {bulkPrintReports.map((report, idx) => (
+                        <div key={report.id || idx} style={{ pageBreakAfter: 'always' }}>
+                            {template === 'standard' ? (
+                                <ReportCard report={report} orgSettings={orgSettings} />
+                            ) : template === 'printable' ? (
+                                <PrintableReport report={report} orgSettings={orgSettings} />
+                            ) : (
+                                <ModernReportCard report={report} orgSettings={orgSettings} />
+                            )}
+                        </div>
+                    ))}
+                </div>
+            ) : reportToDisplay ? (
                 <div className="hidden print:block print:w-[794px] print:mx-auto">
                     {template === 'standard' ? (
                         <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
@@ -1524,7 +1498,7 @@ tbody tr:hover{background:#f3f4f6}
                         <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
                     )}
                 </div>
-            )}
+            ) : null}
 
             {/* ══ Off-screen div — single PDF capture ══ */}
             <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
