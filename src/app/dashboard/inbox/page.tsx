@@ -2419,12 +2419,12 @@ export default function UnifiedInbox() {
       {/* ══ NEW CHAT MODAL — WhatsApp style ════════════════════════════════ */}
       {showNewChat && (
         <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          className="fixed inset-0 z-[60] flex items-end md:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.72)' }}
           onClick={() => setShowNewChat(false)}
         >
           <div
-            className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl"
+            className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl pb-[64px] md:pb-0"
             style={{ background: '#1f2c34', maxHeight: '88vh' }}
             onClick={e => e.stopPropagation()}
           >
@@ -2696,12 +2696,12 @@ export default function UnifiedInbox() {
       {/* ══ EMAIL COMPOSE MODAL ════════════════════════════ */}
       {showEmailCompose && (
         <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          className="fixed inset-0 z-[60] flex items-end md:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.72)' }}
           onClick={() => { setShowEmailCompose(false); setEmailForm(EMPTY_EMAIL_FORM); setEmailError(''); setEmailSuccess(''); }}
         >
           <div
-            className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl"
+            className="w-full max-w-lg flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl pb-[64px] md:pb-0"
             style={{ background: '#1f2c34', maxHeight: '92vh' }}
             onClick={e => e.stopPropagation()}
           >
@@ -2888,12 +2888,12 @@ export default function UnifiedInbox() {
         </div>
       )}
 
-      {/* ══ FAB — mobile only, opens New Message picker ═════════════════════ */}
-      {!isParentOrStudent && (
+      {/* ══ FAB — sidebar view only on mobile, above the bottom nav ════════ */}
+      {!isParentOrStudent && showSidebar && (
         <button
           onClick={() => setShowNewMessagePicker(true)}
           style={{ backgroundColor: '#00a884' }}
-          className="md:hidden fixed bottom-20 right-5 z-40 w-14 h-14 flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-all text-white"
+          className="md:hidden fixed bottom-[76px] right-5 z-[55] w-14 h-14 flex items-center justify-center rounded-full shadow-2xl active:scale-95 transition-all text-white"
           title="New Message"
         >
           <Plus className="w-6 h-6" />
@@ -2903,12 +2903,12 @@ export default function UnifiedInbox() {
       {/* ══ NEW MESSAGE PICKER — WhatsApp-style channel chooser ════════════ */}
       {showNewMessagePicker && (
         <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          className="fixed inset-0 z-[60] flex items-end md:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.72)' }}
           onClick={() => setShowNewMessagePicker(false)}
         >
           <div
-            className="w-full max-w-md flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl"
+            className="w-full max-w-md flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl pb-[64px] md:pb-0"
             style={{ background: '#1f2c34', maxHeight: '90vh' }}
             onClick={e => e.stopPropagation()}
           >
@@ -2992,12 +2992,12 @@ export default function UnifiedInbox() {
       {/* ══ QUICK CHAT MODAL — WhatsApp style ══════════════════════════════ */}
       {showQuickChat && (
         <div
-          className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+          className="fixed inset-0 z-[60] flex items-end md:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.72)' }}
           onClick={() => { setShowQuickChat(false); setQuickChatNumber(''); setQuickChatError(''); }}
         >
           <div
-            className="w-full max-w-sm flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl"
+            className="w-full max-w-sm flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl pb-[64px] md:pb-0"
             style={{ background: '#1f2c34' }}
             onClick={e => e.stopPropagation()}
           >
