@@ -131,6 +131,12 @@ export async function POST(request: NextRequest) {
       .select('id')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Sync section_class back to student profile (report builder is authoritative)
+    if (updatePayload.section_class && updatePayload.student_id) {
+      await syncStudentClass(admin, String(updatePayload.student_id), String(updatePayload.section_class));
+    }
+
     return NextResponse.json({ data });
   } else {
     if (typeof insertPayload.student_id !== 'string' || !insertPayload.student_id.trim()) {
@@ -142,6 +148,30 @@ export async function POST(request: NextRequest) {
       .select('id')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Sync section_class back to student profile (report builder is authoritative)
+    if (insertPayload.section_class && insertPayload.student_id) {
+      await syncStudentClass(admin, String(insertPayload.student_id), String(insertPayload.section_class));
+    }
+
     return NextResponse.json({ data });
   }
+}
+
+async function syncStudentClass(
+  admin: ReturnType<typeof adminClient>,
+  studentId: string,
+  sectionClass: string,
+) {
+  // Update portal_users.section_class
+  await admin
+    .from('portal_users')
+    .update({ section_class: sectionClass } as any)
+    .eq('id', studentId);
+
+  // Update students table (pre-portal / legacy rows linked via user_id)
+  await admin
+    .from('students')
+    .update({ current_class: sectionClass, grade_level: sectionClass } as any)
+    .eq('user_id', studentId);
 }
