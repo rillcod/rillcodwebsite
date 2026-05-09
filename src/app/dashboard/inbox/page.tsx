@@ -9,6 +9,7 @@ import {
   ChevronLeft, Info, Filter, UserCircle, UserPlus,
   BookUser, Mail, School, GraduationCap, ChevronRight,
   Pencil, AtSign, FileText, CheckCircle2, Clock, ExternalLink, Trash2, Smile, Paperclip,
+  Tag, BookOpen,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -2164,96 +2165,165 @@ export default function UnifiedInbox() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* ── Info Panel ──────────────────────────────────────────── */}
+              {/* ── Info Panel ─────────────────────────────────────────────
+                   Mobile: fixed overlay from right (backdrop closes it)
+                   Desktop: static side panel                           */}
               {showInfo && (
-                <div className="w-[270px] shrink-0 bg-[#0d1418] border-l border-white/[0.07] overflow-y-auto custom-scrollbar">
-                  <div className="p-5 text-center border-b border-white/[0.07]">
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-2xl text-white mx-auto mb-3 ${AVATAR_COLORS[activeConv.type]}`}>
-                      {initials(activeConv.contact_name)}
-                    </div>
-                    <h3 className="text-white font-black text-[16px]">{activeConv.contact_name}</h3>
-                    <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest mt-0.5 capitalize">{activeConv.role || activeConv.type}</p>
-                  </div>
-                  <div className="p-4 space-y-2 text-sm">
-                    {/* Quick action buttons */}
-                    <div className="flex gap-2">
-                      <button onClick={() => openEmailCompose(activeConv)}
-                        className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-primary/15 hover:bg-primary/25 text-violet-300 text-[11px] font-black rounded-lg transition-colors">
-                        <Mail className="w-3.5 h-3.5" /> Company Email
-                      </button>
-                      {activeConv.phone_number && (
-                        <a href={buildWaUrl(activeConv.phone_number, newMessage)} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[11px] font-black rounded-lg transition-colors"
-                          title={newMessage.trim() ? 'Opens WhatsApp with your message pre-filled' : 'Open in WhatsApp'}>
-                          <Phone className="w-3.5 h-3.5" /> {newMessage.trim() ? 'Send via WA' : 'WA'}
-                        </a>
-                      )}
-                    </div>
+                <>
+                  {/* Mobile backdrop */}
+                  <div className="md:hidden fixed inset-0 z-[54] bg-black/60 backdrop-blur-sm"
+                    onClick={() => setShowInfo(false)} />
 
-                    {[
-                      activeConv.phone_number ? { label: 'Phone / WhatsApp', value: `+${activeConv.phone_number}` } : null,
-                      activeConv.school_name ? { label: 'School', value: activeConv.school_name } : null,
-                      activeConv.student_name ? { label: 'About Student', value: activeConv.student_name } : null,
-                      activeConv.subject ? { label: 'Subject', value: activeConv.subject } : null,
-                      { label: 'Channel', value: activeConv.type === 'teachers' ? 'Internal · Teacher' : activeConv.type === 'school' ? 'Internal · School' : activeConv.type === 'parents' ? 'Internal · Parent' : 'WhatsApp' },
-                    ].filter(Boolean).map((item: any) => (
-                      <div key={item.label} className="bg-[#202c33]/60 rounded-lg p-3">
-                        <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest mb-1">{item.label}</p>
-                        <p className="text-white text-[13px] font-bold">{item.value}</p>
-                      </div>
-                    ))}
+                  <div className={[
+                    /* mobile: fixed right drawer */
+                    'fixed top-[53px] right-0 bottom-[64px] w-[88vw] max-w-[320px] z-[55]',
+                    /* desktop: static side column */
+                    'md:static md:top-auto md:bottom-auto md:right-auto md:w-[280px] md:max-w-none md:z-auto md:shrink-0',
+                    /* shared */
+                    'flex flex-col overflow-hidden',
+                  ].join(' ')}
+                    style={{ background: '#0d1418', borderLeft: '1px solid rgba(255,255,255,0.07)' }}>
 
-                    {activeConv.type === 'students' && activeConv.phone_number && (
-                      <a href={buildWaUrl(activeConv.phone_number, newMessage)} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-lg transition-colors mt-3">
-                        <Phone className="w-4 h-4" /> {newMessage.trim() ? '✓ Send via WhatsApp (pre-filled)' : 'Open in WhatsApp'}
-                      </a>
-                    )}
-                    {activeConv.type === 'students' && (
-                      <div className="rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-200 leading-relaxed">
-                        Staff reply here through the official Rillcod company WhatsApp line. Assignment and project alerts continue through the learning and assignment system.
-                      </div>
-                    )}
-                    {isStaff && activeConv.type === 'students' && (
-                      <div className="mt-3 rounded-lg border border-white/10 bg-[#111b21]/70 p-3 space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Queue Controls</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select
-                            value={convPriority}
-                            onChange={(e) => setConvPriority((e.target.value as 'low' | 'medium' | 'high') || 'medium')}
-                            className="bg-[#2a3942] border border-white/10 rounded-lg px-2 py-2 text-xs text-white"
-                          >
-                            <option value="low">Low priority</option>
-                            <option value="medium">Medium priority</option>
-                            <option value="high">High priority</option>
-                          </select>
-                          <input
-                            type="datetime-local"
-                            value={convSlaDueAt}
-                            onChange={(e) => setConvSlaDueAt(e.target.value)}
-                            className="bg-[#2a3942] border border-white/10 rounded-lg px-2 py-2 text-xs text-white"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={saveConversationMeta}
-                          disabled={savingConvMeta}
-                          className="w-full py-2 rounded-lg bg-primary/30 hover:bg-primary/40 text-violet-200 text-xs font-black disabled:opacity-50"
-                        >
-                          {savingConvMeta ? 'Saving...' : 'Save queue policy'}
+                    {/* ── Header gradient ── */}
+                    <div className="shrink-0 relative pb-5"
+                      style={{ background: 'linear-gradient(160deg,#1a2830 0%,#111b21 100%)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                      {/* Close on mobile */}
+                      <div className="flex items-center justify-between px-4 pt-4 pb-2 md:hidden">
+                        <span className="text-[11px] font-black uppercase tracking-widest" style={{ color: '#8696a0' }}>Contact Info</span>
+                        <button onClick={() => setShowInfo(false)} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                          <X className="w-4 h-4" style={{ color: '#8696a0' }} />
                         </button>
                       </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={reportConversation}
-                      disabled={reportingConversation}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-sm font-black rounded-lg transition-colors mt-2 disabled:opacity-50"
-                    >
-                      {reportingConversation ? 'Submitting report...' : 'Report safety issue'}
-                    </button>
+                      <div className="hidden md:flex items-center justify-between px-4 pt-4 pb-2">
+                        <span className="text-[11px] font-black uppercase tracking-widest" style={{ color: '#8696a0' }}>Contact Info</span>
+                        <button onClick={() => setShowInfo(false)} className="p-1 rounded-full hover:bg-white/10 transition-colors">
+                          <X className="w-3.5 h-3.5" style={{ color: '#8696a0' }} />
+                        </button>
+                      </div>
+
+                      {/* Avatar + name */}
+                      <div className="flex flex-col items-center gap-2 px-4">
+                        <div className={`w-20 h-20 rounded-full flex items-center justify-center font-black text-2xl text-white shadow-lg ring-4 ring-white/[0.08] ${AVATAR_COLORS[activeConv.type]}`}>
+                          {initials(activeConv.contact_name)}
+                        </div>
+                        <div className="text-center">
+                          <h3 className="font-black text-white text-[15px] leading-tight">{activeConv.contact_name}</h3>
+                          <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap">
+                            {activeConv.role && (
+                              <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-white/40'}`}>
+                                {activeConv.role}
+                              </span>
+                            )}
+                            <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${CHANNEL_COLORS[activeConv.type]}`}>
+                              {activeConv.type === 'teachers' ? 'Teacher' : activeConv.type === 'school' ? 'School' : activeConv.type === 'parents' ? 'Parent' : 'WhatsApp'}
+                            </span>
+                          </div>
+                          {activeConv.class_name && (
+                            <p className="text-[10px] mt-1" style={{ color: '#8696a0' }}>{activeConv.class_name}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Scrollable body ── */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                      <div className="p-4 space-y-3">
+
+                        {/* Action buttons */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <button onClick={() => openEmailCompose(activeConv)}
+                            className="flex flex-col items-center gap-1.5 py-3 rounded-xl transition-colors"
+                            style={{ background: 'rgba(124,58,237,0.12)', color: '#a78bfa' }}>
+                            <Mail className="w-5 h-5" />
+                            <span className="text-[10px] font-black uppercase tracking-wide">Email</span>
+                          </button>
+                          {activeConv.phone_number ? (
+                            <a href={buildWaUrl(activeConv.phone_number, newMessage)}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex flex-col items-center gap-1.5 py-3 rounded-xl transition-colors"
+                              style={{ background: newMessage.trim() ? 'rgba(0,168,132,0.2)' : 'rgba(0,168,132,0.1)', color: '#00a884' }}
+                              title={newMessage.trim() ? 'Opens WhatsApp with your message pre-filled' : 'Open WhatsApp'}>
+                              <Phone className="w-5 h-5" />
+                              <span className="text-[10px] font-black uppercase tracking-wide leading-tight text-center">
+                                {newMessage.trim() ? 'Send WA' : 'WhatsApp'}
+                              </span>
+                            </a>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1.5 py-3 rounded-xl opacity-30" style={{ background: 'rgba(255,255,255,0.05)', color: '#8696a0' }}>
+                              <Phone className="w-5 h-5" />
+                              <span className="text-[10px] font-black uppercase tracking-wide">No Phone</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info cards */}
+                        {[
+                          activeConv.phone_number ? { icon: <Phone className="w-3.5 h-3.5" />, label: 'WhatsApp', value: `+${activeConv.phone_number}` } : null,
+                          activeConv.school_name  ? { icon: <School className="w-3.5 h-3.5" />, label: 'School', value: activeConv.school_name } : null,
+                          activeConv.class_name   ? { icon: <Tag className="w-3.5 h-3.5" />, label: 'Class', value: activeConv.class_name } : null,
+                          activeConv.student_name ? { icon: <Users className="w-3.5 h-3.5" />, label: 'Student', value: activeConv.student_name } : null,
+                          activeConv.subject      ? { icon: <BookOpen className="w-3.5 h-3.5" />, label: 'Subject', value: activeConv.subject } : null,
+                        ].filter(Boolean).map((item: any) => (
+                          <div key={item.label} className="flex items-start gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                            <span className="mt-0.5 shrink-0" style={{ color: '#8696a0' }}>{item.icon}</span>
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-black uppercase tracking-widest mb-0.5" style={{ color: '#8696a0' }}>{item.label}</p>
+                              <p className="text-white text-[12px] font-bold break-words">{item.value}</p>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* WA pre-fill CTA for students */}
+                        {activeConv.type === 'students' && activeConv.phone_number && newMessage.trim() && (
+                          <a href={buildWaUrl(activeConv.phone_number, newMessage)}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-white text-[12px] font-black transition-all active:scale-95"
+                            style={{ background: '#00a884' }}
+                            onClick={() => setNewMessage('')}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                              <path d="M12 0C5.374 0 0 5.373 0 12c0 2.117.554 4.103 1.522 5.827L.057 23.882a.5.5 0 00.613.613l6.056-1.465A11.945 11.945 0 0012 24c6.626 0 12-5.373 12-12S18.626 0 12 0zm0 21.818a9.808 9.808 0 01-5.029-1.388l-.36-.215-3.733.903.921-3.626-.235-.372A9.8 9.8 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+                            </svg>
+                            Open WA — message pre-filled → just Send
+                          </a>
+                        )}
+
+                        {/* Queue controls (staff only) */}
+                        {isStaff && activeConv.type === 'students' && (
+                          <div className="rounded-xl p-3 space-y-2.5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                            <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#8696a0' }}>Queue Controls</p>
+                            <div className="grid grid-cols-1 gap-2">
+                              <select value={convPriority}
+                                onChange={e => setConvPriority((e.target.value as 'low' | 'medium' | 'high') || 'medium')}
+                                className="w-full text-white text-[12px] rounded-xl px-3 py-2.5 outline-none appearance-none"
+                                style={{ background: '#2a3942' }}>
+                                <option value="low">Low priority</option>
+                                <option value="medium">Medium priority</option>
+                                <option value="high">High priority</option>
+                              </select>
+                              <input type="datetime-local" value={convSlaDueAt}
+                                onChange={e => setConvSlaDueAt(e.target.value)}
+                                className="w-full text-white text-[12px] rounded-xl px-3 py-2.5 outline-none"
+                                style={{ background: '#2a3942' }} />
+                            </div>
+                            <button type="button" onClick={saveConversationMeta} disabled={savingConvMeta}
+                              className="w-full py-2.5 rounded-xl text-[12px] font-black disabled:opacity-50 transition-colors"
+                              style={{ background: 'rgba(124,58,237,0.2)', color: '#a78bfa' }}>
+                              {savingConvMeta ? 'Saving…' : 'Save queue policy'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Report */}
+                        <button type="button" onClick={reportConversation} disabled={reportingConversation}
+                          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[12px] font-black disabled:opacity-50 transition-colors"
+                          style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171' }}>
+                          {reportingConversation ? 'Submitting…' : 'Report safety issue'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
 
