@@ -133,6 +133,7 @@ function ResultsPageInner() {
     const [search, setSearch] = useState('');
     const [filterSchool, setFilterSchool] = useState('');
     const [filterClass, setFilterClass] = useState('');
+    const [filterGrade, setFilterGrade] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'none'>('all');
 
     // ── Multi-select ───────────────────────────────────────────────────────────
@@ -329,7 +330,16 @@ function ResultsPageInner() {
             if (aborted) return;
 
             const studs = (sRes.data ?? []) as unknown as PortalUser[];
-            setStudents(studs);
+
+            // Enrich with grade_level from the students shadow table (portal_users has no grade_level column)
+            const portalIds = studs.map(s => s.id).filter(Boolean);
+            const gradeByUserId: Record<string, string> = {};
+            if (portalIds.length > 0) {
+                const { data: gradeRows } = await db.from('students').select('user_id, grade_level').in('user_id', portalIds);
+                (gradeRows ?? []).forEach((r: any) => { if (r.user_id && r.grade_level) gradeByUserId[r.user_id] = r.grade_level; });
+            }
+            const studsWithGrade = studs.map(s => ({ ...s, grade_level: gradeByUserId[(s as any).id] ?? '' }));
+            setStudents(studsWithGrade as unknown as PortalUser[]);
             setOrgSettings(orgRes.data);
 
             const studentIds = studs.map(s => s.id);
@@ -398,19 +408,24 @@ function ResultsPageInner() {
         students.map(s => studentClassName(s)).filter(Boolean)
     )].sort() as string[];
 
+    const distinctGrades = [...new Set(
+        students.map(s => (s as any).grade_level).filter(Boolean)
+    )].sort() as string[];
+
     const filtered = students.filter(s => {
         const matchSearch = !search
             || (s.full_name ?? '').toLowerCase().includes(search.toLowerCase())
             || (s.email ?? '').toLowerCase().includes(search.toLowerCase());
         const matchSchool = !filterSchool || studentSchoolName(s) === filterSchool;
         const matchClass = !filterClass || studentClassName(s) === filterClass;
+        const matchGrade = !filterGrade || ((s as any).grade_level ?? '') === filterGrade;
         const r = reportsMap[s.id];
         const matchStatus =
             filterStatus === 'all' ? true :
                 filterStatus === 'published' ? r?.is_published === true :
                     filterStatus === 'draft' ? (r && r.is_published === false) :
             /* none */ !r;
-        return matchSearch && matchSchool && matchClass && matchStatus;
+        return matchSearch && matchSchool && matchClass && matchGrade && matchStatus;
     });
 
     const stats = {
@@ -881,7 +896,7 @@ tbody tr:hover{background:#f3f4f6}
                                 <div className="grid grid-cols-2 gap-2">
                                     <select
                                         value={filterSchool}
-                                        onChange={e => { setFilterSchool(e.target.value); setFilterClass(''); }}
+                                        onChange={e => { setFilterSchool(e.target.value); setFilterClass(''); setFilterGrade(''); }}
                                         className="px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
                                     >
                                         <option value="">All Schools</option>
@@ -898,23 +913,40 @@ tbody tr:hover{background:#f3f4f6}
                                         <option value="none">No Report</option>
                                     </select>
                                 </div>
+                                {/* Grade filter chips */}
+                                {distinctGrades.length > 0 && (
+                                    <div className="space-y-1">
+                                        <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Grade</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <button
+                                                onClick={() => setFilterGrade('')}
+                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterGrade ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                            >All</button>
+                                            {distinctGrades.map(g => (
+                                                <button key={g}
+                                                    onClick={() => setFilterGrade(filterGrade === g ? '' : g)}
+                                                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterGrade === g ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                                >{g}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 {/* Class filter chips */}
                                 {distinctClasses.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5 pt-1">
-                                        <button
-                                            onClick={() => setFilterClass('')}
-                                            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterClass ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                        >
-                                            All
-                                        </button>
-                                        {distinctClasses.map(c => (
-                                            <button key={c}
-                                                onClick={() => setFilterClass(filterClass === c ? '' : c)}
-                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterClass === c ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                            >
-                                                {c}
-                                            </button>
-                                        ))}
+                                    <div className="space-y-1">
+                                        <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Class</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <button
+                                                onClick={() => setFilterClass('')}
+                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterClass ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                            >All</button>
+                                            {distinctClasses.map(c => (
+                                                <button key={c}
+                                                    onClick={() => setFilterClass(filterClass === c ? '' : c)}
+                                                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterClass === c ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                                >{c}</button>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
