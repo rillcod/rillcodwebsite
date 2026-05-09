@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+
+function adminDb() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -166,8 +174,10 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Only participants or admin can delete' }, { status: 403 });
   }
 
-  await supabase.from('school_teacher_messages').delete().eq('conversation_id', id);
-  const { error } = await supabase.from('school_teacher_conversations').delete().eq('id', id);
+  // Use service-role client so RLS doesn't block the delete
+  const db = adminDb();
+  await db.from('school_teacher_messages').delete().eq('conversation_id', id);
+  const { error } = await db.from('school_teacher_conversations').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

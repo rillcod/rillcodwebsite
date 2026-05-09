@@ -29,6 +29,7 @@ import {
 } from '@/lib/finance/streams';
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
+import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 
 interface InvoiceRow {
   id: string;
@@ -43,6 +44,7 @@ interface InvoiceRow {
   portal_user_id?: string | null;
   billing_cycle_id?: string | null;
   items?: unknown;
+  notes?: string | null;
   schools?: { name?: string } | null;
   portal_users?: { full_name?: string; email?: string } | null;
 }
@@ -197,6 +199,53 @@ export function InvoicesPanel() {
       schools: inv.schools ?? null,
     });
 
+    // For school invoices reconstruct the rich school invoice HTML from stored line items
+    let rawHtml: string | undefined;
+    if (stream === 'school') {
+      const mainItem = rawItems[0] ?? {};
+      const commissionItem = rawItems.find((it) =>
+        String(it.description ?? '').toLowerCase().includes('commission'),
+      );
+      const depositItem = rawItems.find((it) =>
+        String(it.description ?? '').toLowerCase().includes('deposit'),
+      );
+      const isFixed = String(mainItem.description ?? '').toLowerCase().includes('package');
+      const count = Number(mainItem.quantity ?? 1);
+      const ratePerChild = isFixed ? 0 : Number(mainItem.unit_price ?? 0);
+      const fixedPrice = isFixed ? Number(mainItem.unit_price ?? 0) : 0;
+      const subtotal = Number(mainItem.total ?? 0);
+      const revenueShareOn = !!commissionItem;
+      const schoolShare = commissionItem ? Math.abs(Number(commissionItem.total ?? 0)) : 0;
+      const deposit = depositItem ? Math.abs(Number(depositItem.total ?? 0)) : 0;
+      const rillcodShare = subtotal - schoolShare;
+      const pctMatch = String(commissionItem?.description ?? '').match(/\((\d+)%\)/);
+      const quotaPct = pctMatch ? 100 - parseInt(pctMatch[1]) : 75;
+      const fmtDate = (d: string) =>
+        new Date(d).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
+      rawHtml = buildSchoolInvoiceHTML({
+        sch: { name: inv.schools?.name || 'Partner School' },
+        isFixed,
+        count,
+        ratePerChild,
+        fixedPrice,
+        quotaPct,
+        subtotal,
+        deposit,
+        rillcodShare,
+        schoolShare,
+        balance: Number(inv.amount),
+        revenueShareOn,
+        dateStr: fmtDate(inv.created_at),
+        dueStr: inv.due_date ? fmtDate(inv.due_date) : '—',
+        docRef: inv.invoice_number,
+        payToAcc: null,
+        showRevenueShare: revenueShareOn,
+        showWhatsapp: true,
+        notes: inv.notes || '',
+        currency: inv.currency,
+      });
+    }
+
     setPreview({
       id: inv.id,
       number: inv.invoice_number,
@@ -212,6 +261,7 @@ export function InvoicesPanel() {
         : (inv.portal_users?.full_name || 'Client'),
       studentEmail: stream === 'school' ? undefined : inv.portal_users?.email,
       schoolName: 'RILLCOD TECHNOLOGIES',
+      rawHtml,
     });
   };
 

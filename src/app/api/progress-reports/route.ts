@@ -45,9 +45,9 @@ export async function POST(request: NextRequest) {
 
   // Whitelist allowed fields to prevent unintended column injection
   const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
-    // Identity
+    // Identity (teacher_id intentionally excluded — set on insert only, never updated)
     'student_id', 'student_name', 'school_id', 'school_name', 'course_id', 'course_name',
-    'section_class', 'teacher_id',
+    'section_class',
     // Session metadata
     'report_term', 'report_date', 'report_period', 'instructor_name',
     'current_module', 'next_module', 'course_duration', 'learning_milestones',
@@ -105,16 +105,23 @@ export async function POST(request: NextRequest) {
   }
 
   if (existing_id) {
-    // Ownership check: non-admin teachers can only edit their own reports
+    const { data: existingReport } = await admin
+      .from('student_progress_reports')
+      .select('teacher_id, instructor_name')
+      .eq('id', existing_id)
+      .maybeSingle();
+    if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+
     if (caller.role !== 'admin') {
-      const { data: existingReport } = await admin
-        .from('student_progress_reports')
-        .select('teacher_id')
-        .eq('id', existing_id)
-        .maybeSingle();
-      if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+      // Non-admin teachers can only edit their own reports
       if ((existingReport as any).teacher_id !== caller.id) {
         return NextResponse.json({ error: 'You can only edit your own reports' }, { status: 403 });
+      }
+    } else {
+      // Admin editing: preserve original authorship — never overwrite teacher_id or instructor_name
+      delete (updatePayload as any).teacher_id;
+      if ((existingReport as any).instructor_name) {
+        (updatePayload as any).instructor_name = (existingReport as any).instructor_name;
       }
     }
     const { data, error } = await admin

@@ -34,6 +34,8 @@ export interface DocPreviewData {
   receivedBy?: string;
   transactionRef?: string;
   instructorName?: string;
+  /** Pre-built HTML to render in an iframe instead of SmartDocument (used for school invoices). */
+  rawHtml?: string;
 }
 
 interface DocPreviewModalProps {
@@ -237,7 +239,17 @@ export function DocPreviewModal({
 
         {/* Document */}
         <div className="mt-4">
-          <SmartDocument type={type} data={data} />
+          {data.rawHtml ? (
+            <iframe
+              srcDoc={data.rawHtml}
+              title={`Invoice ${data.number}`}
+              className="w-full border-0 rounded-xl shadow-2xl"
+              style={{ minHeight: '1200px', background: '#fff' }}
+              sandbox="allow-popups allow-scripts allow-same-origin"
+            />
+          ) : (
+            <SmartDocument type={type} data={data} />
+          )}
         </div>
       </div>
     </div>

@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+
+function adminDb() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -107,8 +115,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Only participants or admin can delete' }, { status: 403 });
   }
 
-  await (supabase as any).from('student_teacher_messages').delete().eq('thread_id', id);
-  const { error } = await (supabase as any).from('student_teacher_threads').delete().eq('id', id);
+  const db = adminDb();
+  await db.from('student_teacher_messages').delete().eq('thread_id', id);
+  const { error } = await db.from('student_teacher_threads').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

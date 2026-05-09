@@ -618,12 +618,22 @@ export default function StudentsPage() {
     if (filter !== 'all') parts.push(`${filter.charAt(0).toUpperCase() + filter.slice(1)} Status`);
     const subtitle = parts.length > 0 ? parts.join(' — ') : 'All Students';
 
+    // Build program lookup: class_id → program name
+    const progById: Record<string, string> = {};
+    programsList.forEach((p: any) => { if (p.id) progById[p.id] = p.name; });
+    const classProgramName = (classId: string | null | undefined): string => {
+      if (!classId) return '—';
+      const cls = classList.find((c: any) => c.id === classId);
+      return (cls?.program_id && progById[cls.program_id]) ? progById[cls.program_id] : '—';
+    };
+
     const rows = filtered.map((s, i) => {
       const isEnrolled = s._source === 'enrolled';
       const cls = s.section_class || (s.class_id && classMap[s.class_id]) || '—';
       const grade = s.grade_level || '—';
       const email = s.student_email || s.email || s.parent_email || '—';
       const school = s.school_name || '—';
+      const programme = classProgramName(s.class_id);
       const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
       return `
         <tr style="background:${bg};border-bottom:1px solid #e5e7eb;">
@@ -633,7 +643,7 @@ export default function StudentsPage() {
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${cls}</td>
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${school}</td>
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${email}</td>
-          <td style="padding:7px 10px;color:#ea580c;font-size:11px;font-weight:800;text-transform:uppercase;">${s.current_module || '—'}</td>
+          <td style="padding:7px 10px;color:#ea580c;font-size:11px;font-weight:800;text-transform:uppercase;">${programme}</td>
           <td style="padding:7px 10px;font-size:10px;text-align:center;">
             <span style="padding:2px 8px;border-radius:9999px;font-weight:700;font-size:9px;background:${isEnrolled ? '#d1fae5' : '#ede9fe'};color:${isEnrolled ? '#065f46' : '#4c1d95'};">
               ${isEnrolled ? 'Enrolled' : 'Application'}
@@ -720,7 +730,7 @@ export default function StudentsPage() {
           <th style="width:13%;">Class</th>
           <th style="width:18%;">School</th>
           <th style="width:16%;">Email Address</th>
-          <th style="width:10%;">Track</th>
+          <th style="width:10%;">Programme</th>
           <th style="width:8%;text-align:center;">Type</th>
         </tr>
       </thead>
