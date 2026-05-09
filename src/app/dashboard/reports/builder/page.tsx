@@ -784,7 +784,7 @@ function ReportBuilderInner() {
             setSessionConfig(prev => ({
                 instructor_name: report.instructor_name ?? prev.instructor_name,
                 report_date: report.report_date ?? prev.report_date,
-                report_term: report.report_term ?? prev.report_term,
+                report_term: prev.report_term,
                 report_period: report.report_period ?? prev.report_period,
                 course_id: report.course_id ?? prev.course_id,
                 course_name: report.course_name ?? prev.course_name,
@@ -1457,13 +1457,23 @@ function ReportBuilderInner() {
                                 onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
                                 className={INPUT} />
                         </Field>
-                        <Field label="Term">
-                            <select value={sessionConfig.report_term}
-                                onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
-                                className={INPUT}>
-                                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </Field>
+                        {sessionConfig.school_section === 'school' ? (
+                            <Field label="Term">
+                                <select value={sessionConfig.report_term}
+                                    onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
+                                    className={INPUT}>
+                                    {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </Field>
+                        ) : (
+                            <Field label="Duration">
+                                <select value={sessionConfig.course_duration}
+                                    onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                    className={INPUT}>
+                                    {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </Field>
+                        )}
                         <Field label="Programme">
                             <select
                                 value={sessionProgramId}
@@ -1794,27 +1804,39 @@ function ReportBuilderInner() {
                                         onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
                                         className={INPUT} />
                                 </Field>
-                                <Field label="Term *">
-                                    <select value={sessionConfig.report_term}
-                                        onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
-                                        className={INPUT}>
-                                        {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Academic Year">
-                                    <input
-                                        list="academic-year-list"
-                                        value={sessionConfig.report_period}
-                                        onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
-                                        className={INPUT}
-                                        placeholder="e.g. 2025/2026" />
-                                    <datalist id="academic-year-list">
-                                        <option value="2025/2026" />
-                                        <option value="2026/2027" />
-                                        <option value="2027/2028" />
-                                        <option value="2028/2029" />
-                                    </datalist>
-                                </Field>
+                                {sessionConfig.school_section === 'school' ? (
+                                    <>
+                                        <Field label="Term *">
+                                            <select value={sessionConfig.report_term}
+                                                onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
+                                                className={INPUT}>
+                                                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                            </select>
+                                        </Field>
+                                        <Field label="Academic Year">
+                                            <input
+                                                list="academic-year-list"
+                                                value={sessionConfig.report_period}
+                                                onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
+                                                className={INPUT}
+                                                placeholder="e.g. 2025/2026" />
+                                            <datalist id="academic-year-list">
+                                                <option value="2025/2026" />
+                                                <option value="2026/2027" />
+                                                <option value="2027/2028" />
+                                                <option value="2028/2029" />
+                                            </datalist>
+                                        </Field>
+                                    </>
+                                ) : (
+                                    <Field label="Duration *">
+                                        <select value={sessionConfig.course_duration}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                            className={INPUT}>
+                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </Field>
+                                )}
                             </div>
                         </div>
 
