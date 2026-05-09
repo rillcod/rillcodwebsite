@@ -1817,7 +1817,6 @@ export default function ClassHealPage() {
       )}
 
     </div>
-    </div>
   );
 }
 
