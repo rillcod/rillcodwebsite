@@ -200,6 +200,7 @@ export default function StudentsPage() {
   // Registry print filters
   const [filterSchoolReg, setFilterSchoolReg] = useState('');
   const [filterClassReg, setFilterClassReg] = useState('');
+  const [filterGradeReg, setFilterGradeReg] = useState('');
 
   // Bulk enrol
   const [selectedForEnrol, setSelectedForEnrol] = useState<Set<string>>(new Set());
@@ -610,7 +611,8 @@ export default function StudentsPage() {
     // Build document title from active filters
     const parts: string[] = [];
     if (filterSchoolReg) parts.push(filterSchoolReg);
-    if (filterClassReg) parts.push(filterClassReg);
+    if (filterGradeReg) parts.push(`Grade: ${filterGradeReg}`);
+    if (filterClassReg) parts.push(`Class: ${filterClassReg}`);
     if (sourceFilter === 'enrolled') parts.push('Enrolled Students');
     else if (sourceFilter === 'applications') parts.push('Applications');
     if (filter !== 'all') parts.push(`${filter.charAt(0).toUpperCase() + filter.slice(1)} Status`);
@@ -618,7 +620,8 @@ export default function StudentsPage() {
 
     const rows = filtered.map((s, i) => {
       const isEnrolled = s._source === 'enrolled';
-      const cls = s.section_class || (s.class_id && classMap[s.class_id]) || s.grade_level || '—';
+      const cls = s.section_class || (s.class_id && classMap[s.class_id]) || '—';
+      const grade = s.grade_level || '—';
       const email = s.student_email || s.email || s.parent_email || '—';
       const school = s.school_name || '—';
       const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
@@ -626,6 +629,7 @@ export default function StudentsPage() {
         <tr style="background:${bg};border-bottom:1px solid #e5e7eb;">
           <td style="padding:7px 10px;color:#9ca3af;font-size:11px;text-align:center;">${i + 1}</td>
           <td style="padding:7px 10px;font-weight:700;font-size:11px;">${s.full_name ?? '—'}</td>
+          <td style="padding:7px 10px;color:#0369a1;font-size:11px;font-weight:700;">${grade}</td>
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${cls}</td>
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${school}</td>
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${email}</td>
@@ -635,7 +639,7 @@ export default function StudentsPage() {
               ${isEnrolled ? 'Enrolled' : 'Application'}
             </span>
           </td>
-          <td style="padding:7px 10px;border-left:1px solid #d1d5db;min-width:80px;">&nbsp;</td>
+          <td style="padding:7px 10px;border-left:1px solid #d1d5db;min-width:70px;">&nbsp;</td>
         </tr>`;
     }).join('');
 
@@ -697,8 +701,12 @@ export default function StudentsPage() {
       <tr>
         <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">School</td>
         <td style="padding:8px 14px;font-size:11px;">${filterSchoolReg || 'All Schools'}</td>
-        <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;border-left:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Class / Grade</td>
-        <td style="padding:8px 14px;font-size:11px;">${filterClassReg || 'All Classes'}</td>
+        <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;border-left:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Grade</td>
+        <td style="padding:8px 14px;font-size:11px;color:#0369a1;font-weight:700;">${filterGradeReg || 'All Grades'}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Class</td>
+        <td colspan="3" style="padding:8px 14px;font-size:11px;">${filterClassReg || 'All Classes'}</td>
       </tr>
     </table>
 
@@ -707,13 +715,13 @@ export default function StudentsPage() {
       <thead>
         <tr>
           <th style="width:4%;text-align:center;">#</th>
-          <th style="width:24%;">Student Full Name</th>
-          <th style="width:12%;">Class / Grade</th>
-          <th style="width:20%;">School</th>
-          <th style="width:20%;">Email Address</th>
-          <th style="width:12%;">Track</th>
-          <th style="width:10%;text-align:center;">Type</th>
-          <th style="width:8%;border-left:1px solid rgba(255,255,255,0.2);">Remarks</th>
+          <th style="width:22%;">Student Full Name</th>
+          <th style="width:9%;color:#bae6fd;">Grade</th>
+          <th style="width:13%;">Class</th>
+          <th style="width:18%;">School</th>
+          <th style="width:16%;">Email Address</th>
+          <th style="width:10%;">Track</th>
+          <th style="width:8%;text-align:center;">Type</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -994,9 +1002,10 @@ export default function StudentsPage() {
       (sourceFilter === 'applications' && s._source === 'application');
     const matchStatus = filter === 'all' || s.status === filter;
     const matchSchoolReg = !filterSchoolReg || (s.school_name ?? '') === filterSchoolReg;
-    const studentClass = s.section_class || (s.class_id && classMap[s.class_id]) || s.grade_level || '';
+    const studentClass = s.section_class || (s.class_id && classMap[s.class_id]) || '';
     const matchClassReg = !filterClassReg || studentClass === filterClassReg;
-    return ms && matchSource && matchStatus && matchSchoolReg && matchClassReg;
+    const matchGradeReg = !filterGradeReg || (s.grade_level ?? '') === filterGradeReg;
+    return ms && matchSource && matchStatus && matchSchoolReg && matchClassReg && matchGradeReg;
   });
 
   // Distinct values for registry filter dropdowns
@@ -1004,8 +1013,8 @@ export default function StudentsPage() {
   const distinctClassesReg = [...new Set([
     ...combined.map(s => s.section_class).filter(Boolean),
     ...combined.filter(s => s.class_id && classMap[s.class_id]).map(s => classMap[s.class_id]),
-    ...combined.map(s => s.grade_level).filter(Boolean),
   ])].sort() as string[];
+  const distinctGradesReg = [...new Set(combined.map(s => s.grade_level).filter(Boolean))].sort() as string[];
 
   const pending = normalizedApplications.filter(s => s.status === 'pending').length;
 
@@ -1643,28 +1652,35 @@ export default function StudentsPage() {
               </select>
             </div>
             {/* Registry print filters */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-              <span className="text-[10px] font-black text-white/25 uppercase tracking-widest flex-shrink-0 sm:mt-0 mt-1">Filter for print:</span>
-              <select title="Filter by school" value={filterSchoolReg} onChange={e => setFilterSchoolReg(e.target.value)}
-                className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
-                <option value="">All Schools</option>
-                {distinctSchoolsReg.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select title="Filter by class" value={filterClassReg} onChange={e => setFilterClassReg(e.target.value)}
-                className="flex-1 px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
-                <option value="">All Classes / Grades</option>
-                {distinctClassesReg.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              {(filterSchoolReg || filterClassReg) && (
-                <button onClick={() => { setFilterSchoolReg(''); setFilterClassReg(''); }}
-                  className="px-3 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs text-muted-foreground hover:text-foreground transition-all flex-shrink-0">
-                  Clear
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-black text-white/25 uppercase tracking-widest">Filter for print:</span>
+              <div className="flex flex-wrap gap-2 items-center">
+                <select title="Filter by school" value={filterSchoolReg} onChange={e => setFilterSchoolReg(e.target.value)}
+                  className="flex-1 min-w-[140px] px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
+                  <option value="">All Schools</option>
+                  {distinctSchoolsReg.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select title="Filter by grade" value={filterGradeReg} onChange={e => setFilterGradeReg(e.target.value)}
+                  className="flex-1 min-w-[120px] px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-sky-500 cursor-pointer">
+                  <option value="">All Grades</option>
+                  {distinctGradesReg.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <select title="Filter by class" value={filterClassReg} onChange={e => setFilterClassReg(e.target.value)}
+                  className="flex-1 min-w-[140px] px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
+                  <option value="">All Classes</option>
+                  {distinctClassesReg.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                {(filterSchoolReg || filterClassReg || filterGradeReg) && (
+                  <button onClick={() => { setFilterSchoolReg(''); setFilterClassReg(''); setFilterGradeReg(''); }}
+                    className="px-3 py-2 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs text-muted-foreground hover:text-foreground transition-all flex-shrink-0">
+                    Clear
+                  </button>
+                )}
+                <button onClick={handlePrintRegistry}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex-shrink-0">
+                  <PrinterIcon className="w-3.5 h-3.5" /> Generate Registry
                 </button>
-              )}
-              <button onClick={handlePrintRegistry}
-                className="flex items-center gap-2 px-5 py-2.5 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex-shrink-0">
-                <PrinterIcon className="w-3.5 h-3.5" /> Generate Registry
-              </button>
+              </div>
             </div>
           </div>
 

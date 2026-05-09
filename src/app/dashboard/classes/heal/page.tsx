@@ -12,12 +12,12 @@ type ClassOption = { id: string; name: string; school_id: string | null; teacher
 type TeacherOption = { id: string; full_name: string };
 type MissingTs = { teacher_id: string; school_id: string; teacher_name: string | null; school_name: string | null; class_ids: string[] };
 type SearchStudent = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; section_class: string | null; class_name: string | null };
-type AuditStudent = { id: string; full_name: string; email: string; school_id: string | null; class_id: string | null; section_class: string | null; current_class_name: string | null; current_class_teacher_name: string | null; displacement_sources?: string[] };
+type AuditStudent = { id: string; full_name: string; email: string; school_id: string | null; class_id: string | null; section_class: string | null; grade_level: string | null; current_class_name: string | null; current_class_teacher_name: string | null; displacement_sources?: string[] };
 type AuditClass = { id: string; name: string; school_id: string; student_count: number; students: AuditStudent[] };
 type AuditSchool = { school_id: string; school_name: string; in_teacher_schools: boolean; classes: AuditClass[]; students_in_classes: AuditStudent[]; displaced_students: AuditStudent[] };
 type DupAccount = { id: string; full_name: string; email: string; school_id: string | null; school_name: string | null; class_id: string | null; class_name: string | null; section_class: string | null; created_at: string; primary_teacher_id: string | null };
 type DuplicateGroup = { duplicateType: 'email' | 'name_school'; label: string; reason: string; accounts: DupAccount[] };
-type ClassAuditStudent = { id: string; full_name: string; email: string; school_name: string | null; signal_teacher_id: string | null; signal_teacher_name: string | null; displacement_sources: string[]; dest_class_id: string | null; dest_class_name: string | null };
+type ClassAuditStudent = { id: string; full_name: string; email: string; school_name: string | null; section_class?: string | null; grade_level?: string | null; signal_teacher_id: string | null; signal_teacher_name: string | null; displacement_sources: string[]; dest_class_id: string | null; dest_class_name: string | null };
 type ClassAuditResult = { class_name: string; class_teacher_id: string | null; teacher_name: string | null; school_name: string | null; correct: ClassAuditStudent[]; misplaced: ClassAuditStudent[]; noSignal: ClassAuditStudent[] };
 type DrainDetail = { student_id: string; student_name: string; signal_teacher_name: string; from_class: string; to_class: string };
 
@@ -82,7 +82,7 @@ export default function ClassHealPage() {
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Visual Transfer Modal state ────────────────────────────
-  type TransferStudent = { id: string; full_name: string; email: string; section_class: string | null };
+  type TransferStudent = { id: string; full_name: string; email: string; section_class: string | null; grade_level: string | null };
   const [showTransfer, setShowTransfer] = useState(false);
   const [txStep, setTxStep] = useState<1 | 2>(1); // 1=pick source+students, 2=pick dest+confirm
   const [txSrcSchool, setTxSrcSchool] = useState('');
@@ -141,7 +141,7 @@ export default function ClassHealPage() {
         ...(auditJson.data?.correct ?? []),
         ...(auditJson.data?.misplaced ?? []),
         ...(auditJson.data?.noSignal ?? []),
-      ].map((s: any) => ({ id: s.id, full_name: s.full_name, email: s.email, section_class: s.section_class ?? null }));
+      ].map((s: any) => ({ id: s.id, full_name: s.full_name, email: s.email, section_class: s.section_class ?? null, grade_level: s.grade_level ?? null }));
       setTxSrcStudents(all);
       setTxSelected(new Set(all.map(s => s.id)));
     } catch { setTxSrcStudents([]); }
@@ -547,7 +547,10 @@ export default function ClassHealPage() {
                                           <div key={s.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition border ${schoolSel.has(s.id) ? 'bg-violet-500/10 border-violet-500/30' : 'border-transparent hover:bg-muted/30'}`}>
                                             <input type="checkbox" checked={schoolSel.has(s.id)} onChange={() => toggleSt(s.id)} className="w-4 h-4 rounded text-violet-500 shrink-0 cursor-pointer" />
                                             <div className="flex-1 min-w-0">
-                                              <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                                                {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                                              </div>
                                               <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
                                             </div>
                                             <button
@@ -605,6 +608,7 @@ export default function ClassHealPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                                    {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
                                     {multiSignal && (
                                       <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">
                                         {hasReports && hasBatch && hasRegistered ? 'All 3 Signals' : hasReports && hasBatch ? 'Reports + Batch' : hasReports && hasRegistered ? 'Reports + Registered' : 'Batch + Registered'}
@@ -612,7 +616,7 @@ export default function ClassHealPage() {
                                     )}
                                     {!multiSignal && hasReports && <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Has Reports</span>}
                                     {!multiSignal && hasBatch && <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/15 text-amber-400 border border-amber-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Batch Registered</span>}
-                                    {!multiSignal && hasRegistered && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Registered By</span>}
+                                    {!multiSignal && hasRegistered && <span className="text-[9px] px-1.5 py-0.5 bg-violet-500/15 text-violet-400 border border-violet-500/30 rounded font-black uppercase whitespace-nowrap shrink-0">Registered By</span>}
                                   </div>
                                   <p className="text-xs text-muted-foreground truncate mt-0.5">
                                     {s.current_class_name
@@ -977,7 +981,10 @@ export default function ClassHealPage() {
                         <div key={s.id} className="px-3 py-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl">
                           <div className="flex items-start gap-2 flex-wrap">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                                {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                              </div>
                               <p className="text-[11px] text-muted-foreground truncate">{s.email}</p>
                             </div>
                           </div>
@@ -1040,7 +1047,10 @@ export default function ClassHealPage() {
                       {classAuditData.correct.map(s => (
                         <div key={s.id} className="flex items-center gap-3 px-3 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                              {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                            </div>
                             <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
                           </div>
                         </div>
@@ -1066,7 +1076,10 @@ export default function ClassHealPage() {
                       {classAuditData.noSignal.map(s => (
                         <div key={s.id} className="flex items-center gap-3 px-3 py-2 bg-muted/20 border border-border rounded-lg">
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs font-semibold text-foreground truncate">{s.full_name}</p>
+                              {s.grade_level && <span className="text-[9px] px-1 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                            </div>
                             <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
                           </div>
                         </div>
@@ -1705,7 +1718,10 @@ export default function ClassHealPage() {
                                   onChange={() => { const n = new Set(txSelected); checked ? n.delete(s.id) : n.add(s.id); setTxSelected(n); }}
                                   className="w-4 h-4 rounded text-primary shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                                    {s.grade_level && <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{s.grade_level}</span>}
+                                  </div>
                                   <p className="text-[11px] text-muted-foreground truncate">{s.email}</p>
                                 </div>
                               </label>

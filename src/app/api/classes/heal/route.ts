@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     // All students currently in this class
     const { data: enrolled } = await db
       .from('portal_users')
-      .select('id, full_name, email, school_id, school_name, primary_teacher_id')
+      .select('id, full_name, email, school_id, school_name, primary_teacher_id, section_class')
       .eq('class_id', classAuditId)
       .eq('role', 'student')
       .eq('is_deleted', false);
@@ -54,6 +54,11 @@ export async function GET(req: NextRequest) {
     if (studentIds.length === 0) {
       return NextResponse.json({ data: { class_name: cls.name, class_teacher_id: cls.teacher_id, teacher_name: clsTeacherProfile?.full_name ?? null, school_name: clsSchool?.name ?? null, correct: [], misplaced: [], noSignal: [] } });
     }
+
+    // Grade lookup from shadow students table
+    const { data: gradeRowsCA } = await db.from('students').select('user_id, grade_level, grade').in('user_id', studentIds);
+    const gradeMapCA: Record<string, string | null> = {};
+    (gradeRowsCA ?? []).forEach((r: any) => { gradeMapCA[r.user_id] = r.grade_level ?? r.grade ?? null; });
 
     // Signal 1: reports
     const { data: allRpts } = await db.from('student_progress_reports').select('student_id, teacher_id').in('student_id', studentIds).not('teacher_id', 'is', null);
@@ -128,6 +133,8 @@ export async function GET(req: NextRequest) {
         full_name: s.full_name,
         email: s.email,
         school_name: s.school_name,
+        section_class: s.section_class ?? null,
+        grade_level: gradeMapCA[s.id] ?? null,
         signal_teacher_id: signalTeacherId,
         signal_teacher_name: signalTeacherId ? (teacherNameMap[signalTeacherId] ?? null) : null,
         displacement_sources: sources,
@@ -277,6 +284,17 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Grade lookup from shadow students table — covers both in-class and displaced
+    const allStudentIdsTA = [
+      ...((classStudents ?? []).map((s: any) => s.id)),
+      ...allDisplacedIds,
+    ];
+    const { data: gradeRowsTA } = allStudentIdsTA.length > 0
+      ? await db.from('students').select('user_id, grade_level, grade').in('user_id', allStudentIdsTA)
+      : { data: [] };
+    const gradeMapTA: Record<string, string | null> = {};
+    (gradeRowsTA ?? []).forEach((r: any) => { gradeMapTA[r.user_id] = r.grade_level ?? r.grade ?? null; });
+
     // Filter out students already correctly locked to their current class.
     // If primary_teacher_id === current class teacher_id, an admin action (Claim, Drain,
     // direct_assign) has intentionally settled this student — they are not displaced.
@@ -290,6 +308,7 @@ export async function GET(req: NextRequest) {
 
     const enrichedDisplaced = settledDisplaced.map((s: any) => ({
       ...s,
+      grade_level: gradeMapTA[s.id] ?? null,
       current_class_name: s.class_id ? (dispClassMap[s.class_id]?.name ?? s.section_class ?? null) : null,
       current_class_teacher_name: s.class_id ? (dispClassMap[s.class_id]?.teacher_name ?? null) : null,
       // How we know this student belongs here: 'report_authored', 'batch_registered', or both
@@ -307,7 +326,7 @@ export async function GET(req: NextRequest) {
         // Each class carries its enrolled students so the UI can render the roster
         classes: schoolClasses.map((c: any) => ({
           ...c,
-          students: (classStudents ?? []).filter((s: any) => s.class_id === c.id),
+          students: (classStudents ?? []).filter((s: any) => s.class_id === c.id).map((s: any) => ({ ...s, grade_level: gradeMapTA[s.id] ?? null })),
           student_count: (classStudents ?? []).filter((s: any) => s.class_id === c.id).length,
         })),
         // students_in_classes: all students whose class belongs to this teacher at this school
