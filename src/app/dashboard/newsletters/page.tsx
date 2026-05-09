@@ -70,6 +70,95 @@ export default function NewslettersPage() {
   const supabase = createClient();
   const pdfRef = useRef<HTMLDivElement>(null); // kept for preview scroll ref only
 
+  async function handleExportPDF() {
+    const [{ toPng }, { default: jsPDF }] = await Promise.all([
+      import('html-to-image'),
+      import('jspdf'),
+    ]);
+
+    const schoolName = (profile as any)?.school_name || 'RILLCOD TECHNOLOGIES';
+    const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+    const logoUrl = window.location.origin + '/logo.png';
+    const title = activeNewsletter?.title || 'Untitled Newsletter';
+    const raw = stripMarkdown(activeNewsletter?.content || '');
+
+    const formattedContent = raw
+      .split('\n')
+      .map(line => {
+        if (!line.trim()) return '<br/>';
+        if (line.startsWith('• ')) return `<p style="margin:0 0 8px 16px;text-indent:-12px">&bull;&nbsp;${line.slice(2)}</p>`;
+        return `<p style="margin:0 0 12px;line-height:1.85">${line}</p>`;
+      })
+      .join('');
+
+    // Render an off-screen A4-width (794px) div for capture
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;';
+    wrap.innerHTML = `<div id="nl-export" style="font-family:'Times New Roman',Georgia,serif;background:#fff;color:#111827;font-size:15px;padding:75px 88px 60px;">
+      <div style="display:flex;align-items:center;gap:24px;border-bottom:3px double #000;padding-bottom:19px;margin-bottom:34px;">
+        <img src="${logoUrl}" style="width:77px;height:77px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'"/>
+        <div style="flex:1;">
+          <div style="font-size:19px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">${schoolName}</div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#555;margin-top:3px;">Official Institutional Communication</div>
+          <div style="font-size:10px;color:#888;margin-top:7px;">26 Ogiesoba Avenue, Benin City &middot; academy.rillcod.com &middot; 0811 660 0091</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">VOL. ${new Date().getFullYear()}</div>
+          <div style="font-size:11px;color:#333;margin-top:4px;font-weight:700;text-transform:uppercase;">${today}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:3px;color:#111;margin-bottom:12px;">Topic / Subject</div>
+      <h1 style="font-size:33px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px;line-height:1.1;margin-bottom:34px;">${title}</h1>
+      <div style="font-size:15px;line-height:1.85;color:#374151;font-family:Georgia,'Times New Roman',serif;text-align:justify;">${formattedContent}</div>
+      <div style="margin-top:48px;border-top:1.5px solid #e5e7eb;padding-top:22px;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div style="font-size:15px;font-weight:900;text-transform:uppercase;">The Administrator</div>
+          <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:3px;">Rillcod Technologies Executive Office</div>
+        </div>
+        <div style="width:90px;height:90px;border:2px dashed #d1d5db;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:9px;color:#d1d5db;font-weight:900;text-transform:uppercase;letter-spacing:1px;line-height:1.4;">Official<br/>Academy<br/>Stamp</div>
+      </div>
+    </div>`;
+    document.body.appendChild(wrap);
+
+    await new Promise(r => setTimeout(r, 300));
+    const imgs = wrap.querySelectorAll('img');
+    await Promise.allSettled(Array.from(imgs).map(img =>
+      img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
+    ));
+
+    const el = wrap.firstElementChild as HTMLElement;
+    const A4_W = 794, A4_H = 1123, RATIO = 2;
+
+    const dataUrl = await toPng(el, {
+      pixelRatio: RATIO, cacheBust: true,
+      width: A4_W, height: el.scrollHeight,
+      backgroundColor: '#fff',
+    });
+    document.body.removeChild(wrap);
+
+    const img = new Image();
+    await new Promise<void>(r => { img.onload = () => r(); img.src = dataUrl; });
+
+    const srcH = img.naturalHeight;
+    const pageH = A4_H * RATIO;
+    const totalPages = Math.ceil(srcH / pageH);
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [A4_W, A4_H] });
+
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) pdf.addPage([A4_W, A4_H], 'portrait');
+      const slice = document.createElement('canvas');
+      slice.width = A4_W * RATIO;
+      slice.height = pageH;
+      const ctx = slice.getContext('2d')!;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, slice.width, pageH);
+      ctx.drawImage(img, 0, -(i * pageH), img.naturalWidth, srcH);
+      pdf.addImage(slice.toDataURL('image/png'), 'PNG', 0, 0, A4_W, A4_H);
+    }
+
+    pdf.save(`${title}.pdf`);
+  }
+
   function handlePrintNewsletter() {
     const schoolName = (profile as any)?.school_name || 'RILLCOD TECHNOLOGIES';
     const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -501,13 +590,22 @@ export default function NewslettersPage() {
                 </div>
 
                 <div className="pt-6 lg:pt-8 border-t border-border flex flex-col gap-3">
-                  <button 
-                    onClick={handlePrintNewsletter}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-card shadow-sm hover:bg-muted rounded-xl text-[10px] font-black transition-all border border-border group"
-                  >
-                    <PrinterIcon className="w-4 h-4 text-primary" /> 
-                    <span className="uppercase tracking-widest">Print / Export PDF</span>
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={handlePrintNewsletter}
+                      className="flex items-center justify-center gap-2 px-3 py-3 bg-card shadow-sm hover:bg-muted rounded-xl text-[10px] font-black transition-all border border-border"
+                    >
+                      <PrinterIcon className="w-3.5 h-3.5 text-primary" />
+                      <span className="uppercase tracking-widest">Print</span>
+                    </button>
+                    <button
+                      onClick={handleExportPDF}
+                      className="flex items-center justify-center gap-2 px-3 py-3 bg-primary/10 hover:bg-primary/20 rounded-xl text-[10px] font-black transition-all border border-primary/20 text-primary"
+                    >
+                      <DocumentTextIcon className="w-3.5 h-3.5" />
+                      <span className="uppercase tracking-widest">Export</span>
+                    </button>
+                  </div>
                   {activeNewsletter?.id && (
                     <button 
                       onClick={() => setShowPushModal(true)}
@@ -588,12 +686,18 @@ export default function NewslettersPage() {
                      </div>
                   </div>
                </div>
-               <div className="flex items-center gap-3">
-                  <button 
+               <div className="flex items-center gap-2">
+                  <button
                     onClick={handlePrintNewsletter}
-                    className="hidden sm:flex items-center gap-2 px-6 py-3 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                   >
-                    <PrinterIcon className="w-4 h-4 text-primary" /> Print / Export PDF
+                    <PrinterIcon className="w-3.5 h-3.5 text-primary" /> Print
+                  </button>
+                  <button
+                    onClick={handleExportPDF}
+                    className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    <DocumentTextIcon className="w-3.5 h-3.5" /> Export PDF
                   </button>
                   <button 
                     onClick={() => setShowPreview(false)}
