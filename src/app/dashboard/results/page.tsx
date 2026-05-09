@@ -1159,7 +1159,7 @@ tbody tr:hover{background:#f3f4f6}
                                             )}
                                         </div>
 
-                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             {/* Prev / Next */}
                                             {isStaff && currentIdx >= 0 && (
                                                 <div className="flex items-center gap-1.5 bg-card shadow-sm p-1 rounded-xl border border-border h-9 flex-shrink-0">
@@ -1210,7 +1210,7 @@ tbody tr:hover{background:#f3f4f6}
                                                         { id: 'executive', name: 'Exec.', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
                                                         { id: 'futuristic', name: 'Fut.', color: 'bg-[#050510]', border: 'border-cyan-500' }
                                                     ].map((t) => (
-                                                        <button 
+                                                        <button
                                                             key={t.id}
                                                             onClick={() => setModernTemplateId(t.id as 'industrial' | 'executive' | 'futuristic')}
                                                             title={t.name}
@@ -1226,58 +1226,63 @@ tbody tr:hover{background:#f3f4f6}
                                                 </div>
                                             )}
 
-                                            {/* Action set */}
-                                            <div className="flex items-center gap-2 h-9">
-                                                {isEditor && selectedStudent && (
-                                                    <Link
-                                                        href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                                        className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-primary/10 hover:bg-primary/20 rounded-xl border border-primary/20 transition-all"
+                                            {/* Editor actions */}
+                                            {isEditor && selectedStudent && (
+                                                <Link
+                                                    href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
+                                                    className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-primary/10 hover:bg-primary/20 rounded-xl border border-primary/20 transition-all flex-shrink-0"
+                                                >
+                                                    <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                                                </Link>
+                                            )}
+                                            {isEditor && selectedReport && (
+                                                <>
+                                                    <button
+                                                        onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
+                                                        className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/20 transition-all flex-shrink-0"
                                                     >
-                                                        <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
-                                                    </Link>
-                                                )}
-                                                {isEditor && selectedReport && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
-                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/20 transition-all"
-                                                        >
-                                                            <PencilSquareIcon className="w-3.5 h-3.5" /> Rename
-                                                        </button>
-                                                        <button
-                                                            onClick={handleDeleteReport}
-                                                            disabled={isDeletingReport}
-                                                            title="Delete this report"
-                                                            className="h-full inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 rounded-xl border border-rose-500/20 transition-all"
-                                                        >
-                                                            {isDeletingReport
-                                                                ? <div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
-                                                                : <TrashIcon className="w-3.5 h-3.5" />}
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {selectedReport && (
-                                                    <div className="flex items-center gap-1">
-                                                        {/* Print */}
+                                                        <PencilSquareIcon className="w-3.5 h-3.5" /> Rename
+                                                    </button>
+                                                    <button
+                                                        onClick={handleDeleteReport}
+                                                        disabled={isDeletingReport}
+                                                        title="Delete this report"
+                                                        className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 rounded-xl border border-rose-500/20 transition-all flex-shrink-0"
+                                                    >
+                                                        {isDeletingReport
+                                                            ? <div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                                            : <TrashIcon className="w-3.5 h-3.5" />}
+                                                    </button>
+                                                </>
+                                            )}
+
+                                            {/* Print / Share — 2-column grid */}
+                                            {selectedReport && (
+                                                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto flex-shrink-0">
+                                                    {/* Print column: browser print + download PDF stacked */}
+                                                    <div className="flex flex-col gap-1.5">
                                                         <button
                                                             onClick={() => window.print()}
                                                             title="Print"
-                                                            className="w-8 h-8 flex items-center justify-center bg-card hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-all rounded-xl"
+                                                            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-foreground border border-border transition-all rounded-xl text-[10px] font-black uppercase tracking-widest"
                                                         >
-                                                            <PrinterIcon className="w-4 h-4" />
+                                                            <PrinterIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                                            <span>Print</span>
                                                         </button>
-                                                        {/* Download PDF */}
                                                         <button
                                                             onClick={downloadSinglePDF}
                                                             disabled={isDownloadingPdf}
                                                             title="Download PDF"
-                                                            className="w-8 h-8 flex items-center justify-center bg-primary hover:bg-primary disabled:opacity-50 text-white transition-all rounded-xl shadow-lg shadow-primary/40"
+                                                            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white transition-all rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/40"
                                                         >
                                                             {isDownloadingPdf
                                                                 ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                                : <ArrowDownTrayIcon className="w-4 h-4" />}
+                                                                : <ArrowDownTrayIcon className="w-3.5 h-3.5 flex-shrink-0" />}
+                                                            <span>Download</span>
                                                         </button>
-                                                        {/* Share via WhatsApp */}
+                                                    </div>
+                                                    {/* Share column: WhatsApp share fills full height */}
+                                                    <div className="flex flex-col">
                                                         <button
                                                             disabled={isSharingPdf}
                                                             title="Share via WhatsApp"
@@ -1305,15 +1310,16 @@ tbody tr:hover{background:#f3f4f6}
                                                                     setIsSharingPdf(false);
                                                                 }
                                                             }}
-                                                            className="w-8 h-8 flex items-center justify-center bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white transition-all rounded-xl shadow-lg shadow-green-900/40"
+                                                            className="flex-1 flex flex-col items-center justify-center gap-2 px-3 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white transition-all rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-900/40"
                                                         >
                                                             {isSharingPdf
-                                                                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                                : <WhatsAppIcon className="w-4 h-4" />}
+                                                                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                                : <WhatsAppIcon className="w-5 h-5 flex-shrink-0" />}
+                                                            <span>Share</span>
                                                         </button>
                                                     </div>
-                                                )}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
