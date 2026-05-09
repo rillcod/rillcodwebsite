@@ -150,7 +150,8 @@ function ResultsPageInner() {
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
     const [isSharingPdf, setIsSharingPdf] = useState(false);
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
-    const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+    const [isBulkPrinting, setIsBulkPrinting] = useState(false);
+    const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; mode: 'download' | 'print' } | null>(null);
     const [captureReport, setCaptureReport] = useState<StudentReport | null>(null);
 
     const pdfRef = useRef<HTMLDivElement>(null);  // single-student capture (legacy/standard)
@@ -158,6 +159,8 @@ function ResultsPageInner() {
     const captureRef = useRef<HTMLDivElement>(null);  // batch capture
     const captureQueue = useRef<StudentReport[]>([]);
     const captureIdx = useRef<number>(0);
+    const batchMode = useRef<'download' | 'print'>('download');
+    const pdfPages = useRef<{ dataUrl: string; w: number; h: number }[]>([]);
     const [showSidebar, setShowSidebar] = useState(true);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
@@ -506,6 +509,7 @@ function ResultsPageInner() {
     async function startBatchDownload() {
         const ids = [...selectedIds];
         if (ids.length === 0) return;
+        batchMode.current = 'download';
         setIsBatchDownloading(true);
 
         const { data: reports } = await createClient()
@@ -532,7 +536,40 @@ function ResultsPageInner() {
 
         captureQueue.current = queue;
         captureIdx.current = 0;
-        setBatchProgress({ current: 0, total: queue.length });
+        pdfPages.current = [];
+        setBatchProgress({ current: 0, total: queue.length, mode: batchMode.current });
+        setCaptureReport(queue[0]);
+    }
+
+    // ── Bulk Print — selects all filtered students and generates a combined PDF ──
+    async function startBulkPrint(targetIds?: string[]) {
+        const ids = targetIds ?? (selectedIds.size > 0 ? [...selectedIds] : filtered.map(s => s.id));
+        if (ids.length === 0) return;
+        batchMode.current = 'print';
+        pdfPages.current = [];
+        setIsBulkPrinting(true);
+
+        const { data: reports } = await createClient()
+            .from('student_progress_reports')
+            .select('*')
+            .in('student_id', ids)
+            .order('updated_at', { ascending: false });
+
+        if (!reports || reports.length === 0) {
+            setIsBulkPrinting(false);
+            alert('No reports found for the selected students.');
+            return;
+        }
+
+        const seen = new Set<string>();
+        const queue: StudentReport[] = [];
+        for (const r of reports) {
+            if (!seen.has(r.student_id)) { seen.add(r.student_id); queue.push(r as StudentReport); }
+        }
+
+        captureQueue.current = queue;
+        captureIdx.current = 0;
+        setBatchProgress({ current: 0, total: queue.length, mode: 'print' });
         setCaptureReport(queue[0]);
     }
 
@@ -548,13 +585,22 @@ function ResultsPageInner() {
 
             const idx = captureIdx.current;
             const total = captureQueue.current.length;
-            setBatchProgress({ current: idx + 1, total });
+            const mode = batchMode.current;
+            setBatchProgress({ current: idx + 1, total, mode });
 
             try {
-                const name = (captureReport.student_name ?? 'Student').replace(/\s+/g, '_');
-                await generateReportPDF(captureRef.current, `Report_${name}.pdf`);
+                if (mode === 'download') {
+                    const name = (captureReport.student_name ?? 'Student').replace(/\s+/g, '_');
+                    await generateReportPDF(captureRef.current, `Report_${name}.pdf`);
+                } else {
+                    // Print mode — collect PNG pages
+                    const { toPng } = await import('html-to-image');
+                    const el = captureRef.current;
+                    const dataUrl = await toPng(el, { pixelRatio: 2, cacheBust: true });
+                    pdfPages.current.push({ dataUrl, w: el.offsetWidth, h: el.offsetHeight });
+                }
             } catch (err) {
-                console.error('PDF failed for:', captureReport.student_name, err);
+                console.error('Capture failed for:', captureReport.student_name, err);
             }
 
             if (cancelled) return;
@@ -567,9 +613,34 @@ function ResultsPageInner() {
             } else {
                 // Batch done
                 setCaptureReport(null);
-                setIsBatchDownloading(false);
                 setBatchProgress(null);
-                setSelectedIds(new Set());
+
+                if (mode === 'download') {
+                    setIsBatchDownloading(false);
+                    setSelectedIds(new Set());
+                } else {
+                    // Combine all pages into a single PDF and open for printing
+                    setIsBulkPrinting(false);
+                    try {
+                        const { default: jsPDF } = await import('jspdf');
+                        const pages = pdfPages.current;
+                        if (pages.length === 0) return;
+                        const first = pages[0];
+                        const pdf = new jsPDF({ orientation: first.h > first.w ? 'portrait' : 'landscape', unit: 'px', format: [first.w, first.h] });
+                        pages.forEach(({ dataUrl, w, h }, i) => {
+                            if (i > 0) pdf.addPage([w, h], h > w ? 'portrait' : 'landscape');
+                            pdf.addImage(dataUrl, 'PNG', 0, 0, w, h);
+                        });
+                        const blob = pdf.output('blob');
+                        const url = URL.createObjectURL(blob);
+                        const win = window.open(url, '_blank');
+                        if (win) setTimeout(() => win.print(), 1500);
+                        pdfPages.current = [];
+                    } catch (err) {
+                        console.error('Combined PDF failed:', err);
+                        alert('Failed to create print PDF. Try downloading individually instead.');
+                    }
+                }
             }
         }, 450); // wait for DOM paint
 
@@ -832,11 +903,26 @@ tbody tr:hover{background:#f3f4f6}
                                 <PrinterIcon className="w-4 h-4" /> Performance Sheet
                             </button>
                         )}
+                        {/* Print entire class (no selection needed) */}
+                        {isStaff && filtered.length > 0 && (
+                            <button
+                                onClick={() => startBulkPrint(filtered.map(s => s.id))}
+                                disabled={isBulkPrinting || isBatchDownloading}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 border border-violet-500/30 hover:bg-violet-600/30 disabled:opacity-60 disabled:cursor-not-allowed text-violet-300 font-bold text-sm rounded-xl transition-all"
+                            >
+                                {isBulkPrinting
+                                    ? <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                                    : <PrinterIcon className="w-4 h-4" />}
+                                {isBulkPrinting && batchProgress
+                                    ? `Building ${batchProgress.current}/${batchProgress.total}…`
+                                    : `Print Class (${filtered.length})`}
+                            </button>
+                        )}
                         {/* Batch download button */}
                         {isStaff && selectedIds.size > 0 && (
                             <button
                                 onClick={startBatchDownload}
-                                disabled={isBatchDownloading}
+                                disabled={isBatchDownloading || isBulkPrinting}
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-foreground font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-900/30"
                             >
                                 {isBatchDownloading
@@ -844,7 +930,7 @@ tbody tr:hover{background:#f3f4f6}
                                     : <ArrowDownTrayIcon className="w-4 h-4" />}
                                 {isBatchDownloading && batchProgress
                                     ? `Downloading ${batchProgress.current}/${batchProgress.total}…`
-                                    : `Download ${selectedIds.size} PDF${selectedIds.size > 1 ? 's' : ''}`}
+                                    : `Export ${selectedIds.size} PDF${selectedIds.size > 1 ? 's' : ''}`}
                             </button>
                         )}
                     </div>
@@ -852,23 +938,27 @@ tbody tr:hover{background:#f3f4f6}
 
                 {/* ── Batch progress bar ── */}
                 {batchProgress && (
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-5 py-4">
+                    <div className={`border rounded-xl px-5 py-4 ${batchProgress.mode === 'print' ? 'bg-violet-500/10 border-violet-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-emerald-300 font-bold text-sm">
-                                Generating PDFs — {batchProgress.current} of {batchProgress.total} complete
+                            <p className={`font-bold text-sm ${batchProgress.mode === 'print' ? 'text-violet-300' : 'text-emerald-300'}`}>
+                                {batchProgress.mode === 'print'
+                                    ? `Building print PDF — ${batchProgress.current} of ${batchProgress.total} rendered`
+                                    : `Generating PDFs — ${batchProgress.current} of ${batchProgress.total} complete`}
                             </p>
-                            <span className="text-emerald-400 font-black text-sm">
+                            <span className={`font-black text-sm ${batchProgress.mode === 'print' ? 'text-violet-400' : 'text-emerald-400'}`}>
                                 {Math.round((batchProgress.current / batchProgress.total) * 100)}%
                             </span>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                className={`h-full rounded-full transition-all duration-300 ${batchProgress.mode === 'print' ? 'bg-violet-500' : 'bg-emerald-500'}`}
                                 style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
                             />
                         </div>
-                        <p className="text-emerald-300/50 text-xs mt-2">
-                            Files are saved one at a time. Allow each download to complete.
+                        <p className={`text-xs mt-2 ${batchProgress.mode === 'print' ? 'text-violet-300/50' : 'text-emerald-300/50'}`}>
+                            {batchProgress.mode === 'print'
+                                ? 'Rendering each report — combined PDF will open for printing when done.'
+                                : 'Files are saved one at a time. Allow each download to complete.'}
                         </p>
                     </div>
                 )}
