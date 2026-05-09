@@ -249,6 +249,14 @@ export default function UnifiedInbox() {
   const isTeacher = profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
 
+  // ── WhatsApp URL builder — pre-fills message text so user just hits Send ────
+  function buildWaUrl(phone: string | null | undefined, text?: string): string {
+    const clean = (phone ?? '').replace(/\D/g, '');
+    const base  = `https://wa.me/${clean}`;
+    if (!text?.trim()) return base;
+    return `${base}?text=${encodeURIComponent(text.trim())}`;
+  }
+
   // ── Emoji picker ────────────────────────────────────────────────────────────
   const EMOJI_LIST = [
     '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','😋','😛',
@@ -2090,9 +2098,9 @@ export default function UnifiedInbox() {
                     <div className="bg-[#182229] rounded-xl px-6 py-5 max-w-xs border border-white/[0.06]">
                       <p className="text-white/40 text-[13px]">No messages yet.</p>
                       {activeConv.type === 'students' && activeConv.phone_number && (
-                        <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
+                        <a href={buildWaUrl(activeConv.phone_number, newMessage)} target="_blank" rel="noopener noreferrer"
                           className="mt-3 text-[11px] text-emerald-400 font-bold flex items-center justify-center gap-1 hover:underline">
-                          <Phone className="w-3 h-3" /> Open in WhatsApp
+                          <Phone className="w-3 h-3" /> {newMessage.trim() ? 'Open WA (message pre-filled)' : 'Open in WhatsApp'}
                         </a>
                       )}
                     </div>
@@ -2174,9 +2182,10 @@ export default function UnifiedInbox() {
                         <Mail className="w-3.5 h-3.5" /> Company Email
                       </button>
                       {activeConv.phone_number && (
-                        <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[11px] font-black rounded-lg transition-colors">
-                          <Phone className="w-3.5 h-3.5" /> WA
+                        <a href={buildWaUrl(activeConv.phone_number, newMessage)} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 flex-1 justify-center py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[11px] font-black rounded-lg transition-colors"
+                          title={newMessage.trim() ? 'Opens WhatsApp with your message pre-filled' : 'Open in WhatsApp'}>
+                          <Phone className="w-3.5 h-3.5" /> {newMessage.trim() ? 'Send via WA' : 'WA'}
                         </a>
                       )}
                     </div>
@@ -2195,9 +2204,9 @@ export default function UnifiedInbox() {
                     ))}
 
                     {activeConv.type === 'students' && activeConv.phone_number && (
-                      <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
+                      <a href={buildWaUrl(activeConv.phone_number, newMessage)} target="_blank" rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-lg transition-colors mt-3">
-                        <Phone className="w-4 h-4" /> Open in WhatsApp
+                        <Phone className="w-4 h-4" /> {newMessage.trim() ? '✓ Send via WhatsApp (pre-filled)' : 'Open in WhatsApp'}
                       </a>
                     )}
                     {activeConv.type === 'students' && (
@@ -2354,6 +2363,20 @@ export default function UnifiedInbox() {
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
                   placeholder="Type a message" rows={1}
                   className="flex-1 bg-[#2a3942] text-[#d1d7db] text-[15px] rounded-lg px-4 py-2.5 outline-none resize-none placeholder-[#8696a0] focus:ring-0 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
+                {/* WA direct-send: opens WhatsApp with message pre-filled — user just taps Send in WA */}
+                {activeConv?.type === 'students' && activeConv.phone_number && newMessage.trim() && (
+                  <a href={buildWaUrl(activeConv.phone_number, newMessage)}
+                    target="_blank" rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 mb-1"
+                    style={{ background: '#00a884' }}
+                    title="Open WhatsApp with message pre-filled — just press Send"
+                    onClick={() => setNewMessage('')}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                      <path d="M12 0C5.374 0 0 5.373 0 12c0 2.117.554 4.103 1.522 5.827L.057 23.882a.5.5 0 00.613.613l6.056-1.465A11.945 11.945 0 0012 24c6.626 0 12-5.373 12-12S18.626 0 12 0zm0 21.818a9.808 9.808 0 01-5.029-1.388l-.36-.215-3.733.903.921-3.626-.235-.372A9.8 9.8 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+                    </svg>
+                  </a>
+                )}
                 <button type="submit" disabled={!newMessage.trim() || isSending || cooldownSeconds > 0}
                   className="w-10 h-10 bg-transparent text-[#8696a0] hover:text-[#d1d7db] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0 mb-1">
                   {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> :
