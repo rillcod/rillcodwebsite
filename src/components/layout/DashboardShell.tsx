@@ -41,13 +41,14 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   // Full-bleed mode for messaging pages — no padding, fills available height exactly
   if (isFullscreen) {
     return (
-      <div className="flex-1 flex flex-col w-full relative overflow-hidden pt-[53px] pb-[64px] md:pt-0 md:pb-0">
+      <>
         {profile && <NewsletterPopup userId={profile.id} />}
-        {/* No QR scanner on messaging pages */}
-        <main className="flex-1 flex flex-col w-full overflow-hidden p-0 m-0">
+        {/* Mobile: fixed between top bar (53px) and bottom nav (64px) so h-full resolves correctly.
+            Desktop: static flex-1 in the sidebar-flex row. */}
+        <main className="fixed top-[53px] bottom-[64px] left-0 right-0 overflow-hidden flex flex-col md:static md:inset-auto md:flex-1 md:flex md:flex-col md:w-full md:overflow-hidden">
           {children}
         </main>
-      </div>
+      </>
     );
   }
 
