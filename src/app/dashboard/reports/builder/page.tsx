@@ -811,15 +811,23 @@ function ReportBuilderInner() {
         }
 
         const existingMetrics = (report as any)?.engagement_metrics ?? {};
+        // Capture DB values as stable local variables so the async auto-suggest
+        // closure below can check them reliably, regardless of React state batching.
+        const savedClasswork  = Number(existingMetrics.classwork_score  ?? 0);
+        const savedAssessment = Number(existingMetrics.assessment_score ?? 0);
+        const savedTheory        = Number(report?.theory_score        ?? 0);
+        const savedPractical     = Number(report?.practical_score     ?? 0);
+        const savedAttendance    = Number(report?.attendance_score    ?? 0);
+        const savedParticipation = Number(report?.participation_score ?? 0);
         setForm({
             student_name: s.full_name ?? '',
             section_class: report?.section_class ?? (s as any).section_class ?? '',
-            theory_score:        String(report?.theory_score        ?? 0),
-            classwork_score:     String(existingMetrics.classwork_score  ?? 0),
-            practical_score:     String(report?.practical_score     ?? 0),
-            attendance_score:    String(report?.attendance_score    ?? 0),
-            participation_score: String(report?.participation_score ?? 0),
-            assessment_score:    String(existingMetrics.assessment_score ?? 0),
+            theory_score:        String(savedTheory),
+            classwork_score:     String(savedClasswork),
+            practical_score:     String(savedPractical),
+            attendance_score:    String(savedAttendance),
+            participation_score: String(savedParticipation),
+            assessment_score:    String(savedAssessment),
             participation_grade: report?.participation_grade ?? '',
             projects_grade:      report?.projects_grade      ?? '',
             homework_grade:      report?.homework_grade       ?? '',
@@ -907,19 +915,19 @@ function ReportBuilderInner() {
             });
 
             // ── Auto-suggest all 6 WAEC components from real platform data ──────
-            // Suggests when score is 0 or unset — never overwrites teacher edits
-            const isZero = (v: string) => !v || parseFloat(v) === 0;
+            // Only fills a component when the DB had 0 (never saved) — uses the stable
+            // local variables captured before this async block to avoid stale-state bugs.
             const attPct = sessionIds.length > 0
                 ? Math.min(100, Math.round(((attRes.data?.length || 0) / sessionIds.length) * 100))
                 : 0;
             setForm(f => ({
                 ...f,
-                ...(cbtScore > 0 && isZero(f.theory_score)        ? { theory_score:        String(cbtScore) }     : {}),
-                ...(assignmentAvg > 0 && isZero(f.classwork_score) ? { classwork_score:     String(assignmentAvg) } : {}),
-                ...(projectPct > 0 && isZero(f.practical_score)    ? { practical_score:     String(projectPct) }   : {}),
-                ...(assignmentPct > 0 && isZero(f.attendance_score)? { attendance_score:    String(assignmentPct) }: {}),
-                ...(attPct > 0 && isZero(f.participation_score)    ? { participation_score: String(attPct) }       : {}),
-                ...(evalScore > 0 && isZero(f.assessment_score)    ? { assessment_score:    String(evalScore) }    : {}),
+                ...(cbtScore > 0 && savedTheory === 0           ? { theory_score:        String(cbtScore) }     : {}),
+                ...(assignmentAvg > 0 && savedClasswork === 0   ? { classwork_score:     String(assignmentAvg) } : {}),
+                ...(projectPct > 0 && savedPractical === 0      ? { practical_score:     String(projectPct) }   : {}),
+                ...(assignmentPct > 0 && savedAttendance === 0  ? { attendance_score:    String(assignmentPct) }: {}),
+                ...(attPct > 0 && savedParticipation === 0      ? { participation_score: String(attPct) }       : {}),
+                ...(evalScore > 0 && savedAssessment === 0      ? { assessment_score:    String(evalScore) }    : {}),
             }));
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
