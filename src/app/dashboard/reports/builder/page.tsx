@@ -144,7 +144,7 @@ const CLASS_PRESETS = [
 ];
 const TERM_OPTIONS = ['Termly', 'Mid-Term', 'First Term', 'Second Term', 'Third Term', 'Annual'];
 const PROFICIENCY_OPTIONS = ['beginner', 'intermediate', 'advanced'];
-const DURATION_OPTIONS = ['Termly', '4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
+const DURATION_OPTIONS = ['First Term', 'Second Term', 'Third Term', 'Termly', 'Mid-Term', '4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
 const PERIOD_PRESETS = ['2024/2025 First Term', '2024/2025 Second Term', '2024/2025 Third Term', '2025/2026 First Term', '2025/2026 Second Term', '2025/2026 Third Term'];
 
 const MILESTONE_SUGGESTIONS: Record<string, string[]> = {
