@@ -191,32 +191,32 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
             </div>
 
             {/* Student Identity */}
-            <div style={{ position: 'relative', zIndex: 10, marginBottom: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <div style={{ width: '32px', height: '3px', background: C.accent }} />
-                    <p style={{ fontSize: '11px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.5em', fontStyle: 'italic' }}>Student</p>
+            <div style={{ position: 'relative', zIndex: 10, marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                    <div style={{ width: '28px', height: '3px', background: C.accent }} />
+                    <p style={{ fontSize: '10px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.5em', fontStyle: 'italic' }}>Student</p>
                 </div>
-                <h2 style={{ fontSize: '36px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.03em', fontStyle: 'italic', borderBottom: `4px solid ${C.accent}`, paddingBottom: '10px', lineHeight: 1, color: C.black }}>
+                <h2 style={{ fontSize: '28px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.03em', fontStyle: 'italic', borderBottom: `3px solid ${C.accent}`, paddingBottom: '6px', lineHeight: 1, color: C.black }}>
                     {report.student_name || 'Valued Learner'}
                 </h2>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', paddingTop: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', paddingTop: '8px' }}>
                     {[
-                        { label: 'Programme',      value: report.course_name    || 'STEM Synthesis' },
-                        { label: 'Term',        value: report.report_term    || 'S1-2024'        },
-                        { label: 'Class',  value: report.section_class  || 'N/A'            },
-                        { label: 'School',     value: report.school_name    || 'Rillcod'        },
+                        { label: 'Programme', value: report.course_name   || 'STEM Synthesis' },
+                        { label: 'Term',      value: report.report_term   || 'S1-2024'        },
+                        { label: 'Class',     value: report.section_class || 'N/A'            },
+                        { label: 'School',    value: report.school_name   || 'Rillcod'        },
                     ].map(f => (
                         <div key={f.label}>
-                            <p style={{ fontSize: '10px', fontWeight: 900, color: C.slate300, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '6px' }}>{f.label}</p>
-                            <p style={{ fontSize: '13px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1.2 }}>{f.value}</p>
+                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate300, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: '3px' }}>{f.label}</p>
+                            <p style={{ fontSize: '12px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1.2 }}>{f.value}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
             {/* Performance Hub */}
-            <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '20px', marginBottom: '14px' }}>
+            <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '8fr 4fr', gap: '16px', marginBottom: '10px' }}>
                 {/* Metric Bars */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -272,14 +272,14 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                         ))}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingTop: '10px', borderTop: `2px solid ${C.slate100}` }}>
-                        <div style={{ padding: '16px', background: C.slate50, borderLeft: `6px solid ${C.black}` }}>
-                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Project Work</p>
-                            <p style={{ fontSize: '18px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.projects_grade || 'OPTIMAL'}</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', paddingTop: '7px', borderTop: `2px solid ${C.slate100}` }}>
+                        <div style={{ padding: '8px 10px', background: C.slate50, borderLeft: `5px solid ${C.black}` }}>
+                            <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>Project Work</p>
+                            <p style={{ fontSize: '13px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.projects_grade || 'OPTIMAL'}</p>
                         </div>
-                        <div style={{ padding: '16px', background: C.slate50, borderLeft: `6px solid ${C.accent}` }}>
-                            <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>Homework</p>
-                            <p style={{ fontSize: '18px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.homework_grade || 'SUBMITTED'}</p>
+                        <div style={{ padding: '8px 10px', background: C.slate50, borderLeft: `5px solid ${C.accent}` }}>
+                            <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>Homework</p>
+                            <p style={{ fontSize: '13px', fontWeight: 900, color: C.black, textTransform: 'uppercase', fontStyle: 'italic', lineHeight: 1 }}>{report.homework_grade || 'SUBMITTED'}</p>
                         </div>
                     </div>
                 </div>
@@ -287,40 +287,40 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 {/* Grade Badge */}
                 <div style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    textAlign: 'center', background: C.black, padding: '32px 16px',
-                    boxShadow: '0 25px 50px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
+                    textAlign: 'center', background: C.black, padding: '18px 14px',
+                    boxShadow: '0 16px 40px rgba(0,0,0,0.4)', position: 'relative', overflow: 'hidden',
                 }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '5px', background: C.accent }} />
-                    <p style={{ fontSize: '10px', fontWeight: 900, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.5em', marginBottom: '16px', fontStyle: 'italic' }}>WAEC Grade</p>
-                    <h3 style={{ fontSize: '80px', fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: grade.color, letterSpacing: '-0.03em', marginBottom: '16px' }}>{grade.g}</h3>
-                    <div style={{ padding: '8px 24px', background: C.accent, color: C.black, fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: C.accent }} />
+                    <p style={{ fontSize: '9px', fontWeight: 900, color: C.accent, textTransform: 'uppercase', letterSpacing: '0.4em', marginBottom: '8px', fontStyle: 'italic' }}>WAEC Grade</p>
+                    <h3 style={{ fontSize: '60px', fontWeight: 900, fontStyle: 'italic', lineHeight: 1, color: grade.color, letterSpacing: '-0.03em', marginBottom: '8px' }}>{grade.g}</h3>
+                    <div style={{ padding: '5px 16px', background: C.accent, color: C.black, fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em' }}>
                         {grade.label}
                     </div>
-                    <p style={{ fontSize: '20px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', marginTop: '16px', fontVariantNumeric: 'tabular-nums' }}>SCORE: {overall}%</p>
+                    <p style={{ fontSize: '15px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', marginTop: '8px', fontVariantNumeric: 'tabular-nums' }}>SCORE: {overall}%</p>
                 </div>
             </div>
 
             {/* Qualitative Insights */}
-            <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
-                <div style={{ padding: '14px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                        <div style={{ padding: '8px', background: 'rgba(255,145,77,0.1)', border: `1px solid rgba(255,145,77,0.2)` }}>
-                            <SparklesIcon style={{ width: '18px', height: '18px', color: C.accent }} />
+            <div style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '6px' }}>
+                <div style={{ padding: '10px 12px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <div style={{ padding: '5px', background: 'rgba(255,145,77,0.1)', border: `1px solid rgba(255,145,77,0.2)`, flexShrink: 0 }}>
+                            <SparklesIcon style={{ width: '14px', height: '14px', color: C.accent }} />
                         </div>
-                        <h4 style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: C.black, fontStyle: 'italic' }}>Identified Strengths</h4>
+                        <h4 style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: C.black, fontStyle: 'italic' }}>Identified Strengths</h4>
                     </div>
-                    <p style={{ fontSize: '13px', lineHeight: 1.6, color: C.slate600, fontWeight: 700, fontStyle: 'italic' }}>
+                    <p style={{ fontSize: '11px', lineHeight: 1.5, color: C.slate600, fontWeight: 700, fontStyle: 'italic' }}>
                         {report.key_strengths || 'The student demonstrates exceptional aptitude in problem-solving and practical work.'}
                     </p>
                 </div>
-                <div style={{ padding: '14px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                        <div style={{ padding: '8px', background: 'rgba(18,18,18,0.05)', border: `1px solid rgba(18,18,18,0.1)` }}>
-                            <BoltIcon style={{ width: '18px', height: '18px', color: C.black }} />
+                <div style={{ padding: '10px 12px', background: C.slate50, border: `1px solid ${C.slate200}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <div style={{ padding: '5px', background: 'rgba(18,18,18,0.05)', border: `1px solid rgba(18,18,18,0.1)`, flexShrink: 0 }}>
+                            <BoltIcon style={{ width: '14px', height: '14px', color: C.black }} />
                         </div>
-                        <h4 style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: C.black, fontStyle: 'italic' }}>Areas for Improvement</h4>
+                        <h4 style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.25em', color: C.black, fontStyle: 'italic' }}>Areas for Improvement</h4>
                     </div>
-                    <p style={{ fontSize: '13px', lineHeight: 1.6, color: C.slate600, fontWeight: 700, fontStyle: 'italic' }}>
+                    <p style={{ fontSize: '11px', lineHeight: 1.5, color: C.slate600, fontWeight: 700, fontStyle: 'italic' }}>
                         {report.areas_for_growth || 'Focus on continued practice and revision will strengthen overall performance.'}
                     </p>
                 </div>
@@ -328,11 +328,11 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
 
             {/* Certification Decree */}
             {(overall >= 45 || report.has_certificate) && (
-                <div style={{ position: 'relative', zIndex: 10, marginBottom: '10px', padding: '12px 16px', background: C.white, borderTop: `4px solid ${C.black}`, borderBottom: `4px solid ${C.black}`, display: 'flex', alignItems: 'center', gap: '24px' }}>
-                    <TrophyIcon style={{ width: '40px', height: '40px', color: C.accent, flexShrink: 0 }} />
+                <div style={{ position: 'relative', zIndex: 10, marginBottom: '6px', padding: '8px 14px', background: C.white, borderTop: `3px solid ${C.black}`, borderBottom: `3px solid ${C.black}`, display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <TrophyIcon style={{ width: '30px', height: '30px', color: C.accent, flexShrink: 0 }} />
                     <div>
-                        <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate300, textTransform: 'uppercase', letterSpacing: '1.2em', marginBottom: '6px', fontStyle: 'italic' }}>Certificate of Achievement</p>
-                        <p style={{ fontSize: '14px', fontWeight: 900, color: C.black, lineHeight: 1.4, fontStyle: 'italic' }}>
+                        <p style={{ fontSize: '8px', fontWeight: 900, color: C.slate300, textTransform: 'uppercase', letterSpacing: '1em', marginBottom: '4px', fontStyle: 'italic' }}>Certificate of Achievement</p>
+                        <p style={{ fontSize: '12px', fontWeight: 900, color: C.black, lineHeight: 1.35, fontStyle: 'italic' }}>
                             {report.certificate_text || `This document officially recognizes the mastery demonstrated by ${report.student_name} in ${report.course_name}.`}
                         </p>
                     </div>
