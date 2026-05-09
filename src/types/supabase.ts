@@ -9688,30 +9688,119 @@ export type Database = {
           },
         ]
       }
-      whatsapp_groups: {
+      whatsapp_group_broadcasts: {
         Row: {
-          created_at: string
-          created_by: string | null
+          group_id: string | null
+          group_name: string | null
           id: string
-          link: string
-          name: string
+          message: string
           school_id: string | null
+          school_name: string | null
+          sent_at: string
+          sent_by: string | null
+          sent_by_name: string | null
         }
         Insert: {
-          created_at?: string
-          created_by?: string | null
+          group_id?: string | null
+          group_name?: string | null
           id?: string
-          link: string
-          name: string
+          message: string
           school_id?: string | null
+          school_name?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          sent_by_name?: string | null
         }
         Update: {
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          message?: string
+          school_id?: string | null
+          school_name?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          sent_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_group_broadcasts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_group_broadcasts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_group_broadcasts_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_group_broadcasts_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      whatsapp_groups: {
+        Row: {
+          class_name: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          group_type: string
+          id: string
+          last_broadcast_at: string | null
+          link: string
+          member_count: number | null
+          name: string
+          school_id: string | null
+          school_name: string | null
+          status: string
+          term: string | null
+        }
+        Insert: {
+          class_name?: string | null
           created_at?: string
           created_by?: string | null
+          description?: string | null
+          group_type?: string
           id?: string
+          last_broadcast_at?: string | null
+          link: string
+          member_count?: number | null
+          name: string
+          school_id?: string | null
+          school_name?: string | null
+          status?: string
+          term?: string | null
+        }
+        Update: {
+          class_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          group_type?: string
+          id?: string
+          last_broadcast_at?: string | null
           link?: string
+          member_count?: number | null
           name?: string
           school_id?: string | null
+          school_name?: string | null
+          status?: string
+          term?: string | null
         }
         Relationships: [
           {

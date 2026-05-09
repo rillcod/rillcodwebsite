@@ -12,6 +12,7 @@ const QR_HIDDEN_PATHS = [
   '/dashboard/inbox',
   '/dashboard/messages',
   '/dashboard/school-teacher-messages',
+  '/dashboard/whatsapp-groups',
 ];
 
 // Pages that need full-bleed, zero-padding, native-app layout
@@ -19,6 +20,7 @@ const FULLSCREEN_PATHS = [
   '/dashboard/inbox',
   '/dashboard/messages',
   '/dashboard/school-teacher-messages',
+  '/dashboard/whatsapp-groups',
 ];
 
 function ShellInner({ children }: { children: React.ReactNode }) {
