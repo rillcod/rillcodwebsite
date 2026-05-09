@@ -97,6 +97,36 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ data });
 }
 
+// PATCH /api/whatsapp-groups — update name/link for a group
+export async function PATCH(req: NextRequest) {
+  const caller = await requireStaff();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { id, name, link } = await req.json();
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const admin = adminClient();
+  const { data: existing } = await admin.from('whatsapp_groups').select('created_by').eq('id', id).single();
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (caller.role !== 'admin' && existing.created_by !== caller.id) {
+    return NextResponse.json({ error: 'Only the creator or admin can edit this group' }, { status: 403 });
+  }
+
+  const updates: Record<string, string> = {};
+  if (name?.trim()) updates.name = name.trim();
+  if (link?.trim()) {
+    if (!link.startsWith('https://chat.whatsapp.com/') && !link.startsWith('https://wa.me/')) {
+      return NextResponse.json({ error: 'Invalid WhatsApp group link' }, { status: 400 });
+    }
+    updates.link = link.trim();
+  }
+  if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+
+  const { data, error } = await admin.from('whatsapp_groups').update(updates).eq('id', id).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ data });
+}
+
 // DELETE /api/whatsapp-groups?id=xxx
 export async function DELETE(req: NextRequest) {
   const caller = await requireStaff();
