@@ -1536,7 +1536,16 @@ export default function UnifiedInbox() {
     if (!isStaff) return;
     if (!window.confirm(`Delete conversation with "${conv.contact_name}"? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`/api/inbox/conversation?id=${encodeURIComponent(conv.id)}`, { method: 'DELETE' });
+      let url: string;
+      if (conv.type === 'students') {
+        url = `/api/inbox/conversation?id=${encodeURIComponent(conv.id)}`;
+      } else if (conv.type === 'parents') {
+        url = `/api/parent-teacher/threads?id=${encodeURIComponent(conv.id)}`;
+      } else {
+        // teachers / school
+        url = `/api/school-teacher/conversations?id=${encodeURIComponent(conv.id)}`;
+      }
+      const res  = await fetch(url, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Delete failed');
       setConversations(prev => prev.filter(c => c.id !== conv.id));
@@ -2054,7 +2063,7 @@ export default function UnifiedInbox() {
                 <button onClick={() => setShowInfo(v => !v)} className={`p-2 rounded-full transition-colors ${showInfo ? 'text-primary bg-white/10' : 'text-white/50 hover:bg-white/10'}`} title="Contact info">
                   <Info className="w-5 h-5" />
                 </button>
-                {isStaff && activeConv.type === 'students' && (
+                {isStaff && (
                   <button
                     onClick={() => deleteConversation(activeConv)}
                     title="Delete conversation"

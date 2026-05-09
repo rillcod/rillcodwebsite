@@ -34,29 +34,72 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
-  if (profile?.role !== 'parent') return NextResponse.json({ error: 'Only parents can initiate threads' }, { status: 403 });
+  const { data: profile } = await supabase.from('portal_users').select('id, role').eq('id', user.id).single();
+  if (!profile || !['parent', 'teacher', 'admin', 'school'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
-  const { teacher_id, student_id } = await req.json();
-  if (!teacher_id || !student_id) return NextResponse.json({ error: 'teacher_id and student_id are required' }, { status: 400 });
+  // Body: parent initiates with teacher_id + student_id
+  //       staff initiates with parent_id + teacher_id + student_id
+  const body = await req.json();
+  const { teacher_id, student_id } = body;
+  const parent_id = profile.role === 'parent' ? user.id : (body.parent_id ?? null);
+
+  if (!teacher_id || !student_id) {
+    return NextResponse.json({ error: 'teacher_id and student_id are required' }, { status: 400 });
+  }
+  if (!parent_id) {
+    return NextResponse.json({ error: 'parent_id required when staff initiates thread' }, { status: 400 });
+  }
 
   // Check existing thread
-  const { data: existing } = await supabase
-    .from('parent_teacher_threads')
-    .select('*')
-    .eq('parent_id', user.id)
-    .eq('teacher_id', teacher_id)
-    .eq('student_id', student_id)
-    .single();
+  const q = supabase.from('parent_teacher_threads').select('*')
+    .eq('teacher_id', teacher_id).eq('student_id', student_id);
+  const { data: existing } = await (parent_id ? q.eq('parent_id', parent_id) : q).maybeSingle();
 
   if (existing) return NextResponse.json({ data: existing });
 
   const { data, error } = await supabase
     .from('parent_teacher_threads')
-    .insert({ parent_id: user.id, teacher_id, student_id })
+    .insert({ parent_id, teacher_id, student_id })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data }, { status: 201 });
+}
+
+// DELETE /api/parent-teacher/threads?id=<thread_id>
+// Staff (teacher/admin/school) or the parent in the thread can delete.
+export async function DELETE(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase.from('portal_users').select('id, role').eq('id', user.id).single();
+  if (!profile || !['parent', 'teacher', 'admin', 'school'].includes(profile.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const id = new URL(req.url).searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const { data: thread } = await supabase
+    .from('parent_teacher_threads')
+    .select('id, parent_id, teacher_id')
+    .eq('id', id)
+    .single();
+  if (!thread) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Only participants or admin can delete
+  const isParticipant = thread.parent_id === user.id || thread.teacher_id === user.id;
+  if (profile.role !== 'admin' && !isParticipant && profile.role !== 'school') {
+    return NextResponse.json({ error: 'Only thread participants or admin can delete' }, { status: 403 });
+  }
+
+  // Delete messages first, then thread
+  await supabase.from('parent_teacher_messages').delete().eq('thread_id', id);
+  const { error } = await supabase.from('parent_teacher_threads').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
 }

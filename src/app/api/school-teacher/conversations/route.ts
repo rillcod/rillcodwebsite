@@ -136,3 +136,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+// DELETE /api/school-teacher/conversations?id=<conversation_id>
+// Participants (teacher or school) or admin can delete.
+export async function DELETE(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users').select('id, role, school_id').eq('id', user.id).single();
+  if (!profile || !['school', 'teacher', 'admin'].includes(profile.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const id = new URL(req.url).searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+  const { data: conv } = await supabase
+    .from('school_teacher_conversations')
+    .select('id, teacher_id, school_id')
+    .eq('id', id).single();
+  if (!conv) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const isParticipant =
+    conv.teacher_id === user.id ||
+    (profile.role === 'school' && conv.school_id === profile.school_id);
+  if (profile.role !== 'admin' && !isParticipant) {
+    return NextResponse.json({ error: 'Only participants or admin can delete' }, { status: 403 });
+  }
+
+  await supabase.from('school_teacher_messages').delete().eq('conversation_id', id);
+  const { error } = await supabase.from('school_teacher_conversations').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
