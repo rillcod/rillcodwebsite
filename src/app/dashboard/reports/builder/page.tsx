@@ -290,6 +290,7 @@ function ReportBuilderInner() {
     const [teacherClasses, setTeacherClasses] = useState<{ id: string; name: string; school_id: string | null }[]>([]);
     const [search, setSearch] = useState('');
     const [classFilter, setClassFilter] = useState('');
+    const [gradeFilter, setGradeFilter] = useState('');
     const [overrideFilters, setOverrideFilters] = useState(false);
     const [manualName, setManualName] = useState('');
 
@@ -548,11 +549,20 @@ function ReportBuilderInner() {
             // 7. Fetch report settings (direct DB for now)
             const { data: brandingData } = await db.from('report_settings').select('*').limit(1).maybeSingle();
 
+            // Grade lookup for portal students (portal_users has no grade_level; fetch from students shadow table)
+            const portalIds = (portalJson.data ?? []).map((u: any) => u.id).filter(Boolean) as string[];
+            const { data: gradeRowsBR } = portalIds.length > 0
+                ? await db.from('students').select('user_id, grade_level').in('user_id', portalIds)
+                : { data: [] };
+            const gradeByUserId: Record<string, string | null> = {};
+            (gradeRowsBR ?? []).forEach((r: any) => { if (r.user_id) gradeByUserId[r.user_id] = r.grade_level ?? null; });
+
             // Normalize portal_users results
             const portalStudents = (portalJson.data ?? []).map((u: any) => ({
                 ...u,
                 section_class: u.section_class || '',
                 class_id: u.class_id || null,
+                grade_level: gradeByUserId[u.id] ?? null,
                 _source: 'portal',
             }));
 
@@ -652,20 +662,26 @@ function ReportBuilderInner() {
             || (s as any).section_class === classFilter
             || (activeClass && (s as any).class_id === activeClass.id);
 
-        return matchesSearch && matchesSchool && matchesClass;
+        // Grade filter: match by grade_level from students shadow table
+        const matchesGrade = !gradeFilter || ((s as any).grade_level ?? '') === gradeFilter;
+
+        return matchesSearch && matchesSchool && matchesClass && matchesGrade;
     });
+
+    const schoolScoped = (s: any) => !sessionConfig.school_name
+        || s.school_name === sessionConfig.school_name
+        || (!!sessionConfig.school_id && s.school_id === sessionConfig.school_id);
 
     const distinctClasses = [...new Set([
         // Classes from student records (section_class field)
-        ...students
-            .filter(s => !sessionConfig.school_name
-                || s.school_name === sessionConfig.school_name
-                || (!!sessionConfig.school_id && s.school_id === sessionConfig.school_id))
-            .map(s => (s as any).section_class)
-            .filter(Boolean),
+        ...students.filter(schoolScoped).map(s => (s as any).section_class).filter(Boolean),
         // Teacher-created classes (from classes table)
         ...teacherClasses.map(c => c.name),
     ])].sort() as string[];
+
+    const distinctGrades = [...new Set(
+        students.filter(schoolScoped).map(s => (s as any).grade_level).filter(Boolean)
+    )].sort() as string[];
 
     // ── Select student: load existing report, fill form ───────────────────────
     async function selectStudent(s: PortalUser, idx: number) {
@@ -2101,14 +2117,25 @@ function ReportBuilderInner() {
                                     )}
                                 </div>
 
-                                {/* Dropdown filter per class — hidden in override mode */}
+                                {/* Dropdown filters — hidden in override mode */}
                                 {!overrideFilters && (
-                                    <div className="flex flex-wrap items-center gap-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {distinctGrades.length > 0 && (
+                                            <select
+                                                title="Filter by Grade"
+                                                value={gradeFilter}
+                                                onChange={e => setGradeFilter(e.target.value)}
+                                                className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-sky-500 rounded-lg"
+                                            >
+                                                <option value="">All Grades</option>
+                                                {distinctGrades.map(g => <option key={g} value={g}>{g}</option>)}
+                                            </select>
+                                        )}
                                         <select
                                             title="Filter by Class"
                                             value={classFilter}
                                             onChange={e => setClassFilter(e.target.value)}
-                                            className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg min-w-[200px]"
+                                            className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg min-w-[180px]"
                                         >
                                             <option value="">All Classes ({filteredStudents.length} students)</option>
                                             {distinctClasses.map(c => {
@@ -2120,12 +2147,12 @@ function ReportBuilderInner() {
                                                 );
                                             })}
                                         </select>
-                                        {classFilter && (
+                                        {(classFilter || gradeFilter) && (
                                             <button
-                                                onClick={() => setClassFilter('')}
+                                                onClick={() => { setClassFilter(''); setGradeFilter(''); }}
                                                 className="text-xs text-primary hover:text-primary font-bold transition-colors px-2"
                                             >
-                                                Clear filter
+                                                Clear filters
                                             </button>
                                         )}
                                     </div>
@@ -2191,7 +2218,12 @@ function ReportBuilderInner() {
                                                                     {s.full_name ? s.full_name[0] : '?'}
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
-                                                                    <p className="font-semibold text-foreground text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        <p className="font-semibold text-foreground text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
+                                                                        {(s as any).grade_level && (
+                                                                            <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{(s as any).grade_level}</span>
+                                                                        )}
+                                                                    </div>
                                                                     <p className="text-xs text-muted-foreground truncate">{s.school_name ?? s.email}</p>
                                                                     {(s as any)._source === 'students_table' && (
                                                                         <span className="text-[9px] text-amber-400 font-semibold">Pre-portal</span>
