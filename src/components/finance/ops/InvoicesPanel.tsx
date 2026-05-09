@@ -47,6 +47,7 @@ interface InvoiceRow {
   notes?: string | null;
   schools?: { name?: string } | null;
   portal_users?: { full_name?: string; email?: string } | null;
+  billing_contacts?: { representative_email?: string | null; representative_name?: string | null } | null;
 }
 
 interface StudentOption {
@@ -246,6 +247,11 @@ export function InvoicesPanel() {
       });
     }
 
+    // Resolve recipient email: billing_contacts → portal_users (individual)
+    const resolvedEmail = stream === 'school'
+      ? (inv.billing_contacts?.representative_email || undefined)
+      : (inv.portal_users?.email || undefined);
+
     setPreview({
       id: inv.id,
       number: inv.invoice_number,
@@ -259,7 +265,7 @@ export function InvoicesPanel() {
       studentName: stream === 'school'
         ? (inv.schools?.name || 'Partner School')
         : (inv.portal_users?.full_name || 'Client'),
-      studentEmail: stream === 'school' ? undefined : inv.portal_users?.email,
+      studentEmail: resolvedEmail,
       schoolName: 'RILLCOD TECHNOLOGIES',
       rawHtml,
     });

@@ -68,8 +68,11 @@ export function DocPreviewModal({
   onChanged,
 }: DocPreviewModalProps) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [showEmailInput, setShowEmailInput] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState(data.studentEmail || '');
   const invoiceId = data.id || '';
   const isUnpaid = data.status !== 'paid';
+  const isSchoolInvoice = data.stream === 'school';
 
   const markPaid = async () => {
     if (!invoiceId) return;
@@ -95,20 +98,26 @@ export function DocPreviewModal({
     }
   };
 
-  const sendEmail = async () => {
+  const sendEmail = async (toEmail?: string) => {
     if (!invoiceId) return;
+    const email = toEmail || recipientEmail || data.studentEmail;
+    if (isSchoolInvoice && !email) {
+      setShowEmailInput(true);
+      return;
+    }
     setBusy('send_email');
+    setShowEmailInput(false);
     try {
       const res = await fetch('/api/payments/invoices/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId }),
+        body: JSON.stringify({ invoiceId, recipientEmail: email }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || j.success === false) {
         throw new Error(j.message || j.error || 'Failed to email invoice');
       }
-      toast.success('Invoice email queued.');
+      toast.success('Invoice email sent.');
     } catch (e: unknown) {
       toast.error((e as Error).message);
     } finally {
@@ -175,18 +184,46 @@ export function DocPreviewModal({
                 )}
                 Mark paid
               </button>
-              <button
-                onClick={sendEmail}
-                disabled={anyBusy}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
-              >
-                {busy === 'send_email' ? (
-                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                ) : (
-                  <EnvelopeIcon className="w-4 h-4" />
-                )}
-                Email
-              </button>
+
+              {/* Email button — for school invoices toggles recipient input */}
+              {showEmailInput ? (
+                <div className="flex items-center gap-2 bg-card border border-border rounded-md shadow-lg px-3 py-1.5">
+                  <EnvelopeIcon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <input
+                    type="email"
+                    placeholder="Recipient email"
+                    value={recipientEmail}
+                    onChange={e => setRecipientEmail(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') sendEmail(recipientEmail); }}
+                    autoFocus
+                    className="bg-transparent border-none outline-none text-xs font-medium text-foreground placeholder:text-muted-foreground w-44"
+                  />
+                  <button
+                    onClick={() => sendEmail(recipientEmail)}
+                    disabled={anyBusy || !recipientEmail.trim()}
+                    className="px-2 py-1 bg-primary disabled:opacity-40 text-white text-[10px] font-black uppercase rounded"
+                  >
+                    {busy === 'send_email' ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : 'Send'}
+                  </button>
+                  <button onClick={() => setShowEmailInput(false)} className="text-muted-foreground hover:text-foreground">
+                    <XMarkIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => isSchoolInvoice ? setShowEmailInput(true) : sendEmail()}
+                  disabled={anyBusy}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
+                >
+                  {busy === 'send_email' ? (
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <EnvelopeIcon className="w-4 h-4" />
+                  )}
+                  Email
+                </button>
+              )}
+
               <button
                 onClick={sendReminder}
                 disabled={anyBusy}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { classifyInvoiceStream, splitSchoolAmount, DEFAULT_COMMISSION_RATE } from '@/lib/finance/streams';
+import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 
 function adminClient() {
   return createClient(
@@ -99,8 +100,10 @@ export async function GET(
         billing_cycle_id: invoice.billing_cycle_id ?? cycle?.id ?? null,
       });
 
+  // School builder invoices (stream=school, no billing cycle) use the builder HTML template.
+  // Billing-cycle school invoices (cycle present) use the cycle-breakdown template.
   const html = stream === 'school'
-    ? renderSchoolInvoiceHtml(invoice, cycle)
+    ? (cycle ? renderSchoolInvoiceHtml(invoice, cycle) : renderSchoolBuilderInvoiceHtml(invoice))
     : renderIndividualInvoiceHtml(invoice);
 
   return new NextResponse(html, {
@@ -109,6 +112,60 @@ export async function GET(
       'X-Invoice-Number': invoice.invoice_number ?? `INV-${invoiceId.slice(0, 8).toUpperCase()}`,
       'X-Invoice-Stream': stream,
     },
+  });
+}
+
+// ──────────────────────────────────────────────────────────────
+// SCHOOL BUILDER TEMPLATE (direct school invoice, no billing cycle)
+// Reconstructs buildSchoolInvoiceHTML params from stored line items.
+// ──────────────────────────────────────────────────────────────
+function renderSchoolBuilderInvoiceHtml(invoice: any): string {
+  type Item = { description?: string; quantity?: number; unit_price?: number; total?: number };
+  const rawItems: Item[] = Array.isArray(invoice.items) ? invoice.items : [];
+  const mainItem = rawItems[0] ?? {};
+  const commissionItem = rawItems.find((it) =>
+    String(it.description ?? '').toLowerCase().includes('commission'),
+  );
+  const depositItem = rawItems.find((it) =>
+    String(it.description ?? '').toLowerCase().includes('deposit'),
+  );
+
+  const isFixed = String(mainItem.description ?? '').toLowerCase().includes('package');
+  const count = Number(mainItem.quantity ?? 1);
+  const ratePerChild = isFixed ? 0 : Number(mainItem.unit_price ?? 0);
+  const fixedPrice = isFixed ? Number(mainItem.unit_price ?? 0) : 0;
+  const subtotal = Number(mainItem.total ?? 0);
+  const revenueShareOn = !!commissionItem;
+  const schoolShare = commissionItem ? Math.abs(Number(commissionItem.total ?? 0)) : 0;
+  const deposit = depositItem ? Math.abs(Number(depositItem.total ?? 0)) : 0;
+  const rillcodShare = subtotal - schoolShare;
+  const pctMatch = String(commissionItem?.description ?? '').match(/\((\d+)%\)/);
+  const quotaPct = pctMatch ? 100 - parseInt(pctMatch[1]) : 75;
+
+  const fmtDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  return buildSchoolInvoiceHTML({
+    sch: { name: invoice.schools?.name || 'Partner School' },
+    isFixed,
+    count,
+    ratePerChild,
+    fixedPrice,
+    quotaPct,
+    subtotal,
+    deposit,
+    rillcodShare,
+    schoolShare,
+    balance: Number(invoice.amount),
+    revenueShareOn,
+    dateStr: fmtDate(invoice.created_at),
+    dueStr: invoice.due_date ? fmtDate(invoice.due_date) : '—',
+    docRef: invoice.invoice_number,
+    payToAcc: null,
+    showRevenueShare: revenueShareOn,
+    showWhatsapp: false,
+    notes: invoice.notes || '',
+    currency: invoice.currency,
   });
 }
 
