@@ -8318,6 +8318,111 @@ export type Database = {
           },
         ]
       }
+      student_teacher_messages: {
+        Row: {
+          body: string
+          id: string
+          is_read: boolean | null
+          sender_id: string
+          sent_at: string | null
+          thread_id: string
+        }
+        Insert: {
+          body: string
+          id?: string
+          is_read?: boolean | null
+          sender_id: string
+          sent_at?: string | null
+          thread_id: string
+        }
+        Update: {
+          body?: string
+          id?: string
+          is_read?: boolean | null
+          sender_id?: string
+          sent_at?: string | null
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_teacher_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_teacher_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_teacher_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "student_teacher_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_teacher_threads: {
+        Row: {
+          created_at: string | null
+          id: string
+          student_id: string
+          subject: string | null
+          teacher_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          student_id: string
+          subject?: string | null
+          teacher_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          student_id?: string
+          subject?: string | null
+          teacher_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_teacher_threads_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_teacher_threads_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_teacher_threads_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_teacher_threads_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       student_xp_ledger: {
         Row: {
           created_at: string

@@ -305,10 +305,11 @@ export default function UnifiedInbox() {
   activeConvRef.current = activeConv;
 
   // Students and parents land on the 3-path empty state first on mobile,
-  // not the conversation sidebar — sidebar is reachable via back button.
+  // Students/parents land on no-sidebar on the WhatsApp tab.
+  // On the Teachers tab, students need to see the sidebar list.
   useEffect(() => {
-    if (isParentOrStudent) setShowSidebar(false);
-  }, [isParentOrStudent]);
+    if (isParentOrStudent && activeTab === 'students') setShowSidebar(false);
+  }, [isParentOrStudent, activeTab]);
 
   useEffect(() => {
     if (!hasAccess) return;
@@ -378,7 +379,7 @@ export default function UnifiedInbox() {
   const tabs = [
     { id: 'students' as const, label: 'WhatsApp', icon: MessageSquare },
     ...(!isParentOrStudent ? [{ id: 'parents' as const, label: 'Parents', icon: Users }] : []),
-    ...(isAdmin ? [{ id: 'teachers' as const, label: 'Teachers', icon: GraduationCap }] : []),
+    ...(isAdmin || profile?.role === 'student' ? [{ id: 'teachers' as const, label: 'Teachers', icon: GraduationCap }] : []),
     ...(!isParentOrStudent ? [{ id: 'school' as const, label: isSchool ? 'Teachers' : isAdmin ? 'Schools' : 'School', icon: Building2 }] : []),
   ];
 
@@ -393,7 +394,6 @@ export default function UnifiedInbox() {
     let ch;
 
     if (isParentOrStudent) {
-      // Students/parents only need to watch whatsapp_messages for their own conversation
       ch = supabase.channel(channelName)
         .on('postgres_changes', {
           event: 'INSERT',
@@ -405,6 +405,11 @@ export default function UnifiedInbox() {
           schema: 'public',
           table: 'whatsapp_conversations',
         }, () => fetchConversations('students', false))
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'student_teacher_messages',
+        }, p => handleRealtime('teachers', p.new as any))
         .subscribe();
     } else {
       ch = supabase.channel(channelName)
@@ -429,14 +434,15 @@ export default function UnifiedInbox() {
     return () => clearInterval(interval);
   }, [profile?.id, isParentOrStudent]); // eslint-disable-line
 
-  // ── Auto-open conversation for student/parent (they only have one) ────────
+  // ── Auto-open conversation for student/parent on WhatsApp tab only ────────
   useEffect(() => {
     if (!isParentOrStudent || activeConv || conversations.length === 0) return;
+    if (activeTab !== 'students') return; // Teachers tab: show list instead
     const conv = conversations[0];
     setActiveConv(conv);
     fetchMessages(conv);
     setShowSidebar(false);
-  }, [conversations, isParentOrStudent]); // eslint-disable-line
+  }, [conversations, isParentOrStudent, activeTab]); // eslint-disable-line
 
   useEffect(() => {
     if (!profile || !isStaff || activeTab !== 'students') return;
@@ -639,8 +645,22 @@ export default function UnifiedInbox() {
           };
         }));
       } else if (cat === 'teachers') {
-        // Admin-only: direct messages with individual teachers
-        // Re-uses school_teacher_conversations filtered to where teacher side is a teacher (not a school)
+        if (profile?.role === 'student') {
+          // Student→Teacher direct threads
+          const res = await fetch('/api/student-teacher/threads');
+          const json = await res.json();
+          if (json.data) setConversations(json.data.map((t: any) => ({
+            id: t.id, type: 'teachers' as const,
+            contact_name: t.teacher?.full_name || 'Teacher',
+            avatar_url: t.teacher?.avatar_url,
+            last_message_at: t.last_message_at || t.created_at,
+            last_message_preview: t.last_message_preview || 'No messages yet',
+            unread_count: t.unread_count || 0,
+            role: 'teacher',
+          })));
+          return;
+        }
+        // Admin: all school-teacher conversations
         const res = await fetch('/api/school-teacher/conversations?type=teacher');
         const json = await res.json();
         if (json.data) setConversations(json.data.map((c: any) => ({
@@ -841,8 +861,14 @@ export default function UnifiedInbox() {
         if (json.data) setMessages((json.data as any[]).map(normaliseMsg));
         setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
         return;
+      } else if (conv.type === 'teachers' && profile?.role === 'student') {
+        const res = await fetch(`/api/student-teacher/threads/${encodeURIComponent(conv.id)}/messages`);
+        const json = await res.json();
+        if (json.data) setMessages((json.data as any[]).map(m => ({ ...normaliseMsg(m), created_at: m.sent_at || m.created_at })));
+        setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+        return;
       } else {
-        // school / teachers tab — use server endpoint
+        // school / teachers tab (admin/teacher) — use server endpoint
         const res = await fetch(`/api/school-teacher/conversations/${encodeURIComponent(conv.id)}/messages`);
         const json = await res.json();
         if (json.data) setMessages((json.data as any[]).map(normaliseMsg));
@@ -957,6 +983,19 @@ export default function UnifiedInbox() {
         }
         if (json.data) {
           setMessages(prev => prev.map(m => m.id === tempId ? normaliseMsg(json.data) : m));
+        }
+      } else if (activeConv.type === 'teachers' && profile?.role === 'student') {
+        const res = await fetch(`/api/student-teacher/threads/${encodeURIComponent(activeConv.id)}/messages`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+          throw new Error(json.error || 'Send failed');
+        }
+        if (json.data) {
+          setMessages(prev => prev.map(m => m.id === tempId ? { ...normaliseMsg(json.data), created_at: json.data.sent_at || json.data.created_at } : m));
         }
       } else {
         const res = await fetch(`/api/school-teacher/conversations/${encodeURIComponent(activeConv.id)}/messages`, {
@@ -1081,8 +1120,9 @@ export default function UnifiedInbox() {
           if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
           data = (await (q.limit(30) as any)).data || [];
         } else if (activeTab === 'teachers') {
-          // Admin → all teachers in the system
-          let q = supabase.from('portal_users').select('id, full_name, phone, school_name, role').eq('is_active', true).eq('role', 'teacher');
+          // Student → their school's teachers; Admin → all teachers
+          let q = supabase.from('portal_users').select('id, full_name, phone, school_name, role, avatar_url').eq('is_active', true).eq('role', 'teacher');
+          if (profile?.role === 'student' && profile?.school_id) q = (q as any).eq('school_id', profile.school_id);
           if (directorySearch) q = q.ilike('full_name', `%${directorySearch}%`);
           data = (await (q.limit(50) as any)).data || [];
         } else if (isSchool) {
@@ -1267,6 +1307,28 @@ export default function UnifiedInbox() {
           setShowSidebar(false);
           setSidebarView('chats');
           setActiveTab('parents');
+        }
+      } else if (activeTab === 'teachers' && profile?.role === 'student') {
+        // Student initiates a direct thread with their teacher
+        const res = await fetch('/api/student-teacher/threads', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teacher_id: item.id }),
+        });
+        const json = await res.json();
+        if (json.data) {
+          const c: Conversation = {
+            id: json.data.id, type: 'teachers' as const,
+            contact_name: item.full_name || 'Teacher',
+            avatar_url: item.avatar_url,
+            last_message_at: json.data.created_at || new Date().toISOString(),
+            last_message_preview: 'No messages yet',
+            unread_count: 0, role: 'teacher',
+          };
+          setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
+          setActiveConv(c);
+          setShowSidebar(false);
+          setSidebarView('chats');
+          setActiveTab('teachers');
         }
       } else if (activeTab === 'teachers' || activeTab === 'school') {
         // Open subject dialog instead of window.prompt
@@ -1533,7 +1595,8 @@ export default function UnifiedInbox() {
   };
 
   const deleteConversation = async (conv: Conversation) => {
-    if (!isStaff) return;
+    const canDelete = isStaff || (profile?.role === 'student' && conv.type === 'teachers');
+    if (!canDelete) return;
     if (!window.confirm(`Delete conversation with "${conv.contact_name}"? This cannot be undone.`)) return;
     try {
       let url: string;
@@ -1541,8 +1604,9 @@ export default function UnifiedInbox() {
         url = `/api/inbox/conversation?id=${encodeURIComponent(conv.id)}`;
       } else if (conv.type === 'parents') {
         url = `/api/parent-teacher/threads?id=${encodeURIComponent(conv.id)}`;
+      } else if (conv.type === 'teachers' && profile?.role === 'student') {
+        url = `/api/student-teacher/threads?id=${encodeURIComponent(conv.id)}`;
       } else {
-        // teachers / school
         url = `/api/school-teacher/conversations?id=${encodeURIComponent(conv.id)}`;
       }
       const res  = await fetch(url, { method: 'DELETE' });
@@ -1633,7 +1697,15 @@ export default function UnifiedInbox() {
                 <button onClick={() => openEmailCompose()} className="p-2 text-white/50 hover:text-primary hover:bg-white/10 rounded-full transition-colors" title="Compose email">
                   <Mail className="w-4 h-4" />
                 </button>
-                <button onClick={isParentOrStudent ? startSupportConversation : () => setShowNewMessagePicker(true)} className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New message">
+                <button
+                  onClick={
+                    profile?.role === 'student' && activeTab === 'teachers'
+                      ? () => setShowNewChat(true)
+                      : isParentOrStudent
+                        ? startSupportConversation
+                        : () => setShowNewMessagePicker(true)
+                  }
+                  className="p-2 text-white/50 hover:bg-white/10 rounded-full transition-colors" title="New message">
                   <Plus className="w-5 h-5" />
                 </button>
               </>
@@ -1656,7 +1728,11 @@ export default function UnifiedInbox() {
             <div className="flex bg-[#111b21] border-b border-white/[0.06] shrink-0">
               {tabs.map(tab => (
                 <button key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setActiveConv(null); setConvSearch(''); setFilterUnread(false); }}
+                  onClick={() => {
+                    setActiveTab(tab.id); setActiveConv(null); setConvSearch(''); setFilterUnread(false);
+                    // Students need to see the sidebar when on the Teachers tab
+                    if (profile?.role === 'student' && tab.id === 'teachers') setShowSidebar(true);
+                  }}
                   className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-all border-b-2 text-[9px] font-black uppercase tracking-wider ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.03]'
                     }`}>
                   <tab.icon className="w-[15px] h-[15px]" />{tab.label}
@@ -1700,7 +1776,7 @@ export default function UnifiedInbox() {
               </div>
             )}
 
-            {isParentOrStudent && (
+            {isParentOrStudent && activeTab === 'students' && (
               <div className="px-3 pb-3 shrink-0">
                 <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg">
                   <h4 className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.2em] mb-2">Support Channels</h4>
@@ -1721,6 +1797,17 @@ export default function UnifiedInbox() {
                 </div>
               </div>
             )}
+            {profile?.role === 'student' && activeTab === 'teachers' && (
+              <div className="px-3 pb-3 shrink-0">
+                <div className="bg-violet-900/20 border border-violet-500/20 p-3 rounded-lg">
+                  <h4 className="text-[10px] font-black text-violet-400 uppercase tracking-[0.2em] mb-1">Direct to Teacher</h4>
+                  <p className="text-[10px] text-white/40 mb-2">Pick any of your teachers to start a private conversation.</p>
+                  <button onClick={() => setShowNewChat(true)} className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 rounded-lg text-[10px] font-bold text-violet-300 transition-all">
+                    <GraduationCap className="w-3.5 h-3.5" /> Pick a Teacher
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Conversation list */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -1729,10 +1816,26 @@ export default function UnifiedInbox() {
               ) : filteredConvs.length === 0 ? (
                 <div className="text-center p-12">
                   <MessageSquare className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-white/30 text-sm">{convSearch || filterUnread ? 'No matching conversations.' : isParentOrStudent ? 'Start a support chat with our team.' : 'No conversations yet.'}</p>
+                  <p className="text-white/30 text-sm">
+                    {convSearch || filterUnread
+                      ? 'No matching conversations.'
+                      : (profile?.role === 'student' && activeTab === 'teachers')
+                        ? 'Message a teacher directly.'
+                        : isParentOrStudent
+                          ? 'Start a support chat with our team.'
+                          : 'No conversations yet.'}
+                  </p>
                   {!convSearch && !filterUnread && (
-                    <button onClick={isParentOrStudent ? startSupportConversation : () => setShowNewChat(true)} className="mt-3 text-primary text-sm font-bold hover:underline">
-                      {isParentOrStudent ? 'Start Chat →' : 'Start one →'}
+                    <button
+                      onClick={
+                        profile?.role === 'student' && activeTab === 'teachers'
+                          ? () => setShowNewChat(true)
+                          : isParentOrStudent
+                            ? startSupportConversation
+                            : () => setShowNewChat(true)
+                      }
+                      className="mt-3 text-primary text-sm font-bold hover:underline">
+                      {(profile?.role === 'student' && activeTab === 'teachers') ? 'Pick a teacher →' : isParentOrStudent ? 'Start Chat →' : 'Start one →'}
                     </button>
                   )}
                 </div>
