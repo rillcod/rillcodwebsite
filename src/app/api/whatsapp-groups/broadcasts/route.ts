@@ -77,3 +77,45 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data }, { status: 201 });
 }
+
+// DELETE /api/whatsapp-groups/broadcasts?id=xxx         — delete single entry
+// DELETE /api/whatsapp-groups/broadcasts?group_id=xxx   — clear all for a group
+export async function DELETE(req: NextRequest) {
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const url     = new URL(req.url);
+  const id      = url.searchParams.get('id')       || '';
+  const groupId = url.searchParams.get('group_id') || '';
+
+  if (!id && !groupId) {
+    return NextResponse.json({ error: 'id or group_id required' }, { status: 400 });
+  }
+
+  const admin = adminClient();
+
+  if (id) {
+    // Single delete — only sender or admin
+    const { data: existing } = await admin
+      .from('whatsapp_group_broadcasts').select('sent_by').eq('id', id).single();
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (caller.role !== 'admin' && existing.sent_by !== caller.id) {
+      return NextResponse.json({ error: 'Only the sender or admin can delete this entry' }, { status: 403 });
+    }
+    const { error } = await admin.from('whatsapp_group_broadcasts').delete().eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  // Clear all for group — only admin or group creator
+  const { data: group } = await admin
+    .from('whatsapp_groups').select('created_by').eq('id', groupId).single();
+  if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+  if (caller.role !== 'admin' && group.created_by !== caller.id) {
+    return NextResponse.json({ error: 'Only the group creator or admin can clear history' }, { status: 403 });
+  }
+  const { error } = await admin
+    .from('whatsapp_group_broadcasts').delete().eq('group_id', groupId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

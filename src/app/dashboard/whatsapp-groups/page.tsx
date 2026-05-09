@@ -155,6 +155,9 @@ export default function WhatsAppGroupsPage() {
   // Broadcast history panel
   const [showHistory,   setShowHistory]   = useState(false);
   const [histLoading,   setHistLoading]   = useState(false);
+  const [deletingBcast, setDeletingBcast] = useState<string | null>(null);
+  const [clearingHist,  setClearingHist]  = useState(false);
+  const [histGroupId,   setHistGroupId]   = useState<string | undefined>(undefined);
 
   // Content Pusher
   const [showPusher,    setShowPusher]    = useState(false);
@@ -264,6 +267,7 @@ export default function WhatsAppGroupsPage() {
 
   async function loadHistory(groupId?: string, schoolId?: string) {
     setHistLoading(true);
+    setHistGroupId(groupId);
     const params = new URLSearchParams({ limit: '40' });
     if (groupId)  params.set('group_id',  groupId);
     if (schoolId) params.set('school_id', schoolId);
@@ -271,6 +275,31 @@ export default function WhatsAppGroupsPage() {
     const json = await res.json();
     setBroadcasts(json.data ?? []);
     setHistLoading(false);
+  }
+
+  async function deleteBroadcast(id: string) {
+    setDeletingBcast(id);
+    try {
+      const res  = await fetch(`/api/whatsapp-groups/broadcasts?id=${id}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Delete failed');
+      setBroadcasts(prev => prev.filter(b => b.id !== id));
+      showToast('Entry deleted');
+    } catch (e: any) { showToast(e.message, 'err'); }
+    finally { setDeletingBcast(null); }
+  }
+
+  async function clearHistory(groupId: string) {
+    if (!confirm('Delete ALL broadcast history for this group? This cannot be undone.')) return;
+    setClearingHist(true);
+    try {
+      const res  = await fetch(`/api/whatsapp-groups/broadcasts?group_id=${groupId}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Clear failed');
+      setBroadcasts([]);
+      showToast('History cleared');
+    } catch (e: any) { showToast(e.message, 'err'); }
+    finally { setClearingHist(false); }
   }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -1267,32 +1296,57 @@ export default function WhatsAppGroupsPage() {
               <button onClick={() => setShowHistory(false)} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
                 <X className="w-5 h-5" style={{ color: '#8696a0' }} />
               </button>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h2 className="font-black text-white text-[16px]">Broadcast History</h2>
                 <p className="text-[11px]" style={{ color: '#8696a0' }}>
                   {activeGroup ? `"${activeGroup.name}"` : 'All groups'}
+                  {broadcasts.length > 0 && ` · ${broadcasts.length} entr${broadcasts.length === 1 ? 'y' : 'ies'}`}
                 </p>
               </div>
+              {histGroupId && broadcasts.length > 0 && (
+                <button
+                  onClick={() => clearHistory(histGroupId)}
+                  disabled={clearingHist}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors shrink-0"
+                  style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
+                  title="Delete all history for this group">
+                  {clearingHist
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Trash2 className="w-3.5 h-3.5" />}
+                  Clear All
+                </button>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto">
               {histLoading ? (
                 <div className="p-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" style={{ color: '#00a884' }} /></div>
               ) : broadcasts.length === 0 ? (
                 <div className="p-12 text-center text-[13px]" style={{ color: '#8696a0' }}>No broadcast history yet.</div>
-              ) : broadcasts.map((b, idx) => (
-                <div key={b.id} className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+              ) : broadcasts.map((b) => (
+                <div key={b.id} className="px-5 py-4 group/row" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
                       {b.group_name && (
-                        <span className="text-[11px] font-black px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,168,132,0.15)', color: '#00a884' }}>
+                        <span className="text-[11px] font-black px-2 py-0.5 rounded-full shrink-0" style={{ background: 'rgba(0,168,132,0.15)', color: '#00a884' }}>
                           {b.group_name}
                         </span>
                       )}
                       {b.school_name && isAdmin && (
-                        <span className="text-[10px]" style={{ color: '#8696a0' }}>{b.school_name}</span>
+                        <span className="text-[10px] truncate" style={{ color: '#8696a0' }}>{b.school_name}</span>
                       )}
                     </div>
-                    <span className="text-[10px] shrink-0" style={{ color: '#8696a0' }}>{relTime(b.sent_at)}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px]" style={{ color: '#8696a0' }}>{relTime(b.sent_at)}</span>
+                      <button
+                        onClick={() => deleteBroadcast(b.id)}
+                        disabled={deletingBcast === b.id}
+                        className="p-1 rounded-full hover:bg-rose-500/20 transition-colors opacity-0 group-hover/row:opacity-100 focus:opacity-100"
+                        title="Delete this entry">
+                        {deletingBcast === b.id
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                          : <Trash2 className="w-3.5 h-3.5 text-rose-400" />}
+                      </button>
+                    </div>
                   </div>
                   <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: '#d1d7db' }}>{b.message}</p>
                   {b.sent_by_name && (
