@@ -2849,15 +2849,10 @@ export default function UnifiedInbox() {
         <button
           onClick={() => {
             if (activeTab === 'students') { setShowQuickChat(true); return; }
-            if (activeTab === 'email') { openEmailCompose(); return; }
             setShowNewChat(true);
           }}
           className="md:hidden fixed bottom-20 right-5 w-14 h-14 bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white rounded-full shadow-2xl shadow-emerald-900/50 flex items-center justify-center transition-all z-40"
-          title={
-            activeTab === 'students' ? 'New WhatsApp chat' :
-            activeTab === 'email'    ? 'New email' :
-            'New in-app message'
-          }
+          title={activeTab === 'students' ? 'New WhatsApp chat' : 'New in-app message'}
         >
           <Plus className="w-6 h-6" />
         </button>
