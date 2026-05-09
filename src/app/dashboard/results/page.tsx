@@ -593,10 +593,10 @@ function ResultsPageInner() {
                     const name = (captureReport.student_name ?? 'Student').replace(/\s+/g, '_');
                     await generateReportPDF(captureRef.current, `Report_${name}.pdf`);
                 } else {
-                    // Print mode — collect PNG pages
-                    const { toPng } = await import('html-to-image');
+                    // Print mode — collect JPEG pages to drastically reduce base64 size and memory
+                    const { toJpeg } = await import('html-to-image');
                     const el = captureRef.current;
-                    const dataUrl = await toPng(el, { pixelRatio: 2, cacheBust: true });
+                    const dataUrl = await toJpeg(el, { pixelRatio: 2, quality: 0.95, cacheBust: true });
                     pdfPages.current.push({ dataUrl, w: el.offsetWidth, h: el.offsetHeight });
                 }
             } catch (err) {
@@ -619,25 +619,43 @@ function ResultsPageInner() {
                     setIsBatchDownloading(false);
                     setSelectedIds(new Set());
                 } else {
-                    // Combine all pages into a single PDF and open for printing
+                    // Send to a new window for native browser printing to avoid Array.join string length limits
                     setIsBulkPrinting(false);
                     try {
-                        const { default: jsPDF } = await import('jspdf');
                         const pages = pdfPages.current;
                         if (pages.length === 0) return;
-                        const first = pages[0];
-                        const pdf = new jsPDF({ orientation: first.h > first.w ? 'portrait' : 'landscape', unit: 'px', format: [first.w, first.h] });
-                        pages.forEach(({ dataUrl, w, h }, i) => {
-                            if (i > 0) pdf.addPage([w, h], h > w ? 'portrait' : 'landscape');
-                            pdf.addImage(dataUrl, 'PNG', 0, 0, w, h);
-                        });
-                        const blob = pdf.output('blob');
-                        const url = URL.createObjectURL(blob);
-                        const win = window.open(url, '_blank');
-                        if (win) setTimeout(() => win.print(), 1500);
+                        
+                        const win = window.open('', '_blank');
+                        if (!win) {
+                            alert('Pop-up blocked. Please allow pop-ups to print reports.');
+                            return;
+                        }
+                        
+                        win.document.open();
+                        win.document.write('<!DOCTYPE html><html><head><title>Bulk Report Print</title>');
+                        win.document.write('<style>');
+                        win.document.write('@page { size: auto; margin: 0; }');
+                        win.document.write('body { margin: 0; padding: 0; background: #fff; }');
+                        win.document.write('.page { width: 100vw; height: 100vh; page-break-after: auto; display: flex; justify-content: center; align-items: center; overflow: hidden; }');
+                        win.document.write('img { max-width: 100%; max-height: 100%; object-fit: contain; }');
+                        win.document.write('@media print { .page { height: 100vh; page-break-after: always; } }');
+                        win.document.write('</style></head><body>');
+                        
+                        // Write sequentially instead of mapping to an array and joining,
+                        // this avoids the 'Invalid string length' error for huge bulk batches.
+                        for (let i = 0; i < pages.length; i++) {
+                            win.document.write('<div class="page"><img src="' + pages[i].dataUrl + '" /></div>');
+                        }
+                        
+                        win.document.write('</body></html>');
+                        win.document.close();
+                        
+                        win.focus();
+                        // Give time for base64 images to decode in the new window before triggering print
+                        setTimeout(() => win.print(), 1500);
                         pdfPages.current = [];
                     } catch (err) {
-                        console.error('Combined PDF failed:', err);
+                        console.error('Combined print failed:', err);
                         alert('Failed to create print PDF. Try downloading individually instead.');
                     }
                 }
