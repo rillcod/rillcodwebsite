@@ -81,6 +81,20 @@ export default function ClassHealPage() {
   const [reassignTarget, setReassignTarget] = useState<Record<string, string>>({});
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Visual Transfer Modal state ────────────────────────────
+  type TransferStudent = { id: string; full_name: string; email: string; section_class: string | null };
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [txStep, setTxStep] = useState<1 | 2>(1); // 1=pick source+students, 2=pick dest+confirm
+  const [txSrcSchool, setTxSrcSchool] = useState('');
+  const [txSrcClass, setTxSrcClass] = useState('');
+  const [txSrcStudents, setTxSrcStudents] = useState<TransferStudent[]>([]);
+  const [txSrcLoading, setTxSrcLoading] = useState(false);
+  const [txSelected, setTxSelected] = useState<Set<string>>(new Set());
+  const [txDstSchool, setTxDstSchool] = useState('');
+  const [txDstClass, setTxDstClass] = useState('');
+  const [txSending, setTxSending] = useState(false);
+  const [txDone, setTxDone] = useState<string | null>(null);
+
   // No-school manager state
   const [nsSort, setNsSort] = useState<'name' | 'registry'>('registry');
   const [nsFilter, setNsFilter] = useState('');
@@ -111,6 +125,28 @@ export default function ClassHealPage() {
       load();
     }
   }, [profile?.id, authLoading]); // eslint-disable-line
+
+  async function loadClassStudents(classId: string) {
+    if (!classId) { setTxSrcStudents([]); setTxSelected(new Set()); return; }
+    setTxSrcLoading(true);
+    try {
+      const res = await fetch(`/api/classes/heal?search=__class__&class_id=${classId}`);
+      // Fallback: pull via supabase-style endpoint not available, so use a trick:
+      // we store class students in the heal data — find them there
+      const cls = data?.classes.find(c => c.id === classId);
+      // Actually fetch fresh from the class audit endpoint
+      const auditRes = await fetch(`/api/classes/heal?class_audit=${classId}`, { cache: 'no-store' });
+      const auditJson = await auditRes.json();
+      const all: TransferStudent[] = [
+        ...(auditJson.data?.correct ?? []),
+        ...(auditJson.data?.misplaced ?? []),
+        ...(auditJson.data?.noSignal ?? []),
+      ].map((s: any) => ({ id: s.id, full_name: s.full_name, email: s.email, section_class: s.section_class ?? null }));
+      setTxSrcStudents(all);
+      setTxSelected(new Set(all.map(s => s.id)));
+    } catch { setTxSrcStudents([]); }
+    finally { setTxSrcLoading(false); }
+  }
 
   async function applyAction(action: string, studentIds: string[], extra: Record<string, string> = {}) {
     setWorking(true); setMsg(null);
@@ -215,18 +251,23 @@ export default function ClassHealPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button
+              disabled={working || loading || !data}
+              onClick={() => { setShowTransfer(true); setTxStep(1); setTxSrcSchool(''); setTxSrcClass(''); setTxSrcStudents([]); setTxSelected(new Set()); setTxDstSchool(''); setTxDstClass(''); setTxDone(null); }}
+              className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
+              <PlusIcon className="w-4 h-4 shrink-0" /> Transfer Students
+            </button>
+            <button
               onClick={() => applyAction('auto_align_by_reports', [])}
               disabled={working || loading || !data}
               title="For every student whose class teacher doesn't match their primary report author, move them to a class owned by the report teacher at the same school."
               className="flex items-center gap-2 px-3 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
-              <ArrowPathIcon className="w-4 h-4 shrink-0" /> Auto-Align by Reports
+              <ArrowPathIcon className="w-4 h-4 shrink-0" /> Auto-Align
             </button>
             <button
               onClick={() => applyAction('safe_auto_repair', [])}
               disabled={working || loading || totalIssues === 0}
-              title="Assigns class_id to students who have no class but whose section_class text exactly matches a class name at their school."
               className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition">
-              <CheckCircleIcon className="w-4 h-4 shrink-0" /> Safe Auto-Repair
+              <CheckCircleIcon className="w-4 h-4 shrink-0" /> Auto-Repair
             </button>
             <button onClick={load} disabled={working || loading}
               className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-muted/80 text-xs font-bold rounded-xl transition">
@@ -1556,6 +1597,226 @@ export default function ClassHealPage() {
           </Section>
         )}
       </div>
+
+      {/* ══ Transfer Students Modal ══════════════════════════════════════════ */}
+      {showTransfer && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(0,0,0,0.75)' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowTransfer(false); }}>
+          <div className="w-full sm:max-w-lg flex flex-col rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl"
+            style={{ background: 'var(--card)', maxHeight: '92dvh' }}>
+
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+              <div>
+                <h2 className="text-base font-extrabold text-foreground">Transfer Students</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {txStep === 1 ? 'Step 1 — Pick source class & students' : 'Step 2 — Pick destination class'}
+                </p>
+              </div>
+              <button onClick={() => setShowTransfer(false)} className="p-1.5 rounded-full hover:bg-muted transition text-muted-foreground">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            {/* Step indicator */}
+            <div className="flex shrink-0 border-b border-border">
+              {[1,2].map(n => (
+                <div key={n} className={`flex-1 py-2 text-center text-[11px] font-black uppercase tracking-widest transition-colors ${txStep === n ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>
+                  Step {n}
+                </div>
+              ))}
+            </div>
+
+            {/* Modal body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+
+              {txDone ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
+                  <CheckCircleIcon className="w-14 h-14 text-emerald-400" />
+                  <p className="text-base font-extrabold text-foreground">{txDone}</p>
+                  <button onClick={() => { setShowTransfer(false); load(); }}
+                    className="px-6 py-2.5 bg-primary text-white text-sm font-black rounded-xl transition hover:opacity-90">
+                    Done
+                  </button>
+                </div>
+              ) : txStep === 1 ? (
+                <>
+                  {/* Source school */}
+                  <div>
+                    <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5">Source School</label>
+                    <select
+                      value={txSrcSchool}
+                      onChange={e => { setTxSrcSchool(e.target.value); setTxSrcClass(''); setTxSrcStudents([]); setTxSelected(new Set()); }}
+                      className="select-premium w-full text-sm px-3 py-2.5">
+                      <option value="">— Select school —</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Source class */}
+                  {txSrcSchool && (
+                    <div>
+                      <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5">Source Class</label>
+                      <select
+                        value={txSrcClass}
+                        onChange={e => { setTxSrcClass(e.target.value); loadClassStudents(e.target.value); }}
+                        className="select-premium w-full text-sm px-3 py-2.5">
+                        <option value="">— Select class —</option>
+                        {(data?.classes ?? []).filter(c => c.school_id === txSrcSchool).map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Student picker */}
+                  {txSrcClass && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">
+                          Students {txSrcLoading ? '…' : `(${txSrcStudents.length})`}
+                        </label>
+                        {txSrcStudents.length > 0 && (
+                          <div className="flex gap-3">
+                            <button onClick={() => setTxSelected(new Set(txSrcStudents.map(s => s.id)))}
+                              className="text-xs font-bold text-primary hover:underline">All</button>
+                            <button onClick={() => setTxSelected(new Set())}
+                              className="text-xs font-bold text-muted-foreground hover:underline">None</button>
+                          </div>
+                        )}
+                      </div>
+                      {txSrcLoading ? (
+                        <div className="flex justify-center py-8"><ArrowPathIcon className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                      ) : txSrcStudents.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6 italic">No students in this class.</p>
+                      ) : (
+                        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                          {txSrcStudents.map(s => {
+                            const checked = txSelected.has(s.id);
+                            return (
+                              <label key={s.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer border transition ${checked ? 'bg-primary/10 border-primary/30' : 'border-border hover:bg-muted/30'}`}>
+                                <input type="checkbox" checked={checked}
+                                  onChange={() => { const n = new Set(txSelected); checked ? n.delete(s.id) : n.add(s.id); setTxSelected(n); }}
+                                  className="w-4 h-4 rounded text-primary shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">{s.full_name}</p>
+                                  <p className="text-[11px] text-muted-foreground truncate">{s.email}</p>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Summary of what's being moved */}
+                  <div className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-sm">
+                    <p className="font-black text-primary text-xs uppercase tracking-widest mb-1">Moving</p>
+                    <p className="text-foreground font-semibold">
+                      {txSelected.size} student{txSelected.size !== 1 ? 's' : ''} from{' '}
+                      <span className="text-primary">{(data?.classes ?? []).find(c => c.id === txSrcClass)?.name ?? '—'}</span>
+                    </p>
+                  </div>
+
+                  {/* Destination school */}
+                  <div>
+                    <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5">Destination School</label>
+                    <select
+                      value={txDstSchool}
+                      onChange={e => { setTxDstSchool(e.target.value); setTxDstClass(''); }}
+                      className="select-premium w-full text-sm px-3 py-2.5">
+                      <option value="">— Select school —</option>
+                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Destination class */}
+                  {txDstSchool && (
+                    <div>
+                      <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5">Destination Class</label>
+                      <div className="space-y-1.5 max-h-52 overflow-y-auto">
+                        {(data?.classes ?? []).filter(c => c.school_id === txDstSchool && c.id !== txSrcClass).length === 0 ? (
+                          <p className="text-sm text-muted-foreground italic text-center py-4">No other classes in this school.</p>
+                        ) : (data?.classes ?? []).filter(c => c.school_id === txDstSchool && c.id !== txSrcClass).map(c => (
+                          <button key={c.id}
+                            onClick={() => setTxDstClass(c.id)}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition ${txDstClass === c.id ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'border-border hover:bg-muted/30 text-foreground'}`}>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold truncate">{c.name}</p>
+                              {c.teacher_id && (
+                                <p className="text-[11px] text-muted-foreground truncate">
+                                  Teacher ID: {c.teacher_id.slice(0, 8)}…
+                                </p>
+                              )}
+                            </div>
+                            {txDstClass === c.id && <CheckCircleIcon className="w-5 h-5 shrink-0 text-emerald-400" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {txDstClass && (
+                    <div className="px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+                      This will permanently move the selected students and set{' '}
+                      <code className="bg-black/20 px-1 rounded">primary_teacher_id</code> to the destination class teacher (full authorship transfer).
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            {!txDone && (
+              <div className="shrink-0 px-5 py-4 border-t border-border flex items-center gap-3">
+                {txStep === 2 && (
+                  <button onClick={() => setTxStep(1)} className="flex-1 py-3 rounded-xl text-sm font-black bg-muted hover:bg-muted/80 text-foreground transition">
+                    ← Back
+                  </button>
+                )}
+                {txStep === 1 ? (
+                  <button
+                    disabled={txSelected.size === 0}
+                    onClick={() => setTxStep(2)}
+                    className="flex-1 py-3 rounded-xl text-sm font-black bg-primary hover:bg-primary/90 text-white disabled:opacity-40 transition">
+                    Next: Pick Destination ({txSelected.size}) →
+                  </button>
+                ) : (
+                  <button
+                    disabled={!txDstClass || txSending}
+                    onClick={async () => {
+                      setTxSending(true);
+                      try {
+                        const res = await fetch('/api/classes/heal', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'assign_class', classId: txDstClass, studentIds: Array.from(txSelected) }),
+                        });
+                        const j = await res.json();
+                        if (!res.ok) throw new Error(j.error || 'Transfer failed');
+                        const destName = (data?.classes ?? []).find(c => c.id === txDstClass)?.name ?? 'destination class';
+                        setTxDone(`${j.updated ?? txSelected.size} student(s) transferred to "${destName}" with full authorship.`);
+                      } catch (e: any) {
+                        setMsg({ type: 'err', text: e.message });
+                        setShowTransfer(false);
+                      } finally { setTxSending(false); }
+                    }}
+                    className="flex-1 py-3 rounded-xl text-sm font-black bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 transition flex items-center justify-center gap-2">
+                    {txSending ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                    {txSending ? 'Transferring…' : `Transfer ${txSelected.size} Student${txSelected.size !== 1 ? 's' : ''}`}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+    </div>
     </div>
   );
 }
