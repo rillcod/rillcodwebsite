@@ -940,10 +940,10 @@ function ReportBuilderInner() {
     );
     // Activity cap: students with low assignment submission % are grade-capped.
     // When no assignments exist (totalAssignments=0) pct defaults to 100 → no cap.
-    // Admin bypasses the cap so they can set any score regardless of submission rate.
+    // All staff (admin, teacher, school) bypass the cap — manual grade entry is authoritative.
     const assignmentSubmissionPct = studentStats.totalAssignments > 0 ? studentStats.assignmentPct : 100;
-    const activityCap = isAdmin
-        ? { maxScore: 100, label: '', message: 'Admin override — no cap applied', minPct: 0 }
+    const activityCap = isStaff
+        ? { maxScore: 100, label: '', message: 'Staff override — no cap applied', minPct: 0 }
         : getActivityCap(assignmentSubmissionPct);
     const overallScore = Math.min(rawOverallScore, activityCap.maxScore);
 
