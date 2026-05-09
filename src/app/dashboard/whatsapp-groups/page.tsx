@@ -545,35 +545,50 @@ export default function WhatsAppGroupsPage() {
         <main className="flex-1 flex flex-col min-w-0">
 
           {/* Top bar */}
-          <div className="flex items-center gap-3 px-4 sm:px-6 py-3.5 shrink-0" style={{ background: '#1f2c34', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            {/* Mobile: show title */}
+          <div className="flex items-center gap-2 px-3 sm:px-5 py-3 shrink-0" style={{ background: '#1f2c34', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            {/* Title */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <MessageSquare className="w-5 h-5 lg:hidden shrink-0" style={{ color: '#00a884' }} />
-              <h1 className="font-black text-white text-[16px] tracking-tight truncate">WhatsApp Groups</h1>
-              {stats.active > 0 && (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full shrink-0"
-                  style={{ background: 'rgba(0,168,132,0.2)', color: '#00a884' }}>
-                  {stats.active} active
-                </span>
-              )}
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(0,168,132,0.15)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#00a884">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                  <path d="M12 0C5.374 0 0 5.373 0 12c0 2.117.554 4.103 1.522 5.827L.057 23.882a.5.5 0 00.613.613l6.056-1.465A11.945 11.945 0 0012 24c6.626 0 12-5.373 12-12S18.626 0 12 0zm0 21.818a9.808 9.808 0 01-5.029-1.388l-.36-.215-3.733.903.921-3.626-.235-.372A9.8 9.8 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-black text-white text-[15px] tracking-tight leading-tight truncate">Group Manager</h1>
+                <p className="text-[10px] leading-tight hidden sm:block" style={{ color: '#8696a0' }}>
+                  {stats.active} active · {stats.total} total
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+
+            {/* Actions — icon-only on mobile, labelled on sm+ */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <button onClick={() => { setShowHistory(true); loadHistory(undefined, schoolFilter || undefined); }}
                 className="p-2 rounded-full hover:bg-white/5 transition-colors" title="Broadcast history">
                 <History className="w-4 h-4" style={{ color: '#8696a0' }} />
               </button>
-              <button onClick={() => loadGroups()} className="p-2 rounded-full hover:bg-white/5 transition-colors" title="Refresh">
+              <button onClick={() => loadGroups()}
+                className="p-2 rounded-full hover:bg-white/5 transition-colors" title="Refresh">
                 <RefreshCw className="w-4 h-4" style={{ color: '#8696a0' }} />
               </button>
+
+              {/* Push Content — icon only on mobile */}
               <button onClick={openPusher}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-[12px] font-black uppercase tracking-widest transition-all active:scale-95"
-                style={{ background: '#7c3aed' }}>
-                <Zap className="w-4 h-4" /> Push Content
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl text-white text-[12px] font-black uppercase tracking-widest transition-all active:scale-95"
+                style={{ background: '#7c3aed' }}
+                title="Push Content to Groups">
+                <Zap className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">Push</span>
               </button>
+
+              {/* New Group — icon only on mobile */}
               <button onClick={() => { setShowForm(true); setEditGroup(null); setForm({ group_type: 'general', status: 'active' }); }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-[12px] font-black uppercase tracking-widest transition-all active:scale-95"
-                style={{ background: '#00a884' }}>
-                <Plus className="w-4 h-4" /> New Group
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl text-white text-[12px] font-black uppercase tracking-widest transition-all active:scale-95"
+                style={{ background: '#00a884' }}
+                title="Add New Group">
+                <Plus className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">New</span>
               </button>
             </div>
           </div>
