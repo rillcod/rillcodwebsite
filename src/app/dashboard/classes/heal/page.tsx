@@ -1247,31 +1247,34 @@ export default function ClassHealPage() {
             </div>
             <div className="p-5 space-y-3">
               {data!.teacherConflict.map(s => (
-                <div key={s.id} className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 sm:p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-foreground truncate">{s.full_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                <div key={s.id} className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 sm:p-4 space-y-2.5">
+                  {/* Student name + email */}
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate">{s.full_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                  </div>
+
+                  {/* Conflict detail — stacked rows for mobile */}
+                  <div className="bg-background/60 rounded-lg px-3 py-2.5 border border-border space-y-2">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Enrolled class</p>
+                      <p className="text-xs font-semibold text-foreground leading-snug">
+                        {s.current_class_name ?? '?'}{' '}
+                        <span className="text-amber-400">({s.current_class_teacher_name ?? 'Unknown'})</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Reports written by</p>
+                      <p className="text-xs font-semibold text-violet-400 leading-snug">{s.report_teacher_name ?? 'Unknown'}</p>
                     </div>
                   </div>
-                  <div className="text-[11px] bg-background/60 rounded-lg px-3 py-2 border border-border space-y-1">
-                    <p>
-                      <span className="text-muted-foreground">Currently in class: </span>
-                      <span className="font-semibold text-foreground">{s.current_class_name ?? '?'}</span>
-                      <span className="text-muted-foreground"> (owned by </span>
-                      <span className="font-semibold text-amber-400">{s.current_class_teacher_name ?? 'Unknown teacher'}</span>
-                      <span className="text-muted-foreground">)</span>
-                    </p>
-                    <p>
-                      <span className="text-muted-foreground">Progress reports written by: </span>
-                      <span className="font-semibold text-violet-400">{s.report_teacher_name ?? 'Unknown teacher'}</span>
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
+
+                  {/* Actions — select full-width on mobile, inline on sm+ */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <select
                       value={reassignTarget[s.id] ?? ''}
                       onChange={e => setReassignTarget(prev => ({ ...prev, [s.id]: e.target.value }))}
-                      className="select-premium text-xs px-2 py-1.5 flex-1"
+                      className="select-premium text-xs px-2 py-2 flex-1 w-full"
                     >
                       <option value="">— Move to report teacher's class —</option>
                       <ClassOptions
@@ -1279,21 +1282,23 @@ export default function ClassHealPage() {
                         schools={schools}
                       />
                     </select>
-                    <button
-                      disabled={!reassignTarget[s.id] || working}
-                      onClick={() => reassignStudent(s.id)}
-                      className="px-3 py-1.5 bg-violet-600 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
-                    >
-                      Move
-                    </button>
-                    <button
-                      disabled={working}
-                      onClick={() => applyAction('delete_portal_user', [s.id])}
-                      title="Delete student account"
-                      className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-400 shrink-0"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
+                    <div className="flex gap-2 sm:shrink-0">
+                      <button
+                        disabled={!reassignTarget[s.id] || working}
+                        onClick={() => reassignStudent(s.id)}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-violet-600 text-white text-xs font-black rounded-xl disabled:opacity-40 transition active:scale-95"
+                      >
+                        Move
+                      </button>
+                      <button
+                        disabled={working}
+                        onClick={() => applyAction('delete_portal_user', [s.id])}
+                        title="Delete student account"
+                        className="p-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl transition text-rose-400 shrink-0"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1713,57 +1718,38 @@ export default function ClassHealPage() {
                 </>
               ) : (
                 <>
-                  {/* Summary of what's being moved */}
+                  {/* Summary */}
                   <div className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-sm">
-                    <p className="font-black text-primary text-xs uppercase tracking-widest mb-1">Moving</p>
+                    <p className="font-black text-primary text-xs uppercase tracking-widest mb-1">Moving within</p>
                     <p className="text-foreground font-semibold">
                       {txSelected.size} student{txSelected.size !== 1 ? 's' : ''} from{' '}
                       <span className="text-primary">{(data?.classes ?? []).find(c => c.id === txSrcClass)?.name ?? '—'}</span>
                     </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      School: {schools.find(s => s.id === txSrcSchool)?.name ?? '—'}
+                    </p>
                   </div>
 
-                  {/* Destination school */}
+                  {/* Destination class — same school only */}
                   <div>
-                    <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5">Destination School</label>
-                    <select
-                      value={txDstSchool}
-                      onChange={e => { setTxDstSchool(e.target.value); setTxDstClass(''); }}
-                      className="select-premium w-full text-sm px-3 py-2.5">
-                      <option value="">— Select school —</option>
-                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Destination class */}
-                  {txDstSchool && (
-                    <div>
-                      <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5">Destination Class</label>
-                      <div className="space-y-1.5 max-h-52 overflow-y-auto">
-                        {(data?.classes ?? []).filter(c => c.school_id === txDstSchool && c.id !== txSrcClass).length === 0 ? (
-                          <p className="text-sm text-muted-foreground italic text-center py-4">No other classes in this school.</p>
-                        ) : (data?.classes ?? []).filter(c => c.school_id === txDstSchool && c.id !== txSrcClass).map(c => (
-                          <button key={c.id}
-                            onClick={() => setTxDstClass(c.id)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition ${txDstClass === c.id ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'border-border hover:bg-muted/30 text-foreground'}`}>
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold truncate">{c.name}</p>
-                              {c.teacher_id && (
-                                <p className="text-[11px] text-muted-foreground truncate">
-                                  Teacher ID: {c.teacher_id.slice(0, 8)}…
-                                </p>
-                              )}
-                            </div>
-                            {txDstClass === c.id && <CheckCircleIcon className="w-5 h-5 shrink-0 text-emerald-400" />}
-                          </button>
-                        ))}
-                      </div>
+                    <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-1.5">Destination Class</label>
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      {(data?.classes ?? []).filter(c => c.school_id === txSrcSchool && c.id !== txSrcClass).length === 0 ? (
+                        <p className="text-sm text-muted-foreground italic text-center py-4">No other classes in this school.</p>
+                      ) : (data?.classes ?? []).filter(c => c.school_id === txSrcSchool && c.id !== txSrcClass).map(c => (
+                        <button key={c.id}
+                          onClick={() => setTxDstClass(c.id)}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition ${txDstClass === c.id ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'border-border hover:bg-muted/30 text-foreground'}`}>
+                          <p className="text-sm font-bold truncate">{c.name}</p>
+                          {txDstClass === c.id && <CheckCircleIcon className="w-5 h-5 shrink-0 text-emerald-400" />}
+                        </button>
+                      ))}
                     </div>
-                  )}
+                  </div>
 
                   {txDstClass && (
                     <div className="px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
-                      This will permanently move the selected students and set{' '}
-                      <code className="bg-black/20 px-1 rounded">primary_teacher_id</code> to the destination class teacher (full authorship transfer).
+                      Permanently moves students within the same school and transfers full authorship to the destination class teacher.
                     </div>
                   )}
                 </>
