@@ -1468,7 +1468,7 @@ function ReportBuilderInner() {
                         ) : (
                             <Field label="Duration">
                                 <select value={sessionConfig.course_duration}
-                                    onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                    onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
                                     className={INPUT}>
                                     {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
@@ -1552,7 +1552,7 @@ function ReportBuilderInner() {
                         </Field>
                         <Field label="Duration">
                             <select value={sessionConfig.course_duration}
-                                onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
                                 className={INPUT}>
                                 {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
@@ -1831,7 +1831,7 @@ function ReportBuilderInner() {
                                 ) : (
                                     <Field label="Duration *">
                                         <select value={sessionConfig.course_duration}
-                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
                                             className={INPUT}>
                                             {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
@@ -1960,7 +1960,7 @@ function ReportBuilderInner() {
                                 {sessionConfig.school_section === 'school' && (
                                     <Field label="Duration">
                                         <select value={sessionConfig.course_duration}
-                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
                                             className={INPUT}>
                                             {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
