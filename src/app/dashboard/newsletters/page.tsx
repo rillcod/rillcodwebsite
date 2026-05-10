@@ -210,23 +210,23 @@ export default function NewslettersPage() {
 <body>
   <div class="red-stripe"></div>
   <div class="header">
-    <img src="\${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
     <div class="org">
-      <div class="org-name">\${schoolName}</div>
+      <div class="org-name">${schoolName}</div>
       <div class="org-sub">Official Institutional Communication</div>
       <div class="org-addr">26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
     </div>
     <div class="vol">
-      <div class="vol-year">VOL. \${new Date().getFullYear()}</div>
-      <div class="vol-date">\${today}</div>
+      <div class="vol-year">VOL. ${new Date().getFullYear()}</div>
+      <div class="vol-date">${today}</div>
     </div>
   </div>
   <div class="topic-label">Topic / Subject</div>
-  <h1 class="nl-title">\${title}</h1>
-  <div class="nl-body">\${formattedContent}</div>
+  <h1 class="nl-title">${title}</h1>
+  <div class="nl-body">${formattedContent}</div>
   <div class="footer">
     <div class="sig-block">
-      <img src="\${sigUrl}" class="sig-img" onerror="this.style.display='none'"/>
+      <img src="${sigUrl}" class="sig-img" onerror="this.style.display='none'"/>
       <div class="sig-name">The Administrator</div>
       <div class="sig-role">Rillcod Technologies Executive Office</div>
     </div>

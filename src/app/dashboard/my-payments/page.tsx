@@ -283,12 +283,12 @@ export default function MyPaymentsPage() {
                         {inv.items.map((item, i) => (
                           <div key={i} className="flex justify-between text-sm text-card-foreground/70">
                             <span>{item.description}</span>
-                            <span className="font-mono font-bold text-card-foreground">₦{Number(item.unit_price ?? 0).toLocaleString()}</span>
+                            <span className="font-mono font-bold text-card-foreground">{inv.currency === 'NGN' ? '₦' : inv.currency}{Number(item.unit_price ?? 0).toLocaleString()}</span>
                           </div>
                         ))}
                         <div className="border-t border-white/[0.06] pt-1 flex justify-between font-black text-card-foreground">
                           <span>Total</span>
-                          <span className="font-mono">₦{(inv.amount ?? 0).toLocaleString()}</span>
+                          <span className="font-mono">{inv.currency === 'NGN' ? '₦' : inv.currency}{(inv.amount ?? 0).toLocaleString()}</span>
                         </div>
                       </div>
                     )}
