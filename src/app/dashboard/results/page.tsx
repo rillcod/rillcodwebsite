@@ -145,6 +145,7 @@ function ResultsPageInner() {
     const [editTerm, setEditTerm] = useState('');
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isDeletingReport, setIsDeletingReport] = useState(false);
+    const [isTogglingInvoice, setIsTogglingInvoice] = useState(false);
 
     // ── PDF state ──────────────────────────────────────────────────────────────
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -677,6 +678,32 @@ function ResultsPageInner() {
             setShowEditModal(false);
         } finally {
             setIsSavingEdit(false);
+        }
+    }
+
+    // ── Toggle Invoice ────────────────────────────────────────────────────────
+    async function handleInvoiceToggle() {
+        if (!selectedReport) return;
+        setIsTogglingInvoice(true);
+        const nextVal = !(selectedReport as any).show_payment_notice;
+        try {
+            const res = await fetch(`/api/progress-reports/${selectedReport.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ show_payment_notice: nextVal }),
+            });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                alert(j.error ?? 'Failed to toggle invoice.');
+                return;
+            }
+            const updated = { ...selectedReport, show_payment_notice: nextVal };
+            setSelectedReport(updated as StudentReport);
+            if (selectedStudent) {
+                setReportsMap(prev => ({ ...prev, [selectedStudent.id]: updated }));
+            }
+        } finally {
+            setIsTogglingInvoice(false);
         }
     }
 
@@ -1220,6 +1247,16 @@ tbody tr:hover{background:#f3f4f6}
                                                         className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/20 transition-all flex-shrink-0"
                                                     >
                                                         <PencilSquareIcon className="w-3.5 h-3.5" /> Rename
+                                                    </button>
+                                                    <button
+                                                        onClick={handleInvoiceToggle}
+                                                        disabled={isTogglingInvoice}
+                                                        title="Toggle Invoice Visibility"
+                                                        className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 disabled:opacity-50 rounded-xl border border-indigo-500/20 transition-all flex-shrink-0"
+                                                    >
+                                                        {isTogglingInvoice
+                                                            ? <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                                                            : ((selectedReport as any).show_payment_notice ? 'Hide Invoice' : 'Show Invoice')}
                                                     </button>
                                                     <button
                                                         onClick={handleDeleteReport}

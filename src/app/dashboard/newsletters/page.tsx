@@ -163,6 +163,7 @@ export default function NewslettersPage() {
     const schoolName = (profile as any)?.school_name || 'RILLCOD TECHNOLOGIES';
     const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
     const logoUrl = window.location.origin + '/logo.png';
+    const sigUrl = window.location.origin + '/images/signature.png';
     const title = activeNewsletter?.title || 'Untitled Newsletter';
     const raw = stripMarkdown(activeNewsletter?.content || '');
 
@@ -184,7 +185,8 @@ export default function NewslettersPage() {
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Times New Roman',Georgia,serif;background:#fff;color:#111827;font-size:11.5pt}
   @page{size:A4 portrait;margin:20mm 22mm}
-  .header{display:flex;align-items:center;gap:18pt;border-bottom:3pt double #000;padding-bottom:14pt;margin-bottom:26pt}
+  .red-stripe{position:fixed;top:0;left:0;right:0;height:4pt;background:#dc2626;}
+  .header{display:flex;align-items:center;gap:18pt;border-bottom:3pt double #000;padding-bottom:14pt;margin-bottom:26pt;margin-top:10pt}
   .logo{width:58pt;height:58pt;object-fit:contain;flex-shrink:0}
   .org{flex:1}
   .org-name{font-size:15pt;font-weight:900;text-transform:uppercase;letter-spacing:1pt}
@@ -197,6 +199,8 @@ export default function NewslettersPage() {
   .nl-title{font-size:26pt;font-weight:900;text-transform:uppercase;letter-spacing:-0.5pt;line-height:1.1;margin-bottom:26pt}
   .nl-body{font-size:11.5pt;line-height:1.85;color:#374151;font-family:Georgia,'Times New Roman',serif;text-align:justify}
   .footer{margin-top:36pt;border-top:1.5pt solid #e5e7eb;padding-top:18pt;display:flex;justify-content:space-between;align-items:flex-end;page-break-inside:avoid}
+  .sig-block{position:relative}
+  .sig-img{height:40pt;object-fit:contain;margin-bottom:4pt;mix-blend-mode:multiply}
   .sig-name{font-size:12pt;font-weight:900;text-transform:uppercase}
   .sig-role{font-size:8.5pt;color:#6b7280;text-transform:uppercase;letter-spacing:1pt;font-weight:700;margin-top:2pt}
   .stamp{width:72pt;height:72pt;border:2pt dashed #d1d5db;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:7pt;color:#d1d5db;font-weight:900;text-transform:uppercase;letter-spacing:1pt;line-height:1.4}
@@ -204,29 +208,31 @@ export default function NewslettersPage() {
 </style>
 </head>
 <body>
+  <div class="red-stripe"></div>
   <div class="header">
-    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
+    <img src="\${logoUrl}" class="logo" onerror="this.style.display='none'"/>
     <div class="org">
-      <div class="org-name">${schoolName}</div>
+      <div class="org-name">\${schoolName}</div>
       <div class="org-sub">Official Institutional Communication</div>
       <div class="org-addr">26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
     </div>
     <div class="vol">
-      <div class="vol-year">VOL. ${new Date().getFullYear()}</div>
-      <div class="vol-date">${today}</div>
+      <div class="vol-year">VOL. \${new Date().getFullYear()}</div>
+      <div class="vol-date">\${today}</div>
     </div>
   </div>
   <div class="topic-label">Topic / Subject</div>
-  <h1 class="nl-title">${title}</h1>
-  <div class="nl-body">${formattedContent}</div>
+  <h1 class="nl-title">\${title}</h1>
+  <div class="nl-body">\${formattedContent}</div>
   <div class="footer">
-    <div>
+    <div class="sig-block">
+      <img src="\${sigUrl}" class="sig-img" onerror="this.style.display='none'"/>
       <div class="sig-name">The Administrator</div>
       <div class="sig-role">Rillcod Technologies Executive Office</div>
     </div>
     <div class="stamp">Official<br/>Academy<br/>Stamp</div>
   </div>
-<script>window.onload=()=>{window.print()}</script>
+<script>window.addEventListener('load', () => { window.print(); });</script>
 </body>
 </html>`;
 
