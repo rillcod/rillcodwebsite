@@ -26,6 +26,7 @@ interface SmartDocumentProps {
     date: string;
     dueDate?: string;
     status: string;
+    stream?: 'school' | 'individual';
     items: DocumentItem[];
     amount: number;
     currency: string;
@@ -135,9 +136,14 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
     }
   };
 
-  const accentColor = isReceipt
+  const accentColor = isSchoolStream
+    ? '#4f46e5'
+    : isReceipt
     ? (template === 'bold' ? '#10b981' : '#059669')
     : (template === 'bold' ? '#f59e0b' : '#4f46e5');
+  const documentLabel = isSchoolStream
+    ? isReceipt ? 'school receipt' : 'school invoice'
+    : type;
 
   return (
     <>
@@ -208,7 +214,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
           <div className={`absolute inset-0 flex items-center justify-center pointer-events-none select-none ${
             template === 'bold' ? 'opacity-[0.04]' : 'opacity-[0.03]'
           } rotate-[-35deg]`}>
-            <p className="text-[120px] font-black uppercase tracking-[0.2em]" style={{ color: accentColor }}>{type}</p>
+            <p className="text-[110px] font-black uppercase tracking-[0.18em]" style={{ color: accentColor }}>{documentLabel}</p>
           </div>
 
           {/* Decorative — template specific */}
@@ -247,7 +253,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
               <div className="pt-4">
                 <div className="relative inline-block">
                   <h2 className="text-6xl font-black uppercase tracking-tighter" style={{ color: accentColor }}>
-                    {type}
+                    {documentLabel}
                   </h2>
                   {isReceipt && (
                     <div className={`absolute -right-12 -top-6 rotate-12 font-black px-4 py-1 rounded-xl text-xl uppercase tracking-widest select-none border-4 ${
@@ -419,8 +425,12 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
               </p>
               <p className={`text-[11px] leading-relaxed font-medium text-justify ${template === 'bold' ? 'text-white/50' : 'text-muted-foreground'}`}>
                 {data.notes || (isReceipt
-                  ? 'This is an official payment receipt. Please keep this document for your records.'
-                  : 'Kindly clear all outstanding balances before the start of the next term. Payments can be made via card online or direct bank transfer to our Providus Bank account.'
+                  ? isSchoolStream
+                    ? 'This is an official school billing receipt. Please keep this document for reconciliation and settlement records.'
+                    : 'This is an official payment receipt. Please keep this document for your records.'
+                  : isSchoolStream
+                    ? 'This school invoice belongs to the partner-school billing stream and should be reconciled against the matching school receipt after payment confirmation.'
+                    : 'Kindly clear all outstanding balances before the start of the next term. Payments can be made via card online or direct bank transfer to our Providus Bank account.'
                 )}
               </p>
             </div>
@@ -444,7 +454,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
               </div>
               <div className={`pt-3 border-t-2 flex justify-between items-baseline ${template === 'bold' ? 'border-white/20' : 'border-slate-900'}`}>
                 <span className={`text-[10px] font-black uppercase tracking-widest ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
-                  {isReceipt ? 'Amount Received' : 'Total Amount'}
+                  {isReceipt ? 'Amount Received' : isSchoolStream ? 'School Invoice Total' : 'Total Amount'}
                 </span>
                 <span className={`text-3xl font-black tracking-tighter ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>
                   {currencySymbol}{(data.amount + (data.processingFee || 0)).toLocaleString()}
@@ -464,14 +474,14 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
           <div className={`mt-auto relative z-10 pt-10 border-t flex items-center justify-between ${template === 'bold' ? 'border-white/10' : 'border-slate-100'}`}>
             <div className="flex items-center gap-8">
               <div className={`p-3 rounded-2xl shadow-sm ${template === 'bold' ? 'bg-card' : 'bg-card border border-slate-100'}`}>
-                <QRCode value={`https://rillcod.com/v/${type}/${data.number}`} size={64} />
+                <QRCode value={`https://rillcod.com/v/${documentLabel.replace(/\s+/g, '-')}/${data.number}`} size={64} />
               </div>
               <div>
                 <p className={`text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-2 ${template === 'bold' ? 'text-white' : 'text-foreground'}`}>
                   <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-500" /> Authenticity Verified
                 </p>
                 <p className={`text-[9px] uppercase tracking-widest max-w-[150px] ${template === 'bold' ? 'text-white/40' : 'text-muted-foreground/70'}`}>
-                  Scan to verify the validity of this {type} online.
+                  Scan to verify the validity of this {documentLabel} online.
                 </p>
               </div>
             </div>

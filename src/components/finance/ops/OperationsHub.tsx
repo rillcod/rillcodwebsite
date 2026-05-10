@@ -84,6 +84,10 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
     }
   }, [editInvoiceId, isAdmin]);
 
+  useEffect(() => {
+    setTab(isSchool ? 'invoices' : defaultTab);
+  }, [defaultTab, isSchool]);
+
   if (!isAdmin && !isSchool) {
     return (
       <div className="border border-dashed border-border rounded-xl p-10 text-center">

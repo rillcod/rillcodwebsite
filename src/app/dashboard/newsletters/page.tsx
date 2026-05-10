@@ -415,6 +415,12 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
   }
 
   const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
+  const printableContent = activeNewsletter?.content
+    ? stripMarkdown(activeNewsletter.content)
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]+\n/g, '\n')
+        .trim()
+    : 'Start writing or use the AI assistant to generate content...';
 
   if (!['admin', 'school', 'teacher', 'student', 'parent'].includes(profile?.role || '')) {
     return (

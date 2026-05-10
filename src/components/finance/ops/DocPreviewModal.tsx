@@ -19,6 +19,7 @@ export interface DocPreviewData {
   date: string;
   dueDate?: string;
   status: string;
+  stream?: 'school' | 'individual';
   items: { description: string; quantity: number; unit_price: number; total: number }[];
   amount: number;
   currency: string;

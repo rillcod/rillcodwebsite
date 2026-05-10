@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { classifyReceiptStream } from '@/lib/finance/streams';
 
 function adminClient() {
   return createClient(
@@ -78,6 +79,12 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = adminClient();
+  const stream = classifyReceiptStream({
+    stream: metadata?.stream ?? null,
+    school_id: school_id || null,
+    student_id: student_id || null,
+    metadata: metadata || null,
+  });
   const { data, error } = await admin
     .from('receipts')
     .insert([{
@@ -86,7 +93,8 @@ export async function POST(request: NextRequest) {
       amount: parseFloat(amount),
       currency: currency || 'NGN',
       transaction_id: transaction_id || null,
-      metadata: metadata || {},
+      stream,
+      metadata: { ...(metadata || {}), stream },
     }])
     .select()
     .single();

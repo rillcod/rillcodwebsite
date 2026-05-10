@@ -271,6 +271,7 @@ type TabKey =
   | 'settlements'
   | 'automation'
   | 'setup';
+type FinanceOpsTab = 'approvals' | 'invoices' | 'receipts' | 'receipt_builder' | 'school_invoice_builder' | 'accounts' | 'diagnostics';
 
 type PortalRole = 'admin' | 'school' | 'teacher' | string;
 
@@ -306,6 +307,14 @@ function pickTab(urlTab: string | null, role: PortalRole, isAdmin: boolean): Tab
   const normalized = urlTab === 'invoices' || urlTab === 'transactions' ? 'operations' : urlTab;
   if (normalized && keys.includes(normalized as TabKey)) return normalized as TabKey;
   return keys[0] as TabKey;
+}
+
+function pickOpsTab(urlTab: string | null, opsParam: string | null, role: PortalRole): FinanceOpsTab {
+  const requested = (opsParam || (urlTab === 'invoices' ? 'invoices' : null)) as FinanceOpsTab | null;
+  const allowed: FinanceOpsTab[] = role === 'school'
+    ? ['invoices', 'receipts']
+    : ['invoices', 'receipts', 'approvals', 'receipt_builder', 'school_invoice_builder', 'accounts', 'diagnostics'];
+  return requested && allowed.includes(requested) ? requested : (role === 'school' ? 'invoices' : 'approvals');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -481,7 +490,7 @@ function OverviewTab({ profile }: { profile: any }) {
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
         <Link
-          href="/dashboard/finance?tab=operations"
+          href="/dashboard/finance?tab=operations&ops=invoices"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground font-bold text-sm rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
         >
           <EyeIcon className="w-4 h-4" /> Payments ops
@@ -515,7 +524,7 @@ function OverviewTab({ profile }: { profile: any }) {
               <h3 className="font-black text-foreground text-sm uppercase tracking-widest">
                 {isSchoolView ? 'Outstanding Invoices' : 'Recent Invoice Activity'}
               </h3>
-              <Link href="/dashboard/finance?tab=operations" className="text-xs text-primary font-bold hover:underline">
+              <Link href="/dashboard/finance?tab=operations&ops=invoices" className="text-xs text-primary font-bold hover:underline">
                 View all <ArrowRightIcon className="w-3 h-3 inline" />
               </Link>
             </div>
@@ -1885,6 +1894,7 @@ export default function FinancePage() {
 
   const [tab, setTab] = useState<TabKey>('overview');
   const tabParam = searchParams.get('tab');
+  const opsParam = searchParams.get('ops');
 
   // Update URL on tab change
   function switchTab(key: TabKey) {
@@ -1981,7 +1991,7 @@ export default function FinancePage() {
         <div className="min-h-[400px]">
           {tab === 'overview' && <OverviewTab profile={profile} />}
           {tab === 'billing_cycles' && <BillingCyclesTab profile={profile} />}
-          {tab === 'operations' && <OperationsHub embedded />}
+          {tab === 'operations' && <OperationsHub embedded defaultTab={pickOpsTab(tabParam, opsParam, profile.role)} />}
           {tab === 'subscriptions' && <SubscriptionsTab profile={profile} />}
           {tab === 'settlements' && isAdmin && <SettlementsTab profile={profile} />}
           {tab === 'automation' && isAdmin && <AutomationTab />}

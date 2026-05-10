@@ -752,6 +752,7 @@ EVALUATIVE DIRECTIVES:
    - Encouraging Conclusion: Strategic closing message.
 3. Spelling: Use British English only (e.g. 'programme', 'centre', 'favour').
 4. Specificity: Weave in the importance of digital skills for the future Nigerian economy.
+5. Length: Keep the newsletter compact enough for a polished 1-2 page PDF. Target 550-850 words unless the topic absolutely requires more.
 
 FORMATTING RULES (CRITICAL):
 - Do NOT use markdown symbols: no #, ##, ###, **, *, -, or bullet point symbols.
@@ -760,6 +761,7 @@ FORMATTING RULES (CRITICAL):
 - Use ALL CAPS for section headings (e.g. "INTRODUCTION", "CORE HIGHLIGHTS").
 - Use a line of dashes (———) as a visual section divider if needed.
 - Write in flowing paragraphs. Numbered points should use "1." "2." format with no asterisks.
+- Avoid long repeated greetings, oversized introductions, and padded sign-offs.
 
 Return a JSON object with this exact shape:
 {

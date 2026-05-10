@@ -93,13 +93,13 @@ export function InvoicesPanel() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/invoices?limit=100');
+      const res = await fetch('/api/invoices?limit=200');
       const j = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setInvoices(j.data ?? []);
-      } else {
-        toast.error(j.error || 'Failed to load invoices');
-      }
+      if (!res.ok) throw new Error(j.error || 'Failed to load invoices');
+      setInvoices(j.data ?? []);
+    } catch (e: unknown) {
+      toast.error((e as Error).message || 'Failed to load invoices');
+      setInvoices([]);
     } finally {
       setLoading(false);
     }
@@ -261,13 +261,13 @@ export function InvoicesPanel() {
     const resolvedEmail = stream === 'school'
       ? (inv.billing_contacts?.representative_email || undefined)
       : (inv.portal_users?.email || undefined);
-
     setPreview({
       id: inv.id,
       number: inv.invoice_number,
       date: new Date(inv.created_at).toLocaleDateString(),
       dueDate: inv.due_date ? new Date(inv.due_date).toLocaleDateString() : undefined,
       status: inv.status,
+      stream,
       items,
       amount: inv.amount,
       currency: inv.currency,

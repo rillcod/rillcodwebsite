@@ -166,6 +166,12 @@ export function ReceiptsPanel() {
 
   const openPreview = (r: ReceiptRow) => {
     const meta = r.metadata || {};
+    const stream = classifyReceiptStream({
+      stream: r.stream,
+      school_id: r.school_id ?? null,
+      student_id: r.portal_user_id ?? null,
+      metadata: r.metadata ?? null,
+    });
     const items =
       meta.items && meta.items.length > 0
         ? meta.items.map((it) => ({
@@ -198,6 +204,7 @@ export function ReceiptsPanel() {
       number: r.receipt_number,
       date: new Date(r.issued_at).toLocaleDateString(),
       status: 'paid',
+      stream,
       items,
       amount: r.amount,
       currency: r.currency || 'NGN',
