@@ -1475,28 +1475,18 @@ tbody tr:hover{background:#f3f4f6}
 
             {/* ══ Print view — individual report card (untouched) ══ */}
             {bulkPrintReports ? (
-                <div className="hidden print:block print:w-[794px] print:mx-auto">
+                <div className="hidden print:block print:w-[210mm] print:mx-auto">
                     {bulkPrintReports.map((report, idx) => (
-                        <div key={report.id || idx} style={{ pageBreakAfter: 'always' }}>
-                            {template === 'standard' ? (
-                                <ReportCard report={report} orgSettings={orgSettings} />
-                            ) : template === 'printable' ? (
-                                <PrintableReport report={report} orgSettings={orgSettings} />
-                            ) : (
-                                <ModernReportCard report={report} orgSettings={orgSettings} />
-                            )}
+                        <div key={report.id || idx} style={{ pageBreakAfter: 'always', position: 'relative', width: '210mm', height: '297mm', margin: '0 auto' }}>
+                            {/* ALWAYS use PrintableReport for bulk printing to ensure desktop/A4 layout on mobile devices */}
+                            <PrintableReport report={report} orgSettings={orgSettings} />
                         </div>
                     ))}
                 </div>
             ) : reportToDisplay ? (
-                <div className="hidden print:block print:w-[794px] print:mx-auto">
-                    {template === 'standard' ? (
-                        <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
-                    ) : template === 'printable' ? (
-                        <PrintableReport report={reportToDisplay} orgSettings={orgSettings} />
-                    ) : (
-                        <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
-                    )}
+                <div className="hidden print:block print:w-[210mm] print:mx-auto" style={{ position: 'relative', width: '210mm', height: '297mm', margin: '0 auto' }}>
+                    {/* ALWAYS use PrintableReport for actual printing to ensure desktop/A4 layout on mobile devices */}
+                    <PrintableReport report={reportToDisplay} orgSettings={orgSettings} />
                 </div>
             ) : null}
 
