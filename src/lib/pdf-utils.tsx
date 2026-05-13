@@ -278,6 +278,14 @@ export async function generateReportPDFBlob(element: HTMLElement, isLandscape = 
     return pdf.output('blob');
 }
 
+/** Return the report as a raw base64 string (no data-URI prefix) for email attachments */
+export async function generateReportPDFBase64(element: HTMLElement, isLandscape = false): Promise<string> {
+    const pdf = await buildPdf(element, isLandscape);
+    // datauristring → "data:application/pdf;base64,JVBERi0x..."
+    const dataUri: string = pdf.output('datauristring');
+    return dataUri.split('base64,')[1];
+}
+
 /**
  * Share the report card as a PDF attachment via the Web Share API.
  * On Android/iOS this shows the native share sheet which includes WhatsApp.

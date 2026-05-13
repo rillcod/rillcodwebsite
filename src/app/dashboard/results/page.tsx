@@ -500,14 +500,8 @@ function ResultsPageInner() {
         setEmailShareSending(true);
         setEmailShareError(null);
         try {
-            const { generateReportPDFBlob } = await import('@/lib/pdf-utils');
-            const blob = await generateReportPDFBlob(printableRef.current);
-            const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve((reader.result as string).split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
+            const { generateReportPDFBase64 } = await import('@/lib/pdf-utils');
+            const base64 = await generateReportPDFBase64(printableRef.current);
             const name = (reportToDisplay.student_name || 'Student').replace(/\s+/g, '_');
             const term = (reportToDisplay.report_term || 'Report').replace(/\s+/g, '_');
             const filename = `${name}_${term}.pdf`;
