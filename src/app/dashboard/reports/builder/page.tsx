@@ -249,7 +249,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
     return (
         <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-3 bg-white/[0.03] border-b border-border">
+            <div className="flex items-center gap-2 px-5 py-3 bg-muted/20 border-b border-border">
                 <span>{icon}</span>
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{title}</h3>
             </div>
@@ -1518,10 +1518,10 @@ function ReportBuilderInner() {
 
     // ── Session summary bar (shown in pick/edit steps) ────────────────────────
     const SessionSummaryBar = () => (
-        <div className="bg-[#0d1526] border border-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
             <button
                 onClick={() => setSessionExpanded(e => !e)}
-                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-card shadow-sm transition-colors"
+                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-muted transition-colors"
             >
                 <Cog6ToothIcon className="w-4 h-4 text-primary flex-shrink-0" />
                 <div className="flex-1 text-left min-w-0">
@@ -1670,10 +1670,10 @@ function ReportBuilderInner() {
 
                         {/* AI-based milestone suggestions dropdown */}
                         {showMilestoneSuggestions && (
-                            <div className="mb-3 bg-[#0d0d18] border border-primary/20 p-3">
+                            <div className="mb-3 bg-card border border-primary/20 p-3">
                                 <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest mb-2">
                                     Suggested milestones for <strong className="text-primary">{sessionConfig.course_name || 'your course'}</strong>
-                                    <span className="text-white/20 ml-1">· click to add</span>
+                                    <span className="text-muted-foreground/40 ml-1">· click to add</span>
                                 </p>
                                 <div className="space-y-1">
                                     {getMilestoneSuggestions(sessionConfig.course_name).map((sug, i) => {
@@ -1683,7 +1683,7 @@ function ReportBuilderInner() {
                                                 onClick={() => {
                                                     if (!alreadyAdded) setSessionConfig(s => ({ ...s, learning_milestones: [...s.learning_milestones, sug] }));
                                                 }}
-                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[11px] border transition-all ${alreadyAdded ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400/50 cursor-default' : 'bg-white/[0.02] border-white/[0.06] text-white/50 hover:border-primary/30 hover:bg-primary/5 hover:text-white/80'}`}>
+                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[11px] border transition-all ${alreadyAdded ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400/50 cursor-default' : 'bg-muted/20 border-border text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground'}`}>
                                                 {alreadyAdded
                                                     ? <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
                                                     : <PlusIcon className="w-3.5 h-3.5 flex-shrink-0 text-primary/50" />
@@ -1991,11 +1991,11 @@ function ReportBuilderInner() {
                         </div>
 
                         {/* Payment / Fee Section — optional, won't appear on report if left blank */}
-                        <div className="bg-white/[0.03] border border-border rounded-xl overflow-hidden">
-                            <div className="flex items-center gap-2 px-5 py-3 bg-white/[0.02] border-b border-border">
+                        <div className="bg-card border border-border rounded-xl overflow-hidden">
+                            <div className="flex items-center gap-2 px-5 py-3 bg-muted/20 border-b border-border">
                                 <span>💳</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Payment / Fee Info</h3>
-                                <span className="ml-auto text-[10px] text-white/25 font-semibold">Optional — only appears on report if filled in</span>
+                                <span className="ml-auto text-[10px] text-muted-foreground/50 font-semibold">Optional — only appears on report if filled in</span>
                             </div>
                             <div className="p-5 space-y-4">
                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -2402,7 +2402,7 @@ function ReportBuilderInner() {
                                 ? navList.filter((s: any) => s.full_name?.toLowerCase().includes(editSearch.toLowerCase()) || s.email?.toLowerCase().includes(editSearch.toLowerCase()))
                                 : [];
                             return (
-                            <div className="bg-[#0d1526] border border-border rounded-xl px-4 py-3 space-y-2">
+                            <div className="bg-card border border-border rounded-xl px-4 py-3 space-y-2">
                               <div className="flex items-center gap-3">
                                 <button onClick={() => { sessionStudents.current = []; setStep('pick'); setEditSearch(''); }}
                                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
@@ -2541,12 +2541,12 @@ function ReportBuilderInner() {
 
                         {/* Transparent score sources bar — 6 weighted components */}
                         {!fetchingStats && (
-                            <div className="bg-[#0d1526] border border-border px-5 py-3 space-y-2">
+                            <div className="bg-card border border-border px-5 py-3 space-y-2">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-black text-primary/70 uppercase tracking-widest">Score Sources — Auto-filled from Platform</span>
                                     <span className="text-[9px] text-muted-foreground">auto-suggested when score is 0</span>
                                 </div>
-                                <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                                     <div className="bg-indigo-500/5 border border-indigo-500/20 px-2.5 py-2">
                                         <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Theory (20%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.cbtScore > 0 ? `${studentStats.cbtScore}%` : '—'}</p>
@@ -2581,7 +2581,7 @@ function ReportBuilderInner() {
                             </div>
                         )}
                         {fetchingStats && (
-                            <div className="flex items-center gap-2 px-5 py-2.5 bg-[#0d1526] border border-border text-[10px] text-muted-foreground">
+                            <div className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border text-[10px] text-muted-foreground">
                                 <ArrowPathIcon className="w-3 h-3 animate-spin" /> Fetching student stats...
                             </div>
                         )}
@@ -2626,17 +2626,17 @@ function ReportBuilderInner() {
 
                                 <Section title="Report Design" icon="🎨">
                                     <div className="flex flex-col gap-4">
-                                        <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl overflow-hidden">
+                                        <div className="flex bg-muted/30 border border-border p-1 rounded-xl overflow-hidden">
                                             <button onClick={() => setReportStyle('standard')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
                                                 Standard
                                             </button>
                                             <button onClick={() => setReportStyle('modern')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
                                                 Modern
                                             </button>
                                             <button onClick={() => setReportStyle('printable')}
-                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-white'}`}>
+                                                className={`flex-1 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}>
                                                 Printable
                                             </button>
                                         </div>
@@ -2654,7 +2654,7 @@ function ReportBuilderInner() {
                                                         onClick={() => setModernTemplateId(t.id as any)}
                                                         className={cn(
                                                             "group relative flex flex-col items-center justify-center py-3 border transition-all overflow-hidden",
-                                                            modernTemplateId === t.id ? "border-primary bg-primary/10 shadow-[0_0_15px_rgba(255,102,0,0.1)]" : "border-white/5 bg-white/5 hover:bg-white/10"
+                                                            modernTemplateId === t.id ? "border-primary bg-primary/10 shadow-[0_0_15px_rgba(255,102,0,0.1)]" : "border-border bg-muted/20 hover:bg-muted/40"
                                                         )}
                                                     >
                                                         <div className={cn("w-8 h-8 mb-1 relative overflow-hidden", t.color)}>
@@ -2699,11 +2699,11 @@ function ReportBuilderInner() {
                                                 <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
                                             </Field>
                                             <div className="grid grid-cols-2 gap-3">
-                                                <div className="p-3 bg-white/[0.03] border border-border rounded-xl">
+                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">School</p>
                                                     <p className="text-sm text-muted-foreground font-semibold truncate">{sessionConfig.school_name || '—'}</p>
                                                 </div>
-                                                <div className="p-3 bg-white/[0.03] border border-border rounded-xl">
+                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
                                                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Class</label>
                                                     <select
                                                         value={form.section_class}
@@ -2737,7 +2737,7 @@ function ReportBuilderInner() {
 
                                 {/* Per-student module override */}
                                 <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                                    <div className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.02] border-b border-border">
+                                    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/10 border-b border-border">
                                         <span className="text-[10px]">📖</span>
                                         <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex-1">Module (this student)</h3>
                                         <span className="text-[9px] text-muted-foreground/50">Overrides session default</span>
@@ -3103,7 +3103,7 @@ function ReportBuilderInner() {
                 showSettings && (
                     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
                         <div className="bg-background border border-border rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-                            <div className="px-6 py-5 border-b border-border flex items-center justify-between bg-white/[0.03]">
+                            <div className="px-6 py-5 border-b border-border flex items-center justify-between bg-muted/20">
                                 <div>
                                     <h3 className="text-xl font-extrabold text-foreground">Branding Settings</h3>
                                     <p className="text-muted-foreground text-xs mt-0.5">Configure report header & organization details</p>
@@ -3194,7 +3194,7 @@ function ReportBuilderInner() {
                                 </div>
                             </div>
 
-                            <div className="p-6 bg-white/[0.03] border-t border-border flex justify-end gap-3">
+                            <div className="p-6 bg-muted/20 border-t border-border flex justify-end gap-3">
                                 <button onClick={() => setShowSettings(false)}
                                     className="px-5 py-2.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
                                     Cancel
@@ -3228,49 +3228,49 @@ function ReportBuilderInner() {
             {showPreview && (
                 <>
                 <div id="builder-preview-root" className="fixed inset-0 z-50 flex flex-col bg-background">
-                    <div className="no-print flex items-center gap-4 px-8 py-4 border-b border-border bg-[#0a0a14]">
-                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-card shadow-sm rounded-xl transition-colors">
-                            <ArrowLeftIcon className="w-6 h-6 text-muted-foreground" />
+                    <div className="no-print flex flex-wrap items-center gap-2 px-3 sm:px-6 py-3 border-b border-border bg-card overflow-x-auto">
+                        <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-muted rounded-xl transition-colors flex-shrink-0">
+                            <ArrowLeftIcon className="w-5 h-5 text-muted-foreground" />
                         </button>
-                        <div className="flex-1">
-                            <h3 className="text-foreground font-black">{form.student_name}</h3>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">Report Card Preview</p>
+                        <div className="min-w-0 mr-2">
+                            <h3 className="text-foreground font-black text-sm truncate">{form.student_name}</h3>
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.2em] font-bold hidden sm:block">Report Card Preview</p>
                         </div>
-                        <div className="flex bg-white/5 border border-white/10 mr-4 p-1">
+                        <div className="flex bg-muted/30 border border-border p-0.5 rounded-lg flex-shrink-0">
                             <button onClick={() => setReportStyle('standard')}
-                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'standard' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                className={`px-2 sm:px-4 py-1.5 text-[9px] font-black uppercase transition-all rounded-md ${reportStyle === 'standard' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                                 Standard
                             </button>
                             <button onClick={() => setReportStyle('modern')}
-                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'modern' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                className={`px-2 sm:px-4 py-1.5 text-[9px] font-black uppercase transition-all rounded-md ${reportStyle === 'modern' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                                 Modern
                             </button>
                             <button onClick={() => setReportStyle('printable')}
-                                className={`px-4 py-2 text-[10px] font-black uppercase transition-all ${reportStyle === 'printable' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-white'}`}>
+                                className={`px-2 sm:px-4 py-1.5 text-[9px] font-black uppercase transition-all rounded-md ${reportStyle === 'printable' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                                 Printable
                             </button>
                         </div>
 
                         {reportStyle === 'modern' && (
-                            <div className="flex bg-white/5 border border-white/10 p-1 mr-4 gap-1">
+                            <div className="flex bg-muted/30 border border-border p-0.5 gap-1 flex-shrink-0">
                                 {[
                                     { id: 'industrial', name: 'Industrial', color: 'bg-slate-900', border: 'border-primary' },
                                     { id: 'executive', name: 'Executive', color: 'bg-[#FDFBF2]', border: 'border-slate-800' },
                                     { id: 'futuristic', name: 'Futuristic', color: 'bg-[#050510]', border: 'border-cyan-500' }
                                 ].map((t) => (
-                                    <button 
+                                    <button
                                         key={t.id}
                                         onClick={() => setModernTemplateId(t.id as any)}
                                         className={cn(
-                                            "group relative w-20 h-10 flex flex-col items-center justify-center transition-all overflow-hidden",
-                                            modernTemplateId === t.id ? "ring-2 ring-primary ring-offset-2 ring-offset-[#0a0a14]" : "opacity-40 hover:opacity-100"
+                                            "group relative w-14 sm:w-20 h-8 sm:h-10 flex flex-col items-center justify-center transition-all overflow-hidden",
+                                            modernTemplateId === t.id ? "ring-2 ring-primary ring-offset-1 ring-offset-card" : "opacity-40 hover:opacity-100"
                                         )}
                                     >
                                         <div className={cn("absolute inset-0", t.color)} />
                                         <div className={cn("absolute inset-1 border-[0.5px]", t.border, "opacity-40")} />
                                         <span className={cn(
                                             "relative z-10 text-[8px] font-black uppercase tracking-tighter",
-                                            t.id === 'executive' ? "text-foreground" : "text-white"
+                                            t.id === 'executive' ? "text-slate-800" : "text-white"
                                         )}>{t.name}</span>
                                         {modernTemplateId === t.id && (
                                             <div className="absolute top-0 right-0 bg-primary text-white p-0.5">
@@ -3281,48 +3281,50 @@ function ReportBuilderInner() {
                                 ))}
                             </div>
                         )}
-                        <button
-                            onClick={() => pdfRef.current && printElement(pdfRef.current)}
-                            className="flex items-center gap-2 px-6 py-3 bg-card shadow-sm border border-white/10 hover:bg-muted text-foreground text-sm font-black rounded-xl transition-all"
-                        >
-                            <PrinterIcon className="w-4 h-4" /> Print
-                        </button>
-                        <button onClick={downloadPDF} disabled={isGeneratingPdf}
-                            className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground text-sm font-black rounded-xl shadow-xl shadow-primary/30 transition-all disabled:opacity-50">
-                            {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
-                            {isGeneratingPdf ? 'Processing...' : 'Export PDF'}
-                        </button>
-                        {/* Share report card PDF via Web Share / WhatsApp */}
-                        <button
-                            disabled={isSharingPdf || !form.student_name}
-                            onClick={async () => {
-                                if (!pdfRef.current) { setError('Open Live Preview first, then share.'); return; }
-                                setIsSharingPdf(true); setError('');
-                                try {
-                                    const name = form.student_name.replace(/\s+/g, '_') || 'Student';
-                                    const term = sessionConfig.report_term.replace(/\s+/g, '_') || 'Report';
-                                    const result = await shareReportCard(
-                                        pdfRef.current,
-                                        `${name}_${term}.pdf`,
-                                        `Progress report for ${form.student_name} — ${sessionConfig.report_term} — Rillcod Academy`,
-                                    );
-                                    if (result === 'downloaded') {
-                                        setError('Web Share not supported on this browser — PDF downloaded instead.');
-                                    }
-                                } catch (err: unknown) {
-                                    const msg = err instanceof Error ? err.message : '';
-                                    if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort')) {
-                                        setError('Could not share: ' + msg);
-                                    }
-                                } finally { setIsSharingPdf(false); }
-                            }}
-                            className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-black rounded-xl shadow-xl shadow-green-900/30 transition-all whitespace-nowrap"
-                        >
-                            {isSharingPdf
-                                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                : <WhatsAppIcon className="w-4 h-4" />}
-                            {isSharingPdf ? 'Preparing…' : 'Share Report'}
-                        </button>
+                        <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                            <button
+                                onClick={() => pdfRef.current && printElement(pdfRef.current)}
+                                className="flex items-center gap-1.5 px-3 sm:px-5 py-2 bg-card border border-border hover:bg-muted text-foreground text-xs font-black rounded-xl transition-all"
+                            >
+                                <PrinterIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Print</span>
+                            </button>
+                            <button onClick={downloadPDF} disabled={isGeneratingPdf}
+                                className="flex items-center gap-1.5 px-3 sm:px-5 py-2 bg-primary hover:bg-primary text-foreground text-xs font-black rounded-xl shadow-lg shadow-primary/30 transition-all disabled:opacity-50">
+                                {isGeneratingPdf ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PrinterIcon className="w-3.5 h-3.5" />}
+                                <span>{isGeneratingPdf ? 'Processing...' : 'PDF'}</span>
+                            </button>
+                            {/* Share report card PDF via Web Share / WhatsApp */}
+                            <button
+                                disabled={isSharingPdf || !form.student_name}
+                                onClick={async () => {
+                                    if (!pdfRef.current) { setError('Open Live Preview first, then share.'); return; }
+                                    setIsSharingPdf(true); setError('');
+                                    try {
+                                        const name = form.student_name.replace(/\s+/g, '_') || 'Student';
+                                        const term = sessionConfig.report_term.replace(/\s+/g, '_') || 'Report';
+                                        const result = await shareReportCard(
+                                            pdfRef.current,
+                                            `${name}_${term}.pdf`,
+                                            `Progress report for ${form.student_name} — ${sessionConfig.report_term} — Rillcod Academy`,
+                                        );
+                                        if (result === 'downloaded') {
+                                            setError('Web Share not supported on this browser — PDF downloaded instead.');
+                                        }
+                                    } catch (err: unknown) {
+                                        const msg = err instanceof Error ? err.message : '';
+                                        if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort')) {
+                                            setError('Could not share: ' + msg);
+                                        }
+                                    } finally { setIsSharingPdf(false); }
+                                }}
+                                className="flex items-center gap-1.5 px-3 sm:px-5 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs font-black rounded-xl shadow-lg shadow-green-900/30 transition-all"
+                            >
+                                {isSharingPdf
+                                    ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    : <WhatsAppIcon className="w-3.5 h-3.5" />}
+                                <span className="hidden sm:inline">{isSharingPdf ? 'Preparing…' : 'Share'}</span>
+                            </button>
+                        </div>
                     </div>
                     <div ref={previewContainerRef} className="flex-1 overflow-auto p-2 sm:p-6 bg-black/40">
                         {/* Outer wrapper sized to scaled A4 dimensions so scroll area is correct */}
