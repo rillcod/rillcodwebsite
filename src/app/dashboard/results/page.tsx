@@ -164,6 +164,7 @@ function ResultsPageInner() {
     const captureIdx = useRef<number>(0);
     const batchMode = useRef<'download' | 'print'>('download');
     const pdfPages = useRef<{ dataUrl: string; format: 'JPEG'; w: number; h: number }[]>([]);
+    const bulkPrintTemplateRef = useRef<'standard' | 'modern' | 'printable'>('standard');
     const [showSidebar, setShowSidebar] = useState(true);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
@@ -937,6 +938,24 @@ tbody tr:hover{background:#f3f4f6}
                                 <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
                             </Link>
                         )}
+                        {/* Print all students — standard report card format */}
+                        {isStaff && students.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    bulkPrintTemplateRef.current = 'standard';
+                                    startBulkPrint(filtered.map(s => s.id));
+                                }}
+                                disabled={isBulkPrinting || isBatchDownloading}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary/20 border border-primary/30 hover:bg-primary/30 disabled:opacity-60 disabled:cursor-not-allowed text-primary font-bold text-sm rounded-xl transition-all"
+                            >
+                                {isBulkPrinting
+                                    ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                    : <PrinterIcon className="w-4 h-4" />}
+                                {isBulkPrinting
+                                    ? 'Preparing...'
+                                    : `Print All Reports (${filtered.length})`}
+                            </button>
+                        )}
                         {/* Print performance datasheet */}
                         {isStaff && students.length > 0 && (
                             <button
@@ -944,21 +963,6 @@ tbody tr:hover{background:#f3f4f6}
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-xl transition-all"
                             >
                                 <PrinterIcon className="w-4 h-4" /> Performance Sheet
-                            </button>
-                        )}
-                        {/* Print entire class (no selection needed) */}
-                        {isStaff && filtered.length > 0 && (
-                            <button
-                                onClick={() => startBulkPrint(filtered.map(s => s.id))}
-                                disabled={isBulkPrinting || isBatchDownloading}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600/20 border border-violet-500/30 hover:bg-violet-600/30 disabled:opacity-60 disabled:cursor-not-allowed text-violet-300 font-bold text-sm rounded-xl transition-all"
-                            >
-                                {isBulkPrinting
-                                    ? <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
-                                    : <PrinterIcon className="w-4 h-4" />}
-                                {isBulkPrinting && batchProgress
-                                    ? `Building ${batchProgress.current}/${batchProgress.total}…`
-                                    : isBulkPrinting ? 'Preparing...' : `Print Class (${filtered.length})`}
                             </button>
                         )}
                         {/* Batch download button */}
@@ -1564,9 +1568,9 @@ tbody tr:hover{background:#f3f4f6}
                 <div className="hidden print:block print:w-[794px] print:mx-auto">
                     {bulkPrintReports.map((report, idx) => (
                         <div key={report.id || idx} style={{ pageBreakAfter: 'always' }}>
-                            {template === 'standard' ? (
+                            {bulkPrintTemplateRef.current === 'standard' ? (
                                 <ReportCard report={report} orgSettings={orgSettings} />
-                            ) : template === 'printable' ? (
+                            ) : bulkPrintTemplateRef.current === 'printable' ? (
                                 <PrintableReport report={report} orgSettings={orgSettings} />
                             ) : (
                                 <ModernReportCard report={report} orgSettings={orgSettings} />
