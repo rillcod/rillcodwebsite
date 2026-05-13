@@ -739,7 +739,9 @@ function ReportBuilderInner() {
         setExistingReport(report ?? null);
 
         // ── Duplicate / cross-session detection ──────────────────────────────────
-        if (report) {
+        // Skip when forceHydrate: we're explicitly editing this report, so any
+        // "already published" or "cross-session" signal would be a false positive.
+        if (report && !opts?.forceHydrate) {
             const sameCourse = sessionConfig.course_id && report.course_id === sessionConfig.course_id;
             const sameTerm   = sessionConfig.report_term && report.report_term === sessionConfig.report_term;
             if (sameCourse && sameTerm && report.is_published) {
