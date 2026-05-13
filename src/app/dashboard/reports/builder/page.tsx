@@ -623,16 +623,26 @@ function ReportBuilderInner() {
                 school_id: s.school_id || profile?.school_id || (schoolsList.length === 1 ? schoolsList[0].id : ''),
             }));
 
+                // URL ?student= takes absolute priority over localStorage navigation state.
+                // When the user clicks Edit on a published report, we must load that
+                // specific student — not whatever was left over from a previous session.
+                if (prefStudentId) {
+                    pendingRestoreStudentId.current = null;
+                    const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
+                    if (s) {
+                        await selectStudent(s as PortalUser, 0, { forceHydrate: true });
+                        setStep('edit');
+                        setSessionDone(true);
+                        setSessionExpanded(false);
+                    }
+                    return;
+                }
                 // Restore pending student (from localStorage navigation state)
                 const restoreId = pendingRestoreStudentId.current;
                 if (restoreId) {
                     pendingRestoreStudentId.current = null;
                     const s = processed.find((x: any) => x.id === restoreId || x._original_id === restoreId);
                     if (s) { await selectStudent(s as PortalUser, pendingRestoreStudentIdx.current); return; }
-                }
-                if (prefStudentId) {
-                    const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
-                    if (s) selectStudent(s as PortalUser, 0);
                 }
             } catch (err: any) {
                 console.error('Failed to load builder data:', err);
@@ -684,7 +694,7 @@ function ReportBuilderInner() {
     )].sort() as string[];
 
     // ── Select student: load existing report, fill form ───────────────────────
-    async function selectStudent(s: PortalUser, idx: number) {
+    async function selectStudent(s: PortalUser, idx: number, opts?: { forceHydrate?: boolean }) {
         setSelectedStudent(s);
         setCurrentStudentIdx(idx);
         setError(''); setSuccess('');
@@ -770,12 +780,11 @@ function ReportBuilderInner() {
             }
         }
 
-        // Hydrate sessionConfig from the existing report — but ONLY when no session is
-        // active yet (sessionDone=false). Once a teacher has clicked "Start Grading" and
-        // is navigating between students, we must NOT let one student's old report overwrite
-        // the session-level school/class/course selection; that would change filteredStudents
-        // mid-navigation and cause the list to jump to a different school or class.
-        if (report && !sessionDone) {
+        // Hydrate sessionConfig from the existing report — ONLY when no session is active
+        // yet (sessionDone=false), OR when forceHydrate is set (e.g. landing via Edit link).
+        // During normal session navigation we must NOT overwrite the session-level school/
+        // class/course selection as it would break the student list mid-navigation.
+        if (report && (!sessionDone || opts?.forceHydrate)) {
             // Hydrate sessionProgramId from the report's course
             if (report.course_id) {
                 const reportCourse = courses.find(c => c.id === report.course_id);
