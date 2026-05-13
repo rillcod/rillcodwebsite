@@ -3043,7 +3043,7 @@ function ReportBuilderInner() {
                                     <button onClick={() => handleSave(true)} disabled={saving || publishing}
                                         className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex-shrink-0">
                                         {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <RocketLaunchIcon className="w-3.5 h-3.5" />}
-                                        <span>{publishing ? 'Publishing…' : 'Publish'}</span>
+                                        <span>{publishing ? 'Saving & Publishing…' : 'Save & Publish'}</span>
                                     </button>
                                     <button onClick={() => setShowPreview(true)}
                                         className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/40 flex-shrink-0">

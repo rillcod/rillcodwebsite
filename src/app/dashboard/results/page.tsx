@@ -146,6 +146,7 @@ function ResultsPageInner() {
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isDeletingReport, setIsDeletingReport] = useState(false);
     const [isTogglingInvoice, setIsTogglingInvoice] = useState(false);
+    const [isTogglingPublish, setIsTogglingPublish] = useState(false);
 
     // ── PDF state ──────────────────────────────────────────────────────────────
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
@@ -694,6 +695,31 @@ function ResultsPageInner() {
     }
 
     // ── Toggle Invoice ────────────────────────────────────────────────────────
+    async function handlePublishToggle() {
+        if (!selectedReport) return;
+        setIsTogglingPublish(true);
+        const nextVal = !selectedReport.is_published;
+        try {
+            const res = await fetch(`/api/progress-reports/${selectedReport.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_published: nextVal }),
+            });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                alert(j.error ?? 'Failed to update publish status.');
+                return;
+            }
+            const updated = { ...selectedReport, is_published: nextVal };
+            setSelectedReport(updated as StudentReport);
+            if (selectedStudent) {
+                setReportsMap(prev => ({ ...prev, [selectedStudent.id]: updated }));
+            }
+        } finally {
+            setIsTogglingPublish(false);
+        }
+    }
+
     async function handleInvoiceToggle() {
         if (!selectedReport) return;
         setIsTogglingInvoice(true);
@@ -1273,6 +1299,17 @@ tbody tr:hover{background:#f3f4f6}
                                                                 {isTogglingInvoice
                                                                     ? <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
                                                                     : ((selectedReport as any).show_payment_notice ? 'Hide Invoice' : 'Show Invoice')}
+                                                            </button>
+                                                            <div className="w-px h-4 bg-border mx-0.5" />
+                                                            <button
+                                                                onClick={handlePublishToggle}
+                                                                disabled={isTogglingPublish}
+                                                                title={selectedReport.is_published ? 'Unpublish report' : 'Publish report — makes it visible to student'}
+                                                                className={`h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest disabled:opacity-50 rounded-lg transition-all ${selectedReport.is_published ? 'text-amber-400 hover:bg-amber-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'}`}
+                                                            >
+                                                                {isTogglingPublish
+                                                                    ? <div className={`w-3 h-3 border-2 border-t-transparent rounded-full animate-spin ${selectedReport.is_published ? 'border-amber-400' : 'border-emerald-400'}`} />
+                                                                    : selectedReport.is_published ? 'Unpublish' : 'Publish'}
                                                             </button>
                                                             <div className="w-px h-4 bg-border mx-0.5" />
                                                             <button
