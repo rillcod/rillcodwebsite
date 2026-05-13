@@ -442,7 +442,7 @@ export default function ReportCard({ report, orgSettings }: {
                         {/* Right — QR */}
                         <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <div style={{ padding: 10, backgroundColor: '#fff', border: '3px solid #f3f4f6', borderRadius: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 6 }}>
-                                <QRCode value={`https://rillcod.com/verify/${report.id ?? 'preview'}`} size={72} />
+                                <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) ?? 'preview'}`} size={72} />
                             </div>
                             <p style={{ fontSize: 10, fontWeight: 900, color: '#111827', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
                                 VERIFY {report.id?.slice(0, 8).toUpperCase() ?? 'PREVIEW'}

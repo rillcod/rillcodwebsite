@@ -31,30 +31,20 @@ export default function VerifyCodePage() {
 
     async function fetchData() {
       try {
-        // 1. Try fetching as a report (using ILIKE for partial match)
-        const { data: reportData, error: reportError } = await db
-          .from('student_progress_reports')
-          .select('*')
-          .ilike('id', `${code.toLowerCase()}%`)
-          .limit(1)
-          .maybeSingle();
-
-        if (!reportError && reportData) {
-          if (!reportData.is_published) {
-            setStatus('unpublished');
+        // 1. Try fetching as a published report via public API (uses service role — bypasses RLS)
+        const reportRes = await fetch(`/api/public/verify-report?code=${encodeURIComponent(code)}`);
+        if (reportRes.ok) {
+          const reportJson = await reportRes.json();
+          if (reportJson.found && reportJson.report) {
+            setReport(reportJson.report);
+            setOrgSettings(reportJson.orgSettings);
+            setMode('report');
+            setStatus('found');
             return;
           }
-
-          const { data: orgData } = await db
-            .from('report_settings')
-            .select('*')
-            .limit(1)
-            .maybeSingle();
-
-          setReport(reportData);
-          setOrgSettings(orgData);
-          setMode('report');
-          setStatus('found');
+        } else if (reportRes.status === 403) {
+          // Report exists but is not published
+          setStatus('unpublished');
           return;
         }
 

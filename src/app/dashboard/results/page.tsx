@@ -1243,108 +1243,108 @@ tbody tr:hover{background:#f3f4f6}
                                                 </div>
                                             )}
 
-                                            {/* Editor actions */}
-                                            {isEditor && selectedStudent && (
-                                                <Link
-                                                    href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
-                                                    className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-brand-red-600 bg-primary/10 hover:bg-primary/20 rounded-xl border border-primary/20 transition-all flex-shrink-0"
-                                                >
-                                                    <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
-                                                </Link>
-                                            )}
-                                            {isEditor && selectedReport && (
-                                                <>
-                                                    <button
-                                                        onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
-                                                        className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl border border-amber-500/20 transition-all flex-shrink-0"
-                                                    >
-                                                        <PencilSquareIcon className="w-3.5 h-3.5" /> Rename
-                                                    </button>
-                                                    <button
-                                                        onClick={handleInvoiceToggle}
-                                                        disabled={isTogglingInvoice}
-                                                        title="Toggle Invoice Visibility"
-                                                        className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 disabled:opacity-50 rounded-xl border border-indigo-500/20 transition-all flex-shrink-0"
-                                                    >
-                                                        {isTogglingInvoice
-                                                            ? <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-                                                            : ((selectedReport as any).show_payment_notice ? 'Hide Invoice' : 'Show Invoice')}
-                                                    </button>
-                                                    <button
-                                                        onClick={handleDeleteReport}
-                                                        disabled={isDeletingReport}
-                                                        title="Delete this report"
-                                                        className="h-9 inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 disabled:opacity-50 rounded-xl border border-rose-500/20 transition-all flex-shrink-0"
-                                                    >
-                                                        {isDeletingReport
-                                                            ? <div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
-                                                            : <TrashIcon className="w-3.5 h-3.5" />}
-                                                    </button>
-                                                </>
+                                            {/* Editor actions — grouped pill */}
+                                            {isEditor && (selectedStudent || selectedReport) && (
+                                                <div className="flex items-center gap-0.5 bg-card border border-border rounded-xl px-1 h-9 flex-shrink-0">
+                                                    {selectedStudent && (
+                                                        <Link
+                                                            href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
+                                                            className="h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/10 rounded-lg transition-all"
+                                                        >
+                                                            <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                                                        </Link>
+                                                    )}
+                                                    {selectedReport && (
+                                                        <>
+                                                            {selectedStudent && <div className="w-px h-4 bg-border mx-0.5" />}
+                                                            <button
+                                                                onClick={() => { setEditCourseName(selectedReport.course_name ?? ''); setEditTerm(selectedReport.report_term ?? ''); setShowEditModal(true); }}
+                                                                className="h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all"
+                                                            >
+                                                                <PencilSquareIcon className="w-3 h-3" /> Rename
+                                                            </button>
+                                                            <div className="w-px h-4 bg-border mx-0.5" />
+                                                            <button
+                                                                onClick={handleInvoiceToggle}
+                                                                disabled={isTogglingInvoice}
+                                                                title="Toggle Invoice Visibility"
+                                                                className="h-7 inline-flex items-center gap-1 px-2.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-500/10 disabled:opacity-50 rounded-lg transition-all"
+                                                            >
+                                                                {isTogglingInvoice
+                                                                    ? <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                                                                    : ((selectedReport as any).show_payment_notice ? 'Hide Invoice' : 'Show Invoice')}
+                                                            </button>
+                                                            <div className="w-px h-4 bg-border mx-0.5" />
+                                                            <button
+                                                                onClick={handleDeleteReport}
+                                                                disabled={isDeletingReport}
+                                                                title="Delete this report"
+                                                                className="h-7 inline-flex items-center gap-1 px-2 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 rounded-lg transition-all"
+                                                            >
+                                                                {isDeletingReport
+                                                                    ? <div className="w-3 h-3 border-2 border-rose-400 border-t-transparent rounded-full animate-spin" />
+                                                                    : <TrashIcon className="w-3.5 h-3.5" />}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             )}
 
-                                            {/* Print / Share — 2-column grid */}
+                                            {/* Print / Download / Share — flat row */}
                                             {selectedReport && (
-                                                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto flex-shrink-0">
-                                                    {/* Print column: browser print + download PDF stacked */}
-                                                    <div className="flex flex-col gap-1.5">
-                                                        <button
-                                                            onClick={() => window.print()}
-                                                            title="Print"
-                                                            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-foreground border border-border transition-all rounded-xl text-[10px] font-black uppercase tracking-widest"
-                                                        >
-                                                            <PrinterIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                                                            <span>Print</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={downloadSinglePDF}
-                                                            disabled={isDownloadingPdf}
-                                                            title="Download PDF"
-                                                            className="flex items-center justify-center gap-1.5 px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white transition-all rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/40"
-                                                        >
-                                                            {isDownloadingPdf
-                                                                ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                                : <ArrowDownTrayIcon className="w-3.5 h-3.5 flex-shrink-0" />}
-                                                            <span>Download</span>
-                                                        </button>
-                                                    </div>
-                                                    {/* Share column: WhatsApp share fills full height */}
-                                                    <div className="flex flex-col">
-                                                        <button
-                                                            disabled={isSharingPdf}
-                                                            title="Share via WhatsApp"
-                                                            onClick={async () => {
-                                                                if (!printableRef.current || !reportToDisplay) return;
-                                                                setIsSharingPdf(true);
-                                                                try {
-                                                                    const name = (reportToDisplay.student_name || 'Student').replace(/\s+/g, '_');
-                                                                    const term = (reportToDisplay.report_term || 'Report').replace(/\s+/g, '_');
-                                                                    const filename = `${name}_${term}.pdf`;
-                                                                    const result = await shareReportCard(
-                                                                        printableRef.current,
-                                                                        filename,
-                                                                        `Progress report for ${reportToDisplay.student_name || 'your child'} — ${reportToDisplay.report_term || ''} — Rillcod Academy`,
-                                                                    );
-                                                                    if (result === 'downloaded') {
-                                                                        alert('Web Share not supported on this browser. The PDF has been downloaded instead.');
-                                                                    }
-                                                                } catch (err: unknown) {
-                                                                    const msg = err instanceof Error ? err.message : '';
-                                                                    if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort')) {
-                                                                        alert('Could not share PDF. Try downloading instead.');
-                                                                    }
-                                                                } finally {
-                                                                    setIsSharingPdf(false);
+                                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                    <button
+                                                        onClick={() => window.print()}
+                                                        title="Print"
+                                                        className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-foreground bg-card hover:bg-muted border border-border rounded-xl transition-all"
+                                                    >
+                                                        <PrinterIcon className="w-3.5 h-3.5 flex-shrink-0" /> Print
+                                                    </button>
+                                                    <button
+                                                        onClick={downloadSinglePDF}
+                                                        disabled={isDownloadingPdf}
+                                                        title="Download PDF"
+                                                        className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-primary/30"
+                                                    >
+                                                        {isDownloadingPdf
+                                                            ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                            : <ArrowDownTrayIcon className="w-3.5 h-3.5 flex-shrink-0" />}
+                                                        Download
+                                                    </button>
+                                                    <button
+                                                        disabled={isSharingPdf}
+                                                        title="Share via WhatsApp"
+                                                        onClick={async () => {
+                                                            if (!printableRef.current || !reportToDisplay) return;
+                                                            setIsSharingPdf(true);
+                                                            try {
+                                                                const name = (reportToDisplay.student_name || 'Student').replace(/\s+/g, '_');
+                                                                const term = (reportToDisplay.report_term || 'Report').replace(/\s+/g, '_');
+                                                                const filename = `${name}_${term}.pdf`;
+                                                                const result = await shareReportCard(
+                                                                    printableRef.current,
+                                                                    filename,
+                                                                    `Progress report for ${reportToDisplay.student_name || 'your child'} — ${reportToDisplay.report_term || ''} — Rillcod Academy`,
+                                                                );
+                                                                if (result === 'downloaded') {
+                                                                    alert('Web Share not supported on this browser. The PDF has been downloaded instead.');
                                                                 }
-                                                            }}
-                                                            className="flex-1 flex flex-col items-center justify-center gap-2 px-3 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white transition-all rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-green-900/40"
-                                                        >
-                                                            {isSharingPdf
-                                                                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                                : <WhatsAppIcon className="w-5 h-5 flex-shrink-0" />}
-                                                            <span>Share</span>
-                                                        </button>
-                                                    </div>
+                                                            } catch (err: unknown) {
+                                                                const msg = err instanceof Error ? err.message : '';
+                                                                if (!msg.toLowerCase().includes('cancel') && !msg.toLowerCase().includes('abort')) {
+                                                                    alert('Could not share PDF. Try downloading instead.');
+                                                                }
+                                                            } finally {
+                                                                setIsSharingPdf(false);
+                                                            }
+                                                        }}
+                                                        className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-green-900/30"
+                                                    >
+                                                        {isSharingPdf
+                                                            ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                            : <WhatsAppIcon className="w-4 h-4 flex-shrink-0" />}
+                                                        Share
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
