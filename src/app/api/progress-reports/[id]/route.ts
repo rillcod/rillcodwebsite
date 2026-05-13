@@ -98,27 +98,100 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Email alert when report is published
+  // Email alert when report is published — notify student AND their parent(s)
   if (body.is_published && data?.student_id) {
     (async () => {
-      const { data: student } = await adminClient().from('portal_users').select('email, full_name').eq('id', data.student_id).single();
-      if (!student?.email) return;
+      const db = adminClient();
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
-      const html = buildReportEmail({
-        recipientName: student.full_name || 'Student',
-        studentName:   student.full_name || 'Student',
-        term:          data.course_name || 'Current Term',
-        overallGrade:  data.overall_grade ?? (data.overall_score !== null ? `${data.overall_score}%` : undefined),
-        portalUrl:     `${appUrl}/dashboard/results`,
-        appUrl,
-      });
-      await queueService.queueNotification(data.student_id!, 'email', {
-        to:        student.email,
-        subject:   `Progress Report Published — Rillcod Technologies`,
-        fromName:  'Rillcod Technologies',
-        fromEmail: 'support@rillcod.com',
-        html,
-      });
+      const portalUrl = `${appUrl}/dashboard/results`;
+      const subject   = `Progress Report Published — Rillcod Technologies`;
+      const grade     = data.overall_grade ?? (data.overall_score !== null ? `${data.overall_score}%` : undefined);
+      const term      = data.course_name || 'Current Term';
+
+      // 1 — Fetch student portal profile
+      const { data: student } = await db
+        .from('portal_users')
+        .select('id, email, full_name, school_id')
+        .eq('id', data.student_id)
+        .maybeSingle();
+
+      const studentName = student?.full_name || 'Student';
+
+      // 2 — Email the student
+      if (student?.email) {
+        const html = buildReportEmail({
+          recipientName: studentName,
+          studentName,
+          term,
+          overallGrade: grade,
+          portalUrl,
+          appUrl,
+        });
+        await queueService.queueNotification(data.student_id!, 'email', {
+          to:        student.email,
+          subject,
+          fromName:  'Rillcod Technologies',
+          fromEmail: 'support@rillcod.com',
+          html,
+        });
+      }
+
+      // 3 — Collect parent emails from two sources and deduplicate
+      const parentEmails = new Map<string, string>(); // email → name
+
+      // 3a — students table parent_email (non-portal parents)
+      const { data: studentRow } = await db
+        .from('students')
+        .select('parent_email, parent_name')
+        .eq('user_id', data.student_id)
+        .maybeSingle();
+      if (studentRow?.parent_email) {
+        parentEmails.set(
+          studentRow.parent_email.toLowerCase(),
+          studentRow.parent_name || 'Parent/Guardian',
+        );
+      }
+
+      // 3b — portal parents linked via parent_student_links
+      const { data: links } = await db
+        .from('parent_student_links')
+        .select('parent_id')
+        .eq('student_id', data.student_id);
+      if (links && links.length > 0) {
+        const parentIds = links.map((l: any) => l.parent_id);
+        const { data: portalParents } = await db
+          .from('portal_users')
+          .select('id, email, full_name')
+          .in('id', parentIds)
+          .not('email', 'is', null);
+        for (const p of portalParents ?? []) {
+          if (p.email) parentEmails.set(p.email.toLowerCase(), p.full_name || 'Parent/Guardian');
+        }
+      }
+
+      // 4 — Email each parent
+      for (const [email, parentName] of parentEmails) {
+        const html = buildReportEmail({
+          recipientName: parentName,
+          studentName,
+          term,
+          overallGrade: grade,
+          portalUrl,
+          appUrl,
+        });
+        await queueService.queueNotification(`parent-${email}`, 'email', {
+          to:        email,
+          subject,
+          fromName:  'Rillcod Technologies',
+          fromEmail: 'support@rillcod.com',
+          html,
+        }).catch(() =>
+          // queueService may reject non-UUID user IDs — fall back to direct send
+          import('@/services/notifications.service').then(({ notificationsService }) =>
+            notificationsService.sendExternalEmail({ to: email, subject, fromName: 'Rillcod Technologies', fromEmail: 'support@rillcod.com', html })
+          )
+        );
+      }
     })().catch(console.error);
   }
 
