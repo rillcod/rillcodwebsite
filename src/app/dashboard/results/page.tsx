@@ -1331,7 +1331,7 @@ tbody tr:hover{background:#f3f4f6}
                                             {selectedReport && (
                                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                                     <button
-                                                        onClick={() => printableRef.current && printElement(printableRef.current)}
+                                                        onClick={() => window.print()}
                                                         title="Print"
                                                         className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-foreground bg-card hover:bg-muted border border-border rounded-xl transition-all"
                                                     >
