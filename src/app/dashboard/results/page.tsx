@@ -162,7 +162,7 @@ function ResultsPageInner() {
     const captureQueue = useRef<StudentReport[]>([]);
     const captureIdx = useRef<number>(0);
     const batchMode = useRef<'download' | 'print'>('download');
-    const pdfPages = useRef<{ dataUrl: string; w: number; h: number }[]>([]);
+    const pdfPages = useRef<{ dataUrl: string; format: 'JPEG'; w: number; h: number }[]>([]);
     const [showSidebar, setShowSidebar] = useState(true);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';

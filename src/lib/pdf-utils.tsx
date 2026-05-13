@@ -234,8 +234,8 @@ async function buildPdf(element: HTMLElement, isLandscape = false) {
     const W = isLandscape ? 1122 : 794;
     const H = isLandscape ? 794 : element.scrollHeight;
 
-    const dataUrl = await toPng(element, {
-        pixelRatio: 2,
+    const pngUrl = await toPng(element, {
+        pixelRatio: 1.5,
         cacheBust: true,
         skipAutoScale: false,
         width: W,
@@ -243,8 +243,26 @@ async function buildPdf(element: HTMLElement, isLandscape = false) {
         backgroundColor: '#fff',
     });
 
+    // Convert PNG→JPEG via canvas before passing to jsPDF.
+    // jsPDF's PNG path does Array.join('') on raw pixel bytes which overflows
+    // the JS max string length on large reports. JPEG path avoids this entirely.
+    const jpegUrl = await new Promise<string>(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width = img.width;
+            c.height = img.height;
+            const ctx = c.getContext('2d')!;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(img, 0, 0);
+            resolve(c.toDataURL('image/jpeg', 0.92));
+        };
+        img.src = pngUrl;
+    });
+
     const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
-    pdf.addImage(dataUrl, 'PNG', 0, 0, W, H);
+    pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
     return pdf;
 }
 
