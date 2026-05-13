@@ -378,6 +378,18 @@ function ResultsPageInner() {
         return () => { aborted = true; };
     }, [profile?.id, authLoading]); // eslint-disable-line
 
+    // ── Auto-print when ?autoprint=1 is in the URL ────────────────────────────
+    const autoPrintFired = useRef(false);
+    useEffect(() => {
+        if (autoPrintFired.current) return;
+        if (!searchParams.get('autoprint')) return;
+        if (!selectedReport || loadingReport) return;
+        autoPrintFired.current = true;
+        // Give React time to render the report card before opening the print dialog
+        const t = setTimeout(() => window.print(), 900);
+        return () => clearTimeout(t);
+    }, [selectedReport, loadingReport]); // eslint-disable-line
+
     // ── Load single student report ─────────────────────────────────────────────
     async function loadStudentReport(s: PortalUser) {
         setSelectedStudent(s);

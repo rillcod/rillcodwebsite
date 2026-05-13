@@ -1795,6 +1795,15 @@ function ReportBuilderInner() {
                                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                     {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />} View Result
                                 </button>
+                                <button
+                                    onClick={async () => {
+                                        await handleSave(false);
+                                        window.open(`/dashboard/results?student=${selectedStudent.id}&autoprint=1`, '_blank');
+                                    }}
+                                    disabled={saving || publishing}
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PrinterIcon className="w-3.5 h-3.5" />} Save & Print
+                                </button>
                             </>
                         )}
                     </div>
