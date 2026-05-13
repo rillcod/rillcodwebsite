@@ -3229,7 +3229,7 @@ function ReportBuilderInner() {
                 // Inject print CSS: when printing from inside the preview, hide everything except the report card
                 // (the header bar and scrollable wrapper both carry the .no-print class)
                 <>
-                <style>{`@media print { body > *:not(#builder-preview-root) { display: none !important; } #builder-preview-root .no-print { display: none !important; } #builder-preview-root { position: static !important; background: white; } }`}</style>
+                <style>{`@media print { body * { visibility: hidden !important; } #pdf-print-target, #pdf-print-target * { visibility: visible !important; } #pdf-print-target { position: fixed !important; left: 0 !important; top: 0 !important; width: 210mm !important; z-index: 9999 !important; background: white !important; } }`}</style>
                 <div id="builder-preview-root" className="fixed inset-0 z-50 flex flex-col bg-background">
                     <div className="no-print flex items-center gap-4 px-8 py-4 border-b border-border bg-[#0a0a14]">
                         <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-card shadow-sm rounded-xl transition-colors">
@@ -3346,7 +3346,7 @@ function ReportBuilderInner() {
                 </>
             )}
 
-            <div style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>
+            <div id="pdf-print-target" style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>
                 <div ref={pdfRef}>
                     {reportStyle === 'modern' ? (
                         <ModernReportCard report={previewData} orgSettings={branding as any} />

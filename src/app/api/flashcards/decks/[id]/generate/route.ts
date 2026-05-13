@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { geminiGenerateText } from '@/lib/gemini/client';
 
 export const dynamic = 'force-dynamic';
@@ -52,8 +53,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Verify user owns the deck
-  const { data: deck } = await supabase
+  // Verify user owns the deck — use admin client to bypass RLS so the lookup
+  // succeeds regardless of school_id or other RLS conditions on flashcard_decks.
+  const adminClient = createAdminClient();
+  const { data: deck } = await (adminClient as any)
     .from('flashcard_decks')
     .select('created_by, title')
     .eq('id', id)
