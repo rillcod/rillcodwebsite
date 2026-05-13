@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
-import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
 
 function adminClient() {
   return createClient(
@@ -104,20 +104,19 @@ export async function PATCH(
       const { data: student } = await adminClient().from('portal_users').select('email, full_name').eq('id', data.student_id).single();
       if (!student?.email) return;
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
-      const scoreStr = data.overall_score !== null ? `${data.overall_score}%` : 'now available';
-      const html = buildRillcodTransactionalEmailHtml({
-        title: 'Progress Report Published',
-        bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>
-          <p>Your progress report for <strong>${escapeHtml(data.course_name || 'your course')}</strong> has been published by your instructor.</p>`,
-        summaryRows: [
-          { label: 'Course', value: data.course_name || 'N/A' },
-          { label: 'Overall Score', value: scoreStr },
-        ],
-        cta: { href: `${appUrl}/dashboard/results`, label: 'View Full Report' },
+      const html = buildReportEmail({
+        recipientName: student.full_name || 'Student',
+        studentName:   student.full_name || 'Student',
+        term:          data.course_name || 'Current Term',
+        overallGrade:  data.overall_grade ?? (data.overall_score !== null ? `${data.overall_score}%` : undefined),
+        portalUrl:     `${appUrl}/dashboard/results`,
+        appUrl,
       });
       await queueService.queueNotification(data.student_id!, 'email', {
-        to: student.email,
-        subject: `Progress Report Published: ${data.course_name || 'Your Course'}`,
+        to:        student.email,
+        subject:   `Progress Report Published — Rillcod Technologies`,
+        fromName:  'Rillcod Technologies',
+        fromEmail: 'support@rillcod.com',
         html,
       });
     })().catch(console.error);

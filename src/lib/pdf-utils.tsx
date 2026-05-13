@@ -297,7 +297,7 @@ export async function shareReportCard(
         await navigator.share({
             files: [file],
             title: filename.replace('.pdf', '').replace(/_/g, ' '),
-            text: shareText ?? 'Please find the attached progress report from Rillcod Academy.',
+            text: shareText ?? 'Please find the attached progress report from Rillcod Technologies.',
         });
         return 'shared';
     }

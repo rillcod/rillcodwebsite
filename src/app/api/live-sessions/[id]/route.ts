@@ -75,7 +75,7 @@ async function notifySessionLive(session: any) {
           to: user.email,
           subject: `🔴 Live Now: ${session.title}`,
           html: buildLiveEmail({ name: user.full_name, title: session.title, joinUrl: sessionUrl }),
-          fromName: 'Rillcod Academy',
+          fromName: 'Rillcod Technologies',
           fromEmail: 'no-reply@rillcod.com',
         }).catch(() => {});
       }
@@ -124,7 +124,7 @@ async function notifySessionScheduled(session: any) {
           to: user.email,
           subject: `📅 New Session Scheduled: ${session.title}`,
           html: buildScheduledEmail({ name: user.full_name, title: session.title, when, dashUrl }),
-          fromName: 'Rillcod Academy',
+          fromName: 'Rillcod Technologies',
           fromEmail: 'no-reply@rillcod.com',
         }).catch(() => {});
       }
@@ -152,7 +152,7 @@ function buildLiveEmail({ name, title, joinUrl }: { name: string; title: string;
     <p style="color:#444;font-size:11px;margin:28px 0 0;">If the button doesn't work, copy this link: <a href="${joinUrl}" style="color:#10b981;">${joinUrl}</a></p>
   </div>
   <div style="padding:16px 32px;border-top:1px solid #222;">
-    <p style="color:#333;font-size:11px;margin:0;">Rillcod Academy · <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="color:#444;">Dashboard</a></p>
+    <p style="color:#333;font-size:11px;margin:0;">Rillcod Technologies · <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="color:#444;">Dashboard</a></p>
   </div>
 </div>
 </body></html>`;
@@ -174,7 +174,7 @@ function buildScheduledEmail({ name, title, when, dashUrl }: { name: string; tit
     </a>
   </div>
   <div style="padding:16px 32px;border-top:1px solid #222;">
-    <p style="color:#333;font-size:11px;margin:0;">Rillcod Academy · <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="color:#444;">Dashboard</a></p>
+    <p style="color:#333;font-size:11px;margin:0;">Rillcod Technologies · <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="color:#444;">Dashboard</a></p>
   </div>
 </div>
 </body></html>`;

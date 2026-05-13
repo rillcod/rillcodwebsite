@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const checkTo = parsed.data.check_to ?? 'ausiat1@gmail.com';
     const feedbackTo = parsed.data.feedback_pay_to ?? 'rillcod@gmail.com';
 
-    const fromName = 'Rillcod Academy';
+    const fromName = 'Rillcod Technologies';
     const fromEmail = 'support@rillcod.com';
 
     const sent: { to: string; subject: string }[] = [];

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
+import { buildSubscriptionEmail } from '@/lib/email/rillcod-transactional-email';
 import { env } from '@/config/env';
 import { createPublicBillingToken } from '@/lib/payments/public-billing-link';
 import { aggregateOpenSchoolInvoices, computeSettlementSplit } from '@/lib/billing/school-invoice-rollup';
@@ -39,70 +40,6 @@ function addWeeks(dateInput: string | Date, weeks: number) {
   return d.toISOString().slice(0, 10);
 }
 
-function buildBillingReminderEmailHtml(args: {
-  termLabel: string;
-  amountDue: number;
-  dueDate: string;
-  webUrl: string;
-  mobileUrl: string;
-  payUrl: string;
-  schoolName?: string | null;
-}) {
-  const dueDateLabel = args.dueDate
-    ? new Date(args.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
-    : 'Immediate';
-  const amountLabel = `NGN ${Number(args.amountDue || 0).toLocaleString()}`;
-  const appUrl = args.webUrl || 'https://rillcod.com';
-  const logoUrl = `${appUrl.replace(/\/$/, '')}/images/logo.png`;
-  const title = 'Billing Notice';
-  const ownerLabel = args.schoolName ? `${args.schoolName}` : 'Your account';
-
-  return `
-  <div style="margin:0;padding:0;background:#0b0b0c;font-family:Arial,Helvetica,sans-serif;color:#f5f5f5;">
-    <div style="max-width:640px;margin:0 auto;padding:24px 16px;">
-      <div style="background:#141416;border:1px solid #2b2b2f;padding:20px;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-          <img src="${logoUrl}" alt="Rillcod" style="width:42px;height:42px;object-fit:contain;background:#fff;padding:4px;" />
-          <div>
-            <p style="margin:0;font-size:11px;letter-spacing:1.4px;color:#f59e0b;font-weight:800;text-transform:uppercase;">Rillcod Academy</p>
-            <h2 style="margin:4px 0 0;font-size:18px;line-height:1.3;color:#fff;">${title}</h2>
-          </div>
-        </div>
-
-        <p style="margin:0 0 12px;font-size:14px;color:#d4d4d8;">
-          Hello, this is a professional billing reminder for <strong style="color:#fff;">${ownerLabel}</strong> regarding <strong style="color:#fff;">${args.termLabel}</strong>.
-        </p>
-
-        <div style="background:#1a1a1d;border:1px solid #33363a;padding:14px 16px;margin:0 0 14px;">
-          <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Payment Summary</p>
-          <p style="margin:0 0 6px;font-size:15px;color:#fff;"><strong>Amount Due:</strong> ${amountLabel}</p>
-          <p style="margin:0 0 6px;font-size:15px;color:#fff;"><strong>Due Date:</strong> ${dueDateLabel}</p>
-          <p style="margin:0;font-size:15px;color:#fff;"><strong>Billing Cycle:</strong> ${args.termLabel}</p>
-        </div>
-
-        <p style="margin:0 0 14px;font-size:13px;color:#d4d4d8;">
-          To avoid service interruptions, please complete payment as soon as possible.
-        </p>
-
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px;">
-          <a href="${args.payUrl}" style="background:#f59e0b;color:#111827;text-decoration:none;padding:10px 14px;font-size:12px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;">
-            View & Pay Now
-          </a>
-          <span style="border:1px solid #3f3f46;color:#d4d4d8;padding:10px 14px;font-size:11px;font-weight:700;">
-            Mobile: ${args.mobileUrl}
-          </span>
-        </div>
-
-        <div style="border-top:1px solid #2f2f35;padding-top:14px;">
-          <p style="margin:0 0 6px;font-size:12px;color:#a1a1aa;"><strong>Contact:</strong> support@rillcod.com</p>
-          <p style="margin:0;font-size:11px;color:#71717a;">
-            This is an automated billing communication from Rillcod Academy. Please keep this email for your records.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>`;
-}
 
 async function ensureStickyNotice(db: ReturnType<typeof createAdminClient>, cycle: BillingCycle, mobileUrl: string) {
   const title = `Billing due for ${cycle.term_label}`;
@@ -349,20 +286,24 @@ async function handleRequest(request: Request) {
       try {
         const billingToken = createPublicBillingToken(cycle.id);
         const payUrl = `${webUrl || 'https://rillcod.com'}/api/payments/public-billing?token=${encodeURIComponent(billingToken)}`;
-        const richHtml = buildBillingReminderEmailHtml({
-          termLabel: cycle.term_label,
-          amountDue: Number(cycle.amount_due || 0),
-          dueDate: cycle.due_date,
-          webUrl,
-          mobileUrl,
-          payUrl,
-          schoolName,
+        const isOverdue = cycle.due_date ? new Date(cycle.due_date) < new Date() : false;
+        const richHtml = buildSubscriptionEmail({
+          recipientName: schoolName || 'Client',
+          plan:          cycle.term_label,
+          status:        isOverdue ? 'suspended' : 'expiring',
+          expiryDate:    cycle.due_date || undefined,
+          amount:        Number(cycle.amount_due || 0),
+          currency:      'NGN',
+          schoolName:    schoolName || undefined,
+          portalUrl:     payUrl,
         });
         await notificationsService.sendExternalEmail({
-          to: emailTarget,
-          subject: 'Rillcod Billing Notice - Action Required',
-          html: richHtml,
-          fromName: 'Rillcod Support',
+          to:        emailTarget,
+          subject:   isOverdue
+            ? `Urgent: Billing Overdue — Action Required (Rillcod Technologies)`
+            : `Billing Reminder — Payment Due Soon (Rillcod Technologies)`,
+          html:      richHtml,
+          fromName:  'Rillcod Technologies Finance',
           fromEmail: 'support@rillcod.com',
         });
         await db.from('billing_reminder_logs').insert({

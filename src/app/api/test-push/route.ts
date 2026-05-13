@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     // Attempt to send a push notification to the current user
     const result = await sendPushNotification(user.id, {
       title: 'It works! 🎉',
-      body: 'Your Web Push Notifications are working perfectly on the Rillcod Academy!',
+      body: 'Your Web Push Notifications are working perfectly on the Rillcod Technologies!',
       url: '/dashboard'
     });
 

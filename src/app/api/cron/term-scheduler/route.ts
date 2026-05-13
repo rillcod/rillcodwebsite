@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { buildAssignmentEmail } from '@/lib/email/rillcod-transactional-email';
+import { notificationsService } from '@/services/notifications.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,12 +56,64 @@ async function handleRequest(req: NextRequest) {
         .eq('status', 'draft');
 
       // Release assignments for current week — keyed via metadata.lesson_plan_id + metadata.week_number
-      await supabase
+      const { data: activatedAssignments } = await supabase
         .from('assignments')
         .update({ is_active: true, updated_at: new Date().toISOString() })
         .filter('metadata->>lesson_plan_id', 'eq', schedule.lesson_plan_id)
         .filter('metadata->>week_number', 'eq', String(currentWeek))
-        .or('is_active.is.null,is_active.eq.false');
+        .or('is_active.is.null,is_active.eq.false')
+        .select('id, title, description, instructions, due_date, max_points, metadata, courses(title)');
+
+      // Notify students and parents by email for each activated assignment
+      if (activatedAssignments && activatedAssignments.length > 0) {
+        try {
+          const classId = schedule.lesson_plans?.class_id;
+          if (classId) {
+            // Fetch students in this class who have email addresses
+            const { data: students } = await supabase
+              .from('portal_users')
+              .select('id, email, full_name, school_id')
+              .eq('section_class', classId)
+              .eq('role', 'student')
+              .eq('is_active', true)
+              .not('email', 'is', null);
+
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com';
+            const portalUrl = `${appUrl}/dashboard/assignments`;
+
+            for (const assignment of activatedAssignments) {
+              const courseName = (assignment.courses as any)?.title ?? '';
+              const className = (assignment.metadata as any)?.target_class_name ?? classId;
+
+              for (const student of (students ?? [])) {
+                if (!student.email) continue;
+                try {
+                  const html = buildAssignmentEmail({
+                    recipientName:    student.full_name ?? 'Student',
+                    assignmentTitle:  assignment.title,
+                    courseName:       courseName || undefined,
+                    className:        className || undefined,
+                    dueDate:          assignment.due_date || undefined,
+                    maxPoints:        assignment.max_points ?? undefined,
+                    instructions:     (assignment.instructions || assignment.description) ?? undefined,
+                    portalUrl,
+                    appUrl,
+                  });
+                  await notificationsService.sendEmail(student.id, {
+                    to:        student.email,
+                    subject:   `New Assignment: ${assignment.title} — Rillcod Technologies`,
+                    fromName:  'Rillcod Technologies',
+                    fromEmail: 'support@rillcod.com',
+                    html,
+                  });
+                } catch { /* non-critical per-student failure */ }
+              }
+            }
+          }
+        } catch (notifyErr) {
+          console.error('[term-scheduler] assignment email notification failed:', notifyErr);
+        }
+      }
 
       // Increment current_week
       await supabase

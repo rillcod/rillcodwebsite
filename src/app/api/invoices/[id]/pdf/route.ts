@@ -177,7 +177,7 @@ function renderIndividualInvoiceHtml(invoice: any): string {
   const school = invoice.schools as any;
   const currencySymbol = invoice.currency === 'NGN' ? '₦' : (invoice.currency ?? '₦');
   const invoiceNumber = invoice.invoice_number ?? `INV-${String(invoice.id).slice(0, 8).toUpperCase()}`;
-  const schoolName = 'Rillcod Academy';
+  const schoolName = 'Rillcod Technologies';
   const amount = Number(invoice.amount);
   const dueDate = invoice.due_date
     ? new Date(invoice.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })

@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
+import { buildInvoiceEmail } from '@/lib/email/rillcod-transactional-email';
 import { DEFAULT_CONFIG, type BillingAutomationConfig } from '@/app/api/billing/automation/config';
 
 export const dynamic = 'force-dynamic';
@@ -39,62 +40,39 @@ async function loadConfig(db: ReturnType<typeof createAdminClient>): Promise<Bil
   catch { return DEFAULT_CONFIG; }
 }
 
-async function buildReminderEmail(invoice: any, reminderNumber: 1 | 2 | 3): Promise<string> {
+function buildReminderEmail(invoice: any, reminderNumber: 1 | 2 | 3): string {
   const student = invoice.portal_users as any;
-  const currencySymbol = invoice.currency === 'NGN' ? '₦' : (invoice.currency ?? '₦');
-  const amount = Number(invoice.amount ?? 0).toLocaleString();
-  const dueDate = invoice.due_date
-    ? new Date(invoice.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-    : 'N/A';
   const invoiceNumber = invoice.invoice_number ?? `INV-${invoice.id.slice(0, 8).toUpperCase()}`;
   const payUrl = `${APP_URL}/dashboard/my-payments`;
-  const color = reminderNumber === 1 ? '#2563eb' : reminderNumber === 2 ? '#d97706' : '#dc2626';
-  const badge = reminderNumber === 1 ? 'INVOICE' : reminderNumber === 2 ? 'REMINDER' : 'FINAL REMINDER';
-  const intro: Record<number, string> = {
-    1: `Your invoice from <strong>Rillcod Academy</strong> is ready. Payment is due by <strong>${dueDate}</strong>.`,
-    2: `Friendly reminder: your invoice is due in a few days (<strong>${dueDate}</strong>). Please settle before the due date.`,
-    3: `<strong style="color:#dc2626;">Your invoice is now overdue</strong> (was due <strong>${dueDate}</strong>). Please settle immediately to avoid service interruption.`,
-  };
+  const curr = invoice.currency || 'NGN';
 
-  const itemsHtml = (invoice.items as any[] ?? []).map((item: any) => `
-    <tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;">${item.description ?? ''}</td>
-      <td style="padding:10px 12px;text-align:right;border-bottom:1px solid #f3f4f6;font-family:monospace;">${currencySymbol}${Number(item.unit_price ?? 0).toLocaleString()}</td>
-    </tr>`).join('');
+  const lineItems = (invoice.items as any[] ?? []).map((item: any) => ({
+    description: String(item.description ?? 'Platform Fee'),
+    qty:         item.quantity ? Number(item.quantity) : undefined,
+    unitPrice:   Number(item.unit_price ?? 0),
+    currency:    curr,
+  }));
+  if (lineItems.length === 0) {
+    lineItems.push({ description: 'Platform Fee', qty: undefined, unitPrice: Number(invoice.amount ?? 0), currency: curr });
+  }
 
-  return `
-    <div style="font-family:'Segoe UI',system-ui,sans-serif;max-width:600px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-      <div style="background:${color};padding:24px 28px;">
-        <div style="color:rgba(255,255,255,0.8);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">Rillcod Academy</div>
-        <div style="color:#fff;font-size:22px;font-weight:900;margin-top:4px;">${invoiceNumber}</div>
-        <div style="background:rgba(255,255,255,0.15);color:#fff;display:inline-block;padding:4px 12px;font-size:11px;font-weight:900;text-transform:uppercase;border-radius:4px;margin-top:8px;">${badge}</div>
-      </div>
-      <div style="padding:28px;">
-        <p style="color:#374151;font-size:15px;margin:0 0 8px;">Hello <strong>${student?.full_name ?? 'Student'}</strong>,</p>
-        <p style="color:#6b7280;font-size:14px;margin:0 0 20px;line-height:1.6;">${intro[reminderNumber]}</p>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-          <div>
-            <div style="font-size:11px;color:#9ca3af;font-weight:700;text-transform:uppercase;">Total Due</div>
-            <div style="font-size:28px;font-weight:900;color:#111827;font-family:monospace;">${currencySymbol}${amount}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:11px;color:#9ca3af;font-weight:700;text-transform:uppercase;">Due Date</div>
-            <div style="font-size:16px;font-weight:700;color:${reminderNumber===3?'#dc2626':'#374151'};">${dueDate}</div>
-          </div>
-        </div>
-        ${itemsHtml ? `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;"><thead><tr style="background:#f9fafb;"><th style="padding:10px 12px;text-align:left;font-size:11px;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Description</th><th style="padding:10px 12px;text-align:right;font-size:11px;color:#9ca3af;text-transform:uppercase;border-bottom:1px solid #e5e7eb;">Amount</th></tr></thead><tbody>${itemsHtml}</tbody></table>` : ''}
-        <div style="text-align:center;margin:24px 0;">
-          <a href="${payUrl}" style="display:inline-block;background:${color};color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:900;font-size:14px;text-transform:uppercase;">View &amp; Pay Invoice</a>
-        </div>
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#166534;">
-          <strong>Paid by bank transfer?</strong> Upload your receipt directly from your payment dashboard.
-        </div>
-        <p style="font-size:12px;color:#9ca3af;">Questions? <a href="mailto:support@rillcod.com" style="color:${color};">support@rillcod.com</a> — include invoice number <strong>${invoiceNumber}</strong>.</p>
-      </div>
-      <div style="background:#f9fafb;padding:16px 28px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center;">
-        Rillcod Technologies · rillcod.com · This is an automated billing message.
-      </div>
-    </div>`;
+  const accentColors = { 1: '#2563eb', 2: '#d97706', 3: '#dc2626' } as const;
+  const notesByReminder = {
+    1: 'This is your invoice. Please settle before the due date to ensure uninterrupted access. Paid by bank transfer? Upload your proof of payment on the portal.',
+    2: 'Payment is due soon. Please log in and settle your balance to avoid service interruption. Upload bank transfer receipts via your portal dashboard.',
+    3: '⚠️ Your invoice is now OVERDUE. Immediate payment is required to prevent suspension of access. If already paid, please upload your receipt immediately.',
+  } as const;
+
+  return buildInvoiceEmail({
+    recipientName: student?.full_name ?? 'Student',
+    invoiceNumber,
+    issueDate:     invoice.created_at || new Date().toISOString(),
+    dueDate:       invoice.due_date || new Date().toISOString(),
+    items:         lineItems,
+    currency:      curr,
+    notes:         notesByReminder[reminderNumber],
+    paymentUrl:    payUrl,
+  });
 }
 
 async function run(triggeredBy: 'cron' | 'manual') {
@@ -170,17 +148,17 @@ async function run(triggeredBy: 'cron' | 'manual') {
       try {
         const html = await buildReminderEmail(inv, reminderToSend);
         const subjects: Record<number, string> = {
-          1: `Invoice ${inv.invoice_number ?? ''} from Rillcod Academy`,
-          2: `Reminder: Your invoice is due soon`,
-          3: `FINAL REMINDER: Invoice overdue — action required`,
+          1: `Invoice ${inv.invoice_number ?? ''} — Rillcod Technologies`,
+          2: `Payment Reminder: Invoice due soon — Rillcod Technologies`,
+          3: `FINAL NOTICE: Invoice overdue — immediate action required`,
         };
 
         if (config.notify_email) {
           await notificationsService.sendEmail(student.id, {
-            to: student.email,
-            subject: subjects[reminderToSend],
+            to:        student.email,
+            subject:   subjects[reminderToSend],
             html,
-            fromName: 'Rillcod Academy',
+            fromName:  'Rillcod Technologies Finance',
             fromEmail: 'support@rillcod.com',
           });
         }
