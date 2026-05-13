@@ -95,6 +95,7 @@ export default function IdentityCardsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dbCardsMap, setDbCardsMap] = useState<Map<string, DbCard>>(new Map());
   const [isIssuingIds, setIsIssuingIds] = useState<Set<string>>(new Set());
+  const [isRevokingIds, setIsRevokingIds] = useState<Set<string>>(new Set());
   const [bulkIssuing, setBulkIssuing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
@@ -234,6 +235,28 @@ export default function IdentityCardsPage() {
       toast.error(e.message || 'Error issuing card');
     } finally {
       setIsIssuingIds((prev) => { const s = new Set(prev); s.delete(record.id); return s; });
+    }
+  };
+
+  const updateCardStatus = async (record: CardRecord, dbCard: DbCard, newStatus: 'active' | 'revoked') => {
+    setIsRevokingIds((prev) => new Set(prev).add(record.id));
+    try {
+      const res = await fetch(`/api/cards/${dbCard.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        toast.error(j.error || `Failed to ${newStatus === 'revoked' ? 'revoke' : 'reactivate'} card`);
+        return;
+      }
+      toast.success(newStatus === 'revoked' ? `Card revoked for ${record.name}` : `Card reactivated for ${record.name}`);
+      await loadCards(activeType);
+    } catch (e: any) {
+      toast.error(e.message || 'Error updating card status');
+    } finally {
+      setIsRevokingIds((prev) => { const s = new Set(prev); s.delete(record.id); return s; });
     }
   };
 
@@ -547,16 +570,41 @@ export default function IdentityCardsPage() {
               >
                 <PrinterIcon className="w-3 h-3" /> Print
               </button>
-              {/* Status badge or Issue button */}
+              {/* Status badge + Revoke/Reactivate OR Issue button */}
               {dbCard ? (
-                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 border ${
-                  dbCard.status === 'active' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                  : dbCard.status === 'revoked' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                  : dbCard.status === 'expired' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                  : 'bg-primary/10 border-primary/30 text-primary'
-                }`}>
-                  {dbCard.status}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 border ${
+                    dbCard.status === 'active' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    : dbCard.status === 'revoked' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                    : dbCard.status === 'expired' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    : 'bg-primary/10 border-primary/30 text-primary'
+                  }`}>
+                    {dbCard.status}
+                  </span>
+                  {dbCard.status === 'revoked' ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); updateCardStatus(r, dbCard, 'active'); }}
+                      disabled={isRevokingIds.has(r.id)}
+                      title="Reactivate card"
+                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                    >
+                      {isRevokingIds.has(r.id)
+                        ? <span className="w-2.5 h-2.5 border border-emerald-400 border-t-transparent rounded-full animate-spin inline-block" />
+                        : '↑'} On
+                    </button>
+                  ) : dbCard.status !== 'expired' ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (confirm(`Revoke card for ${r.name}?`)) updateCardStatus(r, dbCard, 'revoked'); }}
+                      disabled={isRevokingIds.has(r.id)}
+                      title="Revoke card"
+                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 border border-rose-500/40 text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                    >
+                      {isRevokingIds.has(r.id)
+                        ? <span className="w-2.5 h-2.5 border border-rose-400 border-t-transparent rounded-full animate-spin inline-block" />
+                        : '×'} Revoke
+                    </button>
+                  ) : null}
+                </div>
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); issueCard(r); }}
@@ -978,16 +1026,44 @@ export default function IdentityCardsPage() {
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() =>
-                          className === '— No Class —'
-                            ? printCards(classRecords, 'Access Cards — No Class')
-                            : printByClass(className)
-                        }
-                        className="px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                      >
-                        <PrinterIcon className="w-3.5 h-3.5" /> Print Class
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {classRecords.some(r => !dbCardsMap.has(r.id)) && (
+                          <button
+                            disabled={bulkIssuing}
+                            onClick={async () => {
+                              const unissued = classRecords.filter(r => !dbCardsMap.has(r.id));
+                              if (!unissued.length) return;
+                              if (!confirm(`Issue cards for ${unissued.length} student(s) in ${className}?`)) return;
+                              setBulkIssuing(true);
+                              let done = 0;
+                              await Promise.allSettled(unissued.map(async (r) => {
+                                const res = await fetch('/api/cards', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ holder_type: activeType, holder_id: r.id, school_id: r.schoolId }),
+                                });
+                                if (res.ok) done++;
+                              }));
+                              toast.success(`${done} card(s) issued for ${className}`);
+                              await loadCards(activeType);
+                              setBulkIssuing(false);
+                            }}
+                            className="px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-primary/30 text-primary hover:bg-primary/10 rounded-xl transition-all inline-flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            + Issue Missing ({classRecords.filter(r => !dbCardsMap.has(r.id)).length})
+                          </button>
+                        )}
+                        <button
+                          onClick={() =>
+                            className === '— No Class —'
+                              ? printCards(classRecords, 'Access Cards — No Class')
+                              : printByClass(className)
+                          }
+                          className="px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                        >
+                          <PrinterIcon className="w-3.5 h-3.5" /> Print Class
+                        </button>
+                      </div>
                     </div>
                     <CardGrid list={classRecords} />
                   </section>

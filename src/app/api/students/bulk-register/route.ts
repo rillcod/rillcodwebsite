@@ -477,7 +477,13 @@ export async function PATCH(request: Request) {
         .from('portal_users')
         .select('id').eq('email', r.email).single();
       if (existingUser) {
-        await supabaseAdmin.from('portal_users').update({ full_name: r.full_name, section_class: r.class_name || null }).eq('id', existingUser.id);
+        await supabaseAdmin.from('portal_users')
+          .update({ full_name: r.full_name, section_class: r.class_name || null })
+          .eq('id', existingUser.id);
+        // Keep students table in sync
+        await supabaseAdmin.from('students')
+          .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, grade_level: r.class_name || null })
+          .eq('user_id', existingUser.id);
       }
       return NextResponse.json({ success: true });
     }
@@ -525,6 +531,18 @@ export async function PATCH(request: Request) {
         updated_at: new Date().toISOString(),
       }).in('id', allowedIds).eq('role', 'student');
       if (error) throw error;
+
+      // Keep students shadow table in sync
+      await supabaseAdmin.from('students').update({
+        current_class: cls.name,
+        grade_level: cls.name,
+        school_id: cls.school_id,
+      }).in('user_id', allowedIds);
+
+      // Keep identity_cards class_id in sync so card studio shows correct class grouping
+      await supabaseAdmin.from('identity_cards').update({
+        class_id: classId,
+      }).in('holder_id', allowedIds).eq('holder_type', 'student');
 
       // Also update the batch record so future exports reflect the class
       await supabaseAdmin.from('registration_batches').update({
