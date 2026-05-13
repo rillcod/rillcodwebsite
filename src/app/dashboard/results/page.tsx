@@ -941,10 +941,7 @@ tbody tr:hover{background:#f3f4f6}
                         {/* Print all students — standard report card format */}
                         {isStaff && students.length > 0 && (
                             <button
-                                onClick={() => {
-                                    bulkPrintTemplateRef.current = 'standard';
-                                    startBulkPrint(filtered.map(s => s.id));
-                                }}
+                                onClick={() => startBulkPrint(filtered.map(s => s.id))}
                                 disabled={isBulkPrinting || isBatchDownloading}
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary/20 border border-primary/30 hover:bg-primary/30 disabled:opacity-60 disabled:cursor-not-allowed text-primary font-bold text-sm rounded-xl transition-all"
                             >
@@ -1568,9 +1565,9 @@ tbody tr:hover{background:#f3f4f6}
                 <div className="hidden print:block print:w-[794px] print:mx-auto">
                     {bulkPrintReports.map((report, idx) => (
                         <div key={report.id || idx} style={{ pageBreakAfter: 'always' }}>
-                            {bulkPrintTemplateRef.current === 'standard' ? (
+                            {template === 'standard' ? (
                                 <ReportCard report={report} orgSettings={orgSettings} />
-                            ) : bulkPrintTemplateRef.current === 'printable' ? (
+                            ) : template === 'printable' ? (
                                 <PrintableReport report={report} orgSettings={orgSettings} />
                             ) : (
                                 <ModernReportCard report={report} orgSettings={orgSettings} />
