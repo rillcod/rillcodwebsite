@@ -129,6 +129,53 @@ Parents can also access this from their parent portal!
 _Reply STOP to unsubscribe_`,
   },
   {
+    id: 'enrollment',
+    score: msg => {
+      let s = 0;
+      if (/enrol|enroll|register|admission|join|sign.?up/i.test(msg)) s += 3;
+      if (/course|program|programme|class|student/i.test(msg)) s += 2;
+      if (/how|start|begin|get.?started/i.test(msg)) s += 1;
+      return s;
+    },
+    response: name => `🤖 *Auto-Response* — Rillcod Technologies
+
+Hi ${name}! 🎓 Interested in enrolling?
+
+Here's how to get started:
+1. Visit: https://rillcod.com/enroll
+2. Choose your programme (Web Dev, Python, STEM, etc.)
+3. Complete registration & make payment
+
+Our admissions team will contact you within 24 hours.
+📞 Call/WhatsApp: 08116600000
+📧 Email: admissions@rillcod.com
+
+_Reply STOP to unsubscribe_`,
+  },
+  {
+    id: 'feedback',
+    score: msg => {
+      let s = 0;
+      if (/complain|complaint|feedback|review|unhappy|disappoint|bad|poor|terrible/i.test(msg)) s += 3;
+      if (/suggest|improve|better|wish|should|could/i.test(msg)) s += 2;
+      if (/experience|service|quality/i.test(msg)) s += 1;
+      return s;
+    },
+    response: name => `🤖 *Auto-Response* — Rillcod Technologies
+
+Hi ${name}! We're sorry to hear you're having a concern. 😔
+
+Your feedback matters to us greatly. A senior team member will review your message and respond personally within 2 hours.
+
+For urgent complaints:
+📞 Call: 08116600000
+📧 Email: support@rillcod.com
+
+Thank you for helping us improve! 🙏
+
+_Reply STOP to unsubscribe_`,
+  },
+  {
     id: 'thanks',
     score: msg => {
       let s = 0;
@@ -186,6 +233,15 @@ const BOT_COOLDOWN_MINUTES = 5;
 // POST /api/inbox/auto-respond
 export async function POST(req: NextRequest) {
   try {
+    // Internal-only endpoint — must be called with x-internal-secret header
+    const INTERNAL_SECRET = process.env.CRON_SECRET;
+    if (INTERNAL_SECRET) {
+      const callerSecret = req.headers.get('x-internal-secret');
+      if (callerSecret !== INTERNAL_SECRET) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const admin = adminClient();
     const body = await req.json();
     const { message, conversation_id, phone_number } = body;
@@ -226,13 +282,13 @@ export async function POST(req: NextRequest) {
     const humanTimeout = settings?.human_takeover_timeout_minutes ?? 30;
     const sinceHuman = new Date(Date.now() - humanTimeout * 60 * 1000).toISOString();
 
-    // Human takeover check: staff replied recently
+    // Human takeover check: staff replied recently (not a bot message)
     const { data: recentHuman } = await admin
       .from('whatsapp_messages')
       .select('id')
       .eq('conversation_id', conversation_id)
       .eq('direction', 'outbound')
-      .is('metadata->auto_response', null)
+      .filter('metadata->>auto_response', 'is', null)
       .gte('created_at', sinceHuman)
       .limit(1)
       .maybeSingle();
@@ -248,7 +304,7 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('conversation_id', conversation_id)
       .eq('direction', 'outbound')
-      .eq('metadata->auto_response', true)
+      .filter('metadata->>auto_response', 'eq', 'true')
       .gte('created_at', sinceBotCooldown)
       .limit(1)
       .maybeSingle();

@@ -32,6 +32,13 @@ async function requireStaff(req: NextRequest) {
   return profile;
 }
 
+/** Normalize to E.164 digits (no +). Nigerian 08XX → 234XX. */
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('0') && digits.length === 11) return '234' + digits.slice(1);
+  return digits;
+}
+
 // Send message via Meta WhatsApp Business API
 async function sendWhatsAppMessage(to: string, message: string) {
   const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
@@ -52,7 +59,7 @@ async function sendWhatsAppMessage(to: string, message: string) {
       body: JSON.stringify({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to: to.replace(/\D/g, ''), // Remove non-digits
+        to: normalizePhone(to),
         type: 'text',
         text: {
           preview_url: false,
@@ -125,7 +132,7 @@ async function sendWhatsAppTemplate(
       },
       body: JSON.stringify({
         messaging_product: 'whatsapp',
-        to: to.replace(/\D/g, ''),
+        to: normalizePhone(to),
         type: 'template',
         template: {
           name: templateName,
@@ -154,6 +161,10 @@ export async function POST(req: NextRequest) {
 
     if (!conversation_id || !message?.trim()) {
       return NextResponse.json({ error: 'conversation_id and message required' }, { status: 400 });
+    }
+
+    if (message.trim().length > 4096) {
+      return NextResponse.json({ error: 'Message exceeds WhatsApp 4096 character limit' }, { status: 400 });
     }
 
     // Auth: allow staff AND learners (student/parent send inbound portal messages)

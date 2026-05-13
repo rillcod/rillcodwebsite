@@ -124,11 +124,23 @@ export async function GET(req: NextRequest) {
     if (caller.role === 'parent' || caller.role === 'student') {
       convQuery = convQuery.eq('portal_user_id', caller.id);
     } else if (caller.role === 'teacher') {
-      // Teachers see only conversations they own (their personal contact list).
-      // New contacts are added via POST /api/inbox/conversation which sets assigned_staff_id.
+      // Teachers see only conversations assigned to them.
       convQuery = convQuery.eq('assigned_staff_id', caller.id);
+    } else if (caller.role === 'school') {
+      // School admins see conversations for their own school's users only.
+      if (caller.school_id) {
+        const { data: schoolUsers } = await admin
+          .from('portal_users')
+          .select('id')
+          .eq('school_id', caller.school_id);
+        const userIds = (schoolUsers ?? []).map((u: any) => u.id);
+        if (userIds.length === 0) return NextResponse.json({ data: [] });
+        convQuery = convQuery.in('portal_user_id', userIds);
+      } else {
+        return NextResponse.json({ data: [] });
+      }
     }
-    // admin and school: no additional filter — they see all conversations
+    // admin: no additional filter — sees all conversations
 
     const { data: conversations, error } = await convQuery;
 
