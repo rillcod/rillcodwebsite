@@ -20,7 +20,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     .eq('id', id)
     .single();
   if (cardErr || !card) return NextResponse.json({ error: 'Card not found' }, { status: 404 });
-  if (!canAccessSchool(ctx, card.school_id)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // Parent cards have school_id=null on the card row — resolve the parent's school from portal_users
+  let effectiveSchoolId = card.school_id;
+  if (!effectiveSchoolId && card.holder_type === 'parent') {
+    const { data: holder } = await (db as any).from('portal_users').select('school_id').eq('id', card.holder_id).maybeSingle();
+    effectiveSchoolId = holder?.school_id ?? null;
+  }
+  if (!canAccessSchool(ctx, effectiveSchoolId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const patch: Record<string, unknown> = { status, updated_by: ctx.id, updated_at: new Date().toISOString() };
   if (status === 'active') patch.activated_at = new Date().toISOString();

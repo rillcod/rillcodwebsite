@@ -101,9 +101,10 @@ export default function IdentityCardsPage() {
   const [bulkIssuing, setBulkIssuing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
-  // Sorting / grouping state
+  // Sorting / grouping / filter state
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
+  const [cardStatusFilter, setCardStatusFilter] = useState<string>('all');
   const [groupMode, setGroupMode] = useState<GroupMode>('none');
   const [sortBy, setSortBy] = useState<'name' | 'class'>('name');
 
@@ -205,8 +206,10 @@ export default function IdentityCardsPage() {
       }
       const json = await res.json();
       const map = new Map<string, DbCard>();
+      // Data is ordered DESC (newest first) — only take the first card per holder so
+      // a freshly re-issued active card wins over the older revoked one.
       for (const c of json.data ?? []) {
-        if (c.holder_id) map.set(c.holder_id, c);
+        if (c.holder_id && !map.has(c.holder_id)) map.set(c.holder_id, c);
       }
       setDbCardsMap(map);
     } catch {
@@ -290,7 +293,12 @@ export default function IdentityCardsPage() {
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [activeType, query, selectedClass, selectedSchool, groupMode, sortBy]);
+    setCardStatusFilter('all');
+  }, [activeType]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [query, selectedClass, selectedSchool, cardStatusFilter, groupMode, sortBy]);
 
   // ─── derived data ──────────────────────────────────────────────────────────
 
@@ -316,7 +324,7 @@ export default function IdentityCardsPage() {
     !!schoolLock ||
     ((profile?.role === 'admin' || profile?.role === 'teacher') && allSchools.length > 1);
 
-  /** Records after search + class filter + sort */
+  /** Records after search + class + school + card-status filters + sort */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
@@ -333,7 +341,14 @@ export default function IdentityCardsPage() {
         if (selectedSchool === 'all') return true;
         return (r.school || '') === selectedSchool;
       })();
-      return matchSearch && matchClass && matchSchool;
+      const matchCardStatus = (() => {
+        if (cardStatusFilter === 'all') return true;
+        const dbCard = dbCardsMap.get(r.id);
+        if (cardStatusFilter === 'unissued') return !dbCard;
+        if (!dbCard) return false;
+        return dbCard.status === cardStatusFilter;
+      })();
+      return matchSearch && matchClass && matchSchool && matchCardStatus;
     });
 
     // Sort
@@ -346,7 +361,7 @@ export default function IdentityCardsPage() {
     });
 
     return list;
-  }, [records, query, selectedClass, selectedSchool, sortBy, schoolLock]);
+  }, [records, query, selectedClass, selectedSchool, cardStatusFilter, sortBy, schoolLock, dbCardsMap]);
 
   /** Records grouped by class (only used when groupMode === 'class') */
   const grouped = useMemo(() => {
@@ -838,9 +853,9 @@ export default function IdentityCardsPage() {
                 </div>
               )}
 
-              {/* Class filter dropdown */}
+              {/* Class / Grade filter dropdown */}
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">Class</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">Class / Grade</span>
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
@@ -858,6 +873,22 @@ export default function IdentityCardsPage() {
                   {records.some((r) => !r.sectionClass) && (
                     <option value="">— No Class —</option>
                   )}
+                </select>
+              </div>
+
+              {/* Card status filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">Card</span>
+                <select
+                  value={cardStatusFilter}
+                  onChange={(e) => setCardStatusFilter(e.target.value)}
+                  className="px-3 py-2 bg-background border border-border rounded-xl text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="all">All ({records.length})</option>
+                  <option value="active">Active ({records.filter(r => dbCardsMap.get(r.id)?.status === 'active').length})</option>
+                  <option value="unissued">Not Issued ({records.filter(r => !dbCardsMap.has(r.id)).length})</option>
+                  <option value="revoked">Revoked ({records.filter(r => dbCardsMap.get(r.id)?.status === 'revoked').length})</option>
+                  <option value="expired">Expired ({records.filter(r => dbCardsMap.get(r.id)?.status === 'expired').length})</option>
                 </select>
               </div>
 
