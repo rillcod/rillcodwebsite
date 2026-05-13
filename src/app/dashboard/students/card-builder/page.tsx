@@ -11,7 +11,7 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type FieldKey = 'school' | 'className' | 'email' | 'password' | 'programme' | 'studentId' | 'qr';
+type FieldKey = 'school' | 'className' | 'email' | 'password' | 'programme' | 'studentId' | 'qr' | 'expiry';
 
 interface FieldConfig {
   key: FieldKey;
@@ -61,6 +61,7 @@ const DEFAULT_FIELDS: FieldConfig[] = [
   { key: 'password',   label: 'Temporary Password',  visible: true  },
   { key: 'programme',  label: 'Programme',            visible: false },
   { key: 'studentId',  label: 'Student ID',           visible: true  },
+  { key: 'expiry',     label: 'Expiry Date',          visible: false },
   { key: 'qr',         label: 'QR Code',              visible: true  },
 ];
 
@@ -276,10 +277,11 @@ function CardPreview({ cfg }: { cfg: CardConfig }) {
 
   const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
 
+  const _sampleExp = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const sampleVal = (key: FieldKey): string => ({
     school: SAMPLE.school, className: SAMPLE.className, email: SAMPLE.email,
-    password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, qr: '',
-  }[key]);
+    password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, qr: '', expiry: _sampleExp,
+  }[key] ?? '');
 
   const t = cfg.typo;
   const ff = (fam: string) => fam === 'mono' ? 'monospace' : "'Inter','Segoe UI',system-ui,sans-serif";
@@ -288,7 +290,7 @@ function CardPreview({ cfg }: { cfg: CardConfig }) {
     fontFamily: ff(s.fontFamily), ...extra,
   });
 
-  const isAccentField = (k: FieldKey) => ['password','studentId','programme'].includes(k);
+  const isAccentField = (k: FieldKey) => ['password','studentId','programme','expiry'].includes(k);
 
   const Header = () => {
     if (cfg.headerStyle === 'band') return (
@@ -563,6 +565,7 @@ export default function CardBuilderPage() {
         vis('className') && s.section_class ? `<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='className')?.label||'Class'}</div><div class="val">${s.section_class}</div></div>` : '',
         vis('email') && s.email ? `<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='email')?.label||'Email'}</div><div class="val">${s.email}</div></div>` : '',
         vis('studentId') ? `<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='studentId')?.label||'Student ID'}</div><div class="val-a">${code}</div></div>` : '',
+        vis('expiry') ? `<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='expiry')?.label||'Expiry Date'}</div><div class="val-a">—</div></div>` : '',
       ].filter(Boolean).join('');
 
       return `<div class="card">
@@ -686,7 +689,8 @@ export default function CardBuilderPage() {
     const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
     const qUrl = encodeURIComponent('https://rillcod.com/student/sample');
 
-    const sampleData = { school: SAMPLE.school, email: SAMPLE.email, password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, className: SAMPLE.className };
+    const sampleExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const sampleData = { school: SAMPLE.school, email: SAMPLE.email, password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, className: SAMPLE.className, expiry: sampleExpiry };
 
     const bandHdr = `
       <div class="chdr">
@@ -752,7 +756,7 @@ export default function CardBuilderPage() {
           <div style="display: flex; flex-direction: column; gap: 4px;">
             ${infoFields.map(f => {
               const val = sampleData[f.key as keyof typeof sampleData] ?? '';
-              const accent = ['password','studentId','programme','school'].includes(f.key);
+              const accent = ['password','studentId','programme','school','expiry'].includes(f.key);
               return `<div class="field"><div class="lbl">${f.label}</div><div class="${accent ? 'val-a' : 'val'}">${val}</div></div>`;
             }).join('')}
           </div>
@@ -786,7 +790,8 @@ export default function CardBuilderPage() {
     const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
     const lbl = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.label ?? key;
     const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
-    const sampleData: Record<string, string> = { school: SAMPLE.school, email: SAMPLE.email, password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, className: SAMPLE.className };
+    const _exp1 = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const sampleData: Record<string, string> = { school: SAMPLE.school, email: SAMPLE.email, password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, className: SAMPLE.className, expiry: _exp1 };
     const r = (hex: string) => parseInt(hex.slice(1,3),16);
     const g = (hex: string) => parseInt(hex.slice(3,5),16);
     const b = (hex: string) => parseInt(hex.slice(5,7),16);
@@ -843,7 +848,7 @@ export default function CardBuilderPage() {
       doc.setFontSize(5.5); doc.setTextColor(r(labelCol), g(labelCol), b(labelCol)); doc.setFont('helvetica','normal');
       doc.text(f.label.toUpperCase(), cardX + 4, fy);
       doc.setFontSize(7.5); doc.setFont('courier','bold');
-      const isAccent = ['password','studentId','programme','school'].includes(f.key);
+      const isAccent = ['password','studentId','programme','school','expiry'].includes(f.key);
       doc.setTextColor(isAccent ? r(acc) : 17, isAccent ? g(acc) : 24, isAccent ? b(acc) : 39);
       doc.text(doc.splitTextToSize(sampleData[f.key] ?? '', infoW)[0], cardX + 4, fy + 4.5);
       fy += 11;
@@ -867,7 +872,8 @@ export default function CardBuilderPage() {
     const acc = cfg.accentColor;
     const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
     const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
-    const sampleData: Record<string, string> = { school: SAMPLE.school, email: SAMPLE.email, password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, className: SAMPLE.className };
+    const _exp2 = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const sampleData: Record<string, string> = { school: SAMPLE.school, email: SAMPLE.email, password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, className: SAMPLE.className, expiry: _exp2 };
     const r = (hex: string) => parseInt(hex.slice(1,3),16);
     const g = (hex: string) => parseInt(hex.slice(3,5),16);
     const b = (hex: string) => parseInt(hex.slice(5,7),16);
@@ -922,7 +928,7 @@ export default function CardBuilderPage() {
         doc.setFontSize(3.5); doc.setTextColor(r(labelCol), g(labelCol), b(labelCol)); doc.setFont('helvetica','normal');
         doc.text(f.label.toUpperCase(), ix, fy2);
         doc.setFontSize(5); doc.setFont('courier','bold');
-        const isAccent = ['password','studentId','programme','school'].includes(f.key);
+        const isAccent = ['password','studentId','programme','school','expiry'].includes(f.key);
         doc.setTextColor(isAccent ? r(acc) : 17, isAccent ? g(acc) : 24, isAccent ? b(acc) : 39);
         doc.text(doc.splitTextToSize(sampleData[f.key] ?? '', cardW - (vis('qr') ? 24 : 8))[0], ix, fy2 + 3.5);
         fy2 += 8;

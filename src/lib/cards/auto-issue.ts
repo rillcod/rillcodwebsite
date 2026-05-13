@@ -52,7 +52,7 @@ export async function ensureStudentCardIssued(
       class_id: classId,
       card_number,
       verification_code,
-      status: 'issued',
+      status: 'active',
       template_type: 'student',
       issued_at: new Date().toISOString(),
       created_by: actorId,

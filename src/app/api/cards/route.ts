@@ -93,13 +93,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden for this school scope' }, { status: 403 });
   }
 
-  // Check for existing card — prevent duplicates issued via the manual button
+  // Check for existing active/expired card — prevent duplicates (revoked cards allow re-issue)
   const db = createAdminClient();
   const { data: existing } = await (db as any)
     .from('identity_cards')
     .select('id, status')
     .eq('holder_type', holder_type)
     .eq('holder_id', holder_id)
+    .not('status', 'eq', 'revoked')
     .maybeSingle();
   if (existing) {
     return NextResponse.json({ error: 'A card has already been issued for this holder', existing_id: existing.id }, { status: 409 });

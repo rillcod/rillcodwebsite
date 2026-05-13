@@ -773,18 +773,25 @@ export default function StudentsPage() {
   };
 
   const handlePrintLoginSlip = async (s: any) => {
-    const cardCfg = await getCardCfg();
+    const [cardCfg, cardRes] = await Promise.all([
+      getCardCfg(),
+      (() => { const pid = s._source === 'enrolled' ? s.id : (s.user_id || s.id); return fetch(`/api/cards?holder_id=${pid}&holder_type=student`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null); })(),
+    ]);
     const acc = cardCfg?.accentColor || '#ea580c';
     const orgName = cardCfg?.orgName || 'RILLCOD TECHNOLOGIES';
     const orgWeb = cardCfg?.orgWebsite || 'www.rillcod.com';
-    const footerTxt = cardCfg?.footerText || 'rillcod.com/login';
+    const footerTxt = cardCfg?.footerLeft || cardCfg?.footerText || 'rillcod.com/login';
     const headerStyle = cardCfg?.headerStyle || 'band';
-    const showQr = cardCfg?.showFields?.qr !== false;
-    const showSchool = cardCfg?.showFields?.school !== false;
-    const showPwd = cardCfg?.showFields?.password !== false;
-    const showProg = cardCfg?.showFields?.programme === true;
-    const showId = cardCfg?.showFields?.studentId !== false;
-    const showClass = cardCfg?.showFields?.className !== false;
+    const cfgFields: Array<{key:string;visible:boolean;label?:string}> = cardCfg?.fields || [];
+    const fVis = (k: string) => cfgFields.length > 0 ? (cfgFields.find((f:any) => f.key === k)?.visible ?? false) : true;
+    const showQr = fVis('qr');
+    const showSchool = fVis('school');
+    const showPwd = fVis('password');
+    const showProg = cfgFields.length > 0 ? fVis('programme') : false;
+    const showId = fVis('studentId');
+    const showClass = fVis('className');
+    const showExpiry = fVis('expiry');
+    const expiryLabel = cfgFields.find((f:any) => f.key === 'expiry')?.label || 'Expiry Date';
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const studentName = s.full_name || s.name || 'N/A';
     const email = s.email || s.student_email || 'N/A';
@@ -792,7 +799,11 @@ export default function StudentsPage() {
     const programName = s.current_module || s.section_class || s.grade_level || 'General STEM';
     const portalId = s._source === 'enrolled' ? s.id : (s.user_id || s.id);
     const studentCode = `RC-${portalId.slice(0, 8).toUpperCase()}`;
-    const qrData = `https://rillcod.com/student/${portalId}`;
+    const dbCard = cardRes?.data?.[0] ?? null;
+    const verificationCode = dbCard?.verification_code;
+    const expiryVal = dbCard?.expires_at ? new Date(dbCard.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    const cardNumber = dbCard?.card_number || studentCode;
+    const qrData = verificationCode ? `${window.location.origin}/verify/${verificationCode}` : `${window.location.origin}/verify/${portalId}`;
 
     const html = `
       <html><head><title>Access Card — ${studentName}</title>
@@ -850,13 +861,14 @@ export default function StudentsPage() {
             <div class="field"><div class="lbl">Login Email</div><div class="val">${email}</div></div>
             ${showPwd ? `<div class="field"><div class="lbl">Temporary Password</div><div class="val-accent">Set on first login</div></div>` : ''}
             ${showProg ? `<div class="field"><div class="lbl">Programme</div><div class="val-accent">${programName}</div></div>` : ''}
-            ${showId ? `<div class="field"><div class="lbl">Student ID</div><div class="val" style="color:${acc}">${studentCode}</div></div>` : ''}
+            ${showId ? `<div class="field"><div class="lbl">Card No.</div><div class="val" style="color:${acc}">${cardNumber}</div></div>` : ''}
+            ${showExpiry ? `<div class="field"><div class="lbl">${expiryLabel}</div><div class="val-accent">${expiryVal}</div></div>` : ''}
           </div>
           ${showQr ? `
           <div class="qrp">
             <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}" class="qr" crossorigin="anonymous" />
             <div class="qrl">Scan to Verify</div>
-            <div class="qrc">${studentCode}</div>
+            <div class="qrc">${cardNumber}</div>
           </div>` : ''}
         </div>
         <div class="cftr">

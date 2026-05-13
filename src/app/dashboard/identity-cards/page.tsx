@@ -30,6 +30,7 @@ type CardConfig = {
   footerLeft?: string;
   cardLabel?: string;
   headerStyle?: 'band' | 'border' | 'minimal';
+  fields?: Array<{ key: string; visible: boolean; label?: string }>;
 };
 
 type PortalUser = {
@@ -73,13 +74,14 @@ type CardRecord = {
   schoolId: string | null;
 };
 
-const FALLBACK_CONFIG: Required<CardConfig> = {
+const FALLBACK_CONFIG: Omit<Required<CardConfig>, 'fields'> & Pick<CardConfig, 'fields'> = {
   accentColor: '#ea580c',
   orgName: 'RILLCOD TECHNOLOGIES',
   orgWebsite: 'www.rillcod.com',
   footerLeft: 'rillcod.com/login',
   cardLabel: 'Access Card',
   headerStyle: 'band',
+  fields: [],
 };
 
 export default function IdentityCardsPage() {
@@ -89,7 +91,7 @@ export default function IdentityCardsPage() {
   const [mode, setMode] = useState<StudioMode>('issuance');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [config, setConfig] = useState<Required<CardConfig>>(FALLBACK_CONFIG);
+  const [config, setConfig] = useState<Required<Omit<CardConfig,'fields'>> & Pick<CardConfig,'fields'>>(FALLBACK_CONFIG);
   const [records, setRecords] = useState<CardRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -367,6 +369,8 @@ export default function IdentityCardsPage() {
     const foot = config.footerLeft;
     const logo = `${window.location.origin}/images/logo.png`;
     const hStyle = config.headerStyle;
+    const showExpiryPrint = config.fields?.find(f => f.key === 'expiry')?.visible ?? false;
+    const expiryLabelPrint = config.fields?.find(f => f.key === 'expiry')?.label || 'Expiry';
 
     const html = `<!doctype html><html><head><title>${title}</title>
       <style>
@@ -418,6 +422,7 @@ export default function IdentityCardsPage() {
                   <div class="row"><div class="lbl">Role</div><div class="val">${r.roleLabel}</div></div>
                   <div class="row"><div class="lbl">Email</div><div class="val">${r.email}</div></div>
                   ${r.sectionClass ? `<div class="row"><div class="lbl">Class</div><div class="val">${r.sectionClass}</div></div>` : ''}
+                  ${showExpiryPrint && dbCard?.expires_at ? `<div class="row"><div class="lbl">${expiryLabelPrint}</div><div class="val" style="color:${acc}">${new Date(dbCard.expires_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>` : ''}
                   <div class="badge">${r.badge}</div>
                 </div>
                 <div class="right">
@@ -479,6 +484,9 @@ export default function IdentityCardsPage() {
           : r.profileUrl;
         const qr = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl)}`;
         const hStyle = config.headerStyle;
+        const showExpiry = config.fields?.find(f => f.key === 'expiry')?.visible ?? false;
+        const expiryLabel = config.fields?.find(f => f.key === 'expiry')?.label || 'Expiry';
+        const expiryVal = dbCard?.expires_at ? new Date(dbCard.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
         return (
           <article
@@ -530,6 +538,12 @@ export default function IdentityCardsPage() {
                     <div>
                       <div style={{ fontSize: 6, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>Class</div>
                       <div style={{ fontSize: 8, fontWeight: 700, color: '#111' }}>{r.sectionClass}</div>
+                    </div>
+                  )}
+                  {showExpiry && (
+                    <div>
+                      <div style={{ fontSize: 6, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>{expiryLabel}</div>
+                      <div style={{ fontSize: 8, fontWeight: 700, fontFamily: 'monospace', color: acc }}>{expiryVal}</div>
                     </div>
                   )}
                   <div style={{ marginTop: 2, display: 'inline-block', background: `${acc}18`, border: `1px solid ${acc}40`, color: acc, fontSize: 6, fontWeight: 800, padding: '1px 5px', textTransform: 'uppercase' }}>{r.badge}</div>
@@ -893,14 +907,6 @@ export default function IdentityCardsPage() {
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
-                {filtered.length > 0 && (
-                  <button
-                    onClick={() => setSelectedIds(new Set(filtered.map((r) => r.id)))}
-                    className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2"
-                  >
-                    Select Filtered ({filtered.length})
-                  </button>
-                )}
                 {selectedIds.size > 0 && (
                   <>
                     <button
@@ -1051,6 +1057,30 @@ export default function IdentityCardsPage() {
                             className="px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-primary/30 text-primary hover:bg-primary/10 rounded-xl transition-all inline-flex items-center gap-1.5 disabled:opacity-50"
                           >
                             + Issue Missing ({classRecords.filter(r => !dbCardsMap.has(r.id)).length})
+                          </button>
+                        )}
+                        {classRecords.some(r => dbCardsMap.has(r.id)) && (
+                          <button
+                            disabled={bulkIssuing}
+                            onClick={async () => {
+                              const withCards = classRecords.filter(r => dbCardsMap.has(r.id));
+                              if (!withCards.length) return;
+                              if (!confirm(`Re-issue ${withCards.length} card(s) in ${className}? Existing cards will be revoked and new ones created.`)) return;
+                              setBulkIssuing(true);
+                              let done = 0;
+                              await Promise.allSettled(withCards.map(async (r) => {
+                                const old = dbCardsMap.get(r.id)!;
+                                await fetch(`/api/cards/${old.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'revoked' }) });
+                                const res = await fetch('/api/cards', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ holder_type: activeType, holder_id: r.id, school_id: r.schoolId }) });
+                                if (res.ok) done++;
+                              }));
+                              toast.success(`${done} card(s) re-issued for ${className}`);
+                              await loadCards(activeType);
+                              setBulkIssuing(false);
+                            }}
+                            className="px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 rounded-xl transition-all inline-flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            <ArrowPathIcon className="w-3 h-3" /> Re-issue ({classRecords.filter(r => dbCardsMap.has(r.id)).length})
                           </button>
                         )}
                         <button

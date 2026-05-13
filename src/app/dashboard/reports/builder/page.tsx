@@ -16,7 +16,7 @@ import {
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
     Cog6ToothIcon, ArrowUpTrayIcon, ChevronDownIcon, ChevronUpIcon,
     PhotoIcon, RocketLaunchIcon, CloudArrowUpIcon, ChevronRightIcon,
-    CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon,
+    CheckCircleIcon, PrinterIcon, SparklesIcon, PlusIcon, MagnifyingGlassIcon,
 } from '@/lib/icons';
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -289,6 +289,7 @@ function ReportBuilderInner() {
     const [sessionProgramId, setSessionProgramId] = useState('');
     const [teacherClasses, setTeacherClasses] = useState<{ id: string; name: string; school_id: string | null }[]>([]);
     const [search, setSearch] = useState('');
+    const [editSearch, setEditSearch] = useState('');
     const [classFilter, setClassFilter] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
     const [overrideFilters, setOverrideFilters] = useState(false);
@@ -1777,12 +1778,20 @@ function ReportBuilderInner() {
                 ══════════════════════════════════════════════════════════════ */}
                 {step === 'session' && (
                     <div className="space-y-4">
-                        <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4">
-                            <p className="text-primary font-bold text-sm">Step 1 of 3 — Session Setup</p>
-                            <p className="text-primary/60 text-xs mt-0.5">
-                                Enter details that are shared for ALL students in this grading session.
-                                These will be locked when you move to individual student grading.
-                            </p>
+                        <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="flex-1">
+                                <p className="text-primary font-bold text-sm">Step 1 of 3 — Session Setup</p>
+                                <p className="text-primary/60 text-xs mt-0.5">
+                                    Enter details that are shared for ALL students in this grading session.
+                                    These will be locked when you move to individual student grading.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => { setSessionDone(true); setSessionExpanded(false); setOverrideFilters(true); setStep('pick'); }}
+                                className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-amber-500/20 transition-colors"
+                            >
+                                <MagnifyingGlassIcon className="w-3.5 h-3.5" /> Skip — Find Student
+                            </button>
                         </div>
 
                         {/* Session fields */}
@@ -2291,9 +2300,13 @@ function ReportBuilderInner() {
                             const navList = sessionStudents.current.length > 0
                                 ? sessionStudents.current
                                 : filteredStudents;
+                            const editMatches = editSearch.trim().length >= 1
+                                ? navList.filter((s: any) => s.full_name?.toLowerCase().includes(editSearch.toLowerCase()) || s.email?.toLowerCase().includes(editSearch.toLowerCase()))
+                                : [];
                             return (
-                            <div className="bg-[#0d1526] border border-border rounded-xl px-4 py-3 flex items-center gap-3">
-                                <button onClick={() => { sessionStudents.current = []; setStep('pick'); }}
+                            <div className="bg-[#0d1526] border border-border rounded-xl px-4 py-3 space-y-2">
+                              <div className="flex items-center gap-3">
+                                <button onClick={() => { sessionStudents.current = []; setStep('pick'); setEditSearch(''); }}
                                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                                     <ArrowLeftIcon className="w-3.5 h-3.5" />
                                     <span className="hidden sm:inline">All Students</span>
@@ -2334,6 +2347,40 @@ function ReportBuilderInner() {
                                     className="p-1.5 rounded-xl bg-card shadow-sm text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors flex-shrink-0">
                                     <ArrowLeftIcon className="w-3.5 h-3.5 rotate-180" />
                                 </button>
+                              </div>
+                              {/* Quick student search */}
+                              <div className="relative">
+                                <input
+                                    type="search"
+                                    placeholder="Jump to student… type name or email"
+                                    value={editSearch}
+                                    onChange={e => setEditSearch(e.target.value)}
+                                    className="w-full bg-card/60 border border-border text-foreground text-xs px-3 py-2 rounded-xl placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary"
+                                />
+                                {editMatches.length > 0 && (
+                                    <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                                        {editMatches.map((ms: any, mi: number) => (
+                                            <button
+                                                key={ms.id}
+                                                onClick={async () => {
+                                                    const realIdx = navList.findIndex((x: any) => x.id === ms.id);
+                                                    if (saving || publishing) return;
+                                                    await handleSave(false);
+                                                    await selectStudent(ms as PortalUser, realIdx >= 0 ? realIdx : mi);
+                                                    setEditSearch('');
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2 border-b border-border last:border-0"
+                                            >
+                                                <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-black flex-shrink-0">
+                                                    {ms.full_name?.[0] ?? '?'}
+                                                </span>
+                                                <span className="font-bold truncate">{ms.full_name}</span>
+                                                <span className="text-muted-foreground truncate ml-auto">{ms.email}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                              </div>
                             </div>
                             );
                         })()}
