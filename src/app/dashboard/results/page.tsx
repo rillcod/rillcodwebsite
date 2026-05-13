@@ -70,35 +70,38 @@ function GradeDistribution({ students, reportsMap }: { students: PortalUser[], r
     const max = Math.max(...counts, 1);
 
     return (
-        <div className="bg-[#111113] border border-white/[0.05] p-5 shadow-2xl overflow-hidden relative">
+        <div className="bg-card border border-border p-5 shadow-2xl overflow-hidden relative">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary italic leading-none mb-4">
                 WAEC Grade Distribution
             </p>
 
-            <div className="flex items-end gap-2 h-24 mb-3">
+            {/* Bars row — fixed height so flex-col justify-end works */}
+            <div className="flex items-end gap-1.5" style={{ height: '80px' }}>
                 {WAEC_TIERS.map((tier, i) => {
                     const count = counts[i];
-                    const h = (count / max) * 100;
+                    const h = max > 0 ? (count / max) * 100 : 0;
                     return (
-                        <div key={tier.label} className="flex-1 flex flex-col items-center gap-2">
-                            <div className="w-full bg-white/[0.02] border border-white/[0.05] flex flex-col justify-end h-full overflow-hidden relative">
-                                {count > 0 && (
-                                    <div
-                                        className={`w-full bg-gradient-to-t ${tier.bar} transition-all duration-700 ease-out`}
-                                        style={{ height: `${h}%` }}
-                                    />
-                                )}
-                            </div>
-                            <div className="text-center">
-                                <span className={`block text-[9px] font-black ${tier.text}`}>{tier.label}</span>
-                                <span className="block text-[9px] font-bold text-muted-foreground">{count}</span>
-                            </div>
+                        <div key={tier.label} className="flex-1 h-full flex flex-col justify-end">
+                            <div
+                                className={`w-full rounded-t bg-gradient-to-t ${tier.bar} transition-all duration-700 ease-out`}
+                                style={{ height: count > 0 ? `${Math.max(h, 5)}%` : '0%' }}
+                            />
                         </div>
                     );
                 })}
             </div>
 
-            <div className="pt-3 border-t border-white/[0.05] flex items-center justify-between">
+            {/* Labels row */}
+            <div className="flex gap-1.5 mt-1.5 mb-3">
+                {WAEC_TIERS.map((tier, i) => (
+                    <div key={tier.label} className="flex-1 text-center">
+                        <span className={`block text-[9px] font-black ${tier.text}`}>{tier.label}</span>
+                        <span className="block text-[9px] font-bold text-muted-foreground">{counts[i]}</span>
+                    </div>
+                ))}
+            </div>
+
+            <div className="pt-3 border-t border-border flex items-center justify-between">
                 <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em]">
                     {totalWithGrades} graded · {noneCount} pending
                 </span>
