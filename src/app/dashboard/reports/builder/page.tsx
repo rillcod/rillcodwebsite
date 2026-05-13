@@ -1786,10 +1786,15 @@ function ReportBuilderInner() {
                                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
                                     <SparklesIcon className="w-3.5 h-3.5" /> Preview
                                 </button>
-                                <Link href={`/dashboard/results?student=${selectedStudent.id}`}
-                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-xl transition-colors">
-                                    <EyeIcon className="w-3.5 h-3.5" /> View Result
-                                </Link>
+                                <button
+                                    onClick={async () => {
+                                        await handleSave(false);
+                                        window.location.href = `/dashboard/results?student=${selectedStudent.id}`;
+                                    }}
+                                    disabled={saving || publishing}
+                                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary text-xs font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />} View Result
+                                </button>
                             </>
                         )}
                     </div>
