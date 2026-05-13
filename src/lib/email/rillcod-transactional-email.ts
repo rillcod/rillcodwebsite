@@ -17,6 +17,18 @@
 
 // ── Utilities ────────────────────────────────────────────────────────────────
 
+/**
+ * Returns true if the address is a @rillcod.com in-app handle that has no
+ * real SMTP mailbox. These addresses must be delivered as in-app notifications
+ * rather than sent via SendPulse/Resend.
+ *
+ * support@rillcod.com is the one exception — it is a real monitored inbox.
+ */
+export function isInAppEmail(email: string): boolean {
+  const lower = String(email).trim().toLowerCase();
+  return lower.endsWith('@rillcod.com') && lower !== 'support@rillcod.com';
+}
+
 export function escapeHtml(text: string): string {
   return String(text)
     .replace(/&/g, '&amp;')

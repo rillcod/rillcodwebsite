@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
-import { buildAssignmentEmail } from '@/lib/email/rillcod-transactional-email';
+import { buildAssignmentEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { notificationsService } from '@/services/notifications.service';
 
 export const dynamic = 'force-dynamic';
@@ -86,7 +86,7 @@ async function handleRequest(req: NextRequest) {
               const className = (assignment.metadata as any)?.target_class_name ?? classId;
 
               for (const student of (students ?? [])) {
-                if (!student.email) continue;
+                if (!student.email || isInAppEmail(student.email)) continue;
                 try {
                   const html = buildAssignmentEmail({
                     recipientName:    student.full_name ?? 'Student',

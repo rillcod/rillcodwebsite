@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
-import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
+import { buildReportEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 
 function adminClient() {
   return createClient(
@@ -117,8 +117,8 @@ export async function PATCH(
 
       const studentName = student?.full_name || 'Student';
 
-      // 2 — Email the student
-      if (student?.email) {
+      // 2 — Email the student (skip @rillcod.com in-app handles — use in-app notification instead)
+      if (student?.email && !isInAppEmail(student.email)) {
         const html = buildReportEmail({
           recipientName: studentName,
           studentName,
@@ -133,6 +133,18 @@ export async function PATCH(
           fromName:  'Rillcod Technologies',
           fromEmail: 'support@rillcod.com',
           html,
+        });
+      } else if (student?.id) {
+        // In-app notification for @rillcod.com handle users
+        await db.from('notifications').insert({
+          user_id:    student.id,
+          title:      subject,
+          message:    `Your progress report for ${term} is now available. Log in to view your results.`,
+          type:       'info',
+          is_read:    false,
+          link:       '/dashboard/results',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         });
       }
 
@@ -169,8 +181,10 @@ export async function PATCH(
         }
       }
 
-      // 4 — Email each parent
+      // 4 — Email each parent (external addresses only — skip @rillcod.com in-app handles)
+      const { notificationsService } = await import('@/services/notifications.service');
       for (const [email, parentName] of parentEmails) {
+        if (isInAppEmail(email)) continue; // in-app handle — no SMTP mailbox
         const html = buildReportEmail({
           recipientName: parentName,
           studentName,
@@ -179,18 +193,13 @@ export async function PATCH(
           portalUrl,
           appUrl,
         });
-        await queueService.queueNotification(`parent-${email}`, 'email', {
+        await notificationsService.sendExternalEmail({
           to:        email,
           subject,
           fromName:  'Rillcod Technologies',
           fromEmail: 'support@rillcod.com',
           html,
-        }).catch(() =>
-          // queueService may reject non-UUID user IDs — fall back to direct send
-          import('@/services/notifications.service').then(({ notificationsService }) =>
-            notificationsService.sendExternalEmail({ to: email, subject, fromName: 'Rillcod Technologies', fromEmail: 'support@rillcod.com', html })
-          )
-        );
+        }).catch(console.error);
       }
     })().catch(console.error);
   }

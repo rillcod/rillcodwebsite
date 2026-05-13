@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
-import { buildInboxOutboundEmail, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { buildInboxOutboundEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import type { TablesInsert } from '@/types/supabase';
 import { missingCustomerTags } from '@/lib/api-guards';
 
@@ -76,15 +76,6 @@ async function canParentOrStudentEmailRecipient(sender: any, toEmail: string): P
   return false;
 }
 
-/**
- * Returns true if the address is an @rillcod.com address that is NOT a real
- * SMTP mailbox (i.e. not support@rillcod.com). These are in-app-only handles
- * and must be delivered as in-app notifications rather than real SMTP mail.
- */
-function isInAppRillcodEmail(email: string): boolean {
-  const lower = email.trim().toLowerCase();
-  return lower.endsWith('@rillcod.com') && lower !== 'support@rillcod.com';
-}
 
 /**
  * Validates base64 attachment content. Returns true if content looks like valid base64.
@@ -186,7 +177,7 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString();
 
   // ── In-app rillcod.com address → deliver as in-app notification ────────────
-  if (isInAppRillcodEmail(toAddress)) {
+  if (isInAppEmail(toAddress)) {
     try {
       const { data: recipient } = await supabase
         .from('portal_users')
