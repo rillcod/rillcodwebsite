@@ -394,6 +394,14 @@ function ReportBuilderInner() {
     const previewContainerRef = useRef<HTMLDivElement>(null);
     const pdfRef = useRef<HTMLDivElement>(null);
 
+    // ── Dirty tracking ────────────────────────────────────────────────────────
+    const snapForm = useRef<typeof form | null>(null);   // snapshot of form at last student load
+    const isHydrating = useRef(false);                   // true while selectStudent is loading form
+    const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [isDirty, setIsDirty] = useState(false);
+    // Ref mirror of filteredStudents — avoids forward-reference TDZ in keyboard useEffect
+    const filteredStudentsRef = useRef<PortalUser[]>([]);
+
     // ── Per-student module suggestion (derived from student's previous report) ──
     const [suggestedModule, setSuggestedModule] = useState<{ current: string; next: string } | null>(null);
 
@@ -461,6 +469,47 @@ function ReportBuilderInner() {
         if (obs && previewContainerRef.current) obs.observe(previewContainerRef.current);
         return () => { clearTimeout(timer); obs?.disconnect(); };
     }, [showPreview]);
+
+    // ── Dirty: compare current form to snapshot captured at student load ────────
+    useEffect(() => {
+        if (isHydrating.current || !snapForm.current) return;
+        setIsDirty(JSON.stringify(form) !== JSON.stringify(snapForm.current));
+    }, [form]);
+
+    // ── Auto-save after 20 s of inactivity when changes are pending ───────────
+    useEffect(() => {
+        if (!isDirty || !selectedStudent || saving || publishing) return;
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = setTimeout(() => { handleSave(false); }, 20000);
+        return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+    }, [form, isDirty]); // eslint-disable-line
+
+    // ── Keyboard navigation: ← / → when no input is focused ─────────────────
+    useEffect(() => {
+        if (step !== 'edit' || !selectedStudent) return;
+        const handler = (e: KeyboardEvent) => {
+            const tag = (e.target as HTMLElement).tagName;
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+            if (showPreview || showSettings) return;
+            const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudentsRef.current;
+            if (e.key === 'ArrowRight' && currentStudentIdx < navList.length - 1) {
+                e.preventDefault();
+                (async () => {
+                    if (isDirty) await handleSave(false);
+                    await selectStudent(navList[currentStudentIdx + 1] as PortalUser, currentStudentIdx + 1);
+                })();
+            }
+            if (e.key === 'ArrowLeft' && currentStudentIdx > 0) {
+                e.preventDefault();
+                (async () => {
+                    if (isDirty) await handleSave(false);
+                    await selectStudent(navList[currentStudentIdx - 1] as PortalUser, currentStudentIdx - 1);
+                })();
+            }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [step, selectedStudent, currentStudentIdx, isDirty, showPreview, showSettings]); // eslint-disable-line
 
     // ── Persist session config + navigation state to localStorage ────────────
     useEffect(() => {
@@ -678,6 +727,7 @@ function ReportBuilderInner() {
 
         return matchesSearch && matchesSchool && matchesClass && matchesGrade;
     });
+    filteredStudentsRef.current = filteredStudents;
 
     const schoolScoped = (s: any) => !sessionConfig.school_name
         || s.school_name === sessionConfig.school_name
@@ -707,7 +757,11 @@ function ReportBuilderInner() {
         const isManual = s.id?.startsWith('manual-');
         if (isManual) {
             setExistingReport(null);
+            isHydrating.current = true;
             setForm(f => ({ ...f, student_name: s.full_name ?? '', section_class: sessionConfig.section_class }));
+            snapForm.current = null; // manual entries have no reference snapshot
+            setIsDirty(false);
+            setTimeout(() => { isHydrating.current = false; }, 100);
             setStep('edit');
             setSessionExpanded(false);
             return;
@@ -831,7 +885,7 @@ function ReportBuilderInner() {
         const savedPractical     = Number(report?.practical_score     ?? 0);
         const savedAttendance    = Number(report?.attendance_score    ?? 0);
         const savedParticipation = Number(report?.participation_score ?? 0);
-        setForm({
+        const loadedFormValues = {
             student_name: s.full_name ?? '',
             section_class: report?.section_class ?? (s as any).section_class ?? '',
             theory_score:        String(savedTheory),
@@ -851,7 +905,12 @@ function ReportBuilderInner() {
             fee_status: ((report as any)?.fee_status ?? '') as any,
             student_current_module: report?.current_module && report.current_module !== sessionConfig.current_module ? report.current_module ?? '' : '',
             student_next_module: report?.next_module && report.next_module !== sessionConfig.next_module ? report.next_module ?? '' : '',
-        });
+        };
+        isHydrating.current = true;
+        setForm(loadedFormValues);
+        snapForm.current = JSON.parse(JSON.stringify(loadedFormValues));
+        setIsDirty(false);
+        setTimeout(() => { isHydrating.current = false; }, 100);
 
         // ── Fetch transparent stats for all 4 score categories ───────────────
         setFetchingStats(true);
@@ -1208,6 +1267,7 @@ function ReportBuilderInner() {
 
             setSuccessMsg(publish ? 'Report published — visible to student!' : 'Draft saved!');
             if (publish) setForm(f => ({ ...f, is_published: true }));
+            setIsDirty(false);
         } catch (err: any) {
             setError(err.message ?? 'Failed to save');
         } finally {
@@ -1217,7 +1277,7 @@ function ReportBuilderInner() {
 
     // ── Save & move to next student ───────────────────────────────────────────
     async function saveAndNext(publish = false) {
-        await handleSave(publish);
+        if (isDirty || publish) await handleSave(publish);
         const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
         const nextIdx = currentStudentIdx + 1;
         if (nextIdx < navList.length) {
@@ -1797,12 +1857,12 @@ function ReportBuilderInner() {
                                 </button>
                                 <button
                                     onClick={async () => {
-                                        await handleSave(false);
-                                        window.open(`/dashboard/results?student=${selectedStudent.id}&autoprint=1`, '_blank');
+                                        if (isDirty) await handleSave(false);
+                                        setShowPreview(true);
                                     }}
                                     disabled={saving || publishing}
                                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                    {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PrinterIcon className="w-3.5 h-3.5" />} Save & Print
+                                    {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PrinterIcon className="w-3.5 h-3.5" />} Print
                                 </button>
                             </>
                         )}
@@ -2354,7 +2414,7 @@ function ReportBuilderInner() {
                                     disabled={currentStudentIdx <= 0}
                                     onClick={async () => {
                                         if (saving || publishing) return;
-                                        await handleSave(false);
+                                        if (isDirty) await handleSave(false);
                                         const idx = currentStudentIdx - 1;
                                         if (idx >= 0) await selectStudent(navList[idx] as PortalUser, idx);
                                     }}
@@ -2373,12 +2433,13 @@ function ReportBuilderInner() {
                                             </span>
                                         )}
                                     </div>
+                                    {isDirty && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" title="Unsaved changes" />}
                                 </div>
                                 <button
                                     disabled={currentStudentIdx >= navList.length - 1}
                                     onClick={async () => {
                                         if (saving || publishing) return;
-                                        await handleSave(false);
+                                        if (isDirty) await handleSave(false);
                                         const idx = currentStudentIdx + 1;
                                         if (idx < navList.length) await selectStudent(navList[idx] as PortalUser, idx);
                                     }}
@@ -2403,7 +2464,7 @@ function ReportBuilderInner() {
                                                 onClick={async () => {
                                                     const realIdx = navList.findIndex((x: any) => x.id === ms.id);
                                                     if (saving || publishing) return;
-                                                    await handleSave(false);
+                                                    if (isDirty) await handleSave(false);
                                                     await selectStudent(ms as PortalUser, realIdx >= 0 ? realIdx : mi);
                                                     setEditSearch('');
                                                 }}
@@ -2961,6 +3022,11 @@ function ReportBuilderInner() {
                                                 {form.is_published ? '✓ Published' : 'Draft'}
                                             </span>
                                         )}
+                                        {isDirty && (
+                                            <span className="flex-shrink-0 text-[8px] px-1.5 py-0.5 rounded-full font-black bg-orange-500/20 text-orange-400 animate-pulse">
+                                                ● Unsaved
+                                            </span>
+                                        )}
                                     </div>
                                     <span className="text-[10px] font-black text-muted-foreground flex-shrink-0 tabular-nums">
                                         {currentStudentIdx + 1} / {filteredStudents.length}
@@ -2997,7 +3063,7 @@ function ReportBuilderInner() {
                                             disabled={currentStudentIdx <= 0 || saving || publishing}
                                             onClick={async () => {
                                                 if (saving || publishing || currentStudentIdx <= 0) return;
-                                                await handleSave(false);
+                                                if (isDirty) await handleSave(false);
                                                 const idx = currentStudentIdx - 1;
                                                 if (idx >= 0) {
                                                     const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
@@ -3160,8 +3226,12 @@ function ReportBuilderInner() {
 
             {/* ── Live Preview Modal ── */}
             {showPreview && (
-                <div className="fixed inset-0 z-50 flex flex-col bg-background">
-                    <div className="flex items-center gap-4 px-8 py-4 border-b border-border bg-[#0a0a14]">
+                // Inject print CSS: when printing from inside the preview, hide everything except the report card
+                // (the header bar and scrollable wrapper both carry the .no-print class)
+                <>
+                <style>{`@media print { body > *:not(#builder-preview-root) { display: none !important; } #builder-preview-root .no-print { display: none !important; } #builder-preview-root { position: static !important; background: white; } }`}</style>
+                <div id="builder-preview-root" className="fixed inset-0 z-50 flex flex-col bg-background">
+                    <div className="no-print flex items-center gap-4 px-8 py-4 border-b border-border bg-[#0a0a14]">
                         <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-card shadow-sm rounded-xl transition-colors">
                             <ArrowLeftIcon className="w-6 h-6 text-muted-foreground" />
                         </button>
@@ -3214,6 +3284,12 @@ function ReportBuilderInner() {
                                 ))}
                             </div>
                         )}
+                        <button
+                            onClick={() => window.print()}
+                            className="flex items-center gap-2 px-6 py-3 bg-card shadow-sm border border-white/10 hover:bg-muted text-foreground text-sm font-black rounded-xl transition-all"
+                        >
+                            <PrinterIcon className="w-4 h-4" /> Print
+                        </button>
                         <button onClick={downloadPDF} disabled={isGeneratingPdf}
                             className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary text-foreground text-sm font-black rounded-xl shadow-xl shadow-primary/30 transition-all disabled:opacity-50">
                             {isGeneratingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
@@ -3267,6 +3343,7 @@ function ReportBuilderInner() {
                         </div>
                     </div>
                 </div>
+                </>
             )}
 
             <div style={{ position: 'fixed', left: -9999, top: 0, width: '210mm', pointerEvents: 'none', zIndex: -1 }}>
