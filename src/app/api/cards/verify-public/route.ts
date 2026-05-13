@@ -41,6 +41,7 @@ export async function GET(request: Request) {
       id: card.id,
       card_number: card.card_number,
       holder_type: card.holder_type,
+      holder_id: card.portal_users?.id ?? null,
       status: card.status,
       issued_at: card.issued_at,
       expires_at: card.expires_at,

@@ -22,10 +22,30 @@ type ScannerState = 'idle' | 'scanning' | 'loading' | 'action' | 'done';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function extractStudentId(raw: string): string | null {
   // Matches https://rillcod.com/student/UUID or /student/UUID
   const match = raw.match(/\/student\/([0-9a-f-]{36})/i);
   return match ? match[1] : null;
+}
+
+/** Resolve a /verify/{code} QR value to a portal user UUID */
+async function resolveVerifyCode(raw: string): Promise<string | null> {
+  const verifyMatch = raw.match(/\/verify\/([^/?#\s]+)/i);
+  if (!verifyMatch) return null;
+  const code = verifyMatch[1];
+  // Fallback path: no card issued, QR encodes the profile UUID directly
+  if (UUID_RE.test(code)) return code;
+  // Custom verification code — look up via the cards API
+  try {
+    const res = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(code)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.card?.holder_id as string | null) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 const STATUS_CONFIG: Record<AttendanceStatus, { label: string; emoji: string; bg: string; ring: string; text: string }> = {
@@ -118,11 +138,22 @@ export default function StaffQRScanner() {
     if (scanLoopRef.current) cancelAnimationFrame(scanLoopRef.current);
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
 
-    const studentId = extractStudentId(raw) ?? (raw.match(/^[0-9a-f-]{36}$/i) ? raw : null);
+    // Resolve student UUID from any supported QR format:
+    // 1. /student/{UUID}  — direct staff scanner link
+    // 2. /verify/{code}   — ID card QR (custom code or UUID fallback)
+    // 3. raw UUID         — bare UUID pasted or encoded directly
+    let studentId: string | null =
+      extractStudentId(raw) ??
+      (UUID_RE.test(raw.trim()) ? raw.trim() : null);
+
+    if (!studentId) {
+      setState('loading');
+      studentId = await resolveVerifyCode(raw);
+    }
+
     if (!studentId) {
       showToast('Not a valid student QR code.', false);
-      setState('scanning');
-      startCamera();
+      setState('idle');
       return;
     }
 
