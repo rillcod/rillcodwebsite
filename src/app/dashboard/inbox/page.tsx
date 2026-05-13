@@ -234,6 +234,8 @@ export default function UnifiedInbox() {
   const [staff, setStaff] = useState<any[]>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [reportingConversation, setReportingConversation] = useState(false);
+  const [deleteConfirmConvId, setDeleteConfirmConvId] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState('');
 
   // Subject dialog (replaces window.prompt for school/teacher convs)
   const [subjectDialog, setSubjectDialog] = useState<SubjectDialogState>({ open: false, subject: '', pendingItem: null });
@@ -550,7 +552,7 @@ export default function UnifiedInbox() {
 
   // ── Fetch conversations ────────────────────────────────────────────────────
   const fetchConversations = async (cat: InboxCategory, setLoad = true) => {
-    if (setLoad) setIsLoading(true);
+    if (setLoad) { setIsLoading(true); setFetchError(''); }
     try {
       if (cat === 'students') {
         if (isParentOrStudent || isTeacher) {
@@ -686,7 +688,7 @@ export default function UnifiedInbox() {
           role: isSchool ? 'teacher' : 'school',
         })));
       }
-    } catch (err) { console.error('fetchConversations error:', err); }
+    } catch (err: any) { console.error('fetchConversations error:', err); setFetchError(err.message || 'Failed to load conversations'); }
     finally { if (setLoad) setIsLoading(false); }
   };
 
@@ -875,7 +877,7 @@ export default function UnifiedInbox() {
         setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
         return;
       }
-    } catch (err) { console.error('fetchMessages error:', err); }
+    } catch (err: any) { console.error('fetchMessages error:', err); setSendError(err.message || 'Failed to load messages'); }
     finally { setMsgLoading(false); }
   }, [profile?.id]); // eslint-disable-line
 
@@ -1597,7 +1599,11 @@ export default function UnifiedInbox() {
   const deleteConversation = async (conv: Conversation) => {
     const canDelete = isStaff || (profile?.role === 'student' && conv.type === 'teachers');
     if (!canDelete) return;
-    if (!window.confirm(`Delete conversation with "${conv.contact_name}"? This cannot be undone.`)) return;
+    if (deleteConfirmConvId !== conv.id) {
+      setDeleteConfirmConvId(conv.id);
+      return;
+    }
+    setDeleteConfirmConvId(null);
     try {
       let url: string;
       if (conv.type === 'students') {
@@ -1638,6 +1644,7 @@ export default function UnifiedInbox() {
 
   // ── Auto-resize textarea ───────────────────────────────────────────────────
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (e.target.value.length > 4096) return;
     setNewMessage(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
@@ -1813,6 +1820,11 @@ export default function UnifiedInbox() {
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {isLoading ? (
                 <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+              ) : fetchError ? (
+                <div className="text-center p-12">
+                  <p className="text-rose-400 text-sm mb-3">{fetchError}</p>
+                  <button onClick={() => fetchConversations(activeTab)} className="text-primary text-sm font-bold hover:underline">Retry</button>
+                </div>
               ) : filteredConvs.length === 0 ? (
                 <div className="text-center p-12">
                   <MessageSquare className="w-10 h-10 text-white/10 mx-auto mb-3" />
@@ -2167,13 +2179,21 @@ export default function UnifiedInbox() {
                   <Info className="w-5 h-5" />
                 </button>
                 {(isStaff || (profile?.role === 'student' && activeConv.type === 'teachers')) && (
-                  <button
-                    onClick={() => deleteConversation(activeConv)}
-                    title="Delete conversation"
-                    className="p-2 text-white/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  deleteConfirmConvId === activeConv.id ? (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-rose-400 text-[10px] font-black hidden sm:inline">Delete?</span>
+                      <button onClick={() => deleteConversation(activeConv)} className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-black rounded-lg transition-colors">Yes</button>
+                      <button onClick={() => setDeleteConfirmConvId(null)} className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white/40 text-[10px] font-black rounded-lg transition-colors">No</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => deleteConversation(activeConv)}
+                      title="Delete conversation"
+                      className="p-2 text-white/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )
                 )}
               </div>
             </div>
@@ -2541,10 +2561,17 @@ export default function UnifiedInbox() {
                     <Paperclip className="w-5 h-5" />
                   </button>
                 </div>
-                <textarea ref={textareaRef} value={newMessage} onChange={handleTextareaChange}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
-                  placeholder="Type a message" rows={1}
-                  className="flex-1 bg-[#2a3942] text-[#d1d7db] text-[15px] rounded-lg px-4 py-2.5 outline-none resize-none placeholder-[#8696a0] focus:ring-0 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
+                <div className="flex-1 relative">
+                  <textarea ref={textareaRef} value={newMessage} onChange={handleTextareaChange}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
+                    placeholder="Type a message" rows={1}
+                    className="w-full bg-[#2a3942] text-[#d1d7db] text-[15px] rounded-lg px-4 py-2.5 outline-none resize-none placeholder-[#8696a0] focus:ring-0 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
+                  {newMessage.length > 3500 && (
+                    <span className={`absolute bottom-1.5 right-2 text-[9px] font-black pointer-events-none ${newMessage.length > 4000 ? 'text-rose-400' : 'text-amber-400'}`}>
+                      {4096 - newMessage.length}
+                    </span>
+                  )}
+                </div>
                 {/* WA direct-send: opens WhatsApp with message pre-filled — user just taps Send in WA */}
                 {activeConv?.type === 'students' && activeConv.phone_number && newMessage.trim() && (
                   <a href={buildWaUrl(activeConv.phone_number, newMessage)}

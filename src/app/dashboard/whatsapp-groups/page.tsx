@@ -158,6 +158,8 @@ export default function WhatsAppGroupsPage() {
   const [deletingBcast, setDeletingBcast] = useState<string | null>(null);
   const [clearingHist,  setClearingHist]  = useState(false);
   const [histGroupId,   setHistGroupId]   = useState<string | undefined>(undefined);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmClearHist, setConfirmClearHist] = useState(false);
 
   // Content Pusher
   const [showPusher,    setShowPusher]    = useState(false);
@@ -271,10 +273,17 @@ export default function WhatsAppGroupsPage() {
     const params = new URLSearchParams({ limit: '40' });
     if (groupId)  params.set('group_id',  groupId);
     if (schoolId) params.set('school_id', schoolId);
-    const res  = await fetch(`/api/whatsapp-groups/broadcasts?${params}`);
-    const json = await res.json();
-    setBroadcasts(json.data ?? []);
-    setHistLoading(false);
+    try {
+      const res  = await fetch(`/api/whatsapp-groups/broadcasts?${params}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load history');
+      setBroadcasts(json.data ?? []);
+    } catch (e: any) {
+      showToast(e.message, 'err');
+      setBroadcasts([]);
+    } finally {
+      setHistLoading(false);
+    }
   }
 
   async function deleteBroadcast(id: string) {
@@ -290,7 +299,8 @@ export default function WhatsAppGroupsPage() {
   }
 
   async function clearHistory(groupId: string) {
-    if (!confirm('Delete ALL broadcast history for this group? This cannot be undone.')) return;
+    if (!confirmClearHist) { setConfirmClearHist(true); return; }
+    setConfirmClearHist(false);
     setClearingHist(true);
     try {
       const res  = await fetch(`/api/whatsapp-groups/broadcasts?group_id=${groupId}`, { method: 'DELETE' });
@@ -329,7 +339,8 @@ export default function WhatsAppGroupsPage() {
   }
 
   async function deleteGroup(id: string, name: string) {
-    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    if (confirmDeleteId !== id) { setConfirmDeleteId(id); return; }
+    setConfirmDeleteId(null);
     setDeletingId(id);
     try {
       const res = await fetch(`/api/whatsapp-groups?id=${id}`, { method: 'DELETE' });
@@ -630,7 +641,7 @@ export default function WhatsAppGroupsPage() {
               <div className="flex gap-2">
                 <button onClick={() => setSelected(new Set())}
                   className="text-[12px] font-black px-3 py-1.5 rounded-lg" style={{ color: '#8696a0' }}>Clear</button>
-                <button onClick={broadcastToSelected} disabled={sending || !message.trim()}
+                <button onClick={broadcastToSelected} disabled={sending || !message.trim() || message.length > 4096}
                   className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-white text-[12px] font-black disabled:opacity-40 active:scale-95 transition-all"
                   style={{ background: '#00a884' }}>
                   <Layers className="w-3.5 h-3.5" />
@@ -777,7 +788,7 @@ export default function WhatsAppGroupsPage() {
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && selected.size > 0) { e.preventDefault(); broadcastToSelected(); } }}
                 />
                 {selected.size > 0 ? (
-                  <button onClick={broadcastToSelected} disabled={sending || !message.trim()}
+                  <button onClick={broadcastToSelected} disabled={sending || !message.trim() || message.length > 4096}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-[12px] font-black disabled:opacity-40 transition-all active:scale-95 shrink-0"
                     style={{ background: '#00a884' }}>
                     <Layers className="w-4 h-4" />
@@ -850,10 +861,18 @@ export default function WhatsAppGroupsPage() {
                               <RotateCcw className="w-4 h-4" style={{ color: '#00a884' }} />
                             </button>
                           )}
-                          <button onClick={() => deleteGroup(g.id, g.name)} disabled={!!deletingId}
-                            className="p-2 rounded-full hover:bg-rose-500/10 transition-colors" title="Delete">
-                            {deletingId === g.id ? <Loader2 className="w-4 h-4 animate-spin text-rose-400" /> : <Trash2 className="w-4 h-4 text-rose-400" />}
-                          </button>
+                          {confirmDeleteId === g.id ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-black" style={{ color: '#f87171' }}>Delete?</span>
+                              <button onClick={() => deleteGroup(g.id, g.name)} className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171' }}>Yes</button>
+                              <button onClick={() => setConfirmDeleteId(null)} className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(255,255,255,0.06)', color: '#8696a0' }}>No</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => deleteGroup(g.id, g.name)} disabled={!!deletingId}
+                              className="p-2 rounded-full hover:bg-rose-500/10 transition-colors" title="Delete">
+                              {deletingId === g.id ? <Loader2 className="w-4 h-4 animate-spin text-rose-400" /> : <Trash2 className="w-4 h-4 text-rose-400" />}
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -896,14 +915,15 @@ export default function WhatsAppGroupsPage() {
                           {/* Textarea */}
                           <div className="flex-1 flex flex-col p-4 gap-3">
                             <textarea
-                              value={message} onChange={e => setMessage(e.target.value)} rows={6}
+                              value={message} onChange={e => { if (e.target.value.length <= 4096) setMessage(e.target.value); }} rows={6}
                               placeholder={`Type your ${tc.label.toLowerCase()} announcement here…`}
+                              maxLength={4096}
                               className="flex-1 w-full text-white text-[14px] rounded-xl px-4 py-3 outline-none resize-none leading-relaxed"
                               style={{ background: '#1f2c34', caretColor: '#00a884', minHeight: '120px' }}
                             />
                             <div className="flex items-center justify-between gap-3">
-                              <span className="text-[11px]" style={{ color: message.length > 800 ? '#fbbf24' : '#8696a0' }}>
-                                {message.length} chars
+                              <span className="text-[11px]" style={{ color: message.length > 4000 ? '#f87171' : message.length > 3000 ? '#fbbf24' : '#8696a0' }}>
+                                {message.length > 3000 ? `${4096 - message.length} chars left` : `${message.length} chars`}
                               </span>
                               <div className="flex gap-2 flex-wrap justify-end">
                                 {/* Save template */}
@@ -917,8 +937,8 @@ export default function WhatsAppGroupsPage() {
                                   style={{ background: 'rgba(0,168,132,0.15)', color: '#00a884', border: '1px solid rgba(0,168,132,0.3)' }}>
                                   Save
                                 </button>
-                                <button onClick={() => sendToGroup(g)}
-                                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-[13px] font-black transition-all active:scale-95"
+                                <button onClick={() => sendToGroup(g)} disabled={!message.trim() || message.length > 4096}
+                                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-[13px] font-black transition-all active:scale-95 disabled:opacity-40"
                                   style={{ background: '#00a884' }}>
                                   <Send className="w-4 h-4" /> Open Group
                                 </button>
@@ -1225,10 +1245,13 @@ export default function WhatsAppGroupsPage() {
                 <div className="p-4 flex flex-col gap-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#8696a0' }}>Message Preview / Edit</span>
-                    <span className="text-[10px]" style={{ color: pusherMsg.length > 800 ? '#fbbf24' : '#8696a0' }}>{pusherMsg.length} chars</span>
+                    <span className="text-[10px]" style={{ color: pusherMsg.length > 4000 ? '#f87171' : pusherMsg.length > 3000 ? '#fbbf24' : '#8696a0' }}>
+                      {pusherMsg.length > 3000 ? `${4096 - pusherMsg.length} left` : `${pusherMsg.length} chars`}
+                    </span>
                   </div>
-                  <textarea value={pusherMsg} onChange={e => setPusherMsg(e.target.value)} rows={7}
+                  <textarea value={pusherMsg} onChange={e => { if (e.target.value.length <= 4096) setPusherMsg(e.target.value); }} rows={7}
                     placeholder="Pick content from the left, or type a custom message…"
+                    maxLength={4096}
                     className="w-full text-white text-[13px] rounded-xl px-4 py-3 outline-none resize-none leading-relaxed"
                     style={{ background: '#0b141a', caretColor: '#00a884' }} />
                 </div>
@@ -1288,7 +1311,7 @@ export default function WhatsAppGroupsPage() {
               <div className="flex gap-2">
                 <button onClick={() => setShowPusher(false)} className="px-4 py-2.5 rounded-xl text-[13px] font-black"
                   style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}>Cancel</button>
-                <button onClick={pushContent} disabled={pusherSending || !pusherMsg.trim() || pusherGroups.size === 0}
+                <button onClick={pushContent} disabled={pusherSending || !pusherMsg.trim() || pusherGroups.size === 0 || pusherMsg.length > 4096}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-[13px] font-black disabled:opacity-40 transition-all active:scale-95"
                   style={{ background: '#7c3aed' }}>
                   {pusherSending
@@ -1319,17 +1342,29 @@ export default function WhatsAppGroupsPage() {
                 </p>
               </div>
               {histGroupId && broadcasts.length > 0 && (
-                <button
-                  onClick={() => clearHistory(histGroupId)}
-                  disabled={clearingHist}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors shrink-0"
-                  style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
-                  title="Delete all history for this group">
-                  {clearingHist
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <Trash2 className="w-3.5 h-3.5" />}
-                  Clear All
-                </button>
+                confirmClearHist ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] font-black" style={{ color: '#f87171' }}>Clear all?</span>
+                    <button onClick={() => clearHistory(histGroupId)} disabled={clearingHist}
+                      className="px-2 py-1 rounded-lg text-[10px] font-black"
+                      style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171' }}>
+                      {clearingHist ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+                    </button>
+                    <button onClick={() => setConfirmClearHist(false)} className="px-2 py-1 rounded-lg text-[10px] font-black" style={{ background: 'rgba(255,255,255,0.06)', color: '#8696a0' }}>No</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => clearHistory(histGroupId)}
+                    disabled={clearingHist}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors shrink-0"
+                    style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}
+                    title="Delete all history for this group">
+                    {clearingHist
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Trash2 className="w-3.5 h-3.5" />}
+                    Clear All
+                  </button>
+                )
               )}
             </div>
             <div className="flex-1 overflow-y-auto">
