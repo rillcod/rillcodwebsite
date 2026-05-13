@@ -907,6 +907,14 @@ export default function IdentityCardsPage() {
                 )}
               </p>
               <div className="flex flex-wrap gap-2">
+                {filtered.length > 0 && (
+                  <button
+                    onClick={() => setSelectedIds(new Set(filtered.map((r) => r.id)))}
+                    className="px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-card border border-border hover:bg-muted rounded-xl transition-all inline-flex items-center gap-2"
+                  >
+                    Select Filtered ({filtered.length})
+                  </button>
+                )}
                 {selectedIds.size > 0 && (
                   <>
                     <button
