@@ -1,9 +1,14 @@
+import { buildFeedbackAutoResponseEmail } from './rillcod-transactional-email';
+
 /**
  * Sends the feedback auto-response email when outbound email is configured.
  * Set RESEND_API_KEY + RESEND_FROM_EMAIL (Resend) to enable delivery; otherwise logs only.
  */
-
-export async function sendFeedbackAutoResponseEmail(to: string, text: string): Promise<{ sent: boolean; reason?: string }> {
+export async function sendFeedbackAutoResponseEmail(
+  to: string,
+  text: string,
+  opts?: { recipientName?: string; category?: string }
+): Promise<{ sent: boolean; reason?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
 
@@ -11,6 +16,12 @@ export async function sendFeedbackAutoResponseEmail(to: string, text: string): P
     console.info('[feedback] Auto-response email skipped (set RESEND_API_KEY + RESEND_FROM_EMAIL). To:', to);
     return { sent: false, reason: 'email_not_configured' };
   }
+
+  const html = buildFeedbackAutoResponseEmail({
+    recipientName: opts?.recipientName,
+    feedbackText:  text,
+    category:      opts?.category,
+  });
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -22,7 +33,8 @@ export async function sendFeedbackAutoResponseEmail(to: string, text: string): P
       body: JSON.stringify({
         from,
         to: [to],
-        subject: 'Rillcod — we received your feedback',
+        subject: 'Rillcod Technologies — we received your feedback',
+        html,
         text,
       }),
     });

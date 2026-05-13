@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { notificationsService } from '@/services/notifications.service';
-import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { buildInboxOutboundEmail, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import type { TablesInsert } from '@/types/supabase';
 import { missingCustomerTags } from '@/lib/api-guards';
 
@@ -87,6 +87,17 @@ function isInAppRillcodEmail(email: string): boolean {
 }
 
 /**
+ * Validates base64 attachment content. Returns true if content looks like valid base64.
+ */
+function isValidBase64(str: string): boolean {
+  try {
+    return Buffer.from(str, 'base64').length > 0 && str.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * POST /api/inbox/email
  * Smart-routes outbound messages:
  *   • to = @rillcod.com (except support@) → in-app notification (no SMTP)
@@ -94,7 +105,15 @@ function isInAppRillcodEmail(email: string): boolean {
  *   When the recipient is an in-app rillcod.com user the sender ALSO gets a
  *   sent-confirmation notification, and the recipient gets an unread in-app
  *   notification — mirroring how real email works but through the platform.
- * Body: { to: string, to_name?: string, subject: string, body: string, cc?: string }
+ *
+ * Body: {
+ *   to: string,
+ *   to_name?: string,
+ *   subject: string,
+ *   body: string,
+ *   cc?: string,
+ *   attachments?: Array<{ filename: string; content: string; }> // base64 content
+ * }
  */
 export async function POST(req: NextRequest) {
   const sender = await requireStaff();
@@ -112,11 +131,32 @@ export async function POST(req: NextRequest) {
     effectiveSender = { ...user, ...profile };
   }
 
-  const { to, to_name, subject, body, cc } = await req.json();
+  const { to, to_name, subject, body, cc, attachments } = await req.json();
 
   if (!to?.trim()) return NextResponse.json({ error: 'Recipient email is required' }, { status: 400 });
   if (!subject?.trim()) return NextResponse.json({ error: 'Subject is required' }, { status: 400 });
   if (!body?.trim()) return NextResponse.json({ error: 'Message body is required' }, { status: 400 });
+
+  // Validate attachments
+  const validatedAttachments: Array<{ filename: string; content: string }> = [];
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    if (attachments.length > 5) {
+      return NextResponse.json({ error: 'Maximum 5 attachments allowed per email' }, { status: 400 });
+    }
+    for (const att of attachments) {
+      if (!att.filename || typeof att.filename !== 'string') {
+        return NextResponse.json({ error: 'Each attachment must have a filename' }, { status: 400 });
+      }
+      if (!att.content || !isValidBase64(att.content)) {
+        return NextResponse.json({ error: `Invalid attachment content for: ${att.filename}` }, { status: 400 });
+      }
+      // Guard against excessively large attachments (~10 MB limit per file in base64)
+      if (att.content.length > 13_500_000) {
+        return NextResponse.json({ error: `Attachment too large: ${att.filename} (max 10 MB)` }, { status: 400 });
+      }
+      validatedAttachments.push({ filename: att.filename, content: att.content });
+    }
+  }
 
   if (['parent', 'student'].includes(effectiveSender.role)) {
     const missing = missingCustomerTags(effectiveSender);
@@ -136,10 +176,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const senderName  = (effectiveSender as any).full_name || 'Rillcod Academy';
-  const senderOrg   = (effectiveSender as any).school_name || 'Rillcod Academy';
-  const senderClass = (effectiveSender as any).section_class || 'Unspecified';
-  const senderRole = String((effectiveSender as any).role || 'user').toUpperCase();
+  const senderName  = (effectiveSender as any).full_name || 'Rillcod Technologies';
+  const senderOrg   = (effectiveSender as any).school_name || 'Rillcod Technologies';
+  const senderClass = (effectiveSender as any).section_class || '';
+  const senderRole  = String((effectiveSender as any).role || 'user').toUpperCase();
 
   const toAddress = to.trim();
   const displayRecipient = to_name ? `${to_name} <${toAddress}>` : toAddress;
@@ -148,7 +188,6 @@ export async function POST(req: NextRequest) {
   // ── In-app rillcod.com address → deliver as in-app notification ────────────
   if (isInAppRillcodEmail(toAddress)) {
     try {
-      // Look up the recipient user by their in-app email handle
       const { data: recipient } = await supabase
         .from('portal_users')
         .select('id, full_name')
@@ -156,7 +195,6 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (recipient) {
-        // Deliver to recipient's notification bell
         await supabase.from('notifications').insert({
           user_id:    recipient.id,
           title:      subject.trim(),
@@ -168,7 +206,6 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Sent-confirmation for the sender
       await supabase.from('notifications').insert({
         user_id:    effectiveSender.id,
         title:      `Message sent: ${subject}`,
@@ -195,70 +232,65 @@ export async function POST(req: NextRequest) {
   }
 
   // ── External address or support@rillcod.com → send via SendPulse SMTP ─────
-  const html = buildRillcodTransactionalEmailHtml({
-    title:    subject,
-    eyebrow:  senderOrg,
-    bodyHtml: `
-      <p style="margin:0 0 12px;color:#e4e4e7;">
-        <strong style="color:#fff;">From:</strong> ${escapeHtml(senderName)} via Rillcod Academy
-      </p>
-      <p style="margin:0 0 12px;color:#d4d4d8;font-size:13px;">
-        <strong style="color:#fff;">Origin:</strong> ${escapeHtml(senderRole)} · ${escapeHtml(senderOrg)} · ${escapeHtml(String(senderClass))}
-      </p>
-      <div style="background:#1a1a2e;border-left:3px solid #c0392b;padding:16px 20px;border-radius:0 8px 8px 0;margin:0 0 20px;">
-        ${body.split('\n').map((line: string) =>
-          `<p style="margin:0 0 8px;color:#d4d4d8;font-size:15px;line-height:1.6;">${escapeHtml(line) || '&nbsp;'}</p>`
-        ).join('')}
-      </div>
-    `,
-    footerNote: `<span style="color:#71717a;">Sent via Rillcod Academy Unified Inbox · Reply to this email to respond directly.</span>`,
+  const html = buildInboxOutboundEmail({
+    senderName,
+    senderRole,
+    senderOrg,
+    senderClass: senderClass || undefined,
+    subject:     subject.trim(),
+    body:        body.trim(),
   });
 
   try {
     await notificationsService.sendExternalEmail({
-      to:        toAddress,
-      subject:   subject.trim(),
+      to:          toAddress,
+      subject:     subject.trim(),
       html,
-      fromName:  `${senderName} (Rillcod Academy)`,
-      fromEmail: 'support@rillcod.com',
+      fromName:    `${senderName} via Rillcod Technologies`,
+      fromEmail:   'support@rillcod.com',
+      ...(validatedAttachments.length > 0 ? { attachments: validatedAttachments } : {}),
     });
 
-    // Sent-confirmation log for the sender
     await supabase.from('notifications').insert({
       user_id:    effectiveSender.id,
       title:      `Email sent: ${subject}`,
-      message:    `To: ${displayRecipient} — ${body.slice(0, 120)}`,
+      message:    `To: ${displayRecipient}${validatedAttachments.length > 0 ? ` (+ ${validatedAttachments.length} attachment${validatedAttachments.length > 1 ? 's' : ''})` : ''} — ${body.slice(0, 120)}`,
       type:       'info',
       is_read:    true,
       created_at: now,
       updated_at: now,
     }).throwOnError();
 
-    // Soft customer-book capture from support email channel.
     if (['parent', 'student'].includes(effectiveSender.role)) {
       const row: TablesInsert<'customer_contact_book'> = {
-        user_id: effectiveSender.id,
-        role: effectiveSender.role,
-        full_name: senderName,
-        email: effectiveSender.email ?? null,
-        phone: effectiveSender.phone ?? null,
+        user_id:    effectiveSender.id,
+        role:       effectiveSender.role,
+        full_name:  senderName,
+        email:      effectiveSender.email ?? null,
+        phone:      effectiveSender.phone ?? null,
         school_name: effectiveSender.school_name ?? null,
         class_name: effectiveSender.section_class ?? null,
-        source: 'self_confirmed_support_email',
+        source:     'self_confirmed_support_email',
         last_channel: 'email',
         metadata: {
           recipient_email: toAddress.toLowerCase(),
-          sender_role: effectiveSender.role,
+          sender_role:     effectiveSender.role,
         },
         confirmed_at: now,
-        updated_at: now,
+        updated_at:   now,
       };
       await supabase
         .from('customer_contact_book')
         .upsert(row, { onConflict: 'user_id' });
     }
 
-    return NextResponse.json({ success: true, to: toAddress, subject, channel: 'smtp' });
+    return NextResponse.json({
+      success: true,
+      to: toAddress,
+      subject,
+      channel: 'smtp',
+      attachments_sent: validatedAttachments.length,
+    });
   } catch (err: any) {
     console.error('[inbox/email] SendPulse error:', err);
     return NextResponse.json({ error: err.message || 'Email delivery failed' }, { status: 500 });

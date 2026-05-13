@@ -1,71 +1,143 @@
 /**
- * Rillcod branded transactional email template.
- * Table-based layout — renders correctly in Gmail, Outlook, Apple Mail, and mobile.
+ * Rillcod Technologies — branded transactional email system.
+ * Table-based layout: renders correctly in Gmail, Outlook, Apple Mail, Yahoo, and mobile clients.
+ *
+ * Exports:
+ *   buildRillcodTransactionalEmailHtml  — generic branded wrapper (use for one-off emails)
+ *   buildWelcomeEmail                  — new user onboarding
+ *   buildPaymentConfirmationEmail       — payment received / receipt
+ *   buildInvoiceEmail                  — invoice issued (with line items)
+ *   buildAssignmentEmail               — new assignment notification
+ *   buildReportEmail                   — term report card released
+ *   buildSupportTicketEmail            — support ticket opened / updated
+ *   buildAnnouncementEmail             — school-wide announcement
+ *   buildSubscriptionEmail             — subscription status (activated / expiring / renewed)
+ *   buildOptInConfirmationEmail        — WhatsApp opt-in/out confirmation
  */
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+
 export function escapeHtml(text: string): string {
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-export type TransactionalSummaryRow = { label: string; value: string };
+function nl2p(text: string, style = 'margin:0 0 10px;color:#d4d4d8;font-size:15px;line-height:1.65;'): string {
+  return text
+    .split('\n')
+    .map(line => `<p style="${style}">${escapeHtml(line) || '&nbsp;'}</p>`)
+    .join('');
+}
+
+function currency(amount: number, code = 'NGN'): string {
+  try {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: code, minimumFractionDigits: 2 }).format(amount);
+  } catch {
+    return `${code} ${amount.toFixed(2)}`;
+  }
+}
+
+// ── Shared constants ─────────────────────────────────────────────────────────
+
+const BRAND = {
+  name:       'Rillcod Technologies',
+  tagline:    'Nigerian STEM &amp; Coding Platform',
+  primary:    '#f59e0b',   // amber
+  primaryDark:'#d97706',
+  success:    '#10b981',   // emerald
+  info:       '#6366f1',   // indigo
+  danger:     '#ef4444',   // red
+  bg:         '#0b0c0e',
+  card:       '#141618',
+  cardAlt:    '#1c1e22',
+  border:     '#2a2d33',
+  text:       '#d4d4d8',
+  textMuted:  '#71717a',
+  textFaint:  '#52525b',
+  white:      '#ffffff',
+  supportEmail: 'support@rillcod.com',
+  siteUrl:    'https://rillcod.com',
+};
+
+// ── Base template ────────────────────────────────────────────────────────────
+
+export type TransactionalSummaryRow = { label: string; value: string; highlight?: boolean };
 
 export type RillcodTransactionalEmailArgs = {
-    appUrl?: string;
-    /** Small uppercase line under logo (e.g. "Rillcod Academy") */
-    eyebrow?: string;
-    /** Main headline */
-    title: string;
-    /** One or more HTML paragraphs (already safe or use escapeHtml on inputs) */
-    bodyHtml: string;
-    summaryRows?: TransactionalSummaryRow[];
-    cta?: { href: string; label: string };
-    footerNote?: string;
+  appUrl?:       string;
+  /** Small uppercase eyebrow text under logo (e.g. school name) */
+  eyebrow?:      string;
+  title:         string;
+  bodyHtml:      string;
+  summaryRows?:  TransactionalSummaryRow[];
+  cta?:          { href: string; label: string; color?: string };
+  secondaryCta?: { href: string; label: string };
+  footerNote?:   string;
+  accentColor?:  string;
+  /** Extra HTML block after the CTA (e.g. alert boxes, secondary info) */
+  extraBlock?:   string;
 };
 
 export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEmailArgs): string {
-    const appUrl = (args.appUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
-    const logoUrl = `${appUrl}/images/logo.png`;
-    const eyebrow = args.eyebrow ?? 'Rillcod Academy';
+  const appUrl     = (args.appUrl || process.env.NEXT_PUBLIC_APP_URL || BRAND.siteUrl).replace(/\/$/, '');
+  const logoUrl    = `${appUrl}/images/logo.png`;
+  const eyebrow    = escapeHtml(args.eyebrow ?? BRAND.name);
+  const accent     = args.accentColor ?? BRAND.primary;
 
-    const summaryBlock =
-        args.summaryRows && args.summaryRows.length > 0
-            ? `
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
-          <tr>
-            <td style="background:#1a1a1d;border:1px solid #33363a;padding:16px 18px;">
-              <p style="margin:0 0 10px;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Details</p>
-              ${args.summaryRows.map(r =>
-                  `<p style="margin:0 0 8px;font-size:14px;color:#ffffff;"><strong style="color:#f59e0b;">${escapeHtml(r.label)}:</strong>&nbsp;${escapeHtml(r.value)}</p>`
-              ).join('')}
-            </td>
-          </tr>
-        </table>`
-            : '';
+  // ── Summary table ──
+  const summaryBlock = args.summaryRows && args.summaryRows.length > 0
+    ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;border-collapse:collapse;">
+        <tr><td style="background:${BRAND.cardAlt};border:1px solid ${BRAND.border};border-bottom:none;padding:10px 16px;">
+          <p style="margin:0;font-size:10px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Details</p>
+        </td></tr>
+        ${args.summaryRows.map((r, i) => `
+        <tr>
+          <td style="background:${i % 2 === 0 ? BRAND.cardAlt : BRAND.card};border:1px solid ${BRAND.border};border-top:none;padding:10px 16px 10px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="font-size:12px;color:${BRAND.textMuted};font-weight:700;width:38%;vertical-align:top;padding-right:8px;">${escapeHtml(r.label)}</td>
+                <td style="font-size:13px;color:${r.highlight ? accent : BRAND.white};font-weight:${r.highlight ? '800' : '500'};text-align:right;">${escapeHtml(r.value)}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>`).join('')}
+      </table>`
+    : '';
 
-    const ctaBlock = args.cta
-        ? `
-        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
-          <tr>
-            <td style="background:#f59e0b;padding:0;">
-              <a href="${escapeHtml(args.cta.href)}"
-                 style="display:inline-block;background:#f59e0b;color:#111827;text-decoration:none;
-                        padding:12px 28px;font-size:12px;font-weight:800;letter-spacing:0.8px;
-                        text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;">
-                ${escapeHtml(args.cta.label)} &rarr;
-              </a>
-            </td>
-          </tr>
-        </table>`
-        : '';
+  // ── CTA button ──
+  const ctaColor = args.cta?.color ?? accent;
+  const ctaBlock = args.cta
+    ? `<table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+        <tr>
+          <td style="border-radius:6px;background:${ctaColor};">
+            <a href="${escapeHtml(args.cta.href)}"
+               style="display:inline-block;background:${ctaColor};color:#111827;text-decoration:none;
+                      padding:13px 30px;font-size:13px;font-weight:800;letter-spacing:0.6px;
+                      text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;border-radius:6px;">
+              ${escapeHtml(args.cta.label)} &rarr;
+            </a>
+          </td>
+        </tr>
+      </table>`
+    : '';
 
-    const footerNote = args.footerNote
-        ? `<p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">${args.footerNote}</p>`
-        : '';
+  const secondaryCtaBlock = args.secondaryCta
+    ? `<p style="margin:0 0 20px;">
+        <a href="${escapeHtml(args.secondaryCta.href)}"
+           style="font-size:12px;color:${BRAND.textMuted};text-decoration:underline;">
+          ${escapeHtml(args.secondaryCta.label)}
+        </a>
+      </p>`
+    : '';
 
-    return `<!DOCTYPE html>
+  const footerNote = args.footerNote
+    ? `<p style="margin:0 0 10px;font-size:12px;color:${BRAND.textMuted};">${args.footerNote}</p>`
+    : '';
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -73,101 +145,643 @@ export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEma
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>${escapeHtml(args.title)}</title>
 </head>
-<body style="margin:0;padding:0;background:#0b0b0c;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<body style="margin:0;padding:0;background:${BRAND.bg};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
 
-  <!--[if mso]><table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b0b0c"><tr><td><![endif]-->
-  <table width="100%" cellpadding="0" cellspacing="0" border="0"
-         style="background:#0b0b0c;min-height:100%;font-family:Arial,Helvetica,sans-serif;">
-    <tr>
-      <td align="center" style="padding:32px 16px;">
+<!--[if mso]><table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${BRAND.bg}"><tr><td><![endif]-->
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:${BRAND.bg};min-height:100%;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center" style="padding:36px 16px 48px;">
 
-        <!-- Card -->
-        <table width="600" cellpadding="0" cellspacing="0" border="0"
-               style="max-width:600px;background:#141416;border:1px solid #2b2b2f;">
+      <!-- Card -->
+      <table width="600" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:600px;background:${BRAND.card};border:1px solid ${BRAND.border};border-radius:8px;overflow:hidden;">
 
-          <!-- Header: logo + title -->
-          <tr>
-            <td style="background:#141416;border-bottom:2px solid #f59e0b;padding:24px 28px;">
-              <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr>
-                  <td width="52" valign="middle" style="padding-right:14px;">
-                    <img src="${escapeHtml(logoUrl)}" alt="Rillcod"
-                         width="44" height="44"
-                         style="display:block;width:44px;height:44px;object-fit:contain;
-                                background:#ffffff;padding:4px;border-radius:4px;" />
-                  </td>
-                  <td valign="middle">
-                    <p style="margin:0 0 3px;font-size:10px;color:#f59e0b;font-weight:800;
-                               letter-spacing:1.8px;text-transform:uppercase;">${escapeHtml(eyebrow)}</p>
-                    <h1 style="margin:0;font-size:20px;font-weight:800;color:#ffffff;line-height:1.25;">
-                      ${escapeHtml(args.title)}
-                    </h1>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+        <!-- Accent bar -->
+        <tr><td style="background:${accent};height:4px;font-size:0;line-height:0;">&nbsp;</td></tr>
 
-          <!-- Body -->
-          <tr>
-            <td style="padding:28px 28px 8px;">
-              <div style="font-size:14px;color:#d4d4d8;line-height:1.65;">
-                ${args.bodyHtml}
-              </div>
-            </td>
-          </tr>
+        <!-- Header -->
+        <tr>
+          <td style="padding:24px 28px 20px;border-bottom:1px solid ${BRAND.border};">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td width="48" valign="middle" style="padding-right:12px;">
+                  <img src="${logoUrl}" alt="Rillcod Technologies"
+                       width="40" height="40"
+                       style="display:block;width:40px;height:40px;object-fit:contain;
+                              background:#fff;padding:3px;border-radius:6px;" />
+                </td>
+                <td valign="middle">
+                  <p style="margin:0 0 2px;font-size:9px;color:${accent};font-weight:800;
+                             letter-spacing:2px;text-transform:uppercase;">${eyebrow}</p>
+                  <h1 style="margin:0;font-size:19px;font-weight:800;color:${BRAND.white};line-height:1.3;">
+                    ${escapeHtml(args.title)}
+                  </h1>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-          <!-- Summary rows -->
-          ${summaryBlock ? `<tr><td style="padding:0 28px;">${summaryBlock}</td></tr>` : ''}
+        <!-- Body -->
+        <tr>
+          <td style="padding:26px 28px 10px;">
+            <div style="font-size:14px;color:${BRAND.text};line-height:1.65;">
+              ${args.bodyHtml}
+            </div>
+          </td>
+        </tr>
 
-          <!-- CTA -->
-          ${ctaBlock ? `<tr><td style="padding:4px 28px 0;">${ctaBlock}</td></tr>` : ''}
+        <!-- Summary -->
+        ${summaryBlock ? `<tr><td style="padding:0 28px;">${summaryBlock}</td></tr>` : ''}
 
-          <!-- Divider -->
-          <tr>
-            <td style="padding:0 28px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td style="border-top:1px solid #2f2f35;padding-top:20px;"></td></tr>
-              </table>
-            </td>
-          </tr>
+        <!-- Extra block -->
+        ${args.extraBlock ? `<tr><td style="padding:0 28px;">${args.extraBlock}</td></tr>` : ''}
 
-          <!-- Footer -->
-          <tr>
-            <td style="padding:0 28px 28px;">
-              ${footerNote}
-              <p style="margin:0 0 6px;font-size:12px;color:#71717a;">
-                Need help?&nbsp;
-                <a href="mailto:support@rillcod.com"
-                   style="color:#f59e0b;text-decoration:none;font-weight:700;">
-                  support@rillcod.com
-                </a>
-              </p>
-              <table cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;">
-                <tr>
-                  <td width="24" valign="middle" style="padding-right:8px;">
-                    <img src="${escapeHtml(logoUrl)}" alt="" width="20" height="20"
-                         style="display:block;width:20px;height:20px;object-fit:contain;opacity:0.5;" />
-                  </td>
-                  <td valign="middle">
-                    <p style="margin:0;font-size:11px;color:#52525b;line-height:1.4;">
-                      &copy; ${new Date().getFullYear()} Rillcod Academy &middot; Nigerian STEM &amp; Coding Platform<br/>
-                      This is an automated message. Please retain it for your records.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+        <!-- CTA -->
+        ${ctaBlock ? `<tr><td style="padding:4px 28px 0;">${ctaBlock}</td></tr>` : ''}
+        ${secondaryCtaBlock ? `<tr><td style="padding:0 28px;">${secondaryCtaBlock}</td></tr>` : ''}
 
-        </table>
-        <!-- / Card -->
+        <!-- Divider -->
+        <tr>
+          <td style="padding:20px 28px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr><td style="border-top:1px solid ${BRAND.border};"></td></tr>
+            </table>
+          </td>
+        </tr>
 
-      </td>
-    </tr>
-  </table>
-  <!--[if mso]></td></tr></table><![endif]-->
+        <!-- Footer -->
+        <tr>
+          <td style="padding:18px 28px 26px;">
+            ${footerNote}
+            <p style="margin:0 0 4px;font-size:12px;color:${BRAND.textMuted};">
+              Questions? Email us at
+              <a href="mailto:${BRAND.supportEmail}"
+                 style="color:${accent};text-decoration:none;font-weight:700;">${BRAND.supportEmail}</a>
+            </p>
+            <table cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;" width="100%">
+              <tr>
+                <td valign="middle" width="26" style="padding-right:8px;">
+                  <img src="${logoUrl}" alt="" width="18" height="18"
+                       style="display:block;width:18px;height:18px;object-fit:contain;opacity:0.45;" />
+                </td>
+                <td valign="middle">
+                  <p style="margin:0;font-size:11px;color:${BRAND.textFaint};line-height:1.5;">
+                    &copy; ${new Date().getFullYear()} Rillcod Technologies &middot; ${BRAND.tagline}<br/>
+                    This is an automated message from the Rillcod platform. Please retain it for your records.
+                  </p>
+                </td>
+                <td valign="middle" align="right" style="padding-left:8px;">
+                  <a href="${appUrl}" style="font-size:10px;color:${BRAND.textFaint};text-decoration:underline;">Visit portal</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+      </table>
+      <!-- / Card -->
+
+    </td>
+  </tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
 
 </body>
 </html>`;
+}
+
+// ── Specific template builders ───────────────────────────────────────────────
+
+/** Welcome / onboarding email for new students, parents, or staff. */
+export function buildWelcomeEmail(opts: {
+  recipientName: string;
+  role: 'student' | 'parent' | 'teacher' | 'school' | 'admin';
+  schoolName?: string;
+  loginUrl: string;
+  appUrl?: string;
+}): string {
+  const roleLabel: Record<string, string> = {
+    student: 'Student',
+    parent:  'Parent / Guardian',
+    teacher: 'Teacher',
+    school:  'School Administrator',
+    admin:   'Platform Administrator',
+  };
+
+  const roleFeatures: Record<string, string[]> = {
+    student: ['View and submit assignments', 'Access your course curriculum', 'Track your progress and grades', 'Message your teachers directly', 'Earn XP and unlock badges'],
+    parent:  ['Monitor your child\'s progress in real time', 'Receive payment & assignment alerts', 'Communicate with teachers', 'View and pay invoices online', 'Access digital report cards'],
+    teacher: ['Create and manage assignments', 'Grade student work with WAEC-aligned rubrics', 'Build lesson plans and curricula', 'Message students and parents', 'Generate AI-assisted content'],
+    school:  ['Manage students, teachers, and classes', 'Configure billing and subscriptions', 'Track school-wide performance', 'Broadcast WhatsApp announcements', 'Access reports and analytics'],
+    admin:   ['Full platform access and oversight', 'Manage all schools and users', 'Configure system-wide settings'],
+  };
+
+  const features = (roleFeatures[opts.role] || roleFeatures.student)
+    .map(f => `<tr><td style="padding:4px 0;"><table cellpadding="0" cellspacing="0" border="0"><tr>
+      <td width="20" style="color:${BRAND.success};font-size:14px;vertical-align:top;padding-top:1px;">&#10003;</td>
+      <td style="font-size:13px;color:${BRAND.text};line-height:1.5;">${escapeHtml(f)}</td>
+    </tr></table></td></tr>`).join('');
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:   opts.appUrl,
+    eyebrow:  opts.schoolName ?? BRAND.name,
+    title:    `Welcome to Rillcod Technologies, ${opts.recipientName.split(' ')[0]}!`,
+    accentColor: BRAND.success,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        Your <strong style="color:${BRAND.white};">${roleLabel[opts.role] ?? opts.role}</strong> account has been successfully created on the Rillcod Technologies platform.
+        ${opts.schoolName ? `You are enrolled with <strong style="color:${BRAND.white};">${escapeHtml(opts.schoolName)}</strong>.` : ''}
+      </p>
+      <p style="margin:0 0 14px;font-size:13px;color:${BRAND.textMuted};font-weight:800;text-transform:uppercase;letter-spacing:1px;">What you can do:</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">${features}</table>
+    `,
+    cta:        { href: opts.loginUrl, label: 'Access Your Dashboard', color: BRAND.success },
+    footerNote: `<span style="color:${BRAND.textMuted};">If you didn't create this account, please contact us immediately at support@rillcod.com.</span>`,
+  });
+}
+
+/** Payment received / receipt confirmation. */
+export function buildPaymentConfirmationEmail(opts: {
+  recipientName: string;
+  amount: number;
+  currency?: string;
+  reference: string;
+  description: string;
+  date?: string;
+  schoolName?: string;
+  portalUrl: string;
+  appUrl?: string;
+}): string {
+  const dateStr = opts.date
+    ? new Date(opts.date).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     opts.schoolName ?? BRAND.name,
+    title:       'Payment Confirmed',
+    accentColor: BRAND.success,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        We have successfully received your payment. Thank you! Your transaction details are below.
+      </p>
+      <!-- Amount highlight -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+        <tr>
+          <td style="background:${BRAND.cardAlt};border:1px solid ${BRAND.border};border-left:4px solid ${BRAND.success};padding:18px 20px;border-radius:0 6px 6px 0;">
+            <p style="margin:0 0 4px;font-size:11px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Amount Paid</p>
+            <p style="margin:0;font-size:28px;font-weight:800;color:${BRAND.success};">${escapeHtml(currency(opts.amount, opts.currency ?? 'NGN'))}</p>
+          </td>
+        </tr>
+      </table>
+    `,
+    summaryRows: [
+      { label: 'Reference',   value: opts.reference,  highlight: true },
+      { label: 'Description', value: opts.description },
+      { label: 'Date',        value: dateStr },
+      { label: 'Status',      value: '✓ Confirmed',   highlight: true },
+    ],
+    cta:        { href: opts.portalUrl, label: 'View Receipt', color: BRAND.success },
+    footerNote: 'Please keep this email as proof of payment. Contact support if you have any questions about this transaction.',
+  });
+}
+
+/** Invoice issued — with optional line items table. */
+export type InvoiceLineItem = { description: string; qty?: number; unitPrice: number; currency?: string };
+
+export function buildInvoiceEmail(opts: {
+  recipientName: string;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate: string;
+  items: InvoiceLineItem[];
+  currency?: string;
+  notes?: string;
+  schoolName?: string;
+  paymentUrl: string;
+  appUrl?: string;
+}): string {
+  const curr = opts.currency ?? 'NGN';
+  const total = opts.items.reduce((s, i) => s + (i.qty ?? 1) * i.unitPrice, 0);
+
+  const itemRows = opts.items.map((item, idx) => `
+    <tr style="background:${idx % 2 === 0 ? BRAND.card : BRAND.cardAlt};">
+      <td style="padding:10px 14px;font-size:13px;color:${BRAND.text};border-bottom:1px solid ${BRAND.border};">${escapeHtml(item.description)}</td>
+      <td style="padding:10px 14px;font-size:13px;color:${BRAND.textMuted};text-align:center;border-bottom:1px solid ${BRAND.border};">${item.qty ?? 1}</td>
+      <td style="padding:10px 14px;font-size:13px;color:${BRAND.text};text-align:right;border-bottom:1px solid ${BRAND.border};">${currency(item.unitPrice, curr)}</td>
+      <td style="padding:10px 14px;font-size:13px;color:${BRAND.white};font-weight:700;text-align:right;border-bottom:1px solid ${BRAND.border};">${currency((item.qty ?? 1) * item.unitPrice, curr)}</td>
+    </tr>`).join('');
+
+  const lineItemsTable = `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 6px;border-collapse:collapse;border:1px solid ${BRAND.border};border-radius:4px;overflow:hidden;">
+      <tr style="background:${BRAND.cardAlt};">
+        <th style="padding:10px 14px;font-size:10px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1px;text-align:left;font-weight:800;border-bottom:1px solid ${BRAND.border};">Description</th>
+        <th style="padding:10px 14px;font-size:10px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1px;text-align:center;font-weight:800;border-bottom:1px solid ${BRAND.border};">Qty</th>
+        <th style="padding:10px 14px;font-size:10px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1px;text-align:right;font-weight:800;border-bottom:1px solid ${BRAND.border};">Unit Price</th>
+        <th style="padding:10px 14px;font-size:10px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1px;text-align:right;font-weight:800;border-bottom:1px solid ${BRAND.border};">Total</th>
+      </tr>
+      ${itemRows}
+      <tr style="background:${BRAND.cardAlt};">
+        <td colspan="3" style="padding:12px 14px;font-size:13px;color:${BRAND.textMuted};font-weight:800;text-transform:uppercase;letter-spacing:0.8px;">Total Due</td>
+        <td style="padding:12px 14px;font-size:16px;color:${BRAND.primary};font-weight:800;text-align:right;">${currency(total, curr)}</td>
+      </tr>
+    </table>`;
+
+  const dueStr = new Date(opts.dueDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+  const issueStr = new Date(opts.issueDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     opts.schoolName ?? BRAND.name,
+    title:       `Invoice #${opts.invoiceNumber}`,
+    accentColor: BRAND.primary,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        Please find your invoice details below. Kindly settle the balance by the due date to avoid any service interruption.
+      </p>
+    `,
+    summaryRows: [
+      { label: 'Invoice No.',  value: opts.invoiceNumber, highlight: true },
+      { label: 'Issue Date',   value: issueStr },
+      { label: 'Due Date',     value: dueStr,  highlight: true },
+      { label: 'Amount Due',   value: currency(total, curr), highlight: true },
+    ],
+    extraBlock: lineItemsTable + (opts.notes ? `<p style="margin:8px 0 20px;font-size:12px;color:${BRAND.textMuted};">Note: ${escapeHtml(opts.notes)}</p>` : ''),
+    cta:        { href: opts.paymentUrl, label: 'Pay Now', color: BRAND.primary },
+    footerNote: `Invoice issued by Rillcod Technologies. Late payments may result in service suspension.`,
+  });
+}
+
+/** New assignment notification for students or parents. */
+export function buildAssignmentEmail(opts: {
+  recipientName: string;
+  studentName?: string;
+  assignmentTitle: string;
+  courseName?: string;
+  className?: string;
+  dueDate?: string;
+  maxPoints?: number;
+  instructions?: string;
+  schoolName?: string;
+  portalUrl: string;
+  appUrl?: string;
+}): string {
+  const dueStr = opts.dueDate
+    ? new Date(opts.dueDate).toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : 'Check your portal';
+
+  const summaryRows: TransactionalSummaryRow[] = [
+    { label: 'Assignment', value: opts.assignmentTitle, highlight: true },
+  ];
+  if (opts.courseName)  summaryRows.push({ label: 'Course',    value: opts.courseName });
+  if (opts.className)   summaryRows.push({ label: 'Class',     value: opts.className });
+  if (opts.dueDate)     summaryRows.push({ label: 'Due Date',  value: dueStr, highlight: true });
+  if (opts.maxPoints)   summaryRows.push({ label: 'Max Points',value: String(opts.maxPoints) });
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     opts.schoolName ?? BRAND.name,
+    title:       'New Assignment Posted',
+    accentColor: BRAND.info,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        ${opts.studentName
+          ? `A new assignment has been posted for <strong style="color:${BRAND.white};">${escapeHtml(opts.studentName)}</strong>.`
+          : 'A new assignment has been posted for you.'}
+        Please log in to view the full instructions and submit your work before the deadline.
+      </p>
+      ${opts.instructions ? `
+      <div style="background:${BRAND.cardAlt};border-left:3px solid ${BRAND.info};padding:14px 18px;margin:0 0 16px;border-radius:0 6px 6px 0;">
+        <p style="margin:0 0 6px;font-size:10px;color:${BRAND.info};font-weight:800;text-transform:uppercase;letter-spacing:1px;">Instructions</p>
+        <p style="margin:0;font-size:13px;color:${BRAND.text};line-height:1.6;">${escapeHtml(opts.instructions.slice(0, 400))}${opts.instructions.length > 400 ? '…' : ''}</p>
+      </div>` : ''}
+    `,
+    summaryRows,
+    cta:        { href: opts.portalUrl, label: 'View Assignment', color: BRAND.info },
+    footerNote: `Submit on time to avoid late penalties. Log in to your Rillcod dashboard for full details.`,
+  });
+}
+
+/** Term report card / results released notification. */
+export function buildReportEmail(opts: {
+  recipientName: string;
+  studentName: string;
+  term: string;
+  academicYear?: string;
+  schoolName?: string;
+  overallGrade?: string;
+  position?: string;
+  portalUrl: string;
+  appUrl?: string;
+}): string {
+  const summaryRows: TransactionalSummaryRow[] = [
+    { label: 'Student',  value: opts.studentName,    highlight: true },
+    { label: 'Term',     value: opts.term },
+  ];
+  if (opts.academicYear)  summaryRows.push({ label: 'Academic Year', value: opts.academicYear });
+  if (opts.overallGrade)  summaryRows.push({ label: 'Overall Grade', value: opts.overallGrade, highlight: true });
+  if (opts.position)      summaryRows.push({ label: 'Position',      value: opts.position });
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     opts.schoolName ?? BRAND.name,
+    title:       'Report Card Released',
+    accentColor: BRAND.primary,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        The <strong style="color:${BRAND.white};">${escapeHtml(opts.term)}</strong> report card for
+        <strong style="color:${BRAND.white};">${escapeHtml(opts.studentName)}</strong> is now available on the Rillcod platform.
+        Log in to view the full performance breakdown, subject grades, and teacher comments.
+      </p>
+    `,
+    summaryRows,
+    cta:        { href: opts.portalUrl, label: 'View Report Card', color: BRAND.primary },
+    footerNote: `Report cards are digitally verified. Share the QR code link with third parties for instant verification.`,
+  });
+}
+
+/** Support ticket opened or updated. */
+export function buildSupportTicketEmail(opts: {
+  recipientName: string;
+  ticketId: string;
+  subject: string;
+  category: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  message?: string;
+  staffNote?: string;
+  portalUrl: string;
+  appUrl?: string;
+}): string {
+  const statusLabel: Record<string, { text: string; color: string }> = {
+    open:        { text: '🟡 Open',        color: BRAND.primary },
+    in_progress: { text: '🔵 In Progress', color: BRAND.info },
+    resolved:    { text: '🟢 Resolved',    color: BRAND.success },
+    closed:      { text: '⚫ Closed',      color: BRAND.textMuted },
+  };
+  const st = statusLabel[opts.status] ?? statusLabel.open;
+  const isResolved = opts.status === 'resolved' || opts.status === 'closed';
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     BRAND.name,
+    title:       isResolved ? 'Support Ticket Resolved' : `Support Ticket #${opts.ticketId}`,
+    accentColor: st.color,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        ${isResolved
+          ? `Your support ticket has been <strong style="color:${BRAND.success};">resolved</strong>. Thank you for your patience!`
+          : `Your support ticket has been received and is being reviewed by our team. We aim to respond within <strong style="color:${BRAND.white};">2–4 hours</strong> during business hours.`}
+      </p>
+      ${opts.staffNote ? `
+      <div style="background:${BRAND.cardAlt};border-left:3px solid ${st.color};padding:14px 18px;margin:0 0 16px;border-radius:0 6px 6px 0;">
+        <p style="margin:0 0 6px;font-size:10px;color:${st.color};font-weight:800;text-transform:uppercase;letter-spacing:1px;">Staff Response</p>
+        <p style="margin:0;font-size:13px;color:${BRAND.text};line-height:1.6;">${escapeHtml(opts.staffNote)}</p>
+      </div>` : ''}
+      ${opts.message ? `
+      <div style="background:${BRAND.cardAlt};border:1px solid ${BRAND.border};padding:14px 18px;margin:0 0 16px;border-radius:6px;">
+        <p style="margin:0 0 6px;font-size:10px;color:${BRAND.textMuted};font-weight:800;text-transform:uppercase;letter-spacing:1px;">Your Message</p>
+        <p style="margin:0;font-size:13px;color:${BRAND.textMuted};line-height:1.6;">${escapeHtml(opts.message.slice(0, 500))}${opts.message.length > 500 ? '…' : ''}</p>
+      </div>` : ''}
+    `,
+    summaryRows: [
+      { label: 'Ticket ID', value: `#${opts.ticketId}`, highlight: true },
+      { label: 'Subject',   value: opts.subject },
+      { label: 'Category',  value: opts.category },
+      { label: 'Status',    value: st.text, highlight: true },
+    ],
+    cta:        { href: opts.portalUrl, label: 'View Ticket', color: st.color },
+    footerNote: `Reply to this email or log in to the portal to respond. Our team is available Mon–Fri 9 AM–5 PM WAT.`,
+  });
+}
+
+/** School-wide announcement broadcast. */
+export function buildAnnouncementEmail(opts: {
+  recipientName: string;
+  schoolName: string;
+  announcementTitle: string;
+  body: string;
+  urgency?: 'normal' | 'important' | 'urgent';
+  portalUrl: string;
+  appUrl?: string;
+}): string {
+  const urgencyConfig = {
+    normal:    { color: BRAND.info,    label: 'Announcement' },
+    important: { color: BRAND.primary, label: '⚡ Important Notice' },
+    urgent:    { color: '#ef4444',     label: '🚨 Urgent Notice' },
+  };
+  const urg = urgencyConfig[opts.urgency ?? 'normal'];
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     opts.schoolName,
+    title:       opts.announcementTitle,
+    accentColor: urg.color,
+    bodyHtml: `
+      <p style="margin:0 0 6px;font-size:10px;color:${urg.color};font-weight:800;text-transform:uppercase;letter-spacing:1.5px;">${escapeHtml(urg.label)}</p>
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <div style="background:${BRAND.cardAlt};border-left:3px solid ${urg.color};padding:16px 20px;margin:0 0 16px;border-radius:0 6px 6px 0;">
+        ${nl2p(opts.body)}
+      </div>
+    `,
+    cta:        { href: opts.portalUrl, label: 'View in Portal', color: urg.color },
+    footerNote: `This announcement was sent by ${escapeHtml(opts.schoolName)} via Rillcod Technologies.`,
+  });
+}
+
+/** Subscription status email (activated, expiring soon, renewed, suspended). */
+export function buildSubscriptionEmail(opts: {
+  recipientName: string;
+  plan: string;
+  status: 'activated' | 'expiring' | 'renewed' | 'suspended' | 'cancelled';
+  renewalDate?: string;
+  expiryDate?: string;
+  amount?: number;
+  currency?: string;
+  schoolName?: string;
+  portalUrl: string;
+  appUrl?: string;
+}): string {
+  const statusConfig: Record<string, { color: string; title: string; message: string }> = {
+    activated:  {
+      color:   BRAND.success,
+      title:   'Subscription Activated',
+      message: `Your <strong style="color:${BRAND.white};">${escapeHtml(opts.plan)}</strong> subscription is now active. All platform features are unlocked and ready to use.`,
+    },
+    expiring: {
+      color:   BRAND.primary,
+      title:   'Subscription Expiring Soon',
+      message: `Your <strong style="color:${BRAND.white};">${escapeHtml(opts.plan)}</strong> subscription is expiring soon. Renew now to avoid any interruption to your students' learning.`,
+    },
+    renewed: {
+      color:   BRAND.success,
+      title:   'Subscription Renewed',
+      message: `Your <strong style="color:${BRAND.white};">${escapeHtml(opts.plan)}</strong> subscription has been successfully renewed. Thank you for your continued trust in Rillcod Technologies.`,
+    },
+    suspended: {
+      color:   '#ef4444',
+      title:   'Subscription Suspended',
+      message: `Your <strong style="color:${BRAND.white};">${escapeHtml(opts.plan)}</strong> subscription has been suspended due to an outstanding balance. Please settle your invoice to restore access.`,
+    },
+    cancelled: {
+      color:   BRAND.textMuted,
+      title:   'Subscription Cancelled',
+      message: `Your <strong style="color:${BRAND.white};">${escapeHtml(opts.plan)}</strong> subscription has been cancelled. Your access will remain until the end of the current billing period.`,
+    },
+  };
+  const cfg = statusConfig[opts.status] ?? statusConfig.activated;
+
+  const summaryRows: TransactionalSummaryRow[] = [{ label: 'Plan', value: opts.plan, highlight: true }];
+  if (opts.amount)      summaryRows.push({ label: 'Amount',       value: currency(opts.amount, opts.currency ?? 'NGN') });
+  if (opts.renewalDate) summaryRows.push({ label: 'Renewal Date', value: new Date(opts.renewalDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' }), highlight: true });
+  if (opts.expiryDate)  summaryRows.push({ label: 'Expiry Date',  value: new Date(opts.expiryDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' }), highlight: opts.status === 'expiring' });
+  summaryRows.push({ label: 'Status', value: opts.status.charAt(0).toUpperCase() + opts.status.slice(1), highlight: true });
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     opts.schoolName ?? BRAND.name,
+    title:       cfg.title,
+    accentColor: cfg.color,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">${cfg.message}</p>
+    `,
+    summaryRows,
+    cta:        { href: opts.portalUrl, label: 'Manage Subscription', color: cfg.color },
+    footerNote: `For billing queries, contact finance@rillcod.com or call our support line.`,
+  });
+}
+
+/** WhatsApp opt-in / opt-out confirmation email. */
+export function buildOptInConfirmationEmail(opts: {
+  recipientName: string;
+  direction: 'in' | 'out';
+  phoneNumber?: string;
+  portalUrl: string;
+  appUrl?: string;
+}): string {
+  const isIn = opts.direction === 'in';
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     BRAND.name,
+    title:       isIn ? 'WhatsApp Notifications Enabled' : 'Unsubscribed from WhatsApp Notifications',
+    accentColor: isIn ? BRAND.success : BRAND.textMuted,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        ${isIn
+          ? `You have successfully <strong style="color:${BRAND.success};">opted in</strong> to Rillcod Technologies WhatsApp notifications.
+             You will now receive assignment reminders, payment confirmations, and important school updates via WhatsApp.`
+          : `You have successfully <strong style="color:${BRAND.white};">unsubscribed</strong> from Rillcod Technologies WhatsApp notifications.
+             You will no longer receive automated messages from us on WhatsApp.`}
+      </p>
+      ${opts.phoneNumber ? `<p style="margin:0 0 16px;font-size:13px;color:${BRAND.textMuted};">Registered number: <strong style="color:${BRAND.white};">+${escapeHtml(opts.phoneNumber)}</strong></p>` : ''}
+      ${isIn ? '' : `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:14px;line-height:1.65;">
+        To re-enable WhatsApp notifications, simply reply <strong style="color:${BRAND.white};">START</strong> to any Rillcod WhatsApp message,
+        or update your preferences in the portal.
+      </p>`}
+    `,
+    cta:        { href: opts.portalUrl, label: 'Manage Preferences', color: isIn ? BRAND.success : BRAND.primary },
+    footerNote: `If you did not perform this action, please contact support immediately.`,
+  });
+}
+
+/** Feedback form auto-response (acknowledged receipt, expected reply time). */
+export function buildFeedbackAutoResponseEmail(opts: {
+  recipientName?: string;
+  feedbackText?: string;
+  category?: string;
+  appUrl?: string;
+}): string {
+  const name = opts.recipientName || 'there';
+  const preview = opts.feedbackText ? opts.feedbackText.slice(0, 300) + (opts.feedbackText.length > 300 ? '…' : '') : null;
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     BRAND.name,
+    title:       'We received your feedback',
+    accentColor: BRAND.info,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(name)}</strong>,
+      </p>
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        Thank you for reaching out to Rillcod Technologies! We've received your feedback and our team
+        will review it carefully. We aim to respond within <strong style="color:${BRAND.white};">2–4 business hours</strong>.
+      </p>
+      ${opts.category ? `
+      <p style="margin:0 0 14px;font-size:13px;color:${BRAND.textMuted};">
+        Category: <strong style="color:${BRAND.white};">${escapeHtml(opts.category)}</strong>
+      </p>` : ''}
+      ${preview ? `
+      <div style="background:${BRAND.cardAlt};border-left:3px solid ${BRAND.info};padding:14px 18px;margin:0 0 16px;border-radius:0 6px 6px 0;">
+        <p style="margin:0 0 6px;font-size:10px;color:${BRAND.info};font-weight:800;text-transform:uppercase;letter-spacing:1px;">Your Message</p>
+        <p style="margin:0;font-size:13px;color:${BRAND.textMuted};line-height:1.6;">${escapeHtml(preview)}</p>
+      </div>` : ''}
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:14px;line-height:1.65;">
+        In the meantime, you can also reach us at
+        <a href="mailto:${BRAND.supportEmail}" style="color:${BRAND.info};text-decoration:none;font-weight:700;">${BRAND.supportEmail}</a>
+        or through the Rillcod platform.
+      </p>
+    `,
+    cta:        { href: opts.appUrl || BRAND.siteUrl, label: 'Back to Portal', color: BRAND.info },
+    footerNote: `This is an automated acknowledgement. You will receive a personal reply from our team shortly.`,
+  });
+}
+
+/** Generic outbound inbox message wrapper (used by the inbox email API route). */
+export function buildInboxOutboundEmail(opts: {
+  senderName: string;
+  senderRole: string;
+  senderOrg: string;
+  senderClass?: string;
+  subject: string;
+  body: string;
+  appUrl?: string;
+}): string {
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:   opts.appUrl,
+    eyebrow:  opts.senderOrg || BRAND.name,
+    title:    opts.subject,
+    bodyHtml: `
+      <p style="margin:0 0 12px;color:${BRAND.text};">
+        <strong style="color:${BRAND.white};">From:</strong> ${escapeHtml(opts.senderName)} via Rillcod Technologies
+      </p>
+      <p style="margin:0 0 14px;color:${BRAND.textMuted};font-size:12px;">
+        <strong style="color:${BRAND.white};">Role:</strong> ${escapeHtml(opts.senderRole.toUpperCase())}
+        &nbsp;&middot;&nbsp;${escapeHtml(opts.senderOrg)}
+        ${opts.senderClass ? `&nbsp;&middot;&nbsp;${escapeHtml(opts.senderClass)}` : ''}
+      </p>
+      <div style="background:${BRAND.cardAlt};border-left:3px solid ${BRAND.primary};padding:16px 20px;margin:0 0 16px;border-radius:0 6px 6px 0;">
+        ${nl2p(opts.body)}
+      </div>
+    `,
+    footerNote: `Sent via Rillcod Technologies Unified Inbox &middot; Reply to this email to respond directly to the sender.`,
+  });
 }

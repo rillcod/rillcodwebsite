@@ -18,12 +18,21 @@ export type NotificationCategory =
 
 const IDEMPOTENCY_TTL = 600; // 10 minutes
 
+export interface EmailAttachment {
+    /** Filename shown to recipient (e.g. "Assignment_Week3.pdf") */
+    filename: string;
+    /** Base64-encoded file content */
+    content: string;
+}
+
 export interface EmailPayload {
     to: string;
     subject: string;
     html: string;
     fromName?: string;
     fromEmail?: string;
+    /** Optional file attachments (PDF, images, etc.) */
+    attachments?: EmailAttachment[];
 }
 
 export interface SMSPayload {
@@ -450,6 +459,10 @@ export class NotificationsService {
 
         const token = await this.getSendPulseToken();
 
+        const attachmentsObj = payload.attachments && payload.attachments.length > 0
+            ? Object.fromEntries(payload.attachments.map(a => [a.filename, a.content]))
+            : undefined;
+
         const emailData = {
             email: {
                 html: Buffer.from(payload.html).toString('base64'),
@@ -461,7 +474,8 @@ export class NotificationsService {
                 },
                 to: [
                     { email: payload.to }
-                ]
+                ],
+                ...(attachmentsObj ? { attachments: attachmentsObj } : {}),
             }
         };
 
@@ -487,6 +501,10 @@ export class NotificationsService {
     async sendExternalEmail(payload: EmailPayload) {
         const token = await this.getSendPulseToken();
 
+        const attachmentsObj = payload.attachments && payload.attachments.length > 0
+            ? Object.fromEntries(payload.attachments.map(a => [a.filename, a.content]))
+            : undefined;
+
         const emailData = {
             email: {
                 html: Buffer.from(payload.html).toString('base64'),
@@ -496,7 +514,8 @@ export class NotificationsService {
                     name: payload.fromName || 'LMS Notifications',
                     email: payload.fromEmail || 'no-reply@rillcod.com'
                 },
-                to: [{ email: payload.to }]
+                to: [{ email: payload.to }],
+                ...(attachmentsObj ? { attachments: attachmentsObj } : {}),
             }
         };
 
