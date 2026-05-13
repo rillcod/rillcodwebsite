@@ -154,6 +154,10 @@ function ResultsPageInner() {
     // ── PDF state ──────────────────────────────────────────────────────────────
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
     const [isSharingPdf, setIsSharingPdf] = useState(false);
+    const [emailShareOpen, setEmailShareOpen] = useState(false);
+    const [emailShareTo, setEmailShareTo] = useState('');
+    const [emailShareSending, setEmailShareSending] = useState(false);
+    const [emailShareError, setEmailShareError] = useState<string | null>(null);
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
     const [isBulkPrinting, setIsBulkPrinting] = useState(false);
     const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; mode: 'download' | 'print' } | null>(null);
@@ -488,6 +492,45 @@ function ResultsPageInner() {
             alert('Could not generate PDF. Please try again.');
         } finally {
             setIsDownloadingPdf(false);
+        }
+    };
+
+    const sendReportByEmail = async () => {
+        if (!printableRef.current || !reportToDisplay || !emailShareTo.trim()) return;
+        setEmailShareSending(true);
+        setEmailShareError(null);
+        try {
+            const { generateReportPDFBlob } = await import('@/lib/pdf-utils');
+            const blob = await generateReportPDFBlob(printableRef.current);
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve((reader.result as string).split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            const name = (reportToDisplay.student_name || 'Student').replace(/\s+/g, '_');
+            const term = (reportToDisplay.report_term || 'Report').replace(/\s+/g, '_');
+            const filename = `${name}_${term}.pdf`;
+            const subject = `Progress Report — ${reportToDisplay.student_name || 'Student'} (${reportToDisplay.report_term || ''})`;
+            const body = `Please find attached the progress report for ${reportToDisplay.student_name || 'your child'} for ${reportToDisplay.report_term || 'the current term'}.\n\nFor questions, please contact us via the Rillcod portal.\n\nRillcod Technologies`;
+            const res = await fetch('/api/inbox/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: emailShareTo.trim(),
+                    subject,
+                    body,
+                    attachments: [{ filename, content: base64 }],
+                }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to send email');
+            setEmailShareOpen(false);
+            setEmailShareTo('');
+        } catch (err: any) {
+            setEmailShareError(err.message || 'Failed to send. Try again.');
+        } finally {
+            setEmailShareSending(false);
         }
     };
 
@@ -1402,10 +1445,64 @@ tbody tr:hover{background:#f3f4f6}
                                                             : <WhatsAppIcon className="w-4 h-4 flex-shrink-0" />}
                                                         Share
                                                     </button>
+                                                    <button
+                                                        title="Send via Email"
+                                                        onClick={() => {
+                                                            setEmailShareTo(selectedStudent?.email ?? '');
+                                                            setEmailShareError(null);
+                                                            setEmailShareOpen(true);
+                                                        }}
+                                                        className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all shadow-md shadow-blue-900/30"
+                                                    >
+                                                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                        Email
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Email share modal */}
+                                    {emailShareOpen && reportToDisplay && (
+                                        <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                                            <div className="w-full max-w-sm bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-sm font-black text-white">Email Report PDF</p>
+                                                    <button onClick={() => setEmailShareOpen(false)} className="text-white/40 hover:text-white">
+                                                        <XMarkIcon className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                <p className="text-[11px] text-white/50">The report will be attached as a PDF. Enter the recipient's email address below.</p>
+                                                <div>
+                                                    <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Recipient Email</label>
+                                                    <input
+                                                        type="email"
+                                                        value={emailShareTo}
+                                                        onChange={e => setEmailShareTo(e.target.value)}
+                                                        placeholder="parent@example.com"
+                                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 rounded-lg font-mono"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                {emailShareError && (
+                                                    <p className="text-xs text-red-400 font-bold">{emailShareError}</p>
+                                                )}
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => setEmailShareOpen(false)}
+                                                        className="flex-1 py-2.5 border border-white/10 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors">
+                                                        Cancel
+                                                    </button>
+                                                    <button onClick={sendReportByEmail}
+                                                        disabled={!emailShareTo.trim() || emailShareSending}
+                                                        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2">
+                                                        {emailShareSending
+                                                            ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending…</>
+                                                            : <>Send PDF</>}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Report body */}
                                     {loadingReport ? (
