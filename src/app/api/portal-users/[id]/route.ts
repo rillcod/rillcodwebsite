@@ -34,8 +34,10 @@ export async function PATCH(
   const isSelf = user.id === id;
   const caller = await getCallerRole(user.id);
   const isAdmin = caller?.role === 'admin';
+  const isTeacher = caller?.role === 'teacher';
+  const isStaff = isAdmin || isTeacher;
 
-  if (!isAdmin && !isSelf) {
+  if (!isStaff && !isSelf) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
@@ -44,15 +46,20 @@ export async function PATCH(
 
   if (isAdmin) {
     // Admin can update all fields
-    const { full_name, role, phone, is_active, bio, email, is_deleted, avatar_url } = body;
-    if (full_name  !== undefined) update.full_name  = full_name;
-    if (role       !== undefined) update.role       = role;
-    if (phone      !== undefined) update.phone      = phone;
-    if (is_active  !== undefined) update.is_active  = is_active;
-    if (bio        !== undefined) update.bio        = bio ?? null;
-    if (email      !== undefined) update.email      = email?.trim().toLowerCase() ?? null;
-    if (is_deleted !== undefined) update.is_deleted = is_deleted;
-    if (avatar_url !== undefined) update.avatar_url = avatar_url ?? null;
+    const { full_name, role, phone, is_active, bio, email, is_deleted, avatar_url, section_class } = body;
+    if (full_name     !== undefined) update.full_name     = full_name;
+    if (role          !== undefined) update.role          = role;
+    if (phone         !== undefined) update.phone         = phone;
+    if (is_active     !== undefined) update.is_active     = is_active;
+    if (bio           !== undefined) update.bio           = bio ?? null;
+    if (email         !== undefined) update.email         = email?.trim().toLowerCase() ?? null;
+    if (is_deleted    !== undefined) update.is_deleted    = is_deleted;
+    if (avatar_url    !== undefined) update.avatar_url    = avatar_url ?? null;
+    if (section_class !== undefined) update.section_class = section_class ?? null;
+  } else if (isTeacher) {
+    // Teachers can correct student name and class (profile corrections from report builder)
+    if ('full_name'     in body) update.full_name     = body.full_name;
+    if ('section_class' in body) update.section_class = body.section_class ?? null;
   } else {
     // Self-edit: only safe profile fields
     if ('full_name'  in body) update.full_name  = body.full_name;
@@ -71,6 +78,14 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Sync students shadow table when name or class changes
+  const studentSync: Record<string, any> = {};
+  if (update.full_name     !== undefined) { studentSync.full_name = update.full_name; studentSync.name = update.full_name; }
+  if (update.section_class !== undefined) { studentSync.current_class = update.section_class; studentSync.grade_level = update.section_class; }
+  if (Object.keys(studentSync).length > 0) {
+    await admin.from('students').update(studentSync).eq('user_id', id);
+  }
 
   // Keep auth.users metadata in sync so role/name are consistent everywhere
   const metaUpdate: Record<string, any> = {};

@@ -1182,6 +1182,30 @@ function ReportBuilderInner() {
                 setExistingReport({ ...payload, id: j.data.id } as unknown as StudentReport);
             }
 
+            // Propagate name / class corrections back to the student's root profile
+            if (!isManual && selectedStudent.id) {
+                const origName = selectedStudent.full_name ?? '';
+                const origClass = (selectedStudent as any).section_class ?? '';
+                const newName = form.student_name.trim();
+                const newClass = (form.section_class || sessionConfig.section_class || '').trim();
+                const profilePatch: Record<string, string> = {};
+                if (newName && newName !== origName) profilePatch.full_name = newName;
+                if (newClass && newClass !== origClass) profilePatch.section_class = newClass;
+                if (Object.keys(profilePatch).length > 0) {
+                    fetch(`/api/portal-users/${selectedStudent.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(profilePatch),
+                    }).then(r => {
+                        if (r.ok) {
+                            // Update local state so future comparisons are correct
+                            (selectedStudent as any).full_name = profilePatch.full_name ?? selectedStudent.full_name;
+                            (selectedStudent as any).section_class = profilePatch.section_class ?? (selectedStudent as any).section_class;
+                        }
+                    }).catch(() => { /* non-critical — report was saved */ });
+                }
+            }
+
             setSuccessMsg(publish ? 'Report published — visible to student!' : 'Draft saved!');
             if (publish) setForm(f => ({ ...f, is_published: true }));
         } catch (err: any) {
