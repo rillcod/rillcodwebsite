@@ -72,19 +72,30 @@ export async function PATCH(
 
         // Req 12.6 — email notification to ticket creator when staff replies
         const { notificationsService } = await import('@/services/notifications.service');
+        const { buildSupportTicketEmail } = await import('@/lib/email/rillcod-transactional-email');
         const { data: userProfile } = await admin
           .from('portal_users')
           .select('email, full_name')
           .eq('id', ticket.user_id)
           .maybeSingle();
         if (userProfile?.email) {
+          const newStatus = (body.status as any) ?? 'in_progress';
+          const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/support`;
+          const html = buildSupportTicketEmail({
+            recipientName: userProfile.full_name || 'there',
+            ticketId:      String(id).slice(0, 8).toUpperCase(),
+            subject:       String((ticket as any).subject || 'Support Request'),
+            category:      'Support',
+            status:        ['open','in_progress','resolved','closed'].includes(newStatus) ? newStatus : 'in_progress',
+            staffNote:     body.admin_reply.slice(0, 500),
+            portalUrl,
+          });
           await notificationsService.sendEmail(ticket.user_id, {
-            to: userProfile.email,
-            subject: `Reply on your support ticket: ${(ticket as any).subject?.slice(0, 60)}`,
-            html: `<p>Hi ${userProfile.full_name || 'there'},</p>
-                   <p>A staff member has replied to your support ticket.</p>
-                   <p><strong>Reply:</strong> ${body.admin_reply.slice(0, 300)}</p>
-                   <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/support">View ticket</a></p>`,
+            to:        userProfile.email,
+            subject:   `Staff replied to your support ticket — Rillcod Technologies`,
+            fromName:  'Rillcod Support',
+            fromEmail: 'support@rillcod.com',
+            html,
           }).catch(() => {});
         }
       }

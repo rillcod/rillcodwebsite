@@ -71,14 +71,111 @@ interface Assignment {
   courses?: { id: string; title: string } | null;
 }
 
-const NEWSLETTER_TPLS = [
-  { id: 'term_open',   icon: '🎒', title: 'Term Opening',    body: `🏫 *Welcome Back — New Term Begins!*\n\nDear Parent/Guardian,\n\nWe are pleased to welcome all students back for the new term. Please ensure your ward:\n\n✅ Reports on time\n✅ Brings all required materials\n✅ Has paid all outstanding fees\n\nWe look forward to a productive term ahead.\n\nWarm regards,\n*School Management*\n— Rillcod Technologies` },
-  { id: 'term_close',  icon: '🏆', title: 'Term Closing',    body: `🎉 *End of Term — Well Done!*\n\nDear Parent/Guardian,\n\nThe term has officially ended. Please note:\n\n📅 Results will be available shortly\n📋 Report cards will be shared via the portal\n🏫 Next term begins on [INSERT DATE]\n\nThank you for your continued support.\n\n— School Management\n— Rillcod Technologies` },
-  { id: 'exam_notice', icon: '📝', title: 'Exam Schedule',   body: `📝 *Examination Notice*\n\nDear Students & Parents,\n\nPlease be informed that examinations are scheduled to commence soon.\n\n⏰ Examinations begin: [INSERT DATE]\n📚 Revision materials are available on the portal\n\n*Important Reminders:*\n• Come with all required stationery\n• Arrive 15 minutes early\n• Mobile phones are NOT allowed in the exam hall\n\nBest of luck!\n\n— School Management` },
-  { id: 'fee_remind',  icon: '💰', title: 'Fee Reminder',    body: `💰 *School Fee Reminder*\n\nDear Parent/Guardian,\n\nThis is a friendly reminder that school fees for this term are due.\n\n📋 Please log in to the parent portal to:\n• View your outstanding balance\n• Make payment\n• Download your receipt\n\n⚠️ Note: Students with outstanding fees may be restricted from exams.\n\nFor enquiries, contact the school admin.\n\n— School Management` },
-  { id: 'event',       icon: '📣', title: 'Event Announcement', body: `📣 *Upcoming Event*\n\n*[EVENT NAME]*\n\n📅 Date: [INSERT DATE]\n⏰ Time: [INSERT TIME]\n📍 Venue: [INSERT VENUE]\n\nAll students/parents are encouraged to attend.\n\nFor more information, please contact the school office.\n\n— School Management\n— Rillcod Technologies` },
-  { id: 'emergency',   icon: '🚨', title: 'Emergency Notice', body: `🚨 *URGENT NOTICE*\n\nDear Parents/Guardians,\n\n[INSERT EMERGENCY DETAILS]\n\nPlease acknowledge this message by replying with your ward's name and class.\n\nFurther updates will follow shortly.\n\n— School Management` },
-] as const;
+interface NewsletterTpl { id: string; icon: string; title: string; category: string; body: string; }
+
+const NEWSLETTER_TPLS: NewsletterTpl[] = [
+  // ── Academic ──────────────────────────────────────────────────────────────
+  {
+    id: 'term_open', icon: '🎒', title: 'Term Opening', category: 'Academic',
+    body: `🏫 *New Term — Welcome Back!*\n\nDear Parent/Guardian,\n\nWe are delighted to welcome all students back for the new term! Please ensure your ward:\n\n✅ Reports by 7:45 AM on the first day\n✅ Comes with all required textbooks and materials\n✅ Has settled any outstanding fees before resumption\n\nAll lesson plans, assignments, and class schedules are now live on the *Rillcod portal*.\n\n👉 Log in at rillcod.com\n\nLet's make this a great term together!\n\n— School Management\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'term_close', icon: '🏆', title: 'Term Closing', category: 'Academic',
+    body: `🎉 *End of Term — Well Done Everyone!*\n\nDear Parent/Guardian,\n\nAnother term has come to a successful end. We are proud of every student's effort and growth!\n\n📋 *Before the holiday:*\n• Report cards are now available on the Rillcod portal\n• CBT and assignment results have been published\n• Review teacher remarks with your ward\n\n🗓 School resumes next term on: [DATE]\n\nThank you for your continued support and partnership.\n\nHave a wonderful break! 🌟\n\n— School Management\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'exam_timetable', icon: '📝', title: 'Exam Timetable Released', category: 'Academic',
+    body: `📝 *Examination Timetable Released*\n\nDear Students & Parents,\n\nThe end-of-term examination timetable is now available on the Rillcod portal.\n\n📅 *Exams begin:* [DATE]\n⏰ *Reporting time:* 7:30 AM daily\n📍 *Venue:* School Examination Hall\n\n*Exam rules:*\n• No mobile phones in the hall\n• Bring your student ID and stationery\n• Latecomers (after 8:00 AM) will not be admitted\n• Review all topics on your portal dashboard\n\n👉 Download the full timetable: rillcod.com\n\nBest of luck! 💪\n\n— School Management`,
+  },
+  {
+    id: 'cbt_exam', icon: '💻', title: 'CBT Online Exam Notice', category: 'Academic',
+    body: `💻 *CBT Online Exam — Important Notice*\n\nDear Student/Parent,\n\nAn online CBT examination is scheduled on the Rillcod platform.\n\n📅 *Date:* [DATE]\n⏰ *Start time:* [TIME]\n⌛ *Duration:* [DURATION]\n📖 *Subject:* [SUBJECT]\n\n*Before the exam:*\n✅ Charge your device fully\n✅ Use a stable internet connection (Wi-Fi preferred)\n✅ Log in 10 minutes early at rillcod.com\n✅ Do NOT refresh or close the browser mid-exam\n✅ Have your student login details ready\n\nContact your teacher immediately if you encounter any issues.\n\nGood luck! 🎯\n\n— School Management`,
+  },
+  {
+    id: 'results_ready', icon: '📊', title: 'Report Card Ready', category: 'Academic',
+    body: `📊 *Term Results Now Available*\n\nDear Parent/Guardian,\n\nYour ward's end-of-term report card is ready on the Rillcod parent portal!\n\n📋 *Log in to view:*\n• Subject scores and grades\n• Overall position in class\n• Teacher remarks\n• Attendance record\n• Recommended areas for improvement\n\n👉 rillcod.com → My Children → Report Card\n\nPlease review the results with your ward and contact the class teacher if you have questions.\n\n— School Management\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'assignment_reminder', icon: '📚', title: 'Assignment Reminder', category: 'Academic',
+    body: `📚 *Assignment Deadline Reminder*\n\nDear Parent/Guardian,\n\nYour ward has a pending assignment due soon. Please encourage them to submit before the deadline to avoid grade penalties.\n\n👉 *Log in to the Rillcod portal to:*\n• View the full assignment details and instructions\n• Submit work directly online\n• Track submission status\n• Read any teacher feedback\n\n🔗 rillcod.com\n\nEarly submission is always appreciated and allows time for teacher feedback!\n\n— School Management\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'coding_project', icon: '🖥️', title: 'Coding Project Deadline', category: 'Academic',
+    body: `🖥️ *Coding Project Submission Deadline*\n\nDear Students & Parents,\n\nThe coding project submission deadline is approaching! Don't leave it to the last minute.\n\n📅 *Due Date:* [DATE]\n🔗 *Submit via:* Rillcod portal → Assignments\n\n*Submission checklist:*\n✅ Working code or project link (GitHub/Replit)\n✅ Brief project description (what it does & how)\n✅ Screenshots or a short demo video\n✅ List of technologies/tools used\n\nLate submissions attract a -10% grade penalty per day.\n\n👉 Log in now: rillcod.com\n\nBuild something amazing! 🚀\n\n— School Management`,
+  },
+  {
+    id: 'resumption', icon: '🗓️', title: 'Resumption Date Reminder', category: 'Academic',
+    body: `🗓️ *School Resumption Reminder*\n\nDear Parent/Guardian,\n\nThis is a reminder that the new term begins very soon!\n\n📅 *Resumption Date:* [DATE]\n⏰ *Reporting Time:* 7:45 AM\n📋 *Term:* [TERM] — [ACADEMIC YEAR]\n\n*Before resumption, please ensure your ward:*\n✅ Has paid all outstanding fees\n✅ Has all required textbooks and materials\n✅ Logs in to the Rillcod portal to check new assignments and schedules\n✅ Arrives in full school uniform\n\nWe can't wait to welcome everyone back!\n\n— School Management\n_Rillcod Technologies_`,
+  },
+
+  // ── Finance ───────────────────────────────────────────────────────────────
+  {
+    id: 'fee_remind', icon: '💰', title: 'Fee Reminder — First Notice', category: 'Finance',
+    body: `💰 *School Fee Reminder*\n\nDear Parent/Guardian,\n\nThis is a friendly reminder that school fees for the current term are now due.\n\n💳 *How to pay:*\n1. Log in to the Rillcod portal at rillcod.com\n2. Go to *Billing → Invoices*\n3. Select your invoice and pay securely\n\nAccepted methods: Bank transfer, Paystack, debit/credit card\n\n⚠️ Students with unpaid fees may be restricted from upcoming exams and portal access.\n\nFor assistance, contact the school admin office.\n\n— School Management`,
+  },
+  {
+    id: 'fee_urgent', icon: '⚠️', title: 'Fee Reminder — Final Notice', category: 'Finance',
+    body: `⚠️ *FINAL NOTICE — Outstanding School Fees*\n\nDear Parent/Guardian,\n\nOur records show that school fees for your ward are still unpaid. This is our final notice before further action is taken.\n\n*Please settle immediately:*\n👉 rillcod.com → Billing → Pay Now\n\n🚫 *Students with unpaid fees will be:*\n• Barred from upcoming examinations\n• Suspended from portal and class access\n• Reported to class teacher\n\nIf you have already paid, please upload your receipt on the portal or contact admin urgently.\n\nDo not ignore this notice.\n\n— School Admin\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'payment_confirmed', icon: '✅', title: 'Payment Received', category: 'Finance',
+    body: `✅ *Payment Confirmed — Thank You!*\n\nDear Parent/Guardian,\n\nWe have successfully received your school fee payment. Your account is now up to date!\n\n🧾 *Your receipt is available on the Rillcod portal:*\n👉 rillcod.com → Billing → Receipts\n\nPlease save your receipt for your records.\n\nIf you notice any discrepancy in your account balance, contact the school admin office immediately.\n\nWe appreciate your prompt payment! 🙏\n\n— School Management\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'scholarship', icon: '🎓', title: 'Scholarship / Bursary Notice', category: 'Finance',
+    body: `🎓 *Scholarship & Fee Support Available*\n\nDear Parent/Guardian,\n\nWe are pleased to announce that limited scholarship and bursary positions are available for qualifying students this term.\n\n📋 *Eligibility:*\n• Consistently strong academic performance\n• Demonstrated financial need\n• Good attendance and conduct record\n\n📝 *How to apply:*\nVisit the school admin office or apply via the Rillcod portal under *Support → Scholarship Application*.\n\n📅 *Application deadline:* [DATE]\n\nWe believe every child deserves quality education. Encourage eligible students to apply!\n\n— School Management\n_Rillcod Technologies_`,
+  },
+
+  // ── Events ────────────────────────────────────────────────────────────────
+  {
+    id: 'pta_meeting', icon: '👨‍👩‍👧', title: 'Parent-Teacher Meeting', category: 'Events',
+    body: `👨‍👩‍👧 *Parent-Teacher Meeting (PTA)*\n\nDear Parent/Guardian,\n\nYou are cordially invited to our Parent-Teacher Meeting.\n\n📅 *Date:* [DATE]\n⏰ *Time:* [TIME]\n📍 *Venue:* [VENUE / School Hall]\n\n*Agenda:*\n• Term performance review per class\n• Upcoming events and school calendar\n• Fee structure and payment updates\n• Questions and open discussion\n\nYour attendance helps us better support your ward's education. We strongly encourage all parents to attend.\n\nPlease confirm attendance by replying ✅ with your ward's *name and class*.\n\n— School Management`,
+  },
+  {
+    id: 'prize_giving', icon: '🏆', title: 'Prize Giving / Graduation', category: 'Events',
+    body: `🏆 *Prize Giving Day & Graduation Ceremony*\n\nDear Parent/Guardian,\n\nYou are warmly invited to our annual Prize Giving Day and Graduation Ceremony!\n\n📅 *Date:* [DATE]\n⏰ *Time:* [TIME]\n📍 *Venue:* [VENUE]\n👗 *Dress Code:* [DRESS CODE]\n\n🎉 *Programme highlights:*\n• Awards for academic excellence & best coder\n• STEM and coding project showcase\n• Student performances\n• Graduation for outgoing students\n\nPlease arrive 30 minutes before the ceremony begins. Light refreshments will be served.\n\nCome celebrate our students' achievements! 🎓\n\n— School Management`,
+  },
+  {
+    id: 'hackathon', icon: '🚀', title: 'Coding Hackathon / Competition', category: 'Events',
+    body: `🚀 *Coding Hackathon — Registration Open!*\n\nDear Students & Parents,\n\nWe are excited to announce our *Inter-Class Coding Hackathon*!\n\n📅 *Date:* [DATE]\n⏰ *Time:* [TIME]\n📍 *Venue:* Computer Lab / Online via Rillcod\n\n🏅 *Awards for:*\n• Best App / Project\n• Most Creative Solution\n• Best Team Collaboration\n• Best Presenter\n\n📝 *How to register:*\n👉 Rillcod portal → Events → Hackathon Registration\n\n📅 *Registration closes:* [DATE]\n\nThis is your chance to showcase your coding skills and win prizes! Teams of 2–4 students.\n\nSign up today! 💡\n\n— School Management`,
+  },
+  {
+    id: 'excursion', icon: '🚌', title: 'School Excursion', category: 'Events',
+    body: `🚌 *School Excursion Notice*\n\nDear Parent/Guardian,\n\nA school excursion has been planned for your ward's class.\n\n📅 *Date:* [DATE]\n📍 *Destination:* [DESTINATION]\n⏰ *Departure:* [TIME] from school premises\n🕐 *Return:* [RETURN TIME]\n💰 *Excursion fee:* ₦[AMOUNT]\n📅 *Payment deadline:* [DATE]\n\n*Please note:*\n• Full school uniform must be worn\n• Pack a light meal and water bottle\n• No valuables or electronics for junior classes\n• A signed consent form is required\n\n👉 Download the consent form on the Rillcod portal and return it by [DATE].\n\n— School Management`,
+  },
+  {
+    id: 'open_day', icon: '📣', title: 'School Open Day / Event', category: 'Events',
+    body: `📣 *Upcoming School Event*\n\n*[EVENT NAME]*\n\n📅 *Date:* [DATE]\n⏰ *Time:* [TIME]\n📍 *Venue:* [VENUE]\n\n[BRIEF DESCRIPTION OF EVENT]\n\nAll students, parents, and guardians are warmly invited to attend.\n\nFor enquiries or more information, contact the school admin office or message us here.\n\nWe look forward to seeing you! 🌟\n\n— School Management\n_Rillcod Technologies_`,
+  },
+
+  // ── Admin ─────────────────────────────────────────────────────────────────
+  {
+    id: 'portal_onboarding', icon: '📱', title: 'Portal Onboarding Reminder', category: 'Admin',
+    body: `📱 *Rillcod Portal — Action Required*\n\nDear Parent/Guardian,\n\nWe noticed that your ward's Rillcod account has not been fully set up. Please complete your setup today!\n\n👉 *Log in at rillcod.com to:*\n• Complete your profile (name, class, school)\n• View assignments, grades, and timetables\n• Pay fees and download receipts\n• Receive real-time school updates\n• Access digital report cards\n\n*Need help getting started?*\nContact us at support@rillcod.com or reply to this message.\n\nAll school communications are now delivered through the Rillcod platform.\n\n— School Management\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'new_teacher', icon: '👋', title: 'New Teacher Introduction', category: 'Admin',
+    body: `👋 *New Teacher Introduction*\n\nDear Students & Parents,\n\nWe are excited to welcome a new member to our teaching team!\n\n👨‍🏫 *Name:* [TEACHER NAME]\n📖 *Subject(s):* [SUBJECTS]\n🏫 *Class(es):* [CLASSES]\n\n[TEACHER NAME] brings [X] years of experience in [SPECIALISATION] and is passionate about making learning engaging and effective for every student.\n\nPlease give our new teacher a warm Rillcod welcome! 🙌\n\nFeel free to reach out via the portal messaging system with any questions.\n\n— School Management\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'schedule_change', icon: '🔄', title: 'Schedule / Venue Change', category: 'Admin',
+    body: `🔄 *Schedule Change Notice*\n\nDear Students & Parents,\n\nPlease note an important change to the class schedule.\n\n📅 *Effective from:* [DATE]\n📖 *Subject/Class:* [SUBJECT / CLASS]\n🕐 *New time:* [TIME]\n📍 *New venue:* [VENUE / Online]\n\n*Reason:* [BRIEF REASON]\n\nPlease update your ward's timetable accordingly. The updated full schedule is also available on the Rillcod portal under *My Classes → Timetable*.\n\nWe apologise for any inconvenience caused.\n\n— School Management`,
+  },
+
+  // ── Emergency ─────────────────────────────────────────────────────────────
+  {
+    id: 'emergency', icon: '🚨', title: 'Emergency / Urgent Notice', category: 'Emergency',
+    body: `🚨 *URGENT NOTICE — Action Required*\n\nDear Parents/Guardians,\n\n[INSERT DETAILS OF EMERGENCY OR URGENT SITUATION]\n\n*Please take the following action immediately:*\n• [ACTION 1]\n• [ACTION 2]\n• [ACTION 3]\n\nAcknowledge this message by replying with your ward's *full name and class*.\n\nFurther updates will follow. For urgent enquiries, call the school admin at [PHONE NUMBER].\n\n— School Management\n_Rillcod Technologies_`,
+  },
+  {
+    id: 'school_closure', icon: '🔒', title: 'School Closure / Early Dismissal', category: 'Emergency',
+    body: `🔒 *School Closure Notice*\n\nDear Parents/Guardians,\n\nDue to *[REASON]*, the school will be closed today and students are being dismissed early.\n\n🕐 *Dismissal time:* [TIME]\n📍 *Collection point:* School main gate\n\nPlease make arrangements to collect your ward as soon as possible. Students who are not collected will be supervised by staff until [TIME].\n\nAll teachers remain reachable via the *Rillcod portal messaging system*.\n\nWe apologise for the inconvenience and will provide further updates shortly.\n\n— School Management`,
+  },
+  {
+    id: 'health_alert', icon: '🏥', title: 'Health & Safety Alert', category: 'Emergency',
+    body: `🏥 *Health & Safety Alert*\n\nDear Parents/Guardians,\n\nWe want to bring an important health matter to your attention.\n\n⚠️ *Issue:* [BRIEF DESCRIPTION]\n\n*Recommended actions:*\n• Watch your ward for any signs of [SYMPTOMS]\n• Ensure regular hand washing and good hygiene\n• Consult a doctor promptly if symptoms develop\n• Do NOT send unwell students to school\n\nThe school is taking all necessary precautions to protect students and staff.\n\nWe will send further updates as the situation develops. Thank you for your cooperation.\n\nStay safe! 💚\n\n— School Management\n_Rillcod Technologies_`,
+  },
+];
 
 type View = 'list' | 'detail';
 
@@ -162,8 +259,9 @@ export default function WhatsAppGroupsPage() {
   const [confirmClearHist, setConfirmClearHist] = useState(false);
 
   // Content Pusher
-  const [showPusher,    setShowPusher]    = useState(false);
-  const [pusherTab,     setPusherTab]     = useState<'assignment' | 'newsletter' | 'custom'>('assignment');
+  const [showPusher,       setShowPusher]       = useState(false);
+  const [pusherTab,        setPusherTab]        = useState<'assignment' | 'newsletter' | 'custom'>('assignment');
+  const [pusherTplCategory, setPusherTplCategory] = useState('All');
   const [assignments,   setAssignments]   = useState<Assignment[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
   const [selAssignment, setSelAssignment] = useState<Assignment | null>(null);
@@ -1161,7 +1259,7 @@ export default function WhatsAppGroupsPage() {
                 { id: 'newsletter', label: 'Newsletter', icon: <Megaphone className="w-3.5 h-3.5" /> },
                 { id: 'custom',     label: 'Custom',     icon: <BookMarked className="w-3.5 h-3.5" /> },
               ] as const).map(tab => (
-                <button key={tab.id} onClick={() => { setPusherTab(tab.id); setPusherMsg(''); setSelAssignment(null); }}
+                <button key={tab.id} onClick={() => { setPusherTab(tab.id); setPusherMsg(''); setSelAssignment(null); setPusherTplCategory('All'); }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all"
                   style={{
                     background: pusherTab === tab.id ? (tab.id === 'assignment' ? 'rgba(0,168,132,0.2)' : tab.id === 'newsletter' ? 'rgba(124,58,237,0.2)' : 'rgba(2,132,199,0.2)') : 'rgba(255,255,255,0.05)',
@@ -1217,14 +1315,53 @@ export default function WhatsAppGroupsPage() {
                       );
                     })
                   )}
-                  {pusherTab === 'newsletter' && NEWSLETTER_TPLS.map(t => (
-                    <button key={t.id} onClick={() => setPusherMsg(t.body)}
-                      className="w-full text-left px-3 py-3 transition-colors"
-                      style={{ background: pusherMsg === t.body ? 'rgba(124,58,237,0.1)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span className="text-[16px]">{t.icon}</span>
-                      <p className="font-bold text-white text-[12px] leading-tight mt-0.5">{t.title}</p>
-                    </button>
-                  ))}
+                  {pusherTab === 'newsletter' && (() => {
+                    const cats = ['All', 'Academic', 'Finance', 'Events', 'Admin', 'Emergency'];
+                    const catColors: Record<string, string> = {
+                      Academic: '#00a884', Finance: '#f59e0b', Events: '#7c3aed',
+                      Admin: '#0284c7', Emergency: '#ef4444',
+                    };
+                    const filtered = pusherTplCategory === 'All'
+                      ? NEWSLETTER_TPLS
+                      : NEWSLETTER_TPLS.filter(t => t.category === pusherTplCategory);
+                    return (
+                      <>
+                        {/* Category filter pills */}
+                        <div className="px-2 py-2 flex flex-wrap gap-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          {cats.map(cat => (
+                            <button key={cat} onClick={() => setPusherTplCategory(cat)}
+                              className="text-[9px] font-black px-2 py-0.5 rounded-full transition-all"
+                              style={{
+                                background: pusherTplCategory === cat ? (catColors[cat] ?? '#a78bfa') + '30' : 'rgba(255,255,255,0.06)',
+                                color:      pusherTplCategory === cat ? (catColors[cat] ?? '#a78bfa') : '#8696a0',
+                                border:     `1px solid ${pusherTplCategory === cat ? (catColors[cat] ?? '#a78bfa') + '50' : 'transparent'}`,
+                              }}>
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Template list */}
+                        {filtered.map(t => {
+                          const col = catColors[t.category] ?? '#a78bfa';
+                          return (
+                            <button key={t.id} onClick={() => setPusherMsg(t.body)}
+                              className="w-full text-left px-3 py-3 transition-colors"
+                              style={{ background: pusherMsg === t.body ? col + '18' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                              <span className="text-[15px]">{t.icon}</span>
+                              <p className="font-bold text-white text-[12px] leading-tight mt-0.5 line-clamp-2">{t.title}</p>
+                              <span className="inline-block text-[8px] font-black px-1.5 py-0.5 rounded-full mt-1"
+                                style={{ background: col + '20', color: col }}>
+                                {t.category}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        {filtered.length === 0 && (
+                          <div className="p-5 text-center text-[11px]" style={{ color: '#8696a0' }}>No templates in this category.</div>
+                        )}
+                      </>
+                    );
+                  })()}
                   {pusherTab === 'custom' && templates.map(tpl => (
                     <button key={tpl.id} onClick={() => setPusherMsg(tpl.body)}
                       className="w-full text-left px-3 py-3 transition-colors"

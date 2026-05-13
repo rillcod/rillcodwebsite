@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
+import { buildInvoiceEmail } from '@/lib/email/rillcod-transactional-email';
 import { AppError } from '@/lib/errors';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -118,74 +119,42 @@ export async function POST(req: Request) {
 
         const senderLabel = `${callerName}${callerRole ? ` · ${callerRole}` : ''}`;
 
-        const itemsHtml = (invoice.items || []).map((item: any) => `
-            <tr>
-                <td style="padding:10px 14px;border-bottom:1px solid #eee;font-size:13px;">${item.description || ''}</td>
-                <td style="padding:10px 14px;border-bottom:1px solid #eee;text-align:right;font-size:13px;font-family:monospace;">${currencySymbol}${Number(item.unit_price ?? 0).toLocaleString()}</td>
-            </tr>
-        `).join('');
+        const lineItems = (invoice.items || []).map((item: any) => ({
+            description: String(item.description || 'Service'),
+            qty:         item.quantity ? Number(item.quantity) : undefined,
+            unitPrice:   Number(item.unit_price ?? item.amount ?? 0),
+            currency:    invoice.currency || 'NGN',
+        }));
 
-        const html = `
-            <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:620px;margin:0 auto;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-                <div style="background:${accentColor};padding:24px 28px;">
-                    <div style="font-size:20px;font-weight:900;color:#fff;letter-spacing:-0.3px;">Rillcod Technologies</div>
-                    <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">
-                        ${isSchoolStream ? 'School Partnerships Division' : 'Digital Learning Platform'}
-                    </div>
-                </div>
-                <div style="padding:28px;">
-                    <h2 style="margin:0 0 8px;font-size:18px;color:#111827;">Invoice ${invoice.invoice_number}</h2>
-                    <p style="margin:0 0 6px;color:#6b7280;font-size:14px;">Hello ${recipientName},</p>
-                    <p style="margin:0 0 20px;color:#374151;font-size:13px;">
-                        ${isSchoolStream
-                            ? `Please find your school invoice from <strong>Rillcod Technologies</strong> for your review and settlement.`
-                            : `You have a new invoice from <strong>Rillcod Technologies</strong>.`}
-                    </p>
+        // Fall back to a single line item using invoice.amount if items array is empty
+        if (lineItems.length === 0) {
+            lineItems.push({
+                description: invoice.description || (isSchoolStream ? 'School Platform Fee' : 'Platform Fee'),
+                unitPrice:   Number(invoice.amount),
+                currency:    invoice.currency || 'NGN',
+            });
+        }
 
-                    <table style="width:100%;border-collapse:collapse;margin:0 0 20px;">
-                        <thead>
-                            <tr style="background:#f9fafb;">
-                                <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #e5e7eb;">Description</th>
-                                <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #e5e7eb;">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>${itemsHtml}</tbody>
-                        <tfoot>
-                            <tr style="background:#f9fafb;">
-                                <td style="padding:14px;font-weight:900;font-size:14px;color:#111827;">Total Amount Due</td>
-                                <td style="padding:14px;text-align:right;font-weight:900;font-size:18px;color:${accentColor};font-family:monospace;">${currencySymbol}${Number(invoice.amount).toLocaleString()}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+        const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/finance`;
 
-                    ${invoice.due_date ? `<p style="margin:0 0 20px;font-size:14px;color:#374151;"><strong>Due Date:</strong> ${new Date(invoice.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>` : ''}
-
-                    <div style="margin-top:24px;padding:20px;background:#f0f4ff;border-radius:8px;border-left:4px solid ${accentColor};">
-                        <p style="margin:0 0 12px;color:#1e3a8a;font-size:14px;">
-                            ${isSchoolStream
-                                ? 'Log in to your Rillcod portal to view the full invoice or contact your account manager.'
-                                : 'View and pay this invoice through your Rillcod dashboard.'}
-                        </p>
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/finance" style="background:${accentColor};color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;font-weight:700;font-size:13px;display:inline-block;">View Invoice</a>
-                    </div>
-
-                    <p style="margin-top:28px;font-size:12px;color:#9ca3af;">
-                        Sent by <strong style="color:#374151;">${senderLabel}</strong> via Rillcod Technologies.<br/>
-                        Questions? <a href="mailto:${isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com'}" style="color:${accentColor};">${isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com'}</a>
-                    </p>
-                </div>
-                <div style="padding:14px 28px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;">
-                    Invoice Ref: ${invoice.invoice_number} &nbsp;·&nbsp; Rillcod Finance Engine
-                </div>
-            </div>
-        `;
+        const html = buildInvoiceEmail({
+            recipientName: recipientName,
+            invoiceNumber: invoice.invoice_number,
+            issueDate:     invoice.created_at || new Date().toISOString(),
+            dueDate:       invoice.due_date || new Date(Date.now() + 7 * 86400000).toISOString(),
+            items:         lineItems,
+            currency:      invoice.currency || 'NGN',
+            notes:         `Sent by ${senderLabel}. For queries contact ${isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com'}.`,
+            schoolName:    isSchoolStream ? (invoice.schools?.name || 'Rillcod Technologies') : undefined,
+            paymentUrl:    portalUrl,
+        });
 
         // ── Send ──────────────────────────────────────────────────────
         await notificationsService.sendEmail(caller?.id || 'system', {
-            to: toEmail,
+            to:        toEmail,
             subject,
             html,
-            fromName: `${callerName} via Rillcod (${callerRole || 'Staff'})`,
+            fromName:  `${callerName} via Rillcod Technologies`,
             fromEmail: isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com',
         });
 

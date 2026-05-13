@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
   // Req 12.4 — acknowledgement email to ticket creator
   try {
     const { notificationsService } = await import('@/services/notifications.service');
+    const { buildSupportTicketEmail } = await import('@/lib/email/rillcod-transactional-email');
     const { data: userProfile } = await admin
       .from('portal_users')
       .select('email, full_name')
@@ -92,13 +93,22 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (userProfile?.email) {
+      const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/support`;
+      const html = buildSupportTicketEmail({
+        recipientName: userProfile.full_name || 'there',
+        ticketId:      String((data as any).id).slice(0, 8).toUpperCase(),
+        subject:       subject.slice(0, 200),
+        category:      String(category ?? 'General'),
+        status:        'open',
+        message:       message.slice(0, 500),
+        portalUrl,
+      });
       await notificationsService.sendEmail(caller.id, {
-        to: userProfile.email,
-        subject: `Support ticket received: ${subject.slice(0, 60)}`,
-        html: `<p>Hi ${userProfile.full_name || 'there'},</p>
-               <p>We've received your support request: <strong>${subject}</strong></p>
-               <p>Our team will get back to you shortly. You can track your ticket in your dashboard.</p>
-               <p>Ticket ID: ${(data as any).id}</p>`,
+        to:        userProfile.email,
+        subject:   `Support Ticket Received — Rillcod Technologies`,
+        fromName:  'Rillcod Support',
+        fromEmail: 'support@rillcod.com',
+        html,
       });
     }
   } catch { /* non-critical */ }

@@ -113,6 +113,34 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     }).eq('id', conversation.id);
 
+    // Send confirmation email if the user has a portal email address
+    if (conversation.portal_user_id) {
+      try {
+        const { data: userProfile } = await admin
+          .from('portal_users')
+          .select('email, full_name')
+          .eq('id', conversation.portal_user_id)
+          .maybeSingle();
+        if (userProfile?.email) {
+          const { notificationsService } = await import('@/services/notifications.service');
+          const { buildOptInConfirmationEmail } = await import('@/lib/email/rillcod-transactional-email');
+          const html = buildOptInConfirmationEmail({
+            recipientName: userProfile.full_name || undefined,
+            direction:     'out',
+            phoneNumber:   conversation.phone_number,
+            portalUrl:     `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings`,
+          });
+          await notificationsService.sendExternalEmail({
+            to:        userProfile.email,
+            subject:   'You have unsubscribed from Rillcod Technologies WhatsApp notifications',
+            fromName:  'Rillcod Technologies',
+            fromEmail: 'support@rillcod.com',
+            html,
+          });
+        }
+      } catch { /* non-critical */ }
+    }
+
     return NextResponse.json({ success: true, message: 'User opted out successfully', phone_number: conversation.phone_number });
   } catch (err: any) {
     const status = err.message === 'Unauthorized' ? 401 : err.message === 'Forbidden' ? 403 : 500;
@@ -204,6 +232,34 @@ export async function PUT(req: NextRequest) {
       last_message_preview: welcomeMessage.slice(0, 100),
       updated_at: new Date().toISOString(),
     }).eq('id', conversation.id);
+
+    // Send confirmation email if the user has a portal email address
+    if (conversation.portal_user_id) {
+      try {
+        const { data: userProfile } = await admin
+          .from('portal_users')
+          .select('email, full_name')
+          .eq('id', conversation.portal_user_id)
+          .maybeSingle();
+        if (userProfile?.email) {
+          const { notificationsService } = await import('@/services/notifications.service');
+          const { buildOptInConfirmationEmail } = await import('@/lib/email/rillcod-transactional-email');
+          const html = buildOptInConfirmationEmail({
+            recipientName: userProfile.full_name || undefined,
+            direction:     'in',
+            phoneNumber:   conversation.phone_number,
+            portalUrl:     `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings`,
+          });
+          await notificationsService.sendExternalEmail({
+            to:        userProfile.email,
+            subject:   'WhatsApp Notifications Enabled — Rillcod Technologies',
+            fromName:  'Rillcod Technologies',
+            fromEmail: 'support@rillcod.com',
+            html,
+          });
+        }
+      } catch { /* non-critical */ }
+    }
 
     return NextResponse.json({ success: true, message: 'User opted in successfully', phone_number: conversation.phone_number });
   } catch (err: any) {

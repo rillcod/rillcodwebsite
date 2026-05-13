@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { env } from '@/config/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
-import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { buildRillcodTransactionalEmailHtml, buildPaymentConfirmationEmail, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 
 function assertServiceRoleWebhook() {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -308,7 +308,7 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 await notificationsService.sendExternalEmail({
                     to: adminTo,
                     subject: `New registration payment — ${studName}`,
-                    fromName: 'Rillcod Academy',
+                    fromName: 'Rillcod Technologies',
                     fromEmail: 'support@rillcod.com',
                     html: opsHtml,
                 });
@@ -323,21 +323,22 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 : '';
 
         if (isRegistrationPayment && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
-            const payLine = `${transaction.currency} ${Number(transaction.amount).toLocaleString()}`;
-            const parentHtml = buildRillcodTransactionalEmailHtml({
-                title: 'Registration confirmed',
-                bodyHtml: `<p style="margin:0 0 10px;">Thank you for your registration payment of <strong style="color:#fff;">${escapeHtml(payLine)}</strong>.</p>
-                        <p style="margin:0;">Our team will review the application and follow up by email.</p>`,
-                summaryRows: [{ label: 'Reference', value: String(transaction.transaction_reference) }],
-                cta: { href: receiptUrl, label: 'Download receipt (PDF)' },
-                footerNote: '<span style="color:#a1a1aa;">Rillcod Academy — STEM &amp; coding education.</span>',
+            const studName = String(gatewayResponse?.student_name || 'Student');
+            const parentHtml = buildPaymentConfirmationEmail({
+                recipientName: studName,
+                amount:        Number(transaction.amount),
+                currency:      String(transaction.currency || 'NGN'),
+                reference:     String(transaction.transaction_reference),
+                description:   'Student Registration Fee',
+                date:          new Date().toISOString(),
+                portalUrl:     receiptUrl,
             });
             await notificationsService.sendExternalEmail({
-                to: parentEmail,
-                subject: 'Registration Confirmed — Rillcod Academy',
-                fromName: 'Rillcod Academy',
+                to:        parentEmail,
+                subject:   `Registration Confirmed — Rillcod Technologies (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
+                fromName:  'Rillcod Technologies',
                 fromEmail: 'support@rillcod.com',
-                html: parentHtml,
+                html:      parentHtml,
             });
         } else if (transaction.portal_user_id) {
             const { data: portalUsers } = await supabase
@@ -347,28 +348,28 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 .maybeSingle();
 
             if (portalUsers?.email) {
-                const greet = escapeHtml(portalUsers.full_name || 'Student');
-                const amtLine = `${transaction.currency} ${Number(transaction.amount).toLocaleString()}`;
-                const portalHtml = buildRillcodTransactionalEmailHtml({
-                    title: 'Payment received',
-                    bodyHtml: `<p style="margin:0 0 8px;">Hi ${greet},</p>
-                        <p style="margin:0 0 10px;">Thank you for your payment of <strong style="color:#fff;">${escapeHtml(amtLine)}</strong>.</p>
-                        <p style="margin:0;">Your transaction was successful and your access has been updated.</p>`,
-                    summaryRows: [{ label: 'Reference', value: String(transaction.transaction_reference) }],
-                    cta: { href: receiptUrl, label: 'Download official receipt' },
-                    footerNote: '<span style="color:#a1a1aa;">Rillcod Academy — STEM &amp; coding education.</span>',
+                const portalHtml = buildPaymentConfirmationEmail({
+                    recipientName: portalUsers.full_name || 'Student',
+                    amount:        Number(transaction.amount),
+                    currency:      String(transaction.currency || 'NGN'),
+                    reference:     String(transaction.transaction_reference),
+                    description:   'Platform Fee Payment',
+                    date:          new Date().toISOString(),
+                    portalUrl:     receiptUrl,
                 });
                 await notificationsService.sendEmail(portalUsers.id, {
-                    to: portalUsers.email,
-                    subject: 'Payment Receipt: Rillcod Academy',
-                    html: portalHtml,
+                    to:        portalUsers.email,
+                    subject:   `Payment Receipt — Rillcod Technologies (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
+                    fromName:  'Rillcod Technologies',
+                    fromEmail: 'support@rillcod.com',
+                    html:      portalHtml,
                 });
-                
-                // Fire instant notification (email queue)
+
+                const amtLine = `${transaction.currency || 'NGN'} ${Number(transaction.amount).toLocaleString()}`;
                 queueService.queueNotification(portalUsers.id, 'email', {
-                    to: portalUsers.email,
-                    subject: `Payment Receipt: Rillcod Academy`,
-                    html: `Hi ${greet}! Your payment of ${amtLine} (Ref: ${String(transaction.transaction_reference)}) was successful.`
+                    to:      portalUsers.email,
+                    subject: `Payment Receipt — Rillcod Technologies`,
+                    html:    `Hi ${portalUsers.full_name || 'there'}! Your payment of ${amtLine} (Ref: ${String(transaction.transaction_reference)}) was successful.`,
                 }).catch(console.error);
             }
         }
