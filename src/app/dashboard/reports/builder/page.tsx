@@ -10,7 +10,7 @@ import { Database } from '@/types/supabase';
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
-import { generateReportPDF, ScaledReportCard, shareReportCard } from '@/lib/pdf-utils';
+import { generateReportPDF, ScaledReportCard, shareReportCard, printElement } from '@/lib/pdf-utils';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
@@ -3226,10 +3226,7 @@ function ReportBuilderInner() {
 
             {/* ── Live Preview Modal ── */}
             {showPreview && (
-                // Inject print CSS: when printing from inside the preview, hide everything except the report card
-                // (the header bar and scrollable wrapper both carry the .no-print class)
                 <>
-                <style>{`@media print { body * { visibility: hidden !important; } #pdf-print-target, #pdf-print-target * { visibility: visible !important; } #pdf-print-target { position: fixed !important; left: 0 !important; top: 0 !important; width: 210mm !important; z-index: 9999 !important; background: white !important; } }`}</style>
                 <div id="builder-preview-root" className="fixed inset-0 z-50 flex flex-col bg-background">
                     <div className="no-print flex items-center gap-4 px-8 py-4 border-b border-border bg-[#0a0a14]">
                         <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-card shadow-sm rounded-xl transition-colors">
@@ -3285,7 +3282,7 @@ function ReportBuilderInner() {
                             </div>
                         )}
                         <button
-                            onClick={() => window.print()}
+                            onClick={() => pdfRef.current && printElement(pdfRef.current)}
                             className="flex items-center gap-2 px-6 py-3 bg-card shadow-sm border border-white/10 hover:bg-muted text-foreground text-sm font-black rounded-xl transition-all"
                         >
                             <PrinterIcon className="w-4 h-4" /> Print

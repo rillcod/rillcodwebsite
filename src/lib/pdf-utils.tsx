@@ -367,3 +367,51 @@ export function ScaledReportCard({ children, report, responsive = false }: { chi
         </div>
     );
 }
+
+/**
+ * Open a clean popup window containing only the given element's HTML and print it.
+ * Copies the current page's stylesheets so Tailwind classes render correctly.
+ * Much more reliable than window.print() from a complex page with multiple divs.
+ */
+export function printElement(el: HTMLElement) {
+    const styleSheets = Array.from(document.styleSheets)
+        .map(ss => {
+            try {
+                return Array.from(ss.cssRules).map(r => r.cssText).join('\n');
+            } catch {
+                return ss.href ? `@import url("${ss.href}");` : '';
+            }
+        })
+        .filter(Boolean)
+        .join('\n');
+
+    const linkTags = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .map(l => l.outerHTML)
+        .join('\n');
+
+    const w = window.open('', '_blank', 'width=900,height=1200,toolbar=0,menubar=0,scrollbars=1');
+    if (!w) return;
+
+    w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+${linkTags}
+<style>
+${styleSheets}
+@media print { @page { margin: 12mm 10mm; } body { margin: 0; background: white; } }
+</style>
+</head>
+<body style="margin:0;background:white">
+${el.outerHTML}
+</body>
+</html>`);
+    w.document.close();
+    // Wait for stylesheets to load before printing
+    setTimeout(() => {
+        w.focus();
+        w.print();
+        setTimeout(() => w.close(), 1000);
+    }, 700);
+}

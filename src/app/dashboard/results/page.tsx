@@ -27,7 +27,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
-import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
+import { ScaledReportCard, generateReportPDF, shareReportCard, printElement } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
 import { cn } from '@/lib/utils';
 
@@ -1294,7 +1294,7 @@ tbody tr:hover{background:#f3f4f6}
                                             {selectedReport && (
                                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                                     <button
-                                                        onClick={() => window.print()}
+                                                        onClick={() => printableRef.current && printElement(printableRef.current)}
                                                         title="Print"
                                                         className="h-9 inline-flex items-center gap-1.5 px-3 text-[10px] font-black uppercase tracking-widest text-foreground bg-card hover:bg-muted border border-border rounded-xl transition-all"
                                                     >
@@ -1550,7 +1550,7 @@ tbody tr:hover{background:#f3f4f6}
             ) : null}
 
             {/* ══ Off-screen div — single PDF capture ══ */}
-            <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
+            <div className="print:hidden" style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
                 <div ref={printableRef}>
                     {reportToDisplay && (
                         template === 'modern' ? (
@@ -1565,7 +1565,7 @@ tbody tr:hover{background:#f3f4f6}
             </div>
 
             {/* ══ Off-screen div — batch PDF capture (one at a time) ══ */}
-            <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
+            <div className="print:hidden" style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
                 <div ref={captureRef}>
                     {captureReport && (
                         template === 'modern' ? (
