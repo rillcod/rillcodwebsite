@@ -287,6 +287,67 @@ export async function generateReportPDFBase64(element: HTMLElement, isLandscape 
 }
 
 /**
+ * Convert a self-contained HTML string (inline styles + body content) to a
+ * base64 PDF string suitable for email attachments.
+ * Used for assignment print sheets which are built as raw HTML strings.
+ */
+export async function generateHtmlStringToPDFBase64(htmlString: string): Promise<string> {
+    const [{ toPng }, { default: jsPDF }] = await Promise.all([
+        import('html-to-image'),
+        import('jspdf'),
+    ]);
+
+    const cssMatch = htmlString.match(/<style>([\s\S]*?)<\/style>/i);
+    const bodyMatch = htmlString.match(/<body>([\s\S]*?)<(?:\/body|script)/i);
+    const css = cssMatch?.[1] ?? '';
+    const bodyHtml = (bodyMatch?.[1] ?? htmlString).replace(/<script[\s\S]*?<\/script>/gi, '');
+
+    const W = 794;
+    const container = document.createElement('div');
+    container.style.cssText = `position:fixed;left:-9999px;top:0;width:${W}px;background:#fff;`;
+
+    const styleEl = document.createElement('style');
+    styleEl.textContent = css;
+    container.appendChild(styleEl);
+
+    const content = document.createElement('div');
+    content.innerHTML = bodyHtml;
+    container.appendChild(content);
+
+    document.body.appendChild(container);
+    const H = container.scrollHeight;
+
+    const imgs = container.querySelectorAll('img');
+    await Promise.allSettled(
+        Array.from(imgs).map(img =>
+            img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })
+        )
+    );
+
+    const pngUrl = await toPng(container, { pixelRatio: 1.5, cacheBust: true, width: W, height: H, backgroundColor: '#fff' });
+
+    const jpegUrl = await new Promise<string>(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            const c = document.createElement('canvas');
+            c.width = img.width; c.height = img.height;
+            const ctx = c.getContext('2d')!;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(img, 0, 0);
+            resolve(c.toDataURL('image/jpeg', 0.92));
+        };
+        img.src = pngUrl;
+    });
+
+    document.body.removeChild(container);
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [W, H] });
+    pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
+    return pdf.output('datauristring').split('base64,')[1];
+}
+
+/**
  * Share the report card as a PDF attachment via the Web Share API.
  * On Android/iOS this shows the native share sheet which includes WhatsApp.
  * Falls back to direct download on browsers that don't support file sharing.

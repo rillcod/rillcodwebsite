@@ -812,6 +812,10 @@ export default function AssignmentDetailPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [shareOpen, setShareOpen] = useState(false);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+    const [emailOpen, setEmailOpen] = useState(false);
+    const [emailTo, setEmailTo] = useState('');
+    const [emailSending, setEmailSending] = useState(false);
+    const [emailError, setEmailError] = useState<string | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -964,8 +968,8 @@ export default function AssignmentDetailPage() {
         return msg;
     };
 
-    const handlePrintAssignment = () => {
-        if (!assignment) return;
+    const buildAssignmentHtml = () => {
+        if (!assignment) return '';
         const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
         const schoolName = profile?.school_name || 'RILLCOD TECHNOLOGIES';
         const logoUrl = window.location.origin + '/logo.png';
@@ -1133,9 +1137,42 @@ export default function AssignmentDetailPage() {
 <script>window.onload = () => { window.print(); }</script>
 </body></html>`;
 
+        return html;
+    };
+
+    const handlePrintAssignment = () => {
+        const html = buildAssignmentHtml();
+        if (!html) return;
         const win = window.open('', '_blank');
         win?.document.write(html);
         win?.document.close();
+    };
+
+    const sendAssignmentByEmail = async () => {
+        if (!assignment || !emailTo.trim()) return;
+        setEmailSending(true);
+        setEmailError(null);
+        try {
+            const html = buildAssignmentHtml();
+            const { generateHtmlStringToPDFBase64 } = await import('@/lib/pdf-utils');
+            const base64 = await generateHtmlStringToPDFBase64(html);
+            const filename = `${(assignment.title || 'Assignment').replace(/\s+/g, '_')}.pdf`;
+            const subject = `Assignment: ${assignment.title}${assignment.courses?.title ? ' — ' + assignment.courses.title : ''}`;
+            const body = `Please find the attached assignment sheet for "${assignment.title}".\n\nDue date: ${assignment.due_date ? new Date(assignment.due_date).toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'See assignment sheet'}\nTotal marks: ${assignment.max_points ?? 100}\n\nDear Parent/Guardian, please ensure your child completes and submits this assignment before the due date.\n\nRillcod Technologies — www.rillcod.com`;
+            const res = await fetch('/api/inbox/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to: emailTo.trim(), subject, body, attachments: [{ filename, content: base64 }] }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to send email');
+            setEmailOpen(false);
+            setEmailTo('');
+        } catch (err: any) {
+            setEmailError(err.message || 'Failed to send. Try again.');
+        } finally {
+            setEmailSending(false);
+        }
     };
 
     const isOverdue = assignment?.due_date && new Date(assignment.due_date) < new Date();
@@ -1186,6 +1223,47 @@ export default function AssignmentDetailPage() {
                 defaultMessage={buildShareMessage()}
                 title={assignment?.title}
             />
+
+            {/* Email PDF modal */}
+            {emailOpen && (
+                <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-sm bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-black text-white">Email Assignment PDF</p>
+                            <button onClick={() => setEmailOpen(false)} className="text-white/40 hover:text-white">
+                                <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4" stroke="currentColor" strokeWidth="2"><path d="M6 18L18 6M6 6l12 12" strokeLinecap="round"/></svg>
+                            </button>
+                        </div>
+                        <p className="text-[11px] text-white/50">The assignment sheet will be attached as a PDF. Enter the recipient's email below.</p>
+                        <div>
+                            <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Recipient Email</label>
+                            <input
+                                type="email"
+                                value={emailTo}
+                                onChange={e => setEmailTo(e.target.value)}
+                                placeholder="parent@example.com"
+                                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500/50 rounded-lg font-mono"
+                                autoFocus
+                            />
+                        </div>
+                        {emailError && <p className="text-xs text-red-400 font-bold">{emailError}</p>}
+                        <div className="flex gap-2">
+                            <button onClick={() => setEmailOpen(false)}
+                                className="flex-1 py-2.5 border border-white/10 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors">
+                                Cancel
+                            </button>
+                            <button onClick={sendAssignmentByEmail}
+                                disabled={!emailTo.trim() || emailSending}
+                                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors flex items-center justify-center gap-2">
+                                {emailSending
+                                    ? <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending…</>
+                                    : <>Send PDF</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {grading && (
                 <GradeCanvas
                     sub={grading}
@@ -1267,6 +1345,13 @@ export default function AssignmentDetailPage() {
                                         onClick={handlePrintAssignment}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition-colors border border-primary/20">
                                         <PrinterIcon className="w-3.5 h-3.5" /> Print
+                                    </button>
+                                    <button
+                                        onClick={() => { setEmailError(null); setEmailOpen(true); }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-xl transition-colors border border-blue-500/20"
+                                        title="Send assignment as PDF via email">
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        Email PDF
                                     </button>
                                     <Link href={`/dashboard/assignments/${id}/edit`}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
