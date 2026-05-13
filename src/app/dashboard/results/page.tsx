@@ -746,6 +746,13 @@ function ResultsPageInner() {
         }
     }
 
+    // ── Print the in-page performance report (letterhead + student grade table) ──
+    function handlePrintSummary() {
+        setSelectedReport(null);
+        setBulkPrintReports(null);
+        setTimeout(() => window.print(), 80);
+    }
+
     // ── Print group performance datasheet ─────────────────────────────────────
     async function handlePrintPerformanceSheet() {
         const db2 = createClient();
@@ -937,6 +944,15 @@ tbody tr:hover{background:#f3f4f6}
                             >
                                 <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
                             </Link>
+                        )}
+                        {/* Print performance report — letterhead + grade table */}
+                        {isStaff && students.length > 0 && (
+                            <button
+                                onClick={handlePrintSummary}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 text-blue-400 font-bold text-sm rounded-xl transition-all"
+                            >
+                                <PrinterIcon className="w-4 h-4" /> Print Performance Report
+                            </button>
                         )}
                         {/* Print all students — standard report card format */}
                         {isStaff && students.length > 0 && (
