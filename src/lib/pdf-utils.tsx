@@ -363,7 +363,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
     const pageStyle = iDoc.createElement('style');
     pageStyle.textContent =
         `html,body{margin:0!important;background:#fff!important;}` +
-        `body{width:${W}px!important;min-height:${PAGE_H}px;` +
+        `body{width:${W}px!important;` +
         `padding:57px 68px 53px!important;box-sizing:border-box!important;}`;
     iDoc.head.appendChild(pageStyle);
 
@@ -405,9 +405,12 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
         // Split the long image into A4-height pages so the PDF looks like a
         // properly paginated document rather than one tall scroll.
         const numPages = Math.ceil(H / PAGE_H);
+        // Skip last page if its slice is almost empty (bottom-padding overflow artifact)
+        const lastSliceH = H - (numPages - 1) * PAGE_H;
+        const pagesToRender = numPages > 1 && lastSliceH < 80 ? numPages - 1 : numPages;
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [W, PAGE_H] });
 
-        for (let p = 0; p < numPages; p++) {
+        for (let p = 0; p < pagesToRender; p++) {
             if (p > 0) pdf.addPage([W, PAGE_H]);
 
             // Height of this page's content slice in content-px
