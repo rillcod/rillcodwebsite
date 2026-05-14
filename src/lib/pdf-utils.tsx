@@ -351,6 +351,19 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
     const iDoc = iframe.contentDocument!;
+
+    // @page margins (15mm top, 18mm sides, 14mm bottom) only apply during print.
+    // Inject equivalent px padding onto the body so screen capture looks like A4.
+    // 1mm = 3.7795px at 96 dpi → 15mm≈57px, 18mm≈68px, 14mm≈53px
+    const pageStyle = iDoc.createElement('style');
+    pageStyle.textContent =
+        `html{margin:0;padding:0;}` +
+        `body{width:${W}px;padding:57px 68px 53px!important;box-sizing:border-box!important;margin:0!important;}`;
+    iDoc.head.appendChild(pageStyle);
+
+    // Re-flush so scrollHeight reflects the padded layout
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
     const H = Math.max(iDoc.body.scrollHeight, iDoc.documentElement.scrollHeight) || 1123;
 
     // Expand iframe to full document height so nothing gets clipped during capture
