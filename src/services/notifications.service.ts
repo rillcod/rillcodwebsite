@@ -459,7 +459,8 @@ export class NotificationsService {
 
         const token = await this.getSendPulseToken();
 
-        const attachmentsObj = payload.attachments && payload.attachments.length > 0
+        // attachments_binary = base64-encoded binary files (PDF, images, etc.)
+        const attachmentsBinary = payload.attachments && payload.attachments.length > 0
             ? Object.fromEntries(payload.attachments.map(a => [a.filename, a.content]))
             : undefined;
 
@@ -475,7 +476,7 @@ export class NotificationsService {
                 to: [
                     { email: payload.to }
                 ],
-                ...(attachmentsObj ? { attachments: attachmentsObj } : {}),
+                ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),
             }
         };
 
@@ -501,7 +502,8 @@ export class NotificationsService {
     async sendExternalEmail(payload: EmailPayload) {
         const token = await this.getSendPulseToken();
 
-        const attachmentsObj = payload.attachments && payload.attachments.length > 0
+        // attachments_binary = base64-encoded binary files (PDF, images, etc.)
+        const attachmentsBinary = payload.attachments && payload.attachments.length > 0
             ? Object.fromEntries(payload.attachments.map(a => [a.filename, a.content]))
             : undefined;
 
@@ -515,7 +517,7 @@ export class NotificationsService {
                     email: payload.fromEmail || 'no-reply@rillcod.com'
                 },
                 to: [{ email: payload.to }],
-                ...(attachmentsObj ? { attachments: attachmentsObj } : {}),
+                ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),
             }
         };
 
