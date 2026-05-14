@@ -330,6 +330,8 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
     ]);
 
     const W = 794;
+    const PAGE_H = 1123; // A4 height at 96 dpi (297mm × 96/25.4)
+    const PIXEL_RATIO = 2;
     // Strip print script so it doesn't trigger a print dialog inside the iframe
     const cleanHtml = htmlString.replace(/<script[\s\S]*?<\/script>/gi, '');
 
@@ -355,10 +357,14 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
     // @page margins (15mm top, 18mm sides, 14mm bottom) only apply during print.
     // Inject equivalent px padding onto the body so screen capture looks like A4.
     // 1mm = 3.7795px at 96 dpi → 15mm≈57px, 18mm≈68px, 14mm≈53px
+    // Simulate @page margins (15mm≈57px top, 18mm≈68px sides, 14mm≈53px bottom)
+    // by adding padding to the body and constraining width to exactly A4.
+    // Use !important to override the wildcard reset in the assignment stylesheet.
     const pageStyle = iDoc.createElement('style');
     pageStyle.textContent =
-        `html{margin:0;padding:0;}` +
-        `body{width:${W}px;padding:57px 68px 53px!important;box-sizing:border-box!important;margin:0!important;}`;
+        `html,body{margin:0!important;background:#fff!important;}` +
+        `body{width:${W}px!important;min-height:${PAGE_H}px;` +
+        `padding:57px 68px 53px!important;box-sizing:border-box!important;}`;
     iDoc.head.appendChild(pageStyle);
 
     // Re-flush so scrollHeight reflects the padded layout
@@ -381,29 +387,47 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
     let base64: string;
     try {
         const pngUrl = await toPng(iDoc.body, {
-            pixelRatio: 2,
+            pixelRatio: PIXEL_RATIO,
             cacheBust: true,
             width: W,
             height: H,
             backgroundColor: '#fff',
         });
 
-        const jpegUrl = await new Promise<string>(resolve => {
+        // Load the full-content image once
+        const fullImg = await new Promise<HTMLImageElement>((resolve, reject) => {
             const img = new Image();
-            img.onload = () => {
-                const c = document.createElement('canvas');
-                c.width = img.width; c.height = img.height;
-                const ctx = c.getContext('2d')!;
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, c.width, c.height);
-                ctx.drawImage(img, 0, 0);
-                resolve(c.toDataURL('image/jpeg', 0.95));
-            };
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Failed to load captured image'));
             img.src = pngUrl;
         });
 
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [W, H] });
-        pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
+        // Split the long image into A4-height pages so the PDF looks like a
+        // properly paginated document rather than one tall scroll.
+        const numPages = Math.ceil(H / PAGE_H);
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [W, PAGE_H] });
+
+        for (let p = 0; p < numPages; p++) {
+            if (p > 0) pdf.addPage([W, PAGE_H]);
+
+            // Height of this page's content slice in content-px
+            const sliceH = Math.min(PAGE_H, H - p * PAGE_H);
+            // Corresponding pixel rows in the 2× image
+            const srcY  = p * PAGE_H * PIXEL_RATIO;
+            const srcH  = sliceH * PIXEL_RATIO;
+
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width  = W * PIXEL_RATIO;
+            pageCanvas.height = PAGE_H * PIXEL_RATIO;       // always full A4 height
+            const ctx = pageCanvas.getContext('2d')!;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+            // Draw the slice of the full image at the top of this page canvas
+            ctx.drawImage(fullImg, 0, srcY, W * PIXEL_RATIO, srcH, 0, 0, W * PIXEL_RATIO, srcH);
+
+            pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, W, PAGE_H);
+        }
+
         base64 = pdfToBase64(pdf);
     } finally {
         document.body.removeChild(iframe);
