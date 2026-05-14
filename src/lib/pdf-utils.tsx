@@ -278,12 +278,22 @@ export async function generateReportPDFBlob(element: HTMLElement, isLandscape = 
     return pdf.output('blob');
 }
 
+/** Convert a jsPDF instance to a clean base64 string via ArrayBuffer — avoids btoa() binary-string encoding bugs */
+function pdfToBase64(pdf: any): string {
+    const ab: ArrayBuffer = pdf.output('arraybuffer');
+    const bytes = new Uint8Array(ab);
+    let binary = '';
+    const chunk = 8192;
+    for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+    }
+    return btoa(binary);
+}
+
 /** Return the report as a raw base64 string (no data-URI prefix) for email attachments */
 export async function generateReportPDFBase64(element: HTMLElement, isLandscape = false): Promise<string> {
     const pdf = await buildPdf(element, isLandscape);
-    // datauristring → "data:application/pdf;base64,JVBERi0x..."
-    const dataUri: string = pdf.output('datauristring');
-    return dataUri.split('base64,')[1];
+    return pdfToBase64(pdf);
 }
 
 /**
@@ -344,7 +354,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [W, H] });
     pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
-    return pdf.output('datauristring').split('base64,')[1];
+    return pdfToBase64(pdf);
 }
 
 /**
