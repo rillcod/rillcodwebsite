@@ -149,6 +149,9 @@ export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEma
     ? `<p style="margin:0 0 10px;font-size:12px;color:${BRAND.textMuted};">${args.footerNote}</p>`
     : '';
 
+  // Preheader: hidden preview text shown after subject in inbox — keeps spam filters happy
+  const preheader = `${args.title} — Rillcod Technologies`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -158,6 +161,10 @@ export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEma
   <title>${escapeHtml(args.title)}</title>
 </head>
 <body style="margin:0;padding:0;background:${BRAND.bg};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<!-- Preheader (hidden) -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;color:${BRAND.bg};line-height:1px;">
+  ${escapeHtml(preheader)}&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+</div>
 
 <!--[if mso]><table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${BRAND.bg}"><tr><td><![endif]-->
 <table width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -241,7 +248,8 @@ export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEma
                 <td valign="middle">
                   <p style="margin:0;font-size:11px;color:${BRAND.textFaint};line-height:1.5;">
                     &copy; ${new Date().getFullYear()} Rillcod Technologies &middot; ${BRAND.tagline}<br/>
-                    This is an automated message from the Rillcod platform. Please retain it for your records.
+                    Lagos, Nigeria &middot; <a href="mailto:${BRAND.supportEmail}" style="color:${BRAND.textFaint};text-decoration:underline;">${BRAND.supportEmail}</a><br/>
+                    This is a transactional message sent on behalf of your school. If you believe you received this in error, contact your school administrator.
                   </p>
                 </td>
                 <td valign="middle" align="right" style="padding-left:8px;">

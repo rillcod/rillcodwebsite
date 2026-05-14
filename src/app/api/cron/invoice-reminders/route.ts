@@ -149,8 +149,8 @@ async function run(triggeredBy: 'cron' | 'manual') {
         const html = await buildReminderEmail(inv, reminderToSend);
         const subjects: Record<number, string> = {
           1: `Invoice ${inv.invoice_number ?? ''} — Rillcod Technologies`,
-          2: `Payment Reminder: Invoice due soon — Rillcod Technologies`,
-          3: `FINAL NOTICE: Invoice overdue — immediate action required`,
+          2: `Payment Reminder: Your invoice is due soon — Rillcod Technologies`,
+          3: `Action Required: Invoice overdue — Rillcod Technologies`,
         };
 
         if (config.notify_email) {

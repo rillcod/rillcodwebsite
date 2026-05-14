@@ -7,6 +7,22 @@ import { emitToUser } from '@/lib/socket-io';
 import { redisCache } from '@/lib/redis';
 import { createHash } from 'crypto';
 
+/** Convert HTML to a readable plain-text fallback for spam filters and text-only clients */
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/td>/gi, '  ')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<a[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '$2 ($1)')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&middot;/g, '·').replace(/&copy;/g, '©').replace(/&rarr;/g, '→').replace(/&zwnj;/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // Preference columns added in migration 20260501000005
 export type NotificationCategory =
   | 'payment_updates'
@@ -467,7 +483,7 @@ export class NotificationsService {
         const emailData = {
             email: {
                 html: Buffer.from(payload.html).toString('base64'),
-                text: payload.html.replace(/<[^>]+>/g, ''),
+                text: htmlToPlainText(payload.html),
                 subject: payload.subject,
                 from: {
                     name: payload.fromName || 'LMS Notifications',
@@ -510,7 +526,7 @@ export class NotificationsService {
         const emailData = {
             email: {
                 html: Buffer.from(payload.html).toString('base64'),
-                text: payload.html.replace(/<[^>]+>/g, ''),
+                text: htmlToPlainText(payload.html),
                 subject: payload.subject,
                 from: {
                     name: payload.fromName || 'LMS Notifications',
