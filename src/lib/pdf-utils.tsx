@@ -311,7 +311,7 @@ export async function generateReportPDFBase64(element: HTMLElement, isLandscape 
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
     try {
-        const pdf = await buildPdf(clone, isLandscape, 1.2, 0.85);
+        const pdf = await buildPdf(clone, isLandscape, 2, 0.95);
         return pdfToBase64(pdf);
     } finally {
         document.body.removeChild(wrapper);
@@ -369,7 +369,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
         )
     );
 
-    const pngUrl = await toPng(container, { pixelRatio: 1.2, cacheBust: true, width: W, height: H, backgroundColor: '#fff' });
+    const pngUrl = await toPng(container, { pixelRatio: 2, cacheBust: true, width: W, height: H, backgroundColor: '#fff' });
 
     const jpegUrl = await new Promise<string>(resolve => {
         const img = new Image();
@@ -380,7 +380,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, c.width, c.height);
             ctx.drawImage(img, 0, 0);
-            resolve(c.toDataURL('image/jpeg', 0.85));
+            resolve(c.toDataURL('image/jpeg', 0.95));
         };
         img.src = pngUrl;
     });
