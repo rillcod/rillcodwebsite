@@ -477,7 +477,10 @@ export class NotificationsService {
 
         // attachments_binary = base64-encoded binary files (PDF, images, etc.)
         const attachmentsBinary = payload.attachments && payload.attachments.length > 0
-            ? Object.fromEntries(payload.attachments.map(a => [a.filename, a.content]))
+            ? Object.fromEntries(payload.attachments.map(a => {
+                const base64Data = a.content.includes('base64,') ? a.content.split('base64,')[1] : a.content;
+                return [a.filename, base64Data];
+            }))
             : undefined;
 
         const emailData = {
@@ -520,7 +523,10 @@ export class NotificationsService {
 
         // attachments_binary = base64-encoded binary files (PDF, images, etc.)
         const attachmentsBinary = payload.attachments && payload.attachments.length > 0
-            ? Object.fromEntries(payload.attachments.map(a => [a.filename, a.content]))
+            ? Object.fromEntries(payload.attachments.map(a => {
+                const base64Data = a.content.includes('base64,') ? a.content.split('base64,')[1] : a.content;
+                return [a.filename, base64Data];
+            }))
             : undefined;
 
         const emailData = {
