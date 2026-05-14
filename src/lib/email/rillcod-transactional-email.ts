@@ -56,7 +56,9 @@ function currency(amount: number, code = 'NGN'): string {
 
 const BRAND = {
   name:       'Rillcod Technologies',
-  tagline:    'Nigerian STEM &amp; Coding Platform',
+  tagline:    'STEM &amp; Coding Academy',
+  address:    '26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria',
+  phone:      '+234 811 660 0091',
   primary:    '#f59e0b',   // amber
   primaryDark:'#d97706',
   success:    '#10b981',   // emerald
@@ -248,7 +250,8 @@ export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEma
                 <td valign="middle">
                   <p style="margin:0;font-size:11px;color:${BRAND.textFaint};line-height:1.5;">
                     &copy; ${new Date().getFullYear()} Rillcod Technologies &middot; ${BRAND.tagline}<br/>
-                    Lagos, Nigeria &middot; <a href="mailto:${BRAND.supportEmail}" style="color:${BRAND.textFaint};text-decoration:underline;">${BRAND.supportEmail}</a><br/>
+                    26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria &middot; +234 811 660 0091<br/>
+                    <a href="mailto:${BRAND.supportEmail}" style="color:${BRAND.textFaint};text-decoration:underline;">${BRAND.supportEmail}</a> &middot; <a href="${BRAND.siteUrl}" style="color:${BRAND.textFaint};text-decoration:underline;">rillcod.com</a><br/>
                     This is a transactional message sent on behalf of your school. If you believe you received this in error, contact your school administrator.
                   </p>
                 </td>
