@@ -319,9 +319,9 @@ export async function generateReportPDFBase64(element: HTMLElement, isLandscape 
 }
 
 /**
- * Convert a self-contained HTML string (inline styles + body content) to a
- * base64 PDF string suitable for email attachments.
- * Used for assignment print sheets which are built as raw HTML strings.
+ * Convert a self-contained HTML string to a base64 PDF for email attachments.
+ * Renders inside a hidden iframe so the full document context is preserved —
+ * body CSS, pt units, class selectors, and @font-face all resolve correctly.
  */
 export async function generateHtmlStringToPDFBase64(htmlString: string): Promise<string> {
     const [{ toPng }, { default: jsPDF }] = await Promise.all([
@@ -329,67 +329,74 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
         import('jspdf'),
     ]);
 
-    const cssMatch = htmlString.match(/<style>([\s\S]*?)<\/style>/i);
-    const bodyMatch = htmlString.match(/<body>([\s\S]*?)<(?:\/body|script)/i);
-    const css = cssMatch?.[1] ?? '';
-    const bodyHtml = (bodyMatch?.[1] ?? htmlString).replace(/<script[\s\S]*?<\/script>/gi, '');
-
     const W = 794;
+    // Strip print script so it doesn't trigger a print dialog inside the iframe
+    const cleanHtml = htmlString.replace(/<script[\s\S]*?<\/script>/gi, '');
 
-    // Build the content container (no positioning — wrapper handles that)
-    const container = document.createElement('div');
-    container.style.cssText = `width:${W}px;background:#fff;`;
+    // Create a near-invisible iframe at full A4 width.
+    // srcdoc gives it same-origin access, so html-to-image can read its DOM.
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText =
+        `position:fixed;left:0;top:0;width:${W}px;height:2000px;border:none;` +
+        `z-index:99999;pointer-events:none;opacity:0.001;`;
+    document.body.appendChild(iframe);
 
-    const styleEl = document.createElement('style');
-    styleEl.textContent = css;
-    container.appendChild(styleEl);
+    // Wait for the iframe document to finish loading
+    await new Promise<void>(resolve => {
+        iframe.onload = () => resolve();
+        iframe.srcdoc = cleanHtml;
+    });
 
-    const content = document.createElement('div');
-    content.innerHTML = bodyHtml;
-    container.appendChild(content);
-
-    // Use the same near-invisible wrapper pattern as generateReportPDFBase64:
-    // position at left:0,top:0 so html-to-image's SVG renderer is never clipped,
-    // opacity:0.001 so the user doesn't see it. toPng(container) captures the
-    // container at full opacity since opacity is on the wrapper, not the container.
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText =
-        `position:fixed;left:0;top:0;width:${W}px;z-index:99999;pointer-events:none;opacity:0.001;`;
-    wrapper.appendChild(container);
-    document.body.appendChild(wrapper);
-
-    // Let the browser lay out the injected HTML before reading dimensions
+    // Flush layout inside the iframe
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-    const H = container.scrollHeight || 1123;
 
-    const imgs = container.querySelectorAll('img');
+    const iDoc = iframe.contentDocument!;
+    const H = Math.max(iDoc.body.scrollHeight, iDoc.documentElement.scrollHeight) || 1123;
+
+    // Expand iframe to full document height so nothing gets clipped during capture
+    iframe.style.height = `${H}px`;
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+    // Wait for any images inside the iframe to finish loading
+    const imgs = iDoc.body.querySelectorAll('img');
     await Promise.allSettled(
         Array.from(imgs).map(img =>
             img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })
         )
     );
 
-    const pngUrl = await toPng(container, { pixelRatio: 2, cacheBust: true, width: W, height: H, backgroundColor: '#fff' });
+    let base64: string;
+    try {
+        const pngUrl = await toPng(iDoc.body, {
+            pixelRatio: 2,
+            cacheBust: true,
+            width: W,
+            height: H,
+            backgroundColor: '#fff',
+        });
 
-    const jpegUrl = await new Promise<string>(resolve => {
-        const img = new Image();
-        img.onload = () => {
-            const c = document.createElement('canvas');
-            c.width = img.width; c.height = img.height;
-            const ctx = c.getContext('2d')!;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, c.width, c.height);
-            ctx.drawImage(img, 0, 0);
-            resolve(c.toDataURL('image/jpeg', 0.95));
-        };
-        img.src = pngUrl;
-    });
+        const jpegUrl = await new Promise<string>(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.width; c.height = img.height;
+                const ctx = c.getContext('2d')!;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, c.width, c.height);
+                ctx.drawImage(img, 0, 0);
+                resolve(c.toDataURL('image/jpeg', 0.95));
+            };
+            img.src = pngUrl;
+        });
 
-    document.body.removeChild(wrapper);
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [W, H] });
+        pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
+        base64 = pdfToBase64(pdf);
+    } finally {
+        document.body.removeChild(iframe);
+    }
 
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [W, H] });
-    pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
-    return pdfToBase64(pdf);
+    return base64;
 }
 
 /**
