@@ -28,9 +28,16 @@ type CardConfig = {
   orgName?: string;
   orgWebsite?: string;
   footerLeft?: string;
+  footerRight?: string;
   cardLabel?: string;
   headerStyle?: 'band' | 'border' | 'minimal';
   fields?: Array<{ key: string; visible: boolean; label?: string }>;
+  width?: string;
+  height?: string;
+  cornerRadius?: 'sharp' | 'rounded' | 'pill';
+  bgColor?: string;
+  cardOrientation?: 'portrait' | 'landscape';
+  showLogo?: boolean;
 };
 
 type PortalUser = {
@@ -74,14 +81,21 @@ type CardRecord = {
   schoolId: string | null;
 };
 
-const FALLBACK_CONFIG: Omit<Required<CardConfig>, 'fields'> & Pick<CardConfig, 'fields'> = {
-  accentColor: '#ea580c',
+const FALLBACK_CONFIG = {
+  accentColor: '#1A3A8F',
   orgName: 'RILLCOD TECHNOLOGIES',
   orgWebsite: 'www.rillcod.com',
   footerLeft: 'rillcod.com/login',
+  footerRight: 'Student ID',
   cardLabel: 'Access Card',
-  headerStyle: 'band',
-  fields: [],
+  headerStyle: 'band' as 'band' | 'border' | 'minimal',
+  fields: [] as Array<{ key: string; visible: boolean; label?: string }>,
+  width: '54mm',
+  height: '85.6mm',
+  cornerRadius: 'sharp' as 'sharp' | 'rounded' | 'pill',
+  bgColor: '#ffffff',
+  cardOrientation: 'portrait' as 'portrait' | 'landscape',
+  showLogo: true,
 };
 
 export default function IdentityCardsPage() {
@@ -91,7 +105,7 @@ export default function IdentityCardsPage() {
   const [mode, setMode] = useState<StudioMode>('issuance');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [config, setConfig] = useState<Required<Omit<CardConfig,'fields'>> & Pick<CardConfig,'fields'>>(FALLBACK_CONFIG);
+  const [config, setConfig] = useState(FALLBACK_CONFIG);
   const [records, setRecords] = useState<CardRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -120,7 +134,8 @@ export default function IdentityCardsPage() {
       const res = await fetch(`/api/admin/settings?type=${type}`, { cache: 'no-store' });
       const json = await res.json();
       const cfg = json?.config || {};
-      setConfig({ ...FALLBACK_CONFIG, ...cfg });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setConfig({ ...FALLBACK_CONFIG, ...cfg } as any);
     } catch {
       setConfig(FALLBACK_CONFIG);
     }
@@ -387,14 +402,18 @@ export default function IdentityCardsPage() {
     const showExpiryPrint = config.fields?.find(f => f.key === 'expiry')?.visible ?? false;
     const expiryLabelPrint = config.fields?.find(f => f.key === 'expiry')?.label || 'Expiry';
 
+    const cardW = config.width || '54mm';
+    const cardH = config.height || '85.6mm';
+    const bgCol = config.bgColor || '#ffffff';
+
     const html = `<!doctype html><html><head><title>${title}</title>
       <style>
         @page { size: A4 portrait; margin: 8mm; }
         * { box-sizing: border-box; }
-        body { margin:0; font-family: Inter, system-ui, sans-serif; color:#111827; background:#fff; }
+        body { margin:0; font-family: Inter, system-ui, sans-serif; color:#111827; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
         .section-title { font-size:3.5mm; font-weight:900; text-transform:uppercase; letter-spacing:.3mm; color:${acc}; border-bottom:0.5mm solid ${acc}40; padding-bottom:2mm; margin:6mm 0 4mm; }
-        .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:8mm; }
-        .card { width:100%; min-height:62mm; border:1px solid #e5e7eb; display:flex; flex-direction:column; overflow:hidden; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fill, ${cardW}); gap:6mm; justify-content:start; }
+        .card { width:${cardW}; height:${cardH}; border:1px solid #e5e7eb; display:flex; flex-direction:column; overflow:hidden; background:${bgCol}; }
         .hdr-band { background:${acc}; color:#fff; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
         .hdr-border { border-left:2.5mm solid ${acc}; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
         .hdr-min { border-bottom:1px solid #e5e7eb; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
@@ -511,7 +530,7 @@ export default function IdentityCardsPage() {
             }`}
           >
             {/* ── Mini card preview (matches print output) ── */}
-            <div className="bg-white text-[#111] shadow-sm flex-1" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+            <div className="text-[#111] shadow-sm flex-1" style={{ fontFamily: 'Inter, system-ui, sans-serif', backgroundColor: config.bgColor || '#ffffff' }}>
               {/* Header */}
               {hStyle === 'band' && (
                 <div style={{ background: acc, padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -735,53 +754,44 @@ export default function IdentityCardsPage() {
 
         {/* ── Design mode ── */}
         {mode === 'design' && canDesign && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 px-1">
-              <SparklesIcon className="w-4 h-4 text-primary" />
-              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Card Design Templates — customise accent colour, header style, and organisation details</p>
-            </div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              {([
-                {
-                  type: 'student',
-                  label: 'Student Cards',
-                  desc: 'Colour, header style, school name, and footer text for student access cards',
-                  icon: UserGroupIcon,
-                },
-                {
-                  type: 'parent',
-                  label: 'Parent Cards',
-                  desc: 'Separate card design for parents — different accent or header variant from student cards',
-                  icon: UserPlusIcon,
-                },
-                ...(canViewTeacherCards
-                  ? [{ type: 'teacher' as CardType, label: 'Teacher Cards', desc: 'Staff-only card design — customise teacher and administrator card layout', icon: AcademicCapIcon }]
-                  : []),
-              ] as Array<{ type: CardType; label: string; desc: string; icon: any }>).map((item) => {
-                const Icon = item.icon;
-                return (
-                  <article key={item.type} className="bg-card border border-border rounded-xl p-5 space-y-4 group hover:border-primary/30 transition-all">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="w-9 h-9 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+          <div className="space-y-4">
+            <div className="bg-card border border-border rounded-xl p-5 sm:p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                  <SparklesIcon className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black">Card Design</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Customise the look of each card type — colours, header style, and organisation details</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4 leading-relaxed bg-primary/5 border border-primary/15 rounded-xl p-3">
+                Changes saved in the Card Builder are automatically applied when printing from this page. Select a card type below to edit its design.
+              </p>
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {([
+                  { type: 'student', label: 'Student Cards', icon: UserGroupIcon },
+                  { type: 'parent',  label: 'Parent Cards',  icon: UserPlusIcon },
+                  ...(canViewTeacherCards ? [{ type: 'teacher' as CardType, label: 'Teacher Cards', icon: AcademicCapIcon }] : []),
+                ] as Array<{ type: CardType; label: string; icon: any }>).map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.type}
+                      href={`/dashboard/students/card-builder?type=${item.type}`}
+                      className="group flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/40 bg-background hover:bg-primary/5 transition-all"
+                    >
+                      <div className="w-8 h-8 bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
                         <Icon className="w-4 h-4 text-primary" />
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-2 py-1 border border-border">
-                        {item.type}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black">{item.label}</h3>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
-                    </div>
-                    <Link
-                      href={`/dashboard/students/card-builder?type=${item.type}`}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white rounded-xl transition-all w-full justify-center"
-                    >
-                      <SparklesIcon className="w-3.5 h-3.5" /> Open Builder
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-black">{item.label}</div>
+                        <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Edit design →</div>
+                      </div>
                     </Link>
-                  </article>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -822,7 +832,7 @@ export default function IdentityCardsPage() {
             </div>
 
             {/* ── Class filter / sort / group toolbar ── */}
-            <div className="flex flex-wrap items-center gap-3 bg-card border border-border rounded-xl p-3 sm:p-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-card border border-border rounded-xl p-3 sm:p-4">
               <FunnelIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
 
               {/* School filter (role-sensitive) */}
@@ -927,7 +937,7 @@ export default function IdentityCardsPage() {
             </div>
 
             {/* Stats + bulk print bar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border rounded-xl p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-card border border-border rounded-xl p-4">
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-bold">
                 {filtered.length} card holder{filtered.length === 1 ? '' : 's'}
                 {selectedSchool !== 'all' && !schoolLock && (
