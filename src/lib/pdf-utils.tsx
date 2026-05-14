@@ -293,8 +293,22 @@ function pdfToBase64(pdf: any): string {
 /** Return the report as a raw base64 string (no data-URI prefix) for email attachments.
  *  Uses 1× pixel ratio and 0.75 JPEG quality to keep the file well under 4 MB. */
 export async function generateReportPDFBase64(element: HTMLElement, isLandscape = false): Promise<string> {
-    const pdf = await buildPdf(element, isLandscape, 1, 0.75);
-    return pdfToBase64(pdf);
+    // html-to-image can silently produce a blank image when the parent wrapper has
+    // left:-9999px + zIndex:-100. Move parent to top:-9999px (off-top, not off-left)
+    // with a high z-index so the foreignObject renderer sees it correctly.
+    const parent = element.parentElement;
+    const prevCss = parent ? parent.style.cssText : '';
+    if (parent) {
+        parent.style.cssText = 'position:fixed;left:0;top:-9999px;pointer-events:none;z-index:9999;';
+    }
+    // One double-RAF so the browser flushes layout before html-to-image reads dimensions
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    try {
+        const pdf = await buildPdf(element, isLandscape, 1, 0.75);
+        return pdfToBase64(pdf);
+    } finally {
+        if (parent) parent.style.cssText = prevCss;
+    }
 }
 
 /**
@@ -315,7 +329,9 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
 
     const W = 794;
     const container = document.createElement('div');
-    container.style.cssText = `position:fixed;left:-9999px;top:0;width:${W}px;background:#fff;`;
+    // Use top:-9999px (not left:-9999px) — left-offset elements can be clipped by
+    // html-to-image's foreignObject SVG viewport, producing a blank capture.
+    container.style.cssText = `position:fixed;left:0;top:-9999px;width:${W}px;background:#fff;z-index:9999;`;
 
     const styleEl = document.createElement('style');
     styleEl.textContent = css;
@@ -326,7 +342,9 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
     container.appendChild(content);
 
     document.body.appendChild(container);
-    const H = container.scrollHeight;
+    // Flush layout so scrollHeight reflects the rendered content, not 0
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    const H = container.scrollHeight || 1123;
 
     const imgs = container.querySelectorAll('img');
     await Promise.allSettled(
