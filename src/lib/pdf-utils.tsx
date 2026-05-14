@@ -311,7 +311,7 @@ export async function generateReportPDFBase64(element: HTMLElement, isLandscape 
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
     try {
-        const pdf = await buildPdf(clone, isLandscape, 1, 0.75);
+        const pdf = await buildPdf(clone, isLandscape, 1.2, 0.85);
         return pdfToBase64(pdf);
     } finally {
         document.body.removeChild(wrapper);
@@ -335,10 +335,10 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
     const bodyHtml = (bodyMatch?.[1] ?? htmlString).replace(/<script[\s\S]*?<\/script>/gi, '');
 
     const W = 794;
+
+    // Build the content container (no positioning — wrapper handles that)
     const container = document.createElement('div');
-    // Use top:-9999px (not left:-9999px) — left-offset elements can be clipped by
-    // html-to-image's foreignObject SVG viewport, producing a blank capture.
-    container.style.cssText = `position:fixed;left:0;top:-9999px;width:${W}px;background:#fff;z-index:9999;`;
+    container.style.cssText = `width:${W}px;background:#fff;`;
 
     const styleEl = document.createElement('style');
     styleEl.textContent = css;
@@ -348,8 +348,17 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
     content.innerHTML = bodyHtml;
     container.appendChild(content);
 
-    document.body.appendChild(container);
-    // Flush layout so scrollHeight reflects the rendered content, not 0
+    // Use the same near-invisible wrapper pattern as generateReportPDFBase64:
+    // position at left:0,top:0 so html-to-image's SVG renderer is never clipped,
+    // opacity:0.001 so the user doesn't see it. toPng(container) captures the
+    // container at full opacity since opacity is on the wrapper, not the container.
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText =
+        `position:fixed;left:0;top:0;width:${W}px;z-index:99999;pointer-events:none;opacity:0.001;`;
+    wrapper.appendChild(container);
+    document.body.appendChild(wrapper);
+
+    // Let the browser lay out the injected HTML before reading dimensions
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
     const H = container.scrollHeight || 1123;
 
@@ -360,7 +369,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
         )
     );
 
-    const pngUrl = await toPng(container, { pixelRatio: 1, cacheBust: true, width: W, height: H, backgroundColor: '#fff' });
+    const pngUrl = await toPng(container, { pixelRatio: 1.2, cacheBust: true, width: W, height: H, backgroundColor: '#fff' });
 
     const jpegUrl = await new Promise<string>(resolve => {
         const img = new Image();
@@ -371,12 +380,12 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, c.width, c.height);
             ctx.drawImage(img, 0, 0);
-            resolve(c.toDataURL('image/jpeg', 0.75));
+            resolve(c.toDataURL('image/jpeg', 0.85));
         };
         img.src = pngUrl;
     });
 
-    document.body.removeChild(container);
+    document.body.removeChild(wrapper);
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [W, H] });
     pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
