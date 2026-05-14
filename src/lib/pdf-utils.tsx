@@ -293,21 +293,28 @@ function pdfToBase64(pdf: any): string {
 /** Return the report as a raw base64 string (no data-URI prefix) for email attachments.
  *  Uses 1× pixel ratio and 0.75 JPEG quality to keep the file well under 4 MB. */
 export async function generateReportPDFBase64(element: HTMLElement, isLandscape = false): Promise<string> {
-    // html-to-image can silently produce a blank image when the parent wrapper has
-    // left:-9999px + zIndex:-100. Move parent to top:-9999px (off-top, not off-left)
-    // with a high z-index so the foreignObject renderer sees it correctly.
-    const parent = element.parentElement;
-    const prevCss = parent ? parent.style.cssText : '';
-    if (parent) {
-        parent.style.cssText = 'position:fixed;left:0;top:-9999px;pointer-events:none;z-index:9999;';
-    }
-    // One double-RAF so the browser flushes layout before html-to-image reads dimensions
+    const W = isLandscape ? 1122 : 794;
+
+    // Clone the element so we never touch the React-managed DOM node.
+    // The wrapper sits at left:0;top:0 (in the stacking context html-to-image can read)
+    // but is opacity:0.001 so users never see it. The clone itself has full opacity,
+    // so toPng(clone) captures normal content — opacity on the wrapper is irrelevant
+    // because html-to-image only traverses the passed element's subtree.
+    const clone = element.cloneNode(true) as HTMLElement;
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText =
+        `position:fixed;left:0;top:0;width:${W}px;z-index:99999;pointer-events:none;opacity:0.001;`;
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    // Let the browser do one layout pass on the clone before reading its dimensions
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
     try {
-        const pdf = await buildPdf(element, isLandscape, 1, 0.75);
+        const pdf = await buildPdf(clone, isLandscape, 1, 0.75);
         return pdfToBase64(pdf);
     } finally {
-        if (parent) parent.style.cssText = prevCss;
+        document.body.removeChild(wrapper);
     }
 }
 
