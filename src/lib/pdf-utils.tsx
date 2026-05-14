@@ -216,7 +216,7 @@ export const OKLCH_HEX_OVERRIDES = `
 // renderer — no custom CSS parser, so oklch/lab/lch/display-p3 all work natively.
 
 /** Internal: renders element → jsPDF instance (shared by save + blob variants) */
-async function buildPdf(element: HTMLElement, isLandscape = false) {
+async function buildPdf(element: HTMLElement, isLandscape = false, pixelRatio = 1.5, jpegQuality = 0.92) {
     const [{ toPng }, { default: jsPDF }] = await Promise.all([
         import('html-to-image'),
         import('jspdf'),
@@ -235,7 +235,7 @@ async function buildPdf(element: HTMLElement, isLandscape = false) {
     const H = isLandscape ? 794 : element.scrollHeight;
 
     const pngUrl = await toPng(element, {
-        pixelRatio: 1.5,
+        pixelRatio,
         cacheBust: true,
         skipAutoScale: false,
         width: W,
@@ -256,7 +256,7 @@ async function buildPdf(element: HTMLElement, isLandscape = false) {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, c.width, c.height);
             ctx.drawImage(img, 0, 0);
-            resolve(c.toDataURL('image/jpeg', 0.92));
+            resolve(c.toDataURL('image/jpeg', jpegQuality));
         };
         img.src = pngUrl;
     });
@@ -290,9 +290,10 @@ function pdfToBase64(pdf: any): string {
     return btoa(binary);
 }
 
-/** Return the report as a raw base64 string (no data-URI prefix) for email attachments */
+/** Return the report as a raw base64 string (no data-URI prefix) for email attachments.
+ *  Uses 1× pixel ratio and 0.75 JPEG quality to keep the file well under 4 MB. */
 export async function generateReportPDFBase64(element: HTMLElement, isLandscape = false): Promise<string> {
-    const pdf = await buildPdf(element, isLandscape);
+    const pdf = await buildPdf(element, isLandscape, 1, 0.75);
     return pdfToBase64(pdf);
 }
 
@@ -334,7 +335,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
         )
     );
 
-    const pngUrl = await toPng(container, { pixelRatio: 1.5, cacheBust: true, width: W, height: H, backgroundColor: '#fff' });
+    const pngUrl = await toPng(container, { pixelRatio: 1, cacheBust: true, width: W, height: H, backgroundColor: '#fff' });
 
     const jpegUrl = await new Promise<string>(resolve => {
         const img = new Image();
@@ -345,7 +346,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, c.width, c.height);
             ctx.drawImage(img, 0, 0);
-            resolve(c.toDataURL('image/jpeg', 0.92));
+            resolve(c.toDataURL('image/jpeg', 0.75));
         };
         img.src = pngUrl;
     });

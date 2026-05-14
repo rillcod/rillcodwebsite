@@ -5,6 +5,8 @@ import { buildInboxOutboundEmail, isInAppEmail } from '@/lib/email/rillcod-trans
 import type { TablesInsert } from '@/types/supabase';
 import { missingCustomerTags } from '@/lib/api-guards';
 
+export const dynamic = 'force-dynamic';
+
 async function requireStaff() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
