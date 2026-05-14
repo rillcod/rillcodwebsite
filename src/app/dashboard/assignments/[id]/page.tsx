@@ -1516,16 +1516,16 @@ export default function AssignmentDetailPage() {
                 )}
 
                 {/* Questions — visible to staff on main page */}
-                {isStaff && questions.length > 0 && (
+                {isStaff && Array.isArray(assignment.questions) && assignment.questions.length > 0 && (
                     <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                             <h2 className="font-bold text-foreground flex items-center gap-2">
                                 <DocumentTextIcon className="w-4 h-4 text-primary" /> Assignment Questions
                             </h2>
-                            <span className="text-xs text-muted-foreground font-semibold">{questions.length} question{questions.length !== 1 ? 's' : ''} · {assignment.max_points ?? 100} pts total</span>
+                            <span className="text-xs text-muted-foreground font-semibold">{assignment.questions.length} question{assignment.questions.length !== 1 ? 's' : ''} · {assignment.max_points ?? 100} pts total</span>
                         </div>
                         <div className="divide-y divide-border">
-                            {questions.map((q: any, i: number) => (
+                            {assignment.questions.map((q: any, i: number) => (
                                 <div key={i} className="px-6 py-4 space-y-2">
                                     <div className="flex items-start justify-between gap-3">
                                         <p className="text-sm font-semibold text-foreground leading-snug">{i + 1}. {q.question_text}</p>
