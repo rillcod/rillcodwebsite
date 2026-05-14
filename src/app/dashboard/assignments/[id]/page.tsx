@@ -1515,6 +1515,43 @@ export default function AssignmentDetailPage() {
                     </div>
                 )}
 
+                {/* Questions — visible to staff on main page */}
+                {isStaff && questions.length > 0 && (
+                    <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
+                        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                            <h2 className="font-bold text-foreground flex items-center gap-2">
+                                <DocumentTextIcon className="w-4 h-4 text-primary" /> Assignment Questions
+                            </h2>
+                            <span className="text-xs text-muted-foreground font-semibold">{questions.length} question{questions.length !== 1 ? 's' : ''} · {assignment.max_points ?? 100} pts total</span>
+                        </div>
+                        <div className="divide-y divide-border">
+                            {questions.map((q: any, i: number) => (
+                                <div key={i} className="px-6 py-4 space-y-2">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <p className="text-sm font-semibold text-foreground leading-snug">{i + 1}. {q.question_text}</p>
+                                        <span className="text-xs text-muted-foreground flex-shrink-0 font-bold">{q.points ?? 1} pt{(q.points ?? 1) !== 1 ? 's' : ''}</span>
+                                    </div>
+                                    {q.options && Array.isArray(q.options) && q.options.length > 0 && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1">
+                                            {q.options.map((opt: string, oi: number) => (
+                                                <span key={oi} className={`px-3 py-1.5 text-xs rounded-lg border font-medium ${opt === q.correct_answer ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-bold' : 'bg-muted/30 text-muted-foreground border-border'}`}>
+                                                    {String.fromCharCode(65 + oi)}. {opt}
+                                                    {opt === q.correct_answer && <span className="ml-1.5 text-emerald-400">✓</span>}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {q.correct_answer && (!q.options || q.options.length === 0) && (
+                                        <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                                            <CheckIcon className="w-3 h-3" /> Answer: {q.correct_answer}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Teacher Feedback (student view) */}
                 {!isStaff && submission?.feedback && (
                     <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-6">
