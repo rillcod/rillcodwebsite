@@ -4,7 +4,7 @@
  * CurriculumOverviewPrintDoc
  *
  * Official A4 print document for a full curriculum syllabus overview.
- * Rendered hidden in the DOM; becomes visible element when window.print()
+ * Rendered hidden in the DOM; becomes visible only when window.print()
  * is called with printMode === 'overview'.
  */
 
@@ -40,10 +40,31 @@ interface CurriculumDoc {
   };
 }
 
+export interface PrintSectionOptions {
+  terms: number[];           // which term numbers to include
+  showOverview: boolean;
+  showLearningOutcomes: boolean;
+  showAssessmentStrategy: boolean;
+  showMaterials: boolean;
+  showTools: boolean;
+  showApprovalSection: boolean;
+}
+
+export const DEFAULT_PRINT_OPTIONS: PrintSectionOptions = {
+  terms: [1, 2, 3],
+  showOverview: true,
+  showLearningOutcomes: true,
+  showAssessmentStrategy: true,
+  showMaterials: true,
+  showTools: true,
+  showApprovalSection: true,
+};
+
 export interface CurriculumOverviewPrintDocProps {
   curriculum: CurriculumDoc | null;
   programName?: string;
   isActive: boolean;
+  options?: PrintSectionOptions;
 }
 
 function currentAcademicYear(): string {
@@ -64,14 +85,18 @@ function termLabel(n: number): string {
   return n === 1 ? 'First Term' : n === 2 ? 'Second Term' : n === 3 ? 'Third Term' : `Term ${n}`;
 }
 
-export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }: CurriculumOverviewPrintDocProps) {
+export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive, options }: CurriculumOverviewPrintDocProps) {
   if (!curriculum || !isActive) return null;
+
+  const opts: PrintSectionOptions = { ...DEFAULT_PRINT_OPTIONS, ...options };
 
   const school = curriculum.schools?.name ?? null;
   const course = curriculum.content?.course_title || 'Course';
   const ref = docRef(curriculum.id);
   const academicYear = currentAcademicYear();
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const visibleTerms = (curriculum.content?.terms ?? []).filter(t => opts.terms.includes(t.term));
 
   return (
     <>
@@ -127,7 +152,7 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }
             max-width: 100% !important;
             height: auto !important;
           }
-          .print-markdown h1, .print-markdown h2, .print-markdown h3 { 
+          .print-markdown h1, .print-markdown h2, .print-markdown h3 {
             font-weight: 800; color: #111827; margin-top: 1em; margin-bottom: 0.5em; font-size: 1.1em;
           }
           .print-markdown p { font-size: 10.5px; color: #374151; line-height: 1.6; margin-bottom: 0.8em; }
@@ -138,7 +163,7 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }
       `}} />
 
       <div className="curriculum-overview-print-root" style={{ fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif", background: '#fff', color: '#111827', padding: '0' }}>
-        
+
         {/* LETTERHEAD */}
         <div style={{ borderBottom: '2px solid #111827', paddingBottom: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ width: '80px', height: '80px', background: '#fff', border: '1.5px solid #111827', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', flexShrink: 0 }}>
@@ -186,10 +211,18 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }
             <div style={{ fontSize: '8px', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>Authorized School</div>
             <div style={{ fontSize: '11px', fontWeight: 700, color: '#111827' }}>{school || 'Rillcod Managed Academy'}</div>
           </div>
+          <div style={{ borderBottom: '0.5px solid #f3f4f6', paddingBottom: '6px' }}>
+            <div style={{ fontSize: '8px', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>Academic Year</div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#111827' }}>{academicYear}</div>
+          </div>
+          <div style={{ borderBottom: '0.5px solid #f3f4f6', paddingBottom: '6px' }}>
+            <div style={{ fontSize: '8px', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '2px' }}>Syllabus Version</div>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#111827' }}>v{curriculum.version ?? 1}</div>
+          </div>
         </div>
 
         {/* OVERVIEW */}
-        {curriculum.content?.overview && (
+        {opts.showOverview && curriculum.content?.overview && (
           <div style={{ marginBottom: '24px', breakInside: 'avoid' }}>
             <div style={{
               borderLeft: '4px solid #111827',
@@ -213,22 +246,58 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }
           </div>
         )}
 
+        {/* LEARNING OUTCOMES */}
+        {opts.showLearningOutcomes && curriculum.content?.learning_outcomes && curriculum.content.learning_outcomes.length > 0 && (
+          <div style={{ marginBottom: '24px', breakInside: 'avoid' }}>
+            <div style={{
+              borderLeft: '4px solid #111827',
+              background: '#f9fafb',
+              color: '#111827',
+              fontSize: '10px',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              padding: '6px 12px',
+              marginBottom: '10px',
+              borderBottom: '1px solid #e5e7eb'
+            }}>
+              Learning Outcomes
+            </div>
+            <ul style={{ paddingLeft: '20px', margin: 0 }}>
+              {curriculum.content.learning_outcomes.map((o, i) => (
+                <li key={i} style={{ fontSize: '10px', color: '#374151', marginBottom: '4px', lineHeight: 1.5 }}>{o}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* TERMS ITERATION */}
-        {(curriculum.content?.terms || []).map(term => (
+        {visibleTerms.map(term => (
           <div key={term.term} style={{ marginBottom: '32px', breakInside: 'avoid' }}>
-            <div style={{ 
-              background: '#111827', 
-              color: 'white', 
-              fontSize: '11px', 
-              fontWeight: 900, 
-              textTransform: 'uppercase', 
-              letterSpacing: '2px', 
-              padding: '8px 14px', 
-              marginBottom: '12px' 
+            <div style={{
+              background: '#111827',
+              color: 'white',
+              fontSize: '11px',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              padding: '8px 14px',
+              marginBottom: '12px'
             }}>
               {termLabel(term.term)}: {term.title}
             </div>
-            
+
+            {term.objectives && term.objectives.length > 0 && (
+              <div style={{ marginBottom: '10px', paddingLeft: '4px' }}>
+                <div style={{ fontSize: '9px', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '4px' }}>Term Objectives</div>
+                <ul style={{ paddingLeft: '16px', margin: 0 }}>
+                  {term.objectives.map((o, i) => (
+                    <li key={i} style={{ fontSize: '9.5px', color: '#374151', marginBottom: '3px', lineHeight: 1.4 }}>{o}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
               <thead>
                 <tr style={{ background: '#f9fafb', borderBottom: '2px solid #111827', textAlign: 'left' }}>
@@ -247,11 +316,11 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }
                       {(week.subtopics || []).join(' · ')}
                     </td>
                     <td style={{ padding: '8px', textAlign: 'center' }}>
-                      <span style={{ 
-                        fontSize: '7.5px', 
-                        fontWeight: 900, 
-                        textTransform: 'uppercase', 
-                        padding: '2px 8px', 
+                      <span style={{
+                        fontSize: '7.5px',
+                        fontWeight: 900,
+                        textTransform: 'uppercase',
+                        padding: '2px 8px',
                         border: '1px solid #111827',
                         background: week.type === 'lesson' ? '#fff' : '#f9fafb',
                       }}>
@@ -265,27 +334,102 @@ export function CurriculumOverviewPrintDoc({ curriculum, programName, isActive }
           </div>
         ))}
 
-        {/* APPROVAL SECTION */}
-        <div style={{ marginTop: 'auto', paddingTop: '40px', breakInside: 'avoid' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '30px' }}>
-            {[
-              { role: 'Course Developer', name: '' },
-              { role: 'Curriculum Auditor', name: '' },
-              { role: 'Quality Assurance', name: '' },
-            ].map(({ role }) => (
-              <div key={role} style={{ textAlign: 'center' }}>
-                <div style={{ height: '40px', borderBottom: '1px solid #111827', marginBottom: '6px' }}></div>
-                <div style={{ fontSize: '8px', fontWeight: 800, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{role}</div>
-                <div style={{ fontSize: '7px', color: '#9ca3af', marginTop: '2px' }}>Date & Signature</div>
-              </div>
-            ))}
+        {/* ASSESSMENT STRATEGY */}
+        {opts.showAssessmentStrategy && curriculum.content?.assessment_strategy && (
+          <div style={{ marginBottom: '24px', breakInside: 'avoid' }}>
+            <div style={{
+              borderLeft: '4px solid #111827',
+              background: '#f9fafb',
+              color: '#111827',
+              fontSize: '10px',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              padding: '6px 12px',
+              marginBottom: '10px',
+              borderBottom: '1px solid #e5e7eb'
+            }}>
+              Assessment Strategy
+            </div>
+            <p style={{ fontSize: '10px', color: '#374151', lineHeight: 1.6, padding: '0 8px' }}>
+              {curriculum.content.assessment_strategy}
+            </p>
           </div>
-        </div>
+        )}
+
+        {/* MATERIALS */}
+        {opts.showMaterials && curriculum.content?.materials_required && curriculum.content.materials_required.length > 0 && (
+          <div style={{ marginBottom: '16px', breakInside: 'avoid' }}>
+            <div style={{
+              borderLeft: '4px solid #111827',
+              background: '#f9fafb',
+              color: '#111827',
+              fontSize: '10px',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              padding: '6px 12px',
+              marginBottom: '10px',
+              borderBottom: '1px solid #e5e7eb'
+            }}>
+              Materials Required
+            </div>
+            <ul style={{ paddingLeft: '20px', margin: 0 }}>
+              {curriculum.content.materials_required.map((m, i) => (
+                <li key={i} style={{ fontSize: '10px', color: '#374151', marginBottom: '4px' }}>{m}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* TOOLS */}
+        {opts.showTools && curriculum.content?.recommended_tools && curriculum.content.recommended_tools.length > 0 && (
+          <div style={{ marginBottom: '24px', breakInside: 'avoid' }}>
+            <div style={{
+              borderLeft: '4px solid #111827',
+              background: '#f9fafb',
+              color: '#111827',
+              fontSize: '10px',
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              padding: '6px 12px',
+              marginBottom: '10px',
+              borderBottom: '1px solid #e5e7eb'
+            }}>
+              Recommended Tools & Resources
+            </div>
+            <ul style={{ paddingLeft: '20px', margin: 0 }}>
+              {curriculum.content.recommended_tools.map((t, i) => (
+                <li key={i} style={{ fontSize: '10px', color: '#374151', marginBottom: '4px' }}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* APPROVAL SECTION */}
+        {opts.showApprovalSection && (
+          <div style={{ marginTop: 'auto', paddingTop: '40px', breakInside: 'avoid' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '30px' }}>
+              {[
+                { role: 'Course Developer' },
+                { role: 'Curriculum Auditor' },
+                { role: 'Quality Assurance' },
+              ].map(({ role }) => (
+                <div key={role} style={{ textAlign: 'center' }}>
+                  <div style={{ height: '40px', borderBottom: '1px solid #111827', marginBottom: '6px' }}></div>
+                  <div style={{ fontSize: '8px', fontWeight: 800, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{role}</div>
+                  <div style={{ fontSize: '7px', color: '#9ca3af', marginTop: '2px' }}>Date & Signature</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* FOOTER */}
         <div style={{ marginTop: '40px', borderTop: '1px solid #e5e7eb', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: '8px', color: '#9ca3af', fontWeight: 600 }}>
-            © {new Date().getFullYear()} RILLCOD TECHNOLOGIES&nbsp;&nbsp;·&nbsp;&nbsp;OFFICIAL COURSE SPECIFICATION&nbsp;&nbsp;·&nbsp;&nbsp;PAGE 1 OF 1
+            © {new Date().getFullYear()} RILLCOD TECHNOLOGIES&nbsp;&nbsp;·&nbsp;&nbsp;OFFICIAL COURSE SPECIFICATION
           </div>
           <div style={{ fontSize: '8px', color: '#9ca3af', fontFamily: 'monospace' }}>
             ID: {curriculum.id.slice(0, 8)} &nbsp;·&nbsp; VER: {curriculum.version ?? 1}

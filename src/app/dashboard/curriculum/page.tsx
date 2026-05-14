@@ -24,7 +24,7 @@ import {
   type SyllabusPreviewRole,
 } from '@/components/curriculum/SyllabusPreview';
 import { CurriculumPrintDoc } from '@/components/curriculum/CurriculumPrintDoc';
-import { CurriculumOverviewPrintDoc } from '@/components/curriculum/CurriculumOverviewPrintDoc';
+import { CurriculumOverviewPrintDoc, DEFAULT_PRINT_OPTIONS, type PrintSectionOptions } from '@/components/curriculum/CurriculumOverviewPrintDoc';
 import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 
@@ -55,6 +55,13 @@ function currentAcademicYear(): string {
   const now = new Date();
   const y = now.getFullYear();
   return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+}
+
+function getCurrentTerm(): number {
+  const m = new Date().getMonth() + 1;
+  if (m >= 9) return 1;  // Sept–Dec → First Term
+  if (m >= 5) return 3;  // May–Aug → Third Term
+  return 2;               // Jan–Apr → Second Term
 }
 
 function termDatesNg(term: string, academicYear: string): { start: string; end: string } | null {
@@ -191,7 +198,7 @@ export default function CurriculumPage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [curriculum, setCurriculum] = useState<CurriculumDoc | null>(null);
   const [tracking, setTracking] = useState<WeekTracking[]>([]);
-  const [activeTerm, setActiveTerm] = useState(1);
+  const [activeTerm, setActiveTerm] = useState(getCurrentTerm);
   const [activeWeek, setActiveWeek] = useState<CurriculumWeek | null>(null);
   const [loadingCurr, setLoadingCurr] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
@@ -282,6 +289,8 @@ export default function CurriculumPage() {
   const [implementationList, setImplementationList] = useState<any[]>([]);
   const [globalImplementationList, setGlobalImplementationList] = useState<any[]>([]);
   const [printMode, setPrintMode] = useState<'week' | 'overview'>('week');
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [printOptions, setPrintOptions] = useState<PrintSectionOptions>(DEFAULT_PRINT_OPTIONS);
   // For teachers with multiple classes using this syllabus — which class context to track against
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [deletingImpl, setDeletingImpl] = useState<string | null>(null);
@@ -1418,6 +1427,13 @@ export default function CurriculumPage() {
     setTimeout(() => window.print(), 50);
   }
 
+  function openPrintOptions() {
+    // Pre-populate the term list from available terms in the curriculum
+    const availableTerms = (curriculum?.content?.terms ?? []).map(t => t.term);
+    setPrintOptions(o => ({ ...o, terms: availableTerms.length ? availableTerms : [1, 2, 3] }));
+    setShowPrintOptions(true);
+  }
+
   function pdfFileName(title: string): string {
     const stem = `${title || 'curriculum'}`
       .toLowerCase()
@@ -1533,15 +1549,15 @@ export default function CurriculumPage() {
           bullets(assessment.coverage);
         }
       } else {
-        if (content?.overview) {
+        if (printOptions.showOverview && content?.overview) {
           heading('Overview');
           text(content.overview, 9);
         }
-        if (content?.learning_outcomes?.length) {
+        if (printOptions.showLearningOutcomes && content?.learning_outcomes?.length) {
           heading('Learning Outcomes');
           bullets(content.learning_outcomes);
         }
-        (content?.terms ?? []).forEach((term) => {
+        (content?.terms ?? []).filter(term => printOptions.terms.includes(term.term)).forEach((term) => {
           heading(`${TERM_LABEL[term.term] ?? `Term ${term.term}`}: ${term.title}`);
           if (term.objectives?.length) {
             text('Term Objectives', 10, 'bold');
@@ -1554,15 +1570,15 @@ export default function CurriculumPage() {
             if (week.subtopics?.length) text(`Coverage: ${week.subtopics.join(', ')}`, 8);
           });
         });
-        if (content?.assessment_strategy) {
+        if (printOptions.showAssessmentStrategy && content?.assessment_strategy) {
           heading('Assessment Strategy');
           text(content.assessment_strategy, 9);
         }
-        if (content?.materials_required?.length) {
+        if (printOptions.showMaterials && content?.materials_required?.length) {
           heading('Materials Required');
           bullets(content.materials_required);
         }
-        if (content?.recommended_tools?.length) {
+        if (printOptions.showTools && content?.recommended_tools?.length) {
           heading('Recommended Tools');
           bullets(content.recommended_tools);
         }
@@ -1761,8 +1777,86 @@ export default function CurriculumPage() {
         curriculum={curriculum as any}
         programName={selectedProgram?.name}
         isActive={printMode === 'overview'}
+        options={printOptions}
       />
     </div>
+    {/* Print Options Modal */}
+    {showPrintOptions && curriculum && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm print:hidden">
+        <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+          <h3 className="text-sm font-black uppercase tracking-widest mb-1">Print / Export Options</h3>
+          <p className="text-xs text-muted-foreground mb-5">Choose which sections to include in the output.</p>
+
+          {/* Terms */}
+          <div className="space-y-2 mb-4">
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Terms to include</p>
+            <div className="flex flex-wrap gap-2">
+              {(curriculum.content?.terms ?? []).sort((a, b) => a.term - b.term).map(t => (
+                <label key={t.term} className="flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={printOptions.terms.includes(t.term)}
+                    onChange={e => setPrintOptions(o => ({
+                      ...o,
+                      terms: e.target.checked ? [...o.terms, t.term] : o.terms.filter(x => x !== t.term)
+                    }))}
+                  />
+                  {TERM_LABEL[t.term] ?? `Term ${t.term}`}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div className="space-y-2 mb-6">
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Sections</p>
+            <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+              {([
+                { key: 'showOverview', label: 'Overview' },
+                { key: 'showLearningOutcomes', label: 'Learning Outcomes' },
+                { key: 'showAssessmentStrategy', label: 'Assessment Strategy' },
+                { key: 'showMaterials', label: 'Materials Required' },
+                { key: 'showTools', label: 'Recommended Tools' },
+                { key: 'showApprovalSection', label: 'Approval Signatures' },
+              ] as { key: keyof PrintSectionOptions; label: string }[]).map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="rounded"
+                    checked={!!printOptions[key]}
+                    onChange={e => setPrintOptions(o => ({ ...o, [key]: e.target.checked }))}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setShowPrintOptions(false); printOverview(); }}
+              className="flex-1 py-2.5 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-xl"
+            >
+              Print
+            </button>
+            <button
+              onClick={() => { setShowPrintOptions(false); exportCurriculumPdf('overview'); }}
+              className="flex-1 py-2.5 border border-border text-xs font-black uppercase tracking-widest rounded-xl hover:bg-muted"
+            >
+              Export PDF
+            </button>
+            <button
+              onClick={() => setShowPrintOptions(false)}
+              className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <div className="flex flex-col min-h-screen bg-background text-foreground print:hidden">
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-card z-20">
@@ -1880,24 +1974,20 @@ export default function CurriculumPage() {
               </button>
             </div>
           </div>
-          {/* Quick term jump on mobile — only when a syllabus is loaded */}
-          {curriculum && curriculum.content.terms && curriculum.content.terms.length > 1 && (
-            <div className="flex gap-1.5 overflow-x-auto px-4 pb-2 snap-x -mx-px">
-              {curriculum.content.terms.map((t) => {
-                const active = t.term === activeTerm;
-                return (
-                  <button
-                    key={t.term}
-                    onClick={() => setActiveTerm(t.term)}
-                    className={`snap-start shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition ${active
-                      ? 'bg-primary/15 border-primary/40 text-primary'
-                      : 'bg-muted/20 border-border text-muted-foreground'
-                      }`}
-                  >
-                    T{t.term} {TERM_LABEL[t.term] ? `· ${TERM_LABEL[t.term].split(' ')[0]}` : ''}
-                  </button>
-                );
-              })}
+          {/* Quick term jump on mobile — dropdown when a syllabus is loaded */}
+          {curriculum && curriculum.content.terms && curriculum.content.terms.length > 0 && (
+            <div className="px-4 pb-2">
+              <select
+                value={activeTerm}
+                onChange={e => { setActiveTerm(Number(e.target.value)); setActiveWeek(null); }}
+                className="w-full px-3 py-1.5 bg-muted/30 border border-border rounded-lg text-xs font-black uppercase tracking-widest text-primary focus:outline-none focus:border-primary transition-all"
+              >
+                {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(t => (
+                  <option key={t.term} value={t.term} className="bg-background text-foreground">
+                    {TERM_LABEL[t.term] ?? `Term ${t.term}`}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
@@ -2447,8 +2537,6 @@ export default function CurriculumPage() {
                           {curriculum.content.course_title}
                         </h1>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
-                          <span className="text-foreground font-bold px-2 py-0.5 bg-muted/30 rounded border border-border">v{curriculum.version}</span>
-                          <span className="w-1 h-1 rounded-full bg-white/20" />
                           <span className="flex items-center gap-1.5"><BookOpenIcon className="w-3.5 h-3.5" /> {termCount} Terms</span>
                           <span className="w-1 h-1 rounded-full bg-white/20" />
                           <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3.5 h-3.5" /> Updated {new Date(curriculum.created_at).toLocaleDateString()}</span>
@@ -2471,12 +2559,12 @@ export default function CurriculumPage() {
                       )}
                     </div>
                     <div className="flex flex-col gap-4">
-                      {/* Top Row: View & Context */}
+                      {/* Top Row: Version + Preview-as */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Version switcher */}
-                        {canGenerate && curriculumList.length > 1 && (
+                        {/* Version/scope selector — always shown so user knows which version is active */}
+                        {canGenerate && curriculumList.length > 0 && (
                           <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[36px] backdrop-blur-sm">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">v{curriculum.version}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">Version</span>
                             <select
                               value={curriculum.id}
                               onChange={(e) => selectCurriculumVersion(e.target.value)}
@@ -2484,27 +2572,26 @@ export default function CurriculumPage() {
                             >
                               {curriculumList.map((c) => (
                                 <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                  {c.school_id ? `v${c.version} — ${c.schools?.name ?? 'School'}` : `v${c.version} — Shared template`}
+                                  {c.school_id ? `${c.schools?.name ?? 'School'} — v${c.version}` : `Platform template — v${c.version}`}
                                 </option>
                               ))}
                             </select>
                           </div>
                         )}
 
-                        {/* Preview as role — see the syllabus through a student's / school's eyes */}
+                        {/* Preview as role — Student & Parent show same learner view */}
                         {canGenerate && (
                           <div className="inline-flex rounded-lg border border-white/10 overflow-hidden bg-card/50 backdrop-blur-sm h-[36px]">
                             <span className="hidden sm:flex items-center text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground px-3 border-r border-white/10">
-                              View as
+                              Preview
                             </span>
                             {([
-                              { role: 'student', label: 'Student' },
-                              { role: 'parent', label: 'Parent' },
-                              { role: 'school', label: 'School admin' },
+                              { role: 'student', label: 'Learner view' },
+                              { role: 'school', label: 'School view' },
                             ] as { role: SyllabusPreviewRole; label: string }[]).map(({ role: r, label }) => (
                               <button
                                 key={r}
-                                onClick={() => setPreviewRole(r)}
+                                onClick={() => setPreviewRole(r === previewRole ? null : r)}
                                 className={`px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors border-r border-white/10 last:border-0 ${previewRole === r ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
                               >
                                 {label}
@@ -2544,18 +2631,10 @@ export default function CurriculumPage() {
 
                         <div className="flex items-center gap-2 border-l border-white/10 pl-2 ml-1">
                           <button
-                            onClick={printOverview}
+                            onClick={openPrintOptions}
                             className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            <PrinterIcon className="w-3.5 h-3.5" /> Print Syllabus
-                          </button>
-                          <button
-                            onClick={() => exportCurriculumPdf('overview')}
-                            disabled={exportingPdf}
-                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                          >
-                            {exportingPdf ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5" />}
-                            Export PDF
+                            <PrinterIcon className="w-3.5 h-3.5" /> Print / Export
                           </button>
                           <Link
                             href="/dashboard/curriculum/progress"
@@ -2586,30 +2665,28 @@ export default function CurriculumPage() {
                     </div>
                   </div>
 
-                  {/* Term tabs */}
+                  {/* Term selector */}
                   {termCount > 0 && (
-                    <div className="flex gap-2 bg-white/5 border border-white/10 p-1.5 w-fit rounded-xl backdrop-blur-sm">
-                      {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
-                        const termTracking = tracking.filter(t => t.term_number === term.term);
-                        const termWeeks = term.weeks?.length ?? 0;
-                        const termDone = termTracking.filter(t => t.status === 'completed').length;
-                        const active = activeTerm === term.term;
-                        return (
-                          <button
-                            key={term.term}
-                            onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
-                            className={`relative flex flex-col items-center px-6 py-2.5 rounded-lg transition-all duration-300 ${active
-                              ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                              }`}
-                          >
-                            <span className="text-xs font-black uppercase tracking-[0.1em]">Term {term.term}</span>
-                            <span className={`text-[9px] font-black uppercase tracking-widest mt-0.5 opacity-60`}>
-                              {termDone}/{termWeeks} taught
-                            </span>
-                          </button>
-                        );
-                      })}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[36px] backdrop-blur-sm">
+                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">Term</span>
+                        <select
+                          value={activeTerm}
+                          onChange={e => { setActiveTerm(Number(e.target.value)); setActiveWeek(null); }}
+                          className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-6 h-full cursor-pointer"
+                        >
+                          {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
+                            const tw = tracking.filter(t => t.term_number === term.term);
+                            const termWeeks = term.weeks?.length ?? 0;
+                            const termDone = tw.filter(t => t.status === 'completed').length;
+                            return (
+                              <option key={term.term} value={term.term} className="bg-[#0a0a0a] text-foreground">
+                                {TERM_LABEL[term.term] ?? `Term ${term.term}`} — {termDone}/{termWeeks} taught
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
                     </div>
                   )}
 
@@ -3537,19 +3614,11 @@ export default function CurriculumPage() {
                         <span className="text-xs font-bold">Export Week PDF</span>
                       </button>
                       <button
-                        onClick={printOverview}
+                        onClick={openPrintOptions}
                         className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
                       >
                         <PrinterIcon className="w-4 h-4" />
-                        <span className="text-xs font-bold">Print Syllabus</span>
-                      </button>
-                      <button
-                        onClick={() => exportCurriculumPdf('overview')}
-                        disabled={exportingPdf}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5 disabled:opacity-50"
-                      >
-                        {exportingPdf ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
-                        <span className="text-xs font-bold">Export Syllabus PDF</span>
+                        <span className="text-xs font-bold">Print / Export Syllabus</span>
                       </button>
                     </div>
                   </div>

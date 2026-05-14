@@ -64,11 +64,11 @@ interface OperationsHubProps {
  * Day-to-day viewing for any role lives at /dashboard/money.
  * Admin audit lives at /dashboard/finance/reconciliation.
  */
-export function OperationsHub({ embedded = false, defaultTab = 'approvals' }: OperationsHubProps) {
+export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: OperationsHubProps) {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
-  const [tab, setTab] = useState<OpsTab>(isSchool ? 'invoices' : defaultTab);
+  const [tab, setTab] = useState<OpsTab>(defaultTab);
 
   if (!isAdmin && !isSchool) {
     return (

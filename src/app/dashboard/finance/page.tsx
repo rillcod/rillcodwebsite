@@ -384,12 +384,15 @@ function OverviewTab({ profile }: { profile: any }) {
   const load = useCallback(async () => {
     setLoading(true);
     const db = createClient();
-    const isSchool = profile?.role === 'school';
 
-    let invQ = db.from('invoices').select('id, amount, currency, status, due_date, created_at, invoice_number, school_id, portal_user_id');
-    if (isSchool && profile?.school_id) invQ = invQ.eq('school_id', profile.school_id);
-    const { data: invData } = await invQ.order('created_at', { ascending: false }).limit(200);
-    setInvoices((invData ?? []) as Invoice[]);
+    // Use API route (service role) so RLS doesn't filter out school invoices for admin
+    try {
+      const res = await fetch('/api/invoices?limit=200', { cache: 'no-store' });
+      if (res.ok) {
+        const j = await res.json();
+        setInvoices((j.data ?? []) as Invoice[]);
+      }
+    } catch { /* ignore */ }
 
     if (isAdmin) {
       const { data: sc } = await db.from('schools').select('id, name').eq('status', 'approved');

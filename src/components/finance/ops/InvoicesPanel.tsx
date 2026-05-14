@@ -476,11 +476,11 @@ export function InvoicesPanel() {
                     <EyeIcon className="w-3 h-3" /> View
                   </button>
 
-                  {canManageInvoices && inv.status !== 'paid' && (
+                  {canManageInvoices && (
                     <Link
                       href={`/dashboard/payments/invoices/${inv.id}/edit`}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title="Edit line items"
+                      title="Edit invoice"
                     >
                       <PencilSquareIcon className="w-3 h-3" /> Edit
                     </Link>

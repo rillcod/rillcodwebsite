@@ -173,7 +173,7 @@ function LessonPlansPageInner() {
 
   const [form, setForm] = useState({
     academic_year: currentAcademicYear(),
-    term: qpTerm ?? '',
+    term: qpTerm ?? getCurrentTermLabel(),
     program_id: qpProgramId ?? '',
     course_id: qpCourseId ?? '',
     class_id: qpClassId ?? '',
@@ -312,7 +312,7 @@ function LessonPlansPageInner() {
   function resetForm() {
     setForm({
       academic_year: currentAcademicYear(),
-      term: '',
+      term: getCurrentTermLabel(),
       program_id: filterProgramId,
       course_id: '',
       class_id: '',
@@ -1010,22 +1010,16 @@ function LessonPlansPageInner() {
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Term</label>
-                <div className="grid grid-cols-3 gap-2">
+                <select
+                  value={form.term}
+                  onChange={e => setForm(f => ({ ...f, term: e.target.value }))}
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-all"
+                >
+                  <option value="">— Select a term —</option>
                   {(['First Term', 'Second Term', 'Third Term'] as const).map(t => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, term: t }))}
-                      className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
-                        form.term === t
-                          ? 'bg-primary border-primary text-white'
-                          : 'bg-background border-border text-muted-foreground hover:text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      {t.split(' ')[0]}
-                    </button>
+                    <option key={t} value={t}>{t}</option>
                   ))}
-                </div>
+                </select>
               </div>
 
               <div className="space-y-2">
