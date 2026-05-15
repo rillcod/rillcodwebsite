@@ -1526,13 +1526,29 @@ export default function CurriculumPage() {
       const pageHeight = doc.internal.pageSize.getHeight();
       let y = margin;
 
+      // Theme-aware PDF colors
+      const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+      const primaryRgb: [number, number, number] = isDark ? [26, 58, 143] : [59, 111, 232];
+      const bodyBg: [number, number, number] = isDark ? [10, 10, 20] : [255, 255, 255];
+      const bodyText: [number, number, number] = isDark ? [229, 231, 235] : [17, 24, 39];
+      const mutedText: [number, number, number] = isDark ? [107, 114, 128] : [75, 85, 99];
+
+      if (isDark) {
+        doc.setFillColor(...bodyBg);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+      }
+
       const addPageIfNeeded = (needed = 12) => {
         if (y + needed > pageHeight - margin) {
           doc.addPage();
+          if (isDark) {
+            doc.setFillColor(...bodyBg);
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+          }
           y = margin;
         }
       };
-      const text = (value: string, size = 10, style: 'normal' | 'bold' = 'normal', color: [number, number, number] = [17, 24, 39]) => {
+      const text = (value: string, size = 10, style: 'normal' | 'bold' = 'normal', color: [number, number, number] = bodyText) => {
         addPageIfNeeded(size * 0.8);
         doc.setFont('helvetica', style);
         doc.setFontSize(size);
@@ -1543,7 +1559,7 @@ export default function CurriculumPage() {
       };
       const heading = (value: string) => {
         addPageIfNeeded(16);
-        doc.setFillColor(17, 24, 39);
+        doc.setFillColor(...primaryRgb);
         doc.rect(margin, y, pageWidth - margin * 2, 8, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
@@ -1563,16 +1579,16 @@ export default function CurriculumPage() {
       const course = content?.course_title || selectedCourse?.title || 'Curriculum';
       const school = curriculum.schools?.name || 'Rillcod Managed Academy';
 
-      doc.setTextColor(17, 24, 39);
+      doc.setTextColor(...bodyText);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
       doc.text('RILLCOD TECHNOLOGIES', margin, y);
       y += 7;
       doc.setFontSize(9);
-      doc.setTextColor(75, 85, 99);
+      doc.setTextColor(...mutedText);
       doc.text('Official Curriculum Export', margin, y);
       y += 8;
-      doc.setDrawColor(17, 24, 39);
+      doc.setDrawColor(...primaryRgb);
       doc.line(margin, y, pageWidth - margin, y);
       y += 10;
 
@@ -1998,22 +2014,6 @@ export default function CurriculumPage() {
               </button>
             </div>
           </div>
-          {/* Quick term jump on mobile — dropdown when a syllabus is loaded */}
-          {curriculum && curriculum.content.terms && curriculum.content.terms.length > 0 && (
-            <div className="px-4 pb-2">
-              <select
-                value={activeTerm}
-                onChange={e => { setActiveTerm(Number(e.target.value)); setActiveWeek(null); }}
-                className="w-full px-3 py-1.5 bg-muted/30 border border-border rounded-lg text-xs font-black uppercase tracking-widest text-primary focus:outline-none focus:border-primary transition-all"
-              >
-                {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(t => (
-                  <option key={t.term} value={t.term} className="bg-background text-foreground">
-                    {t.term === getCurrentTerm() ? '▶ ' : ''}{TERM_LABEL[t.term] ?? `Term ${t.term}`}{t.title ? ` · ${t.title}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
 
         {/* ── Left Sidebar — Programs & Courses ── */}
@@ -2389,7 +2389,7 @@ export default function CurriculumPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <h1 className="text-4xl font-black leading-tight tracking-tighter text-foreground">
+                        <h1 className="text-2xl sm:text-4xl font-black leading-tight tracking-tighter text-foreground">
                           {selectedCourse.title}
                         </h1>
                         <p className="text-sm text-muted-foreground font-medium max-w-xl">
@@ -2514,7 +2514,7 @@ export default function CurriculumPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <h1 className="text-4xl font-black leading-tight tracking-tighter text-foreground">
+                        <h1 className="text-2xl sm:text-4xl font-black leading-tight tracking-tighter text-foreground">
                           {curriculum.content.course_title}
                         </h1>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
@@ -2575,67 +2575,61 @@ export default function CurriculumPage() {
 
                       </div>
 
-                      {/* Bottom Row: Actions */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      {/* Action buttons — wrap on mobile */}
+                      <div className="flex flex-wrap gap-2">
                         {canModifyCurriculum && (
                           <button
                             onClick={openGenerateModal}
-                            className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20"
+                            className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20 shrink-0"
                           >
                             <SparklesIcon className="w-3.5 h-3.5" /> Generate New Version
                           </button>
                         )}
-
                         {canPublish && (
-                          <div className="flex items-center gap-2">
-                            {curriculum.is_visible_to_school ? (
-                              <button
-                                onClick={() => togglePublish(false)}
-                                disabled={publishing}
-                                className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg"
-                                title="Make private — hide from students and school staff"
-                              >
-                                {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PencilIcon className="w-3.5 h-3.5" />}
-                                Make Private
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => togglePublish(true)}
-                                disabled={publishing}
-                                className="flex items-center gap-2 px-5 py-2 text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 transition-all rounded-lg"
-                                title="Share this syllabus so students and school staff can see it"
-                              >
-                                {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
-                                Share with School
-                              </button>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2 border-l border-white/10 pl-2 ml-1">
-                          <button
-                            onClick={openPrintOptions}
-                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <PrinterIcon className="w-3.5 h-3.5" /> Print / Export
-                          </button>
-                          <Link
-                            href="/dashboard/curriculum/progress"
-                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <ChartBarIcon className="w-3.5 h-3.5" /> Reports
-                          </Link>
-                          {(isAdmin || (isTeacher && !!curriculum.school_id)) && (
+                          curriculum.is_visible_to_school ? (
                             <button
-                              onClick={handleDeleteCurriculum}
-                              disabled={deleting}
-                              className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50"
+                              onClick={() => togglePublish(false)}
+                              disabled={publishing}
+                              className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg shrink-0"
+                              title="Make private — hide from students and school staff"
                             >
-                              {deleting ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
-                              Delete
+                              {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PencilIcon className="w-3.5 h-3.5" />}
+                              Make Private
                             </button>
-                          )}
-                        </div>
+                          ) : (
+                            <button
+                              onClick={() => togglePublish(true)}
+                              disabled={publishing}
+                              className="flex items-center gap-2 px-5 py-2 text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 transition-all rounded-lg shrink-0"
+                              title="Share this syllabus so students and school staff can see it"
+                            >
+                              {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
+                              Share with School
+                            </button>
+                          )
+                        )}
+                        <button
+                          onClick={openPrintOptions}
+                          className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0"
+                        >
+                          <PrinterIcon className="w-3.5 h-3.5" /> Print / Export
+                        </button>
+                        <Link
+                          href="/dashboard/curriculum/progress"
+                          className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg shrink-0"
+                        >
+                          <ChartBarIcon className="w-3.5 h-3.5" /> Reports
+                        </Link>
+                        {(isAdmin || (isTeacher && !!curriculum.school_id)) && (
+                          <button
+                            onClick={handleDeleteCurriculum}
+                            disabled={deleting}
+                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0"
+                          >
+                            {deleting ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
