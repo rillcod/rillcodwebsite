@@ -33,14 +33,29 @@ const CURRICULUM_MODELS = [
   'google/gemini-2.0-flash-lite-001',  // Emergency fallback
 ];
 
+const NG_TERM_LABEL: Record<number, string> = {
+  1: 'First Term (Sept–Dec)',
+  2: 'Second Term (Jan–Apr)',
+  3: 'Third Term (May–Aug)',
+};
+const NG_TERM_THEME: Record<number, string> = {
+  1: 'Foundations — core concepts and introductory projects',
+  2: 'Application — deeper skills and guided projects',
+  3: 'Innovation — real-world projects and peer presentations',
+};
+
 function buildCurriculumPrompt(
   courseName: string,
   gradeLevel: string,
   subjectArea: string,
-  termCount: number,
+  selectedTerms: number[],
   weeksPerTerm: number,
   notes?: string,
 ): string {
+  const termLines = selectedTerms
+    .map((t) => `  - Term ${t}: ${NG_TERM_LABEL[t] ?? `Term ${t}`} — theme: ${NG_TERM_THEME[t] ?? 'Progressive content'}`)
+    .join('\n');
+
   return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy serving Nigerian partner schools (KG to SS3).
 
 Your task: Design a COMPLETE, INNOVATIVE, and READY-TO-TEACH school curriculum.
@@ -48,9 +63,12 @@ Your task: Design a COMPLETE, INNOVATIVE, and READY-TO-TEACH school curriculum.
 Course: "${courseName}"
 Grade Level: ${gradeLevel}
 Subject Area: ${subjectArea}
-Academic Terms: ${termCount}
+Terms to generate (${selectedTerms.length}):
+${termLines}
 Weeks Per Term: ${weeksPerTerm}
 ${notes ? `Special Notes: ${notes}` : ''}
+
+IMPORTANT: Generate ONLY the terms listed above. Use the exact term numbers given (e.g. if only Term 3 is listed, output a single term with "term": 3).
 
 ASSESSMENT SCHEDULE (mandatory every term):
 - Week 3: First Assessment (type: "assessment")
@@ -279,13 +297,22 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes } = body;
+  const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes, selected_terms } = body;
   if (!course_name) return NextResponse.json({ error: 'course_name is required' }, { status: 400 });
   if (!course_id) return NextResponse.json({ error: 'course_id is required' }, { status: 400 });
-  const tc = Number(term_count ?? 3);
   const wpt = Number(weeks_per_term ?? 8);
-  if (!Number.isInteger(tc) || tc < 1 || tc > 3) return NextResponse.json({ error: 'term_count must be 1–3' }, { status: 400 });
   if (!Number.isInteger(wpt) || wpt < 6) return NextResponse.json({ error: 'weeks_per_term must be at least 6' }, { status: 400 });
+
+  // Resolve which terms to generate: prefer explicit selected_terms array, fall back to legacy term_count
+  let termNums: number[];
+  if (Array.isArray(selected_terms) && selected_terms.length > 0) {
+    termNums = (selected_terms as number[]).map(Number).filter((n) => [1, 2, 3].includes(n)).sort();
+    if (!termNums.length) return NextResponse.json({ error: 'selected_terms must include at least one of 1, 2, 3' }, { status: 400 });
+  } else {
+    const tc = Number(term_count ?? 3);
+    if (!Number.isInteger(tc) || tc < 1 || tc > 3) return NextResponse.json({ error: 'term_count must be 1–3' }, { status: 400 });
+    termNums = Array.from({ length: tc }, (_, i) => i + 1);
+  }
 
   // ── Target school: one syllabus row per (course_id, school_id) — unique in DB.
   // - `school_id` omitted → admin defaults to platform (null); teacher defaults to profile.school_id.
@@ -334,7 +361,7 @@ export async function POST(req: NextRequest) {
     course_name,
     grade_level ?? 'JSS1',
     subject_area ?? 'STEM / Coding',
-    tc,
+    termNums,
     wpt,
     notes,
   );

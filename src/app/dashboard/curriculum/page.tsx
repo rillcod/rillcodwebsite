@@ -266,10 +266,18 @@ export default function CurriculumPage() {
   const [form, setForm] = useState({
     grade_level: 'JSS1',
     subject_area: '',
-    term_count: '3',
     weeks_per_term: '8',
     notes: '',
   });
+  const [selectedTerms, setSelectedTerms] = useState<number[]>([1, 2, 3]);
+
+  function toggleTerm(t: number) {
+    setSelectedTerms((prev) =>
+      prev.includes(t)
+        ? prev.length > 1 ? prev.filter((x) => x !== t) : prev  // keep at least one
+        : [...prev, t].sort((a, b) => a - b),
+    );
+  }
 
   // Optional QA week spine: show DB template + class rotation preview before apply
   const [qaSpineOpen, setQaSpineOpen] = useState(false);
@@ -1153,9 +1161,11 @@ export default function CurriculumPage() {
           course_id: selectedCourse.id,
           course_name: selectedCourse.title,
           school_id: generateScope === 'platform' ? null : generateScope,
-          ...form,
-          term_count: Number(form.term_count),
+          grade_level: form.grade_level,
+          subject_area: form.subject_area,
+          notes: form.notes,
           weeks_per_term: Number(form.weeks_per_term),
+          selected_terms: selectedTerms,
         }),
       });
       const json = await res.json();
@@ -3763,7 +3773,7 @@ export default function CurriculumPage() {
               )}
 
               <div className="space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Grade Level</label>
                     <select value={form.grade_level} onChange={e => setGradeForCurrentScope(e.target.value)} className={SELECT_CLS}>
@@ -3771,17 +3781,46 @@ export default function CurriculumPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Terms</label>
-                    <select value={form.term_count} onChange={e => setForm(p => ({ ...p, term_count: e.target.value }))} className={SELECT_CLS}>
-                      {['1', '2', '3'].map(t => <option key={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Weeks/Term</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Weeks / Term</label>
                     <select value={form.weeks_per_term} onChange={e => setForm(p => ({ ...p, weeks_per_term: e.target.value }))} className={SELECT_CLS}>
                       {['8', '10', '12'].map(w => <option key={w}>{w}</option>)}
                     </select>
                   </div>
+                </div>
+
+                {/* Term selector — explicit checkboxes, not an ambiguous count */}
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Which terms to generate</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {([1, 2, 3] as const).map((t) => {
+                      const active = selectedTerms.includes(t);
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => toggleTerm(t)}
+                          className={`flex-1 min-w-[80px] px-3 py-2.5 text-xs font-black uppercase tracking-widest border transition-all ${
+                            active
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                          }`}
+                        >
+                          <div>{TERM_LABEL[t]}</div>
+                          <div className="text-[9px] font-bold mt-0.5 opacity-70 normal-case tracking-normal">
+                            {t === 1 ? 'Sept–Dec' : t === 2 ? 'Jan–Apr' : 'May–Aug'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
+                    {selectedTerms.length === 3
+                      ? 'Full academic year — all three Nigerian school terms.'
+                      : selectedTerms.length === 1
+                      ? `Generating ${TERM_LABEL[selectedTerms[0]]} only.`
+                      : `Generating ${selectedTerms.map(t => TERM_LABEL[t]).join(' + ')}.`}
+                    {' '}Select the terms your school runs.
+                  </p>
                 </div>
 
                 <div>
@@ -3809,8 +3848,9 @@ export default function CurriculumPage() {
               </div>
 
               <div className="bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
-                <p className="font-bold text-foreground/80">Standard Assessment Schedule (applied automatically):</p>
+                <p className="font-bold text-foreground/80">Standard Assessment Schedule (per term, applied automatically):</p>
                 <p>Week 3 → First Assessment · Week 6 → Second Assessment · Week {form.weeks_per_term} → Examination</p>
+                <p>Generating <span className="text-foreground font-bold">{selectedTerms.length} term{selectedTerms.length > 1 ? 's' : ''}</span> × <span className="text-foreground font-bold">{form.weeks_per_term} weeks</span> = <span className="text-foreground font-bold">{selectedTerms.length * Number(form.weeks_per_term)} total weeks</span>.</p>
                 <p>Each lesson week includes a full teacher-ready lesson plan with activities, classwork, and assignments.</p>
               </div>
 
