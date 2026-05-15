@@ -269,7 +269,7 @@ export default function CurriculumPage() {
     weeks_per_term: '8',
     notes: '',
   });
-  const [selectedTerms, setSelectedTerms] = useState<number[]>([1]);
+  const [selectedTerms, setSelectedTerms] = useState<number[]>(() => [getCurrentTerm()]);
   const [curriculumFormat, setCurriculumFormat] = useState<'school' | 'bootcamp' | 'online' | 'selfpaced'>('school');
   const [bootcampDurationWeeks, setBootcampDurationWeeks] = useState('4');
   const [bootcampSchedule, setBootcampSchedule] = useState<'fulltime' | 'parttime' | 'weekend' | 'evening'>('fulltime');
@@ -3383,20 +3383,34 @@ export default function CurriculumPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Term</label>
-                    <select
-                      value={selectedTerms[0] ?? 1}
-                      onChange={e => setSelectedTerms([Number(e.target.value)])}
-                      className={SELECT_CLS}
-                    >
-                      {([1, 2, 3] as const).map(t => (
-                        <option key={t} value={t}>
-                          {TERM_LABEL[t]}{t === getCurrentTerm() ? ' (current)' : ''} — {t === 1 ? 'Sept–Dec' : t === 2 ? 'Jan–Apr' : 'May–Aug'}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Which terms to generate</label>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-primary/70">
+                        Now: {TERM_LABEL[getCurrentTerm()]}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      {([1, 2, 3] as const).map((t) => {
+                        const isCurrentCalendarTerm = t === getCurrentTerm();
+                        const isSelected = selectedTerms.includes(t);
+                        return (
+                          <button key={t} type="button" onClick={() => toggleTerm(t)}
+                            className={`relative flex-1 px-2 py-2 border text-center transition-all ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/40'}`}
+                          >
+                            {isCurrentCalendarTerm && (
+                              <span className={`absolute -top-1.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-full ${isSelected ? 'bg-white text-primary' : 'bg-primary text-white'}`}>
+                                Now
+                              </span>
+                            )}
+                            <div className="text-[10px] font-black mt-1">{TERM_LABEL[t]}</div>
+                            <div className="text-[9px] opacity-70">{t === 1 ? 'Sept–Dec' : t === 2 ? 'Jan–Apr' : 'May–Aug'}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
                     <p className="text-[10px] text-muted-foreground mt-1">
-                      {TERM_LABEL[selectedTerms[0] ?? 1]} · {form.weeks_per_term} weeks
+                      {selectedTerms.length === 3 ? 'Full academic year.' : selectedTerms.map(t => TERM_LABEL[t]).join(' + ') + '.'}
+                      {' '}{selectedTerms.length} term{selectedTerms.length > 1 ? 's' : ''} × {form.weeks_per_term} weeks = <strong className="text-foreground">{selectedTerms.length * Number(form.weeks_per_term)} total weeks</strong>.
                     </p>
                   </div>
                 </div>
