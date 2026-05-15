@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,22 +37,24 @@ export async function POST(
 
   const body = await req.json();
 
-  // Verify ownership or staff status if needed (RLS handles this mostly)
-  const { 
-    front, 
-    back, 
-    front_image_url, 
-    back_image_url, 
-    tags, 
-    difficulty_level, 
-    notes, 
+  const {
+    front,
+    back,
+    front_image_url,
+    back_image_url,
+    tags,
+    difficulty_level,
+    notes,
     template,
-    position 
+    position
   } = body;
+
+  // Use admin client to bypass RLS on flashcard_cards
+  const adminClient = createAdminClient();
 
   let nextPosition = position;
   if (nextPosition === null || nextPosition === undefined) {
-    const { data: lastCard } = await supabase
+    const { data: lastCard } = await (adminClient as any)
       .from('flashcard_cards')
       .select('position')
       .eq('deck_id', deckId)
@@ -61,7 +64,7 @@ export async function POST(
     nextPosition = (lastCard?.position ?? -1) + 1;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await (adminClient as any)
     .from('flashcard_cards')
     .insert({
       deck_id: deckId,

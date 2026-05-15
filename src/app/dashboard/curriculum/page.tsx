@@ -1945,10 +1945,7 @@ export default function CurriculumPage() {
             </button>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <div className="min-w-0 flex-1 text-[10px] font-black uppercase tracking-[0.2em] text-brand-red-600 flex items-center">
-              {selectedCourse ? `${selectedProgram?.name ?? 'Programme'} › ${selectedCourse.title}` : 'Course Syllabus'}
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:max-w-lg shrink-0">
+            <div className="flex flex-col sm:flex-row gap-2 flex-1 sm:max-w-lg shrink-0">
               <div className="relative flex-1 min-w-0">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <input
@@ -2008,7 +2005,7 @@ export default function CurriculumPage() {
           <div className="flex items-center justify-between gap-2 px-4 py-2.5">
             <div className="min-w-0 flex-1">
               {selectedProgram ? (
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate">
+                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground truncate">
                   {selectedProgram.name}
                   {selectedCourse && (
                     <>
@@ -2018,13 +2015,10 @@ export default function CurriculumPage() {
                   )}
                 </p>
               ) : (
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
                   Course & Syllabus
                 </p>
               )}
-              <p className="text-sm font-black truncate">
-                {curriculum?.content?.course_title ?? selectedCourse?.title ?? 'Select a course'}
-              </p>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {curriculum && canGenerate && (
@@ -2593,16 +2587,13 @@ export default function CurriculumPage() {
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-white/5 relative">
                     <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
                     <div className="space-y-4 relative z-10">
-                      <div className="flex flex-wrap items-center gap-2 text-primary">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-lg text-[10px] font-black uppercase tracking-[0.2em]">
-                          <SparklesIcon className="w-3 h-3" /> Syllabus
-                        </div>
-                        {curriculum.schools?.name && (
+                      {curriculum.schools?.name && (
+                        <div className="flex flex-wrap items-center gap-2">
                           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs font-black uppercase tracking-[0.15em] text-emerald-400">
                             <BuildingOfficeIcon className="w-3.5 h-3.5" /> {curriculum.schools.name}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       <div className="space-y-1">
                         <h1 className="text-4xl font-black leading-tight tracking-tighter text-foreground">
@@ -2725,7 +2716,7 @@ export default function CurriculumPage() {
                             href="/dashboard/curriculum/progress"
                             className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            <ChartBarIcon className="w-3.5 h-3.5" /> Progress
+                            <ChartBarIcon className="w-3.5 h-3.5" /> Reports
                           </Link>
                           {canGenerate && (
                             <button
@@ -4069,6 +4060,7 @@ export default function CurriculumPage() {
                   courseTitle={selectedCourse?.title}
                   previewRole={previewRole}
                   audienceIsLearner={previewRole !== 'school'}
+                  hideCourseHeader
                   topBanner={
                     !curriculum.is_visible_to_school ? (
                       <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs flex items-center gap-2">

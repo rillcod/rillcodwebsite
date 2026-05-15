@@ -96,13 +96,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       throw new Error('Invalid flashcards format — cards array missing or empty');
     }
 
-    // Get current card count for positioning
-    const { count: currentCount } = await supabase
+    // Get current card count for positioning — use admin client to bypass RLS
+    const { count: currentCount } = await (adminClient as any)
       .from('flashcard_cards')
       .select('*', { count: 'exact', head: true })
       .eq('deck_id', id);
 
-    // Insert generated flashcards
+    // Insert generated flashcards — use admin client to bypass RLS
     const cardsToInsert = flashcards.map((card: AiGeneratedCard, index: number) => ({
       deck_id: id,
       front: card.front?.trim() || '',
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       throw new Error('No valid flashcards generated');
     }
 
-    const { data: insertedCards, error: insertError } = await supabase
+    const { data: insertedCards, error: insertError } = await (adminClient as any)
       .from('flashcard_cards')
       .insert(cardsToInsert)
       .select();

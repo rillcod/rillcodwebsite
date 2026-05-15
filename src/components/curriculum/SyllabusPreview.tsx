@@ -108,6 +108,11 @@ export interface SyllabusPreviewProps {
    * syllabus has not been published to learners yet").
    */
   topBanner?: React.ReactNode;
+  /**
+   * When true, suppresses the "Course Syllabus" heading card at the top of
+   * the preview. Use when the parent page already renders the course title.
+   */
+  hideCourseHeader?: boolean;
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -147,6 +152,7 @@ export function SyllabusPreview({
   previewRole,
   audienceIsLearner = false,
   topBanner,
+  hideCourseHeader = false,
 }: SyllabusPreviewProps) {
   const [activeTerm, setActiveTerm] = useState<number>(() => content.terms?.[0]?.term ?? 1);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
@@ -176,44 +182,46 @@ export function SyllabusPreview({
 
       {topBanner}
 
-      {/* Course overview */}
-      <section className="rounded-lg border border-border bg-card/60 p-4 sm:p-5 space-y-3">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-md bg-primary/15 text-primary inline-flex items-center justify-center shrink-0">
-            <AcademicCapIcon className="w-5 h-5" />
+      {/* Course overview — hidden when parent already shows the title */}
+      {!hideCourseHeader && (
+        <section className="rounded-lg border border-border bg-card/60 p-4 sm:p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-md bg-primary/15 text-primary inline-flex items-center justify-center shrink-0">
+              <AcademicCapIcon className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Course Syllabus
+              </p>
+              <h1 className="text-xl sm:text-2xl font-black italic tracking-tight truncate">
+                {title}
+              </h1>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Course Syllabus
-            </p>
-            <h1 className="text-xl sm:text-2xl font-black italic tracking-tight truncate">
-              {title}
-            </h1>
-          </div>
-        </div>
 
-        {content.overview && (
-          <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-            {content.overview}
-          </p>
-        )}
-
-        {content.learning_outcomes && content.learning_outcomes.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              What you&rsquo;ll achieve
+          {content.overview && (
+            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+              {content.overview}
             </p>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
-              {content.learning_outcomes.map((o, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <CheckCircleIcon className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
-                  <span className="text-foreground/90">{o}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
+          )}
+
+          {content.learning_outcomes && content.learning_outcomes.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                What you&rsquo;ll achieve
+              </p>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-sm">
+                {content.learning_outcomes.map((o, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-foreground/90">{o}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Term tabs */}
       {terms.length > 1 && (
