@@ -44,102 +44,205 @@ const NG_TERM_THEME: Record<number, string> = {
   3: 'Innovation — real-world projects and peer presentations',
 };
 
-function buildCurriculumPrompt(
-  courseName: string,
-  gradeLevel: string,
-  subjectArea: string,
-  selectedTerms: number[],
-  weeksPerTerm: number,
-  notes?: string,
-): string {
-  const termLines = selectedTerms
-    .map((t) => `  - Term ${t}: ${NG_TERM_LABEL[t] ?? `Term ${t}`} — theme: ${NG_TERM_THEME[t] ?? 'Progressive content'}`)
-    .join('\n');
+type CurriculumFormat = 'school' | 'bootcamp' | 'online' | 'selfpaced';
 
-  return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy serving Nigerian partner schools (KG to SS3).
-
-Your task: Design a COMPLETE, INNOVATIVE, and READY-TO-TEACH school curriculum.
-
-Course: "${courseName}"
-Grade Level: ${gradeLevel}
-Subject Area: ${subjectArea}
-Terms to generate (${selectedTerms.length}):
-${termLines}
-Weeks Per Term: ${weeksPerTerm}
-${notes ? `Special Notes: ${notes}` : ''}
-
-IMPORTANT: Generate ONLY the terms listed above. Use the exact term numbers given (e.g. if only Term 3 is listed, output a single term with "term": 3).
-
-ASSESSMENT SCHEDULE (mandatory every term):
-- Week 3: First Assessment (type: "assessment")
-- Week 6: Second Assessment (type: "assessment")
-- Week ${weeksPerTerm}: End-of-Term Examination (type: "examination")
-All other weeks: Lesson (type: "lesson")
-
-WEEK TYPES: "lesson" | "assessment" | "examination"
-
-LESSON_PLAN required for every lesson week:
+const SHARED_LESSON_PLAN_SCHEMA = `
+LESSON_PLAN required for every lesson/session entry:
 {
-  duration_minutes: 40,
+  duration_minutes: number,
   objectives: [3-4 measurable outcomes],
-  teacher_activities: [5 steps: Hook(5min), Instruction(10min), Demo(10min), Practice(10min), Wrap-Up(5min)],
-  student_activities: [mirroring teacher_activities],
+  teacher_activities: [5 structured steps],
+  student_activities: [matching steps],
   classwork: { title, instructions, materials[] },
-  assignment: { title, instructions, due: "Next class" },
+  assignment: { title, instructions, due: string },
   project: null | { title, description, deliverables[] },
   resources: [string],
-  engagement_tips: [3 tips with Nigerian/local context]
+  engagement_tips: [3 practical tips]
 }
 
-ASSESSMENT_PLAN required for assessment + examination weeks:
+ASSESSMENT_PLAN required for assessment/exam/checkpoint entries:
 {
   type: "written"|"practical"|"mixed",
   title: string,
   coverage: [topic strings],
   format: string,
-  duration_minutes: 40 (80 for exam),
+  duration_minutes: number,
   scoring_guide: string,
   teacher_prep: [steps],
   sample_questions: [3 examples]
-}
+}`;
 
-CREATIVITY RULES:
-- Topics must build progressively — NEVER repeat a project or topic
-- Term 1 = Foundations, Term 2 = Application, Term 3 = Innovation & Real-World Projects
-- Use Nigerian contexts: agritech, fintech, healthcare, entertainment, traffic, market pricing
-- Vary tools across terms where possible (e.g. Scratch → Python → Web → Arduino)
-
-Return ONLY valid JSON with this shape (no preamble, no markdown fences):
+const SHARED_OUTPUT_SHAPE = `Return ONLY valid JSON — no preamble, no markdown fences:
 {
   "course_title": "string",
-  "overview": "string (3 paragraphs)",
-  "learning_outcomes": ["8 measurable outcomes"],
+  "overview": "string (2-3 paragraphs describing the full programme)",
+  "learning_outcomes": ["6-8 measurable outcomes"],
   "assessment_strategy": "string",
   "materials_required": ["string"],
   "recommended_tools": ["string"],
   "terms": [
     {
       "term": 1,
-      "title": "string",
-      "objectives": ["4 term objectives"],
+      "title": "string (phase/module/week/term title)",
+      "objectives": ["3-4 objectives for this phase"],
       "weeks": [
         {
           "week": 1,
           "type": "lesson",
           "topic": "string",
           "subtopics": ["string"],
-          "lesson_plan": { ... full lesson_plan object ... }
+          "lesson_plan": { ...full lesson_plan... }
         },
         {
           "week": 3,
           "type": "assessment",
-          "topic": "Mid-Term Assessment",
-          "assessment_plan": { ... }
+          "topic": "string",
+          "assessment_plan": { ...full assessment_plan... }
         }
       ]
     }
   ]
 }`;
+
+function buildSchoolPrompt(
+  courseName: string, gradeLevel: string, subjectArea: string,
+  selectedTerms: number[], weeksPerTerm: number, notes?: string,
+): string {
+  const termLines = selectedTerms
+    .map((t) => `  - Term ${t}: ${NG_TERM_LABEL[t] ?? `Term ${t}`} — ${NG_TERM_THEME[t] ?? 'Progressive content'}`)
+    .join('\n');
+  return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding academy for Nigerian partner schools (KG–SS3).
+
+DELIVERY FORMAT: Traditional School (Nigerian Academic Calendar)
+Course: "${courseName}" | Grade: ${gradeLevel} | Subject Area: ${subjectArea}
+Terms to generate (${selectedTerms.length}):
+${termLines}
+Weeks per term: ${weeksPerTerm}
+${notes ? `Special notes: ${notes}` : ''}
+
+IMPORTANT: Generate ONLY the terms listed above using the exact term numbers given.
+ASSESSMENT (per term): Week 3 → First Assessment · Week 6 → Second Assessment · Week ${weeksPerTerm} → End-of-Term Exam
+Session types: "lesson" | "assessment" | "examination"
+Duration per lesson: 40 minutes. Use Nigerian contexts (agritech, fintech, education tech).
+Topics must build progressively — no repetition across terms.
+${SHARED_LESSON_PLAN_SCHEMA}
+${SHARED_OUTPUT_SHAPE}`;
+}
+
+function buildBootcampPrompt(
+  courseName: string, gradeLevel: string, subjectArea: string,
+  durationWeeks: number, schedule: string, notes?: string,
+): string {
+  const sessionsMap: Record<string, { perWeek: number; label: string; mins: number }> = {
+    fulltime:  { perWeek: 5, label: 'Full-time (5 days/week, ~6 hrs/day)', mins: 360 },
+    parttime:  { perWeek: 3, label: 'Part-time (3 days/week, ~4 hrs/day)', mins: 240 },
+    weekend:   { perWeek: 2, label: 'Weekend-only (Sat + Sun, ~8 hrs/day)', mins: 480 },
+    evening:   { perWeek: 3, label: 'Evening (3 evenings/week, ~2 hrs/session)', mins: 120 },
+  };
+  const s = sessionsMap[schedule] ?? sessionsMap.fulltime;
+  const totalSessions = durationWeeks * s.perWeek;
+  // Each "term" = 1 bootcamp week; "weeks" within = daily sessions
+  return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy.
+
+DELIVERY FORMAT: Bootcamp / Intensive Training
+Course: "${courseName}" | Audience: ${gradeLevel} | Subject Area: ${subjectArea}
+Schedule: ${s.label}
+Duration: ${durationWeeks} week${durationWeeks > 1 ? 's' : ''} (${totalSessions} total sessions)
+Session duration: ${s.mins} minutes per session
+${notes ? `Special notes: ${notes}` : ''}
+
+STRUCTURE:
+- Output ${durationWeeks} "term" object(s), each representing ONE bootcamp week (term: 1 … ${durationWeeks}).
+- Each term has ${s.perWeek} "week" entries (one per session that week; week: 1 … ${s.perWeek}).
+- Term title: "Week N — [Theme]"
+- FINAL session of each week: type "assessment" (practical checkpoint). All others: type "lesson".
+- Final session of the LAST week: type "examination" (final project showcase).
+- Sessions are project-driven, fast-paced, and hands-on. No homework-style assignments — classwork is the work.
+- Engagement tips should reflect bootcamp intensity (pair programming, live builds, demos).
+${SHARED_LESSON_PLAN_SCHEMA}
+${SHARED_OUTPUT_SHAPE}`;
+}
+
+function buildOnlinePrompt(
+  courseName: string, gradeLevel: string, subjectArea: string,
+  durationWeeks: number, sessionsPerWeek: number, notes?: string,
+): string {
+  const totalSessions = durationWeeks * sessionsPerWeek;
+  const modulesCount = Math.max(2, Math.ceil(durationWeeks / 3));
+  const weeksPerModule = Math.round(durationWeeks / modulesCount);
+  return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy.
+
+DELIVERY FORMAT: Online / Virtual Learning Programme
+Course: "${courseName}" | Audience: ${gradeLevel} | Subject Area: ${subjectArea}
+Duration: ${durationWeeks} weeks | Sessions: ${sessionsPerWeek}/week (${totalSessions} total)
+Session length: 60–90 minutes
+${notes ? `Special notes: ${notes}` : ''}
+
+STRUCTURE:
+- Organise into ${modulesCount} modules (each term = 1 module), roughly ${weeksPerModule} weeks each.
+- Term (module) title: "Module N — [Theme]"
+- Each module has ${weeksPerModule * sessionsPerWeek} session entries ("weeks" in the JSON, numbered 1 onwards within the module).
+- Assessment checkpoint every module-end (type "assessment"). Mid-programme and final: type "examination".
+- Content must be async-friendly: self-contained sessions, clear written instructions, video/resource links in resources[].
+- Assignments due: "Before next session". Engagement tips should cover screen fatigue, remote collaboration, async tools.
+- Use Nigerian digital contexts (e-commerce, mobile apps, remote agri-monitoring).
+${SHARED_LESSON_PLAN_SCHEMA}
+${SHARED_OUTPUT_SHAPE}`;
+}
+
+function buildSelfpacedPrompt(
+  courseName: string, gradeLevel: string, subjectArea: string,
+  modules: number, hoursPerModule: number, notes?: string,
+): string {
+  return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy.
+
+DELIVERY FORMAT: Self-Paced Learning
+Course: "${courseName}" | Audience: ${gradeLevel} | Subject Area: ${subjectArea}
+Modules: ${modules} | Estimated time per module: ${hoursPerModule} hour${hoursPerModule > 1 ? 's' : ''}
+Total estimated time: ${modules * hoursPerModule} hours
+${notes ? `Special notes: ${notes}` : ''}
+
+STRUCTURE:
+- Each "term" = one self-contained learning module (term: 1 … ${modules}).
+- Module title: "Module N — [Topic]"
+- Each module contains 3–5 "week" entries (individual lessons/topics the learner completes independently).
+- Final "week" of every module: type "assessment" (self-check quiz or mini-project). Last module final entry: "examination" (capstone project).
+- Learner sets their own pace — no fixed due dates. assignment.due should say "Self-paced — complete before next module".
+- Include clear module prerequisites in objectives[0].
+- Resources[] must include at least 2 free online links or tools per lesson.
+- Engagement tips should focus on motivation, self-accountability, and community sharing.
+${SHARED_LESSON_PLAN_SCHEMA}
+${SHARED_OUTPUT_SHAPE}`;
+}
+
+function buildCurriculumPrompt(
+  courseName: string,
+  gradeLevel: string,
+  subjectArea: string,
+  format: CurriculumFormat,
+  opts: {
+    selectedTerms?: number[];
+    weeksPerTerm?: number;
+    bootcampDurationWeeks?: number;
+    bootcampSchedule?: string;
+    onlineDurationWeeks?: number;
+    onlineSessionsPerWeek?: number;
+    selfpacedModules?: number;
+    selfpacedHoursPerModule?: number;
+    notes?: string;
+  },
+): string {
+  const { notes } = opts;
+  switch (format) {
+    case 'bootcamp':
+      return buildBootcampPrompt(courseName, gradeLevel, subjectArea, opts.bootcampDurationWeeks ?? 4, opts.bootcampSchedule ?? 'fulltime', notes);
+    case 'online':
+      return buildOnlinePrompt(courseName, gradeLevel, subjectArea, opts.onlineDurationWeeks ?? 8, opts.onlineSessionsPerWeek ?? 2, notes);
+    case 'selfpaced':
+      return buildSelfpacedPrompt(courseName, gradeLevel, subjectArea, opts.selfpacedModules ?? 6, opts.selfpacedHoursPerModule ?? 2, notes);
+    default:
+      return buildSchoolPrompt(courseName, gradeLevel, subjectArea, opts.selectedTerms ?? [1, 2, 3], opts.weeksPerTerm ?? 8, notes);
+  }
 }
 
 function safeParseJSON(raw: string): any {
@@ -297,22 +400,39 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { course_id, course_name, grade_level, term_count, weeks_per_term, subject_area, notes, selected_terms } = body;
+  const {
+    course_id, course_name, grade_level, subject_area, notes,
+    // School
+    selected_terms, term_count, weeks_per_term,
+    // Bootcamp
+    bootcamp_duration_weeks, bootcamp_schedule,
+    // Online
+    online_duration_weeks, online_sessions_per_week,
+    // Self-paced
+    selfpaced_modules, selfpaced_hours_per_module,
+    // Format
+    format: rawFormat,
+  } = body;
   if (!course_name) return NextResponse.json({ error: 'course_name is required' }, { status: 400 });
   if (!course_id) return NextResponse.json({ error: 'course_id is required' }, { status: 400 });
-  const wpt = Number(weeks_per_term ?? 8);
-  if (!Number.isInteger(wpt) || wpt < 6) return NextResponse.json({ error: 'weeks_per_term must be at least 6' }, { status: 400 });
 
-  // Resolve which terms to generate: prefer explicit selected_terms array, fall back to legacy term_count
-  let termNums: number[];
-  if (Array.isArray(selected_terms) && selected_terms.length > 0) {
-    termNums = (selected_terms as number[]).map(Number).filter((n) => [1, 2, 3].includes(n)).sort();
-    if (!termNums.length) return NextResponse.json({ error: 'selected_terms must include at least one of 1, 2, 3' }, { status: 400 });
-  } else {
-    const tc = Number(term_count ?? 3);
-    if (!Number.isInteger(tc) || tc < 1 || tc > 3) return NextResponse.json({ error: 'term_count must be 1–3' }, { status: 400 });
-    termNums = Array.from({ length: tc }, (_, i) => i + 1);
+  const format: CurriculumFormat = ['school', 'bootcamp', 'online', 'selfpaced'].includes(rawFormat)
+    ? (rawFormat as CurriculumFormat)
+    : 'school';
+
+  // Resolve school terms (only used for format=school)
+  let termNums: number[] = [1, 2, 3];
+  if (format === 'school') {
+    if (Array.isArray(selected_terms) && selected_terms.length > 0) {
+      termNums = (selected_terms as number[]).map(Number).filter((n) => [1, 2, 3].includes(n)).sort();
+      if (!termNums.length) return NextResponse.json({ error: 'selected_terms must include at least one of 1, 2, 3' }, { status: 400 });
+    } else {
+      const tc = Number(term_count ?? 3);
+      if (!Number.isInteger(tc) || tc < 1 || tc > 3) return NextResponse.json({ error: 'term_count must be 1–3' }, { status: 400 });
+      termNums = Array.from({ length: tc }, (_, i) => i + 1);
+    }
   }
+  const wpt = Number(weeks_per_term ?? 8);
 
   // ── Target school: one syllabus row per (course_id, school_id) — unique in DB.
   // - `school_id` omitted → admin defaults to platform (null); teacher defaults to profile.school_id.
@@ -359,11 +479,20 @@ export async function POST(req: NextRequest) {
 
   const prompt = buildCurriculumPrompt(
     course_name,
-    grade_level ?? 'JSS1',
+    grade_level ?? 'General',
     subject_area ?? 'STEM / Coding',
-    termNums,
-    wpt,
-    notes,
+    format,
+    {
+      selectedTerms: termNums,
+      weeksPerTerm: wpt,
+      bootcampDurationWeeks: Number(bootcamp_duration_weeks ?? 4),
+      bootcampSchedule: bootcamp_schedule ?? 'fulltime',
+      onlineDurationWeeks: Number(online_duration_weeks ?? 8),
+      onlineSessionsPerWeek: Number(online_sessions_per_week ?? 2),
+      selfpacedModules: Number(selfpaced_modules ?? 6),
+      selfpacedHoursPerModule: Number(selfpaced_hours_per_module ?? 2),
+      notes,
+    },
   );
 
   const aiContent = await generateCurriculum(prompt);

@@ -270,6 +270,13 @@ export default function CurriculumPage() {
     notes: '',
   });
   const [selectedTerms, setSelectedTerms] = useState<number[]>([1, 2, 3]);
+  const [curriculumFormat, setCurriculumFormat] = useState<'school' | 'bootcamp' | 'online' | 'selfpaced'>('school');
+  const [bootcampDurationWeeks, setBootcampDurationWeeks] = useState('4');
+  const [bootcampSchedule, setBootcampSchedule] = useState<'fulltime' | 'parttime' | 'weekend' | 'evening'>('fulltime');
+  const [onlineDurationWeeks, setOnlineDurationWeeks] = useState('8');
+  const [onlineSessionsPerWeek, setOnlineSessionsPerWeek] = useState('2');
+  const [selfpacedModules, setSelfpacedModules] = useState('6');
+  const [selfpacedHoursPerModule, setSelfpacedHoursPerModule] = useState('2');
 
   function toggleTerm(t: number) {
     setSelectedTerms((prev) =>
@@ -485,6 +492,7 @@ export default function CurriculumPage() {
             setExpandedPrograms(new Set([p.id]));
             setSelectedProgram(p);
             setSelectedCourse(c);
+            setMobileSidebarOpen(false);
             loadCurriculumRef.current?.(c.id);
             return;
           }
@@ -1164,8 +1172,27 @@ export default function CurriculumPage() {
           grade_level: form.grade_level,
           subject_area: form.subject_area,
           notes: form.notes,
-          weeks_per_term: Number(form.weeks_per_term),
-          selected_terms: selectedTerms,
+          format: curriculumFormat,
+          // School
+          ...(curriculumFormat === 'school' ? {
+            selected_terms: selectedTerms,
+            weeks_per_term: Number(form.weeks_per_term),
+          } : {}),
+          // Bootcamp
+          ...(curriculumFormat === 'bootcamp' ? {
+            bootcamp_duration_weeks: Number(bootcampDurationWeeks),
+            bootcamp_schedule: bootcampSchedule,
+          } : {}),
+          // Online
+          ...(curriculumFormat === 'online' ? {
+            online_duration_weeks: Number(onlineDurationWeeks),
+            online_sessions_per_week: Number(onlineSessionsPerWeek),
+          } : {}),
+          // Self-paced
+          ...(curriculumFormat === 'selfpaced' ? {
+            selfpaced_modules: Number(selfpacedModules),
+            selfpaced_hours_per_module: Number(selfpacedHoursPerModule),
+          } : {}),
         }),
       });
       const json = await res.json();
@@ -3746,112 +3773,206 @@ export default function CurriculumPage() {
 
               {canTrack && (
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Who is this syllabus for?
-                  </label>
-                  <select
-                    value={generateScope}
-                    onChange={(e) => {
-                      const scope = e.target.value === 'platform' ? 'platform' : e.target.value;
-                      void syncScopeToCurriculum(scope);
-                    }}
-                    className={SELECT_CLS}
-                  >
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Save syllabus to</label>
+                  <div className="flex flex-wrap gap-1.5">
                     {isAdmin && (
-                      <option value="platform">All schools — shared Rillcod template</option>
+                      <button
+                        type="button"
+                        onClick={() => syncScopeToCurriculum('platform')}
+                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all ${generateScope === 'platform' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'}`}
+                      >
+                        Rillcod platform
+                      </button>
                     )}
                     {assignedSchools.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} only — private to this school
-                      </option>
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => syncScopeToCurriculum(s.id)}
+                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all ${generateScope === s.id ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'}`}
+                      >
+                        {s.name}
+                      </button>
                     ))}
-                  </select>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Each school can have its own private syllabus for this course. Currently editing: <span className="text-foreground font-bold">{scopeLabel}</span>.
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {generateScope === 'platform' ? 'Shared Rillcod template — visible to all schools.' : `Private to ${scopeLabel} only.`}
                   </p>
                 </div>
               )}
 
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Grade Level</label>
-                    <select value={form.grade_level} onChange={e => setGradeForCurrentScope(e.target.value)} className={SELECT_CLS}>
-                      {GRADE_LEVEL_OPTIONS.map(g => <option key={g}>{g}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Weeks / Term</label>
-                    <select value={form.weeks_per_term} onChange={e => setForm(p => ({ ...p, weeks_per_term: e.target.value }))} className={SELECT_CLS}>
-                      {['8', '10', '12'].map(w => <option key={w}>{w}</option>)}
-                    </select>
-                  </div>
+              {/* ── Delivery format ── */}
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Delivery format</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {([
+                    { key: 'school',    label: 'School',     sub: 'Nigerian term calendar' },
+                    { key: 'bootcamp',  label: 'Bootcamp',   sub: 'Intensive short course' },
+                    { key: 'online',    label: 'Online',     sub: 'Virtual / cohort-based' },
+                    { key: 'selfpaced', label: 'Self-paced', sub: 'Learner-driven modules' },
+                  ] as const).map(({ key, label, sub }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setCurriculumFormat(key)}
+                      className={`px-3 py-2.5 border text-left transition-all ${
+                        curriculumFormat === key
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                      }`}
+                    >
+                      <div className="text-xs font-black">{label}</div>
+                      <div className="text-[9px] mt-0.5 opacity-75 leading-snug">{sub}</div>
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                {/* Term selector — explicit checkboxes, not an ambiguous count */}
+              {/* ── Common: grade + topic ── */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Which terms to generate</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {([1, 2, 3] as const).map((t) => {
-                      const active = selectedTerms.includes(t);
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => toggleTerm(t)}
-                          className={`flex-1 min-w-[80px] px-3 py-2.5 text-xs font-black uppercase tracking-widest border transition-all ${
-                            active
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
-                          }`}
-                        >
-                          <div>{TERM_LABEL[t]}</div>
-                          <div className="text-[9px] font-bold mt-0.5 opacity-70 normal-case tracking-normal">
-                            {t === 1 ? 'Sept–Dec' : t === 2 ? 'Jan–Apr' : 'May–Aug'}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1.5">
-                    {selectedTerms.length === 3
-                      ? 'Full academic year — all three Nigerian school terms.'
-                      : selectedTerms.length === 1
-                      ? `Generating ${TERM_LABEL[selectedTerms[0]]} only.`
-                      : `Generating ${selectedTerms.map(t => TERM_LABEL[t]).join(' + ')}.`}
-                    {' '}Select the terms your school runs.
-                  </p>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">
+                    {curriculumFormat === 'bootcamp' || curriculumFormat === 'online' || curriculumFormat === 'selfpaced' ? 'Audience / Level' : 'Grade Level'}
+                  </label>
+                  <select value={form.grade_level} onChange={e => setGradeForCurrentScope(e.target.value)} className={SELECT_CLS}>
+                    <option value="General">General audience</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                    {GRADE_LEVEL_OPTIONS.map(g => <option key={g}>{g}</option>)}
+                  </select>
                 </div>
-
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Topic Focus <span className="font-normal normal-case">(optional)</span></label>
                   <input
                     value={form.subject_area}
                     onChange={e => setForm(p => ({ ...p, subject_area: e.target.value }))}
-                    placeholder="e.g. Python programming, Robotics for beginners, AI basics"
+                    placeholder="e.g. Python, Robotics, Web dev, AI basics"
                     className={INPUT_CLS}
                   />
-                  <p className="text-[10px] text-muted-foreground mt-1">Narrow focus within the course — leave blank to use the course title</p>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Extra context for AI <span className="font-normal normal-case">(optional)</span></label>
-                  <textarea
-                    value={form.notes}
-                    onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                    placeholder="e.g. Students have laptops, follow WAEC syllabus, focus more on practical projects, avoid week 5 (public holiday)…"
-                    rows={3}
-                    className={INPUT_CLS + ' resize-none'}
-                  />
-                  <p className="text-[10px] text-muted-foreground mt-1">Any school-specific details that should shape the syllabus — equipment, exam board, constraints, etc.</p>
                 </div>
               </div>
 
-              <div className="bg-muted/50 border border-border p-3 text-xs text-muted-foreground space-y-1">
-                <p className="font-bold text-foreground/80">Standard Assessment Schedule (per term, applied automatically):</p>
-                <p>Week 3 → First Assessment · Week 6 → Second Assessment · Week {form.weeks_per_term} → Examination</p>
-                <p>Generating <span className="text-foreground font-bold">{selectedTerms.length} term{selectedTerms.length > 1 ? 's' : ''}</span> × <span className="text-foreground font-bold">{form.weeks_per_term} weeks</span> = <span className="text-foreground font-bold">{selectedTerms.length * Number(form.weeks_per_term)} total weeks</span>.</p>
-                <p>Each lesson week includes a full teacher-ready lesson plan with activities, classwork, and assignments.</p>
+              {/* ── Format-specific options ── */}
+              {curriculumFormat === 'school' && (
+                <div className="space-y-3 p-3 bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Weeks / Term</label>
+                      <select value={form.weeks_per_term} onChange={e => setForm(p => ({ ...p, weeks_per_term: e.target.value }))} className={SELECT_CLS}>
+                        {['8', '10', '12'].map(w => <option key={w}>{w}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col justify-end">
+                      <p className="text-[10px] text-muted-foreground">Assessment: week 3, 6, {form.weeks_per_term}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Which terms to generate</label>
+                    <div className="flex gap-2">
+                      {([1, 2, 3] as const).map((t) => (
+                        <button key={t} type="button" onClick={() => toggleTerm(t)}
+                          className={`flex-1 px-2 py-2 border text-center transition-all ${selectedTerms.includes(t) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/40'}`}
+                        >
+                          <div className="text-[10px] font-black">{TERM_LABEL[t]}</div>
+                          <div className="text-[9px] opacity-70">{t === 1 ? 'Sept–Dec' : t === 2 ? 'Jan–Apr' : 'May–Aug'}</div>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {selectedTerms.length === 3 ? 'Full academic year.' : selectedTerms.map(t => TERM_LABEL[t]).join(' + ') + '.'}
+                      {' '}{selectedTerms.length} term{selectedTerms.length > 1 ? 's' : ''} × {form.weeks_per_term} weeks = <strong className="text-foreground">{selectedTerms.length * Number(form.weeks_per_term)} total weeks</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {curriculumFormat === 'bootcamp' && (
+                <div className="space-y-3 p-3 bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Duration</label>
+                      <select value={bootcampDurationWeeks} onChange={e => setBootcampDurationWeeks(e.target.value)} className={SELECT_CLS}>
+                        {['1','2','3','4','6','8','10','12'].map(w => <option key={w} value={w}>{w} week{Number(w) > 1 ? 's' : ''}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Schedule</label>
+                      <select value={bootcampSchedule} onChange={e => setBootcampSchedule(e.target.value as any)} className={SELECT_CLS}>
+                        <option value="fulltime">Full-time (5 days/week)</option>
+                        <option value="parttime">Part-time (3 days/week)</option>
+                        <option value="weekend">Weekend only (Sat + Sun)</option>
+                        <option value="evening">Evening (3 evenings/week)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {bootcampDurationWeeks} week{Number(bootcampDurationWeeks) > 1 ? 's' : ''} ·{' '}
+                    {bootcampSchedule === 'fulltime' ? '5 sessions/wk' : bootcampSchedule === 'parttime' ? '3 sessions/wk' : bootcampSchedule === 'weekend' ? '2 sessions/wk (Sat+Sun)' : '3 evenings/wk'} ·{' '}
+                    <strong className="text-foreground">{Number(bootcampDurationWeeks) * (bootcampSchedule === 'fulltime' ? 5 : bootcampSchedule === 'parttime' || bootcampSchedule === 'evening' ? 3 : 2)} total sessions</strong>. Project-driven, hands-on every session.
+                  </p>
+                </div>
+              )}
+
+              {curriculumFormat === 'online' && (
+                <div className="space-y-3 p-3 bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Duration</label>
+                      <select value={onlineDurationWeeks} onChange={e => setOnlineDurationWeeks(e.target.value)} className={SELECT_CLS}>
+                        {['4','6','8','10','12','16','20','24'].map(w => <option key={w} value={w}>{w} weeks</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Sessions / week</label>
+                      <select value={onlineSessionsPerWeek} onChange={e => setOnlineSessionsPerWeek(e.target.value)} className={SELECT_CLS}>
+                        {['1','2','3','4','5'].map(n => <option key={n} value={n}>{n} session{Number(n) > 1 ? 's' : ''}/week</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {onlineDurationWeeks} weeks × {onlineSessionsPerWeek} sessions = <strong className="text-foreground">{Number(onlineDurationWeeks) * Number(onlineSessionsPerWeek)} total sessions</strong>. Async-friendly, self-contained lessons with resources.
+                  </p>
+                </div>
+              )}
+
+              {curriculumFormat === 'selfpaced' && (
+                <div className="space-y-3 p-3 bg-muted/30 border border-border">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Number of modules</label>
+                      <select value={selfpacedModules} onChange={e => setSelfpacedModules(e.target.value)} className={SELECT_CLS}>
+                        {['3','4','5','6','8','10','12'].map(n => <option key={n} value={n}>{n} modules</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Hours / module</label>
+                      <select value={selfpacedHoursPerModule} onChange={e => setSelfpacedHoursPerModule(e.target.value)} className={SELECT_CLS}>
+                        {['1','2','3','4','6','8'].map(h => <option key={h} value={h}>{h} hour{Number(h) > 1 ? 's' : ''}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {selfpacedModules} modules × {selfpacedHoursPerModule} hr = <strong className="text-foreground">{Number(selfpacedModules) * Number(selfpacedHoursPerModule)} total hours</strong>. Learner sets their own pace. Each module is self-contained.
+                  </p>
+                </div>
+              )}
+
+              {/* ── Notes ── */}
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Extra context for AI <span className="font-normal normal-case">(optional)</span></label>
+                <textarea
+                  value={form.notes}
+                  onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                  placeholder={
+                    curriculumFormat === 'bootcamp' ? 'e.g. Participants have laptops, focus on hands-on projects, final day = demo day' :
+                    curriculumFormat === 'online' ? 'e.g. Async-first, participants in different time zones, use Zoom for live sessions' :
+                    curriculumFormat === 'selfpaced' ? 'e.g. Learners are working professionals, mobile-friendly content, include quizzes' :
+                    'e.g. Students have laptops, follow WAEC syllabus, avoid week 5 (public holiday)'
+                  }
+                  rows={2}
+                  className={INPUT_CLS + ' resize-none'}
+                />
               </div>
 
               {genError && <p className="text-rose-400 text-xs">{genError}</p>}
