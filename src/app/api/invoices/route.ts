@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
   let query = admin
     .from('invoices')
-    .select('*, portal_users(full_name, email), schools(name), billing_contacts(representative_email, representative_name)')
+    .select('*, portal_users(full_name, email), schools(name)')
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const {
-    school_id, portal_user_id, amount, notes, due_date, items, status,
+    school_id, portal_user_id, amount, currency, notes, due_date, items, status,
     stream: streamFromBody, billing_cycle_id,
   } = body;
 
@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
       school_id: school_id || null,
       portal_user_id: portal_user_id || null,
       amount: parseFloat(amount) || 0,
+      currency: currency || 'NGN',
       notes: notes || null,
       due_date: due_date || null,
       items: items || [],

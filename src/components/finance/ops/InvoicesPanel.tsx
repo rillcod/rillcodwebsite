@@ -91,9 +91,11 @@ export function InvoicesPanel() {
     setLoading(true);
     try {
       const res = await fetch('/api/invoices?limit=100');
+      const j = await res.json().catch(() => ({}));
       if (res.ok) {
-        const j = await res.json();
         setInvoices(j.data ?? []);
+      } else {
+        toast.error(j.error || 'Failed to load invoices');
       }
     } finally {
       setLoading(false);
