@@ -512,8 +512,9 @@ export default function CurriculumPage() {
       .then((j) => {
         const schools = (j.data ?? []) as { id: string; name: string }[];
         setAssignedSchools(schools);
-        // Teachers default to their first assigned school, not the platform template
-        if (!isAdmin && schools.length > 0) {
+        // For single-school teachers, auto-select their only school.
+        // Multi-school teachers and admins must pick explicitly.
+        if (!isAdmin && schools.length === 1) {
           setGenerateScope((prev) => (prev === 'platform' ? schools[0].id : prev));
         }
       })
@@ -1159,6 +1160,16 @@ export default function CurriculumPage() {
   // ── Generate curriculum ──────────────────────────────────────────────────
   async function generate() {
     if (!selectedCourse) return;
+    // Teachers can't save to platform — auto-redirect to their first school
+    let effectiveScope = generateScope;
+    if (!isAdmin && effectiveScope === 'platform') {
+      if (assignedSchools.length === 0) {
+        setGenError('No school assigned to your account. Contact an admin.');
+        return;
+      }
+      effectiveScope = assignedSchools[0].id;
+      setGenerateScope(effectiveScope);
+    }
     setGenerating(true);
     setGenError('');
     try {
@@ -1168,7 +1179,7 @@ export default function CurriculumPage() {
         body: JSON.stringify({
           course_id: selectedCourse.id,
           course_name: selectedCourse.title,
-          school_id: generateScope === 'platform' ? null : generateScope,
+          school_id: effectiveScope === 'platform' ? null : effectiveScope,
           grade_level: form.grade_level,
           subject_area: form.subject_area,
           notes: form.notes,
@@ -3773,30 +3784,26 @@ export default function CurriculumPage() {
 
               {canTrack && (
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Save syllabus to</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => syncScopeToCurriculum('platform')}
-                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all ${generateScope === 'platform' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'}`}
-                      >
-                        Rillcod platform
-                      </button>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syllabus scope</label>
+                  <select
+                    value={generateScope}
+                    onChange={(e) => syncScopeToCurriculum(e.target.value === 'platform' ? 'platform' : e.target.value)}
+                    className={SELECT_CLS}
+                  >
+                    <option value="platform">Rillcod platform (shared template)</option>
+                    {assignedSchools.length > 1 && !isAdmin && (
+                      <option value="" disabled>── Select a school ──</option>
                     )}
                     {assignedSchools.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => syncScopeToCurriculum(s.id)}
-                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-all ${generateScope === s.id ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'}`}
-                      >
-                        {s.name}
-                      </button>
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
-                  </div>
+                  </select>
                   <p className="text-[10px] text-muted-foreground">
-                    {generateScope === 'platform' ? 'Shared Rillcod template — visible to all schools.' : `Private to ${scopeLabel} only.`}
+                    {generateScope === 'platform'
+                      ? isAdmin
+                        ? 'Shared Rillcod template — visible to all schools.'
+                        : 'Viewing platform template. Select a school below to generate a private copy for that school.'
+                      : `Syllabus will be saved privately for ${scopeLabel} only.`}
                   </p>
                 </div>
               )}
