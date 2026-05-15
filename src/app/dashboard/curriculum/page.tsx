@@ -269,7 +269,7 @@ export default function CurriculumPage() {
     weeks_per_term: '8',
     notes: '',
   });
-  const [selectedTerms, setSelectedTerms] = useState<number[]>(() => [getCurrentTerm()]);
+  const [selectedTerms, setSelectedTerms] = useState<number[]>([1]);
   const [curriculumFormat, setCurriculumFormat] = useState<'school' | 'bootcamp' | 'online' | 'selfpaced'>('school');
   const [bootcampDurationWeeks, setBootcampDurationWeeks] = useState('4');
   const [bootcampSchedule, setBootcampSchedule] = useState<'fulltime' | 'parttime' | 'weekend' | 'evening'>('fulltime');
@@ -363,9 +363,9 @@ export default function CurriculumPage() {
   const isStudent = profile?.role === 'student';
   const isParent = profile?.role === 'parent';
   const isSchool = profile?.role === 'school';
-  // Only admin can generate or modify any curriculum (shared or school-specific)
-  const canGenerate = isAdmin;
-  const canModifyCurriculum = isAdmin;
+  // Admin: full access. Teacher: generate/delete school-specific only (not platform template).
+  const canGenerate = isAdmin || isTeacher;
+  const canModifyCurriculum = isAdmin || isTeacher;
   const canTrack = isAdmin || isTeacher;
   const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
@@ -2414,7 +2414,7 @@ export default function CurriculumPage() {
                           <ClockIcon className="w-4 h-4" />
                           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Syllabus History</span>
                         </div>
-                        {canGenerate && curriculumList.length > 1 && (
+                        {isAdmin && curriculumList.length > 1 && (
                           <button
                             onClick={async () => {
                               if (!confirm(`Delete ALL ${curriculumList.length} syllabus versions for "${selectedCourse?.title}"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`)) return;
@@ -2542,8 +2542,8 @@ export default function CurriculumPage() {
                     <div className="flex flex-col gap-4">
                       {/* Top Row: Version + Preview-as */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Version/scope selector — always shown so user knows which version is active */}
-                        {canGenerate && curriculumList.length > 0 && (
+                        {/* Version/scope selector — visible to all staff so they can switch between platform and school versions */}
+                        {curriculumList.length > 1 && (
                           <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[36px] backdrop-blur-sm">
                             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">Syllabus</span>
                             <select
@@ -2577,6 +2577,15 @@ export default function CurriculumPage() {
 
                       {/* Bottom Row: Actions */}
                       <div className="flex items-center gap-2 flex-wrap">
+                        {canModifyCurriculum && (
+                          <button
+                            onClick={openGenerateModal}
+                            className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20"
+                          >
+                            <SparklesIcon className="w-3.5 h-3.5" /> Generate New Version
+                          </button>
+                        )}
+
                         {canPublish && (
                           <div className="flex items-center gap-2">
                             {curriculum.is_visible_to_school ? (
@@ -2616,19 +2625,11 @@ export default function CurriculumPage() {
                           >
                             <ChartBarIcon className="w-3.5 h-3.5" /> Reports
                           </Link>
-                          {canModifyCurriculum && (
-                            <button
-                              onClick={openGenerateModal}
-                              className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all"
-                            >
-                              <ArrowPathIcon className="w-3.5 h-3.5" /> Regenerate
-                            </button>
-                          )}
-                          {canModifyCurriculum && (
+                          {(isAdmin || (isTeacher && !!curriculum.school_id)) && (
                             <button
                               onClick={handleDeleteCurriculum}
                               disabled={deleting}
-                              className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-500/5 transition-all disabled:opacity-50"
+                              className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50"
                             >
                               {deleting ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
                               Delete
@@ -3292,7 +3293,7 @@ export default function CurriculumPage() {
                 </div>
               )}
 
-              {canTrack && (
+              {(isAdmin || (isTeacher && assignedSchools.length > 1)) && (
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syllabus scope</label>
                   <select
@@ -3301,9 +3302,9 @@ export default function CurriculumPage() {
                     className={SELECT_CLS}
                   >
                     <option value="" disabled>— Select an option —</option>
-                    <option value="platform">1. Rillcod platform (shared template)</option>
+                    {isAdmin && <option value="platform">1. Rillcod platform (shared template)</option>}
                     {assignedSchools.map((s, i) => (
-                      <option key={s.id} value={s.id}>{i + 2}. {s.name}</option>
+                      <option key={s.id} value={s.id}>{isAdmin ? i + 2 : i + 1}. {s.name}</option>
                     ))}
                   </select>
                   <p className="text-[10px] text-muted-foreground">
