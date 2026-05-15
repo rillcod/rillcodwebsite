@@ -269,7 +269,7 @@ export default function CurriculumPage() {
     weeks_per_term: '8',
     notes: '',
   });
-  const [selectedTerms, setSelectedTerms] = useState<number[]>([1, 2, 3]);
+  const [selectedTerms, setSelectedTerms] = useState<number[]>(() => [getCurrentTerm()]);
   const [curriculumFormat, setCurriculumFormat] = useState<'school' | 'bootcamp' | 'online' | 'selfpaced'>('school');
   const [bootcampDurationWeeks, setBootcampDurationWeeks] = useState('4');
   const [bootcampSchedule, setBootcampSchedule] = useState<'fulltime' | 'parttime' | 'weekend' | 'evening'>('fulltime');
@@ -2008,7 +2008,7 @@ export default function CurriculumPage() {
               >
                 {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(t => (
                   <option key={t.term} value={t.term} className="bg-background text-foreground">
-                    {TERM_LABEL[t.term] ?? `Term ${t.term}`}{t.title ? ` — ${t.title}` : ''}
+                    {t.term === getCurrentTerm() ? '▶ ' : ''}{TERM_LABEL[t.term] ?? `Term ${t.term}`}{t.title ? ` · ${t.title}` : ''}
                   </option>
                 ))}
               </select>
@@ -2653,12 +2653,12 @@ export default function CurriculumPage() {
                             const tw = tracking.filter(t => t.term_number === term.term);
                             const termWeeks = term.weeks?.length ?? 0;
                             const termDone = tw.filter(t => t.status === 'completed').length;
-                            const termLabel = term.title
-                              ? `${TERM_LABEL[term.term] ?? `Term ${term.term}`} · ${term.title}`
-                              : (TERM_LABEL[term.term] ?? `Term ${term.term}`);
+                            const isNow = term.term === getCurrentTerm();
+                            const baseLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
+                            const termLabel = term.title ? `${baseLabel} · ${term.title}` : baseLabel;
                             return (
                               <option key={term.term} value={term.term} className="bg-[#0a0a0a] text-foreground">
-                                {termLabel} — {termDone}/{termWeeks} taught
+                                {isNow ? '▶ ' : ''}{termLabel} — {termDone}/{termWeeks} taught
                               </option>
                             );
                           })}
@@ -3383,16 +3383,30 @@ export default function CurriculumPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Which terms to generate</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Which terms to generate</label>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-primary/70">
+                        Now: {TERM_LABEL[getCurrentTerm()]}
+                      </span>
+                    </div>
                     <div className="flex gap-2">
-                      {([1, 2, 3] as const).map((t) => (
-                        <button key={t} type="button" onClick={() => toggleTerm(t)}
-                          className={`flex-1 px-2 py-2 border text-center transition-all ${selectedTerms.includes(t) ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/40'}`}
-                        >
-                          <div className="text-[10px] font-black">{TERM_LABEL[t]}</div>
-                          <div className="text-[9px] opacity-70">{t === 1 ? 'Sept–Dec' : t === 2 ? 'Jan–Apr' : 'May–Aug'}</div>
-                        </button>
-                      ))}
+                      {([1, 2, 3] as const).map((t) => {
+                        const isCurrentCalendarTerm = t === getCurrentTerm();
+                        const isSelected = selectedTerms.includes(t);
+                        return (
+                          <button key={t} type="button" onClick={() => toggleTerm(t)}
+                            className={`relative flex-1 px-2 py-2 border text-center transition-all ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/40'}`}
+                          >
+                            {isCurrentCalendarTerm && (
+                              <span className={`absolute -top-1.5 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-full ${isSelected ? 'bg-white text-primary' : 'bg-primary text-white'}`}>
+                                Now
+                              </span>
+                            )}
+                            <div className="text-[10px] font-black mt-1">{TERM_LABEL[t]}</div>
+                            <div className="text-[9px] opacity-70">{t === 1 ? 'Sept–Dec' : t === 2 ? 'Jan–Apr' : 'May–Aug'}</div>
+                          </button>
+                        );
+                      })}
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1">
                       {selectedTerms.length === 3 ? 'Full academic year.' : selectedTerms.map(t => TERM_LABEL[t]).join(' + ') + '.'}
