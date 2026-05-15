@@ -14,7 +14,7 @@ import {
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
   Squares2X2Icon, PlusIcon, CalendarDaysIcon, TrashIcon, PresentationChartLineIcon,
-  BuildingOfficeIcon, LockClosedIcon, ArrowDownTrayIcon,
+  BuildingOfficeIcon, LockClosedIcon, ArrowDownTrayIcon, ShieldCheckIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -363,19 +363,13 @@ export default function CurriculumPage() {
   const isStudent = profile?.role === 'student';
   const isParent = profile?.role === 'parent';
   const isSchool = profile?.role === 'school';
-  const canGenerate = isAdmin || isTeacher;
+  // Only admin can generate or modify any curriculum (shared or school-specific)
+  const canGenerate = isAdmin;
+  const canModifyCurriculum = isAdmin;
   const canTrack = isAdmin || isTeacher;
-  // Teachers can only publish their own school's curriculum; platform (school_id=null) is admin-only
-  const canPublish = isAdmin || (isTeacher && (curriculum?.school_id ?? null) !== null);
+  const canPublish = isAdmin;
   // Students & parents get a clean read-only syllabus (no builder chrome).
   const learnerMode = isStudent || isParent;
-
-  // Reset to syllabus tab if role can't access delivery/generate
-  useEffect(() => {
-    if (!canTrack && activeTab === 'delivery') {
-      setActiveTab('syllabus');
-    }
-  }, [canTrack, activeTab]);
 
   // Reset week content editor when switching weeks
   useEffect(() => {
@@ -762,7 +756,7 @@ export default function CurriculumPage() {
 
   // Auto-load implementations when delivery OR implementations tab active, or course changes
   useEffect(() => {
-    if ((activeTab === 'implementations' || activeTab === 'delivery') && selectedCourse) {
+    if (selectedCourse) {
       const params = new URLSearchParams({ course_id: selectedCourse.id });
       if (curriculum?.id) params.set('curriculum_version_id', curriculum.id);
       fetch(`/api/lesson-plans?${params.toString()}`)
@@ -1154,7 +1148,6 @@ export default function CurriculumPage() {
     setActiveWeek(null);
     setLoadError('');
     setMobileSidebarOpen(false);
-    setActiveTab('syllabus');
     try { window.history.pushState(null, '', `/dashboard/curriculum?program=${prog.id}&course=${course.id}`); } catch { /* ignore */ }
     loadCurriculum(course.id);
   }
@@ -1930,44 +1923,19 @@ export default function CurriculumPage() {
     )}
 
     <div className="flex flex-col min-h-screen bg-background text-foreground print:hidden">
-      {/* Header */}
+      {/* Header — single compact row */}
       <div className="shrink-0 border-b border-border bg-card z-20">
-        <div className="px-4 py-3 max-w-[1800px] mx-auto flex flex-col gap-3">
-          {/* Planning trio breadcrumb */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <PlanningBreadcrumb current="syllabus" />
-            <button
-              type="button"
-              onClick={() => setShowHelp(h => !h)}
-              className="shrink-0 self-start sm:self-auto px-3 py-2 text-[10px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
-            >
-              {showHelp ? 'Hide guide' : '? How it works'}
-            </button>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <div className="flex flex-col sm:flex-row gap-2 flex-1 sm:max-w-lg shrink-0">
-              <div className="relative flex-1 min-w-0">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                <input
-                  type="search"
-                  value={catalogQuery}
-                  onChange={(e) => setCatalogQuery(e.target.value)}
-                  placeholder="Search programmes & courses…"
-                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  aria-label="Filter programmes and courses"
-                />
-              </div>
-              {canTrack && programs.length > 0 && (
-                <button
-                  type="button"
-                  onClick={expandAllPrograms}
-                  className="shrink-0 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest border border-border bg-card hover:bg-muted/30 text-foreground"
-                >
-                  Expand all
-                </button>
-              )}
-            </div>
-          </div>
+        <div className="px-4 h-12 max-w-[1800px] mx-auto flex items-center gap-3">
+          <PlanningBreadcrumb current="syllabus" />
+          <div className="flex-1" />
+          <button
+            type="button"
+            onClick={() => setShowHelp(h => !h)}
+            title={showHelp ? 'Hide guide' : 'How it works'}
+            className={`p-2 rounded-lg transition-colors ${showHelp ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}
+          >
+            <InformationCircleIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -2021,16 +1989,6 @@ export default function CurriculumPage() {
               )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {curriculum && canGenerate && (
-                <button
-                  onClick={() => setPreviewRole('student')}
-                  className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-sky-300 border border-sky-500/30 px-2 py-1.5 hover:bg-sky-500/10"
-                  aria-label="Preview as student"
-                >
-                  <EyeIcon className="w-3.5 h-3.5" />
-                  Preview
-                </button>
-              )}
               <button
                 onClick={() => setMobileSidebarOpen(v => !v)}
                 className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-brand-red-600 border border-primary/30 px-2 py-1.5"
@@ -2050,7 +2008,7 @@ export default function CurriculumPage() {
               >
                 {[...curriculum.content.terms].sort((a, b) => a.term - b.term).map(t => (
                   <option key={t.term} value={t.term} className="bg-background text-foreground">
-                    {TERM_LABEL[t.term] ?? `Term ${t.term}`}
+                    {TERM_LABEL[t.term] ?? `Term ${t.term}`}{t.title ? ` — ${t.title}` : ''}
                   </option>
                 ))}
               </select>
@@ -2065,14 +2023,22 @@ export default function CurriculumPage() {
         border-b md:border-b-0 md:border-r border-border
         bg-card overflow-y-auto md:h-screen
       `}>
-          <div className="px-4 py-4 border-b border-border">
+          <div className="px-4 pt-4 pb-3 border-b border-border space-y-3">
             <div className="flex items-center gap-2">
               <SparklesIcon className="w-4 h-4 text-primary" />
-              <h2 className="text-xs font-black uppercase tracking-widest text-foreground">Catalog</h2>
+              <h2 className="text-xs font-black uppercase tracking-widest text-foreground flex-1">Catalog</h2>
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Use the search bar above to filter. Click another course anytime — your work is per course.
-            </p>
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="search"
+                value={catalogQuery}
+                onChange={(e) => setCatalogQuery(e.target.value)}
+                placeholder="Search…"
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 rounded-md"
+                aria-label="Filter programmes and courses"
+              />
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto py-2">
@@ -2164,62 +2130,10 @@ export default function CurriculumPage() {
 
         {/* ── Main Content ── */}
         <main className="flex-1 overflow-y-auto flex flex-col">
-          {/* Tab bar — shown when course selected */}
-          {selectedCourse && (
-            <div
-              className="sticky top-0 z-20 flex overflow-x-auto snap-x snap-mandatory border-b border-white/5 bg-background/80 backdrop-blur-xl px-2 sm:px-4 shrink-0 [-webkit-overflow-scrolling:touch]"
-              role="tablist"
-              aria-label="Curriculum views"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'syllabus'}
-                onClick={() => setActiveTab('syllabus')}
-                className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'syllabus'
-                  ? 'border-primary text-primary bg-primary/5 shadow-[inset_0_-2px_0_0_rgba(255,107,0,0.5)]'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
-                  }`}
-              >
-                <BookOpenIcon className="w-4 h-4 shrink-0" aria-hidden />
-                <span className="whitespace-nowrap">Syllabus</span>
-              </button>
-              {curriculum && canTrack && (
-                <>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === 'implementations'}
-                    onClick={() => setActiveTab('implementations')}
-                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'implementations'
-                      ? 'border-primary text-primary bg-primary/5 shadow-[inset_0_-2px_0_0_rgba(255,107,0,0.5)]'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
-                      }`}
-                  >
-                    <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">Classes</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === 'delivery'}
-                    onClick={() => setActiveTab('delivery')}
-                    className={`snap-start shrink-0 flex items-center gap-2 min-h-[56px] px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 transition-all duration-300 touch-manipulation ${activeTab === 'delivery'
-                      ? 'border-primary text-primary bg-primary/5 shadow-[inset_0_-2px_0_0_rgba(139,92,246,0.5)]'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-white/5'
-                      }`}
-                  >
-                    <ChartBarIcon className="w-4 h-4 shrink-0" aria-hidden />
-                    <span className="whitespace-nowrap">Progress</span>
-                  </button>
-                </>
-              )}
-            </div>
-          )}
 
 
-          {/* Syllabus Tab (or no course selected) */}
-          {(activeTab === 'syllabus' || !selectedCourse) && (
+          {/* Syllabus (always shown) */}
+          {(
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -2551,7 +2465,7 @@ export default function CurriculumPage() {
                                 </div>
                               </button>
                               {/* Delete button — always visible, bottom right */}
-                              {canGenerate && (
+                              {(isAdmin || (isTeacher && !!c.school_id)) && (
                                 <button
                                   onClick={async (e) => {
                                     e.stopPropagation();
@@ -2586,14 +2500,18 @@ export default function CurriculumPage() {
                   {/* Header — Unified with History Card aesthetics */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-white/5 relative">
                     <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-                    <div className="space-y-4 relative z-10">
-                      {curriculum.schools?.name && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-xs font-black uppercase tracking-[0.15em] text-emerald-400">
-                            <BuildingOfficeIcon className="w-3.5 h-3.5" /> {curriculum.schools.name}
+                    <div className="space-y-3 relative z-10">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {curriculum.school_id ? (
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                            <BuildingOfficeIcon className="w-3 h-3" /> {curriculum.schools?.name ?? 'School'}
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black uppercase tracking-widest text-primary">
+                            <ShieldCheckIcon className="w-3 h-3" /> Platform Template · Admin only
+                          </div>
+                        )}
+                      </div>
 
                       <div className="space-y-1">
                         <h1 className="text-4xl font-black leading-tight tracking-tighter text-foreground">
@@ -2655,26 +2573,6 @@ export default function CurriculumPage() {
                           </div>
                         )}
 
-                        {/* Preview as role — Student & Parent show same learner view */}
-                        {canGenerate && (
-                          <div className="inline-flex rounded-lg border border-white/10 overflow-hidden bg-card/50 backdrop-blur-sm h-[36px]">
-                            <span className="hidden sm:flex items-center text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground px-3 border-r border-white/10">
-                              Preview
-                            </span>
-                            {([
-                              { role: 'student', label: 'Learner view' },
-                              { role: 'school', label: 'School view' },
-                            ] as { role: SyllabusPreviewRole; label: string }[]).map(({ role: r, label }) => (
-                              <button
-                                key={r}
-                                onClick={() => setPreviewRole(r === previewRole ? null : r)}
-                                className={`px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors border-r border-white/10 last:border-0 ${previewRole === r ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-white/5'}`}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
                       {/* Bottom Row: Actions */}
@@ -2718,7 +2616,7 @@ export default function CurriculumPage() {
                           >
                             <ChartBarIcon className="w-3.5 h-3.5" /> Reports
                           </Link>
-                          {canGenerate && (
+                          {canModifyCurriculum && (
                             <button
                               onClick={openGenerateModal}
                               className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all"
@@ -2726,7 +2624,7 @@ export default function CurriculumPage() {
                               <ArrowPathIcon className="w-3.5 h-3.5" /> Regenerate
                             </button>
                           )}
-                          {canGenerate && (
+                          {canModifyCurriculum && (
                             <button
                               onClick={handleDeleteCurriculum}
                               disabled={deleting}
@@ -2755,9 +2653,12 @@ export default function CurriculumPage() {
                             const tw = tracking.filter(t => t.term_number === term.term);
                             const termWeeks = term.weeks?.length ?? 0;
                             const termDone = tw.filter(t => t.status === 'completed').length;
+                            const termLabel = term.title
+                              ? `${TERM_LABEL[term.term] ?? `Term ${term.term}`} · ${term.title}`
+                              : (TERM_LABEL[term.term] ?? `Term ${term.term}`);
                             return (
                               <option key={term.term} value={term.term} className="bg-[#0a0a0a] text-foreground">
-                                {TERM_LABEL[term.term] ?? `Term ${term.term}`} — {termDone}/{termWeeks} taught
+                                {termLabel} — {termDone}/{termWeeks} taught
                               </option>
                             );
                           })}
@@ -3131,390 +3032,6 @@ export default function CurriculumPage() {
             </motion.div>
           )}
 
-          {/* ── Implementations Tab ── */}
-          {activeTab === 'implementations' && selectedCourse && (
-            <div className="mx-4 sm:mx-6 mb-6 space-y-6">
-              {/* Explanation banner */}
-              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
-                <ClipboardDocumentListIcon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">What are Class Plans?</p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Each entry below is a <strong className="text-foreground">Lesson Plan</strong> — this syllabus deployed to a specific class for a specific term.
-                    Click any card to open the week-by-week planner. You can also manage all plans from the{' '}
-                    <Link href="/dashboard/lesson-plans" className="text-primary hover:underline font-bold">Lesson Plans page</Link>.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest text-foreground">Classes Using This Syllabus</h4>
-                  <p className="text-[10px] text-muted-foreground">Each card is a lesson plan for one class — click to plan week by week</p>
-                </div>
-                <button
-                  onClick={() => {
-                    const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
-                    setImplError('');
-                    setImplForm(f => ({ ...f, school_id: sid, class_id: '', term: activeTerm.toString() }));
-                    if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
-                    else setImplClasses([]);
-                    setShowImplement(true);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-lg px-4 py-2 bg-primary hover:bg-primary text-white text-[10px] font-black uppercase tracking-widest transition-all"
-                >
-                  <PlusIcon className="w-3 h-3" />
-                  Deploy to Another Class
-                </button>
-              </div>
-
-              {implementationList.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border rounded-2xl gap-3">
-                  <ClipboardDocumentListIcon className="w-12 h-12 text-muted-foreground/20" />
-                  <p className="text-xs font-bold text-muted-foreground">No classes are using this syllabus yet.</p>
-                  <p className="text-[10px] text-muted-foreground max-w-xs text-center">Deploy this syllabus to a class to start planning lessons week by week.</p>
-                  <button
-                    onClick={() => setShowImplement(true)}
-                    className="text-primary text-xs font-black uppercase tracking-widest hover:underline"
-                  >
-                    Deploy to a Class →
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {implementationList.map((plan: any) => {
-                    const { totalWeeks, completedWeeks, progressPct } = getLessonPlanOperationStats(plan.plan_data);
-                    
-                    return (
-                    <Link
-                      key={plan.id}
-                      href={`/dashboard/lesson-plans/${plan.id}`}
-                      className="group relative bg-card border border-border hover:border-primary/40 p-6 transition-all duration-300 flex flex-col gap-5 overflow-hidden shadow-sm hover:shadow-xl rounded-lg min-h-[180px]"
-                    >
-                      <div className="flex items-start justify-between relative z-10">
-                        <div className="min-w-0 pr-6">
-                          <h5 className="text-base font-black text-foreground group-hover:text-primary transition-colors truncate mb-1">{plan.classes?.name || 'Unnamed Class'}</h5>
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-[0.1em]">{plan.term || 'No Term'}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md border ${plan.status === 'published' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'border-white/10 text-muted-foreground bg-white/5'}`}>
-                            {plan.status || 'draft'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 flex-1 mt-2">
-                        <div className="flex justify-between items-center text-[10px] font-bold">
-                          <span className="text-muted-foreground uppercase tracking-widest">Delivery Progress</span>
-                          <span className="text-primary">{completedWeeks} / {totalWeeks} Weeks</span>
-                        </div>
-                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border">
-                          <div className="h-full bg-primary rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPct}%` }} />
-                        </div>
-                      </div>
-
-                      <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-80 group-hover:opacity-100 transition-opacity">Open Lesson Plan →</span>
-                        <button
-                          onClick={(e) => deleteImplementation(plan.id, e)}
-                          disabled={deletingImpl === plan.id}
-                          className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-all disabled:opacity-30 relative z-20"
-                          title="Delete this implementation"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </Link>
-                  )})}
-                </div>
-              )}
-
-              {/* Next Step hint: prompt to implement when no class uses this syllabus yet */}
-              {curriculum && canTrack && implementationList.length === 0 && (
-                <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-primary/5 border border-primary/20 rounded-xl">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <RocketLaunchIcon className="w-5 h-5 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-black text-violet-300">Syllabus ready — next step is to push it to a class</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Pick a school, a class, and a term to create a lesson plan from this syllabus.</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const sid = curriculum.school_id || assignedSchools[0]?.id || '';
-                      setImplError('');
-                      setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                      if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
-                      else setImplClasses([]);
-                      setShowImplement(true);
-                    }}
-                    className="shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest bg-primary hover:bg-primary text-white transition-all"
-                  >
-                    <RocketLaunchIcon className="w-4 h-4" />
-                    Push to Class
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Progress Tab ── */}
-          {activeTab === 'delivery' && curriculum && (
-            <div className="mx-4 sm:mx-6 mb-6 space-y-5">
-
-              {/* ── Gate: teacher must assign to a class first ── */}
-              {canTrack && isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum.id).length === 0 && (
-                <div className="border border-amber-500/40 bg-amber-500/10 p-5 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                      <LockClosedIcon className="w-4 h-4 text-amber-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-amber-300">Assign this syllabus to a class to start tracking</p>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        Week-by-week tracking is tied to a specific class. Push this syllabus to one of your classes first — it creates a lesson plan you can fill week by week, and unlocks delivery tracking here.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const sid = curriculum.school_id || assignedSchools[0]?.id || '';
-                      setImplError('');
-                      setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                      if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
-                      else setImplClasses([]);
-                      setShowImplement(true);
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-widest transition-all"
-                  >
-                    <RocketLaunchIcon className="w-4 h-4" /> Push to a Class
-                  </button>
-                </div>
-              )}
-
-              {/* ── Multi-class picker (teacher has >1 class using this syllabus) ── */}
-              {canTrack && isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum.id).length > 1 && (
-                <div className="border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Tracking class</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">You have this syllabus assigned to multiple classes. Choose which class's delivery progress to view.</p>
-                  </div>
-                  <select
-                    value={selectedPlanId}
-                    onChange={e => setSelectedPlanId(e.target.value)}
-                    className="px-3 py-2 bg-background border border-border text-sm font-bold rounded-lg shrink-0"
-                  >
-                    <option value="">All classes</option>
-                    {implementationList.filter((p: any) => p.curriculum_version_id === curriculum.id).map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.classes?.name ?? p.class_id ?? 'Unknown class'} — {p.term ?? ''}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* ── Header row: title + Reset All ── */}
-              {(() => {
-                const terms = curriculum.content?.terms ?? [];
-                const allWeeks = terms.flatMap((t: any) => t.weeks ?? []);
-                const totalWeeks = allWeeks.length;
-                const completed = tracking.filter(t => t.status === 'completed').length;
-                const inProgress = tracking.filter(t => t.status === 'in_progress').length;
-                const skipped = tracking.filter(t => t.status === 'skipped').length;
-                const pct = totalWeeks > 0 ? Math.round((completed / totalWeeks) * 100) : 0;
-                return (
-                  <div className="bg-primary/5 border border-primary/20 p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h4 className="text-xs font-black uppercase tracking-widest text-violet-300">Delivery Progress</h4>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">Weeks you've marked as taught — click any term to jump to it on the syllabus</p>
-                      </div>
-                      {tracking.length > 0 && (
-                        <button
-                          disabled={resettingAll}
-                          onClick={resetAllProgress}
-                          className="shrink-0 text-[10px] font-black text-rose-400 uppercase tracking-widest border border-rose-500/30 px-3 py-1.5 hover:bg-rose-500/10 transition-colors disabled:opacity-40 min-h-[36px]"
-                        >
-                          {resettingAll ? 'Resetting…' : 'Reset All'}
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider">
-                        <span className="text-violet-300">{completed} / {totalWeeks} weeks taught</span>
-                        <span className="text-primary">{pct}%</span>
-                      </div>
-                      <div className="h-2 bg-primary/10 overflow-hidden border border-primary/20">
-                        <div className="h-full bg-primary transition-all duration-700" style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{completed} taught</span>
-                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-primary" />{inProgress} in progress</span>
-                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-amber-400" />{skipped} skipped</span>
-                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />{totalWeeks - completed - inProgress - skipped} pending</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ── Per-term accordion cards ── */}
-              {(curriculum.content.terms ?? []).map((term: any) => {
-                const termWeeks: CurriculumWeek[] = term.weeks ?? [];
-                const termTracked = tracking.filter(t => t.term_number === term.term);
-                const termCompleted = termTracked.filter(t => t.status === 'completed').length;
-                const termInProgress = termTracked.filter(t => t.status === 'in_progress').length;
-                const termSkipped = termTracked.filter(t => t.status === 'skipped').length;
-                const termPct = termWeeks.length > 0 ? Math.round((termCompleted / termWeeks.length) * 100) : 0;
-                const isExpanded = expandedTerms.has(term.term);
-                const hasActivity = termTracked.length > 0;
-
-                return (
-                  <div key={term.term} className="bg-card border border-border overflow-hidden">
-                    {/* Term header — click to expand/collapse */}
-                    <button
-                      type="button"
-                      onClick={() => setExpandedTerms(prev => {
-                        const n = new Set(prev);
-                        n.has(term.term) ? n.delete(term.term) : n.add(term.term);
-                        return n;
-                      })}
-                      className="w-full flex items-center gap-4 px-4 py-3 hover:bg-muted/20 transition-colors text-left"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term {term.term}</span>
-                          {term.title && <span className="text-[10px] text-foreground/60 truncate">— {term.title}</span>}
-                          {!hasActivity && <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest border border-border px-1.5 py-0.5">Not started</span>}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-1.5 bg-muted overflow-hidden">
-                            <div className="h-full bg-primary transition-all duration-500" style={{ width: `${termPct}%` }} />
-                          </div>
-                          <span className="text-xs font-black text-primary shrink-0">{termPct}%</span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                          <span className="text-emerald-400">{termCompleted} taught</span>
-                          {termInProgress > 0 && <span className="text-primary">{termInProgress} in progress</span>}
-                          {termSkipped > 0 && <span className="text-amber-400">{termSkipped} skipped</span>}
-                          <span>{termWeeks.length - termCompleted - termInProgress - termSkipped} pending</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {hasActivity && (
-                          <button
-                            type="button"
-                            disabled={resettingTerm === term.term}
-                            onClick={(e) => { e.stopPropagation(); void resetTermProgress(term.term); }}
-                            className="text-[9px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 px-2 py-1 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
-                          >
-                            {resettingTerm === term.term ? '…' : 'Reset'}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setActiveTerm(term.term); setActiveTab('syllabus'); }}
-                          className="text-[9px] font-black uppercase tracking-widest text-primary border border-primary/30 px-2 py-1 hover:bg-primary/10 transition-colors"
-                        >
-                          Go →
-                        </button>
-                        {isExpanded
-                          ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
-                          : <ChevronRightIcon className="w-4 h-4 text-muted-foreground" />}
-                      </div>
-                    </button>
-
-                    {/* Expanded: per-week breakdown */}
-                    {isExpanded && (
-                      <div className="border-t border-border divide-y divide-border/50">
-                        {termWeeks.map((week) => {
-                          const wt = getTracking(term.term, week.week);
-                          const wMeta = WEEK_META[week.type as WeekType] ?? WEEK_META.lesson;
-                          const tMeta = TRACK_META[wt?.status ?? 'pending'];
-                          const TIcon = tMeta.icon;
-                          const isSaving = savingTrack;
-                          const classLocked = isTeacher && implementationList.filter((p: any) => p.curriculum_version_id === curriculum.id).length === 0;
-                          return (
-                            <div key={week.week} className="flex flex-col sm:flex-row sm:items-center gap-1 px-4 py-2.5 border-b border-border/40 last:border-0 hover:bg-muted/5 transition-colors">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <span className="text-[10px] font-black text-muted-foreground/50 uppercase tracking-widest w-8 shrink-0">W{week.week}</span>
-                                <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border shrink-0 ${wMeta.color}`}>{wMeta.label}</span>
-                                <span className="text-[11px] text-foreground/80 flex-1 truncate">{week.topic}</span>
-                              </div>
-                              <div className="flex items-center gap-1 pl-10 sm:pl-0 shrink-0">
-                                {classLocked ? (
-                                  <span className="flex items-center gap-1 text-[9px] text-amber-400/60 font-bold border border-amber-500/20 px-2 py-0.5">
-                                    <LockClosedIcon className="w-2.5 h-2.5" /> Assign class first
-                                  </span>
-                                ) : (
-                                  <>
-                                    {/* Current status label */}
-                                    <span className={`flex items-center gap-1 text-[9px] font-bold mr-1 ${tMeta.color}`}>
-                                      <TIcon className="w-2.5 h-2.5" />{tMeta.label}
-                                    </span>
-                                    {wt?.status !== 'completed' && (
-                                      <button
-                                        type="button"
-                                        disabled={isSaving}
-                                        onClick={() => { const prev = activeTerm; setActiveTerm(term.term); setTimeout(() => { void trackWeek(week, 'completed'); setActiveTerm(prev); }, 0); }}
-                                        className="text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 text-emerald-400 px-1.5 py-0.5 hover:bg-emerald-500/10 transition-colors disabled:opacity-40"
-                                        title="Mark as taught"
-                                      >✓ Taught</button>
-                                    )}
-                                    {wt?.status !== 'in_progress' && wt?.status !== 'completed' && (
-                                      <button
-                                        type="button"
-                                        disabled={isSaving}
-                                        onClick={() => { const prev = activeTerm; setActiveTerm(term.term); setTimeout(() => { void trackWeek(week, 'in_progress'); setActiveTerm(prev); }, 0); }}
-                                        className="text-[9px] font-black uppercase tracking-widest border border-primary/30 text-primary px-1.5 py-0.5 hover:bg-primary/10 transition-colors disabled:opacity-40"
-                                        title="Mark in progress"
-                                      >↻</button>
-                                    )}
-                                    {wt && (
-                                      <button
-                                        type="button"
-                                        disabled={isSaving}
-                                        onClick={async () => {
-                                          if (!curriculum) return;
-                                          await fetch(`/api/curricula/${curriculum.id}/track?term=${term.term}&week=${week.week}`, { method: 'DELETE' });
-                                          setTracking(prev => prev.filter(t => !(t.term_number === term.term && t.week_number === week.week)));
-                                        }}
-                                        className="text-[9px] font-black uppercase tracking-widest border border-rose-500/20 text-rose-400/70 px-1.5 py-0.5 hover:bg-rose-500/10 transition-colors disabled:opacity-40"
-                                        title="Clear this week's status"
-                                      >×</button>
-                                    )}
-                                    {wt?.actual_date && (
-                                      <span className="text-[9px] text-muted-foreground/40 hidden sm:block ml-1">
-                                        {new Date(wt.actual_date).toLocaleDateString()}
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {tracking.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-border gap-3">
-                  <ChartBarIcon className="w-10 h-10 text-muted-foreground/20" />
-                  <p className="text-xs font-bold text-muted-foreground">No weeks marked yet</p>
-                  <p className="text-[10px] text-muted-foreground max-w-xs text-center">Click a week on the Syllabus tab, then mark it as In Progress, Completed, or Skipped.</p>
-                  <button
-                    onClick={() => setActiveTab('syllabus')}
-                    className="text-primary text-xs font-black uppercase tracking-widest hover:underline"
-                  >Go to Syllabus →</button>
-                </div>
-              )}
-            </div>
-          )}
 
         </main>
       </div>
@@ -4002,105 +3519,6 @@ export default function CurriculumPage() {
           </div>
         </div>
       )}
-
-      {/* Preview-as-role modal — shows the teacher exactly what the
-          selected audience will see, without leaving the builder. */}
-      <AnimatePresence>
-        {previewRole && curriculum && (
-          <motion.div
-            key="syllabus-preview-modal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[75] bg-black/70 backdrop-blur-sm p-0 sm:p-4 flex items-stretch sm:items-center justify-center"
-            onClick={() => setPreviewRole(null)}
-          >
-            <motion.div
-              initial={{ y: 24, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 24, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-              className="w-full sm:max-w-3xl bg-background sm:rounded-lg sm:border sm:border-border flex flex-col max-h-screen sm:max-h-[90vh]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-card/70">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-sky-300">
-                    Learner Preview
-                  </p>
-                  <p className="text-sm font-black truncate">
-                    {curriculum.content.course_title}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {(['student', 'parent', 'school'] as SyllabusPreviewRole[]).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => setPreviewRole(r)}
-                      className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded border ${previewRole === r
-                        ? 'bg-sky-500/15 border-sky-500/40 text-sky-300'
-                        : 'border-border text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                      {r}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setPreviewRole(null)}
-                    className="ml-1 p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                    aria-label="Close preview"
-                  >
-                    <XMarkIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4">
-                <SyllabusPreview
-                  content={curriculum.content as unknown as SyllabusContent}
-                  courseTitle={selectedCourse?.title}
-                  previewRole={previewRole}
-                  audienceIsLearner={previewRole !== 'school'}
-                  hideCourseHeader
-                  topBanner={
-                    !curriculum.is_visible_to_school ? (
-                      <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs flex items-center gap-2">
-                        <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span className="text-amber-200">
-                          This syllabus is currently a draft. The {previewRole} won&rsquo;t see it
-                          until you click <strong>Publish to school</strong>.
-                        </span>
-                      </div>
-                    ) : null
-                  }
-                />
-              </div>
-              <div className="border-t border-border bg-card/70 px-4 py-3 flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  {canPublish
-                    ? 'Preview only — no data is visible to learners in draft mode.'
-                    : 'Platform template — clone to your school to publish.'}
-                </p>
-                {canPublish && (
-                  <button
-                    onClick={() => togglePublish(!curriculum.is_visible_to_school)}
-                    disabled={publishing}
-                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded border transition disabled:opacity-60 ${curriculum.is_visible_to_school
-                      ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10'
-                      : 'border-primary/50 text-primary hover:bg-primary/10'
-                      }`}
-                  >
-                    {publishing
-                      ? 'Saving…'
-                      : curriculum.is_visible_to_school
-                        ? 'Unpublish'
-                        : 'Publish to school'}
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Implementation Modal — The Bridge */}
       <AnimatePresence>
