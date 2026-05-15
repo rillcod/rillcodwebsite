@@ -470,6 +470,17 @@ export default function CurriculumPage() {
             }
           }
         } catch { /* ignore */ }
+        // No URL param, no localStorage — auto-select first available course
+        for (const p of progs) {
+          const c = (p.courses ?? []).find((x) => x.is_active !== false);
+          if (c) {
+            setExpandedPrograms(new Set([p.id]));
+            setSelectedProgram(p);
+            setSelectedCourse(c);
+            loadCurriculumRef.current?.(c.id);
+            return;
+          }
+        }
         if (progs.length === 1) {
           setExpandedPrograms(new Set([progs[0].id]));
         }
@@ -947,6 +958,10 @@ export default function CurriculumPage() {
       if (!doc) return;
       setCurriculum(doc);
       setActiveWeek(null);
+      const termNums = (doc.content?.terms ?? []).map((t: any) => t.term as number);
+      if (termNums.length > 0) {
+        setActiveTerm((prev) => termNums.includes(prev) ? prev : termNums[0]);
+      }
       try {
         const tRes = await fetch(`/api/curricula/${id}/track`);
         const tJson = await tRes.json();
@@ -1010,6 +1025,13 @@ export default function CurriculumPage() {
           restoreGradeForScope(scope);
 
           setCurriculum(curr);
+
+          // Snap activeTerm to a valid term in this curriculum
+          const termNums = (curr.content?.terms ?? []).map((t: any) => t.term as number);
+          if (termNums.length > 0) {
+            const desired = getCurrentTerm();
+            setActiveTerm(termNums.includes(desired) ? desired : termNums[0]);
+          }
 
           // Mark this course as having a curriculum (for sidebar badge)
           setCoursesWithCurricula(prev => { const n = new Set(prev); n.add(courseId); return n; });
@@ -2454,7 +2476,7 @@ export default function CurriculumPage() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {curriculumList.map((c) => {
-                          const schoolName = c.schools?.name ?? (c.school_id ? 'School syllabus' : 'Shared template');
+                          const schoolName = c.school_id ? (c.schools?.name ?? 'School') : 'Rillcod shared template';
                           const terms = c.content?.terms?.length ?? 0;
                           const weeks = (c.content?.terms ?? []).reduce((sum: number, t: any) => sum + ((t?.weeks ?? []).length), 0);
                           return (
@@ -2564,17 +2586,30 @@ export default function CurriculumPage() {
                         {/* Version/scope selector — always shown so user knows which version is active */}
                         {canGenerate && curriculumList.length > 0 && (
                           <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[36px] backdrop-blur-sm">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">Version</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">Syllabus</span>
                             <select
                               value={curriculum.id}
                               onChange={(e) => selectCurriculumVersion(e.target.value)}
                               className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-6 h-full cursor-pointer"
                             >
-                              {curriculumList.map((c) => (
-                                <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                  {c.school_id ? `${c.schools?.name ?? 'School'} — v${c.version}` : `Platform template — v${c.version}`}
-                                </option>
-                              ))}
+                              {curriculumList.filter(c => !c.school_id).length > 0 && (
+                                <optgroup label="─ Shared template">
+                                  {curriculumList.filter(c => !c.school_id).map((c) => (
+                                    <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                      Rillcod shared{curriculumList.filter(c => !c.school_id).length > 1 ? ` — v${c.version}` : ''}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {curriculumList.filter(c => !!c.school_id).length > 0 && (
+                                <optgroup label="─ School versions">
+                                  {curriculumList.filter(c => !!c.school_id).map((c) => (
+                                    <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                      {c.schools?.name ?? 'School'}{curriculumList.filter(cx => cx.school_id === c.school_id).length > 1 ? ` — v${c.version}` : ''}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
                             </select>
                           </div>
                         )}
