@@ -512,10 +512,12 @@ export default function CurriculumPage() {
       .then((j) => {
         const schools = (j.data ?? []) as { id: string; name: string }[];
         setAssignedSchools(schools);
-        // For single-school teachers, auto-select their only school.
-        // Multi-school teachers and admins must pick explicitly.
+        // Single-school teacher → auto-select their school.
+        // Multi-school teachers and admins must pick explicitly (placeholder shown).
         if (!isAdmin && schools.length === 1) {
-          setGenerateScope((prev) => (prev === 'platform' ? schools[0].id : prev));
+          setGenerateScope(schools[0].id);
+        } else if (!isAdmin && schools.length > 1) {
+          setGenerateScope('platform'); // will show as placeholder until user picks
         }
       })
       .catch(() => setAssignedSchools([]));
@@ -3787,15 +3789,13 @@ export default function CurriculumPage() {
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Syllabus scope</label>
                   <select
                     value={generateScope}
-                    onChange={(e) => syncScopeToCurriculum(e.target.value === 'platform' ? 'platform' : e.target.value)}
+                    onChange={(e) => { if (e.target.value) syncScopeToCurriculum(e.target.value === 'platform' ? 'platform' : e.target.value); }}
                     className={SELECT_CLS}
                   >
-                    <option value="platform">Rillcod platform (shared template)</option>
-                    {assignedSchools.length > 1 && !isAdmin && (
-                      <option value="" disabled>── Select a school ──</option>
-                    )}
-                    {assignedSchools.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
+                    <option value="" disabled>— Select an option —</option>
+                    <option value="platform">1. Rillcod platform (shared template)</option>
+                    {assignedSchools.map((s, i) => (
+                      <option key={s.id} value={s.id}>{i + 2}. {s.name}</option>
                     ))}
                   </select>
                   <p className="text-[10px] text-muted-foreground">
