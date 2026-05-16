@@ -58,7 +58,12 @@ const BLANK = {
  * Saves into public.invoices with stream=school so it flows through the
  * finance_ledger, Money Hub and reconciliation dashboard seamlessly.
  */
-export function SchoolInvoiceBuilderPanel() {
+interface SchoolInvoiceBuilderPanelProps {
+  /** Pre-load an existing school invoice for editing (passed from OperationsHub via ?edit_invoice=) */
+  editInvoiceId?: string;
+}
+
+export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilderPanelProps = {}) {
   const { profile } = useAuth();
   const db = createClient();
   const isAdmin = profile?.role === 'admin';
@@ -69,6 +74,7 @@ export function SchoolInvoiceBuilderPanel() {
   const [studentCount, setStudentCount] = useState<number | null>(null);
   const [loadingCount, setLoadingCount] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -82,6 +88,36 @@ export function SchoolInvoiceBuilderPanel() {
       .then((j) => setAccounts((j.data ?? []).filter((a: PaymentAccount) => a.owner_type === 'rillcod')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id, isAdmin]);
+
+  // Load existing invoice when editInvoiceId prop arrives
+  useEffect(() => {
+    if (!editInvoiceId || !isAdmin) return;
+    setLoadingEdit(true);
+    fetch(`/api/invoices/${editInvoiceId}`)
+      .then(r => r.json())
+      .then(j => {
+        const inv = j.data;
+        if (!inv) return;
+        setEditingInvoiceId(inv.id);
+        // Reverse-map invoice fields back to form state
+        const firstItem = Array.isArray(inv.items) ? inv.items.find((it: any) => (it.unit_price ?? 0) > 0) : null;
+        const isFixed = !firstItem?.quantity || firstItem.quantity === 1;
+        setForm(f => ({
+          ...f,
+          school_id: inv.school_id ?? '',
+          pricing_mode: isFixed ? 'fixed_package' : 'per_student',
+          rate_per_child: isFixed ? '' : String(firstItem?.unit_price ?? ''),
+          fixed_package_price: isFixed ? String(firstItem?.unit_price ?? '') : '',
+          currency: (inv.currency ?? 'NGN') as Currency,
+          due_date: inv.due_date ? inv.due_date.split('T')[0] : f.due_date,
+          notes: inv.notes ?? '',
+          deposit_amount: '',
+        }));
+      })
+      .catch(() => toast.error('Failed to load invoice for editing'))
+      .finally(() => setLoadingEdit(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editInvoiceId, isAdmin]);
 
   // Auto-load student count when school selected
   useEffect(() => {
@@ -351,19 +387,42 @@ export function SchoolInvoiceBuilderPanel() {
     );
   }
 
+  if (loadingEdit) {
+    return (
+      <div className="flex items-center justify-center py-16 gap-3">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">Loading invoice…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-primary/5 border border-primary/20 rounded-2xl overflow-hidden">
       <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-primary/20">
         <p className="text-xs font-black text-primary uppercase tracking-widest mb-0.5">
-          School Invoice Builder
+          {editingInvoiceId ? 'Edit School Invoice' : 'School Invoice Builder'}
         </p>
         <p className="text-foreground font-bold text-sm">
-          Build a rich partner-school invoice with revenue-share split and live preview.
+          {editingInvoiceId
+            ? 'Update this partner-school invoice — adjust figures and click Update.'
+            : 'Build a rich partner-school invoice with revenue-share split and live preview.'}
         </p>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          For term-based cohort billing prefer <b>Billing Cycles</b>. Use this for bespoke school
-          packages or ad-hoc invoicing.
-        </p>
+        {editingInvoiceId && (
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest">
+            Editing existing invoice
+            <button
+              onClick={() => { setEditingInvoiceId(null); setForm({ ...BLANK }); }}
+              className="ml-1 hover:text-amber-200 transition-colors"
+              title="Discard and start a new invoice"
+            >✕</button>
+          </div>
+        )}
+        {!editingInvoiceId && (
+          <p className="text-[11px] text-muted-foreground mt-1">
+            For term-based cohort billing prefer <b>Billing Cycles</b>. Use this for bespoke school
+            packages or ad-hoc invoicing.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row">

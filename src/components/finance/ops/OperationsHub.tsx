@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   BanknotesIcon,
@@ -68,7 +69,16 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
+  const searchParams = useSearchParams();
+  const editInvoiceId = searchParams.get('edit_invoice');
   const [tab, setTab] = useState<OpsTab>(defaultTab);
+
+  // When arriving with ?edit_invoice=<id>, switch to the school invoice builder
+  useEffect(() => {
+    if (editInvoiceId && isAdmin) {
+      setTab('school_invoice_builder');
+    }
+  }, [editInvoiceId, isAdmin]);
 
   if (!isAdmin && !isSchool) {
     return (
@@ -225,7 +235,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
         {tab === 'invoices' && <InvoicesPanel />}
         {tab === 'receipts' && <ReceiptsPanel />}
         {tab === 'receipt_builder' && isAdmin && <ReceiptBuilderPanel />}
-        {tab === 'school_invoice_builder' && isAdmin && <SchoolInvoiceBuilderPanel />}
+        {tab === 'school_invoice_builder' && isAdmin && <SchoolInvoiceBuilderPanel editInvoiceId={editInvoiceId ?? undefined} />}
         {tab === 'accounts' && isAdmin && <AccountsPanel />}
         {tab === 'diagnostics' && isAdmin && <DiagnosticsPanel />}
       </div>
