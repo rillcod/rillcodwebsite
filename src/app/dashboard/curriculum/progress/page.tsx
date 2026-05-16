@@ -291,41 +291,44 @@ export default function CurriculumProgressPage() {
     <div className="min-h-screen bg-background text-foreground pb-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        {/* ── Tab Bar ── */}
-        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-          <Link href="/dashboard/curriculum"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-            <BookOpenIcon className="w-4 h-4" /> Course Syllabus
-          </Link>
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
-            <PresentationChartLineIcon className="w-4 h-4" /> Delivery Progress
-          </span>
-        </div>
-
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black">Curriculum Delivery Progress</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {isSchool ? "Your school's curriculum delivery status" : 'Live delivery tracking across all partner schools'}
-            </p>
+        {/* ── Header row: tab bar + nav actions ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Tab bar */}
+          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 self-start">
+            <Link href="/dashboard/curriculum"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all whitespace-nowrap">
+              <BookOpenIcon className="w-4 h-4 shrink-0" /> <span>Course Syllabus</span>
+            </Link>
+            <span className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs sm:text-sm font-black whitespace-nowrap">
+              <PresentationChartLineIcon className="w-4 h-4 shrink-0" /> <span>Delivery Progress</span>
+            </span>
           </div>
+
+          {/* Nav actions */}
           <div className="flex items-center gap-2 flex-wrap">
             {canToggle && (
               <Link
                 href="/dashboard/progression"
-                className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold transition-colors"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-bold transition-colors rounded-lg whitespace-nowrap"
               >
-                <AcademicCapIcon className="w-4 h-4" /> Term Progression
+                <AcademicCapIcon className="w-4 h-4 shrink-0" /> Term Progression
               </Link>
             )}
             <Link
               href="/dashboard/curriculum"
-              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white text-sm font-bold transition-colors"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-border hover:bg-muted/50 text-foreground text-xs sm:text-sm font-bold transition-colors rounded-lg whitespace-nowrap"
             >
-              <BookOpenIcon className="w-4 h-4" /> Open Curriculum
+              <BookOpenIcon className="w-4 h-4 shrink-0" /> Open Curriculum
             </Link>
           </div>
+        </div>
+
+        {/* Page title */}
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black">Curriculum Delivery Progress</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isSchool ? "Your school's curriculum delivery status" : 'Live delivery tracking across all partner schools'}
+          </p>
         </div>
 
         {/* School visibility info banner for school role */}
@@ -367,20 +370,22 @@ export default function CurriculumProgressPage() {
 
         {/* Filters and Actions */}
         {!isSchool && (
-          <div className="flex flex-wrap items-center justify-between gap-4 bg-card border border-border p-3 rounded-xl">
-            <div className="flex flex-wrap items-center gap-3">
-              <input
-                type="text"
-                placeholder="Search curricula..."
-                value={filterQuery}
-                onChange={e => setFilterQuery(e.target.value)}
-                className="bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg min-w-[200px]"
-              />
+          <div className="bg-card border border-border p-3 rounded-xl space-y-3">
+            {/* Search — full width on mobile */}
+            <input
+              type="text"
+              placeholder="Search curricula..."
+              value={filterQuery}
+              onChange={e => setFilterQuery(e.target.value)}
+              className="w-full bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
+            />
+            {/* Selects + actions — wrap on mobile */}
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 title="Filter by school"
                 value={filterSchool}
                 onChange={e => setFilterSchool(e.target.value)}
-                className="bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
+                className="flex-1 min-w-[130px] bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
               >
                 <option value="">All Schools</option>
                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -389,7 +394,7 @@ export default function CurriculumProgressPage() {
                 title="Filter by term"
                 value={filterTerm}
                 onChange={e => setFilterTerm(e.target.value)}
-                className="bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
+                className="flex-1 min-w-[120px] bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
               >
                 <option value="">All Terms</option>
                 <option value="1">First Term</option>
@@ -400,32 +405,31 @@ export default function CurriculumProgressPage() {
                 title="Sort by"
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value as any)}
-                className="bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
+                className="flex-1 min-w-[140px] bg-background border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
               >
-                <option value="progress_desc">Progress: High to Low</option>
-                <option value="progress_asc">Progress: Low to High</option>
-                <option value="recent">Recently Active</option>
+                <option value="progress_desc">Progress ↓</option>
+                <option value="progress_asc">Progress ↑</option>
+                <option value="recent">Recent</option>
               </select>
               {(filterSchool || filterTerm || filterQuery) && (
                 <button
                   onClick={() => { setFilterSchool(''); setFilterTerm(''); setFilterQuery(''); }}
-                  className="text-xs text-primary hover:text-primary font-bold transition-colors px-2"
+                  className="text-xs text-rose-400 hover:text-rose-300 font-bold transition-colors px-2 py-2 border border-rose-500/30 hover:bg-rose-500/10 rounded-lg whitespace-nowrap"
                 >
-                  Clear filters
+                  Clear
                 </button>
               )}
+              <button
+                onClick={exportDataToCsv}
+                className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold rounded-lg transition-all whitespace-nowrap ml-auto"
+                title="Export delivery progress to CSV"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 shrink-0">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Export CSV
+              </button>
             </div>
-            
-            <button
-              onClick={exportDataToCsv}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 text-sm font-bold rounded-lg transition-all"
-              title="Export delivery progress to CSV"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-              </svg>
-              Export CSV
-            </button>
           </div>
         )}
 
