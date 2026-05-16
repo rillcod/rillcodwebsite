@@ -6,8 +6,8 @@ import Link from 'next/link';
 import {
   ArrowRightIcon, ArrowPathIcon, CheckCircleIcon,
   UserGroupIcon, ExclamationTriangleIcon,
-  SparklesIcon, PresentationChartLineIcon, DocumentChartBarIcon, RocketLaunchIcon,
-  EyeIcon, BookOpenIcon, TrophyIcon, PlusIcon,
+  SparklesIcon, PresentationChartLineIcon, DocumentChartBarIcon,
+  BookOpenIcon,
   Cog6ToothIcon, BoltIcon, ShieldExclamationIcon,
 } from '@/lib/icons';
 import type {
@@ -129,71 +129,43 @@ export default function ProgressionPage() {
       {/* ── Planning Trio Breadcrumb ── */}
       <PlanningBreadcrumb current="progression" className="pt-1" />
 
-      {/* ── Pipeline Stepper (Step 6 active) ── */}
+      {/* ── Workflow steps — shows where Progression fits in the teaching journey ── */}
       <div className="bg-card border border-border rounded-2xl p-3 sm:p-4">
         <PipelineStepper current="progression" />
       </div>
 
-      {/* Hero Governance Header */}
-      <div className="relative overflow-hidden bg-card border border-border rounded-3xl p-6 sm:p-10 shadow-2xl">
-        <div className="absolute top-0 right-0 w-[30rem] h-[30rem] bg-primary/10 rounded-full blur-[100px] -mr-48 -mt-48 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[20rem] h-[20rem] bg-emerald-600/10 rounded-full blur-[80px] -ml-32 -mb-32 pointer-events-none" />
-        
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-3 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-black uppercase tracking-[0.2em] text-primary">Academic Authority</span>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{filterTerm} Cycle</span>
-            </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter text-card-foreground leading-tight">Progression Terminal</h1>
-            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed italic max-w-xl">
-              Audit institutional performance, govern promotion cycles, and reconcile 
-              student outcomes from the master progression cockpit.
-            </p>
-          </div>
-
-          {/* Quick action links — stack on mobile, side-by-side on lg */}
-          <div className="flex flex-row lg:flex-col gap-3 shrink-0 w-full lg:w-auto">
-            <Link
-              href="/dashboard/curriculum/progress"
-              className="group flex-1 lg:flex-initial flex items-center justify-between gap-4 px-5 py-3 bg-card/50 backdrop-blur-xl border border-border rounded-2xl hover:border-primary/50 transition-all shadow-lg"
-            >
-              <div className="space-y-0.5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Monitoring</p>
-                <p className="text-xs font-black text-foreground group-hover:text-primary transition-colors">Delivery Progress</p>
-              </div>
-              <PresentationChartLineIcon className="w-4 h-4 text-primary shrink-0" />
-            </Link>
-            {canPromote && (
-              <Link
-                href="/dashboard/reports/builder"
-                className="group flex-1 lg:flex-initial flex items-center justify-between gap-4 px-5 py-3 bg-card/50 backdrop-blur-xl border border-border rounded-2xl hover:border-amber-500/50 transition-all shadow-lg"
-              >
-                <div className="space-y-0.5">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Certification</p>
-                  <p className="text-xs font-black text-foreground group-hover:text-amber-400 transition-colors">Build Report Cards</p>
-                </div>
-                <DocumentChartBarIcon className="w-4 h-4 text-amber-400 shrink-0" />
-              </Link>
-            )}
-          </div>
-        </div>
+      {/* Page Header */}
+      <div className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Student Progression</h1>
+        <p className="text-sm text-muted-foreground">
+          Review student progress, decide who advances to the next level, and track outcomes across all your classes.
+        </p>
       </div>
+
+      {canPromote && (
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/curriculum/progress"
+            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg text-xs font-bold hover:bg-muted/50 transition-colors">
+            <PresentationChartLineIcon className="w-3.5 h-3.5" /> Delivery Progress
+          </Link>
+          <Link href="/dashboard/reports/builder"
+            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg text-xs font-bold hover:bg-muted/50 transition-colors">
+            <DocumentChartBarIcon className="w-3.5 h-3.5" /> Report Cards
+          </Link>
+        </div>
+      )}
 
       {/* Governance Operations Grid */}
       {canPromote && (
         <div className="space-y-8">
-          <div className="flex items-center gap-3 ml-4">
-             <RocketLaunchIcon className="w-5 h-5 text-primary" />
-             <h2 className="text-xl font-black uppercase tracking-widest text-foreground">Operational Controllers</h2>
-          </div>
-          
+          <h2 className="text-base font-black text-foreground">Quick Access</h2>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { label: 'Academic Rules', desc: 'Syllabus standards & Promotion logic.', href: '/dashboard/progression/policies', icon: Cog6ToothIcon, color: 'violet' },
-              { label: 'System Vitals', desc: 'Calendar status & Weekly commands.', href: '/dashboard/progression/operations', icon: BoltIcon, color: 'blue' },
-              { label: 'Asset Vault', desc: 'Creative resources & Syllabus engine.', href: '/dashboard/progression/project-registry', icon: BookOpenIcon, color: 'orange' },
-              { label: 'Safety Lab', desc: 'Audit logs & Forensic reporting.', href: '/dashboard/progression/analytics', icon: ShieldExclamationIcon, color: 'rose' },
+              { label: 'Promotion Rules',    desc: 'Set the criteria for who advances to the next level.',        href: '/dashboard/progression/policies',   icon: Cog6ToothIcon,       color: 'violet' },
+              { label: 'Term Calendar',      desc: 'View the academic calendar and manage weekly schedule.',      href: '/dashboard/progression/operations', icon: BoltIcon,            color: 'blue'   },
+              { label: 'Teaching Materials', desc: 'Browse course syllabi, resources, and lesson templates.',    href: '/dashboard/curriculum',             icon: BookOpenIcon,        color: 'orange' },
+              { label: 'Reports & History',  desc: 'Generate reports, view audit logs, and track activity.',    href: '/dashboard/reports/builder',        icon: ShieldExclamationIcon, color: 'rose' },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -223,8 +195,8 @@ export default function ProgressionPage() {
               <SparklesIcon className="w-6 h-6 text-primary" />
             </div>
             <div className="text-left">
-              <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-widest">Global Governance Settings</p>
-              <p className="text-xs text-muted-foreground font-bold">Access advanced platform-wide configuration and institutional overrides.</p>
+              <p className="text-sm font-black text-foreground group-hover:text-primary transition-colors uppercase tracking-widest">Platform Settings</p>
+              <p className="text-xs text-muted-foreground font-bold">Control system-wide rules, school access, and advanced configurations.</p>
             </div>
           </Link>
         </div>
@@ -236,8 +208,8 @@ export default function ProgressionPage() {
           <div className="flex items-center gap-3 px-1">
             <UserGroupIcon className="w-5 h-5 text-emerald-400 shrink-0" />
             <div>
-              <h2 className="text-lg sm:text-xl font-black uppercase tracking-widest text-foreground">Cycle Management</h2>
-              <p className="text-xs text-muted-foreground italic mt-0.5">Execute end-of-term promotion decisions for current enrollments.</p>
+              <h2 className="text-lg sm:text-xl font-black uppercase tracking-widest text-foreground">Student Promotions</h2>
+              <p className="text-xs text-muted-foreground italic mt-0.5">Choose what happens to each student at the end of term — advance, repeat, or graduate.</p>
             </div>
           </div>
 
@@ -265,7 +237,7 @@ export default function ProgressionPage() {
               ))}
             </select>
             <select
-              title="Cycle"
+              title="Term"
               value={filterTerm}
               onChange={e => setFilterTerm(e.target.value)}
               className="bg-background/50 border border-border px-4 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl focus:border-primary outline-none transition-all"

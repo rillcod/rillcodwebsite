@@ -3150,9 +3150,9 @@ export default function CurriculumPage() {
                     </div>
                   )}
 
-                  {/* ── Apply a Lesson Template (QA Spine) ── */}
+                  {/* ── Smart Teaching Template ── */}
                   {canGenerate && (
-                    <div className="bg-card border border-border">
+                    <div className="bg-card border border-border rounded-xl overflow-hidden">
                       <button
                         type="button"
                         onClick={() => { setQaSpineOpen((o) => !o); setQaApplyErr(''); setQaPreviewErr(''); }}
@@ -3161,8 +3161,8 @@ export default function CurriculumPage() {
                         <div className="flex items-center gap-2.5 min-w-0">
                           <BoltIcon className="w-4 h-4 text-cyan-400 shrink-0" />
                           <div>
-                            <p className="text-xs font-black text-foreground">Apply a Lesson Template</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">Instantly fill your week topics using a ready-made teaching sequence — saves time and follows a proven structure</p>
+                            <p className="text-xs font-black text-foreground">Smart Teaching Template</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Instantly fill all your week topics with a proven teaching sequence — saves hours of planning</p>
                           </div>
                         </div>
                         {qaSpineOpen
@@ -3180,11 +3180,11 @@ export default function CurriculumPage() {
                           >
                             <div className="p-4 space-y-4">
                               {!programIdForQa ? (
-                                <p className="text-[11px] text-amber-400">This course isn't linked to a programme yet — link it in the course catalog first before using a template.</p>
+                                <p className="text-[11px] text-amber-400">This course isn't linked to a programme yet — link it in the course catalog first.</p>
                               ) : (
                                 <>
                                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    Select your class and student year, then preview the suggested week order. If it looks right, apply it — your week topics will be filled in automatically.
+                                    Pick your class and student level, preview the suggested weeks, then apply — your syllabus topics are filled in automatically.
                                   </p>
 
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -3212,35 +3212,35 @@ export default function CurriculumPage() {
                                     </div>
 
                                     <div className="space-y-1.5">
-                                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Student year</label>
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">Student level</label>
                                       <select
                                         className={SELECT_CLS}
                                         value={qaYear}
                                         onChange={(e) => { setQaYear(Number(e.target.value)); setQaPreviewStamp(''); }}
                                       >
-                                        <option value={1}>Year 1 — beginners</option>
-                                        <option value={2}>Year 2 — intermediate</option>
-                                        <option value={3}>Year 3 — advanced</option>
+                                        <option value={1}>Beginners (Year 1)</option>
+                                        <option value={2}>Intermediate (Year 2)</option>
+                                        <option value={3}>Advanced (Year 3)</option>
                                       </select>
                                     </div>
                                   </div>
 
                                   {qaClassId && (
                                     <div className="space-y-1.5">
-                                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">How strictly should the template be followed?</label>
+                                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground block">How should the template be applied?</label>
                                       <div className="flex gap-2 flex-wrap">
                                         <button
                                           type="button"
                                           disabled={qaClassGradeMode === 'optional' || qaClassModeSaving}
                                           onClick={() => void saveQaClassGradeMode('optional')}
-                                          className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'optional' ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
-                                        >Flexible — AI adapts it to this class</button>
+                                          className={`px-3 py-1.5 text-[10px] font-black rounded-lg border transition-colors ${qaClassGradeMode === 'optional' ? 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                        >AI adapts it to my class</button>
                                         <button
                                           type="button"
                                           disabled={qaClassGradeMode === 'compulsory' || qaClassModeSaving}
                                           onClick={() => void saveQaClassGradeMode('compulsory')}
-                                          className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
-                                        >Fixed — use the template exactly as-is</button>
+                                          className={`px-3 py-1.5 text-[10px] font-black rounded-lg border transition-colors ${qaClassGradeMode === 'compulsory' ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted/30'} disabled:opacity-60`}
+                                        >Use template exactly as-is</button>
                                         {qaClassModeErr && <p className="text-[10px] text-rose-400 font-bold w-full">{qaClassModeErr}</p>}
                                       </div>
                                     </div>
@@ -3248,7 +3248,7 @@ export default function CurriculumPage() {
 
                                   <label className="flex items-start gap-2 cursor-pointer">
                                     <input type="checkbox" className="mt-0.5" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} />
-                                    <span className="text-[11px] text-muted-foreground">Replace my existing week topics if any already exist</span>
+                                    <span className="text-[11px] text-muted-foreground">Overwrite my existing week topics</span>
                                   </label>
 
                                   <div className="flex gap-2 flex-wrap">
@@ -3256,36 +3256,36 @@ export default function CurriculumPage() {
                                       type="button"
                                       onClick={() => void runQaSpinePreview()}
                                       disabled={!qaClassId || qaPreviewLoading}
-                                      className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black rounded-lg border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50 transition-colors"
                                     >
                                       {qaPreviewLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <EyeIcon className="w-3.5 h-3.5" />}
-                                      Preview first
+                                      Preview weeks first
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => void applyQaSpine()}
                                       disabled={qaApplyLoading || !programIdForQa || qaNeedsFreshPreview}
-                                      className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                                      className="inline-flex items-center gap-1.5 px-4 py-2 text-[10px] font-black rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
                                     >
                                       {qaApplyLoading ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <BoltIcon className="w-3.5 h-3.5" />}
-                                      Apply template
+                                      Fill my week topics
                                     </button>
                                   </div>
 
-                                  {qaNeedsFreshPreview && <p className="text-amber-400 text-[10px]">Click "Preview first" before applying.</p>}
+                                  {qaNeedsFreshPreview && <p className="text-amber-400 text-[10px]">Preview first before filling topics.</p>}
                                   {qaPreviewErr && <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>}
                                   {qaApplyErr && <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>}
 
                                   {qaPreviewData && (
-                                    <div className="p-3 bg-muted/20 border border-border space-y-3">
-                                      <p className="text-[10px] font-black uppercase text-cyan-300">Suggested week-by-week plan</p>
+                                    <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-3">
+                                      <p className="text-[10px] font-black uppercase text-cyan-300">Suggested week plan — review before applying</p>
                                       {qaPreviewData.terms.map((t) => (
                                         <div key={t.term}>
-                                          <p className="text-[9px] font-black text-muted-foreground mb-1">Term {t.term}</p>
+                                          <p className="text-[9px] font-black text-muted-foreground mb-1">{t.term === 1 ? 'First Term' : t.term === 2 ? 'Second Term' : 'Third Term'}</p>
                                           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-40 overflow-y-auto">
                                             {t.weeks.map((w) => (
                                               <li key={w.week} className="flex gap-1.5 truncate">
-                                                <span className="shrink-0 text-foreground/60 font-bold">W{w.week}</span>
+                                                <span className="shrink-0 text-foreground/60 font-bold">Week {w.week}</span>
                                                 <span className="truncate">{w.topic}</span>
                                               </li>
                                             ))}
@@ -3307,16 +3307,16 @@ export default function CurriculumPage() {
                   {canTrack && (
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 px-4 py-4 bg-primary/10 border border-primary/20">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-black text-foreground">Ready to teach this to a class?</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">Assign this syllabus to a class and it becomes a week-by-week lesson plan for your students.</p>
+                        <p className="text-sm font-black text-foreground">Teach this syllabus to a class</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Link this syllabus to a class. Your students get a structured, week-by-week learning plan.</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => setActiveTab('implementations')}
+                        <Link
+                          href="/dashboard/classes"
                           className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border px-3 py-2 transition-colors"
                         >
                           View Classes
-                        </button>
+                        </Link>
                         <button
                           onClick={() => {
                             const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
@@ -3329,7 +3329,7 @@ export default function CurriculumPage() {
                           className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-widest transition-all"
                         >
                           <RocketLaunchIcon className="w-4 h-4 shrink-0" />
-                          Assign to a Class
+                          Link to a Class
                         </button>
                       </div>
                     </div>
