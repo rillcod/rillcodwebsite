@@ -38,8 +38,12 @@ interface PricingTier {
   rate: string;
 }
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 const BLANK = {
   school_id: '',
+  academic_year: String(CURRENT_YEAR),
+  term_number: '1' as '1' | '2' | '3',
   pricing_mode: 'per_student' as PricingMode,
   rate_per_child: '',
   fixed_package_price: '',
@@ -122,9 +126,12 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
               rate: String(it.unit_price),
             }))
           : [{ label: '', count: '', rate: '' }];
+        const meta = inv.metadata ?? {};
         setForm(f => ({
           ...f,
           school_id: inv.school_id ?? '',
+          academic_year: String(meta.academic_year ?? CURRENT_YEAR),
+          term_number: (['1','2','3'].includes(String(meta.term_number)) ? String(meta.term_number) : '1') as '1'|'2'|'3',
           pricing_mode: pricingMode,
           rate_per_child: pricingMode === 'per_student' ? String(firstItem?.unit_price ?? '') : '',
           fixed_package_price: pricingMode === 'fixed_package' ? String(firstItem?.unit_price ?? '') : '',
@@ -250,7 +257,10 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
       payToAcc,
       showRevenueShare: form.show_revenue_share,
       showWhatsapp: form.show_whatsapp_option,
-      notes: form.notes || '',
+      notes: [
+        `${['First','Second','Third'][parseInt(form.term_number)-1]} Term ${form.academic_year}/${parseInt(form.academic_year)+1}`,
+        form.notes,
+      ].filter(Boolean).join(' · '),
       currency: form.currency,
     });
   }, [form, computed, schools, accounts, editingInvoiceId]);
@@ -322,6 +332,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
             },
           ];
 
+      const termLabel = `${['First','Second','Third'][parseInt(form.term_number) - 1]} Term ${form.academic_year}`;
       const dueISO =
         form.due_date ||
         new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
@@ -331,6 +342,11 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
         currency: form.currency,
         status: 'sent' as const,
         due_date: dueISO,
+        metadata: {
+          academic_year: parseInt(form.academic_year),
+          term_number: parseInt(form.term_number),
+          term_label: termLabel,
+        },
         items: computed.revenueShareOn
           ? [
               ...items,
@@ -372,32 +388,27 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
         if (error) throw error;
         if (!opts?.silent) toast.success('Invoice updated.');
       } else {
-        // Duplicate open-invoice safeguard
-        const { data: existing } = await db
+        // Hard duplicate guard: block same school + same term + same year
+        const { data: termDupes } = await db
           .from('invoices')
-          .select('id, invoice_number, amount, status, due_date')
+          .select('id, invoice_number, amount, status')
           .eq('school_id', form.school_id)
-          .in('status', ['sent', 'overdue', 'draft'])
-          .order('created_at', { ascending: false })
-          .limit(3);
+          .eq('stream', 'school')
+          .not('status', 'eq', 'cancelled')
+          .filter('metadata->>academic_year', 'eq', form.academic_year)
+          .filter('metadata->>term_number', 'eq', form.term_number)
+          .limit(5);
 
-        if (!opts?.silent && existing && existing.length > 0) {
-          const list = existing
-            .map(
-              (inv) =>
-                `\u2022 ${inv.invoice_number} \u2014 \u20a6${Number(
-                  inv.amount,
-                ).toLocaleString()} \u2014 ${(inv.status ?? '').toUpperCase()}`,
-            )
+        if (!opts?.silent && termDupes && termDupes.length > 0) {
+          const list = termDupes
+            .map(i => `\u2022 ${i.invoice_number} \u2014 \u20a6${Number(i.amount).toLocaleString()} \u2014 ${(i.status ?? '').toUpperCase()}`)
             .join('\n');
-          if (
-            !confirm(
-              `This school already has ${existing.length} open invoice(s):\n\n${list}\n\nCreate another invoice anyway?`,
-            )
-          ) {
-            setSaving(false);
-            return;
-          }
+          toast.error(
+            `Invoice already exists for ${sch.name} \u2014 ${termLabel}:\n${list}\n\nEdit or delete the existing invoice instead.`,
+            { duration: 8000 }
+          );
+          setSaving(false);
+          return;
         }
 
         const docRef = opts?.docRef || `SINV-${Date.now().toString(36).toUpperCase()}`;
@@ -490,6 +501,39 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <Lbl>Academic Year</Lbl>
+              <select
+                value={form.academic_year}
+                onChange={(e) => setForm((f) => ({ ...f, academic_year: e.target.value }))}
+                className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
+              >
+                {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map((y) => (
+                  <option key={y} value={String(y)}>{y}/{y + 1}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Lbl>Term</Lbl>
+              <div className="grid grid-cols-3 gap-1 border border-border rounded-md overflow-hidden">
+                {(['1', '2', '3'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, term_number: t }))}
+                    className={`py-2 text-[10px] font-black uppercase tracking-widest ${
+                      form.term_number === t
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {t === '1' ? '1st' : t === '2' ? '2nd' : '3rd'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>

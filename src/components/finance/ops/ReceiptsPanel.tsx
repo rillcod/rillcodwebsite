@@ -10,6 +10,7 @@ import {
   DocumentArrowDownIcon,
   BuildingOfficeIcon,
   UserIcon,
+  TrashIcon,
 } from '@/lib/icons';
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import {
@@ -54,6 +55,7 @@ interface ReceiptRow {
  */
 export function ReceiptsPanel() {
   const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const canManage = ['admin', 'school', 'teacher'].includes(profile?.role || '');
 
   const [rows, setRows] = useState<ReceiptRow[]>([]);
@@ -61,6 +63,24 @@ export function ReceiptsPanel() {
   const [search, setSearch] = useState('');
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteReceipt = async (r: ReceiptRow) => {
+    const payer = r.metadata?.payer_name || r.schools?.name || r.portal_users?.full_name || r.receipt_number;
+    if (!confirm(`Permanently delete receipt ${r.receipt_number} for ${payer}?\n\nThis cannot be undone. The payment transaction will keep its record but the receipt PDF link will be cleared.`)) return;
+    setDeletingId(r.id);
+    try {
+      const res = await fetch(`/api/receipts/${r.id}`, { method: 'DELETE' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Delete failed');
+      toast.success(`Receipt ${r.receipt_number} deleted`);
+      setRows((prev) => prev.filter((x) => x.id !== r.id));
+    } catch (e: unknown) {
+      toast.error((e as Error).message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -229,10 +249,20 @@ export function ReceiptsPanel() {
               r.schools?.name ||
               'Client';
             return (
+              <div key={r.id} className="relative group">
+              {isAdmin && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteReceipt(r); }}
+                  disabled={deletingId === r.id}
+                  className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Delete this receipt"
+                >
+                  <TrashIcon className="w-3 h-3" />
+                </button>
+              )}
               <button
-                key={r.id}
                 onClick={() => openPreview(r)}
-                className="text-left bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all"
+                className="text-left w-full bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-all"
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0">
@@ -302,6 +332,7 @@ export function ReceiptsPanel() {
                   )}
                 </div>
               </button>
+              </div>
             );
           })}
         </div>
