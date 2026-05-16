@@ -21,7 +21,7 @@ export function MetricCard({ title, value, trend, icon, priority = false }: Metr
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
               <div className="flex items-baseline space-x-2">
-                <span className="text-3xl font-bold text-rillcod-900">{value}</span>
+                <span className="text-2xl sm:text-3xl font-bold text-foreground">{value}</span>
                 <Badge 
                   variant={isPositive ? "default" : isNegative ? "destructive" : "secondary"}
                   className="text-xs"

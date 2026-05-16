@@ -79,7 +79,7 @@ const Testimonials: React.FC = () => {
           </p>
           <Link
             href="/school-registration"
-            className="inline-flex items-center justify-center px-16 py-6 bg-primary text-white text-xs font-black uppercase tracking-[0.5em] rounded-xl shadow-xl shadow-primary/20 hover:bg-primary transition-all"
+            className="inline-flex items-center justify-center px-16 py-6 bg-primary text-primary-foreground text-xs font-black uppercase tracking-[0.5em] rounded-xl shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all"
           >
             Partner With Us
           </Link>

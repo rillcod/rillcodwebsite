@@ -151,7 +151,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => { void refreshProfile(); }}
-              className="px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition"
+              className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm rounded-xl transition"
             >
               Try again
             </button>

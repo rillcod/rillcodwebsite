@@ -207,7 +207,7 @@ export function FloatingActionButton() {
       {/* Main FAB */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-16 h-16 bg-primary text-white rounded-xl shadow-[0_0_20px_rgba(255,145,77,0.3)] hover:bg-primary transition-all duration-200 transform hover:rotate-90 group"
+        className="flex items-center justify-center w-16 h-16 bg-primary text-primary-foreground rounded-xl shadow-[0_0_20px_rgba(255,145,77,0.3)] hover:bg-primary/90 transition-all duration-200 transform hover:rotate-90 group"
       >
         {isOpen ? (
           <XMarkIcon className="h-8 w-8" />

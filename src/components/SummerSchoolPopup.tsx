@@ -245,7 +245,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-5 bg-primary text-white font-black text-sm uppercase tracking-widest hover:bg-primary transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 py-5 bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
               >
                 {loading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>

@@ -195,7 +195,7 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
         <div className="p-6 border-t border-border bg-white/[0.02] flex justify-center">
             <button 
               onClick={handleClose}
-              className="flex items-center gap-2 px-10 py-4 bg-primary hover:bg-primary rounded-xl text-sm font-black transition-all shadow-xl shadow-primary/40"
+              className="flex items-center gap-2 px-10 py-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-sm font-black transition-all shadow-xl shadow-primary/40"
             >
               <CheckCircleIcon className="w-5 h-5" /> I Have Read the Newsletter
             </button>

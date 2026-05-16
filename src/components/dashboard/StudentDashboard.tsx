@@ -207,7 +207,7 @@ export default function StudentDashboard() {
       {/* CTA */}
       <Link href="/dashboard/learning"
         className="flex flex-col gap-4 p-6 bg-primary/10 border border-primary/20 hover:border-primary/40 hover:bg-primary/15 transition-all group">
-        <div className="px-2.5 py-1 bg-primary text-white text-[8px] font-black uppercase tracking-widest w-fit">Get Started</div>
+        <div className="px-2.5 py-1 bg-primary text-primary-foreground text-[8px] font-black uppercase tracking-widest w-fit">Get Started</div>
         <h3 className="text-base font-black text-foreground uppercase tracking-tight group-hover:text-primary transition-colors">Browse Programmes</h3>
         <p className="text-[10px] text-muted-foreground font-medium">Find a programme to enrol in and start your learning journey.</p>
         <div className="flex items-center gap-2 text-primary text-[9px] font-black uppercase tracking-widest mt-auto">
@@ -272,7 +272,7 @@ export default function StudentDashboard() {
               className="group flex flex-col gap-5 p-8 bg-gradient-to-br from-primary/10 via-card to-background border border-primary/30 hover:border-primary/50 transition-all relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
               <div className="flex items-center justify-between relative z-10">
-                <div className="px-3 py-1 bg-primary text-white text-[9px] font-black uppercase tracking-widest skew-x-[-10deg]">CONTINUE</div>
+                <div className="px-3 py-1 bg-primary text-primary-foreground text-[9px] font-black uppercase tracking-widest skew-x-[-10deg]">CONTINUE</div>
                 <div className="flex items-center gap-1 text-primary text-[10px] font-black uppercase tracking-widest">
                   <SparklesIcon className="w-4 h-4 animate-pulse" /> +15 XP
                 </div>
@@ -284,7 +284,7 @@ export default function StudentDashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-3 relative z-10 pt-2">
-                <div className="px-10 py-3 bg-primary group-hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-primary/20">
+                <div className="px-10 py-3 bg-primary group-hover:bg-primary/90 text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-primary/20">
                   Resume Now
                 </div>
                 <span className="text-[10px] font-bold text-muted-foreground italic">Estimated: 45m</span>
@@ -298,7 +298,7 @@ export default function StudentDashboard() {
                 <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Select a Programme</h3>
                 <p className="text-xs text-muted-foreground mt-1">You don't have an active mission. Start one in the Learning Center.</p>
               </div>
-              <div className="px-8 py-3 bg-primary text-white text-[11px] font-black uppercase tracking-[0.2em]">Open Catalog</div>
+              <div className="px-8 py-3 bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-[0.2em]">Open Catalog</div>
             </Link>
           )}
         </div>
