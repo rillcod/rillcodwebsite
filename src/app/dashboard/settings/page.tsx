@@ -196,9 +196,13 @@ function SettingsPageContent() {
 
   // ── Academic Rules state ───────────────────────────────────────────────────
   // Teachers default to Program Rules; only admins can access Platform Settings
-  const [academicSubTab, setAcademicSubTab] = useState<'platform' | 'programs'>(
-    profile?.role === 'admin' ? 'platform' : 'programs'
-  );
+  // ?sub=platform from curriculum page link lands directly on Platform sub-tab
+  const subParam = searchParams.get('sub');
+  const [academicSubTab, setAcademicSubTab] = useState<'platform' | 'programs'>(() => {
+    if (subParam === 'platform' && profile?.role === 'admin') return 'platform';
+    if (subParam === 'programs') return 'programs';
+    return profile?.role === 'admin' ? 'platform' : 'programs';
+  });
 
   // Term calendar (per school or platform)
   const [termCalendar, setTermCalendar] = useState({

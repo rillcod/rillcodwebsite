@@ -2800,7 +2800,7 @@ export default function CurriculumPage() {
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Year</span>
                         </div>
                         <Link
-                          href="/dashboard/settings?tab=academic&sub=platform"
+                          href="/dashboard/settings?tab=academic-rules&sub=platform"
                           className="px-2.5 text-[10px] font-black text-primary hover:text-primary/70 transition-colors"
                           title="Academic year — click to change in Settings"
                         >
