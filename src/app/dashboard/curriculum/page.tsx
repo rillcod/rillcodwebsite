@@ -16,7 +16,7 @@ import {
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
   Squares2X2Icon, PlusIcon, CalendarDaysIcon, TrashIcon, PresentationChartLineIcon,
   BuildingOfficeIcon, LockClosedIcon, ArrowDownTrayIcon, ShieldCheckIcon, DocumentDuplicateIcon,
-  BellIcon,
+  BellIcon, RectangleStackIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -2849,6 +2849,18 @@ export default function CurriculumPage() {
                           </span>
                         )}
                       </div>
+
+                      {/* Manage versions — return to history list */}
+                      {curriculumList.length > 1 && (
+                        <button
+                          onClick={() => setCurriculum(null)}
+                          className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl border border-border bg-card/60 backdrop-blur-sm text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                          title="See all versions and manage them"
+                        >
+                          <RectangleStackIcon className="w-3 h-3 shrink-0" />
+                          Versions ({curriculumList.length})
+                        </button>
+                      )}
 
                       {termCount > 0 && (
                         <>

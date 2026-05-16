@@ -14,8 +14,10 @@ import {
   DocumentTextIcon, ExclamationCircleIcon, TableCellsIcon,
   CommandLineIcon, XMarkIcon, CheckBadgeIcon,
   AcademicCapIcon, BookOpenIcon, BoltIcon, TrashIcon, PlusIcon,
-  BeakerIcon, RectangleStackIcon, ChevronDownIcon,
+  BeakerIcon, RectangleStackIcon, ChevronDownIcon, SparklesIcon,
+  ChevronRightIcon,
 } from '@/lib/icons';
+import { LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,11 +69,7 @@ const OPS_SECTION_META: Record<string, { label: string; desc: string }> = {
   'lms.ops.pwa':          { label: 'App Experience',                desc: 'Offline behavior and performance mode for mobile users.' },
 };
 
-const STAGE_META: Record<number, { label: string }> = {
-  0: { label: 'Introduction' }, 1: { label: 'Core Teaching' },
-  2: { label: 'Practice' },     3: { label: 'Assessment' },
-  4: { label: 'Extension' },    5: { label: 'Final Project' },
-};
+// LANE_LABELS imported from resolveQaSpineLane — 1-14 skill lanes
 
 const DEFAULT_POLICY: EditablePolicy = {
   strict_route_default: true, auto_flashcards_default: true,
@@ -242,9 +240,11 @@ function SettingsPageContent() {
   const [purging, setPurging] = useState<string | null>(null);
   const [showAddTemplate, setShowAddTemplate] = useState(false);
   const [templateBusy, setTemplateBusy] = useState(false);
+  const [templateAiLoading, setTemplateAiLoading] = useState(false);
+  const [manageExpandedLane, setManageExpandedLane] = useState<number | null>(null);
   const [templateForm, setTemplateForm] = useState({
-    catalog_version: '', program_id: '', lane_index: 0,
-    track: 'core', week_number: 1, topic: '', year_number: 1, term_number: 1,
+    catalog_version: '', program_id: '', lane_index: 1,
+    track: 'core', week_number: 1, topic: '', subtopics: '', year_number: 1, term_number: 1,
   });
 
   // ── Profile / auth state ───────────────────────────────────────────────────
@@ -570,7 +570,13 @@ function SettingsPageContent() {
     if (!templateForm.topic || !templateForm.catalog_version || !templateForm.program_id) { showToast('Version, Program, and Topic are required', false); return; }
     setTemplateBusy(true);
     try {
-      const res = await fetch('/api/platform-syllabus-template', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...templateForm, week_index: templateForm.week_number }) });
+      const subtopicsArr = templateForm.subtopics
+        ? templateForm.subtopics.split('\n').map(s => s.trim()).filter(Boolean)
+        : [];
+      const res = await fetch('/api/platform-syllabus-template', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...templateForm, subtopics: subtopicsArr, week_index: templateForm.week_number }),
+      });
       if (!res.ok) throw new Error('Save failed');
       showToast('Template added');
       setShowAddTemplate(false);
@@ -578,6 +584,33 @@ function SettingsPageContent() {
       fetch('/api/platform-syllabus-catalog/summary').then(r => r.json()).then(j => setCatalogData(j.data ?? null)).finally(() => setCatalogLoading(false));
       if (catalogSubTab === 'manage') loadBlueprints();
     } catch { showToast('Save failed', false); } finally { setTemplateBusy(false); }
+  };
+
+  const aiSuggestTopic = async () => {
+    if (!templateForm.program_id || !templateForm.lane_index) {
+      showToast('Select Program and Lane first', false); return;
+    }
+    setTemplateAiLoading(true);
+    try {
+      const res = await fetch('/api/platform-syllabus-template/suggest', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          program_id: templateForm.program_id,
+          lane_index: templateForm.lane_index,
+          year_number: templateForm.year_number,
+          term_number: templateForm.term_number,
+          week_number: templateForm.week_number,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'AI failed');
+      setTemplateForm(f => ({
+        ...f,
+        topic: j.topic ?? f.topic,
+        subtopics: Array.isArray(j.subtopics) ? j.subtopics.join('\n') : f.subtopics,
+      }));
+      showToast('AI suggestion applied');
+    } catch (e: any) { showToast(e.message ?? 'AI suggestion failed', false); } finally { setTemplateAiLoading(false); }
   };
 
   // ── Role colors ────────────────────────────────────────────────────────────
@@ -1054,17 +1087,26 @@ function SettingsPageContent() {
               <div className="space-y-4">
                 <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
                   <div className="p-6 border-b border-border flex items-center justify-between">
-                    <div><h2 className="font-bold">Teaching Templates</h2><p className="text-xs text-muted-foreground mt-0.5">Week-by-week templates used to auto-fill your syllabus</p></div>
+                    <div>
+                      <h2 className="font-bold">Teaching Templates</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">Week-by-week spine used to auto-fill syllabi — organised by skill lane</p>
+                    </div>
                     {isAdmin && (
-                      <button onClick={() => setShowAddTemplate(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all">
+                      <button
+                        onClick={() => {
+                          setTemplateForm(f => ({ ...f, catalog_version: catalogData?.active_catalog_version ?? '' }));
+                          setShowAddTemplate(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all shrink-0"
+                      >
                         <PlusIcon className="w-3.5 h-3.5" /> Add Template
                       </button>
                     )}
                   </div>
 
                   {/* Sub-tabs */}
-                  <div className="flex gap-1 p-2 bg-muted/20 border-b border-border">
-                    {[{ id: 'overview', label: 'Overview' }, { id: 'manage', label: 'Manage Templates' }].map(st => (
+                  <div className="flex gap-1 p-3 bg-muted/20 border-b border-border">
+                    {[{ id: 'overview', label: 'Overview' }, { id: 'manage', label: 'Manage by Lane' }].map(st => (
                       <button key={st.id} onClick={() => setCatalogSubTab(st.id as any)}
                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${catalogSubTab === st.id ? 'bg-card shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                         {st.label}
@@ -1072,37 +1114,55 @@ function SettingsPageContent() {
                     ))}
                   </div>
 
-                  {catalogLoading ? <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-emerald-500 rounded-full animate-spin" /></div> : (
+                  {catalogLoading ? (
+                    <div className="p-10 flex justify-center">
+                      <div className="w-7 h-7 border-4 border-border border-t-emerald-500 rounded-full animate-spin" />
+                    </div>
+                  ) : (
                     <>
+                      {/* ── Overview ── */}
                       {catalogSubTab === 'overview' && (
-                        <div className="p-4 space-y-4">
-                          {/* Status */}
+                        <div className="p-5 space-y-5">
+                          {/* Status banner */}
                           <div className={`rounded-xl border p-4 flex items-center gap-4 ${catalogData && catalogData.total_rows > 0 ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'}`}>
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${catalogData && catalogData.total_rows > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 ${catalogData && catalogData.total_rows > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}>
                               <BookOpenIcon className="w-5 h-5" />
                             </div>
-                            <div className="flex-1">
-                              <p className="font-bold text-sm">{catalogData && catalogData.total_rows > 0 ? `${catalogData.total_rows} templates loaded — auto-fill is ready` : 'No templates found — add templates to enable auto-fill'}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5">{catalogData?.program_count ?? 0} programs · version {catalogData?.active_catalog_version || '—'}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-sm">
+                                {catalogData && catalogData.total_rows > 0
+                                  ? `${catalogData.total_rows} week templates across ${(catalogData.lane_counts ?? []).length} lanes — auto-fill ready`
+                                  : 'No templates found — add templates to enable auto-fill'}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {catalogData?.program_count ?? 0} programs · version {catalogData?.active_catalog_version || '—'}
+                              </p>
                             </div>
                           </div>
-                          {/* Stage breakdown */}
+
+                          {/* Lane breakdown */}
                           {(catalogData?.lane_counts ?? []).length > 0 && (
                             <div className="border border-border rounded-xl overflow-hidden">
-                              <div className="px-4 py-3 border-b border-border bg-muted/20"><p className="text-xs font-bold text-foreground">Template Breakdown by Stage</p></div>
-                              <div className="p-4 space-y-4">
+                              <div className="px-4 py-3 border-b border-border bg-muted/20">
+                                <p className="text-xs font-bold text-foreground uppercase tracking-widest">Template Coverage by Skill Lane</p>
+                              </div>
+                              <div className="divide-y divide-border/30">
                                 {(catalogData?.lane_counts ?? []).map(row => {
-                                  const meta = STAGE_META[row.lane_index] || { label: 'Other' };
+                                  const label = LANE_LABELS[row.lane_index] ?? `Lane ${row.lane_index}`;
                                   const max = Math.max(...(catalogData?.lane_counts ?? []).map(r => r.count), 1);
+                                  const pct = Math.round((row.count / max) * 100);
                                   return (
-                                    <div key={row.lane_index} className="space-y-1.5">
-                                      <div className="flex items-center justify-between">
-                                        <p className="text-xs font-semibold text-foreground">{meta.label}</p>
-                                        <span className="text-xs font-bold text-emerald-400">{row.count}</span>
+                                    <div key={row.lane_index} className="px-4 py-3 flex items-center gap-4">
+                                      <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded px-2 py-0.5 shrink-0 w-12 text-center">
+                                        L{row.lane_index}
+                                      </span>
+                                      <div className="flex-1 min-w-0 space-y-1">
+                                        <p className="text-xs font-semibold text-foreground truncate">{label}</p>
+                                        <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                                          <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+                                        </div>
                                       </div>
-                                      <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${(row.count / max) * 100}%` }} />
-                                      </div>
+                                      <span className="text-xs font-bold text-emerald-400 shrink-0 w-14 text-right">{row.count} wks</span>
                                     </div>
                                   );
                                 })}
@@ -1112,33 +1172,116 @@ function SettingsPageContent() {
                         </div>
                       )}
 
+                      {/* ── Manage by Lane ── */}
                       {catalogSubTab === 'manage' && (
                         <div>
                           {/* Version filter */}
                           {(catalogData?.versions ?? []).length > 1 && (
                             <div className="p-4 border-b border-border">
-                              <select value={catalogVersion} onChange={e => setCatalogVersion(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none">
-                                {(catalogData?.versions ?? []).map(v => <option key={v.catalog_version} value={v.catalog_version}>{v.catalog_version} ({v.count} templates)</option>)}
+                              <select
+                                value={catalogVersion}
+                                onChange={e => setCatalogVersion(e.target.value)}
+                                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none"
+                              >
+                                {(catalogData?.versions ?? []).map(v => (
+                                  <option key={v.catalog_version} value={v.catalog_version}>
+                                    {v.catalog_version} ({v.count} templates)
+                                  </option>
+                                ))}
                               </select>
                             </div>
                           )}
-                          {blueprintsLoading ? <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-emerald-500 rounded-full animate-spin" /></div> : (
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-left">
-                                <thead><tr className="bg-muted/20 border-b border-border"><th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Position</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Del</th></tr></thead>
-                                <tbody className="divide-y divide-border/30">
-                                  {catalogBlueprints.length === 0 ? (
-                                    <tr><td colSpan={3} className="px-4 py-10 text-center text-sm text-muted-foreground">No templates for this version.</td></tr>
-                                  ) : catalogBlueprints.map(row => (
-                                    <tr key={row.id} className="hover:bg-muted/10 transition-all">
-                                      <td className="px-4 py-3"><div className="flex items-center gap-2"><span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-black border border-emerald-500/20">S{row.lane_index}</span><span className="text-sm font-bold">W{row.week_number}</span></div></td>
-                                      <td className="px-4 py-3"><p className="text-sm font-semibold">{row.topic}</p><p className="text-[10px] text-muted-foreground">{row.program_id} · {row.track}</p></td>
-                                      <td className="px-4 py-3 text-right">{isAdmin && <button onClick={() => purgeBlueprint(row.id)} disabled={purging === row.id} className="p-2 rounded-lg bg-rose-500/5 text-rose-400 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"><TrashIcon className="w-3.5 h-3.5" /></button>}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+
+                          {blueprintsLoading ? (
+                            <div className="p-10 flex justify-center">
+                              <div className="w-7 h-7 border-4 border-border border-t-emerald-500 rounded-full animate-spin" />
                             </div>
+                          ) : catalogBlueprints.length === 0 ? (
+                            <div className="p-10 text-center text-sm text-muted-foreground">
+                              No templates for this version.
+                            </div>
+                          ) : (
+                            /* Group by lane_index */
+                            (() => {
+                              const byLane = new Map<number, typeof catalogBlueprints>();
+                              for (const row of catalogBlueprints) {
+                                const lane = row.lane_index ?? 0;
+                                if (!byLane.has(lane)) byLane.set(lane, []);
+                                byLane.get(lane)!.push(row);
+                              }
+                              return (
+                                <div className="divide-y divide-border/30">
+                                  {Array.from(byLane.entries()).sort((a, b) => a[0] - b[0]).map(([laneIdx, rows]) => {
+                                    const label = LANE_LABELS[laneIdx] ?? `Lane ${laneIdx}`;
+                                    const isExpanded = manageExpandedLane === laneIdx;
+                                    return (
+                                      <div key={laneIdx}>
+                                        {/* Lane header — clickable to expand */}
+                                        <button
+                                          onClick={() => setManageExpandedLane(isExpanded ? null : laneIdx)}
+                                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/10 transition-colors text-left"
+                                        >
+                                          <span className="text-[10px] font-black bg-primary/10 text-primary border border-primary/20 rounded px-2 py-0.5 shrink-0 w-10 text-center">
+                                            L{laneIdx}
+                                          </span>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold text-foreground truncate">{label}</p>
+                                          </div>
+                                          <span className="text-xs text-muted-foreground shrink-0">{rows.length} weeks</span>
+                                          <ChevronRightIcon className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                        </button>
+
+                                        {/* Expanded rows */}
+                                        {isExpanded && (
+                                          <div className="bg-muted/5 border-t border-border/30">
+                                            <table className="w-full text-left">
+                                              <thead>
+                                                <tr className="bg-muted/20 border-b border-border">
+                                                  <th className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-24">Yr · T · W</th>
+                                                  <th className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic</th>
+                                                  {isAdmin && <th className="px-4 py-2 w-10" />}
+                                                </tr>
+                                              </thead>
+                                              <tbody className="divide-y divide-border/20">
+                                                {rows.map(row => (
+                                                  <tr key={row.id} className="hover:bg-muted/10 transition-colors">
+                                                    <td className="px-4 py-2.5">
+                                                      <span className="text-[11px] font-mono text-muted-foreground">
+                                                        Y{row.year_number ?? 1} T{row.term_number} W{row.week_number}
+                                                      </span>
+                                                    </td>
+                                                    <td className="px-4 py-2.5">
+                                                      <p className="text-sm font-semibold text-foreground">{row.topic}</p>
+                                                      {Array.isArray(row.subtopics) && row.subtopics.length > 0 && (
+                                                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                                                          {row.subtopics.slice(0, 3).join(' · ')}{row.subtopics.length > 3 ? ' …' : ''}
+                                                        </p>
+                                                      )}
+                                                    </td>
+                                                    {isAdmin && (
+                                                      <td className="px-4 py-2.5 text-right">
+                                                        <button
+                                                          onClick={() => purgeBlueprint(row.id)}
+                                                          disabled={purging === row.id}
+                                                          className="p-1.5 rounded-lg bg-rose-500/5 text-rose-400 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"
+                                                          title="Delete"
+                                                        >
+                                                          <TrashIcon className="w-3.5 h-3.5" />
+                                                        </button>
+                                                      </td>
+                                                    )}
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()
                           )}
                         </div>
                       )}
@@ -1146,49 +1289,148 @@ function SettingsPageContent() {
                   )}
                 </div>
 
-                {/* Add Template modal — admin only */}
+                {/* ── Add Template modal (admin) ── */}
                 {showAddTemplate && isAdmin && (
                   <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <div className="bg-card border border-border rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
-                      <button onClick={() => setShowAddTemplate(false)} className="absolute top-4 right-4 p-2 rounded-lg bg-muted/50 hover:bg-rose-500 hover:text-white transition-all"><XMarkIcon className="w-4 h-4" /></button>
-                      <h2 className="text-xl font-black mb-1">Add Template</h2>
-                      <p className="text-sm text-muted-foreground mb-5">Add a new weekly teaching topic to the library.</p>
-                      <div className="space-y-4">
+                    <div className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl relative flex flex-col max-h-[90vh]">
+                      {/* Modal header */}
+                      <div className="flex items-start justify-between p-6 border-b border-border shrink-0">
                         <div>
-                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Week Topic</label>
-                          <input placeholder="e.g. Introduction to Python Variables" value={templateForm.topic} onChange={e => setTemplateForm(f => ({ ...f, topic: e.target.value }))} className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
+                          <h2 className="text-xl font-black">Add Week Template</h2>
+                          <p className="text-sm text-muted-foreground mt-0.5">Add a single week to the teaching spine, or use AI to generate it.</p>
                         </div>
+                        <button onClick={() => setShowAddTemplate(false)} className="p-2 rounded-lg bg-muted/50 hover:bg-rose-500 hover:text-white transition-all shrink-0">
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Modal body */}
+                      <div className="p-6 space-y-4 overflow-y-auto">
+                        {/* Row 1: Program + Catalog Version */}
                         <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Program</label>
+                          <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Program</label>
                             {programs.length > 0 ? (
-                              <select value={templateForm.program_id} onChange={e => setTemplateForm(f => ({ ...f, program_id: e.target.value }))} className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500 appearance-none">
-                                <option value="">Select program…</option>
+                              <select
+                                value={templateForm.program_id}
+                                onChange={e => setTemplateForm(f => ({ ...f, program_id: e.target.value }))}
+                                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500 appearance-none"
+                              >
+                                <option value="">Select…</option>
                                 {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                               </select>
                             ) : (
-                              <input placeholder="Loading programs…" disabled className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm opacity-50" />
+                              <input disabled placeholder="Loading…" className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm opacity-50" />
                             )}
                           </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Stage</label>
-                            <select value={templateForm.lane_index} onChange={e => setTemplateForm(f => ({ ...f, lane_index: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500 appearance-none">
-                              {Object.entries(STAGE_META).map(([idx, meta]) => <option key={idx} value={idx}>{meta.label}</option>)}
+                          <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Catalog Version</label>
+                            <input
+                              value={templateForm.catalog_version}
+                              onChange={e => setTemplateForm(f => ({ ...f, catalog_version: e.target.value }))}
+                              placeholder="qa_spine_v1"
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Row 2: Skill Lane (full width) */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Skill Lane</label>
+                          <select
+                            value={templateForm.lane_index}
+                            onChange={e => setTemplateForm(f => ({ ...f, lane_index: Number(e.target.value) }))}
+                            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500 appearance-none"
+                          >
+                            {Object.entries(LANE_LABELS).map(([idx, label]) => (
+                              <option key={idx} value={idx}>L{idx} — {label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Row 3: Year · Term · Week */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Year</label>
+                            <select
+                              value={templateForm.year_number}
+                              onChange={e => setTemplateForm(f => ({ ...f, year_number: Number(e.target.value) }))}
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500 appearance-none"
+                            >
+                              <option value={1}>Year 1</option><option value={2}>Year 2</option><option value={3}>Year 3</option>
                             </select>
                           </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Term</label>
-                            <select value={templateForm.term_number} onChange={e => setTemplateForm(f => ({ ...f, term_number: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500 appearance-none">
+                          <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term</label>
+                            <select
+                              value={templateForm.term_number}
+                              onChange={e => setTemplateForm(f => ({ ...f, term_number: Number(e.target.value) }))}
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500 appearance-none"
+                            >
                               <option value={1}>First</option><option value={2}>Second</option><option value={3}>Third</option>
                             </select>
                           </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Week</label>
-                            <input type="number" min={1} value={templateForm.week_number} onChange={e => setTemplateForm(f => ({ ...f, week_number: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500" />
+                          <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Week</label>
+                            <input
+                              type="number" min={1} max={12}
+                              value={templateForm.week_number}
+                              onChange={e => setTemplateForm(f => ({ ...f, week_number: Number(e.target.value) }))}
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500"
+                            />
                           </div>
                         </div>
-                        <button onClick={addTemplate} disabled={templateBusy} className="w-full py-3 bg-emerald-500 text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:bg-emerald-600 transition-all">
-                          {templateBusy ? 'Saving…' : 'Add Template'}
+
+                        {/* AI generate row */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={aiSuggestTopic}
+                            disabled={templateAiLoading || !templateForm.program_id || !templateForm.lane_index}
+                            className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-primary/10 border border-primary/30 text-primary rounded-xl hover:bg-primary/20 transition-all disabled:opacity-40"
+                          >
+                            {templateAiLoading
+                              ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              : <SparklesIcon className="w-3.5 h-3.5" />}
+                            {templateAiLoading ? 'Generating…' : 'AI Suggest Topic'}
+                          </button>
+                          <p className="text-[11px] text-muted-foreground">Select program + lane first, then let AI fill topic &amp; subtopics.</p>
+                        </div>
+
+                        {/* Topic */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Week Topic</label>
+                          <input
+                            placeholder="e.g. Introduction to Python Variables"
+                            value={templateForm.topic}
+                            onChange={e => setTemplateForm(f => ({ ...f, topic: e.target.value }))}
+                            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        {/* Subtopics */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Subtopics <span className="normal-case font-normal text-muted-foreground/60">(one per line)</span>
+                          </label>
+                          <textarea
+                            rows={3}
+                            placeholder={"Variables and data types\nInput and output\nBasic arithmetic"}
+                            value={templateForm.subtopics}
+                            onChange={e => setTemplateForm(f => ({ ...f, subtopics: e.target.value }))}
+                            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-emerald-500 resize-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Modal footer */}
+                      <div className="p-6 border-t border-border shrink-0">
+                        <button
+                          onClick={addTemplate}
+                          disabled={templateBusy || !templateForm.topic || !templateForm.program_id}
+                          className="w-full py-3 bg-emerald-500 text-white rounded-xl text-sm font-bold disabled:opacity-40 hover:bg-emerald-600 transition-all"
+                        >
+                          {templateBusy ? 'Saving…' : 'Save Template'}
                         </button>
                       </div>
                     </div>
