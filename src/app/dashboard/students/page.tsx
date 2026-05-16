@@ -163,6 +163,151 @@ function LinkParentModal({ student, onClose, onSaved }: {
   );
 }
 
+const GRADE_LEVELS_LIST = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
+  'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'] as const;
+
+// ─── Edit Enrolled Student Modal ──────────────────────────────
+function EditEnrolledModal({ student, schools, onClose, onSaved }: {
+  student: any;
+  schools: { id: string; name: string }[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    full_name: student.full_name || '',
+    phone: student.phone || '',
+    section_class: student.section_class || '',
+    grade_level: student.grade_level || '',
+    school_id: student.school_id || '',
+    gender: student.gender || '',
+    date_of_birth: student.date_of_birth || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.full_name.trim()) { setError('Full name is required'); return; }
+    setSaving(true); setError(null);
+    try {
+      const schoolName = schools.find(s => s.id === form.school_id)?.name ?? null;
+      const res = await fetch(`/api/portal-users/${student.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: form.full_name.trim(),
+          phone: form.phone.trim() || null,
+          section_class: form.section_class.trim() || null,
+          grade_level: form.grade_level || null,
+          school_id: form.school_id || null,
+          school_name: schoolName,
+          gender: form.gender || null,
+          date_of_birth: form.date_of_birth || null,
+        }),
+      });
+      if (!res.ok) { const j = await res.json(); throw new Error(j.error ?? 'Failed to update'); }
+      onSaved();
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to save');
+      setSaving(false);
+    }
+  };
+
+  const fieldCls = 'w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors rounded-lg';
+  const labelCls = 'text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-card border border-border border-t-4 border-t-primary shadow-2xl rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Edit Student</h2>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{student.full_name} — Enrolled</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+          {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-lg">{error}</p>}
+
+          <div>
+            <label className={labelCls}>Full Name <span className="text-primary">*</span></label>
+            <input type="text" required value={form.full_name}
+              onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
+              placeholder="Student's full name" className={fieldCls} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Grade / Level</label>
+              <select value={form.grade_level} onChange={e => setForm(f => ({ ...f, grade_level: e.target.value }))}
+                className={`${fieldCls} appearance-none cursor-pointer`}>
+                <option value="">Select…</option>
+                {GRADE_LEVELS_LIST.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Section / Class</label>
+              <input value={form.section_class}
+                onChange={e => setForm(f => ({ ...f, section_class: e.target.value }))}
+                placeholder="e.g. Alpha, A" className={fieldCls} />
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Phone</label>
+            <input type="tel" value={form.phone}
+              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              placeholder="+234 …" className={fieldCls} />
+          </div>
+
+          {schools.length > 0 && (
+            <div>
+              <label className={labelCls}>School</label>
+              <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
+                className={`${fieldCls} appearance-none cursor-pointer`}>
+                <option value="">— No School —</option>
+                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Gender</label>
+              <select value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
+                className={`${fieldCls} appearance-none cursor-pointer`}>
+                <option value="">Select…</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Date of Birth</label>
+              <input type="date" value={form.date_of_birth}
+                onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))}
+                className={fieldCls} />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all rounded-lg">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────
 export default function StudentsPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -179,6 +324,7 @@ export default function StudentsPage() {
   const [activatePending, setActivatePending] = useState<{ id: string; name: string; school_id: string | null } | null>(null);
   const [activateClassId, setActivateClassId] = useState('');
   const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [editEnrolledStudent, setEditEnrolledStudent] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [linkParentTarget, setLinkParentTarget] = useState<any | null>(null); // student for inline link-parent form
   const [gapCount, setGapCount] = useState<number | null>(null);
@@ -1838,6 +1984,15 @@ export default function StudentsPage() {
                             {!isEnrolled && (
                               <button
                                 onClick={e => { e.stopPropagation(); startEdit(s); }}
+                                title="Edit student"
+                                className="p-1.5 rounded-xl bg-card shadow-sm border border-border hover:border-primary/30 text-muted-foreground hover:text-foreground transition-all">
+                                <PencilSquareIcon className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {isEnrolled && (profile?.role === 'admin' || profile?.role === 'teacher') && (
+                              <button
+                                onClick={e => { e.stopPropagation(); setEditEnrolledStudent(s); }}
+                                title="Edit student details"
                                 className="p-1.5 rounded-xl bg-card shadow-sm border border-border hover:border-primary/30 text-muted-foreground hover:text-foreground transition-all">
                                 <PencilSquareIcon className="w-3.5 h-3.5" />
                               </button>
@@ -2261,6 +2416,15 @@ export default function StudentsPage() {
         onSuccess={() => { setShowAdd(false); setEditingStudent(null); load(); loadPortalStudents(); }}
         initialData={editingStudent}
       />
+
+      {editEnrolledStudent && (
+        <EditEnrolledModal
+          student={editEnrolledStudent}
+          schools={schoolList}
+          onClose={() => setEditEnrolledStudent(null)}
+          onSaved={() => { setEditEnrolledStudent(null); loadPortalStudents(); }}
+        />
+      )}
 
       <style dangerouslySetInnerHTML={{
         __html: `

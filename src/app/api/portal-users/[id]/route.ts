@@ -57,9 +57,15 @@ export async function PATCH(
     if (avatar_url    !== undefined) update.avatar_url    = avatar_url ?? null;
     if (section_class !== undefined) update.section_class = section_class ?? null;
   } else if (isTeacher) {
-    // Teachers can correct student name and class (profile corrections from report builder)
+    // Teachers can correct student profile details
     if ('full_name'     in body) update.full_name     = body.full_name;
     if ('section_class' in body) update.section_class = body.section_class ?? null;
+    if ('phone'         in body) update.phone         = body.phone ?? null;
+    if ('grade_level'   in body) update.grade_level   = body.grade_level ?? null;
+    if ('school_id'     in body) update.school_id     = body.school_id ?? null;
+    if ('school_name'   in body) update.school_name   = body.school_name ?? null;
+    if ('gender'        in body) update.gender        = body.gender ?? null;
+    if ('date_of_birth' in body) update.date_of_birth = body.date_of_birth ?? null;
   } else {
     // Self-edit: only safe profile fields
     if ('full_name'  in body) update.full_name  = body.full_name;
@@ -79,10 +85,15 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Sync students shadow table when name or class changes
+  // Sync students shadow table when profile fields change
   const studentSync: Record<string, any> = {};
   if (update.full_name     !== undefined) { studentSync.full_name = update.full_name; studentSync.name = update.full_name; }
   if (update.section_class !== undefined) { studentSync.current_class = update.section_class; studentSync.grade_level = update.section_class; }
+  if (update.school_id     !== undefined) { studentSync.school_id = update.school_id; }
+  if (update.school_name   !== undefined) { studentSync.school_name = update.school_name; }
+  if (update.gender        !== undefined) { studentSync.gender = update.gender; }
+  if (update.date_of_birth !== undefined) { studentSync.date_of_birth = update.date_of_birth; }
+  if (update.phone         !== undefined) { studentSync.parent_phone = update.phone; }
   if (Object.keys(studentSync).length > 0) {
     await admin.from('students').update(studentSync).eq('user_id', id);
   }
