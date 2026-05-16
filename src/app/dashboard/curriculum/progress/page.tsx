@@ -332,7 +332,7 @@ export default function CurriculumProgressPage() {
         {isSchool && (
           <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
             <EyeIcon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <p className="text-blue-300">
+            <p className="text-foreground/80">
               You can see delivery progress for curricula your teachers have shared with you.
               Contact your assigned teacher to request access to hidden curricula.
             </p>

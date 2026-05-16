@@ -1863,20 +1863,27 @@ export default function CurriculumPage() {
     </div>
     {/* Print Options Modal */}
     {showPrintOptions && curriculum && (
-      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm print:hidden">
-        <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-          <h3 className="text-sm font-black uppercase tracking-widest mb-1">Print / Export Options</h3>
-          <p className="text-xs text-muted-foreground mb-5">Choose which sections to include in the output.</p>
+      <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm print:hidden">
+        <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl p-5 w-full sm:max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex items-start justify-between gap-2 mb-4">
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-widest">Print / Export</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Choose sections to include.</p>
+            </div>
+            <button onClick={() => setShowPrintOptions(false)} className="text-muted-foreground hover:text-foreground p-1 -mt-1 -mr-1">
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
 
           {/* Terms */}
           <div className="space-y-2 mb-4">
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Terms to include</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-3">
               {(curriculum.content?.terms ?? []).sort((a, b) => a.term - b.term).map(t => (
-                <label key={t.term} className="flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none">
+                <label key={t.term} className="flex items-center gap-2 text-xs font-bold cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    className="rounded"
+                    className="rounded w-4 h-4 accent-primary"
                     checked={printOptions.terms.includes(t.term)}
                     onChange={e => setPrintOptions(o => ({
                       ...o,
@@ -1892,7 +1899,7 @@ export default function CurriculumPage() {
           {/* Sections */}
           <div className="space-y-2 mb-6">
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Sections</p>
-            <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
               {([
                 { key: 'showOverview', label: 'Overview' },
                 { key: 'showLearningOutcomes', label: 'Learning Outcomes' },
@@ -1901,10 +1908,10 @@ export default function CurriculumPage() {
                 { key: 'showTools', label: 'Recommended Tools' },
                 { key: 'showApprovalSection', label: 'Approval Signatures' },
               ] as { key: keyof PrintSectionOptions; label: string }[]).map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none">
+                <label key={key} className="flex items-center gap-2 text-xs font-bold cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    className="rounded"
+                    className="rounded w-4 h-4 accent-primary"
                     checked={!!printOptions[key]}
                     onChange={e => setPrintOptions(o => ({ ...o, [key]: e.target.checked }))}
                   />
@@ -1914,24 +1921,18 @@ export default function CurriculumPage() {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => { setShowPrintOptions(false); printOverview(); }}
-              className="flex-1 py-2.5 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-xl"
+              className="py-3 bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-xl"
             >
               Print
             </button>
             <button
               onClick={() => { setShowPrintOptions(false); exportCurriculumPdf('overview'); }}
-              className="flex-1 py-2.5 border border-border text-xs font-black uppercase tracking-widest rounded-xl hover:bg-muted"
+              className="py-3 border border-border text-xs font-black uppercase tracking-widest rounded-xl hover:bg-muted transition-colors"
             >
               Export PDF
-            </button>
-            <button
-              onClick={() => setShowPrintOptions(false)}
-              className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted"
-            >
-              Cancel
             </button>
           </div>
         </div>
@@ -2496,142 +2497,140 @@ export default function CurriculumPage() {
               ) : (
                 /* Curriculum content */
                 <div className="px-4 md:px-6 py-6 space-y-6 max-w-5xl">
-                  {/* Header */}
-                  {/* Header — Unified with History Card aesthetics */}
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 pb-8 border-b border-white/5 relative">
+                  {/* ── Curriculum header — mobile-first ── */}
+                  <div className="pb-6 border-b border-white/5 space-y-4 relative">
                     <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-                    <div className="space-y-3 relative z-10">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {curriculum.school_id ? (
-                          <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                            <BuildingOfficeIcon className="w-3 h-3" /> {curriculum.schools?.name ?? 'School'}
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black uppercase tracking-widest text-primary">
-                            <ShieldCheckIcon className="w-3 h-3" /> Platform Template · Admin only
-                          </div>
-                        )}
-                      </div>
 
-                      <div className="space-y-1">
-                        <h1 className="text-2xl sm:text-4xl font-black leading-tight tracking-tighter text-foreground">
-                          {curriculum.content.course_title}
-                        </h1>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
-                          <span className="flex items-center gap-1.5"><BookOpenIcon className="w-3.5 h-3.5" /> {termCount} Terms</span>
-                          <span className="w-1 h-1 rounded-full bg-white/20" />
-                          <span className="flex items-center gap-1.5"><CalendarDaysIcon className="w-3.5 h-3.5" /> Updated {new Date(curriculum.created_at).toLocaleDateString()}</span>
-                          {allWeeks.length > 0 && completedCount > 0 && (
-                            <>
-                              <span className="w-1 h-1 rounded-full bg-white/20" />
-                              <span className="text-emerald-400 font-black">{completedCount} / {allWeeks.length} weeks taught</span>
-                            </>
-                          )}
+                    {/* Row 1: badge + version selector (same line on all screen sizes) */}
+                    <div className="flex flex-wrap items-center gap-2 relative z-10">
+                      {curriculum.school_id ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                          <BuildingOfficeIcon className="w-3 h-3" /> {curriculum.schools?.name ?? 'School'}
                         </div>
-                      </div>
-
-                      {curriculum.content.description && (
-                        <div className="relative mt-6 max-w-2xl">
-                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/30 rounded-full" />
-                          <p className="text-sm text-muted-foreground/90 leading-relaxed pl-5 italic font-medium">
-                            &ldquo;{curriculum.content.description}&rdquo;
-                          </p>
+                      ) : (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black uppercase tracking-widest text-primary">
+                          <ShieldCheckIcon className="w-3 h-3" /> Platform Template · Admin only
+                        </div>
+                      )}
+                      {curriculumList.length > 1 && (
+                        <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[28px] backdrop-blur-sm">
+                          <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2 h-full flex items-center">Ver</span>
+                          <select
+                            value={curriculum.id}
+                            onChange={(e) => selectCurriculumVersion(e.target.value)}
+                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-5 h-full cursor-pointer"
+                          >
+                            {curriculumList.filter(c => !c.school_id).length > 0 && (
+                              <optgroup label="─ Shared template">
+                                {curriculumList.filter(c => !c.school_id).map((c) => (
+                                  <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                    Rillcod shared{curriculumList.filter(c => !c.school_id).length > 1 ? ` — v${c.version}` : ''}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {curriculumList.filter(c => !!c.school_id).length > 0 && (
+                              <optgroup label="─ School versions">
+                                {curriculumList.filter(c => !!c.school_id).map((c) => (
+                                  <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                    {c.schools?.name ?? 'School'}{curriculumList.filter(cx => cx.school_id === c.school_id).length > 1 ? ` — v${c.version}` : ''}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </select>
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-col gap-4">
-                      {/* Top Row: Version + Preview-as */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Version/scope selector — visible to all staff so they can switch between platform and school versions */}
-                        {curriculumList.length > 1 && (
-                          <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[36px] backdrop-blur-sm">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">Syllabus</span>
-                            <select
-                              value={curriculum.id}
-                              onChange={(e) => selectCurriculumVersion(e.target.value)}
-                              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-6 h-full cursor-pointer"
-                            >
-                              {curriculumList.filter(c => !c.school_id).length > 0 && (
-                                <optgroup label="─ Shared template">
-                                  {curriculumList.filter(c => !c.school_id).map((c) => (
-                                    <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                      Rillcod shared{curriculumList.filter(c => !c.school_id).length > 1 ? ` — v${c.version}` : ''}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              {curriculumList.filter(c => !!c.school_id).length > 0 && (
-                                <optgroup label="─ School versions">
-                                  {curriculumList.filter(c => !!c.school_id).map((c) => (
-                                    <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                      {c.schools?.name ?? 'School'}{curriculumList.filter(cx => cx.school_id === c.school_id).length > 1 ? ` — v${c.version}` : ''}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              )}
-                            </select>
-                          </div>
-                        )}
 
-                      </div>
-
-                      {/* Action buttons — wrap on mobile */}
-                      <div className="flex flex-wrap gap-2">
-                        {canModifyCurriculum && (
-                          <button
-                            onClick={openGenerateModal}
-                            className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20 shrink-0"
-                          >
-                            <SparklesIcon className="w-3.5 h-3.5" /> Generate New Version
-                          </button>
-                        )}
-                        {canPublish && (
-                          curriculum.is_visible_to_school ? (
-                            <button
-                              onClick={() => togglePublish(false)}
-                              disabled={publishing}
-                              className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg shrink-0"
-                              title="Make private — hide from students and school staff"
-                            >
-                              {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PencilIcon className="w-3.5 h-3.5" />}
-                              Make Private
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => togglePublish(true)}
-                              disabled={publishing}
-                              className="flex items-center gap-2 px-5 py-2 text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 transition-all rounded-lg shrink-0"
-                              title="Share this syllabus so students and school staff can see it"
-                            >
-                              {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
-                              Share with School
-                            </button>
-                          )
-                        )}
-                        <button
-                          onClick={openPrintOptions}
-                          className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0"
-                        >
-                          <PrinterIcon className="w-3.5 h-3.5" /> Print / Export
-                        </button>
-                        <Link
-                          href="/dashboard/curriculum/progress"
-                          className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg shrink-0"
-                        >
-                          <ChartBarIcon className="w-3.5 h-3.5" /> Reports
-                        </Link>
-                        {(isAdmin || (isTeacher && !!curriculum.school_id)) && (
-                          <button
-                            onClick={handleDeleteCurriculum}
-                            disabled={deleting}
-                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0"
-                          >
-                            {deleting ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
-                            Delete
-                          </button>
+                    {/* Row 2: title + meta */}
+                    <div className="space-y-1 relative z-10">
+                      <h1 className="text-xl sm:text-3xl font-black leading-tight tracking-tighter text-foreground">
+                        {curriculum.content.course_title}
+                      </h1>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground font-medium">
+                        <span className="flex items-center gap-1"><BookOpenIcon className="w-3 h-3" /> {termCount} Terms</span>
+                        <span className="w-1 h-1 rounded-full bg-white/20" />
+                        <span className="flex items-center gap-1"><CalendarDaysIcon className="w-3 h-3" /> {new Date(curriculum.created_at).toLocaleDateString()}</span>
+                        {allWeeks.length > 0 && completedCount > 0 && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                            <span className="text-emerald-400 font-black">{completedCount}/{allWeeks.length} taught</span>
+                          </>
                         )}
                       </div>
                     </div>
+
+                    {/* Row 3: action buttons — primary then secondary, all wrap */}
+                    <div className="flex flex-wrap gap-2 relative z-10">
+                      {canModifyCurriculum && (
+                        <button
+                          onClick={openGenerateModal}
+                          className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20"
+                        >
+                          <SparklesIcon className="w-3.5 h-3.5" /> Generate
+                        </button>
+                      )}
+                      {canPublish && (
+                        curriculum.is_visible_to_school ? (
+                          <button
+                            onClick={() => togglePublish(false)}
+                            disabled={publishing}
+                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg"
+                            title="Make private"
+                          >
+                            {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PencilIcon className="w-3.5 h-3.5" />}
+                            <span className="hidden xs:inline">Make Private</span>
+                            <span className="xs:hidden">Private</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => togglePublish(true)}
+                            disabled={publishing}
+                            className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white transition-all rounded-lg"
+                            title="Share with school"
+                          >
+                            {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">Share with School</span>
+                            <span className="sm:hidden">Share</span>
+                          </button>
+                        )
+                      )}
+                      <button
+                        onClick={openPrintOptions}
+                        className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg"
+                      >
+                        <PrinterIcon className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Print / Export</span>
+                        <span className="sm:hidden">Export</span>
+                      </button>
+                      <Link
+                        href="/dashboard/curriculum/progress"
+                        className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg"
+                      >
+                        <ChartBarIcon className="w-3.5 h-3.5" /> Reports
+                      </Link>
+                      {(isAdmin || (isTeacher && !!curriculum.school_id)) && (
+                        <button
+                          onClick={handleDeleteCurriculum}
+                          disabled={deleting}
+                          className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50"
+                        >
+                          {deleting ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
+                          Delete
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Description — below buttons on all sizes */}
+                    {curriculum.content.description && (
+                      <div className="relative max-w-2xl">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/30 rounded-full" />
+                        <p className="text-sm text-muted-foreground/90 leading-relaxed pl-4 italic font-medium">
+                          &ldquo;{curriculum.content.description}&rdquo;
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Term selector */}
