@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -19,23 +19,65 @@ import {
   TrashIcon,
   ArrowLeftIcon,
   XMarkIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  PencilSquareIcon,
 } from '@/lib/icons';
 
-// Strip markdown symbols for clean document display
+// ── Markdown helpers ────────────────────────────────────────────
+import { renderMarkdown } from '@/lib/newsletter-markdown';
+
+/** Strip markdown to plain text — used for list-card previews only. */
 function stripMarkdown(text: string): string {
   return text
-    .replace(/^#{1,6}\s+/gm, '')        // Remove # headings
-    .replace(/\*\*(.+?)\*\*/g, '$1')    // Remove **bold**
-    .replace(/\*(.+?)\*/g, '$1')        // Remove *italic*
-    .replace(/^[\-\*]\s+/gm, '• ')     // Convert - / * bullets to •
-    .replace(/^(\d+)\.\s+/gm, '$1. ')  // Keep numbered lists clean
-    .replace(/`{1,3}[^`]*`{1,3}/g, '') // Remove code blocks
-    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Remove links, keep text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/^[*-]\s+/gm, '• ')
+    .replace(/^\d+\.\s+/gm, '')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
     .trim();
 }
 
-// ── Components ──
+// ── Print / export CSS ─────────────────────────────────────────
+
+const PRINT_CSS = (fontSize: string, twoCol: boolean) => `
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,'Times New Roman',serif;background:#fff;color:#111827;font-size:${fontSize}}
+@page{size:A4 portrait;margin:18mm 20mm}
+.nl-header{display:flex;align-items:center;gap:16pt;border-bottom:3pt double #000;padding-bottom:13pt;margin-bottom:18pt}
+.nl-logo{width:50pt;height:50pt;object-fit:contain;flex-shrink:0}
+.nl-org{flex:1}
+.nl-org-name{font-size:13.5pt;font-weight:900;text-transform:uppercase;letter-spacing:.5pt;font-family:'Segoe UI',Arial,sans-serif}
+.nl-org-sub{font-size:7pt;font-weight:700;text-transform:uppercase;letter-spacing:2pt;color:#555;margin-top:2pt}
+.nl-org-addr{font-size:7.5pt;color:#888;margin-top:4pt}
+.nl-meta{text-align:right}
+.nl-vol{font-size:10pt;font-weight:900;text-transform:uppercase;letter-spacing:1pt}
+.nl-date{font-size:8pt;color:#333;font-weight:700;text-transform:uppercase;margin-top:2pt}
+.nl-issue{font-size:7.5pt;color:#666;font-weight:700;margin-top:1pt}
+.nl-subject-lbl{font-size:7.5pt;font-weight:900;text-transform:uppercase;letter-spacing:3pt;color:#111;margin-bottom:7pt}
+.nl-title{font-size:${fontSize === '10pt' ? '21pt' : fontSize === '13pt' ? '29pt' : '25pt'};font-weight:900;text-transform:uppercase;letter-spacing:-.5pt;line-height:1.1;margin-bottom:14pt;font-family:'Segoe UI',Arial,sans-serif}
+.nl-title-rule{border:none;border-top:2pt solid #111;margin-bottom:14pt}
+.nl-body{font-size:${fontSize};line-height:1.85;color:#374151}
+${twoCol ? '.nl-body{column-count:2;column-gap:20pt;column-rule:.5pt solid #d1d5db}' : ''}
+.nl-h1{font-size:1.2em;font-weight:900;margin:1.1em 0 .35em;text-transform:uppercase;border-bottom:1pt solid #374151;padding-bottom:3pt;column-span:all;-webkit-column-span:all;font-family:'Segoe UI',Arial,sans-serif}
+.nl-h2{font-size:1.05em;font-weight:900;margin:.9em 0 .3em;text-transform:uppercase;font-family:'Segoe UI',Arial,sans-serif}
+.nl-h3{font-size:.95em;font-weight:800;margin:.75em 0 .25em;font-style:italic}
+.nl-p{margin:0 0 .6em;text-align:justify}
+.nl-ul{margin:.35em 0 .6em 1.3em;list-style:disc}
+.nl-ol{margin:.35em 0 .6em 1.3em}
+.nl-ul li,.nl-ol li{margin:.12em 0;line-height:1.7}
+.nl-hr{border:none;border-top:.75pt solid #d1d5db;margin:.7em 0;column-span:all;-webkit-column-span:all}
+.nl-gap{height:.35em}
+code{background:#f3f4f6;padding:.1em .3em;border-radius:2pt;font-size:.85em;font-family:'Courier New',monospace}
+strong{font-weight:900}em{font-style:italic}
+.nl-footer{margin-top:28pt;border-top:1.5pt solid #e5e7eb;padding-top:16pt;display:flex;justify-content:space-between;align-items:flex-end;page-break-inside:avoid}
+.nl-stamp{width:60pt;height:60pt;border:1.5pt dashed #d1d5db;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:6pt;color:#d1d5db;font-weight:900;text-transform:uppercase;letter-spacing:.8pt;line-height:1.4}
+.no-print{display:none!important}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.nl-footer{page-break-inside:avoid}}
+`;
+
+// ── Types ──────────────────────────────────────────────────────
 
 interface Newsletter {
   id: string;
@@ -46,29 +88,98 @@ interface Newsletter {
   published_at: string | null;
 }
 
+type FontSize = 'compact' | 'normal' | 'large';
+type EditorTab = 'write' | 'preview';
+
+const FONT_PT: Record<FontSize, string> = { compact: '10pt', normal: '11.5pt', large: '13pt' };
+
+// ── Page ───────────────────────────────────────────────────────
+
 export default function NewslettersPage() {
   const { profile } = useAuth();
   const [newsletters, setNewsletters] = useState<Newsletter[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [activeNewsletter, setActiveNewsletter] = useState<Partial<Newsletter> | null>(null);
-  
-  // AI Generation State
+
+  // AI
   const [topic, setTopic] = useState('');
   const [generating, setGenerating] = useState(false);
-  
-  // Pushing/Delivery State
+  const [aiTone, setAiTone] = useState<'professional' | 'energetic' | 'visionary'>('professional');
+  const [aiAudience, setAiAudience] = useState<'everyone' | 'parents' | 'students'>('everyone');
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // UI
   const [showPushModal, setShowPushModal] = useState(false);
   const [targetType, setTargetType] = useState<'all' | 'students' | 'teachers' | 'schools'>('all');
   const [pushing, setPushing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const [aiTone, setAiTone] = useState<'professional' | 'energetic' | 'visionary'>('professional');
-  const [aiAudience, setAiAudience] = useState<'everyone' | 'parents' | 'students'>('everyone');
   const [showPreview, setShowPreview] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [editorTab, setEditorTab] = useState<EditorTab>('write');
+
+  // Print controls
+  const [issueNumber, setIssueNumber] = useState('');
+  const [fontSize, setFontSize] = useState<FontSize>('normal');
+  const [twoColumn, setTwoColumn] = useState(false);
 
   const supabase = createClient();
-  const pdfRef = useRef<HTMLDivElement>(null); // kept for preview scroll ref only
+
+  // ── Print helpers ──────────────────────────────────────────
+
+  function buildPrintHTML(forExport = false): string {
+    const schoolName = (profile as any)?.school_name || 'RILLCOD TECHNOLOGIES';
+    const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+    const logoUrl = window.location.origin + '/logo.png';
+    const sigUrl = window.location.origin + '/images/signature.png';
+    const title = activeNewsletter?.title || 'Untitled Newsletter';
+    const bodyHtml = renderMarkdown(activeNewsletter?.content || '');
+    const pt = FONT_PT[fontSize];
+
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<title>${title}</title>
+<style>${PRINT_CSS(pt, twoColumn)}</style>
+</head><body>
+${!forExport ? `
+<div class="no-print" style="text-align:right;padding:12px 0 16px;display:flex;gap:10px;justify-content:flex-end;">
+  <button onclick="window.print()" style="background:#111827;color:#fff;border:none;padding:9px 22px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;cursor:pointer;border-radius:4px;">Print / Save PDF</button>
+  <button onclick="window.close()" style="background:#f9fafb;color:#374151;border:1px solid #e5e7eb;padding:9px 22px;font-size:11px;cursor:pointer;border-radius:4px;">Close</button>
+</div>` : ''}
+<div class="nl-header">
+  <img src="${logoUrl}" class="nl-logo" onerror="this.style.display='none'"/>
+  <div class="nl-org">
+    <div class="nl-org-name">${schoolName}</div>
+    <div class="nl-org-sub">Official Institutional Communication</div>
+    <div class="nl-org-addr">26 Ogiesoba Avenue, Benin City &middot; academy.rillcod.com &middot; 0811 660 0091</div>
+  </div>
+  <div class="nl-meta">
+    <div class="nl-vol">VOL. ${new Date().getFullYear()}</div>
+    <div class="nl-date">${today}</div>
+    ${issueNumber ? `<div class="nl-issue">Issue No. ${issueNumber}</div>` : ''}
+  </div>
+</div>
+<div class="nl-subject-lbl">Official Notice / Newsletter</div>
+<h1 class="nl-title">${title}</h1>
+<hr class="nl-title-rule"/>
+<div class="nl-body">${bodyHtml}</div>
+<div class="nl-footer">
+  <div>
+    <img src="${sigUrl}" style="height:34pt;margin-bottom:4pt;mix-blend-mode:multiply;opacity:0.8;display:block" onerror="this.style.display='none'"/>
+    <div style="font-size:11pt;font-weight:900;text-transform:uppercase;font-family:'Segoe UI',Arial,sans-serif">The Administrator</div>
+    <div style="font-size:7.5pt;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:1pt;margin-top:2pt">Rillcod Technologies Executive Office</div>
+  </div>
+  <div class="nl-stamp">Official<br/>Academy<br/>Stamp</div>
+</div>
+${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));</script>` : ''}
+</body></html>`;
+  }
+
+  function handlePrintNewsletter() {
+    const html = buildPrintHTML(false);
+    const win = window.open('', '_blank', 'width=960,height=860');
+    if (!win) { alert('Pop-up blocked — please allow pop-ups to print.'); return; }
+    win.document.write(html);
+    win.document.close();
+  }
 
   async function handleExportPDF() {
     const [{ toPng }, { default: jsPDF }] = await Promise.all([
@@ -76,48 +187,12 @@ export default function NewslettersPage() {
       import('jspdf'),
     ]);
 
-    const schoolName = (profile as any)?.school_name || 'RILLCOD TECHNOLOGIES';
-    const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
-    const logoUrl = window.location.origin + '/logo.png';
-    const title = activeNewsletter?.title || 'Untitled Newsletter';
-    const raw = stripMarkdown(activeNewsletter?.content || '');
+    const title = activeNewsletter?.title || 'Newsletter';
+    const exportHtml = buildPrintHTML(true);
 
-    const formattedContent = raw
-      .split('\n')
-      .map(line => {
-        if (!line.trim()) return '<br/>';
-        if (line.startsWith('• ')) return `<p style="margin:0 0 8px 16px;text-indent:-12px">&bull;&nbsp;${line.slice(2)}</p>`;
-        return `<p style="margin:0 0 12px;line-height:1.85">${line}</p>`;
-      })
-      .join('');
-
-    // Render an off-screen A4-width (794px) div for capture
     const wrap = document.createElement('div');
     wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;';
-    wrap.innerHTML = `<div id="nl-export" style="font-family:'Times New Roman',Georgia,serif;background:#fff;color:#111827;font-size:15px;padding:75px 88px 60px;">
-      <div style="display:flex;align-items:center;gap:24px;border-bottom:3px double #000;padding-bottom:19px;margin-bottom:34px;">
-        <img src="${logoUrl}" style="width:77px;height:77px;object-fit:contain;flex-shrink:0;" onerror="this.style.display='none'"/>
-        <div style="flex:1;">
-          <div style="font-size:19px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">${schoolName}</div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#555;margin-top:3px;">Official Institutional Communication</div>
-          <div style="font-size:10px;color:#888;margin-top:7px;">26 Ogiesoba Avenue, Benin City &middot; academy.rillcod.com &middot; 0811 660 0091</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:1px;">VOL. ${new Date().getFullYear()}</div>
-          <div style="font-size:11px;color:#333;margin-top:4px;font-weight:700;text-transform:uppercase;">${today}</div>
-        </div>
-      </div>
-      <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:3px;color:#111;margin-bottom:12px;">Topic / Subject</div>
-      <h1 style="font-size:33px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px;line-height:1.1;margin-bottom:34px;">${title}</h1>
-      <div style="font-size:15px;line-height:1.85;color:#374151;font-family:Georgia,'Times New Roman',serif;text-align:justify;">${formattedContent}</div>
-      <div style="margin-top:48px;border-top:1.5px solid #e5e7eb;padding-top:22px;display:flex;justify-content:space-between;align-items:flex-end;">
-        <div>
-          <div style="font-size:15px;font-weight:900;text-transform:uppercase;">The Administrator</div>
-          <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:3px;">Rillcod Technologies Executive Office</div>
-        </div>
-        <div style="width:90px;height:90px;border:2px dashed #d1d5db;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:9px;color:#d1d5db;font-weight:900;text-transform:uppercase;letter-spacing:1px;line-height:1.4;">Official<br/>Academy<br/>Stamp</div>
-      </div>
-    </div>`;
+    wrap.innerHTML = `<div id="nl-export" style="padding:55px 66px 50px;">${exportHtml.replace(/<!DOCTYPE[\s\S]*?<body[^>]*>/, '').replace(/<\/body>[\s\S]*$/, '')}</div>`;
     document.body.appendChild(wrap);
 
     await new Promise(r => setTimeout(r, 300));
@@ -159,134 +234,31 @@ export default function NewslettersPage() {
     pdf.save(`${title}.pdf`);
   }
 
-  function handlePrintNewsletter() {
-    const schoolName = (profile as any)?.school_name || 'RILLCOD TECHNOLOGIES';
-    const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
-    const logoUrl = window.location.origin + '/logo.png';
-    const sigUrl = window.location.origin + '/images/signature.png';
-    const title = activeNewsletter?.title || 'Untitled Newsletter';
-    const raw = stripMarkdown(activeNewsletter?.content || '');
-
-    const formattedContent = raw
-      .split('\n')
-      .map(line => {
-        if (!line.trim()) return '<br/>';
-        if (line.startsWith('• ')) return `<p style="margin:0 0 6pt 16pt;text-indent:-12pt">&bull;&nbsp;${line.slice(2)}</p>`;
-        return `<p style="margin:0 0 9pt;line-height:1.85">${line}</p>`;
-      })
-      .join('');
-
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<title>${title}</title>
-<style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Times New Roman',Georgia,serif;background:#fff;color:#111827;font-size:11.5pt}
-  @page{size:A4 portrait;margin:20mm 22mm}
-  .red-stripe{position:fixed;top:0;left:0;right:0;height:4pt;background:#dc2626;}
-  .header{display:flex;align-items:center;gap:18pt;border-bottom:3pt double #000;padding-bottom:14pt;margin-bottom:26pt;margin-top:10pt}
-  .logo{width:58pt;height:58pt;object-fit:contain;flex-shrink:0}
-  .org{flex:1}
-  .org-name{font-size:15pt;font-weight:900;text-transform:uppercase;letter-spacing:1pt}
-  .org-sub{font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:2pt;color:#555;margin-top:2pt}
-  .org-addr{font-size:8pt;color:#888;margin-top:5pt}
-  .vol{text-align:right}
-  .vol-year{font-size:11pt;font-weight:900;text-transform:uppercase;letter-spacing:1pt}
-  .vol-date{font-size:8.5pt;color:#333;margin-top:3pt;font-weight:700;text-transform:uppercase}
-  .topic-label{font-size:9pt;font-weight:900;text-transform:uppercase;letter-spacing:3pt;color:#111;margin-bottom:10pt}
-  .nl-title{font-size:26pt;font-weight:900;text-transform:uppercase;letter-spacing:-0.5pt;line-height:1.1;margin-bottom:26pt}
-  .nl-body{font-size:11.5pt;line-height:1.85;color:#374151;font-family:Georgia,'Times New Roman',serif;text-align:justify}
-  .footer{margin-top:36pt;border-top:1.5pt solid #e5e7eb;padding-top:18pt;display:flex;justify-content:space-between;align-items:flex-end;page-break-inside:avoid}
-  .sig-block{position:relative}
-  .sig-img{height:40pt;object-fit:contain;margin-bottom:4pt;mix-blend-mode:multiply}
-  .sig-name{font-size:12pt;font-weight:900;text-transform:uppercase}
-  .sig-role{font-size:8.5pt;color:#6b7280;text-transform:uppercase;letter-spacing:1pt;font-weight:700;margin-top:2pt}
-  .stamp{width:72pt;height:72pt;border:2pt dashed #d1d5db;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:7pt;color:#d1d5db;font-weight:900;text-transform:uppercase;letter-spacing:1pt;line-height:1.4}
-  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.footer{page-break-inside:avoid}}
-</style>
-</head>
-<body>
-  <div class="red-stripe"></div>
-  <div class="header">
-    <img src="${logoUrl}" class="logo" onerror="this.style.display='none'"/>
-    <div class="org">
-      <div class="org-name">${schoolName}</div>
-      <div class="org-sub">Official Institutional Communication</div>
-      <div class="org-addr">26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
-    </div>
-    <div class="vol">
-      <div class="vol-year">VOL. ${new Date().getFullYear()}</div>
-      <div class="vol-date">${today}</div>
-    </div>
-  </div>
-  <div class="topic-label">Topic / Subject</div>
-  <h1 class="nl-title">${title}</h1>
-  <div class="nl-body">${formattedContent}</div>
-  <div class="footer">
-    <div class="sig-block">
-      <img src="${sigUrl}" class="sig-img" onerror="this.style.display='none'"/>
-      <div class="sig-name">The Administrator</div>
-      <div class="sig-role">Rillcod Technologies Executive Office</div>
-    </div>
-    <div class="stamp">Official<br/>Academy<br/>Stamp</div>
-  </div>
-<script>window.addEventListener('load', () => { window.print(); });</script>
-</body>
-</html>`;
-
-    const win = window.open('', '_blank');
-    win?.document.write(html);
-    win?.document.close();
-  }
+  // ── Data ──────────────────────────────────────────────────
 
   useEffect(() => {
-    if (profile?.role) {
-      loadNewsletters();
-    }
-  }, [profile]);
+    if (profile?.role) loadNewsletters();
+  }, [profile]); // eslint-disable-line
 
   async function loadNewsletters() {
     setLoading(true);
     let data: Newsletter[] = [];
-
-    if (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') {
-      const res = await supabase.from('newsletters')
-        .select('*')
-        .order('created_at', { ascending: false });
+    if (['admin', 'teacher', 'school'].includes(profile?.role || '')) {
+      const res = await supabase.from('newsletters').select('*').order('created_at', { ascending: false });
       data = res.data ?? [];
     } else {
-      // For Students and Parents, they see newsletters delivered to them
-      if (!profile?.id) {
-        setLoading(false);
-        return;
-      }
-      const userId = profile.id;
-      const { data: deliveries } = await supabase
-        .from('newsletter_delivery')
-        .select('newsletter_id, is_viewed')
-        .eq('user_id', userId);
-      
+      if (!profile?.id) { setLoading(false); return; }
+      const { data: deliveries } = await supabase.from('newsletter_delivery')
+        .select('newsletter_id, is_viewed').eq('user_id', profile.id);
       if (deliveries && deliveries.length > 0) {
         const ids = deliveries.map(d => d.newsletter_id).filter((id): id is string => id !== null);
-        const { data: nls } = await supabase
-          .from('newsletters')
-          .select('*')
-          .in('id', ids)
-          .eq('status', 'published')
-          .order('published_at', { ascending: false });
+        const { data: nls } = await supabase.from('newsletters')
+          .select('*').in('id', ids).eq('status', 'published').order('published_at', { ascending: false });
         data = nls ?? [];
-
-        // Mark them as viewed
-        await supabase
-          .from('newsletter_delivery')
-          .update({ is_viewed: true })
-          .eq('user_id', userId)
-          .in('newsletter_id', ids);
+        await supabase.from('newsletter_delivery').update({ is_viewed: true })
+          .eq('user_id', profile.id).in('newsletter_id', ids);
       }
     }
-
     setNewsletters(data);
     setLoading(false);
   }
@@ -299,31 +271,21 @@ export default function NewslettersPage() {
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'newsletter',
-          topic,
-          tone: aiTone,
-          audience: aiAudience
-        })
+        body: JSON.stringify({ type: 'newsletter', topic, tone: aiTone, audience: aiAudience }),
       });
       const json = await res.json();
       if (json.success && json.data) {
         const title = json.data.title || json.data.headline || '';
         const content = json.data.content || json.data.body || json.data.text || '';
-        if (!content) {
-          setAiError('AI returned empty content. Please try again.');
-          return;
-        }
-        setActiveNewsletter(prev => ({
-          ...prev,
-          title: stripMarkdown(title),
-          content: stripMarkdown(content),
-        }));
+        if (!content) { setAiError('AI returned empty content. Please try again.'); return; }
+        // Keep markdown as-is — the renderer will handle it
+        setActiveNewsletter(prev => ({ ...prev, title: stripMarkdown(title), content }));
+        setEditorTab('preview'); // jump to preview so user sees the result
       } else {
         setAiError(json.error || 'Generation failed. Please try again.');
       }
     } catch (e: any) {
-      setAiError(e.message || 'Network error. Please check your connection.');
+      setAiError(e.message || 'Network error.');
     } finally {
       setGenerating(false);
     }
@@ -337,15 +299,12 @@ export default function NewslettersPage() {
       content: activeNewsletter.content,
       author_id: profile?.id,
       school_id: profile?.school_id,
-      status: 'draft'
+      status: 'draft',
     };
-
     const result = activeNewsletter.id
       ? await supabase.from('newsletters').update(payload).eq('id', activeNewsletter.id).select().single()
       : await supabase.from('newsletters').insert([payload]).select().single();
-
     if (result.data && !activeNewsletter.id) setActiveNewsletter(result.data);
-
     if (!result.error) {
       setSuccess('Newsletter saved successfully!');
       setTimeout(() => setSuccess(null), 3000);
@@ -358,31 +317,18 @@ export default function NewslettersPage() {
     if (!activeNewsletter?.id) return;
     setPushing(true);
     try {
-      // 1. Get target user IDs
       let userQuery = supabase.from('portal_users').select('id');
       if (profile?.role === 'school' && profile.school_id) userQuery = userQuery.eq('school_id', profile.school_id);
       if (targetType === 'students') userQuery = userQuery.eq('role', 'student');
       if (targetType === 'teachers') userQuery = userQuery.eq('role', 'teacher');
       if (targetType === 'schools') userQuery = userQuery.eq('role', 'school');
-      
       const { data: users } = await userQuery;
       if (!users || users.length === 0) throw new Error('No target users found');
-
-      // 2. Create delivery entries
-      const deliveryRows = users.map(u => ({
-        newsletter_id: activeNewsletter.id,
-        user_id: u.id
-      }));
-
-      const { error: delErr } = await supabase.from('newsletter_delivery').insert(deliveryRows);
+      const { error: delErr } = await supabase.from('newsletter_delivery').insert(
+        users.map(u => ({ newsletter_id: activeNewsletter.id, user_id: u.id }))
+      );
       if (delErr) throw delErr;
-
-      // 3. Update status
-      await supabase.from('newsletters').update({ 
-        status: 'published',
-        published_at: new Date().toISOString()
-      }).eq('id', activeNewsletter.id);
-
+      await supabase.from('newsletters').update({ status: 'published', published_at: new Date().toISOString() }).eq('id', activeNewsletter.id);
       setSuccess(`Newsletter pushed to ${users.length} recipients!`);
       setShowPushModal(false);
       setView('list');
@@ -401,21 +347,17 @@ export default function NewslettersPage() {
     setNewsletters(prev => prev.filter(n => n.id !== id));
   }
 
-
   const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
 
-  if (profile?.role !== 'admin' && profile?.role !== 'school' && profile?.role !== 'teacher' && profile?.role !== 'student' && profile?.role !== 'parent') {
+  if (!['admin', 'school', 'teacher', 'student', 'parent'].includes(profile?.role || '')) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/70/10 via-transparent to-transparent">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20 text-rose-400">
-             <InformationCircleIcon className="w-12 h-12" />
+            <InformationCircleIcon className="w-12 h-12" />
           </div>
           <h1 className="text-3xl font-black tracking-tighter text-foreground uppercase italic">Access Denied</h1>
-          <p className="text-muted-foreground font-medium leading-relaxed">
-            You do not have access to this page.
-          </p>
-          <a href="/dashboard" className="inline-block px-8 py-4 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-foreground transition-all">
+          <a href="/dashboard" className="inline-block px-8 py-4 bg-card border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-foreground">
             Return to Dashboard
           </a>
         </div>
@@ -423,10 +365,12 @@ export default function NewslettersPage() {
     );
   }
 
+  // ── Render ────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen bg-background text-foreground p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        
+
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -436,24 +380,24 @@ export default function NewslettersPage() {
             </div>
             <h1 className="text-3xl font-extrabold">{isManager ? 'Newsletters' : 'Official Newsletters'}</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {isManager 
-                ? 'Design, AI-Draft, and push professional newsletters to all stakeholders.' 
-                : 'Stay updated with the latest news, technological trends, and school announcements.'}
+              {isManager
+                ? 'Design, AI-draft, and push professional newsletters. Supports Markdown formatting.'
+                : 'Stay updated with the latest news and school announcements.'}
             </p>
           </div>
           {view === 'list' ? (
             isManager && (
-              <button 
-                onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); }}
-                className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/40"
+              <button
+                onClick={() => { setView('editor'); setActiveNewsletter({ title: '', content: '' }); setEditorTab('write'); }}
+                className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary/90 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/40 text-primary-foreground"
               >
                 <PlusIcon className="w-5 h-5" /> Create Newsletter
               </button>
             )
           ) : (
-            <button 
+            <button
               onClick={() => setView('list')}
-              className="flex items-center gap-2 px-4 py-2 bg-card shadow-sm hover:bg-muted rounded-xl text-sm font-bold transition-all border border-border"
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-bold transition-all"
             >
               <ArrowLeftIcon className="w-4 h-4" /> Back to Newsletters
             </button>
@@ -461,18 +405,18 @@ export default function NewslettersPage() {
         </div>
 
         {success && (
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-400 animate-in fade-in slide-in-from-top-4">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-400">
             <CheckCircleIcon className="w-5 h-5" />
             <span className="text-sm font-bold">{success}</span>
           </div>
         )}
 
         {view === 'list' ? (
-          /* ── List View ── */
+          /* ── List ── */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
               Array(3).fill(0).map((_, i) => (
-                <div key={i} className="bg-card shadow-sm border border-border rounded-2xl h-48 animate-pulse" />
+                <div key={i} className="bg-card border border-border rounded-2xl h-48 animate-pulse" />
               ))
             ) : newsletters.length === 0 ? (
               <div className="col-span-full py-20 text-center">
@@ -483,16 +427,14 @@ export default function NewslettersPage() {
               newsletters.map(nl => (
                 <div
                   key={nl.id}
-                  onClick={() => { setActiveNewsletter(nl); setView('editor'); }}
-                  className="group bg-card shadow-sm border border-border rounded-2xl p-6 hover:bg-white/8 transition-all cursor-pointer relative overflow-hidden"
+                  onClick={() => { setActiveNewsletter(nl); setView('editor'); setEditorTab('write'); }}
+                  className="group bg-card border border-border rounded-2xl p-6 hover:border-primary/40 transition-all cursor-pointer relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 p-4 flex items-center gap-2">
                     {isManager && (
-                      <button
-                        onClick={e => handleDelete(nl.id, e)}
+                      <button onClick={e => handleDelete(nl.id, e)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-rose-500/20 text-rose-400"
-                        title="Delete newsletter"
-                      >
+                        title="Delete">
                         <TrashIcon className="w-4 h-4" />
                       </button>
                     )}
@@ -501,172 +443,207 @@ export default function NewslettersPage() {
                   <div className="flex items-center gap-2 mb-4">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
                       nl.status === 'published' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
-                    }`}>
-                      {nl.status || 'draft'}
-                    </span>
+                    }`}>{nl.status || 'draft'}</span>
                     <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">
                       {nl.created_at ? new Date(nl.created_at).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                   <h3 className="text-xl font-black text-foreground mb-2 line-clamp-2 tracking-tight uppercase leading-tight">{nl.title}</h3>
-                  <div className="text-sm text-muted-foreground line-clamp-3 mb-4 whitespace-pre-wrap h-20 overflow-hidden leading-relaxed">
-                    {nl.content}
-                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                    {stripMarkdown(nl.content).slice(0, 180)}
+                  </p>
                 </div>
               ))
             )}
           </div>
         ) : (
-          /* ── Editor View ── */
+          /* ── Editor ── */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-20 relative">
-            
-            {/* AI Assistant - Collapsible on Mobile */}
-            <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-24 order-2 lg:order-1">
-              <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-2xl lg:rounded-[2.5rem] p-6 lg:p-8 space-y-6 lg:space-y-8 shadow-2xl">
-                <div className="flex items-center justify-between lg:block">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
-                      <SparklesIcon className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm lg:text-lg font-black tracking-tight uppercase">AI Assistant</h3>
-                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest hidden sm:block">AI Newsletter Builder</p>
-                    </div>
+
+            {/* ─ Sidebar ─ */}
+            <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-24 order-2 lg:order-1">
+
+              {/* AI Assistant */}
+              <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl p-6 space-y-5 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
+                    <SparklesIcon className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black tracking-tight uppercase">AI Assistant</h3>
+                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Generates markdown content</p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
-                    <div className="space-y-3">
-                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Perspective</p>
-                       <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
-                          {['professional', 'energetic', 'visionary'].map(t => (
-                            <button
-                              key={t}
-                              onClick={() => setAiTone(t as any)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${aiTone === t ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
-                            >
-                              {t}
-                            </button>
-                          ))}
-                       </div>
-                    </div>
-
-                    <div className="space-y-3">
-                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Audience</p>
-                       <div className="grid grid-cols-1 xs:grid-cols-2 gap-2">
-                          {['everyone', 'parents', 'students'].map(a => (
-                            <button
-                              key={a}
-                              onClick={() => setAiAudience(a as any)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${aiAudience === a ? 'bg-cyan-600 border-cyan-500 text-foreground shadow-lg shadow-cyan-900/40' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}
-                            >
-                              {a}
-                            </button>
-                          ))}
-                       </div>
-                    </div>
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Tone</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['professional', 'energetic', 'visionary'] as const).map(t => (
+                      <button key={t} onClick={() => setAiTone(t)}
+                        className={`px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${aiTone === t ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                        {t}
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest pl-1">Topic or Announcement</label>
-                     <textarea 
-                       value={topic}
-                       onChange={e => setTopic(e.target.value)}
-                       placeholder="Announce your news..."
-                       className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-4 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-all resize-none h-32 lg:h-64 placeholder-muted-foreground font-medium shadow-inner"
-                     />
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Audience</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['everyone', 'parents', 'students'] as const).map(a => (
+                      <button key={a} onClick={() => setAiAudience(a)}
+                        className={`px-2 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${aiAudience === a ? 'bg-cyan-600 border-cyan-500 text-white' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                        {a}
+                      </button>
+                    ))}
                   </div>
-                  
-                  <button
-                    onClick={handleAIGenerate}
-                    disabled={generating || !topic}
-                    className="w-full py-4 lg:py-5 bg-gradient-to-br from-primary to-indigo-700 hover:from-primary hover:to-indigo-600 active:scale-[0.98] rounded-xl lg:rounded-[2rem] text-[10px] lg:text-xs font-black transition-all shadow-2xl shadow-primary/40 disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[0.2em]"
-                  >
-                    {generating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
-                    {generating ? 'Generating...' : 'Generate'}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Topic</label>
+                  <textarea
+                    value={topic} onChange={e => setTopic(e.target.value)}
+                    placeholder="Announce your news..."
+                    className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary resize-none h-28 placeholder-muted-foreground"
+                  />
+                </div>
+
+                <button onClick={handleAIGenerate} disabled={generating || !topic}
+                  className="w-full py-4 bg-gradient-to-br from-primary to-indigo-700 hover:from-primary hover:to-indigo-600 rounded-xl text-[10px] font-black disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-[.2em] text-white shadow-xl">
+                  {generating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
+                  {generating ? 'Generating...' : 'Generate'}
+                </button>
+
+                {aiError && (
+                  <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
+                    <InformationCircleIcon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-rose-400 font-semibold">{aiError}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Print Options */}
+              <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl p-5 space-y-4 shadow-xl">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Print / Export Options</p>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Issue No.</label>
+                  <input type="text" value={issueNumber} onChange={e => setIssueNumber(e.target.value)}
+                    placeholder="e.g. 5 or 2025-003"
+                    className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Font Size</label>
+                  <div className="grid grid-cols-3 gap-1 border border-border rounded-md overflow-hidden">
+                    {(['compact', 'normal', 'large'] as FontSize[]).map(f => (
+                      <button key={f} type="button" onClick={() => setFontSize(f)}
+                        className={`py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${fontSize === f ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Layout</label>
+                  <div className="grid grid-cols-2 gap-1 border border-border rounded-md overflow-hidden">
+                    {([false, true] as const).map(col => (
+                      <button key={String(col)} type="button" onClick={() => setTwoColumn(col)}
+                        className={`py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${twoColumn === col ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+                        {col ? 'Two Column' : 'Single'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button onClick={handlePrintNewsletter}
+                    className="flex items-center justify-center gap-2 px-3 py-3 bg-card hover:bg-muted rounded-xl text-[10px] font-black border border-border transition-all">
+                    <PrinterIcon className="w-3.5 h-3.5 text-primary" />
+                    <span className="uppercase tracking-widest">Print</span>
                   </button>
-
-                  {aiError && (
-                    <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl">
-                      <InformationCircleIcon className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-rose-400 font-semibold">{aiError}</p>
-                    </div>
-                  )}
+                  <button onClick={handleExportPDF}
+                    className="flex items-center justify-center gap-2 px-3 py-3 bg-primary/10 hover:bg-primary/20 rounded-xl text-[10px] font-black border border-primary/20 text-primary transition-all">
+                    <DocumentTextIcon className="w-3.5 h-3.5" />
+                    <span className="uppercase tracking-widest">Export PDF</span>
+                  </button>
                 </div>
 
-                <div className="pt-6 lg:pt-8 border-t border-border flex flex-col gap-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={handlePrintNewsletter}
-                      className="flex items-center justify-center gap-2 px-3 py-3 bg-card shadow-sm hover:bg-muted rounded-xl text-[10px] font-black transition-all border border-border"
-                    >
-                      <PrinterIcon className="w-3.5 h-3.5 text-primary" />
-                      <span className="uppercase tracking-widest">Print</span>
-                    </button>
-                    <button
-                      onClick={handleExportPDF}
-                      className="flex items-center justify-center gap-2 px-3 py-3 bg-primary/10 hover:bg-primary/20 rounded-xl text-[10px] font-black transition-all border border-primary/20 text-primary"
-                    >
-                      <DocumentTextIcon className="w-3.5 h-3.5" />
-                      <span className="uppercase tracking-widest">Export</span>
-                    </button>
-                  </div>
-                  {activeNewsletter?.id && (
-                    <button 
-                      onClick={() => setShowPushModal(true)}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-xl text-[10px] font-black transition-all border border-emerald-500/20 group"
-                    >
-                      <SpeakerWaveIcon className="w-4 h-4" /> 
-                      <span className="uppercase tracking-widest">Send to Users</span>
-                    </button>
-                  )}
-                </div>
+                {activeNewsletter?.id && (
+                  <button onClick={() => setShowPushModal(true)}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 rounded-xl text-[10px] font-black border border-emerald-500/20 transition-all">
+                    <SpeakerWaveIcon className="w-4 h-4" />
+                    <span className="uppercase tracking-widest">Send to Users</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Markdown guide */}
+              <div className="bg-card border border-border rounded-xl p-4 space-y-2 text-[10px] font-mono text-muted-foreground">
+                <p className="font-black uppercase tracking-widest text-foreground text-[9px] mb-2">Markdown guide</p>
+                <p># Heading 1 &nbsp;&nbsp; ## Heading 2</p>
+                <p>**bold** &nbsp; *italic* &nbsp; `code`</p>
+                <p>- bullet item &nbsp; 1. numbered</p>
+                <p>--- (horizontal rule)</p>
               </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="lg:col-span-8 space-y-8 order-1 lg:order-2">
-              <div className="bg-background/80 backdrop-blur-xl border border-border ring-1 ring-white/10 rounded-2xl lg:rounded-[3rem] p-6 lg:p-10 space-y-6 lg:space-y-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
-                
-                <div className="flex flex-col gap-6">
-                  <div className="flex items-center gap-4 border-b border-border pb-6">
-                    <div className="hidden sm:flex w-12 h-12 bg-card shadow-sm rounded-xl items-center justify-center border border-border shrink-0">
-                      <DocumentTextIcon className="w-6 h-6 text-muted-foreground" />
-                    </div>
-                    <input 
-                      type="text"
-                      value={activeNewsletter?.title || ''}
-                      onChange={e => setActiveNewsletter(p => ({ ...p, title: e.target.value }))}
-                      placeholder="Headline..."
-                      className="w-full bg-transparent text-2xl lg:text-4xl font-black focus:outline-none placeholder-muted-foreground tracking-tighter uppercase italic"
-                    />
+            {/* ─ Main content ─ */}
+            <div className="lg:col-span-8 space-y-4 order-1 lg:order-2">
+              <div className="bg-background/80 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
+
+                {/* Title */}
+                <div className="flex items-center gap-4 border-b border-border px-6 py-5">
+                  <div className="hidden sm:flex w-10 h-10 bg-card rounded-xl items-center justify-center border border-border shrink-0">
+                    <DocumentTextIcon className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  
-                  <div className="relative group/editor">
-                    <div className="absolute -left-2 top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-primary/20 to-transparent hidden sm:block" />
-                    <textarea 
-                      value={activeNewsletter?.content || ''}
-                      onChange={e => setActiveNewsletter(p => ({ ...p, content: e.target.value }))}
-                      placeholder="Content..."
-                      className="w-full bg-transparent text-base lg:text-2xl leading-[1.6] lg:leading-[1.8] min-h-[400px] lg:min-h-[900px] focus:outline-none placeholder-muted-foreground resize-none font-serif tracking-wide scrollbar-hide text-muted-foreground"
-                    />
+                  <input
+                    type="text"
+                    value={activeNewsletter?.title || ''}
+                    onChange={e => setActiveNewsletter(p => ({ ...p, title: e.target.value }))}
+                    placeholder="Headline..."
+                    className="w-full bg-transparent text-2xl lg:text-3xl font-black focus:outline-none placeholder-muted-foreground tracking-tighter uppercase italic"
+                  />
+                </div>
+
+                {/* Source / Preview tab bar */}
+                <div className="flex border-b border-border px-6">
+                  {(['write', 'preview'] as EditorTab[]).map(tab => (
+                    <button key={tab} onClick={() => setEditorTab(tab)}
+                      className={`flex items-center gap-1.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 -mb-px transition-colors ${editorTab === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+                      {tab === 'write' ? <PencilSquareIcon className="w-3.5 h-3.5" /> : <EyeIcon className="w-3.5 h-3.5" />}
+                      {tab === 'write' ? 'Write' : 'Preview'}
+                    </button>
+                  ))}
+                  <div className="ml-auto flex items-center gap-1 px-4 py-2">
+                    <span className="text-[9px] text-muted-foreground">Markdown supported</span>
                   </div>
                 </div>
-                
-                <div className="pt-6 lg:pt-8 border-t border-border flex flex-wrap justify-end gap-3">
-                   <button 
-                    onClick={() => setShowPreview(true)}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-5 py-3 bg-card shadow-sm border border-border rounded-xl text-[9px] font-black transition-all uppercase tracking-widest text-muted-foreground"
-                  >
-                    <EyeIcon className="w-4 h-4" /> Preview
+
+                <div className="p-6">
+                  {editorTab === 'write' ? (
+                    <textarea
+                      value={activeNewsletter?.content || ''}
+                      onChange={e => setActiveNewsletter(p => ({ ...p, content: e.target.value }))}
+                      placeholder={`Write using Markdown:\n\n## Introduction\n\nWelcome to this term's newsletter...\n\n## Key Updates\n\n- First update\n- Second update\n\n## Upcoming Events\n\n1. Workshop on Saturday\n2. Prize-giving ceremony`}
+                      className="w-full bg-transparent text-sm leading-relaxed min-h-[600px] focus:outline-none placeholder-muted-foreground resize-none font-mono scrollbar-hide"
+                    />
+                  ) : (
+                    <div
+                      className="min-h-[600px] text-sm leading-[1.85] text-foreground prose-custom"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(activeNewsletter?.content || '<p class="text-muted-foreground">Nothing to preview yet — switch to Write tab and add content.</p>') }}
+                    />
+                  )}
+                </div>
+
+                <div className="px-6 pb-5 border-t border-border pt-4 flex flex-wrap justify-between items-center gap-3">
+                  <button onClick={() => setShowPreview(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+                    <EyeIcon className="w-4 h-4" /> A4 Preview
                   </button>
-                   <button 
-                    onClick={handleSave}
-                    disabled={loading || !activeNewsletter?.title}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-3 px-6 py-3 bg-primary hover:bg-primary rounded-xl text-[9px] font-black transition-all shadow-xl shadow-primary/40 uppercase tracking-widest"
-                  >
+                  <button onClick={handleSave} disabled={loading || !activeNewsletter?.title}
+                    className="flex items-center gap-3 px-6 py-2.5 bg-primary hover:bg-primary/90 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary-foreground shadow-lg shadow-primary/30 disabled:opacity-50 transition-all">
                     {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     Save
                   </button>
@@ -676,146 +653,127 @@ export default function NewslettersPage() {
           </div>
         )}
 
-        {/* Modern Slide-Over Preview Panel */}
+        {/* ── A4 Preview Overlay ── */}
         {showPreview && (
-          <div className="fixed inset-0 z-[60] flex flex-col bg-background/95 backdrop-blur-2xl animate-in fade-in duration-300">
-            <div className="flex items-center justify-between p-6 border-b border-border bg-background/50">
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
-                    <EyeIcon className="w-5 h-5 text-primary" />
+          <div className="fixed inset-0 z-[60] flex flex-col bg-background/95 backdrop-blur-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-border bg-background/50 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
+                  <EyeIcon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest">A4 Preview</h3>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                    {fontSize} · {twoColumn ? '2-col' : '1-col'}{issueNumber ? ` · Issue ${issueNumber}` : ''}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={handlePrintNewsletter}
+                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-muted transition-all">
+                  <PrinterIcon className="w-3.5 h-3.5 text-primary" /> Print
+                </button>
+                <button onClick={handleExportPDF}
+                  className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-primary/10 border border-primary/20 text-primary rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all">
+                  <DocumentTextIcon className="w-3.5 h-3.5" /> Export PDF
+                </button>
+                <button onClick={() => setShowPreview(false)}
+                  className="w-10 h-10 flex items-center justify-center bg-card hover:bg-rose-500/20 rounded-xl transition-all group">
+                  <XMarkIcon className="w-5 h-5 text-muted-foreground group-hover:text-rose-500" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6 bg-black/40 flex items-start justify-center">
+              {/* Scaled A4 sheet */}
+              <div className="shadow-[0_0_80px_rgba(0,0,0,0.5)] bg-white text-[#111827] origin-top"
+                style={{ width: '210mm', minHeight: '297mm', padding: '20mm', transform: 'scale(0.6)', transformOrigin: 'top center', marginBottom: '-40%' }}>
+
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18, borderBottom: '3px double #000', paddingBottom: 14, marginBottom: 20 }}>
+                  <img src="/logo.png" alt="Logo" style={{ width: 50, height: 50, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: 'sans-serif' }}>
+                      {(profile as any)?.school_name || 'RILLCOD TECHNOLOGIES'}
+                    </div>
+                    <div style={{ fontSize: 7.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#555', marginTop: 2 }}>Official Institutional Communication</div>
+                    <div style={{ fontSize: 7.5, color: '#888', marginTop: 4 }}>26 Ogiesoba Avenue, Benin City · academy.rillcod.com · 0811 660 0091</div>
                   </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}>VOL. {new Date().getFullYear()}</div>
+                    <div style={{ fontSize: 8, color: '#333', fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>
+                      {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                    </div>
+                    {issueNumber && <div style={{ fontSize: 7.5, color: '#666', fontWeight: 700, marginTop: 2 }}>Issue No. {issueNumber}</div>}
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 7.5, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 3, marginBottom: 8 }}>Official Notice / Newsletter</div>
+                <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: -0.5, lineHeight: 1.1, marginBottom: 14, fontFamily: 'sans-serif' }}>
+                  {activeNewsletter?.title || 'Untitled Newsletter'}
+                </h1>
+                <hr style={{ border: 'none', borderTop: '2px solid #111', marginBottom: 14 }} />
+
+                <div
+                  style={{
+                    fontSize: fontSize === 'compact' ? 10 : fontSize === 'large' ? 13 : 11.5,
+                    lineHeight: 1.85,
+                    color: '#374151',
+                    columnCount: twoColumn ? 2 : undefined,
+                    columnGap: twoColumn ? 20 : undefined,
+                    columnRule: twoColumn ? '0.5px solid #d1d5db' : undefined,
+                    fontFamily: 'Georgia, serif',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(activeNewsletter?.content || '') }}
+                />
+
+                <div style={{ marginTop: 40, borderTop: '1.5px solid #e5e7eb', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                   <div>
-                     <h3 className="text-sm font-black uppercase tracking-widest">Print Preview</h3>
-                     <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">A4 Layout</span>
-                     </div>
+                    <img src="/images/signature.png" alt="" style={{ height: 36, marginBottom: 4, mixBlendMode: 'multiply', opacity: 0.8 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>The Administrator</div>
+                    <div style={{ fontSize: 7.5, color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>Rillcod Technologies Executive Office</div>
                   </div>
-               </div>
-               <div className="flex items-center gap-2">
-                  <button
-                    onClick={handlePrintNewsletter}
-                    className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                  >
-                    <PrinterIcon className="w-3.5 h-3.5 text-primary" /> Print
-                  </button>
-                  <button
-                    onClick={handleExportPDF}
-                    className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                  >
-                    <DocumentTextIcon className="w-3.5 h-3.5" /> Export PDF
-                  </button>
-                  <button 
-                    onClick={() => setShowPreview(false)}
-                    className="w-12 h-12 flex items-center justify-center bg-card shadow-sm hover:bg-rose-500/20 rounded-xl transition-all group"
-                  >
-                    <XMarkIcon className="w-6 h-6 text-muted-foreground group-hover:text-rose-500" />
-                  </button>
-               </div>
-            </div>
-
-            <div className="flex-1 overflow-auto p-4 lg:p-12 custom-scrollbar bg-black/40 flex items-start justify-center">
-               <div className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] origin-top transform scale-[0.55] sm:scale-[0.75] lg:scale-100 my-16 sm:my-10 lg:my-0 flex-shrink-0">
-                  <div 
-                     ref={pdfRef} 
-                     className="bg-card text-[#111827] overflow-hidden shadow-2xl ring-1 ring-black/10 flex flex-col" 
-                     style={{ width: '210mm', minHeight: '297mm', padding: '25mm' }}
-                  >
-                       <div className="flex items-center gap-6 sm:gap-[30px] border-b-4 border-[#1a1a1a] pb-6 sm:pb-[25px] mb-10 sm:mb-[40px]">
-                         <div className="w-16 h-16 sm:w-[90px] sm:h-[90px] bg-white rounded-xl sm:rounded-[18px] flex items-center justify-center p-3 sm:p-[12px] shadow-sm">
-                           <img src="/logo.png" alt="Rillcod" className="w-full h-full object-contain" />
-                         </div>
-                         <div className="flex-1">
-                           <div className="text-lg sm:text-[28px] font-black text-[#1a1a1a] tracking-tight sm:tracking-[-1px] uppercase">RILLCOD TECHNOLOGIES</div>
-                           <div className="text-[8px] sm:text-[12px] color-[#4b5563] mt-0.5 sm:mt-[2px] font-semibold tracking-wider sm:tracking-[2px] uppercase">Official Institutional Communication</div>
-                           <div className="hidden sm:block text-[10px] text-[#9ca3af] mt-[6px] font-medium">26 Ogiesoba Avenue, Benin City &nbsp;·&nbsp; academy.rillcod.com &nbsp;·&nbsp; 0811 660 0091</div>
-                         </div>
-                         <div className="text-right">
-                           <div className="text-[10px] sm:text-[14px] font-black text-[#1a1a1a] uppercase tracking-widest sm:tracking-[1px]">VOL. {new Date().getFullYear()}</div>
-                           <div className="text-[8px] sm:text-[10px] text-[#1a1a1a] mt-1 sm:mt-[4px] font-extrabold uppercase">
-                             {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-                           </div>
-                         </div>
-                       </div>
-   
-                       <div className="max-w-none">
-                         <div className="text-[9px] sm:text-[11px] font-black text-[#1a1a1a] uppercase tracking-[3px] mb-[15px]">Topic / Subject</div>
-                         <h1 className="text-2xl sm:text-[38px] font-black text-[#1a1a1a] mb-6 sm:mb-[40px] leading-[1.1] uppercase tracking-[-1.5px]">
-                           {activeNewsletter?.title || 'Untitled Newsletter'}
-                         </h1>
-                         
-                         <div className="text-base sm:text-[15px] leading-[1.8] text-[#374151] whitespace-pre-wrap font-serif text-justify">
-                           {activeNewsletter?.content ? stripMarkdown(activeNewsletter.content) : 'Start writing or use the AI assistant to generate content...'}
-                         </div>
-                       </div>
-   
-                       <div className="mt-12 sm:mt-[80px] border-t-2 border-[#f3f4f6] pt-6 sm:pt-[30px]">
-                         <div className="flex justify-between items-center">
-                           <div className="relative">
-                             <img src="/images/signature.png" alt="Official Signature" className="w-32 sm:w-[180px] absolute -top-10 sm:-top-[50px] left-0 opacity-80" />
-                             <div className="mt-5 sm:mt-[20px]">
-                               <div className="text-xs sm:text-[16px] font-black text-[#1a1a1a] uppercase text-nowrap">The Administrator</div>
-                               <div className="text-[8px] sm:text-[11px] text-[#6b7280] font-semibold uppercase tracking-[1px] text-nowrap">Rillcod Technologies Executive Office</div>
-                             </div>
-                           </div>
-                           <div className="text-right">
-                              <div className="w-20 h-20 sm:w-[120px] sm:h-[120px] border-2 border-dashed border-[#e5e7eb] rounded-full flex items-center justify-center text-center text-[7px] sm:text-[10px] text-[#d1d5db] font-extrabold uppercase tracking-widest sm:tracking-[1px]">
-                                Official<br/>Academy<br/>Stamp
-                              </div>
-                           </div>
-                         </div>
-                       </div>
-                     </div>
+                  <div style={{ width: 60, height: 60, border: '1.5px dashed #d1d5db', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 6, color: '#d1d5db', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1, lineHeight: 1.4 }}>
+                    Official<br />Academy<br />Stamp
                   </div>
-               </div>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
+        )}
 
-        {/* Push Modal */}
+        {/* ── Push Modal ── */}
         {showPushModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-popover border border-border rounded-[40px] w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95">
+            <div className="bg-popover border border-border rounded-[40px] w-full max-w-md shadow-2xl overflow-hidden">
               <div className="p-8 space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold">Push to Recipients</h3>
-                  <button onClick={() => setShowPushModal(false)} className="p-2 hover:bg-card shadow-sm rounded-xl transition-colors">
+                  <button onClick={() => setShowPushModal(false)} className="p-2 hover:bg-card rounded-xl transition-colors">
                     <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>
-                
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">Select who should receive this newsletter. It will appear as a notification upon their next login.</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[
-                      { id: 'all', label: 'All Users', icon: UserGroupIcon },
-                      { id: 'students', label: 'Students Only', icon: AcademicCapIcon },
-                      { id: 'teachers', label: 'Teachers Only', icon: UserGroupIcon },
-                      { id: 'schools', label: 'Partner Schools Only', icon: BuildingOfficeIcon },
-                    ].map(t => (
-                      <button 
-                        key={t.id}
-                        onClick={() => setTargetType(t.id as any)}
-                        className={`flex items-center gap-3 px-4 py-4 rounded-xl border transition-all ${
-                          targetType === t.id ? 'bg-primary/10 border-primary/50 text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-white/8'
-                        }`}
-                      >
-                        <t.icon className={`w-5 h-5 ${targetType === t.id ? 'text-primary' : ''}`} />
-                        <span className="text-sm font-bold">{t.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                <p className="text-sm text-muted-foreground">Select who should receive this newsletter. It will appear as a notification upon their next login.</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { id: 'all', label: 'All Users', icon: UserGroupIcon },
+                    { id: 'students', label: 'Students Only', icon: AcademicCapIcon },
+                    { id: 'teachers', label: 'Teachers Only', icon: UserGroupIcon },
+                    { id: 'schools', label: 'Partner Schools Only', icon: BuildingOfficeIcon },
+                  ].map(t => (
+                    <button key={t.id} onClick={() => setTargetType(t.id as any)}
+                      className={`flex items-center gap-3 px-4 py-4 rounded-xl border transition-all ${targetType === t.id ? 'bg-primary/10 border-primary/50' : 'bg-card border-border text-muted-foreground hover:bg-muted'}`}>
+                      <t.icon className={`w-5 h-5 ${targetType === t.id ? 'text-primary' : ''}`} />
+                      <span className="text-sm font-bold">{t.label}</span>
+                    </button>
+                  ))}
                 </div>
-
                 <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-xl">
                   <InformationCircleIcon className="w-5 h-5 text-primary shrink-0" />
                   <p className="text-[11px] text-primary font-medium">Recipients will see this newsletter the next time they log in.</p>
                 </div>
-
-                <button 
-                  onClick={handlePush}
-                  disabled={pushing}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-black rounded-xl transition-all shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-2"
-                >
+                <button onClick={handlePush} disabled={pushing}
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/40">
                   {pushing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SpeakerWaveIcon className="w-5 h-5" />}
                   Confirm & Push Newsletter
                 </button>
@@ -826,14 +784,17 @@ export default function NewslettersPage() {
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        .prose h1, .prose h2, .prose h3 { color: #111827 !important; margin-bottom: 0.5em; }
-        .prose p { margin-bottom: 1em; }
-        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
-        @media print {
-          body * { visibility: hidden; }
-          #newsletter-print-area, #newsletter-print-area * { visibility: visible; }
-          #newsletter-print-area { position: absolute; left: 0; top: 0; }
-        }
+        .prose-custom h2 { font-size:1.3em;font-weight:900;margin:1.1em 0 .4em;text-transform:uppercase;border-bottom:2px solid #374151;padding-bottom:.25em;font-family:sans-serif }
+        .prose-custom h3 { font-size:1.1em;font-weight:900;margin:.9em 0 .3em;text-transform:uppercase;font-family:sans-serif }
+        .prose-custom h4 { font-size:1em;font-weight:800;margin:.75em 0 .25em;font-style:italic }
+        .prose-custom p { margin-bottom:.65em;line-height:1.85 }
+        .prose-custom ul { list-style:disc;margin:.4em 0 .65em 1.4em }
+        .prose-custom ol { list-style:decimal;margin:.4em 0 .65em 1.4em }
+        .prose-custom li { margin:.15em 0;line-height:1.7 }
+        .prose-custom hr { border:none;border-top:1px solid #e5e7eb;margin:.8em 0 }
+        .prose-custom .nl-gap { height:.4em }
+        .prose-custom code { background:#f3f4f6;padding:.1em .3em;border-radius:3px;font-size:.85em;font-family:monospace }
+        .prose-custom strong { font-weight:900 }
       `}} />
     </div>
   );

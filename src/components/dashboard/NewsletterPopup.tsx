@@ -9,6 +9,7 @@ import {
   SpeakerWaveIcon 
 } from '@/lib/icons';
 import { generateReportPDF } from '@/lib/pdf-utils';
+import { renderMarkdown } from '@/lib/newsletter-markdown';
 
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -164,9 +165,11 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
                         {newsletter.title}
                       </h1>
                       
-                      <div style={{ fontSize: '15px', lineHeight: '1.8', color: '#374151', whiteSpace: 'pre-wrap', fontFamily: 'Georgia, serif', textAlign: 'justify' }}>
-                        {newsletter.content}
-                      </div>
+                      <div
+                        className="nl-body"
+                        style={{ fontSize: '12pt', lineHeight: '1.8', color: '#374151', fontFamily: 'Georgia, serif', textAlign: 'justify' }}
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(newsletter.content || '') }}
+                      />
                     </div>
 
                     {/* Signature */}
@@ -202,9 +205,19 @@ export default function NewsletterPopup({ userId }: NewsletterPopupProps) {
         </div>
 
         <style dangerouslySetInnerHTML={{ __html: `
-          .prose h1, .prose h2, .prose h3 { color: #111827 !important; margin-bottom: 0.5em; }
-          .prose p { margin-bottom: 1em; }
-          .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+          .nl-body { font-family: Georgia, serif; }
+          .nl-h1 { font-size: 20pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: -0.5px; margin: 1.2em 0 0.4em; }
+          .nl-h2 { font-size: 14pt; font-weight: 800; color: #1f2937; text-transform: uppercase; letter-spacing: 0.5px; margin: 1em 0 0.3em; border-bottom: 1.5px solid #e5e7eb; padding-bottom: 4px; }
+          .nl-h3 { font-size: 11pt; font-weight: 700; color: #374151; margin: 0.8em 0 0.2em; }
+          .nl-p { margin: 0 0 0.9em; }
+          .nl-ul { list-style-type: disc; padding-left: 1.6em; margin: 0 0 0.9em; }
+          .nl-ol { list-style-type: decimal; padding-left: 1.6em; margin: 0 0 0.9em; }
+          .nl-ul li, .nl-ol li { margin-bottom: 0.25em; }
+          .nl-hr { border: none; border-top: 1.5px solid #e5e7eb; margin: 1.2em 0; }
+          .nl-gap { height: 0.5em; }
+          .nl-body strong { font-weight: 700; }
+          .nl-body em { font-style: italic; }
+          .nl-body code { font-family: monospace; background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
         `}} />
       </div>
     </div>
