@@ -247,22 +247,22 @@ export default function ProgressionPage() {
           </div>
         </div>
 
-        {/* Summary Indicators */}
+        {/* Summary bar */}
         {enrollments.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-4">
             <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Scope</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Students</p>
               <p className="text-3xl font-black text-foreground tracking-tighter">{enrollments.length}</p>
-              <p className="text-[10px] font-bold text-muted-foreground mt-1">Students Loaded</p>
+              <p className="text-[10px] font-bold text-muted-foreground mt-1">in this filter</p>
             </div>
             <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Pending Sync</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Ready to save</p>
               <p className="text-3xl font-black text-primary tracking-tighter">{decidedCount}</p>
-              <p className="text-[10px] font-bold text-muted-foreground mt-1">Decisions Buffered</p>
+              <p className="text-[10px] font-bold text-muted-foreground mt-1">decisions made</p>
             </div>
             <div className="md:col-span-2 bg-card border border-border p-6 rounded-[2rem] shadow-lg flex items-center justify-between gap-6">
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Bulk Commands</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Select all as</p>
                 <div className="flex gap-2">
                   {(['promote', 'repeat', 'complete'] as PromotionDecision[]).map(d => (
                     <button
@@ -274,14 +274,14 @@ export default function ProgressionPage() {
                       }}
                       className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border border-border hover:border-primary hover:text-primary transition-all rounded-xl"
                     >
-                      {d}
+                      {DECISION_META[d].label}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {decisionCounts.map(({ d, count }) => (
-                  <span key={d} className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-black ${DECISION_META[d].cls}`} title={`${count} ${d}`}>
+                  <span key={d} className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-black ${DECISION_META[d].cls}`} title={`${count} ${DECISION_META[d].label}`}>
                     {count}
                   </span>
                 ))}
@@ -294,7 +294,7 @@ export default function ProgressionPage() {
         {loading ? (
           <div className="py-40 text-center flex flex-col items-center gap-4">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Scanning Institutional Records...</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Loading students…</p>
           </div>
         ) : enrollments.length === 0 ? (
           <div className="py-32 text-center bg-card border border-dashed border-border rounded-[3rem] mx-4 space-y-6">
@@ -302,8 +302,8 @@ export default function ProgressionPage() {
                <UserGroupIcon className="w-10 h-10 text-muted-foreground/30" />
              </div>
              <div className="space-y-1">
-               <p className="text-lg font-black text-foreground uppercase tracking-widest">No Records Found</p>
-               <p className="text-sm text-muted-foreground italic">Institutional audit complete. No active enrollments in this scope.</p>
+               <p className="text-lg font-black text-foreground">No students found</p>
+               <p className="text-sm text-muted-foreground">No active enrollments match your current filter.</p>
              </div>
           </div>
         ) : (
@@ -333,7 +333,7 @@ export default function ProgressionPage() {
                          <div className="flex items-center gap-3">
                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Level {course?.level_order ?? '?'}</span>
                            <span className="text-muted-foreground/30 text-[10px]">•</span>
-                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate max-w-[150px]">{course?.title ?? 'Unknown Unit'}</span>
+                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate max-w-[150px]">{course?.title ?? 'Unknown Course'}</span>
                          </div>
                       </div>
                       
@@ -346,9 +346,9 @@ export default function ProgressionPage() {
 
                     <div className="flex items-center justify-between pt-6 border-t border-border mt-auto">
                       <div className="space-y-1">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">Outcome Prediction</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">If promoted</p>
                         <p className="text-[10px] font-bold text-foreground">
-                          {course?.next_course_id ? `Promotes to L${(course?.level_order ?? 0) + 1}` : 'Curriculum Capstone reached'}
+                          {course?.next_course_id ? `Moves to Level ${(course?.level_order ?? 0) + 1}` : 'Final level — course complete'}
                         </p>
                       </div>
 
@@ -357,7 +357,7 @@ export default function ProgressionPage() {
                           <Link
                             href={`/dashboard/reports/builder?student_id=${student.id}`}
                             className="p-3 rounded-xl border border-border bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all shadow-sm"
-                            title="Audit Performance"
+                            title="View report card"
                           >
                             <DocumentChartBarIcon className="w-4 h-4" />
                           </Link>
@@ -394,18 +394,18 @@ export default function ProgressionPage() {
         )}
       </div>
 
-      {/* Error Audit Report */}
+      {/* Error message */}
       {error && (
         <div className="mx-4 flex items-start gap-4 px-6 py-4 bg-rose-500/5 border border-rose-500/20 rounded-[2rem] text-rose-400 text-sm shadow-xl">
           <ExclamationTriangleIcon className="w-5 h-5 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="font-black uppercase tracking-widest text-xs">Sync Integrity Warning</p>
-            <p className="text-xs italic">{error}</p>
+            <p className="font-black uppercase tracking-widest text-xs">Some decisions could not be saved</p>
+            <p className="text-xs">{error}</p>
           </div>
         </div>
       )}
 
-      {/* Executive Command Bar */}
+      {/* Save decisions button — appears when decisions are ready */}
       {canPromote && decidedCount > 0 && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-50 animate-in fade-in slide-in-from-bottom-10 duration-700">
           <button
@@ -414,16 +414,16 @@ export default function ProgressionPage() {
             className="w-full py-6 bg-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 text-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(124,58,237,0.4)] transition-all flex items-center justify-center gap-4 group overflow-hidden relative"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-            
+
             {submitting ? (
               <>
                 <div className="w-5 h-5 border-3 border-white/60 border-t-white rounded-full animate-spin" />
-                <span className="font-black uppercase tracking-[0.2em] text-xs">Executing Decisions...</span>
+                <span className="font-black uppercase tracking-[0.2em] text-xs">Saving…</span>
               </>
             ) : (
               <>
                 <SparklesIcon className="w-5 h-5" />
-                <span className="font-black uppercase tracking-[0.2em] text-xs">Commit {decidedCount} Outcome{decidedCount !== 1 ? 's' : ''} to {nextTerm(filterTerm)}</span>
+                <span className="font-black uppercase tracking-[0.2em] text-xs">Save {decidedCount} decision{decidedCount !== 1 ? 's' : ''} → {nextTerm(filterTerm)}</span>
               </>
             )}
           </button>
