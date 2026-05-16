@@ -291,36 +291,25 @@ export default function CurriculumProgressPage() {
     <div className="min-h-screen bg-background text-foreground pb-20">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        {/* ── Header row: tab bar + nav actions ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* Tab bar */}
-          <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 self-start">
-            <Link href="/dashboard/curriculum"
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs sm:text-sm font-bold transition-all whitespace-nowrap">
-              <BookOpenIcon className="w-4 h-4 shrink-0" /> <span>Course Syllabus</span>
+        {/* ── Unified nav bar ── */}
+        <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 flex-wrap">
+          <Link href="/dashboard/curriculum"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap">
+            <BookOpenIcon className="w-3.5 h-3.5 shrink-0" /> Course Syllabus
+          </Link>
+          <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-black whitespace-nowrap">
+            <PresentationChartLineIcon className="w-3.5 h-3.5 shrink-0" /> Delivery Progress
+          </span>
+          {canToggle && (
+            <Link href="/dashboard/progression"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap">
+              <AcademicCapIcon className="w-3.5 h-3.5 shrink-0" /> Term Progression
             </Link>
-            <span className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs sm:text-sm font-black whitespace-nowrap">
-              <PresentationChartLineIcon className="w-4 h-4 shrink-0" /> <span>Delivery Progress</span>
-            </span>
-          </div>
-
-          {/* Nav actions */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {canToggle && (
-              <Link
-                href="/dashboard/progression"
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm font-bold transition-colors rounded-lg whitespace-nowrap"
-              >
-                <AcademicCapIcon className="w-4 h-4 shrink-0" /> Term Progression
-              </Link>
-            )}
-            <Link
-              href="/dashboard/curriculum"
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 border border-border hover:bg-muted/50 text-foreground text-xs sm:text-sm font-bold transition-colors rounded-lg whitespace-nowrap"
-            >
-              <BookOpenIcon className="w-4 h-4 shrink-0" /> Open Curriculum
-            </Link>
-          </div>
+          )}
+          <Link href="/dashboard/curriculum"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-xs font-bold transition-all whitespace-nowrap">
+            <BookOpenIcon className="w-3.5 h-3.5 shrink-0" /> Open Curriculum
+          </Link>
         </div>
 
         {/* Page title */}
@@ -433,72 +422,103 @@ export default function CurriculumProgressPage() {
           </div>
         )}
 
-        {/* School x class operational grid — staff/teacher only, not school role */}
+        {/* School delivery cards — staff/teacher only, one card per school */}
         {!isSchool && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <h2 className="text-sm font-black uppercase tracking-wider">School-Class Delivery Grid</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Operational view for teachers handling multiple schools. Each tile shows school syllabus progress for that class stream.
-                </p>
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-1 border border-border bg-card">
-                {schoolClassGrid.length} grid cell{schoolClassGrid.length === 1 ? '' : 's'}
-              </span>
-            </div>
             {gridLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                 {[1, 2, 3].map((s) => (
-                  <div key={s} className="h-36 bg-card border border-border animate-pulse rounded-xl" />
+                  <div key={s} className="h-40 bg-card border border-border animate-pulse rounded-xl" />
                 ))}
               </div>
             ) : schoolClassGrid.length === 0 ? (
               <div className="bg-card border border-border rounded-xl p-6 text-sm text-muted-foreground">
-                No scoped school/class records yet.
+                No delivery records yet.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {schoolClassGrid.map((cell) => (
-                  <div key={`${cell.schoolId}-${cell.classLabel}`} className="bg-card border border-border rounded-xl p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider truncate">{cell.schoolName}</p>
-                        <h3 className="font-black text-base truncate">{cell.classLabel}</h3>
+              (() => {
+                // De-duplicate to one entry per school (stats are school-scoped, not class-scoped)
+                const bySchool = new Map<string, {
+                  schoolId: string; schoolName: string;
+                  classes: { label: string; studentCount: number }[];
+                  curriculaCount: number; completedWeeks: number; totalWeeks: number;
+                  avgPct: number; upcomingCount: number; latestActivity: string | null;
+                }>();
+                for (const cell of schoolClassGrid) {
+                  if (!bySchool.has(cell.schoolId)) {
+                    bySchool.set(cell.schoolId, {
+                      schoolId: cell.schoolId,
+                      schoolName: cell.schoolName,
+                      classes: [],
+                      curriculaCount: cell.curriculaCount,
+                      completedWeeks: cell.completedWeeks,
+                      totalWeeks: cell.totalWeeks,
+                      avgPct: cell.avgPct,
+                      upcomingCount: cell.upcomingCount,
+                      latestActivity: cell.latestActivity,
+                    });
+                  }
+                  bySchool.get(cell.schoolId)!.classes.push({
+                    label: cell.classLabel,
+                    studentCount: cell.studentCount,
+                  });
+                }
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {Array.from(bySchool.values()).map((school) => (
+                      <div key={school.schoolId} className="bg-card border border-border rounded-xl p-4 space-y-4">
+                        {/* School name */}
+                        <div className="flex items-center gap-2">
+                          <BuildingOfficeIcon className="w-4 h-4 text-primary shrink-0" />
+                          <h3 className="font-black text-sm truncate">{school.schoolName}</h3>
+                        </div>
+
+                        {/* Stats row */}
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-background border border-border rounded-lg py-2">
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Curricula</p>
+                            <p className="text-sm font-black">{school.curriculaCount}</p>
+                          </div>
+                          <div className="bg-background border border-border rounded-lg py-2">
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Weeks</p>
+                            <p className="text-sm font-black">{school.completedWeeks}/{school.totalWeeks}</p>
+                          </div>
+                          <div className="bg-background border border-border rounded-lg py-2">
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Assessments</p>
+                            <p className="text-sm font-black">{school.upcomingCount}</p>
+                          </div>
+                        </div>
+
+                        {/* Delivery progress bar */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-muted-foreground">Delivery</span>
+                            <span className="font-black">{school.avgPct}%</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${pctColor(school.avgPct)}`} style={{ width: `${school.avgPct}%` }} />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            {relativeTime(school.latestActivity) ? `Last active ${relativeTime(school.latestActivity)}` : 'No activity yet'}
+                          </p>
+                        </div>
+
+                        {/* Class list */}
+                        {school.classes.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border">
+                            {school.classes.map((cls) => (
+                              <span key={cls.label} className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-muted/40 border border-border rounded-lg">
+                                {cls.label}
+                                {cls.studentCount > 0 && <span className="text-muted-foreground">· {cls.studentCount}</span>}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <span className="text-[10px] px-2 py-1 bg-muted/40 border border-border font-bold">
-                        {cell.studentCount} students
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="bg-background border border-border rounded-lg py-2">
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Curricula</p>
-                        <p className="text-sm font-black">{cell.curriculaCount}</p>
-                      </div>
-                      <div className="bg-background border border-border rounded-lg py-2">
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Weeks</p>
-                        <p className="text-sm font-black">{cell.completedWeeks}/{cell.totalWeeks}</p>
-                      </div>
-                      <div className="bg-background border border-border rounded-lg py-2">
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Upcoming</p>
-                        <p className="text-sm font-black">{cell.upcomingCount}</p>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-muted-foreground">Lesson status</span>
-                        <span className="font-black">{cell.avgPct}%</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${pctColor(cell.avgPct)}`} style={{ width: `${cell.avgPct}%` }} />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        Last activity: {relativeTime(cell.latestActivity) ?? 'No activity yet'}
-                      </p>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()
             )}
           </div>
         )}
