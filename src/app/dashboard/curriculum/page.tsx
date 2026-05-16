@@ -2689,9 +2689,9 @@ export default function CurriculumPage() {
                   <div className="pb-6 border-b border-white/5 space-y-4 relative">
                     <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
-                    {/* Row 1: unified Year → Curriculum control bar */}
+                    {/* Row 1: unified Year → Curriculum → Term control bar */}
                     <div className="flex flex-wrap items-center gap-2 relative z-10">
-                      {/* Academic Year — leftmost */}
+                      {/* Academic Year */}
                       <div className="inline-flex items-center h-8 rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
                         <div className="flex items-center gap-1.5 px-2.5 border-r border-border h-full">
                           <CalendarDaysIcon className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -2713,10 +2713,9 @@ export default function CurriculumPage() {
                         )}
                       </div>
 
-                      {/* Separator */}
                       <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
 
-                      {/* Curriculum selector */}
+                      {/* Curriculum */}
                       <div className="inline-flex items-center h-8 rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
                         <div className={`flex items-center gap-1.5 px-2.5 border-r border-border h-full ${curriculum.school_id ? 'text-emerald-400' : 'text-primary'}`}>
                           {curriculum.school_id
@@ -2755,6 +2754,38 @@ export default function CurriculumPage() {
                           </span>
                         )}
                       </div>
+
+                      {termCount > 0 && (
+                        <>
+                          <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+
+                          {/* Term */}
+                          <div className="inline-flex items-center h-8 rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
+                            <div className="flex items-center gap-1.5 px-2.5 border-r border-border h-full">
+                              <BookOpenIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term</span>
+                            </div>
+                            <select
+                              value={activeTerm}
+                              onChange={e => { setActiveTerm(Number(e.target.value)); setActiveWeek(null); }}
+                              className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
+                            >
+                              {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
+                                const tw = tracking.filter(t => t.term_number === term.term);
+                                const termWeeks = term.weeks?.length ?? 0;
+                                const termDone = tw.filter(t => t.status === 'completed').length;
+                                const isNow = term.term === getCurrentTerm();
+                                const baseLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
+                                return (
+                                  <option key={term.term} value={term.term} className="bg-[#0a0a0a] text-foreground">
+                                    {isNow ? '▶ ' : ''}{baseLabel} ({termDone}/{termWeeks})
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Row 2: title + meta */}
@@ -2871,44 +2902,9 @@ export default function CurriculumPage() {
                     )}
                   </div>
 
-                  {/* Term selector + title — combined beautiful block */}
-                  {currentTermData && termCount > 0 && (
+                  {/* Term content */}
+                  {currentTermData && (
                     <div className="space-y-2">
-                      {/* Term selector pills — horizontal scroll on mobile */}
-                      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-                        {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
-                          const tw = tracking.filter(t => t.term_number === term.term);
-                          const termWeeks = term.weeks?.length ?? 0;
-                          const termDone = tw.filter(t => t.status === 'completed').length;
-                          const isNow = term.term === getCurrentTerm();
-                          const isActive = term.term === activeTerm;
-                          const baseLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
-                          const pct = termWeeks > 0 ? Math.round((termDone / termWeeks) * 100) : 0;
-                          return (
-                            <button
-                              key={term.term}
-                              onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
-                              className={`relative flex-shrink-0 flex flex-col items-start px-3 py-2 rounded-xl border text-left transition-all overflow-hidden min-w-[110px] ${
-                                isActive
-                                  ? 'bg-primary/10 border-primary/50 text-foreground shadow-sm'
-                                  : 'bg-card/40 border-border text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-card/70'
-                              }`}
-                            >
-                              {/* Progress bar at the bottom */}
-                              {pct > 0 && (
-                                <div className="absolute bottom-0 left-0 h-0.5 bg-emerald-500/60 transition-all" style={{ width: `${pct}%` }} />
-                              )}
-                              <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-                                {isNow ? '▶ ' : ''}{baseLabel}
-                              </span>
-                              <span className="text-[9px] text-muted-foreground mt-0.5">
-                                {termDone}/{termWeeks} taught{pct > 0 ? ` · ${pct}%` : ''}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
                       {/* Term title + date + actions */}
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
