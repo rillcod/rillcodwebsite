@@ -140,6 +140,10 @@ export default function EditInvoicePage() {
 
   // Build SmartDocument data from current form + invoice meta
   const previewData = useMemo(() => {
+    // school invoice = school_id set + no portal_user_id (Rillcod → partner school)
+    // school-billing = school_id set + portal_user_id set (school → its student)
+    const isSchoolInvoice = !!invoice?.school_id && !invoice?.portal_user_id;
+    const schoolBillingStudent = !!invoice?.school_id && !!invoice?.portal_user_id;
     const student = students.find(s => s.id === form.portal_user_id) ?? invoice?.portal_users;
     return {
       id: invoice?.id,
@@ -151,9 +155,15 @@ export default function EditInvoicePage() {
       amount: totalAmount,
       currency: invoice?.currency ?? 'NGN',
       notes: form.notes || undefined,
-      studentName: student?.full_name ?? 'Student Name',
-      studentEmail: student?.email,
-      schoolName: invoice?.schools?.name ?? 'Rillcod Academy',
+      stream: isSchoolInvoice ? ('school' as const) : ('individual' as const),
+      studentName: isSchoolInvoice
+        ? (invoice?.schools?.name ?? 'School')
+        : (student?.full_name ?? 'Student Name'),
+      studentEmail: isSchoolInvoice ? undefined : student?.email,
+      // schoolName = the ISSUING entity shown top-right of the document
+      schoolName: schoolBillingStudent
+        ? (invoice?.schools?.name ?? 'Rillcod Academy')
+        : 'Rillcod Academy',
     };
   }, [form, invoice, students, totalAmount]);
 

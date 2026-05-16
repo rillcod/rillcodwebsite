@@ -71,10 +71,22 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
     const w = window.open('', '_blank', 'width=960,height=900');
     if (!w) { window.print(); return; }
 
-    // Copy all <style> and <link rel="stylesheet"> tags from the current page
+    const origin = window.location.origin;
+
+    // Use .href (absolute URL) not outerHTML .getAttribute('href') (relative) for link tags
     const styleHtml = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(el => el.outerHTML)
+      .map(el => {
+        if (el.tagName === 'LINK') {
+          return `<link rel="stylesheet" href="${(el as HTMLLinkElement).href}" />`;
+        }
+        return el.outerHTML;
+      })
       .join('\n');
+
+    // Make root-relative src and href absolute so images/assets load in the popup
+    const bodyHtml = (docEl?.outerHTML ?? '')
+      .replace(/\bsrc="(\/[^"]+)"/g, `src="${origin}$1"`)
+      .replace(/\bhref="(\/[^"]+)"/g, `href="${origin}$1"`);
 
     w.document.write(`<!DOCTYPE html><html><head>
       <meta charset="UTF-8"/>
@@ -86,7 +98,7 @@ export default function SmartDocument({ type, data, defaultTemplate = 'classic' 
         @page { size: A4; margin: 8mm; }
         .print\\:hidden { display: none !important; }
       </style>
-    </head><body>${docEl?.outerHTML || ''}</body></html>`);
+    </head><body>${bodyHtml}</body></html>`);
     w.document.close();
     w.focus();
     setTimeout(() => w.print(), 600);
