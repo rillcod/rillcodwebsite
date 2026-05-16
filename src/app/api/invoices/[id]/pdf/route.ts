@@ -122,7 +122,7 @@ export async function GET(
 function renderSchoolBuilderInvoiceHtml(invoice: any): string {
   type Item = { description?: string; quantity?: number; unit_price?: number; total?: number };
   const rawItems: Item[] = Array.isArray(invoice.items) ? invoice.items : [];
-  const mainItem = rawItems[0] ?? {};
+
   const commissionItem = rawItems.find((it) =>
     String(it.description ?? '').toLowerCase().includes('commission'),
   );
@@ -130,11 +130,33 @@ function renderSchoolBuilderInvoiceHtml(invoice: any): string {
     String(it.description ?? '').toLowerCase().includes('deposit'),
   );
 
-  const isFixed = String(mainItem.description ?? '').toLowerCase().includes('package');
-  const count = Number(mainItem.quantity ?? 1);
-  const ratePerChild = isFixed ? 0 : Number(mainItem.unit_price ?? 0);
-  const fixedPrice = isFixed ? Number(mainItem.unit_price ?? 0) : 0;
-  const subtotal = Number(mainItem.total ?? 0);
+  // All items that are not commission/deposit adjustments are programme line items
+  const progItems = rawItems.filter(
+    (it) =>
+      !String(it.description ?? '').toLowerCase().includes('commission') &&
+      !String(it.description ?? '').toLowerCase().includes('deposit'),
+  );
+
+  const isFixed = progItems.length === 1 && String(progItems[0]?.description ?? '').toLowerCase().includes('package');
+  const isTiered = !isFixed && progItems.length > 1;
+
+  // Tier rows for multi-tier invoices
+  const tiers = isTiered
+    ? progItems.map((it) => ({
+        label: String(it.description ?? 'Students').split('—')[0]?.trim() ?? 'Students',
+        count: Number(it.quantity ?? 0),
+        rate: Number(it.unit_price ?? 0),
+        total: Number(it.total ?? 0),
+      }))
+    : undefined;
+
+  const firstItem = progItems[0] ?? {};
+  const count = Number(firstItem.quantity ?? 0);
+  const ratePerChild = isFixed ? 0 : Number(firstItem.unit_price ?? 0);
+  const fixedPrice = isFixed ? Number(firstItem.unit_price ?? 0) : 0;
+  const subtotal = isTiered
+    ? progItems.reduce((s, it) => s + Number(it.total ?? 0), 0)
+    : Number(firstItem.total ?? 0);
   const revenueShareOn = !!commissionItem;
   const schoolShare = commissionItem ? Math.abs(Number(commissionItem.total ?? 0)) : 0;
   const deposit = depositItem ? Math.abs(Number(depositItem.total ?? 0)) : 0;
@@ -148,6 +170,8 @@ function renderSchoolBuilderInvoiceHtml(invoice: any): string {
   return buildSchoolInvoiceHTML({
     sch: { name: invoice.schools?.name || 'Partner School' },
     isFixed,
+    isTiered,
+    tiers,
     count,
     ratePerChild,
     fixedPrice,

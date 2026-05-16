@@ -525,15 +525,18 @@ export function InvoicesPanel() {
                     </button>
                   )}
 
-                  <a
-                    href={`/api/invoices/${inv.id}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => {
+                      const w = window.open(`/api/invoices/${inv.id}/pdf`, '_blank', 'width=960,height=860');
+                      if (w) {
+                        w.onload = () => setTimeout(() => w.print(), 500);
+                      }
+                    }}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest rounded-md hover:border-primary"
-                    title="Download signed PDF"
+                    title="Print / Save PDF"
                   >
                     PDF
-                  </a>
+                  </button>
 
                   {isAdmin && inv.status !== 'paid' && (
                     <button
