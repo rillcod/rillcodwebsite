@@ -121,7 +121,7 @@ export default function ProgressionPage() {
       <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isStaff) return <div className="p-20 text-center text-muted-foreground font-bold uppercase tracking-widest">Unauthorized Terminal Access</div>;
+  if (!isStaff) return <div className="p-20 text-center text-muted-foreground font-bold uppercase tracking-widest">Access denied</div>;
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 pb-32">
@@ -162,8 +162,8 @@ export default function ProgressionPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { label: 'Promotion Rules',    desc: 'Set the criteria for who advances to the next level.',        href: '/dashboard/progression/policies',   icon: Cog6ToothIcon,       color: 'violet' },
-              { label: 'Term Calendar',      desc: 'View the academic calendar and manage weekly schedule.',      href: '/dashboard/progression/operations', icon: BoltIcon,            color: 'blue'   },
+              { label: 'Promotion Rules',    desc: 'Set the criteria for who advances to the next level.',        href: '/dashboard/settings?tab=academic-rules', icon: Cog6ToothIcon,       color: 'violet' },
+              { label: 'Term Calendar',      desc: 'View the academic calendar and manage weekly schedule.',      href: '/dashboard/settings?tab=academic-rules', icon: BoltIcon,            color: 'blue'   },
               { label: 'Teaching Materials', desc: 'Browse course syllabi, resources, and lesson templates.',    href: '/dashboard/curriculum',             icon: BookOpenIcon,        color: 'orange' },
               { label: 'Reports & History',  desc: 'Generate reports, view audit logs, and track activity.',    href: '/dashboard/reports/builder',        icon: ShieldExclamationIcon, color: 'rose' },
             ].map((item) => {
@@ -188,7 +188,7 @@ export default function ProgressionPage() {
           </div>
 
           <Link
-            href="/dashboard/progression/settings"
+            href="/dashboard/settings"
             className="flex items-center justify-center gap-4 p-8 rounded-[2.5rem] border border-dashed border-border bg-muted/5 hover:border-primary/50 hover:bg-primary/[0.02] transition-all group shadow-inner"
           >
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:scale-110 transition-all">

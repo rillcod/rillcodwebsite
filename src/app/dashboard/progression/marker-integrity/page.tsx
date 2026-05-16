@@ -52,7 +52,7 @@ export default function MarkerIntegrityPage() {
     </div>
   );
 
-  if (!canView) return <div className="p-20 text-center text-muted-foreground font-bold uppercase tracking-widest">Unauthorized Access</div>;
+  if (!canView) return <div className="p-20 text-center text-muted-foreground font-bold uppercase tracking-widest">Access denied</div>;
 
   const s = data?.summary;
   const totalConflicts = (s?.assignment_duplicate_markers ?? 0) + (s?.deck_duplicate_markers ?? 0) + (s?.shared_markers_between_assignments_and_decks ?? 0);

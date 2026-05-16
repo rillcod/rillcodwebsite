@@ -2330,10 +2330,10 @@ export default function LessonPlanDetailPage() {
                               <h4 className="text-base font-black text-card-foreground mt-1">Choose the build scope</h4>
                             </div>
                             <Link
-                              href="/dashboard/progression/policies"
+                              href="/dashboard/settings?tab=academic-rules"
                               className="inline-flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-card-foreground text-xs font-black rounded-xl transition-all"
                             >
-                              Policy Controls
+                              Academic Rules
                             </Link>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
