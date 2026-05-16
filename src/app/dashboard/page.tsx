@@ -264,9 +264,17 @@ export default function DashboardPage() {
 }
 
 // Helper component for welcome banner
+function currentTermLabel(now: Date): { term: string; months: string; number: number } {
+  const m = now.getMonth() + 1;
+  if (m >= 9) return { term: 'First Term', months: 'Sept – Dec', number: 1 };
+  if (m >= 5) return { term: 'Third Term', months: 'May – Aug', number: 3 };
+  return { term: 'Second Term', months: 'Jan – Apr', number: 2 };
+}
+
 function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
   const role = profile.role;
-  
+  const termInfo = now ? currentTermLabel(now) : null;
+
   return (
     <div className="bg-background border border-border rounded-xl shadow-2xl p-6 sm:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sm:gap-8 relative overflow-hidden">
       <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-card opacity-[0.03] rounded-full blur-3xl pointer-events-none" />
@@ -277,12 +285,21 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
           <img src="/images/logo.png" alt="Rillcod Logo" className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
         </div>
         <div>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             <span className="px-3 py-1 bg-brand-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-full">
               {role} Portal
             </span>
             <div className="h-px w-8 bg-muted" />
             <span className="text-[10px] font-bold text-primary/60 uppercase tracking-widest">Global Status: Online</span>
+            {termInfo && (
+              <>
+                <div className="h-px w-8 bg-muted hidden sm:block" />
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest rounded-full">
+                  <AcademicCapIcon className="w-3 h-3" />
+                  {termInfo.term} · {termInfo.months}
+                </span>
+              </>
+            )}
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight leading-tight">
             Welcome back,<br className="sm:hidden" /> {profile.full_name?.split(' ')?.[0] || 'User'}!

@@ -37,6 +37,18 @@ const TERM_LABEL: Record<number, string> = {
   3: 'Third Term',
 };
 
+// Returns the programme-internal term number given the national term and the term when the programme started.
+// e.g. programStartTerm=3, nationalTerm=3 → Programme Term 1 (Foundations)
+function getProgrammeTerm(nationalTerm: number, programStartTerm: number): number {
+  return ((nationalTerm - programStartTerm + 3) % 3) + 1;
+}
+
+const PROGRAMME_TERM_THEME: Record<number, string> = {
+  1: 'Foundations',
+  2: 'Application',
+  3: 'Innovation',
+};
+
 function getLessonPlanOperationStats(planData: unknown): { totalWeeks: number; completedWeeks: number; progressPct: number } {
   const weeks = extractLessonPlanOperationWeeks(planData);
   const completedWeeks = weeks.filter((week) => week.completed === true).length;
@@ -139,6 +151,7 @@ interface CurriculumWeek {
 }
 
 interface CurriculumTerm {
+  year?: number;
   term: number;
   title: string;
   objectives: string[];
@@ -236,6 +249,7 @@ export default function CurriculumPage() {
   const [curriculum, setCurriculum] = useState<CurriculumDoc | null>(null);
   const [tracking, setTracking] = useState<WeekTracking[]>([]);
   const [activeTerm, setActiveTerm] = useState(getCurrentTerm);
+  const [activeYear, setActiveYear] = useState<number>(1);
   const [activeWeek, setActiveWeek] = useState<CurriculumWeek | null>(null);
   const [loadingCurr, setLoadingCurr] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
@@ -324,6 +338,7 @@ export default function CurriculumPage() {
   });
   const [selectedTerms, setSelectedTerms] = useState<number[]>([1]);
   const [programStartTerm, setProgramStartTerm] = useState<number>(1);
+  const [programmeYear, setProgrammeYear] = useState<1 | 2 | 3>(1);
   const [curriculumFormat, setCurriculumFormat] = useState<'school' | 'bootcamp' | 'online' | 'selfpaced'>('school');
   const [bootcampDurationWeeks, setBootcampDurationWeeks] = useState('4');
   const [bootcampSchedule, setBootcampSchedule] = useState<'fulltime' | 'parttime' | 'weekend' | 'evening'>('fulltime');
@@ -411,6 +426,15 @@ export default function CurriculumPage() {
   const [savingWeekContent, setSavingWeekContent] = useState(false);
   // Stable ref so the programs useEffect can call loadCurriculum before it's declared.
   const loadCurriculumRef = useRef<((courseId: string) => Promise<void>) | null>(null);
+
+  // Programme start term from the selected course's program policy
+  // Used to show "Programme Term N" labels when the school didn't start coding in Term 1
+  const effectiveProgramStartTerm = useMemo(() => {
+    if (!selectedCourse?.program_id) return 1;
+    const prog = programs.find(p => p.id === selectedCourse.program_id);
+    const saved = prog?.progression_policy?.program_start_term;
+    return [1, 2, 3].includes(Number(saved)) ? Number(saved) : 1;
+  }, [selectedCourse?.program_id, programs]);
 
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -1005,6 +1029,15 @@ export default function CurriculumPage() {
         setProgramStartTerm(Number(savedStartTerm) as 1 | 2 | 3);
       }
     }
+    // Suggest next year to generate based on existing curriculum content
+    if (curriculum?.content?.terms?.length) {
+      const existingYears = Array.from(new Set((curriculum.content.terms as CurriculumTerm[]).map((t) => t.year ?? 1)));
+      const maxYear = Math.max(...existingYears);
+      const nextYear = Math.min(3, maxYear + 1) as 1 | 2 | 3;
+      setProgrammeYear(nextYear);
+    } else {
+      setProgrammeYear(1);
+    }
     setShowGenerate(true);
   }, [curriculum, assignedSchools, isAdmin, profile?.school_id, gradeByScope, selectedCourse?.title, selectedCourse?.program_id, programs]);
 
@@ -1032,9 +1065,13 @@ export default function CurriculumPage() {
       if (!doc) return;
       setCurriculum(doc);
       setActiveWeek(null);
-      const termNums = (doc.content?.terms ?? []).map((t: any) => t.term as number);
-      if (termNums.length > 0) {
-        setActiveTerm((prev) => termNums.includes(prev) ? prev : termNums[0]);
+      const allTerms: CurriculumTerm[] = doc.content?.terms ?? [];
+      const yearsInDoc = Array.from(new Set(allTerms.map((t) => t.year ?? 1))).sort((a, b) => a - b);
+      const firstYear = yearsInDoc[0] ?? 1;
+      setActiveYear(firstYear);
+      const termNumsForYear = allTerms.filter((t) => (t.year ?? 1) === firstYear).map((t) => t.term);
+      if (termNumsForYear.length > 0) {
+        setActiveTerm((prev) => termNumsForYear.includes(prev) ? prev : termNumsForYear[0]);
       }
       try {
         const tRes = await fetch(`/api/curricula/${id}/track`);
@@ -1100,11 +1137,15 @@ export default function CurriculumPage() {
 
           setCurriculum(curr);
 
-          // Snap activeTerm to a valid term in this curriculum
-          const termNums = (curr.content?.terms ?? []).map((t: any) => t.term as number);
-          if (termNums.length > 0) {
+          // Snap activeYear + activeTerm to valid values in this curriculum
+          const loadedTerms: CurriculumTerm[] = curr.content?.terms ?? [];
+          const loadedYears = Array.from(new Set(loadedTerms.map((t) => t.year ?? 1))).sort((a, b) => a - b);
+          const firstLoadedYear = loadedYears[0] ?? 1;
+          setActiveYear(firstLoadedYear);
+          const termNumsForYear = loadedTerms.filter((t) => (t.year ?? 1) === firstLoadedYear).map((t) => t.term);
+          if (termNumsForYear.length > 0) {
             const desired = getCurrentTerm();
-            setActiveTerm(termNums.includes(desired) ? desired : termNums[0]);
+            setActiveTerm(termNumsForYear.includes(desired) ? desired : termNumsForYear[0]);
           }
 
           // Mark this course as having a curriculum (for sidebar badge)
@@ -1245,6 +1286,7 @@ export default function CurriculumPage() {
             selected_terms: selectedTerms,
             weeks_per_term: Number(form.weeks_per_term),
             program_start_term: programStartTerm,
+            programme_year: programmeYear,
           } : {}),
           // Bootcamp
           ...(curriculumFormat === 'bootcamp' ? {
@@ -1918,12 +1960,21 @@ export default function CurriculumPage() {
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────
-  const currentTermData = curriculum?.content?.terms?.find(t => t.term === activeTerm);
-  const termCount = curriculum?.content?.terms?.length ?? 0;
-  const allWeeks = curriculum?.content?.terms?.flatMap(t => t.weeks) ?? [];
+  const allTerms: CurriculumTerm[] = curriculum?.content?.terms ?? [];
+  const yearsAvailable = useMemo(() => {
+    const yrs = Array.from(new Set(allTerms.map((t) => t.year ?? 1)));
+    return yrs.sort((a, b) => a - b);
+  }, [allTerms]);
+  const termsForActiveYear = useMemo(
+    () => allTerms.filter((t) => (t.year ?? 1) === activeYear),
+    [allTerms, activeYear],
+  );
+  const currentTermData = termsForActiveYear.find(t => t.term === activeTerm);
+  const termCount = allTerms.length;
+  const allWeeks = allTerms.flatMap(t => t.weeks) ?? [];
   const completedCount = tracking.filter(t => t.status === 'completed').length;
   const progressPct = allWeeks.length ? Math.round((completedCount / allWeeks.length) * 100) : 0;
-  const weeks = curriculum?.content?.terms?.find(t => t.term === activeTerm)?.weeks ?? [];
+  const weeks = currentTermData?.weeks ?? [];
   const linkedLessons: any[] = []; // Default empty array since it's not loaded
   const scopeLabel = generateScope === 'platform'
     ? 'Shared (all schools)'
@@ -2761,7 +2812,38 @@ export default function CurriculumPage() {
                         <>
                           <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
 
-                          {/* Term */}
+                          {/* Year tab — only shown for multi-year curricula */}
+                          {yearsAvailable.length > 1 && (
+                            <>
+                              <div className="inline-flex items-center h-8 rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
+                                <div className="flex items-center gap-1.5 px-2.5 border-r border-border h-full">
+                                  <AcademicCapIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Year</span>
+                                </div>
+                                <select
+                                  value={activeYear}
+                                  onChange={e => {
+                                    const yr = Number(e.target.value);
+                                    setActiveYear(yr);
+                                    setActiveWeek(null);
+                                    // Snap term to first valid term in new year
+                                    const termsInYear = allTerms.filter((t) => (t.year ?? 1) === yr).map((t) => t.term);
+                                    if (termsInYear.length > 0) setActiveTerm(termsInYear[0]);
+                                  }}
+                                  className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
+                                >
+                                  {yearsAvailable.map(yr => (
+                                    <option key={yr} value={yr} className="bg-[#0a0a0a] text-foreground">
+                                      Year {yr}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                            </>
+                          )}
+
+                          {/* Term — filtered to active year */}
                           <div className="inline-flex items-center h-8 rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
                             <div className="flex items-center gap-1.5 px-2.5 border-r border-border h-full">
                               <BookOpenIcon className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -2772,15 +2854,18 @@ export default function CurriculumPage() {
                               onChange={e => { setActiveTerm(Number(e.target.value)); setActiveWeek(null); }}
                               className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
                             >
-                              {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
+                              {[...termsForActiveYear].sort((a, b) => a.term - b.term).map(term => {
                                 const tw = tracking.filter(t => t.term_number === term.term);
                                 const termWeeks = term.weeks?.length ?? 0;
                                 const termDone = tw.filter(t => t.status === 'completed').length;
                                 const isNow = term.term === getCurrentTerm();
                                 const baseLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
+                                const progTerm = effectiveProgramStartTerm !== 1
+                                  ? ` (Prog.T${getProgrammeTerm(term.term, effectiveProgramStartTerm)})`
+                                  : '';
                                 return (
                                   <option key={term.term} value={term.term} className="bg-[#0a0a0a] text-foreground">
-                                    {isNow ? '▶ ' : ''}{baseLabel} ({termDone}/{termWeeks})
+                                    {isNow ? '▶ ' : ''}{baseLabel}{progTerm} ({termDone}/{termWeeks})
                                   </option>
                                 );
                               })}
@@ -2796,7 +2881,11 @@ export default function CurriculumPage() {
                         {curriculum.content.course_title}
                       </h1>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground font-medium">
-                        <span className="flex items-center gap-1"><BookOpenIcon className="w-3 h-3" /> {termCount} Terms</span>
+                        {yearsAvailable.length > 1 ? (
+                          <span className="flex items-center gap-1"><AcademicCapIcon className="w-3 h-3" /> {yearsAvailable.length} Years · {termCount} Terms</span>
+                        ) : (
+                          <span className="flex items-center gap-1"><BookOpenIcon className="w-3 h-3" /> {termCount} Terms</span>
+                        )}
                         <span className="w-1 h-1 rounded-full bg-white/20" />
                         <span className="flex items-center gap-1"><CalendarDaysIcon className="w-3 h-3" /> {new Date(curriculum.created_at).toLocaleDateString()}</span>
                         {allWeeks.length > 0 && completedCount > 0 && (
@@ -2911,6 +3000,20 @@ export default function CurriculumPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <h2 className="text-lg font-black">{currentTermData.title || (TERM_LABEL[currentTermData.term] ?? `Term ${currentTermData.term}`)}</h2>
+                          {effectiveProgramStartTerm !== 1 && (() => {
+                            const pt = getProgrammeTerm(currentTermData.term, effectiveProgramStartTerm);
+                            return (
+                              <p className="text-[10px] font-black uppercase tracking-widest text-primary/70 mt-0.5">
+                                Programme Term {pt} — {PROGRAMME_TERM_THEME[pt] ?? ''}
+                                {activeYear > 1 ? ` · Year ${activeYear}` : ''}
+                              </p>
+                            );
+                          })()}
+                          {effectiveProgramStartTerm === 1 && activeYear > 1 && (
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary/70 mt-0.5">
+                              Year {activeYear} · {PROGRAMME_TERM_THEME[getProgrammeTerm(currentTermData.term, 1)] ?? ''}
+                            </p>
+                          )}
                           {(() => {
                             const customStart = currentTermData.start_date;
                             const td = customStart
@@ -3748,6 +3851,25 @@ export default function CurriculumPage() {
               {/* ── Format-specific options ── */}
               {curriculumFormat === 'school' && (
                 <div className="space-y-3 p-3 bg-muted/30 border border-border">
+                  {/* Programme Year */}
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Programme Year</label>
+                    <select
+                      value={programmeYear}
+                      onChange={e => setProgrammeYear(Number(e.target.value) as 1 | 2 | 3)}
+                      className={SELECT_CLS}
+                    >
+                      <option value={1}>Year 1 — Foundations (first year of this course)</option>
+                      <option value={2}>Year 2 — Deeper Practice (second year, builds on Year 1)</option>
+                      <option value={3}>Year 3 — Mastery (final year, advanced capstone)</option>
+                    </select>
+                    {programmeYear > 1 && (
+                      <p className="text-[9px] text-amber-500 font-bold mt-1">
+                        Year {programmeYear} content will build directly on all prior year topics. Prior year terms are preserved in the curriculum.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Weeks / Term</label>

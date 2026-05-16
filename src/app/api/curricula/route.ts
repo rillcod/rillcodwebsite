@@ -119,7 +119,7 @@ const SHARED_OUTPUT_SHAPE = `Return ONLY valid JSON — no preamble, no markdown
 function buildSchoolPrompt(
   courseName: string, gradeLevel: string, subjectArea: string,
   selectedTerms: number[], weeksPerTerm: number, programStartTerm: number = 1, notes?: string,
-  previousTermsContext?: string,
+  previousTermsContext?: string, yearNumber: number = 1,
 ): string {
   const themes = resolveTermThemes(programStartTerm);
   const termLines = selectedTerms
@@ -130,16 +130,22 @@ function buildSchoolPrompt(
     ? `\nPROGRAMME CALENDAR NOTE: This school's coding programme began in ${NG_TERM_LABEL[programStartTerm]}. That term is Year 1 / Term 1 for this school (Foundations). Content in Term ${programStartTerm} must be foundational and the progression must flow correctly through subsequent national calendar terms.`
     : '';
 
+  const yearBlock = yearNumber === 2
+    ? `\nPROGRAMME YEAR 2 — DEEPER PRACTICE: Students have completed a full Year 1 of this course. Assume they have solid foundations. Introduce more complex projects, advanced techniques, greater student autonomy, peer review sessions, and more abstract concepts. Do NOT re-teach Year 1 basics — reference and build on them.`
+    : yearNumber === 3
+    ? `\nPROGRAMME YEAR 3 — MASTERY & INNOVATION: Students have 2 full years of experience with this course. Push for independent problem-solving, portfolio-ready capstone projects, industry-grade tools, peer leadership, mentoring younger cohorts, and advanced system design. This is the culminating year.`
+    : '';
+
   const continuationBlock = previousTermsContext
-    ? `\nCONTINUATION CONTEXT — Topics already covered in prior term(s) of this course (do NOT repeat these; build on them):
+    ? `\nCONTINUATION CONTEXT — Topics already covered (do NOT repeat; build directly and meaningfully beyond these):
 ${previousTermsContext}
-The new term(s) you generate must explicitly continue from where the above left off. Assume students have mastered those topics.`
+All content you generate must be visibly more advanced than everything listed above.`
     : '';
 
   return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding academy for Nigerian partner schools (KG–SS3).
 
 DELIVERY FORMAT: Traditional School (Nigerian Academic Calendar)
-Course: "${courseName}" | Grade: ${gradeLevel} | Subject Area: ${subjectArea}${startNote}
+Course: "${courseName}" | Grade: ${gradeLevel} | Subject Area: ${subjectArea} | Programme Year: ${yearNumber} of 3${startNote}${yearBlock}
 ${continuationBlock}
 Generate term(s):
 ${termLines}
@@ -147,6 +153,7 @@ ${termLines}
 Target weeks per term: ${weeksPerTerm}. Use this as a GUIDE for pacing and assessment placement only — do not pad or cut topics artificially. Content determines length; a term may run ${weeksPerTerm - 1}–${weeksPerTerm + 1} lesson weeks if the subject matter demands it.
 ${notes ? `Teacher notes: ${notes}` : ''}
 
+IMPORTANT: Each term object in your JSON must include "year": ${yearNumber} alongside "term".
 ASSESSMENT placement per term: ~Week 3 → First Assessment · ~Week 6 → Second Assessment · Final week → End-of-Term Exam/Project
 Session types: "lesson" | "assessment" | "examination"
 Duration per lesson: 40 minutes. Use Nigerian real-world contexts (agritech, fintech, education tech, smart systems).
@@ -250,6 +257,7 @@ function buildCurriculumPrompt(
     weeksPerTerm?: number;
     programStartTerm?: number;
     previousTermsContext?: string;
+    yearNumber?: number;
     bootcampDurationWeeks?: number;
     bootcampSchedule?: string;
     onlineDurationWeeks?: number;
@@ -268,7 +276,7 @@ function buildCurriculumPrompt(
     case 'selfpaced':
       return buildSelfpacedPrompt(courseName, gradeLevel, subjectArea, opts.selfpacedModules ?? 6, opts.selfpacedHoursPerModule ?? 2, notes);
     default:
-      return buildSchoolPrompt(courseName, gradeLevel, subjectArea, opts.selectedTerms ?? [1, 2, 3], opts.weeksPerTerm ?? 8, opts.programStartTerm ?? 1, notes, opts.previousTermsContext);
+      return buildSchoolPrompt(courseName, gradeLevel, subjectArea, opts.selectedTerms ?? [1, 2, 3], opts.weeksPerTerm ?? 8, opts.programStartTerm ?? 1, notes, opts.previousTermsContext, opts.yearNumber ?? 1);
   }
 }
 
@@ -430,7 +438,7 @@ export async function POST(req: NextRequest) {
   const {
     course_id, course_name, grade_level, subject_area, notes,
     // School
-    selected_terms, term_count, weeks_per_term, program_start_term,
+    selected_terms, term_count, weeks_per_term, program_start_term, programme_year,
     // Bootcamp
     bootcamp_duration_weeks, bootcamp_schedule,
     // Online
@@ -504,9 +512,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // For school format: look for an existing curriculum for this course+school and extract
-  // topics from terms NOT being regenerated so the AI can continue progressively.
+  const resolvedYear = [1, 2, 3].includes(Number(programme_year)) ? Number(programme_year) : 1;
+  const resolvedStartTerm = [1, 2, 3].includes(Number(program_start_term)) ? Number(program_start_term) : 1;
+
+  // For school format: fetch existing curriculum to build progressive context.
+  // This covers both cross-year continuity (prior years) and same-year-other-terms.
   let previousTermsContext: string | undefined;
+  let existingCurriculumContent: any = null;
   if (format === 'school' && course_id) {
     try {
       let existingQ = admin
@@ -516,25 +528,50 @@ export async function POST(req: NextRequest) {
       if (targetSchoolId) existingQ = existingQ.eq('school_id', targetSchoolId);
       else existingQ = existingQ.is('school_id', null);
       const { data: existing } = await existingQ.maybeSingle();
-      if (existing?.content?.terms?.length) {
+      existingCurriculumContent = existing?.content ?? null;
+      if (existingCurriculumContent?.terms?.length) {
         const existingTermNums = new Set(termNums);
-        const priorTerms: any[] = (existing.content.terms as any[])
-          .filter((t: any) => !existingTermNums.has(t.term))
+        const contextParts: string[] = [];
+
+        // Prior years (all terms from years < resolvedYear)
+        if (resolvedYear > 1) {
+          const priorYearTerms = (existingCurriculumContent.terms as any[])
+            .filter((t: any) => (t.year ?? 1) < resolvedYear)
+            .sort((a: any, b: any) => ((a.year ?? 1) - (b.year ?? 1)) || (a.term - b.term));
+          if (priorYearTerms.length > 0) {
+            const priorBlock = priorYearTerms.map((t: any) => {
+              const yr = t.year ?? 1;
+              const topics = (t.weeks ?? [])
+                .filter((w: any) => w.type === 'lesson')
+                .map((w: any) => `    - ${w.topic}`)
+                .join('\n');
+              return `Year ${yr}, Term ${t.term} (${NG_TERM_LABEL[t.term] ?? ''}):\n${topics}`;
+            }).join('\n');
+            contextParts.push(`PRIOR YEAR(S) — all topics already taught across previous year(s):\n${priorBlock}`);
+          }
+        }
+
+        // Same year, terms NOT in the current regeneration batch
+        const sameYearOtherTerms = (existingCurriculumContent.terms as any[])
+          .filter((t: any) => (t.year ?? 1) === resolvedYear && !existingTermNums.has(t.term))
           .sort((a: any, b: any) => a.term - b.term);
-        if (priorTerms.length > 0) {
-          previousTermsContext = priorTerms.map((t: any) => {
+        if (sameYearOtherTerms.length > 0) {
+          const sameYearBlock = sameYearOtherTerms.map((t: any) => {
             const topics = (t.weeks ?? [])
               .filter((w: any) => w.type === 'lesson')
               .map((w: any) => `    - ${w.topic}`)
               .join('\n');
-            return `Term ${t.term} (${NG_TERM_LABEL[t.term] ?? ''}):\n${topics}`;
+            return `Year ${resolvedYear}, Term ${t.term} (${NG_TERM_LABEL[t.term] ?? ''}):\n${topics}`;
           }).join('\n');
+          contextParts.push(`SAME YEAR, OTHER TERMS already generated:\n${sameYearBlock}`);
+        }
+
+        if (contextParts.length > 0) {
+          previousTermsContext = contextParts.join('\n\n');
         }
       }
     } catch { /* non-fatal — generation continues without context */ }
   }
-
-  const resolvedStartTerm = [1, 2, 3].includes(Number(program_start_term)) ? Number(program_start_term) : 1;
 
   const prompt = buildCurriculumPrompt(
     course_name,
@@ -546,6 +583,7 @@ export async function POST(req: NextRequest) {
       weeksPerTerm: wpt,
       programStartTerm: resolvedStartTerm,
       previousTermsContext,
+      yearNumber: resolvedYear,
       bootcampDurationWeeks: Number(bootcamp_duration_weeks ?? 4),
       bootcampSchedule: bootcamp_schedule ?? 'fulltime',
       onlineDurationWeeks: Number(online_duration_weeks ?? 8),
@@ -561,13 +599,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Syllabus generation failed — all AI models unavailable. Please try again.' }, { status: 502 });
   }
 
-  // Inject custom term start dates if provided
+  // Stamp year onto every generated term (in case AI omits it) and inject term start dates
   const termStartDates: Record<string, string> = body.term_start_dates ?? {};
-  if (aiContent?.terms && Object.keys(termStartDates).length > 0) {
+  if (aiContent?.terms) {
     aiContent.terms = aiContent.terms.map((term: any) => ({
       ...term,
+      year: term.year ?? resolvedYear,
       start_date: termStartDates[String(term.term)] || termStartDates[term.term] || term.start_date || null,
     }));
+  }
+
+  // Multi-year merge: when an existing curriculum has terms for other years, keep them.
+  // Only replace terms that match the current resolvedYear.
+  if (format === 'school' && existingCurriculumContent?.terms?.length && aiContent?.terms) {
+    const keptTerms = (existingCurriculumContent.terms as any[])
+      .filter((t: any) => (t.year ?? 1) !== resolvedYear);
+    const mergedTerms = [...keptTerms, ...aiContent.terms]
+      .sort((a: any, b: any) => ((a.year ?? 1) - (b.year ?? 1)) || (a.term - b.term));
+    aiContent.terms = mergedTerms;
   }
 
   // Update existing or insert new — scope by (course_id, targetSchoolId).
