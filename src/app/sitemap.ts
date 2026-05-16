@@ -76,10 +76,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/team`,                 lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${baseUrl}/careers`,              lastModified: now, changeFrequency: 'weekly',  priority: 0.6 },
 
-    // Auth
-    { url: `${baseUrl}/login`,                lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
-    { url: `${baseUrl}/student/login`,        lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
-    { url: `${baseUrl}/signup`,               lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+    // Auth pages excluded — login/signup pages should not be indexed
+    // (they may redirect based on session state, causing GSC "redirect" warnings)
 
     // Legal
     { url: `${baseUrl}/privacy-policy`,       lastModified: now, changeFrequency: 'yearly',  priority: 0.3 },

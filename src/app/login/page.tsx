@@ -282,6 +282,11 @@ function LoginContent() {
   );
 }
 
+export const metadata = {
+  robots: { index: false, follow: false },
+  alternates: { canonical: 'https://www.rillcod.com/login' },
+};
+
 export default function LoginPage() {
   return (
     <Suspense>

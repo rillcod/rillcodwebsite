@@ -65,6 +65,12 @@ const nextConfig: NextConfig = {
         destination: '/dashboard/card-studio',
         permanent: true,
       },
+      // Permanent redirect — consolidates indexing to /login (canonical)
+      {
+        source: '/student/login',
+        destination: '/login?type=student',
+        permanent: true,
+      },
     ];
   },
 
