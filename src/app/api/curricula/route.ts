@@ -38,11 +38,23 @@ const NG_TERM_LABEL: Record<number, string> = {
   2: 'Second Term (Jan–Apr)',
   3: 'Third Term (May–Aug)',
 };
-const NG_TERM_THEME: Record<number, string> = {
-  1: 'Foundations — core concepts and introductory projects',
-  2: 'Application — deeper skills and guided projects',
-  3: 'Innovation — real-world projects and peer presentations',
-};
+
+// Theme assigned to each national term depends on which term the programme started.
+// programStartTerm is the national term number where "Year 1 begins" for this school.
+function resolveTermThemes(programStartTerm: number): Record<number, string> {
+  const THEMES = [
+    'Foundations — core concepts, vocabulary, and introductory hands-on projects',
+    'Application — deeper skills, guided builds, and collaborative projects',
+    'Innovation — real-world capstone projects, peer presentations, and independent problem-solving',
+  ];
+  // Rotate so that national term `programStartTerm` gets theme index 0 (Foundations)
+  const offset = programStartTerm - 1; // 0-based
+  return {
+    1: THEMES[(3 - offset + 0) % 3],
+    2: THEMES[(3 - offset + 1) % 3],
+    3: THEMES[(3 - offset + 2) % 3],
+  };
+}
 
 type CurriculumFormat = 'school' | 'bootcamp' | 'online' | 'selfpaced';
 
@@ -106,25 +118,38 @@ const SHARED_OUTPUT_SHAPE = `Return ONLY valid JSON — no preamble, no markdown
 
 function buildSchoolPrompt(
   courseName: string, gradeLevel: string, subjectArea: string,
-  selectedTerms: number[], weeksPerTerm: number, notes?: string,
+  selectedTerms: number[], weeksPerTerm: number, programStartTerm: number = 1, notes?: string,
+  previousTermsContext?: string,
 ): string {
+  const themes = resolveTermThemes(programStartTerm);
   const termLines = selectedTerms
-    .map((t) => `  - Term ${t}: ${NG_TERM_LABEL[t] ?? `Term ${t}`} — ${NG_TERM_THEME[t] ?? 'Progressive content'}`)
+    .map((t) => `  - Term ${t} — ${NG_TERM_LABEL[t] ?? `Term ${t}`}: ${themes[t] ?? 'Progressive content'}`)
     .join('\n');
+
+  const startNote = programStartTerm !== 1
+    ? `\nPROGRAMME CALENDAR NOTE: This school's coding programme began in ${NG_TERM_LABEL[programStartTerm]}. That term is Year 1 / Term 1 for this school (Foundations). Content in Term ${programStartTerm} must be foundational and the progression must flow correctly through subsequent national calendar terms.`
+    : '';
+
+  const continuationBlock = previousTermsContext
+    ? `\nCONTINUATION CONTEXT — Topics already covered in prior term(s) of this course (do NOT repeat these; build on them):
+${previousTermsContext}
+The new term(s) you generate must explicitly continue from where the above left off. Assume students have mastered those topics.`
+    : '';
+
   return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding academy for Nigerian partner schools (KG–SS3).
 
 DELIVERY FORMAT: Traditional School (Nigerian Academic Calendar)
-Course: "${courseName}" | Grade: ${gradeLevel} | Subject Area: ${subjectArea}
-Terms to generate (${selectedTerms.length}):
+Course: "${courseName}" | Grade: ${gradeLevel} | Subject Area: ${subjectArea}${startNote}
+${continuationBlock}
+Generate term(s):
 ${termLines}
-Weeks per term: ${weeksPerTerm}
-${notes ? `Special notes: ${notes}` : ''}
 
-IMPORTANT: Generate ONLY the terms listed above using the exact term numbers given.
-ASSESSMENT (per term): Week 3 → First Assessment · Week 6 → Second Assessment · Week ${weeksPerTerm} → End-of-Term Exam
+Target weeks per term: ${weeksPerTerm}. Use this as a GUIDE for pacing and assessment placement only — do not pad or cut topics artificially. Content determines length; a term may run ${weeksPerTerm - 1}–${weeksPerTerm + 1} lesson weeks if the subject matter demands it.
+${notes ? `Teacher notes: ${notes}` : ''}
+
+ASSESSMENT placement per term: ~Week 3 → First Assessment · ~Week 6 → Second Assessment · Final week → End-of-Term Exam/Project
 Session types: "lesson" | "assessment" | "examination"
-Duration per lesson: 40 minutes. Use Nigerian contexts (agritech, fintech, education tech).
-Topics must build progressively — no repetition across terms.
+Duration per lesson: 40 minutes. Use Nigerian real-world contexts (agritech, fintech, education tech, smart systems).
 ${SHARED_LESSON_PLAN_SCHEMA}
 ${SHARED_OUTPUT_SHAPE}`;
 }
@@ -223,6 +248,8 @@ function buildCurriculumPrompt(
   opts: {
     selectedTerms?: number[];
     weeksPerTerm?: number;
+    programStartTerm?: number;
+    previousTermsContext?: string;
     bootcampDurationWeeks?: number;
     bootcampSchedule?: string;
     onlineDurationWeeks?: number;
@@ -241,7 +268,7 @@ function buildCurriculumPrompt(
     case 'selfpaced':
       return buildSelfpacedPrompt(courseName, gradeLevel, subjectArea, opts.selfpacedModules ?? 6, opts.selfpacedHoursPerModule ?? 2, notes);
     default:
-      return buildSchoolPrompt(courseName, gradeLevel, subjectArea, opts.selectedTerms ?? [1, 2, 3], opts.weeksPerTerm ?? 8, notes);
+      return buildSchoolPrompt(courseName, gradeLevel, subjectArea, opts.selectedTerms ?? [1, 2, 3], opts.weeksPerTerm ?? 8, opts.programStartTerm ?? 1, notes, opts.previousTermsContext);
   }
 }
 
@@ -403,7 +430,7 @@ export async function POST(req: NextRequest) {
   const {
     course_id, course_name, grade_level, subject_area, notes,
     // School
-    selected_terms, term_count, weeks_per_term,
+    selected_terms, term_count, weeks_per_term, program_start_term,
     // Bootcamp
     bootcamp_duration_weeks, bootcamp_schedule,
     // Online
@@ -477,6 +504,38 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // For school format: look for an existing curriculum for this course+school and extract
+  // topics from terms NOT being regenerated so the AI can continue progressively.
+  let previousTermsContext: string | undefined;
+  if (format === 'school' && course_id) {
+    try {
+      let existingQ = admin
+        .from('course_curricula')
+        .select('content')
+        .eq('course_id', course_id);
+      if (targetSchoolId) existingQ = existingQ.eq('school_id', targetSchoolId);
+      else existingQ = existingQ.is('school_id', null);
+      const { data: existing } = await existingQ.maybeSingle();
+      if (existing?.content?.terms?.length) {
+        const existingTermNums = new Set(termNums);
+        const priorTerms: any[] = (existing.content.terms as any[])
+          .filter((t: any) => !existingTermNums.has(t.term))
+          .sort((a: any, b: any) => a.term - b.term);
+        if (priorTerms.length > 0) {
+          previousTermsContext = priorTerms.map((t: any) => {
+            const topics = (t.weeks ?? [])
+              .filter((w: any) => w.type === 'lesson')
+              .map((w: any) => `    - ${w.topic}`)
+              .join('\n');
+            return `Term ${t.term} (${NG_TERM_LABEL[t.term] ?? ''}):\n${topics}`;
+          }).join('\n');
+        }
+      }
+    } catch { /* non-fatal — generation continues without context */ }
+  }
+
+  const resolvedStartTerm = [1, 2, 3].includes(Number(program_start_term)) ? Number(program_start_term) : 1;
+
   const prompt = buildCurriculumPrompt(
     course_name,
     grade_level ?? 'General',
@@ -485,6 +544,8 @@ export async function POST(req: NextRequest) {
     {
       selectedTerms: termNums,
       weeksPerTerm: wpt,
+      programStartTerm: resolvedStartTerm,
+      previousTermsContext,
       bootcampDurationWeeks: Number(bootcamp_duration_weeks ?? 4),
       bootcampSchedule: bootcamp_schedule ?? 'fulltime',
       onlineDurationWeeks: Number(online_duration_weeks ?? 8),

@@ -323,6 +323,7 @@ export default function CurriculumPage() {
     notes: '',
   });
   const [selectedTerms, setSelectedTerms] = useState<number[]>([1]);
+  const [programStartTerm, setProgramStartTerm] = useState<number>(1);
   const [curriculumFormat, setCurriculumFormat] = useState<'school' | 'bootcamp' | 'online' | 'selfpaced'>('school');
   const [bootcampDurationWeeks, setBootcampDurationWeeks] = useState('4');
   const [bootcampSchedule, setBootcampSchedule] = useState<'fulltime' | 'parttime' | 'weekend' | 'evening'>('fulltime');
@@ -1236,6 +1237,7 @@ export default function CurriculumPage() {
           ...(curriculumFormat === 'school' ? {
             selected_terms: selectedTerms,
             weeks_per_term: Number(form.weeks_per_term),
+            program_start_term: programStartTerm,
           } : {}),
           // Bootcamp
           ...(curriculumFormat === 'bootcamp' ? {
@@ -3757,6 +3759,24 @@ export default function CurriculumPage() {
                       <p className="text-[10px] text-muted-foreground">Assessment: week 3, 6, {form.weeks_per_term}</p>
                     </div>
                   </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Programme starts in</label>
+                    <select
+                      value={programStartTerm}
+                      onChange={e => setProgramStartTerm(Number(e.target.value))}
+                      className={SELECT_CLS}
+                    >
+                      <option value={1}>Term 1 — Sept (default)</option>
+                      <option value={2}>Term 2 — Jan (school started coding in January)</option>
+                      <option value={3}>Term 3 — May (school started coding in May/3rd term)</option>
+                    </select>
+                    {programStartTerm !== 1 && (
+                      <p className="text-[9px] text-amber-500 font-bold mt-1">
+                        Foundations content will be placed in Term {programStartTerm} of the national calendar.
+                      </p>
+                    )}
+                  </div>
+
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Which terms to generate</label>
