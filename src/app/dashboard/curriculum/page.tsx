@@ -2113,16 +2113,16 @@ export default function CurriculumPage() {
     )}
 
     <div className="flex flex-col min-h-screen bg-background text-foreground print:hidden">
-      {/* Header — single compact row */}
+      {/* Header — wraps gracefully on mobile */}
       <div className="shrink-0 border-b border-border bg-card z-20">
-        <div className="px-4 h-12 max-w-[1800px] mx-auto flex items-center gap-3">
+        <div className="px-4 py-2 md:py-0 md:min-h-12 max-w-[1800px] mx-auto flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3">
           <PlanningBreadcrumb current="syllabus" />
-          <div className="flex-1" />
+          <div className="flex-1 hidden md:block" />
           <button
             type="button"
             onClick={() => setShowHelp(h => !h)}
             title={showHelp ? 'Hide guide' : 'How it works'}
-            className={`p-2 rounded-lg transition-colors ${showHelp ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}
+            className={`ml-auto md:ml-0 p-2 rounded-lg transition-colors shrink-0 ${showHelp ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}
           >
             <InformationCircleIcon className="w-4 h-4" />
           </button>
@@ -2689,62 +2689,72 @@ export default function CurriculumPage() {
                   <div className="pb-6 border-b border-white/5 space-y-4 relative">
                     <div className="absolute -top-6 -left-6 w-32 h-32 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
-                    {/* Row 1: badge + version selector (same line on all screen sizes) */}
+                    {/* Row 1: unified Year → Curriculum control bar */}
                     <div className="flex flex-wrap items-center gap-2 relative z-10">
-                      {curriculum.school_id ? (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                          <BuildingOfficeIcon className="w-3 h-3" /> {curriculum.schools?.name ?? 'School'}
+                      {/* Academic Year — leftmost */}
+                      <div className="inline-flex items-center h-8 rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
+                        <div className="flex items-center gap-1.5 px-2.5 border-r border-border h-full">
+                          <CalendarDaysIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Year</span>
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black uppercase tracking-widest text-primary">
-                          <ShieldCheckIcon className="w-3 h-3" /> Platform Template · Admin only
-                        </div>
-                      )}
-                      {curriculumList.length > 1 && (
-                        <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[28px] backdrop-blur-sm">
-                          <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2 h-full flex items-center">Ver</span>
-                          <select
-                            value={curriculum.id}
-                            onChange={(e) => selectCurriculumVersion(e.target.value)}
-                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-5 h-full cursor-pointer"
-                          >
-                            {curriculumList.filter(c => !c.school_id).length > 0 && (
-                              <optgroup label="─ Shared template">
-                                {curriculumList.filter(c => !c.school_id).map((c) => (
-                                  <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                    Rillcod shared{curriculumList.filter(c => !c.school_id).length > 1 ? ` — v${c.version}` : ''}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                            {curriculumList.filter(c => !!c.school_id).length > 0 && (
-                              <optgroup label="─ School versions">
-                                {curriculumList.filter(c => !!c.school_id).map((c) => (
-                                  <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                    {c.schools?.name ?? 'School'}{curriculumList.filter(cx => cx.school_id === c.school_id).length > 1 ? ` — v${c.version}` : ''}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-                          </select>
-                        </div>
-                      )}
-                      {/* Academic year switcher — always visible for staff */}
-                      {canModifyCurriculum && (
-                        <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[28px] backdrop-blur-sm ml-auto">
-                          <CalendarDaysIcon className="w-3 h-3 text-muted-foreground mr-1.5" />
+                        {canModifyCurriculum ? (
                           <select
                             value={academicYear}
                             onChange={e => setGlobalAcademicYear(e.target.value, profile?.school_id ?? undefined)}
-                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-5 h-full cursor-pointer"
+                            className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
                             title="Academic Year"
                           >
                             {yearOptions.map(y => (
                               <option key={y} value={y} className="bg-[#0a0a0a] text-foreground">{y}</option>
                             ))}
                           </select>
+                        ) : (
+                          <span className="px-2.5 text-[10px] font-black text-primary">{academicYear}</span>
+                        )}
+                      </div>
+
+                      {/* Separator */}
+                      <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+
+                      {/* Curriculum selector */}
+                      <div className="inline-flex items-center h-8 rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
+                        <div className={`flex items-center gap-1.5 px-2.5 border-r border-border h-full ${curriculum.school_id ? 'text-emerald-400' : 'text-primary'}`}>
+                          {curriculum.school_id
+                            ? <BuildingOfficeIcon className="w-3 h-3 shrink-0" />
+                            : <ShieldCheckIcon className="w-3 h-3 shrink-0" />}
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Curriculum</span>
                         </div>
-                      )}
+                        {curriculumList.length > 1 ? (
+                          <select
+                            value={curriculum.id}
+                            onChange={(e) => selectCurriculumVersion(e.target.value)}
+                            className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
+                          >
+                            {curriculumList.filter(c => !c.school_id).length > 0 && (
+                              <optgroup label="── Platform template">
+                                {curriculumList.filter(c => !c.school_id).map((c) => (
+                                  <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                    Platform{curriculumList.filter(cx => !cx.school_id).length > 1 ? ` v${c.version}` : ''}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {curriculumList.filter(c => !!c.school_id).length > 0 && (
+                              <optgroup label="── School versions">
+                                {curriculumList.filter(c => !!c.school_id).map((c) => (
+                                  <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                    {c.schools?.name ?? 'School'}{curriculumList.filter(cx => cx.school_id === c.school_id).length > 1 ? ` v${c.version}` : ''}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </select>
+                        ) : (
+                          <span className="px-2.5 text-[10px] font-black text-primary">
+                            {curriculum.school_id ? (curriculum.schools?.name ?? 'School') : 'Platform'}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Row 2: title + meta */}
@@ -2861,40 +2871,48 @@ export default function CurriculumPage() {
                     )}
                   </div>
 
-                  {/* Term selector */}
-                  {termCount > 0 && (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[36px] backdrop-blur-sm">
-                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground mr-2 border-r border-white/10 pr-2.5 h-full flex items-center">Term</span>
-                        <select
-                          value={activeTerm}
-                          onChange={e => { setActiveTerm(Number(e.target.value)); setActiveWeek(null); }}
-                          className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-6 h-full cursor-pointer"
-                        >
-                          {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
-                            const tw = tracking.filter(t => t.term_number === term.term);
-                            const termWeeks = term.weeks?.length ?? 0;
-                            const termDone = tw.filter(t => t.status === 'completed').length;
-                            const isNow = term.term === getCurrentTerm();
-                            const baseLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
-                            const termLabel = term.title ? `${baseLabel} · ${term.title}` : baseLabel;
-                            return (
-                              <option key={term.term} value={term.term} className="bg-[#0a0a0a] text-foreground">
-                                {isNow ? '▶ ' : ''}{termLabel} — {termDone}/{termWeeks} taught
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Term title & objectives */}
-                  {currentTermData && (
+                  {/* Term selector + title — combined beautiful block */}
+                  {currentTermData && termCount > 0 && (
                     <div className="space-y-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
+                      {/* Term selector pills — horizontal scroll on mobile */}
+                      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+                        {[...(curriculum.content.terms ?? [])].sort((a, b) => a.term - b.term).map(term => {
+                          const tw = tracking.filter(t => t.term_number === term.term);
+                          const termWeeks = term.weeks?.length ?? 0;
+                          const termDone = tw.filter(t => t.status === 'completed').length;
+                          const isNow = term.term === getCurrentTerm();
+                          const isActive = term.term === activeTerm;
+                          const baseLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
+                          const pct = termWeeks > 0 ? Math.round((termDone / termWeeks) * 100) : 0;
+                          return (
+                            <button
+                              key={term.term}
+                              onClick={() => { setActiveTerm(term.term); setActiveWeek(null); }}
+                              className={`relative flex-shrink-0 flex flex-col items-start px-3 py-2 rounded-xl border text-left transition-all overflow-hidden min-w-[110px] ${
+                                isActive
+                                  ? 'bg-primary/10 border-primary/50 text-foreground shadow-sm'
+                                  : 'bg-card/40 border-border text-muted-foreground hover:border-primary/30 hover:text-foreground hover:bg-card/70'
+                              }`}
+                            >
+                              {/* Progress bar at the bottom */}
+                              {pct > 0 && (
+                                <div className="absolute bottom-0 left-0 h-0.5 bg-emerald-500/60 transition-all" style={{ width: `${pct}%` }} />
+                              )}
+                              <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+                                {isNow ? '▶ ' : ''}{baseLabel}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground mt-0.5">
+                                {termDone}/{termWeeks} taught{pct > 0 ? ` · ${pct}%` : ''}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Term title + date + actions */}
+                      <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <h2 className="text-lg font-black">Term {currentTermData.term}: {currentTermData.title}</h2>
+                          <h2 className="text-lg font-black">{currentTermData.title || (TERM_LABEL[currentTermData.term] ?? `Term ${currentTermData.term}`)}</h2>
                           {(() => {
                             const customStart = currentTermData.start_date;
                             const td = customStart
