@@ -531,44 +531,58 @@ export default function CurriculumProgressPage() {
               const avgPct = curr.per_school.length > 0
                 ? Math.round(curr.per_school.reduce((a, s) => a + s.pct, 0) / curr.per_school.length)
                 : 0;
+              const schoolCount = curr.per_school.filter(s => s.school_id).length;
 
               return (
                 <div key={curr.curriculum_id} className="bg-card border border-border overflow-hidden rounded-xl">
                   {/* Course header */}
-                  <div className="flex items-center gap-2 p-4">
+                  <div className="flex items-start gap-2 p-4">
+                    {/* Expand toggle + course info */}
                     <button
                       onClick={() => toggleExpand(curr.curriculum_id)}
-                      className="flex-1 flex items-center gap-4 hover:bg-muted/30 transition-colors text-left rounded-lg min-w-0"
+                      className="flex-1 flex items-start gap-3 hover:bg-muted/30 transition-colors text-left rounded-lg min-w-0 p-1 -m-1"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{curr.program_name}</span>
-                          <span className="text-muted-foreground/30">›</span>
+                      {/* Chevron */}
+                      <div className="mt-0.5 shrink-0">
+                        {isExpanded
+                          ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />
+                          : <ChevronRightIcon className="w-4 h-4 text-muted-foreground" />
+                        }
+                      </div>
+
+                      {/* Text block + progress bar */}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        {/* Programme › version + hidden badge */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider truncate">{curr.program_name}</span>
+                          <span className="text-muted-foreground/40 text-xs">›</span>
                           <span className="text-[10px] text-primary font-bold uppercase tracking-wider">v{curr.version}</span>
                           {!curr.is_visible_to_school && !isSchool && (
-                            <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-500/10 text-muted-foreground/70 border border-zinc-500/30 uppercase tracking-wider">
+                            <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-500/10 text-muted-foreground/70 border border-zinc-500/30 uppercase tracking-wider rounded">
                               Hidden from schools
                             </span>
                           )}
                         </div>
-                        <h3 className="font-black text-base truncate">{curr.course_title}</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {curr.term_count} terms · {curr.total_weeks} weeks · {curr.per_school.filter(s => s.school_id).length} school(s) tracking
-                        </p>
-                      </div>
 
-                      {/* Overall progress bar */}
-                      <div className="hidden sm:flex flex-col items-end gap-1.5 shrink-0 w-32">
-                        <span className="text-xs font-black text-foreground">{avgPct}% avg</span>
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${pctColor(avgPct)}`} style={{ width: `${avgPct}%` }} />
+                        {/* Course title */}
+                        <h3 className="font-black text-sm sm:text-base truncate leading-snug">{curr.course_title}</h3>
+
+                        {/* Meta row */}
+                        <p className="text-xs text-muted-foreground">
+                          {curr.term_count} term{curr.term_count !== 1 ? 's' : ''} · {curr.total_weeks} weeks · {schoolCount} school{schoolCount !== 1 ? 's' : ''}
+                        </p>
+
+                        {/* Progress bar — always visible, full width */}
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${pctColor(avgPct)}`}
+                              style={{ width: `${avgPct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-black text-foreground shrink-0 tabular-nums">{avgPct}% avg</span>
                         </div>
                       </div>
-
-                      {isExpanded
-                        ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                        : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                      }
                     </button>
 
                     {/* Visibility toggle — teachers/admins only */}
@@ -577,7 +591,7 @@ export default function CurriculumProgressPage() {
                         onClick={() => toggleVisibility(curr.curriculum_id, curr.is_visible_to_school)}
                         disabled={togglingId === curr.curriculum_id}
                         title={curr.is_visible_to_school ? 'Hide from schools' : 'Show to schools'}
-                        className={`p-2 rounded-lg border transition-all shrink-0 ${
+                        className={`p-2 rounded-lg border transition-all shrink-0 mt-0.5 ${
                           curr.is_visible_to_school
                             ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
                             : 'border-zinc-500/30 bg-zinc-500/10 text-muted-foreground/70 hover:bg-zinc-500/20'
@@ -622,52 +636,62 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
 
   return (
     <div className="px-4 py-3">
-      {/* School name + summary */}
+      {/* Collapsed header: school name + progress bar + badges */}
       <div
-        className="flex items-center gap-3 cursor-pointer"
+        className="flex items-start gap-3 cursor-pointer"
         onClick={() => setShowDetail(v => !v)}
       >
-        <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold truncate">{school.school_name}</p>
-          <div className="flex items-center gap-3 mt-1">
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-40">
-              <div className={`h-full rounded-full transition-all ${pctColor(school.pct)}`} style={{ width: `${school.pct}%` }} />
+        <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+
+        <div className="flex-1 min-w-0 space-y-1.5">
+          {/* School name row + upcoming badge inline */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-bold truncate">{school.school_name}</p>
+            {school.upcoming_assessments.length > 0 && (
+              <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wider rounded shrink-0">
+                {school.upcoming_assessments.length} upcoming
+              </span>
+            )}
+          </div>
+
+          {/* Progress bar — always visible, full width */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${pctColor(school.pct)}`}
+                style={{ width: `${school.pct}%` }}
+              />
             </div>
-            <span className="text-[11px] font-bold text-foreground shrink-0">{school.pct}%</span>
-            <span className="text-[10px] text-muted-foreground shrink-0">{school.completed}/{totalWeeks} wks</span>
+            <span className="text-[11px] font-bold text-foreground shrink-0 tabular-nums">{school.pct}%</span>
+            <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{school.completed}/{totalWeeks} wks</span>
+            {school.last_activity && (
+              <span className="text-[10px] text-muted-foreground shrink-0">{relativeTime(school.last_activity)}</span>
+            )}
           </div>
         </div>
 
-        {/* Status badges */}
-        <div className="hidden sm:flex items-center gap-2">
-          {school.upcoming_assessments.length > 0 && (
-            <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wider">
-              {school.upcoming_assessments.length} upcoming
-            </span>
-          )}
-          {school.last_activity && (
-            <span className="text-[9px] text-muted-foreground">{relativeTime(school.last_activity)}</span>
-          )}
-        </div>
-
         {showDetail
-          ? <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-          : <ChevronRightIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          ? <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1" />
+          : <ChevronRightIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1" />
         }
       </div>
 
       {/* Detail: per-term breakdown + upcoming */}
       {showDetail && (
-        <div className="mt-3 ml-7 space-y-4">
-          {/* Term breakdown */}
+        <div className="mt-3 space-y-4 pl-7">
+          {/* Term breakdown — responsive 3-col grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[...school.term_progress].sort((a, b) => a.term - b.term).map(term => {
-              const { label, months, color } = TERM_LABELS[term.term] ?? { label: `Term ${term.term}`, months: '', color: 'text-muted-foreground bg-muted border-border' };
+              const { label, months, color } = TERM_LABELS[term.term] ?? {
+                label: `Term ${term.term}`, months: '', color: 'text-muted-foreground bg-muted border-border',
+              };
               return (
                 <div key={term.term} className="bg-background border border-border p-3 space-y-2 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-black uppercase tracking-wider ${color.split(' ')[0]}`}>{label}</span>
+                  {/* Term label badge — full color string */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 border rounded ${color}`}>
+                      {label}
+                    </span>
                     <span className="text-[10px] text-muted-foreground">{months}</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -682,15 +706,20 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
             })}
           </div>
 
-          {/* Current week */}
+          {/* Current week — "Now on" line with flex-wrap to prevent overflow */}
           {school.current_week && (
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
               <ArrowPathIcon className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-muted-foreground">Now on:</span>
-              <span className="font-bold text-foreground">
-                {TERM_LABELS[school.current_week.term]?.label} · Week {school.current_week.week} — {school.current_week.topic}
+              <span className="text-muted-foreground font-bold shrink-0">Now on:</span>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded ${WEEK_TYPE_COLOR[school.current_week.type] ?? 'bg-muted'} text-primary-foreground font-bold uppercase shrink-0`}>
+                {TERM_LABELS[school.current_week.term]?.label ?? `Term ${school.current_week.term}`}
               </span>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded ${WEEK_TYPE_COLOR[school.current_week.type] ?? 'bg-muted'} text-white font-bold uppercase`}>
+              <span className="font-bold text-foreground">
+                Week {school.current_week.week}
+              </span>
+              <span className="text-muted-foreground">—</span>
+              <span className="text-foreground truncate">{school.current_week.topic}</span>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded ${WEEK_TYPE_COLOR[school.current_week.type] ?? 'bg-muted'} text-primary-foreground font-bold uppercase shrink-0`}>
                 {school.current_week.type}
               </span>
             </div>
@@ -701,11 +730,15 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
             <div className="space-y-1">
               <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">Upcoming</p>
               {school.upcoming_assessments.map((ev, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs bg-amber-500/5 border border-amber-500/20 px-3 py-2 rounded-lg">
-                  <ExclamationTriangleIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="text-foreground font-bold">{ev.topic}</span>
-                  <span className="text-muted-foreground">— {TERM_LABELS[ev.term]?.label}, Week {ev.week}</span>
-                  <span className={`ml-auto text-[9px] px-1.5 py-0.5 ${ev.type === 'examination' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'} font-black uppercase tracking-wider rounded`}>
+                <div key={i} className="flex items-start gap-2 text-xs bg-amber-500/5 border border-amber-500/20 px-3 py-2 rounded-lg flex-wrap">
+                  <ExclamationTriangleIcon className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                  <span className="text-foreground font-bold flex-1 min-w-0 truncate">{ev.topic}</span>
+                  <span className="text-muted-foreground shrink-0">{TERM_LABELS[ev.term]?.label ?? `Term ${ev.term}`} Wk{ev.week}</span>
+                  <span className={`text-[9px] px-1.5 py-0.5 shrink-0 ${
+                    ev.type === 'examination'
+                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  } font-black uppercase tracking-wider rounded`}>
                     {ev.type}
                   </span>
                 </div>
