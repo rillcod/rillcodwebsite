@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
+import { slugify } from '@/lib/utils'
 
 const baseUrl = 'https://www.rillcod.com'
 
@@ -61,20 +62,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Information
     { url: `${baseUrl}/services`,             lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${baseUrl}/partnership`,          lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${baseUrl}/implementation`,       lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${baseUrl}/student-journey`,      lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${baseUrl}/portal`,               lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
 
-    // Showcase & Media
+    // Showcase
     { url: `${baseUrl}/showcase`,             lastModified: now, changeFrequency: 'weekly',  priority: 0.7 },
     { url: `${baseUrl}/student-projects`,     lastModified: now, changeFrequency: 'weekly',  priority: 0.7 },
-    { url: `${baseUrl}/gallery`,              lastModified: now, changeFrequency: 'weekly',  priority: 0.6 },
-    { url: `${baseUrl}/media`,                lastModified: now, changeFrequency: 'weekly',  priority: 0.6 },
-    { url: `${baseUrl}/events`,               lastModified: now, changeFrequency: 'weekly',  priority: 0.7 },
-
-    // Company
-    { url: `${baseUrl}/team`,                 lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${baseUrl}/careers`,              lastModified: now, changeFrequency: 'weekly',  priority: 0.6 },
 
     // Auth pages excluded — login/signup pages should not be indexed
     // (they may redirect based on session state, causing GSC "redirect" warnings)
@@ -102,7 +93,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       : p.updated_at ? new Date(p.updated_at) : now
 
     return {
-      url: `${baseUrl}/programs/${p.id}`,
+      url: `${baseUrl}/programs/${slugify(p.name)}`,
       lastModified: lastMod,
       changeFrequency: 'weekly' as const,
       priority: 0.85,

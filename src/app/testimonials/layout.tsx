@@ -13,13 +13,13 @@ export const metadata: Metadata = {
     "student coding success stories",
   ],
   alternates: {
-    canonical: "https://rillcod.com/testimonials",
+    canonical: "https://www.rillcod.com/testimonials",
   },
   openGraph: {
     title: "Testimonials — Rillcod Technologies Reviews & Success Stories",
     description:
       "Hear from parents, students, and partner schools about their experience with Rillcod Technologies's STEM programs.",
-    url: "https://rillcod.com/testimonials",
+    url: "https://www.rillcod.com/testimonials",
   },
 };
 

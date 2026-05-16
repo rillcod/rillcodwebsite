@@ -90,6 +90,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Noindex auth pages — they're not in the sitemap and should not be indexed
+        source: '/(login|signup|reset-password|student/login)',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      },
+      {
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },

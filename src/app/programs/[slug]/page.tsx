@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Clock, Users, BookOpen, CheckCircle,
   MapPin, ChevronRight, Layers, Star,
 } from "lucide-react";
+import { slugify, isUUID } from "@/lib/utils";
 
 const LEVEL_MAP: Record<string, { label: string; accent: string; bar: string; border: string }> = {
   beginner:     { label: "Beginner",     accent: "text-emerald-400", bar: "bg-emerald-500", border: "border-emerald-500/40" },
@@ -14,27 +15,51 @@ const LEVEL_MAP: Record<string, { label: string; accent: string; bar: string; bo
 };
 
 export default function ProgramPage() {
-  const params = useParams();
-  const id = params?.id as string;
+  const params  = useParams();
+  const router  = useRouter();
+  const slug    = params?.slug as string;
 
-  const [program, setProgram]   = useState<any | null>(null);
-  const [loading, setLoading]   = useState(true);
+  const [program,  setProgram]  = useState<any | null>(null);
+  const [loading,  setLoading]  = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
-    fetch(`/api/programs/${id}`, { cache: "no-store" })
-      .then(r => {
-        if (r.status === 404) { setNotFound(true); setLoading(false); return null; }
-        return r.json();
+    if (!slug) return;
+
+    if (isUUID(slug)) {
+      // Old UUID link — fetch by ID then redirect to the clean slug URL
+      fetch(`/api/programs/${slug}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(json => {
+          if (json?.data) {
+            router.replace(`/programs/${slugify(json.data.name)}`);
+          } else {
+            setNotFound(true);
+            setLoading(false);
+          }
+        })
+        .catch(() => { setNotFound(true); setLoading(false); });
+      return;
+    }
+
+    // Slug URL — find the matching program from the listing
+    fetch("/api/programs?is_active=true")
+      .then(r => r.json())
+      .then(json => {
+        const list: any[] = json.data ?? [];
+        const match = list.find(p => slugify(p.name) === slug);
+        if (!match) { setNotFound(true); setLoading(false); return; }
+        // Fetch full program details (includes courses)
+        return fetch(`/api/programs/${match.id}`).then(r => r.json());
       })
       .then(json => {
         if (!json) return;
-        setProgram(json.data ?? null);
+        if (json.data) setProgram(json.data);
+        else setNotFound(true);
         setLoading(false);
       })
       .catch(() => { setNotFound(true); setLoading(false); });
-  }, [id]);
+  }, [slug]); // eslint-disable-line
 
   if (loading) {
     return (
@@ -52,10 +77,7 @@ export default function ProgramPage() {
           <p className="text-muted-foreground mb-6 font-medium italic">
             The program you&apos;re looking for doesn&apos;t exist.
           </p>
-          <Link
-            href="/programs"
-            className="bg-primary text-white px-8 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:bg-primary transition-colors"
-          >
+          <Link href="/programs" className="bg-primary text-white px-8 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:bg-primary transition-colors">
             View All Programs
           </Link>
         </div>
@@ -63,14 +85,14 @@ export default function ProgramPage() {
     );
   }
 
-  const level      = program.difficulty_level ?? "beginner";
-  const lm         = LEVEL_MAP[level] ?? LEVEL_MAP.beginner;
+  const level        = program.difficulty_level ?? "beginner";
+  const lm           = LEVEL_MAP[level] ?? LEVEL_MAP.beginner;
   const courses: any[] = program.courses ?? [];
-  const activeCourses  = courses.filter(c => c.is_active !== false);
+  const activeCourses  = courses.filter((c: any) => c.is_active !== false);
+  const programId    = program.id as string;
 
   return (
     <div className="min-h-screen bg-background font-sans">
-      {/* Decorative blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
@@ -78,7 +100,6 @@ export default function ProgramPage() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
-        {/* Breadcrumb */}
         <div className="mb-8">
           <Link href="/programs" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-xs font-black uppercase tracking-widest">
             <ArrowLeft className="w-4 h-4" />
@@ -86,7 +107,6 @@ export default function ProgramPage() {
           </Link>
         </div>
 
-        {/* Hero card */}
         <div className="bg-card border border-border rounded-none shadow-2xl border-t-4 border-t-primary p-8 sm:p-12 mb-10 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
           <div className="relative z-10">
@@ -114,7 +134,6 @@ export default function ProgramPage() {
               {program.description}
             </p>
 
-            {/* Quick stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
               {program.duration_weeks && (
                 <div className="bg-background border border-border p-4 text-center">
@@ -140,31 +159,21 @@ export default function ProgramPage() {
               </div>
             </div>
 
-            {/* CTA buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                href={`/student-registration?program_id=${id}`}
-                className="bg-primary text-white px-10 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-primary/20 text-center"
-              >
+              <Link href={`/student-registration?program_id=${programId}`}
+                className="bg-primary text-white px-10 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-primary/20 text-center">
                 Enrol Now
               </Link>
-              <Link
-                href="/contact"
-                className="border border-border text-muted-foreground px-10 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:border-primary hover:text-primary transition-all text-center"
-              >
+              <Link href="/contact"
+                className="border border-border text-muted-foreground px-10 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:border-primary hover:text-primary transition-all text-center">
                 Get More Info
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Main grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* Left — main content */}
           <div className="lg:col-span-2 space-y-8">
-
-            {/* Courses in Program */}
             <div className="bg-card border border-border rounded-none shadow-lg overflow-hidden">
               <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-background">
                 <BookOpen className="w-5 h-5 text-primary" />
@@ -172,25 +181,16 @@ export default function ProgramPage() {
               </div>
               <div className="p-6">
                 {activeCourses.length === 0 ? (
-                  <p className="text-muted-foreground italic text-sm font-medium">
-                    Courses for this program are being prepared. Check back soon!
-                  </p>
+                  <p className="text-muted-foreground italic text-sm font-medium">Courses for this program are being prepared. Check back soon!</p>
                 ) : (
                   <div className="space-y-3">
                     {activeCourses.map((course: any, idx: number) => (
-                      <div
-                        key={course.id}
-                        className="flex items-start gap-4 p-4 bg-background border border-border hover:border-primary/40 transition-all group"
-                      >
-                        <div className="w-8 h-8 bg-primary text-white flex items-center justify-center text-xs font-black flex-shrink-0">
-                          {idx + 1}
-                        </div>
+                      <div key={course.id} className="flex items-start gap-4 p-4 bg-background border border-border hover:border-primary/40 transition-all group">
+                        <div className="w-8 h-8 bg-primary text-white flex items-center justify-center text-xs font-black flex-shrink-0">{idx + 1}</div>
                         <div className="flex-1 min-w-0">
                           <p className="font-black text-sm text-foreground uppercase tracking-tight">{course.title}</p>
                           {course.description && (
-                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2 font-medium italic">
-                              {course.description}
-                            </p>
+                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2 font-medium italic">{course.description}</p>
                           )}
                         </div>
                         {course.duration_hours && (
@@ -205,7 +205,6 @@ export default function ProgramPage() {
               </div>
             </div>
 
-            {/* What You'll Learn */}
             {activeCourses.length > 0 && (
               <div className="bg-card border border-border rounded-none shadow-lg overflow-hidden">
                 <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-background">
@@ -226,10 +225,7 @@ export default function ProgramPage() {
             )}
           </div>
 
-          {/* Right — sidebar */}
           <div className="space-y-6">
-
-            {/* Program Details */}
             <div className="bg-card border border-border rounded-none shadow-lg overflow-hidden">
               <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-background">
                 <Layers className="w-5 h-5 text-primary" />
@@ -271,7 +267,6 @@ export default function ProgramPage() {
               </div>
             </div>
 
-            {/* Quick Course Overview */}
             {activeCourses.length > 0 && (
               <div className="bg-card border border-border rounded-none shadow-lg overflow-hidden">
                 <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-background">
@@ -288,18 +283,13 @@ export default function ProgramPage() {
               </div>
             )}
 
-            {/* CTA */}
             <div className="bg-card border border-border border-t-4 border-t-primary rounded-none shadow-lg p-6 text-center relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl pointer-events-none" />
               <div className="relative z-10">
                 <h3 className="text-base font-black text-foreground uppercase tracking-tight mb-2">Ready to Start?</h3>
-                <p className="text-xs text-muted-foreground mb-5 font-medium italic">
-                  Join this program and unlock your tech potential!
-                </p>
-                <Link
-                  href={`/student-registration?program_id=${id}`}
-                  className="block bg-primary text-white px-6 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-primary/20"
-                >
+                <p className="text-xs text-muted-foreground mb-5 font-medium italic">Join this program and unlock your tech potential!</p>
+                <Link href={`/student-registration?program_id=${programId}`}
+                  className="block bg-primary text-white px-6 py-4 rounded-none font-black text-xs uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-primary/20">
                   Enrol Now
                 </Link>
               </div>

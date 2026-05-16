@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { slugify } from "@/lib/utils";
 import {
   ArrowRight, Clock, Users, Search, Filter, BookOpen,
   GraduationCap, MapPin, Sun, Calendar, ChevronDown, TrendingUp,
@@ -338,7 +339,7 @@ export default function Programs() {
                           </div>
                         )}
                         <Link
-                          href={`/programs/${program.id}`}
+                          href={`/programs/${slugify(program.name)}`}
                           className="flex items-center gap-1.5 text-[9px] font-black text-primary hover:text-primary uppercase tracking-widest mt-4 transition-colors"
                         >
                           Full Program Details <ArrowRight className="w-3 h-3" />

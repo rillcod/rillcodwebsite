@@ -14,6 +14,7 @@ import {
   Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { slugify } from '@/lib/utils';
 
 const programs = [
   {
@@ -208,7 +209,7 @@ const ProgramExplorer: React.FC = () => {
                       <ArrowRight className="w-5 h-5" />
                     </a>
                     <a
-                      href={`/programs/${activeProgram.id}`}
+                      href={`/programs/${slugify(activeProgram.title)}`}
                       className="w-full sm:w-auto flex items-center justify-center gap-2 text-[10px] font-black text-muted-foreground uppercase tracking-[0.4em] hover:text-primary transition-colors"
                     >
                       Full Curriculum Docs

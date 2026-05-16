@@ -13,13 +13,13 @@ export const metadata: Metadata = {
     "coding school Edo State contact",
   ],
   alternates: {
-    canonical: "https://rillcod.com/contact",
+    canonical: "https://www.rillcod.com/contact",
   },
   openGraph: {
     title: "Contact Rillcod Technologies — Benin City, Edo State",
     description:
       "Reach Rillcod Technologies at No 26 Ogiesoba Avenue, Benin City. Phone: +234 811 660 0091. Email: support@rillcod.com.",
-    url: "https://rillcod.com/contact",
+    url: "https://www.rillcod.com/contact",
   },
 };
 

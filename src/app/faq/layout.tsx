@@ -13,13 +13,13 @@ export const metadata: Metadata = {
     "kids coding program questions",
   ],
   alternates: {
-    canonical: "https://rillcod.com/faq",
+    canonical: "https://www.rillcod.com/faq",
   },
   openGraph: {
     title: "Frequently Asked Questions — Rillcod Technologies",
     description:
       "Answers to common questions about enrollment, programs, pricing, and school partnerships at Rillcod Technologies.",
-    url: "https://rillcod.com/faq",
+    url: "https://www.rillcod.com/faq",
   },
 };
 

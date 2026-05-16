@@ -15,13 +15,13 @@ export const metadata: Metadata = {
     "technology education curriculum",
   ],
   alternates: {
-    canonical: "https://rillcod.com/curriculum",
+    canonical: "https://www.rillcod.com/curriculum",
   },
   openGraph: {
     title: "STEM & Coding Curriculum — Rillcod Technologies",
     description:
       "Structured coding and STEM curriculum for JSS1 to SS3. ICT, Scratch, Python, Web Dev, Robotics & AI — aligned with Nigerian education standards.",
-    url: "https://rillcod.com/curriculum",
+    url: "https://www.rillcod.com/curriculum",
   },
 };
 

@@ -13,13 +13,13 @@ export const metadata: Metadata = {
     "STEM educator positions Nigeria",
   ],
   alternates: {
-    canonical: "https://rillcod.com/careers",
+    canonical: "https://www.rillcod.com/careers",
   },
   openGraph: {
     title: "Careers at Rillcod Technologies — Join Our Team",
     description:
       "We're hiring passionate STEM educators and technologists in Benin City, Edo State. Shape the future of tech education in Nigeria.",
-    url: "https://rillcod.com/careers",
+    url: "https://www.rillcod.com/careers",
   },
 };
 

@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     "young innovators coding club",
   ],
   alternates: {
-    canonical: "https://rillcod.com/programs",
+    canonical: "https://www.rillcod.com/programs",
   },
   openGraph: {
     title: "10-Program STEM & AI Curriculum — Rillcod Technologies",
     description:
       "From curious beginners (age 6) to professional AI engineers — four learning tiers, ten structured programmes, delivered in partner schools across Benin City, Ekpoma, Uromi, and Auchi.",
-    url: "https://rillcod.com/programs",
+    url: "https://www.rillcod.com/programs",
   },
 };
 

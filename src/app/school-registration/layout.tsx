@@ -15,13 +15,13 @@ export const metadata: Metadata = {
     "school STEM program Nigeria",
   ],
   alternates: {
-    canonical: "https://rillcod.com/school-registration",
+    canonical: "https://www.rillcod.com/school-registration",
   },
   openGraph: {
     title: "Partner Your School with Rillcod Technologies — STEM Education",
     description:
       "Bring hands-on coding, robotics & STEM education to your school. Available across Benin City, Ekpoma, Uromi, Auchi, and Edo State.",
-    url: "https://rillcod.com/school-registration",
+    url: "https://www.rillcod.com/school-registration",
   },
 };
 

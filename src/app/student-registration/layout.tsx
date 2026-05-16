@@ -15,13 +15,13 @@ export const metadata: Metadata = {
     "Python classes kids Nigeria",
   ],
   alternates: {
-    canonical: "https://rillcod.com/student-registration",
+    canonical: "https://www.rillcod.com/student-registration",
   },
   openGraph: {
     title: "Enroll Your Child at Rillcod Technologies — Coding & STEM for Kids",
     description:
       "Register for Python, Scratch, Web Dev, Robotics & AI classes. Available in schools across Benin City, Ekpoma, Uromi, and Auchi.",
-    url: "https://rillcod.com/student-registration",
+    url: "https://www.rillcod.com/student-registration",
   },
 };
 

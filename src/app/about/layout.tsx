@@ -12,13 +12,13 @@ export const metadata: Metadata = {
     "about us coding academy",
   ],
   alternates: {
-    canonical: "https://rillcod.com/about",
+    canonical: "https://www.rillcod.com/about",
   },
   openGraph: {
     title: "About Rillcod Technologies — STEM Education in Benin City, Nigeria",
     description:
       "Founded in Benin City, Edo State, Rillcod Technologies delivers hands-on coding, robotics, and STEM education to Nigerian children through partner schools.",
-    url: "https://rillcod.com/about",
+    url: "https://www.rillcod.com/about",
   },
 };
 
