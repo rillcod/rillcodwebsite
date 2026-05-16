@@ -95,6 +95,9 @@ export async function PUT(req: NextRequest) {
   if (body.qa_five_step_mode === 'warn' || body.qa_five_step_mode === 'fail') {
     nextPolicy.qa_five_step_mode = body.qa_five_step_mode;
   }
+  if ([1, 2, 3].includes(Number(body.program_start_term))) {
+    nextPolicy.program_start_term = Number(body.program_start_term);
+  }
 
   const updatePayload: Record<string, unknown> = {
     progression_policy: nextPolicy,

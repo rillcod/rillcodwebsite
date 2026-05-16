@@ -11,7 +11,7 @@ function defaultAcademicYear(): string {
 }
 
 // GET /api/settings/academic-year?school_id=uuid (optional)
-// Returns { platform: "2025/2026", school: "2025/2026" | null, effective: "2025/2026" }
+// Returns { platform, school, effective, term_calendar }
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const schoolId = url.searchParams.get('school_id');
 
-  // Platform default
+  // Platform default academic year
   const { data: platformRow } = await admin
     .from('app_settings')
     .select('value')
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
   const platform = platformRow?.value ?? defaultAcademicYear();
 
-  // School override
+  // School override academic year
   let school: string | null = null;
   if (schoolId) {
     const { data: schoolRow } = await admin
@@ -40,14 +40,31 @@ export async function GET(req: NextRequest) {
     school = schoolRow?.value ?? null;
   }
 
+  // Term calendar — school override first, then platform default
+  let termCalendar: Record<string, unknown> | null = null;
+  if (schoolId) {
+    const { data: tcRow } = await admin
+      .from('app_settings')
+      .select('value')
+      .eq('key', `term_calendar_school_${schoolId}`)
+      .maybeSingle();
+    if (tcRow?.value && typeof tcRow.value === 'object') termCalendar = tcRow.value;
+  }
+  if (!termCalendar) {
+    const { data: tcPlatRow } = await admin
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'term_calendar')
+      .maybeSingle();
+    if (tcPlatRow?.value && typeof tcPlatRow.value === 'object') termCalendar = tcPlatRow.value;
+  }
+
   const effective = school ?? platform;
-  return NextResponse.json({ platform, school, effective });
+  return NextResponse.json({ platform, school, effective, term_calendar: termCalendar });
 }
 
 // PATCH /api/settings/academic-year
-// Body: { year: "2025/2026", school_id?: "uuid" }
-// school_id = null or omitted → update platform default (admin only)
-// school_id = uuid → update school override (admin or teacher of that school)
+// Body: { year?: "2025/2026", term_calendar?: {...}, school_id?: "uuid" }
 export async function PATCH(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -65,38 +82,45 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { year, school_id } = body;
-
-  // Validate format: YYYY/YYYY
-  if (!year || !/^\d{4}\/\d{4}$/.test(year)) {
-    return NextResponse.json({ error: 'year must be in format YYYY/YYYY, e.g. 2025/2026' }, { status: 400 });
-  }
+  const { year, school_id, term_calendar } = body;
 
   const isSchoolLevel = !!school_id;
 
-  if (!isSchoolLevel && profile.role !== 'admin') {
-    return NextResponse.json({ error: 'Only admins can set the platform academic year' }, { status: 403 });
-  }
-
-  if (isSchoolLevel) {
-    // Teachers can only set for their own assigned schools
-    if (profile.role === 'teacher') {
-      const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
-      const sids = await getTeacherSchoolIds(user.id, profile.school_id);
-      if (!sids.includes(school_id)) {
-        return NextResponse.json({ error: 'You can only set the academic year for your own schools' }, { status: 403 });
-      }
-    } else if (profile.role === 'school' && profile.school_id !== school_id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Auth check for school-level writes
+  if (isSchoolLevel && profile.role === 'teacher') {
+    const { getTeacherSchoolIds } = await import('@/lib/auth-utils');
+    const sids = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (!sids.includes(school_id)) {
+      return NextResponse.json({ error: 'You can only set settings for your own schools' }, { status: 403 });
     }
+  } else if (isSchoolLevel && profile.role === 'school' && profile.school_id !== school_id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  } else if (!isSchoolLevel && profile.role !== 'admin') {
+    return NextResponse.json({ error: 'Only admins can set platform-wide settings' }, { status: 403 });
   }
 
-  const settingKey = isSchoolLevel ? `academic_year_school_${school_id}` : 'academic_year';
+  const ops: Promise<unknown>[] = [];
 
-  const { error } = await admin
-    .from('app_settings')
-    .upsert({ key: settingKey, value: year, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  // Save academic year
+  if (year) {
+    if (!/^\d{4}\/\d{4}$/.test(year)) {
+      return NextResponse.json({ error: 'year must be in format YYYY/YYYY' }, { status: 400 });
+    }
+    const yearKey = isSchoolLevel ? `academic_year_school_${school_id}` : 'academic_year';
+    ops.push(admin.from('app_settings').upsert({ key: yearKey, value: year, updated_at: new Date().toISOString() }, { onConflict: 'key' }));
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true, key: settingKey, value: year });
+  // Save term calendar
+  if (term_calendar && typeof term_calendar === 'object') {
+    const tcKey = isSchoolLevel ? `term_calendar_school_${school_id}` : 'term_calendar';
+    ops.push(admin.from('app_settings').upsert({ key: tcKey, value: term_calendar, updated_at: new Date().toISOString() }, { onConflict: 'key' }));
+  }
+
+  if (ops.length === 0) return NextResponse.json({ error: 'Nothing to save' }, { status: 400 });
+
+  const results = await Promise.all(ops);
+  const err = results.find((r: any) => r.error);
+  if (err) return NextResponse.json({ error: (err as any).error.message }, { status: 500 });
+
+  return NextResponse.json({ success: true });
 }

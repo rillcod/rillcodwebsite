@@ -196,7 +196,7 @@ interface WeekTracking {
 }
 
 interface Course { id: string; title: string; is_active: boolean; program_id?: string | null }
-interface Program { id: string; name: string; courses: Course[] }
+interface Program { id: string; name: string; courses: Course[]; progression_policy?: Record<string, unknown> | null }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const WEEK_META: Record<WeekType, { label: string; color: string; icon: any }> = {
@@ -994,12 +994,19 @@ export default function CurriculumPage() {
       return {
         ...prev,
         grade_level: remembered ?? prev.grade_level,
-        // Auto-fill subject area from the course title when the field is blank
         subject_area: prev.subject_area || selectedCourse?.title || '',
       };
     });
+    // Pre-load program_start_term from this course's program policy
+    if (selectedCourse?.program_id) {
+      const prog = programs.find(p => p.id === selectedCourse.program_id);
+      const savedStartTerm = prog?.progression_policy?.program_start_term;
+      if ([1, 2, 3].includes(Number(savedStartTerm))) {
+        setProgramStartTerm(Number(savedStartTerm) as 1 | 2 | 3);
+      }
+    }
     setShowGenerate(true);
-  }, [curriculum, assignedSchools, isAdmin, profile?.school_id, gradeByScope, selectedCourse?.title]);
+  }, [curriculum, assignedSchools, isAdmin, profile?.school_id, gradeByScope, selectedCourse?.title, selectedCourse?.program_id, programs]);
 
   // When filtering, expand every programme that still has a visible course
   useEffect(() => {
@@ -2693,26 +2700,19 @@ export default function CurriculumPage() {
 
                     {/* Row 1: unified Year → Curriculum → Term control bar */}
                     <div className="flex flex-wrap items-center gap-2 relative z-10">
-                      {/* Academic Year */}
+                      {/* Academic Year — display only; change from Settings */}
                       <div className="inline-flex items-center h-8 rounded-xl border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
                         <div className="flex items-center gap-1.5 px-2.5 border-r border-border h-full">
                           <CalendarDaysIcon className="w-3 h-3 text-muted-foreground shrink-0" />
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Year</span>
                         </div>
-                        {canModifyCurriculum ? (
-                          <select
-                            value={academicYear}
-                            onChange={e => setGlobalAcademicYear(e.target.value, profile?.school_id ?? undefined)}
-                            className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
-                            title="Academic Year"
-                          >
-                            {yearOptions.map(y => (
-                              <option key={y} value={y} className="bg-[#0a0a0a] text-foreground">{y}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className="px-2.5 text-[10px] font-black text-primary">{academicYear}</span>
-                        )}
+                        <Link
+                          href="/dashboard/settings?tab=academic&sub=platform"
+                          className="px-2.5 text-[10px] font-black text-primary hover:text-primary/70 transition-colors"
+                          title="Academic year — click to change in Settings"
+                        >
+                          {academicYear}
+                        </Link>
                       </div>
 
                       <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />

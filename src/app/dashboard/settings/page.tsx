@@ -37,6 +37,7 @@ type EditablePolicy = {
   qa_required_student_steps: number;
   qa_assessment_drift_mode: 'warn' | 'fail';
   qa_exam_drift_mode: 'warn' | 'fail'; qa_five_step_mode: 'warn' | 'fail';
+  program_start_term: 1 | 2 | 3;
 };
 
 type CatalogSummary = {
@@ -79,6 +80,7 @@ const DEFAULT_POLICY: EditablePolicy = {
   qa_min_pass_score: 75, qa_required_teacher_steps: 5,
   qa_required_student_steps: 5, qa_assessment_drift_mode: 'warn',
   qa_exam_drift_mode: 'fail', qa_five_step_mode: 'warn',
+  program_start_term: 1,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -103,6 +105,7 @@ function toEditablePolicy(prog: PolicyProgram): EditablePolicy {
     qa_assessment_drift_mode:   p.qa_assessment_drift_mode === 'fail' ? 'fail' : 'warn',
     qa_exam_drift_mode:         p.qa_exam_drift_mode === 'warn' ? 'warn' : 'fail',
     qa_five_step_mode:          p.qa_five_step_mode === 'fail' ? 'fail' : 'warn',
+    program_start_term:         ([1,2,3].includes(Number(p.program_start_term)) ? Number(p.program_start_term) : 1) as 1|2|3,
   };
 }
 
@@ -196,6 +199,16 @@ function SettingsPageContent() {
   const [academicSubTab, setAcademicSubTab] = useState<'platform' | 'programs'>(
     profile?.role === 'admin' ? 'platform' : 'programs'
   );
+
+  // Term calendar (per school or platform)
+  const [termCalendar, setTermCalendar] = useState({
+    term1_start: '', term1_end: '',
+    term2_start: '', term2_end: '',
+    term3_start: '', term3_end: '',
+  });
+  const [termCalendarSaving, setTermCalendarSaving] = useState(false);
+  const [academicYearSetting, setAcademicYearSetting] = useState('');
+  const [academicYearSaving, setAcademicYearSaving] = useState(false);
 
   // Platform settings (operations)
   const [opsData, setOpsData] = useState<OpsData>({});
@@ -296,7 +309,7 @@ function SettingsPageContent() {
     loadMismatches(); loadSuggestions();
   }, [profile?.role, tab]);
 
-  // Operations
+  // Operations + term calendar
   useEffect(() => {
     if (!canManageAcademic || tab !== 'academic-rules' || academicSubTab !== 'platform') return;
     setOpsLoading(true);
@@ -304,7 +317,19 @@ function SettingsPageContent() {
       setOpsData((j.data ?? {}) as OpsData); setOpsReadonly(Boolean(j.readonly));
     }).catch(() => showToast('Failed to load platform settings', false))
       .finally(() => setOpsLoading(false));
-  }, [canManageAcademic, tab, academicSubTab]);
+    // Load academic year + term calendar
+    const schoolId = profile?.school_id;
+    const qs = schoolId ? `?school_id=${schoolId}` : '';
+    fetch(`/api/settings/academic-year${qs}`, { cache: 'no-store' }).then(r => r.json()).then(j => {
+      setAcademicYearSetting(j.effective ?? j.platform ?? '');
+      const tc = j.term_calendar ?? {};
+      setTermCalendar({
+        term1_start: tc.term1?.start ?? '', term1_end: tc.term1?.end ?? '',
+        term2_start: tc.term2?.start ?? '', term2_end: tc.term2?.end ?? '',
+        term3_start: tc.term3?.start ?? '', term3_end: tc.term3?.end ?? '',
+      });
+    }).catch(() => {});
+  }, [canManageAcademic, tab, academicSubTab, profile?.school_id]);
 
   // Policies — load when on either the Program Rules sub-tab or the Teaching Templates tab
   // (Teaching Templates needs the program list for the Add Template dropdown)
@@ -464,6 +489,34 @@ function SettingsPageContent() {
 
   const updateOpsValue = (section: string, key: string, value: unknown) => {
     setOpsData(prev => ({ ...prev, [section]: { ...(prev[section] ?? {}), [key]: value } }));
+  };
+
+  const saveAcademicYear = async () => {
+    if (!academicYearSetting) return;
+    setAcademicYearSaving(true);
+    try {
+      const body: Record<string, string> = { year: academicYearSetting };
+      if (profile?.school_id) body.school_id = profile.school_id;
+      const res = await fetch('/api/settings/academic-year', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      showToast('Academic year saved');
+    } catch (e: any) { showToast(e.message ?? 'Save failed', false); } finally { setAcademicYearSaving(false); }
+  };
+
+  const saveTermCalendar = async () => {
+    setTermCalendarSaving(true);
+    try {
+      const calendar = {
+        term1: { start: termCalendar.term1_start, end: termCalendar.term1_end },
+        term2: { start: termCalendar.term2_start, end: termCalendar.term2_end },
+        term3: { start: termCalendar.term3_start, end: termCalendar.term3_end },
+      };
+      const body: Record<string, unknown> = { term_calendar: calendar };
+      if (profile?.school_id) body.school_id = profile.school_id;
+      const res = await fetch('/api/settings/academic-year', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      showToast('Term dates saved' + (profile?.school_id ? ' for your school' : ' platform-wide'));
+    } catch (e: any) { showToast(e.message ?? 'Save failed', false); } finally { setTermCalendarSaving(false); }
   };
 
   const updatePolicy = <K extends keyof EditablePolicy>(key: K, value: EditablePolicy[K]) => {
@@ -708,11 +761,11 @@ function SettingsPageContent() {
                     <h2 className="font-bold">Academic Rules</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">Platform-wide settings and per-program delivery rules</p>
                   </div>
-                  {/* Sub-tabs — Platform Settings visible to admin only */}
+                  {/* Sub-tabs — Platform Settings visible to admin + teacher */}
                   <div className="flex gap-1 p-2 bg-muted/20 border-b border-border">
                     {[
-                      { id: 'platform', label: 'Platform Settings', adminOnly: true },
-                      { id: 'programs', label: 'Program Rules',     adminOnly: false },
+                      { id: 'platform', label: 'Calendar & Settings', adminOnly: false },
+                      { id: 'programs', label: 'Program Rules',        adminOnly: false },
                     ].filter(st => !st.adminOnly || isAdmin).map(st => (
                       <button key={st.id} onClick={() => setAcademicSubTab(st.id as any)}
                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${academicSubTab === st.id ? 'bg-card shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -723,67 +776,130 @@ function SettingsPageContent() {
 
                   {/* Platform Settings sub-tab */}
                   {academicSubTab === 'platform' && (
-                    <div>
-                      {opsLoading ? <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" /></div>
-                      : Object.keys(opsData).length === 0 ? (
-                        <div className="p-10 text-center space-y-3">
-                          <BoltIcon className="w-10 h-10 mx-auto text-muted-foreground/30" />
-                          <p className="text-sm font-semibold text-muted-foreground">No platform settings have been configured yet</p>
-                          <p className="text-xs text-muted-foreground max-w-xs mx-auto">Settings are created the first time you save this section. Contact your system administrator if you expect to see options here.</p>
+                    <div className="divide-y divide-border">
+
+                      {/* ── Academic Year ── */}
+                      <div className="p-4 space-y-3">
+                        <p className="text-xs font-bold text-foreground uppercase tracking-widest">Academic Year</p>
+                        <p className="text-[10px] text-muted-foreground">{profile?.school_id ? 'Sets the academic year for your school. Admins can set it platform-wide.' : 'Platform-wide default — applies to all schools that have not set their own.'}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <select
+                            value={academicYearSetting}
+                            onChange={e => setAcademicYearSetting(e.target.value)}
+                            className="px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none"
+                          >
+                            {['2023/2024','2024/2025','2025/2026','2026/2027'].map(y => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                          <button onClick={saveAcademicYear} disabled={academicYearSaving}
+                            className="flex items-center gap-2 px-5 py-2 bg-primary rounded-xl text-xs font-bold disabled:opacity-50">
+                            {academicYearSaving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                            Save Year
+                          </button>
                         </div>
-                      ) : (
-                        <div className="divide-y divide-border">
-                          {/* Pillar selector */}
-                          <div className="p-4 flex gap-2 flex-wrap">
-                            {OPS_PILLARS.map(p => (
-                              <button key={p.id} onClick={() => setOpsActivePillar(p.id)}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${opsActivePillar === p.id ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}>
-                                {p.label}
-                              </button>
-                            ))}
-                          </div>
-                          {/* Settings for active pillar */}
-                          <div className="p-4 space-y-4">
-                            {currentOpsPillar.sections.map(sectionId => {
-                              const block = opsData[sectionId] || {};
-                              const meta = OPS_SECTION_META[sectionId] || { label: sectionId, desc: '' };
-                              if (Object.keys(block).length === 0) return null;
-                              return (
-                                <div key={sectionId} className="border border-border rounded-xl overflow-hidden">
-                                  <div className="px-4 py-3 bg-muted/20 border-b border-border">
-                                    <p className="text-xs font-bold text-foreground">{meta.label}</p>
-                                    {meta.desc && <p className="text-[10px] text-muted-foreground mt-0.5">{meta.desc}</p>}
-                                  </div>
-                                  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {Object.entries(block).map(([key, value]) => (
-                                      <div key={key}>
-                                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">{humaniseKey(key)}</label>
-                                        {isBool(value) ? (
-                                          <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-background">
-                                            <span className="text-xs font-bold text-foreground">{value ? 'On' : 'Off'}</span>
-                                            <Toggle checked={value} onChange={v => updateOpsValue(sectionId, key, v)} />
-                                          </div>
-                                        ) : isNum(value) ? (
-                                          <input type="number" value={value} disabled={opsReadonly || !['admin','teacher'].includes(profile?.role ?? '')} onChange={e => updateOpsValue(sectionId, key, Number(e.target.value))} className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary disabled:opacity-50" />
-                                        ) : (
-                                          <input type="text" value={String(value ?? '')} disabled={opsReadonly || !['admin','teacher'].includes(profile?.role ?? '')} onChange={e => updateOpsValue(sectionId, key, e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary disabled:opacity-50" />
-                                        )}
+                      </div>
+
+                      {/* ── Term Calendar ── */}
+                      <div className="p-4 space-y-3">
+                        <div>
+                          <p className="text-xs font-bold text-foreground uppercase tracking-widest">Term Calendar</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {profile?.school_id ? 'Configure actual term start and end dates for your school. The system uses these to auto-detect the current term.' : 'Default dates for all schools (Nigerian national calendar). Schools can override with their own dates.'}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          {([
+                            { label: 'First Term', startKey: 'term1_start', endKey: 'term1_end', hint: 'Sept – Dec' },
+                            { label: 'Second Term', startKey: 'term2_start', endKey: 'term2_end', hint: 'Jan – Apr' },
+                            { label: 'Third Term', startKey: 'term3_start', endKey: 'term3_end', hint: 'May – Aug' },
+                          ] as const).map(t => (
+                            <div key={t.startKey} className="grid grid-cols-[120px_1fr_1fr] gap-2 items-center">
+                              <span className="text-xs font-semibold text-foreground">{t.label} <span className="text-[10px] text-muted-foreground">({t.hint})</span></span>
+                              <div>
+                                <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest block mb-1">Start</label>
+                                <input type="date" value={termCalendar[t.startKey]} onChange={e => setTermCalendar(p => ({ ...p, [t.startKey]: e.target.value }))}
+                                  className="w-full px-3 py-1.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:border-primary" />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest block mb-1">End</label>
+                                <input type="date" value={termCalendar[t.endKey]} onChange={e => setTermCalendar(p => ({ ...p, [t.endKey]: e.target.value }))}
+                                  className="w-full px-3 py-1.5 bg-background border border-border rounded-xl text-xs focus:outline-none focus:border-primary" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <button onClick={saveTermCalendar} disabled={termCalendarSaving}
+                          className="flex items-center gap-2 px-5 py-2 bg-primary rounded-xl text-xs font-bold disabled:opacity-50">
+                          {termCalendarSaving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                          Save Term Dates{profile?.school_id ? ' for My School' : ' (Platform Default)'}
+                        </button>
+                      </div>
+
+                      {/* ── OPS Pillars (admin only) ── */}
+                      {isAdmin && (
+                        <div>
+                          {opsLoading ? (
+                            <div className="p-10 flex justify-center"><div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" /></div>
+                          ) : Object.keys(opsData).length === 0 ? (
+                            <div className="p-10 text-center space-y-3">
+                              <BoltIcon className="w-10 h-10 mx-auto text-muted-foreground/30" />
+                              <p className="text-sm font-semibold text-muted-foreground">No platform settings have been configured yet</p>
+                              <p className="text-xs text-muted-foreground max-w-xs mx-auto">Settings are created the first time you save this section. Contact your system administrator if you expect to see options here.</p>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-border">
+                              {/* Pillar selector */}
+                              <div className="p-4 flex gap-2 flex-wrap">
+                                {OPS_PILLARS.map(p => (
+                                  <button key={p.id} onClick={() => setOpsActivePillar(p.id)}
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${opsActivePillar === p.id ? 'bg-primary text-white border-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}>
+                                    {p.label}
+                                  </button>
+                                ))}
+                              </div>
+                              {/* Settings for active pillar */}
+                              <div className="p-4 space-y-4">
+                                {currentOpsPillar.sections.map(sectionId => {
+                                  const block = opsData[sectionId] || {};
+                                  const meta = OPS_SECTION_META[sectionId] || { label: sectionId, desc: '' };
+                                  if (Object.keys(block).length === 0) return null;
+                                  return (
+                                    <div key={sectionId} className="border border-border rounded-xl overflow-hidden">
+                                      <div className="px-4 py-3 bg-muted/20 border-b border-border">
+                                        <p className="text-xs font-bold text-foreground">{meta.label}</p>
+                                        {meta.desc && <p className="text-[10px] text-muted-foreground mt-0.5">{meta.desc}</p>}
                                       </div>
-                                    ))}
-                                  </div>
+                                      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {Object.entries(block).map(([key, value]) => (
+                                          <div key={key}>
+                                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">{humaniseKey(key)}</label>
+                                            {isBool(value) ? (
+                                              <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-background">
+                                                <span className="text-xs font-bold text-foreground">{value ? 'On' : 'Off'}</span>
+                                                <Toggle checked={value} onChange={v => updateOpsValue(sectionId, key, v)} />
+                                              </div>
+                                            ) : isNum(value) ? (
+                                              <input type="number" value={value} disabled={opsReadonly || !['admin','teacher'].includes(profile?.role ?? '')} onChange={e => updateOpsValue(sectionId, key, Number(e.target.value))} className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary disabled:opacity-50" />
+                                            ) : (
+                                              <input type="text" value={String(value ?? '')} disabled={opsReadonly || !['admin','teacher'].includes(profile?.role ?? '')} onChange={e => updateOpsValue(sectionId, key, e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary disabled:opacity-50" />
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {currentOpsPillar.sections.every(s => Object.keys(opsData[s] || {}).length === 0) && (
+                                  <p className="text-sm text-muted-foreground text-center py-8">No settings configured for this category yet.</p>
+                                )}
+                              </div>
+                              {!opsReadonly && ['admin','teacher'].includes(profile?.role ?? '') && Object.keys(opsData).length > 0 && (
+                                <div className="p-4 border-t border-border">
+                                  <button onClick={saveOps} disabled={opsSaving} className="flex items-center gap-2 px-6 py-2.5 bg-primary rounded-xl text-sm font-bold disabled:opacity-50 transition-all">
+                                    {opsSaving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
+                                    {opsSaving ? 'Saving…' : 'Save Platform Settings'}
+                                  </button>
                                 </div>
-                              );
-                            })}
-                            {currentOpsPillar.sections.every(s => Object.keys(opsData[s] || {}).length === 0) && (
-                              <p className="text-sm text-muted-foreground text-center py-8">No settings configured for this category yet.</p>
-                            )}
-                          </div>
-                          {!opsReadonly && ['admin','teacher'].includes(profile?.role ?? '') && Object.keys(opsData).length > 0 && (
-                            <div className="p-4 border-t border-border">
-                              <button onClick={saveOps} disabled={opsSaving} className="flex items-center gap-2 px-6 py-2.5 bg-primary rounded-xl text-sm font-bold disabled:opacity-50 transition-all">
-                                {opsSaving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
-                                {opsSaving ? 'Saving…' : 'Save Platform Settings'}
-                              </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -835,6 +951,25 @@ function SettingsPageContent() {
                                   <option value="2">Intensive (2/week)</option>
                                 </select>
                               </div>
+                            </div>
+                          </div>
+                          {/* Programme Calendar */}
+                          <div className="p-4 space-y-4 border-b border-border">
+                            <p className="text-xs font-bold text-foreground uppercase tracking-widest">Programme Calendar</p>
+                            <div>
+                              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Which term does this programme start?</label>
+                              <select
+                                value={policyForm.program_start_term}
+                                onChange={e => updatePolicy('program_start_term', Number(e.target.value) as 1|2|3)}
+                                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none"
+                              >
+                                <option value={1}>Term 1 — September (default)</option>
+                                <option value={2}>Term 2 — January (started coding mid-year)</option>
+                                <option value={3}>Term 3 — May (started coding in third term)</option>
+                              </select>
+                              <p className="text-[10px] text-muted-foreground mt-1.5">
+                                This tells the AI which national calendar term is "Year 1 — Foundations" for schools running this programme. Curriculum generation will place foundational content in the selected term.
+                              </p>
                             </div>
                           </div>
                           {/* Learning Experience */}
