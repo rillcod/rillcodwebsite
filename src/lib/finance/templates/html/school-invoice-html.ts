@@ -9,9 +9,18 @@
  * builder experience ONLY (live preview, manual print).
  */
 
+export interface PricingTierRow {
+  label: string;
+  count: number;
+  rate: number;
+  total: number;
+}
+
 export interface SchoolInvoiceHTMLInput {
   sch: { name: string };
   isFixed: boolean;
+  isTiered?: boolean;
+  tiers?: PricingTierRow[];
   count: number;
   ratePerChild: number;
   fixedPrice: number;
@@ -34,10 +43,11 @@ export interface SchoolInvoiceHTMLInput {
 
 export function buildSchoolInvoiceHTML(p: SchoolInvoiceHTMLInput): string {
   const {
-    sch, isFixed, count, ratePerChild, fixedPrice, quotaPct, subtotal, deposit,
+    sch, isFixed, isTiered, tiers, count, ratePerChild, fixedPrice, quotaPct, subtotal, deposit,
     rillcodShare, schoolShare, balance, revenueShareOn, dateStr, dueStr, docRef,
     payToAcc, showRevenueShare, showWhatsapp, notes, currency,
   } = p;
+  const activeTiers: PricingTierRow[] = isTiered && tiers && tiers.length > 0 ? tiers : [];
   const cur = (currency || 'NGN').toUpperCase();
   const fmt = (n: number) =>
     cur === 'USD'
@@ -137,12 +147,14 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
   </div>
 </div>
 <div class="meta-row">
-  ${isFixed
+  ${activeTiers.length > 0
+    ? activeTiers.map(t => `<div class="meta-cell"><div class="meta-label">${t.label}</div><div class="meta-val" style="font-size:12px">${t.count} × ${fmt(t.rate)}</div></div>`).join('')
+    : isFixed
     ? `<div class="meta-cell" style="background:#fff7ed;border-color:#ea580c33"><div class="meta-label" style="color:#ea580c">Pricing</div><div class="meta-val" style="color:#ea580c;font-size:11px">Fixed Package</div></div>`
     : `<div class="meta-cell"><div class="meta-label">Students</div><div class="meta-val">${count}</div></div>
        <div class="meta-cell"><div class="meta-label">Rate / Child</div><div class="meta-val">${fmt(ratePerChild)}</div></div>`
   }
-  <div class="meta-cell"><div class="meta-label">Package Price</div><div class="meta-val">${fmt(subtotal)}</div></div>
+  <div class="meta-cell"><div class="meta-label">Total Amount</div><div class="meta-val">${fmt(subtotal)}</div></div>
   ${showRevenueShare ? `
   <div class="meta-cell"><div class="meta-label">Rillcod %</div><div class="meta-val">${quotaPct}%</div></div>
   <div class="meta-cell"><div class="meta-label">School %</div><div class="meta-val">${100 - quotaPct}%</div></div>
@@ -151,32 +163,44 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
 <table>
 <thead><tr>
   <th>Description</th>
-  ${isFixed ? '' : '<th style="text-align:center">Students</th><th style="text-align:right">Rate / Child</th>'}
+  ${(activeTiers.length > 0 || !isFixed) ? '<th style="text-align:center">Students</th><th style="text-align:right">Rate / Child</th>' : ''}
   <th style="text-align:right">Amount</th>
 </tr></thead>
 <tbody>
-  <tr>
-    <td>
-      <b>${isFixed ? 'STEM / AI / Coding \u2014 Fixed School Package' : 'STEM / AI / Coding Programme Fee'}</b>
-      <br><span style="font-size:10px;color:#9ca3af">${sch.name} \u00b7 ${isFixed ? 'All students included \u2014 compulsory school programme' : 'Academic Term'}</span>
-    </td>
-    ${isFixed ? '' : `<td style="text-align:center;font-weight:700">${count}</td><td style="text-align:right">${fmt(ratePerChild)}</td>`}
-    <td style="text-align:right;font-weight:700">${fmt(subtotal)}</td>
-  </tr>
+  ${activeTiers.length > 0
+    ? activeTiers.map(t => `<tr>
+        <td>
+          <b>${t.label}</b>
+          <br><span style="font-size:10px;color:#9ca3af">${sch.name} \u00b7 Academic Term</span>
+        </td>
+        <td style="text-align:center;font-weight:700">${t.count}</td>
+        <td style="text-align:right">${fmt(t.rate)}</td>
+        <td style="text-align:right;font-weight:700">${fmt(t.total)}</td>
+      </tr>`).join('')
+    : `<tr>
+        <td>
+          <b>${isFixed ? 'STEM / AI / Coding \u2014 Fixed School Package' : 'STEM / AI / Coding Programme Fee'}</b>
+          <br><span style="font-size:10px;color:#9ca3af">${sch.name} \u00b7 ${isFixed ? 'All students included \u2014 compulsory school programme' : 'Academic Term'}</span>
+        </td>
+        ${isFixed ? '' : `<td style="text-align:center;font-weight:700">${count}</td><td style="text-align:right">${fmt(ratePerChild)}</td>`}
+        <td style="text-align:right;font-weight:700">${fmt(subtotal)}</td>
+      </tr>`
+  }
 </tbody>
 </table>
 <div class="totals-box">
-  <div class="totals-row">
-    <span class="totals-label">${isFixed ? `Fixed Package Price` : `Total Fee (${count} students \u00d7 ${fmt(ratePerChild)})`}</span>
-    <span class="totals-val">${fmt(subtotal)}</span>
-  </div>
+  ${activeTiers.length > 0
+    ? activeTiers.map(t => `<div class="totals-row"><span class="totals-label">${t.label} (${t.count} \u00d7 ${fmt(t.rate)})</span><span class="totals-val">${fmt(t.total)}</span></div>`).join('')
+    : `<div class="totals-row"><span class="totals-label">${isFixed ? `Fixed Package Price` : `Total Fee (${count} students \u00d7 ${fmt(ratePerChild)})`}</span><span class="totals-val">${fmt(subtotal)}</span></div>`
+  }
+  ${activeTiers.length > 0 ? `<hr/><div class="totals-row"><span class="totals-label"><b>Subtotal</b></span><span class="totals-val"><b>${fmt(subtotal)}</b></span></div>` : ''}
   ${revenueShareOn ? `
   <div class="totals-row">
     <span class="totals-label">Less School Commission / Share (${100 - quotaPct}%)</span>
     <span class="totals-val" style="color:#f43f5e">(${fmt(schoolShare)})</span>
   </div>
   ` : ''}
-  <div class="totals-row"><span class="totals-label">Less Deposit / Previous Payment</span><span class="totals-val" style="color:#059669">(${fmt(deposit)})</span></div>
+  ${deposit > 0 ? `<div class="totals-row"><span class="totals-label">Less Deposit / Previous Payment</span><span class="totals-val" style="color:#059669">(${fmt(deposit)})</span></div>` : ''}
   <hr/>
   <div class="totals-row"><span class="totals-grand-label">Total Payable Amount</span><span class="totals-grand-val">${fmt(balance)}</span></div>
 </div>

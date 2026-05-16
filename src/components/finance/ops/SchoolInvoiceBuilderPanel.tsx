@@ -29,14 +29,21 @@ interface PaymentAccount {
   owner_type: 'rillcod' | 'school';
 }
 
-type PricingMode = 'per_student' | 'fixed_package';
+type PricingMode = 'per_student' | 'fixed_package' | 'tiered';
 type Currency = 'NGN' | 'USD';
+
+interface PricingTier {
+  label: string;
+  count: string;
+  rate: string;
+}
 
 const BLANK = {
   school_id: '',
   pricing_mode: 'per_student' as PricingMode,
   rate_per_child: '',
   fixed_package_price: '',
+  tiers: [{ label: '', count: '', rate: '' }] as PricingTier[],
   rillcod_quota_percent: '',
   currency: 'NGN' as Currency,
   notes: '',
@@ -100,14 +107,28 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
         if (!inv) return;
         setEditingInvoiceId(inv.id);
         // Reverse-map invoice fields back to form state
-        const firstItem = Array.isArray(inv.items) ? inv.items.find((it: any) => (it.unit_price ?? 0) > 0) : null;
-        const isFixed = !firstItem?.quantity || firstItem.quantity === 1;
+        const mainItems: Array<{ description: string; quantity: number; unit_price: number }> =
+          Array.isArray(inv.items)
+            ? inv.items.filter((it: any) => (it.unit_price ?? 0) > 0 && (it.quantity ?? 0) > 1)
+            : [];
+        const hasMultipleItems = mainItems.length > 1;
+        const firstItem = mainItems[0] ?? (Array.isArray(inv.items) ? inv.items.find((it: any) => (it.unit_price ?? 0) > 0) : null);
+        const isFixed = !hasMultipleItems && (!firstItem?.quantity || firstItem.quantity === 1);
+        const pricingMode: PricingMode = hasMultipleItems ? 'tiered' : isFixed ? 'fixed_package' : 'per_student';
+        const restoredTiers: PricingTier[] = hasMultipleItems
+          ? mainItems.map((it) => ({
+              label: it.description.split('—')[0]?.trim().split('–')[0]?.trim() ?? 'Students',
+              count: String(it.quantity),
+              rate: String(it.unit_price),
+            }))
+          : [{ label: '', count: '', rate: '' }];
         setForm(f => ({
           ...f,
           school_id: inv.school_id ?? '',
-          pricing_mode: isFixed ? 'fixed_package' : 'per_student',
-          rate_per_child: isFixed ? '' : String(firstItem?.unit_price ?? ''),
-          fixed_package_price: isFixed ? String(firstItem?.unit_price ?? '') : '',
+          pricing_mode: pricingMode,
+          rate_per_child: pricingMode === 'per_student' ? String(firstItem?.unit_price ?? '') : '',
+          fixed_package_price: pricingMode === 'fixed_package' ? String(firstItem?.unit_price ?? '') : '',
+          tiers: restoredTiers,
           currency: (inv.currency ?? 'NGN') as Currency,
           due_date: inv.due_date ? inv.due_date.split('T')[0] : f.due_date,
           notes: inv.notes ?? '',
@@ -145,11 +166,24 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
 
   const computed = useMemo(() => {
     const isFixed = form.pricing_mode === 'fixed_package';
+    const isTiered = form.pricing_mode === 'tiered';
     const count = parseInt(form.manual_student_count) || studentCount || 0;
     const ratePerChild = parseFloat(form.rate_per_child) || 0;
     const fixedPrice = parseFloat(form.fixed_package_price) || 0;
     const quotaPct = parseFloat(form.rillcod_quota_percent) || 0;
-    const subtotal = isFixed ? fixedPrice : ratePerChild * count;
+
+    const computedTiers = isTiered
+      ? form.tiers.map((t) => {
+          const c = parseInt(t.count) || 0;
+          const r = parseFloat(t.rate) || 0;
+          return { label: t.label || 'Students', count: c, rate: r, total: c * r };
+        })
+      : [] as Array<{ label: string; count: number; rate: number; total: number }>;
+
+    const subtotal = isTiered
+      ? computedTiers.reduce((s, t) => s + t.total, 0)
+      : isFixed ? fixedPrice : ratePerChild * count;
+
     const deposit = parseFloat(form.deposit_amount) || 0;
     const revenueShareOn = form.show_revenue_share && quotaPct > 0;
     const rillcodShare = Math.round(subtotal * (quotaPct / 100));
@@ -160,6 +194,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
 
     return {
       isFixed,
+      isTiered,
+      computedTiers,
       count,
       ratePerChild,
       fixedPrice,
@@ -196,6 +232,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
     return buildSchoolInvoiceHTML({
       sch,
       isFixed: computed.isFixed,
+      isTiered: computed.isTiered,
+      tiers: computed.computedTiers.length > 0 ? computed.computedTiers : undefined,
       count: computed.count,
       ratePerChild: computed.ratePerChild,
       fixedPrice: computed.fixedPrice,
@@ -221,6 +259,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
     !!form.school_id &&
     (form.pricing_mode === 'per_student'
       ? computed.ratePerChild > 0
+      : form.pricing_mode === 'tiered'
+      ? computed.subtotal > 0
       : computed.fixedPrice > 0);
 
   const handlePrint = () => {
@@ -256,7 +296,14 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
 
     setSaving(true);
     try {
-      const items = computed.isFixed
+      const items = computed.isTiered
+        ? computed.computedTiers.map((t) => ({
+            description: `${t.label} \u2014 ${sch.name}`,
+            quantity: t.count,
+            unit_price: t.rate,
+            total: t.total,
+          }))
+        : computed.isFixed
         ? [
             {
               description:
@@ -447,8 +494,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
 
             <div>
               <Lbl>Pricing Mode</Lbl>
-              <div className="grid grid-cols-2 gap-1 border border-border rounded-md overflow-hidden">
-                {(['per_student', 'fixed_package'] as const).map((m) => (
+              <div className="grid grid-cols-3 gap-1 border border-border rounded-md overflow-hidden">
+                {(['per_student', 'tiered', 'fixed_package'] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -459,7 +506,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                         : 'bg-background text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {m === 'per_student' ? 'Per student' : 'Fixed'}
+                    {m === 'per_student' ? 'Per student' : m === 'tiered' ? 'Tiered' : 'Fixed'}
                   </button>
                 ))}
               </div>
@@ -523,6 +570,84 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                   }
                   className="w-full px-3 py-2 bg-primary/10 border border-primary/30 text-sm rounded-md focus:outline-none focus:border-primary font-bold"
                 />
+              </div>
+            )}
+
+            {form.pricing_mode === 'tiered' && (
+              <div className="sm:col-span-2 lg:col-span-4 space-y-3">
+                <Lbl>Student Tiers (group label · count · rate per student)</Lbl>
+                <div className="space-y-2">
+                  {form.tiers.map((tier, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        placeholder="e.g. Basic Students"
+                        value={tier.label}
+                        onChange={(e) =>
+                          setForm((f) => {
+                            const tiers = f.tiers.map((t, i) =>
+                              i === idx ? { ...t, label: e.target.value } : t,
+                            );
+                            return { ...f, tiers };
+                          })
+                        }
+                        className="flex-1 min-w-0 px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Count"
+                        value={tier.count}
+                        onChange={(e) =>
+                          setForm((f) => {
+                            const tiers = f.tiers.map((t, i) =>
+                              i === idx ? { ...t, count: e.target.value } : t,
+                            );
+                            return { ...f, tiers };
+                          })
+                        }
+                        className="w-20 px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary text-center"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Rate ₦"
+                        value={tier.rate}
+                        onChange={(e) =>
+                          setForm((f) => {
+                            const tiers = f.tiers.map((t, i) =>
+                              i === idx ? { ...t, rate: e.target.value } : t,
+                            );
+                            return { ...f, tiers };
+                          })
+                        }
+                        className="w-28 px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((f) => ({ ...f, tiers: f.tiers.filter((_, i) => i !== idx) }))
+                        }
+                        disabled={form.tiers.length === 1}
+                        className="p-2 text-muted-foreground hover:text-red-400 disabled:opacity-25 transition-colors shrink-0"
+                        title="Remove tier"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      tiers: [...f.tiers, { label: '', count: '', rate: '' }],
+                    }))
+                  }
+                  className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+                >
+                  + Add tier
+                </button>
               </div>
             )}
 
@@ -617,19 +742,32 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-5 items-center">
-                  <Stat label="Students" value={String(computed.count)} tone="primary" />
-                  {!computed.isFixed && (
-                    <Stat
-                      label="Rate / Child"
-                      value={`₦${computed.ratePerChild.toLocaleString()}`}
-                    />
-                  )}
-                  {computed.isFixed && (
-                    <Stat
-                      label="Fixed Package"
-                      value={`₦${computed.fixedPrice.toLocaleString()}`}
-                      tone="primary"
-                    />
+                  {computed.isTiered ? (
+                    computed.computedTiers.map((t, i) => (
+                      <Stat
+                        key={i}
+                        label={`${t.label} (${t.count}×)`}
+                        value={`₦${t.total.toLocaleString()}`}
+                        tone="primary"
+                      />
+                    ))
+                  ) : (
+                    <>
+                      <Stat label="Students" value={String(computed.count)} tone="primary" />
+                      {!computed.isFixed && (
+                        <Stat
+                          label="Rate / Child"
+                          value={`₦${computed.ratePerChild.toLocaleString()}`}
+                        />
+                      )}
+                      {computed.isFixed && (
+                        <Stat
+                          label="Fixed Package"
+                          value={`₦${computed.fixedPrice.toLocaleString()}`}
+                          tone="primary"
+                        />
+                      )}
+                    </>
                   )}
                   <Stat
                     label="Invoice Total"
