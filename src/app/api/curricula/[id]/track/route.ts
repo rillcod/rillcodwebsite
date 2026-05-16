@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { notificationsService } from '@/services/notifications.service';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,7 +97,7 @@ export async function POST(
   const admin = createAdminClient() as any;
   const { data: curriculum, error: currErr } = await admin
     .from('course_curricula')
-    .select('id, school_id')
+    .select('id, school_id, content')
     .eq('id', id)
     .maybeSingle();
   if (currErr) return NextResponse.json({ error: currErr.message }, { status: 500 });
@@ -156,7 +157,99 @@ export async function POST(
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Fire-and-forget: notify parents when a week is marked completed
+  if (status === 'completed' && schoolId) {
+    const notifSettings = curriculum?.content?.notification_settings ?? { mode: 'all', channels: ['whatsapp'] };
+    const shouldNotify = (() => {
+      if (notifSettings.mode === 'none') return false;
+      if (notifSettings.mode === 'all') return true;
+      if (notifSettings.mode === 'every_n') return week_number % (notifSettings.every_n ?? 4) === 0;
+      if (notifSettings.mode === 'specific') return (notifSettings.specific_weeks ?? []).includes(week_number);
+      return false;
+    })();
+    if (shouldNotify) {
+      void notifyParentsWeekComplete({
+        schoolId,
+        curriculumId: id,
+        termNumber: term_number,
+        weekNumber: week_number,
+        weekTopic: body.week_topic ?? null,
+        courseName: body.course_name ?? null,
+        channels: notifSettings.channels ?? ['whatsapp'],
+      }).catch(() => {});
+    }
+  }
+
   return NextResponse.json({ data });
+}
+
+// Notify parents of students in a school that a curriculum week was completed
+async function notifyParentsWeekComplete(opts: {
+  schoolId: string;
+  curriculumId: string;
+  termNumber: number;
+  weekNumber: number;
+  weekTopic: string | null;
+  courseName: string | null;
+  channels: string[];
+}) {
+  const { schoolId, termNumber, weekNumber, weekTopic, courseName, channels } = opts;
+  const phoneId = process.env.WHATSAPP_PHONE_ID || '1165370629985726';
+  const whatsappToken = process.env.WHATSAPP_API_TOKEN;
+
+  const admin = createAdminClient() as any;
+
+  // Get parent contact info from students in this school
+  const { data: students } = await admin
+    .from('portal_users')
+    .select('id, full_name, student_id, students(parent_phone, parent_name, parent_email)')
+    .eq('school_id', schoolId)
+    .eq('role', 'student')
+    .limit(200);
+
+  if (!students?.length) return;
+
+  const TERM_LABELS: Record<number, string> = { 1: 'First Term', 2: 'Second Term', 3: 'Third Term' };
+  const termLabel = TERM_LABELS[termNumber] ?? `Term ${termNumber}`;
+  const topicLine = weekTopic ? ` — *${weekTopic}*` : '';
+  const courseLine = courseName ? ` (${courseName})` : '';
+  const whatsappBody = `✅ *Rillcod Technologies*\n\nYour child has completed *${termLabel} Week ${weekNumber}*${topicLine}${courseLine}.\n\nKeep encouraging them — great progress! 🎉`;
+  const whatsappApiUrl = `https://graph.facebook.com/v19.0/${phoneId}/messages`;
+
+  for (const student of students) {
+    const info = Array.isArray(student.students) ? student.students[0] : student.students;
+
+    // WhatsApp notification
+    if (channels.includes('whatsapp') && whatsappToken) {
+      const phone = info?.parent_phone;
+      if (phone) {
+        const cleanPhone = String(phone).replace(/\D+/g, '').replace(/^0/, '234');
+        await fetch(whatsappApiUrl, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${whatsappToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: cleanPhone,
+            type: 'text',
+            text: { body: whatsappBody },
+          }),
+        }).catch(() => {});
+      }
+    }
+
+    // Email notification
+    if (channels.includes('email') && info?.parent_email) {
+      const htmlBody = `<p>Your child has completed <b>${termLabel} Week ${weekNumber}</b>${weekTopic ? ` — <b>${weekTopic}</b>` : ''}${courseName ? ` (${courseName})` : ''}.</p><p>Keep encouraging them — great progress! 🎉</p><p style="color:#888;font-size:12px;">— Rillcod Technologies</p>`;
+      await notificationsService.sendExternalEmail({
+        to: info.parent_email,
+        subject: `Week ${weekNumber} completed — ${courseName ?? 'Rillcod'}`,
+        html: htmlBody,
+        fromName: 'Rillcod Technologies',
+        fromEmail: 'no-reply@rillcod.com',
+      }).catch(() => {});
+    }
+  }
 }
 
 // DELETE /api/curricula/[id]/track?term=1

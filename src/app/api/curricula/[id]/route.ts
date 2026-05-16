@@ -83,8 +83,31 @@ export async function PATCH(
     updatePayload.is_visible_to_school = body.is_visible_to_school;
   }
   if (body.content !== undefined) {
+    // Full content update — bumps version
     updatePayload.content = body.content;
     updatePayload.version = (row.version ?? 1) + 1;
+  } else if (body.term_start_dates && typeof body.term_start_dates === 'object') {
+    // Merge term start dates into existing content WITHOUT bumping version
+    const { data: currentRow } = await admin
+      .from('course_curricula')
+      .select('content')
+      .eq('id', id)
+      .single();
+    const existingContent: any = currentRow?.content ?? {};
+    const updatedTerms = (existingContent.terms ?? []).map((t: any) => ({
+      ...t,
+      start_date: (body.term_start_dates as Record<string, string>)[String(t.term)] ?? t.start_date,
+    }));
+    updatePayload.content = { ...existingContent, terms: updatedTerms };
+  } else if (body.notification_settings !== undefined) {
+    // Merge notification settings into existing content WITHOUT bumping version
+    const { data: currentRow } = await admin
+      .from('course_curricula')
+      .select('content')
+      .eq('id', id)
+      .single();
+    const existingContent: any = currentRow?.content ?? {};
+    updatePayload.content = { ...existingContent, notification_settings: body.notification_settings };
   }
 
   if (Object.keys(updatePayload).length === 1) {

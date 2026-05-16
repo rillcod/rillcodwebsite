@@ -7,7 +7,7 @@ import {
   ChartBarIcon, BookOpenIcon, BuildingOfficeIcon, CheckCircleIcon,
   ExclamationTriangleIcon, ArrowPathIcon,
   AcademicCapIcon, SparklesIcon, ChevronDownIcon, ChevronRightIcon,
-  PresentationChartLineIcon, EyeIcon, EyeSlashIcon,
+  PresentationChartLineIcon, EyeIcon, EyeSlashIcon, DocumentDuplicateIcon,
 } from '@/lib/icons';
 
 // ── Nigerian Term Calendar ────────────────────────────────────────────────────
@@ -502,6 +502,107 @@ export default function CurriculumProgressPage() {
             )}
           </div>
         )}
+
+        {/* ── Curriculum Adoption Analytics — admin/teacher only ── */}
+        {!isSchool && !loading && data.length > 0 && (() => {
+          // Platform curricula = school_id null rows
+          const platformCurricula = data.filter(c =>
+            c.per_school.some(s => s.school_id === null)
+          );
+          if (platformCurricula.length === 0) return null;
+
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+                    <DocumentDuplicateIcon className="w-4 h-4 text-primary" />
+                    Platform Template Adoption
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    How many schools have cloned and are using each shared Rillcod template.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {platformCurricula.map(curr => {
+                  // School versions = all rows from other curricula sharing the same course_id but with a school_id
+                  const adoptedBySchools = data.filter(c =>
+                    c.course_id === curr.course_id && c.per_school.some(s => s.school_id !== null)
+                  );
+                  const adoptedCount = new Set(
+                    adoptedBySchools.flatMap(c => c.per_school.filter(s => s.school_id).map(s => s.school_id))
+                  ).size;
+                  const avgProgress = adoptedBySchools.length > 0
+                    ? Math.round(
+                        adoptedBySchools.flatMap(c => c.per_school.filter(s => s.school_id)).reduce((a, s) => a + s.pct, 0) /
+                        adoptedBySchools.flatMap(c => c.per_school.filter(s => s.school_id)).length
+                      )
+                    : 0;
+
+                  return (
+                    <div key={curr.curriculum_id} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-muted-foreground font-black uppercase tracking-wider truncate">{curr.program_name}</p>
+                          <h3 className="font-black text-sm truncate leading-snug mt-0.5">{curr.course_title}</h3>
+                        </div>
+                        <span className="text-[9px] font-black px-2 py-1 bg-primary/10 text-primary border border-primary/20 rounded shrink-0">
+                          Platform v{curr.version}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-background border border-border rounded-lg py-2">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Weeks</p>
+                          <p className="text-sm font-black">{curr.total_weeks}</p>
+                        </div>
+                        <div className="bg-background border border-border rounded-lg py-2">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Adopted</p>
+                          <p className={`text-sm font-black ${adoptedCount > 0 ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                            {adoptedCount}
+                          </p>
+                        </div>
+                        <div className="bg-background border border-border rounded-lg py-2">
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold">Avg %</p>
+                          <p className={`text-sm font-black ${avgProgress >= 75 ? 'text-emerald-400' : avgProgress > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                            {adoptedCount > 0 ? `${avgProgress}%` : '—'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {adoptedCount === 0 ? (
+                        <p className="text-[10px] text-muted-foreground text-center py-1">No school has cloned this template yet.</p>
+                      ) : (
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-muted-foreground">Delivery across adopters</span>
+                            <span className="font-black">{avgProgress}%</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${avgProgress >= 75 ? 'bg-emerald-500' : avgProgress >= 40 ? 'bg-amber-500' : avgProgress > 0 ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                              style={{ width: `${avgProgress}%` }}
+                            />
+                          </div>
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {adoptedBySchools.flatMap(c =>
+                              c.per_school.filter(s => s.school_id).map(s => (
+                                <span key={s.school_id} className="text-[9px] px-1.5 py-0.5 bg-muted/40 border border-border rounded font-bold truncate max-w-[120px]">
+                                  {s.school_name}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Curricula list */}
         {loading ? (

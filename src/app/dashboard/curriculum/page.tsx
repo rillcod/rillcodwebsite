@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useAcademicYear } from '@/contexts/academic-year-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -14,7 +15,8 @@ import {
   PrinterIcon, PencilIcon, ChartBarIcon, BoltIcon, InformationCircleIcon,
   RocketLaunchIcon, ArrowRightIcon, StarIcon, EyeIcon, MagnifyingGlassIcon,
   Squares2X2Icon, PlusIcon, CalendarDaysIcon, TrashIcon, PresentationChartLineIcon,
-  BuildingOfficeIcon, LockClosedIcon, ArrowDownTrayIcon, ShieldCheckIcon,
+  BuildingOfficeIcon, LockClosedIcon, ArrowDownTrayIcon, ShieldCheckIcon, DocumentDuplicateIcon,
+  BellIcon,
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { buildAddLessonQueryFromCurriculum } from '@/lib/curriculum/add-lesson-from-curriculum';
@@ -73,6 +75,31 @@ function termDatesNg(term: string, academicYear: string): { start: string; end: 
   return null;
 }
 
+// Returns the Mon–Fri date range for a given week number within a term
+function weekDateRange(
+  termNum: string | number,
+  weekNum: number,
+  academicYear: string,
+  termStartDate?: string,
+): { start: string; end: string } | null {
+  const termDates = termStartDate
+    ? { start: termStartDate, end: '' }
+    : termDatesNg(String(termNum), academicYear);
+  if (!termDates) return null;
+  const termStart = new Date(termDates.start);
+  // Find first Monday on or after term start
+  const day = termStart.getDay();
+  const toMon = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
+  const week1Mon = new Date(termStart);
+  week1Mon.setDate(week1Mon.getDate() + toMon);
+  const weekMon = new Date(week1Mon);
+  weekMon.setDate(weekMon.getDate() + (weekNum - 1) * 7);
+  const weekFri = new Date(weekMon);
+  weekFri.setDate(weekFri.getDate() + 4);
+  const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return { start: fmt(weekMon), end: fmt(weekFri) };
+}
+
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type WeekType = 'lesson' | 'assessment' | 'examination';
@@ -116,6 +143,14 @@ interface CurriculumTerm {
   title: string;
   objectives: string[];
   weeks: CurriculumWeek[];
+  start_date?: string;
+}
+
+interface NotificationSettings {
+  mode: 'all' | 'every_n' | 'specific' | 'none';
+  channels: ('whatsapp' | 'email')[];
+  every_n?: number;
+  specific_weeks?: number[];
 }
 
 interface CurriculumContent {
@@ -126,6 +161,7 @@ interface CurriculumContent {
   assessment_strategy: string;
   materials_required: string[];
   recommended_tools: string[];
+  notification_settings?: NotificationSettings;
   description?: string | null;
 }
 
@@ -190,6 +226,7 @@ const GRADE_SCOPE_STORAGE_KEY = 'curriculum.gradeByScope.v1';
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CurriculumPage() {
   const { profile, isLoading: authLoading, profileLoading } = useAuth();
+  const { academicYear, yearOptions, setAcademicYear: setGlobalAcademicYear } = useAcademicYear();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -244,6 +281,22 @@ export default function CurriculumPage() {
   const [previewRole, setPreviewRole] = useState<SyllabusPreviewRole | null>(null);
   const [loadError, setLoadError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [cloning, setCloning] = useState(false);
+  const [showCloneModal, setShowCloneModal] = useState<{ curriculumId: string } | null>(null);
+  const [cloneTargetSchool, setCloneTargetSchool] = useState('');
+  const [bulkMarkingTerm, setBulkMarkingTerm] = useState<number | null>(null);
+
+  // Term start date state
+  const [termStartDates, setTermStartDates] = useState<Record<number, string>>({});
+  const [editingTermDate, setEditingTermDate] = useState<number | null>(null);
+  const [termDateDraft, setTermDateDraft] = useState('');
+  const [savingTermDate, setSavingTermDate] = useState(false);
+
+  // Notification settings state
+  const [showNotifSettings, setShowNotifSettings] = useState(false);
+  const [savingNotifSettings, setSavingNotifSettings] = useState(false);
+  const [notifSettingsDraft, setNotifSettingsDraft] = useState<NotificationSettings>({ mode: 'all', channels: ['whatsapp'] });
+
   /** Filter sidebar programs / courses (builder mode). */
   const [catalogQuery, setCatalogQuery] = useState('');
   /** All syllabus rows for the selected course (global vs school-scoped, versions). */
@@ -294,7 +347,7 @@ export default function CurriculumPage() {
     school_id: '',
     class_id: '',
     term: '1',
-    academic_year: currentAcademicYear(),
+    academic_year: academicYear,
     term_start: new Date().toISOString().split('T')[0],
     term_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     sessions_per_week: '5',
@@ -1199,6 +1252,10 @@ export default function CurriculumPage() {
             selfpaced_modules: Number(selfpacedModules),
             selfpaced_hours_per_module: Number(selfpacedHoursPerModule),
           } : {}),
+          // Term start dates (school format only)
+          ...(curriculumFormat === 'school' && Object.keys(termStartDates).length > 0 ? {
+            term_start_dates: termStartDates,
+          } : {}),
         }),
       });
       const json = await res.json();
@@ -1235,6 +1292,8 @@ export default function CurriculumPage() {
         status,
         teacher_notes: notes || notesDraft || null,
         actual_date: new Date().toISOString().split('T')[0],
+        week_topic: week.topic ?? null,
+        course_name: selectedCourse?.title ?? null,
       }),
     });
     const json = await res.json();
@@ -1268,6 +1327,88 @@ export default function CurriculumPage() {
     await fetch(`/api/curricula/${curriculum.id}/track`, { method: 'DELETE' });
     setTracking([]);
     setResettingAll(false);
+  }
+
+  // ── Bulk mark all weeks in a term ────────────────────────────────────────
+  async function bulkMarkTerm(termNum: number, status: TrackStatus) {
+    if (!curriculum || !canTrack) return;
+    const termData = curriculum.content.terms?.find(t => t.term === termNum);
+    if (!termData?.weeks?.length) return;
+    const label = status === 'completed' ? 'complete' : status;
+    if (!confirm(`Mark all ${termData.weeks.length} weeks in Term ${termNum} as ${label}?`)) return;
+    setBulkMarkingTerm(termNum);
+    try {
+      const weeks = (termData.weeks ?? []).map((w: CurriculumWeek) => ({
+        term_number: termNum,
+        week_number: w.week,
+        status,
+      }));
+      const res = await fetch(`/api/curricula/${curriculum.id}/track/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weeks }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Bulk update failed');
+      // Merge returned records into tracking state
+      setTracking(prev => {
+        const updated = prev.filter(t => t.term_number !== termNum);
+        return [...updated, ...(json.data ?? [])];
+      });
+      toast.success(`All Term ${termNum} weeks marked as ${label}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Bulk update failed');
+    } finally {
+      setBulkMarkingTerm(null);
+    }
+  }
+
+  // ── Save term start date ─────────────────────────────────────────────────
+  async function saveTermDate(termNum: number, dateStr: string) {
+    if (!curriculum) return;
+    setSavingTermDate(true);
+    try {
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ term_start_dates: { [termNum]: dateStr } }),
+      });
+      if (!res.ok) throw new Error('Failed to save date');
+      setCurriculum(prev => {
+        if (!prev) return prev;
+        const terms = (prev.content.terms ?? []).map(t =>
+          t.term === termNum ? { ...t, start_date: dateStr } : t
+        );
+        return { ...prev, content: { ...prev.content, terms } };
+      });
+      setEditingTermDate(null);
+      toast.success('Term date updated');
+    } catch {
+      toast.error('Failed to save term date');
+    } finally {
+      setSavingTermDate(false);
+    }
+  }
+
+  // ── Save notification settings ───────────────────────────────────────────
+  async function saveNotifSettings(settings: NotificationSettings) {
+    if (!curriculum) return;
+    setSavingNotifSettings(true);
+    try {
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notification_settings: settings }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setCurriculum(prev => prev ? { ...prev, content: { ...prev.content, notification_settings: settings } } : prev);
+      setShowNotifSettings(false);
+      toast.success('Notification settings saved');
+    } catch {
+      toast.error('Failed to save notification settings');
+    } finally {
+      setSavingNotifSettings(false);
+    }
   }
 
   // ── Assign week content to students ──────────────────────────────────────
@@ -1732,6 +1873,38 @@ export default function CurriculumPage() {
       toast.error(e.message || 'Deletion failed');
     } finally {
       setDeleting(false);
+    }
+  }
+
+  // ── Clone curriculum ─────────────────────────────────────────────────────
+  async function handleClone(curriculumId: string, schoolId?: string) {
+    // If teacher has multiple schools and no target chosen yet, show the modal
+    const targetSchool = schoolId ?? (assignedSchools.length === 1 ? assignedSchools[0].id : '');
+    if (!targetSchool) {
+      setCloneTargetSchool('');
+      setShowCloneModal({ curriculumId });
+      return;
+    }
+    setCloning(true);
+    try {
+      const res = await fetch(`/api/curricula/${curriculumId}/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ school_id: targetSchool }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Clone failed');
+      toast.success(`Cloned to ${json.data?.schools?.name ?? 'your school'} — v${json.data?.version}`);
+      // Add to list and open the new curriculum
+      const newCurr = json.data as CurriculumDoc;
+      setCurriculumList(prev => [newCurr, ...prev]);
+      setCurriculum(newCurr);
+      setTracking([]);
+      setShowCloneModal(null);
+    } catch (e: any) {
+      toast.error(e.message || 'Clone failed');
+    } finally {
+      setCloning(false);
     }
   }
 
@@ -2465,28 +2638,43 @@ export default function CurriculumPage() {
                                   <span className="text-[10px] font-black uppercase tracking-widest text-primary opacity-0 group-hover:opacity-100 transition-opacity">Open Syllabus →</span>
                                 </div>
                               </button>
-                              {/* Delete button — always visible, bottom right */}
-                              {(isAdmin || (isTeacher && !!c.school_id)) && (
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (!confirm(`Delete "${c.content?.description || `Version ${c.version}`}"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`)) return;
-                                    const res = await fetch(`/api/curricula/${c.id}`, { method: 'DELETE' });
-                                    if (res.ok) {
-                                      const updated = curriculumList.filter(x => x.id !== c.id);
-                                      setCurriculumList(updated);
-                                      toast.success('Syllabus version deleted');
-                                    } else {
-                                      const j = await res.json().catch(() => ({}));
-                                      toast.error(j.error ?? 'Delete failed');
-                                    }
-                                  }}
-                                  className="absolute bottom-3 right-3 text-[9px] font-black uppercase tracking-widest text-rose-400/60 hover:text-rose-400 border border-rose-500/0 hover:border-rose-500/30 px-2 py-1 transition-all hover:bg-rose-500/10"
-                                  title="Delete this syllabus version"
-                                >
-                                  Delete
-                                </button>
-                              )}
+                              {/* Bottom action row: clone (platform only, teachers) + delete */}
+                              <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+                                {/* Clone to My School — platform cards only, teachers */}
+                                {isTeacher && !c.school_id && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleClone(c.id); }}
+                                    disabled={cloning}
+                                    className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-400/70 hover:text-emerald-400 border border-emerald-500/0 hover:border-emerald-500/30 px-2 py-1 transition-all hover:bg-emerald-500/10 disabled:opacity-50"
+                                    title="Clone to my school"
+                                  >
+                                    {cloning ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <DocumentDuplicateIcon className="w-3 h-3" />}
+                                    Clone
+                                  </button>
+                                )}
+                                {/* Delete — school curricula only (admin always, teacher only their own) */}
+                                {(isAdmin || (isTeacher && !!c.school_id)) && (
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (!confirm(`Delete "${c.content?.description || `Version ${c.version}`}"?\n\nThis will also delete all linked lesson plans and week tracking. This cannot be undone.`)) return;
+                                      const res = await fetch(`/api/curricula/${c.id}`, { method: 'DELETE' });
+                                      if (res.ok) {
+                                        const updated = curriculumList.filter(x => x.id !== c.id);
+                                        setCurriculumList(updated);
+                                        toast.success('Syllabus version deleted');
+                                      } else {
+                                        const j = await res.json().catch(() => ({}));
+                                        toast.error(j.error ?? 'Delete failed');
+                                      }
+                                    }}
+                                    className="text-[9px] font-black uppercase tracking-widest text-rose-400/60 hover:text-rose-400 border border-rose-500/0 hover:border-rose-500/30 px-2 py-1 transition-all hover:bg-rose-500/10"
+                                    title="Delete this syllabus version"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
@@ -2538,6 +2726,22 @@ export default function CurriculumPage() {
                                 ))}
                               </optgroup>
                             )}
+                          </select>
+                        </div>
+                      )}
+                      {/* Academic year switcher — always visible for staff */}
+                      {canModifyCurriculum && (
+                        <div className="inline-flex items-center rounded-lg border border-white/10 bg-card/50 px-2.5 h-[28px] backdrop-blur-sm ml-auto">
+                          <CalendarDaysIcon className="w-3 h-3 text-muted-foreground mr-1.5" />
+                          <select
+                            value={academicYear}
+                            onChange={e => setGlobalAcademicYear(e.target.value, profile?.school_id ?? undefined)}
+                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest text-primary focus:ring-0 p-0 pr-5 h-full cursor-pointer"
+                            title="Academic Year"
+                          >
+                            {yearOptions.map(y => (
+                              <option key={y} value={y} className="bg-[#0a0a0a] text-foreground">{y}</option>
+                            ))}
                           </select>
                         </div>
                       )}
@@ -2596,6 +2800,19 @@ export default function CurriculumPage() {
                           </button>
                         )
                       )}
+                      {/* Clone to school — only on platform curricula, for teachers */}
+                      {isTeacher && !curriculum.school_id && (
+                        <button
+                          onClick={() => handleClone(curriculum.id)}
+                          disabled={cloning}
+                          className="flex items-center gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white transition-all rounded-lg shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                          title="Copy this platform template to your school so you can customise it"
+                        >
+                          {cloning ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <DocumentDuplicateIcon className="w-3.5 h-3.5" />}
+                          <span className="hidden sm:inline">Clone to My School</span>
+                          <span className="sm:hidden">Clone</span>
+                        </button>
+                      )}
                       <button
                         onClick={openPrintOptions}
                         className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg"
@@ -2604,6 +2821,17 @@ export default function CurriculumPage() {
                         <span className="hidden sm:inline">Print / Export</span>
                         <span className="sm:hidden">Export</span>
                       </button>
+                      {canModifyCurriculum && (
+                        <button
+                          onClick={() => {
+                            setNotifSettingsDraft(curriculum.content.notification_settings ?? { mode: 'all', channels: ['whatsapp'] });
+                            setShowNotifSettings(true);
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg"
+                        >
+                          <BellIcon className="w-3.5 h-3.5" /> Notifications
+                        </button>
+                      )}
                       <Link
                         href="/dashboard/curriculum/progress"
                         className="flex items-center gap-2 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg"
@@ -2663,10 +2891,73 @@ export default function CurriculumPage() {
 
                   {/* Term title & objectives */}
                   {currentTermData && (
-                    <div className="space-y-1">
-                      <h2 className="text-lg font-black">Term {currentTermData.term}: {currentTermData.title}</h2>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h2 className="text-lg font-black">Term {currentTermData.term}: {currentTermData.title}</h2>
+                          {(() => {
+                            const customStart = currentTermData.start_date;
+                            const td = customStart
+                              ? { start: customStart, end: termDatesNg(String(activeTerm), academicYear)?.end ?? '' }
+                              : termDatesNg(String(activeTerm), academicYear);
+                            if (!td) return null;
+                            return (
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {editingTermDate === activeTerm ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="date"
+                                      defaultValue={currentTermData.start_date ?? termDatesNg(String(activeTerm), academicYear)?.start ?? ''}
+                                      onBlur={e => { if (e.target.value) saveTermDate(activeTerm, e.target.value); else setEditingTermDate(null); }}
+                                      autoFocus
+                                      className="text-xs bg-background border border-primary rounded px-2 py-1 text-foreground"
+                                    />
+                                    {savingTermDate && <ArrowPathIcon className="w-3 h-3 animate-spin text-muted-foreground" />}
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="text-[11px] text-muted-foreground font-bold">
+                                      {new Date(td.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                      {td.end ? (
+                                        <>{' – '}{new Date(td.end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+                                      ) : null}
+                                    </p>
+                                    {canModifyCurriculum && (
+                                      <button
+                                        onClick={() => {
+                                          setEditingTermDate(activeTerm);
+                                          setTermDateDraft(currentTermData.start_date ?? termDatesNg(String(activeTerm), academicYear)?.start ?? '');
+                                        }}
+                                        className="p-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                                        title="Edit term start date"
+                                      >
+                                        <PencilIcon className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        {canTrack && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => bulkMarkTerm(activeTerm, 'completed')}
+                              disabled={bulkMarkingTerm === activeTerm}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all disabled:opacity-50"
+                              title="Mark every week in this term as completed"
+                            >
+                              {bulkMarkingTerm === activeTerm
+                                ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                                : <CheckCircleIcon className="w-3 h-3" />}
+                              Mark term complete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       {currentTermData.objectives?.length > 0 && (
-                        <ul className="flex flex-wrap gap-2 mt-2">
+                        <ul className="flex flex-wrap gap-2">
                           {currentTermData.objectives.map((o, i) => (
                             <li key={i} className="text-[11px] bg-muted text-muted-foreground px-2.5 py-1 border border-border font-bold">
                               {o}
@@ -2687,6 +2978,7 @@ export default function CurriculumPage() {
                         const TrackIcon = trackMeta.icon;
                         const WeekIcon = meta.icon;
                         const isActive = activeWeek?.week === week.week;
+                        const dateRange = weekDateRange(activeTerm, week.week, academicYear, currentTermData?.start_date);
 
                         return (
                           <div
@@ -2733,9 +3025,16 @@ export default function CurriculumPage() {
                               >
                                 {/* Week number + type badge */}
                                 <div className="flex items-center justify-between gap-1">
-                                  <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-60">
-                                    Week {week.week}
-                                  </span>
+                                  <div>
+                                    <span className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-60">
+                                      Week {week.week}
+                                    </span>
+                                    {dateRange && (
+                                      <p className="text-[9px] text-muted-foreground/50 font-bold mt-0.5 leading-none">
+                                        {dateRange.start} – {dateRange.end}
+                                      </p>
+                                    )}
+                                  </div>
                                   <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border ${meta.color}`}>
                                     {meta.label}
                                   </span>
@@ -3062,6 +3361,14 @@ export default function CurriculumPage() {
                 {(activeWeek.subtopics ?? []).length > 0 && (
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{(activeWeek.subtopics ?? []).join(' · ')}</p>
                 )}
+                {(() => {
+                  const dr = weekDateRange(activeTerm, activeWeek.week, academicYear, curriculum?.content?.terms?.find(t => t.term === activeTerm)?.start_date);
+                  return dr ? (
+                    <p className="text-[10px] text-muted-foreground/60 font-bold mt-1">
+                      {dr.start} – {dr.end}
+                    </p>
+                  ) : null;
+                })()}
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {canGenerate && (activeWeek.lesson_plan || activeWeek.assessment_plan) && (
@@ -3177,14 +3484,74 @@ export default function CurriculumPage() {
                 )}
 
 
-                {/* Quick-create actions — simplified */}
+                {/* Quick-create actions */}
                 {canTrack && (
-                  <div className="space-y-3 bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-center">
-                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Add content for this week</p>
-                    <p className="text-xs text-muted-foreground mt-2 mb-4">
-                      Please head over to your <Link href="/dashboard/lesson-plans" className="text-primary hover:underline">Lesson Plans</Link> to create and manage lessons, assignments, projects, and exams for your classes.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-3 bg-white/[0.02] border border-white/10 rounded-2xl p-4">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest text-center">Actions for this week</p>
+
+                    {/* Assessment / Exam quick-create — shown only for those week types */}
+                    {(activeWeek.type === 'assessment' || activeWeek.type === 'examination') && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            const params = new URLSearchParams({
+                              topic: activeWeek.topic,
+                              week: String(activeWeek.week),
+                              term: String(activeTerm),
+                              course: selectedCourse?.title ?? '',
+                              curriculum_id: curriculum?.id ?? '',
+                              exam_type: activeWeek.type === 'examination' ? 'examination' : 'evaluation',
+                            });
+                            router.push(`/dashboard/cbt/new?${params.toString()}`);
+                          }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2.5 border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors rounded-xl"
+                        >
+                          <DocumentTextIcon className="w-4 h-4" />
+                          <span className="text-xs font-bold">Create CBT Exam</span>
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!curriculum) return;
+                            const dr = weekDateRange(activeTerm, activeWeek.week, academicYear, curriculum?.content?.terms?.find(t => t.term === activeTerm)?.start_date);
+                            const dueDate = dr
+                              ? new Date(new Date().getFullYear(), new Date().getMonth(), parseInt(dr.end.split(' ')[0]) + 2).toISOString().split('T')[0]
+                              : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+                            const r = await fetch('/api/assignments', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                title: `${activeWeek.type === 'examination' ? 'Exam' : 'Assessment'}: ${activeWeek.topic}`,
+                                description: `Term ${activeTerm} Week ${activeWeek.week} — ${activeWeek.topic}`,
+                                assignment_type: activeWeek.type === 'examination' ? 'exam' : 'test',
+                                due_date: dueDate,
+                                max_points: 100,
+                                is_active: true,
+                                curriculum_week_type: activeWeek.type,
+                              }),
+                            });
+                            const j = await r.json();
+                            if (r.ok) {
+                              toast.success('Assessment assignment created');
+                              router.push(`/dashboard/assignments/${j.data.id}`);
+                            } else {
+                              toast.error(j.error ?? 'Failed to create assignment');
+                            }
+                          }}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2.5 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors rounded-xl"
+                        >
+                          <ClipboardDocumentListIcon className="w-4 h-4" />
+                          <span className="text-xs font-bold">Create Assignment</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {activeWeek.type === 'lesson' && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Head to <Link href="/dashboard/lesson-plans" className="text-primary hover:underline">Lesson Plans</Link> to create and manage lessons, projects, and assignments for your classes.
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                       <button
                         onClick={printWeek}
                         className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
@@ -3202,7 +3569,7 @@ export default function CurriculumPage() {
                       </button>
                       <button
                         onClick={openPrintOptions}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-center border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors rounded-xl bg-white/5 col-span-full sm:col-span-1"
                       >
                         <PrinterIcon className="w-4 h-4" />
                         <span className="text-xs font-bold">Print / Export Syllabus</span>
@@ -3406,6 +3773,27 @@ export default function CurriculumPage() {
                       {selectedTerms.length === 3 ? 'Full academic year.' : selectedTerms.map(t => TERM_LABEL[t]).join(' + ') + '.'}
                       {' '}{selectedTerms.length} term{selectedTerms.length > 1 ? 's' : ''} × {form.weeks_per_term} weeks = <strong className="text-foreground">{selectedTerms.length * Number(form.weeks_per_term)} total weeks</strong>.
                     </p>
+                    {/* Term start dates */}
+                    <div className="space-y-2 pt-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        Term start dates <span className="font-normal normal-case opacity-60">(optional — defaults to Nigerian calendar)</span>
+                      </label>
+                      {[...selectedTerms].sort((a, b) => a - b).map(t => {
+                        const fallback = termDatesNg(String(t), academicYear)?.start ?? '';
+                        return (
+                          <div key={t} className="flex items-center gap-3">
+                            <span className="text-[10px] font-black text-muted-foreground w-24 shrink-0">{TERM_LABEL[t]}</span>
+                            <input
+                              type="date"
+                              value={termStartDates[t] ?? ''}
+                              placeholder={fallback}
+                              onChange={e => setTermStartDates(prev => ({ ...prev, [t]: e.target.value }))}
+                              className={INPUT_CLS + ' flex-1 text-xs'}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -3609,7 +3997,7 @@ export default function CurriculumPage() {
                       onChange={e => setImplForm(f => ({ ...f, academic_year: e.target.value }))}
                       className={SELECT_CLS}
                     >
-                      {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
+                      {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -3706,6 +4094,190 @@ export default function CurriculumPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Notification Settings Modal ── */}
+      {showNotifSettings && curriculum && canModifyCurriculum && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
+          <div className="bg-card border border-border w-full sm:max-w-md sm:rounded-xl rounded-t-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h2 className="font-black text-sm flex items-center gap-2">
+                <BellIcon className="w-4 h-4 text-primary" /> Parent Notifications
+              </h2>
+              <button onClick={() => setShowNotifSettings(false)} className="p-2 hover:bg-muted/50 rounded-lg">
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-5">
+              {/* Channel selection */}
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">Channels</label>
+                <div className="flex gap-2">
+                  {(['whatsapp', 'email'] as const).map(ch => (
+                    <button
+                      key={ch}
+                      onClick={() => setNotifSettingsDraft(prev => ({
+                        ...prev,
+                        channels: prev.channels.includes(ch)
+                          ? prev.channels.filter(c => c !== ch)
+                          : [...prev.channels, ch],
+                      }))}
+                      className={`flex-1 py-2 border text-xs font-black uppercase tracking-widest transition-all rounded-lg ${
+                        notifSettingsDraft.channels.includes(ch)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background text-muted-foreground border-border hover:border-primary/40'
+                      }`}
+                    >
+                      {ch === 'whatsapp' ? '📱 WhatsApp' : '📧 Email'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* When to notify */}
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">When to notify</label>
+                <div className="space-y-1.5">
+                  {([
+                    { value: 'all',      label: 'Every completed week' },
+                    { value: 'every_n',  label: 'Every N weeks' },
+                    { value: 'specific', label: 'Specific weeks only' },
+                    { value: 'none',     label: 'Never (off)' },
+                  ] as const).map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setNotifSettingsDraft(prev => ({ ...prev, mode: value }))}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 border rounded-lg text-xs font-bold text-left transition-all ${
+                        notifSettingsDraft.mode === value
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border text-muted-foreground hover:border-foreground/30'
+                      }`}
+                    >
+                      <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${notifSettingsDraft.mode === value ? 'bg-primary border-primary' : 'border-muted-foreground'}`} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {notifSettingsDraft.mode === 'every_n' && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">Notify every</span>
+                    <input
+                      type="number" min={1} max={12}
+                      value={notifSettingsDraft.every_n ?? 4}
+                      onChange={e => setNotifSettingsDraft(prev => ({ ...prev, every_n: Number(e.target.value) }))}
+                      className="w-16 px-2 py-1.5 bg-background border border-border text-foreground text-xs rounded-lg text-center"
+                    />
+                    <span className="text-xs text-muted-foreground">weeks</span>
+                  </div>
+                )}
+                {notifSettingsDraft.mode === 'specific' && (
+                  <div className="mt-3">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-2">
+                      Tap the week numbers to notify parents
+                    </label>
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {Array.from({ length: 13 }, (_, i) => i + 1).map(wk => {
+                        const selected = (notifSettingsDraft.specific_weeks ?? []).includes(wk);
+                        return (
+                          <button
+                            key={wk}
+                            type="button"
+                            onClick={() => setNotifSettingsDraft(prev => ({
+                              ...prev,
+                              specific_weeks: selected
+                                ? (prev.specific_weeks ?? []).filter(w => w !== wk)
+                                : [...(prev.specific_weeks ?? []), wk].sort((a, b) => a - b),
+                            }))}
+                            className={`py-2 rounded-lg text-xs font-black border transition-all ${
+                              selected
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/30'
+                                : 'bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'
+                            }`}
+                          >
+                            {wk}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {(notifSettingsDraft.specific_weeks ?? []).length > 0 && (
+                      <p className="text-[10px] text-muted-foreground mt-2">
+                        Notifying after week{(notifSettingsDraft.specific_weeks ?? []).length > 1 ? 's' : ''}: <span className="text-primary font-black">{(notifSettingsDraft.specific_weeks ?? []).join(', ')}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-5 border-t border-border flex gap-2">
+              <button onClick={() => setShowNotifSettings(false)} className="flex-1 py-2.5 border border-border text-xs font-bold rounded-lg hover:bg-muted/50 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={() => saveNotifSettings(notifSettingsDraft)}
+                disabled={savingNotifSettings || notifSettingsDraft.channels.length === 0}
+                className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-black rounded-lg transition-all disabled:opacity-50"
+              >
+                {savingNotifSettings ? 'Saving…' : 'Save Settings'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Clone Modal — school picker for multi-school teachers ── */}
+      {showCloneModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
+          <div className="bg-card border border-border w-full sm:max-w-sm sm:rounded-xl rounded-t-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <div>
+                <h2 className="font-black flex items-center gap-2 text-sm">
+                  <DocumentDuplicateIcon className="w-4 h-4 text-emerald-400" />
+                  Clone to My School
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Choose which school to copy this template to
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCloneModal(null)}
+                className="p-2 hover:bg-muted/50 rounded-lg transition-colors"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* School list */}
+            <div className="p-5 space-y-2">
+              {assignedSchools.map(school => (
+                <button
+                  key={school.id}
+                  onClick={() => handleClone(showCloneModal.curriculumId, school.id)}
+                  disabled={cloning}
+                  className="w-full flex items-center gap-3 p-4 bg-background border border-border hover:border-emerald-500/40 hover:bg-emerald-500/5 rounded-xl transition-all text-left group disabled:opacity-50"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                    <BuildingOfficeIcon className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black truncate group-hover:text-emerald-400 transition-colors">{school.name}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Click to clone here</p>
+                  </div>
+                  {cloning
+                    ? <ArrowPathIcon className="w-4 h-4 text-muted-foreground animate-spin shrink-0" />
+                    : <DocumentDuplicateIcon className="w-4 h-4 text-muted-foreground group-hover:text-emerald-400 transition-colors shrink-0" />
+                  }
+                </button>
+              ))}
+            </div>
+
+            {/* Info footer */}
+            <div className="px-5 pb-5">
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                The cloned copy will be private to your school. You can edit, customise, and regenerate it without affecting the platform template.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </>
   );

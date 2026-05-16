@@ -500,6 +500,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Syllabus generation failed — all AI models unavailable. Please try again.' }, { status: 502 });
   }
 
+  // Inject custom term start dates if provided
+  const termStartDates: Record<string, string> = body.term_start_dates ?? {};
+  if (aiContent?.terms && Object.keys(termStartDates).length > 0) {
+    aiContent.terms = aiContent.terms.map((term: any) => ({
+      ...term,
+      start_date: termStartDates[String(term.term)] || termStartDates[term.term] || term.start_date || null,
+    }));
+  }
+
   // Update existing or insert new — scope by (course_id, targetSchoolId).
   // Always use admin client here so RLS never silently drops the write.
   if (course_id) {

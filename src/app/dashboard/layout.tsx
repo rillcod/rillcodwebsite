@@ -9,6 +9,7 @@ import SystemStatusBanners from '@/components/dashboard/SystemStatusBanners';
 import SessionExpiryWrapper from '@/components/dashboard/SessionExpiryWrapper';
 import PopupNotificationContainer from '@/components/notifications/PopupNotificationContainer';
 import LiveSessionWatcher from '@/components/dashboard/LiveSessionWatcher';
+import { AcademicYearProvider } from '@/contexts/academic-year-context';
 import { Suspense } from 'react';
 import Script from 'next/script';
 
@@ -18,6 +19,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
+    <AcademicYearProvider>
     <div className="flex flex-col min-h-screen md:h-screen md:overflow-hidden bg-background text-foreground font-sans print:h-auto print:min-h-0 print:bg-card print:text-foreground">
       {/* Role-simulation banner — only renders when a staff user is previewing
           the app as a different role. Server RBAC is unaffected. */}
@@ -55,5 +57,6 @@ export default function DashboardLayout({
       <Script src="https://js.puter.com/v2/" strategy="lazyOnload" />
       </div>
     </div>
+    </AcademicYearProvider>
   );
 }
