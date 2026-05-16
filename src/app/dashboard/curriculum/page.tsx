@@ -87,6 +87,23 @@ function termDatesNg(term: string, academicYear: string): { start: string; end: 
   return null;
 }
 
+// Merges saved term calendar (from settings) with Nigerian defaults.
+// Saved dates take precedence; missing fields fall back to defaults.
+function resolveTermDates(
+  term: string | number,
+  academicYear: string,
+  calendar: Record<string, { start?: string; end?: string }> | null | undefined,
+): { start: string; end: string } | null {
+  const ng = termDatesNg(String(term), academicYear);
+  if (!calendar) return ng;
+  const saved = calendar[String(term)];
+  if (!saved) return ng;
+  return {
+    start: saved.start || ng?.start || '',
+    end: saved.end || ng?.end || '',
+  };
+}
+
 // Returns the Mon–Fri date range for a given week number within a term
 function weekDateRange(
   termNum: string | number,
@@ -96,7 +113,7 @@ function weekDateRange(
 ): { start: string; end: string } | null {
   const termDates = termStartDate
     ? { start: termStartDate, end: '' }
-    : termDatesNg(String(termNum), academicYear);
+    : termDatesNg(String(termNum), academicYear); // weekDateRange uses raw NG dates for week offset calc
   if (!termDates) return null;
   const termStart = new Date(termDates.start);
   // Find first Monday on or after term start
@@ -239,7 +256,7 @@ const GRADE_SCOPE_STORAGE_KEY = 'curriculum.gradeByScope.v1';
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CurriculumPage() {
   const { profile, isLoading: authLoading, profileLoading } = useAuth();
-  const { academicYear, yearOptions, setAcademicYear: setGlobalAcademicYear } = useAcademicYear();
+  const { academicYear, yearOptions, setAcademicYear: setGlobalAcademicYear, termCalendar } = useAcademicYear();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -972,6 +989,7 @@ export default function CurriculumPage() {
           lane_index: qaLaneOverride > 0 ? qaLaneOverride : undefined,
           catalog_version: 'qa_spine_v1',
           overwrite_existing: qaOverwrite,
+          program_start_term: effectiveProgramStartTerm,
         }),
       });
       const j = await res.json();
@@ -1246,7 +1264,11 @@ export default function CurriculumPage() {
     setLastVisited(visited);
     setSelectedProgram(prog);
     setSelectedCourse(course);
-    setActiveTerm(1);
+    // Snap to programme start term (not always Term 1) while curriculum loads
+    const savedStart = prog.progression_policy?.program_start_term;
+    const snapTerm = [1, 2, 3].includes(Number(savedStart)) ? Number(savedStart) : getCurrentTerm();
+    setActiveTerm(snapTerm);
+    setActiveYear(1);
     setActiveWeek(null);
     setLoadError('');
     setMobileSidebarOpen(false);
@@ -2059,9 +2081,29 @@ export default function CurriculumPage() {
                 <button onClick={() => { setSelectedCourse(null); setCurriculum(null); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors">← Courses</button>
                 <span className="text-muted-foreground/40">›</span>
                 <span className="text-xs font-bold text-primary">{selectedCourse.title}</span>
+                {yearsAvailable.length > 1 && (
+                  <>
+                    <span className="text-muted-foreground/40">›</span>
+                    <div className="flex gap-1">
+                      {yearsAvailable.map(yr => (
+                        <button
+                          key={yr}
+                          type="button"
+                          onClick={() => setActiveYear(yr)}
+                          className={`px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${activeYear === yr ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/40'}`}
+                        >
+                          Year {yr}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
               <SyllabusPreview
-                content={curriculum.content as unknown as SyllabusContent}
+                content={{
+                  ...curriculum.content,
+                  terms: termsForActiveYear,
+                } as unknown as SyllabusContent}
                 courseTitle={selectedCourse.title}
                 audienceIsLearner
               />
@@ -3017,8 +3059,8 @@ export default function CurriculumPage() {
                           {(() => {
                             const customStart = currentTermData.start_date;
                             const td = customStart
-                              ? { start: customStart, end: termDatesNg(String(activeTerm), academicYear)?.end ?? '' }
-                              : termDatesNg(String(activeTerm), academicYear);
+                              ? { start: customStart, end: resolveTermDates(activeTerm, academicYear, termCalendar)?.end ?? '' }
+                              : resolveTermDates(activeTerm, academicYear, termCalendar);
                             if (!td) return null;
                             return (
                               <div className="flex items-center gap-1.5 mt-0.5">
@@ -3026,7 +3068,7 @@ export default function CurriculumPage() {
                                   <div className="flex items-center gap-2">
                                     <input
                                       type="date"
-                                      defaultValue={currentTermData.start_date ?? termDatesNg(String(activeTerm), academicYear)?.start ?? ''}
+                                      defaultValue={currentTermData.start_date ?? resolveTermDates(activeTerm, academicYear, termCalendar)?.start ?? ''}
                                       onBlur={e => { if (e.target.value) saveTermDate(activeTerm, e.target.value); else setEditingTermDate(null); }}
                                       autoFocus
                                       className="text-xs bg-background border border-primary rounded px-2 py-1 text-foreground"
@@ -3045,7 +3087,7 @@ export default function CurriculumPage() {
                                       <button
                                         onClick={() => {
                                           setEditingTermDate(activeTerm);
-                                          setTermDateDraft(currentTermData.start_date ?? termDatesNg(String(activeTerm), academicYear)?.start ?? '');
+                                          setTermDateDraft(currentTermData.start_date ?? resolveTermDates(activeTerm, academicYear, termCalendar)?.start ?? '');
                                         }}
                                         className="p-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
                                         title="Edit term start date"
@@ -3935,7 +3977,7 @@ export default function CurriculumPage() {
                         Term start dates <span className="font-normal normal-case opacity-60">(optional — defaults to Nigerian calendar)</span>
                       </label>
                       {[...selectedTerms].sort((a, b) => a - b).map(t => {
-                        const fallback = termDatesNg(String(t), academicYear)?.start ?? '';
+                        const fallback = resolveTermDates(t, academicYear, termCalendar)?.start ?? '';
                         return (
                           <div key={t} className="flex items-center gap-3">
                             <span className="text-[10px] font-black text-muted-foreground w-24 shrink-0">{TERM_LABEL[t]}</span>

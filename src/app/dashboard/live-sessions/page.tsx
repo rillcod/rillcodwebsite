@@ -913,8 +913,8 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -5, scale: 1.01 }}
-      className={`relative bg-card/40 backdrop-blur-md border flex flex-col gap-0 transition-all duration-500 overflow-hidden group
-      ${isLive ? 'border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20 z-10' : 'border-white/[0.08] hover:border-white/20 hover:shadow-2xl hover:shadow-black/50'}`}
+      className={`relative bg-card backdrop-blur-md border flex flex-col gap-0 transition-all duration-500 overflow-hidden group rounded-2xl
+      ${isLive ? 'border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/20 z-10' : 'border-border hover:border-primary/30 hover:shadow-2xl hover:shadow-black/20 dark:hover:shadow-black/50'}`}
     >
       {isLive && (
         <>
@@ -960,24 +960,24 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-black text-white uppercase tracking-tight leading-tight group-hover:text-primary transition-colors duration-300">{session.title}</h3>
+          <h3 className="text-lg font-black text-foreground uppercase tracking-tight leading-tight group-hover:text-primary transition-colors duration-300">{session.title}</h3>
           {session.description && (
-            <p className="text-xs text-white/40 font-medium leading-relaxed line-clamp-2 italic border-l border-white/10 pl-3">{session.description}</p>
+            <p className="text-xs text-muted-foreground font-medium leading-relaxed line-clamp-2 italic border-l border-border pl-3">{session.description}</p>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-y-4 gap-x-2 border-t border-white/5 pt-5">
+        <div className="grid grid-cols-2 gap-y-4 gap-x-2 border-t border-border pt-5">
           <div className="flex items-center gap-3 text-white/30 group/meta">
             <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
               <CalendarDaysIcon className="w-4 h-4 text-primary flex-shrink-0" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">{formatDateTime(session.scheduled_at).split(',')[0]}</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{formatDateTime(session.scheduled_at).split(',')[0]}</span>
           </div>
           <div className="flex items-center gap-3 text-white/30 group/meta">
             <div className="p-1.5 bg-primary/5 border border-primary/20 group-hover/meta:border-primary/40 transition-colors">
               <ClockIcon className="w-4 h-4 text-primary flex-shrink-0" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">{session.duration_minutes}m</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{session.duration_minutes}m</span>
           </div>
           {session.host && (
             <div className="col-span-2 flex items-center gap-3 text-white/30 group/meta">
@@ -985,7 +985,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
                 <UserCircleIcon className="w-4 h-4 text-primary flex-shrink-0" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase tracking-wide truncate text-white/70">{session.host.full_name}</span>
+                <span className="text-[10px] font-black uppercase tracking-wide truncate text-foreground">{session.host.full_name}</span>
                 <span className="text-[8px] font-black text-primary/60 uppercase tracking-widest">{session.host.role}</span>
               </div>
             </div>
@@ -993,7 +993,7 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
         </div>
       </div>
 
-      <div className="mt-auto border-t border-white/5">
+      <div className="mt-auto border-t border-border">
 
         {/* ── Host controls: Start Now / End Session ── */}
         {canManage && session.host_id === userId && (
@@ -1046,26 +1046,26 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
             )}
           </div>
         )}
-        <div className="flex border-t border-white/[0.04] bg-white/[0.01]">
+        <div className="flex border-t border-border bg-muted/30 dark:bg-white/[0.01]">
           <button onClick={() => onPolls(session)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-primary hover:bg-white/[0.03] transition-all">
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary hover:bg-muted/50 dark:hover:bg-white/[0.03] transition-all">
             <ChartBarIcon className="w-4 h-4" /> Polls
           </button>
-          <div className="w-[1px] bg-white/[0.04]" />
+          <div className="w-[1px] bg-border" />
           <button onClick={() => onQA(session)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-primary hover:bg-white/[0.03] transition-all">
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary hover:bg-muted/50 dark:hover:bg-white/[0.03] transition-all">
             <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> Q&A
           </button>
-          <div className="w-[1px] bg-white/[0.04]" />
+          <div className="w-[1px] bg-border" />
           <button onClick={() => onRooms(session)}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-purple-400 hover:bg-white/[0.03] transition-all">
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-purple-400 hover:bg-muted/50 dark:hover:bg-white/[0.03] transition-all">
             <UsersIcon className="w-4 h-4" /> Rooms
           </button>
           {canManage && (
             <>
-              <div className="w-[1px] bg-white/[0.04]" />
+              <div className="w-[1px] bg-border" />
               <button onClick={() => onAttendance(session)}
-                className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-primary hover:bg-white/[0.03] transition-all">
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary hover:bg-muted/50 dark:hover:bg-white/[0.03] transition-all">
                 <EyeIcon className="w-4 h-4" /> Attendance
               </button>
             </>
@@ -1394,13 +1394,13 @@ function EmptyState({ tab, canManage, onAdd }: { tab: FilterTab; canManage: bool
   };
   const { title, sub } = messages[tab];
   return (
-    <div className="flex flex-col items-center justify-center py-32 gap-6 bg-[#0a0a0a] border border-white/5">
-      <div className="w-20 h-20 bg-white/[0.02] border border-white/5 flex items-center justify-center">
+    <div className="flex flex-col items-center justify-center py-32 gap-6 bg-card border border-border rounded-2xl">
+      <div className="w-20 h-20 bg-muted border border-border rounded-2xl flex items-center justify-center">
         <VideoCameraIcon className="w-10 h-10 text-white/10" />
       </div>
       <div className="text-center space-y-2">
-        <p className="text-sm font-black text-white/20 uppercase tracking-[0.4em]">{title}</p>
-        <p className="text-xs text-white/10 font-medium max-w-xs">{sub}</p>
+        <p className="text-sm font-black text-muted-foreground uppercase tracking-[0.4em]">{title}</p>
+        <p className="text-xs text-muted-foreground/60 font-medium max-w-xs">{sub}</p>
       </div>
       {canManage && (
         <button
@@ -1666,8 +1666,8 @@ export default function LiveSessionsPage() {
   // ── Loading state ───────────────────────────────────────────────────────────
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -1683,11 +1683,11 @@ export default function LiveSessionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-primary/30">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
         {/* ── Header ── */}
-        <div className="relative bg-card/10 border border-white/10 p-8 sm:p-14 overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-8 group backdrop-blur-3xl rounded-3xl">
+        <div className="relative bg-card border border-border p-8 sm:p-14 overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-8 group backdrop-blur-3xl rounded-3xl">
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[140px] -mr-64 -mt-64 pointer-events-none group-hover:bg-primary/15 transition-all duration-1000" />
           <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-primary/10 blur-[100px] -ml-32 -mb-32 pointer-events-none" />
 
@@ -1709,12 +1709,12 @@ export default function LiveSessionsPage() {
               )}
             </div>
             <div>
-              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-[0.85] italic uppercase">
+              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter leading-[0.85] italic uppercase text-foreground">
                 Virtual<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary to-amber-500">Hall.</span>
-                <span className="text-white/10 ml-4 not-italic font-black opacity-20 hidden md:inline">01</span>
+                <span className="text-muted-foreground/20 ml-4 not-italic font-black hidden md:inline">01</span>
               </h1>
-              <p className="text-sm text-white/40 font-medium mt-6 max-w-sm leading-relaxed border-l-2 border-primary/30 pl-6">
+              <p className="text-sm text-muted-foreground font-medium mt-6 max-w-sm leading-relaxed border-l-2 border-primary/30 pl-6">
                 {canManage
                   ? 'Manage broadcasts, track attendance, and engage students with live polls and breakout rooms.'
                   : 'Welcome to the broadcast lobby. Join your scheduled classes and engage in interactive sessions.'}
@@ -1728,9 +1728,9 @@ export default function LiveSessionsPage() {
                 { label: 'Active', value: liveSessions.length, color: 'emerald' },
                 { label: 'Total',  value: sessions.length,     color: 'white' },
               ].map(stat => (
-                <div key={stat.label} className="bg-white/[0.03] border border-white/10 p-5 min-w-[100px] text-center backdrop-blur-md">
-                  <p className={`text-2xl font-black ${stat.color === 'emerald' ? 'text-emerald-400' : 'text-white'}`}>{stat.value}</p>
-                  <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mt-1">{stat.label}</p>
+                <div key={stat.label} className="bg-muted/50 dark:bg-white/[0.03] border border-border p-5 min-w-[100px] text-center backdrop-blur-md rounded-xl">
+                  <p className={`text-2xl font-black ${stat.color === 'emerald' ? 'text-emerald-400' : 'text-foreground'}`}>{stat.value}</p>
+                  <p className="text-[8px] font-black text-muted-foreground uppercase tracking-widest mt-1">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -1771,20 +1771,20 @@ export default function LiveSessionsPage() {
         )}
 
         {/* ── Filter Tabs ── */}
-        <div className="flex items-center gap-1 bg-white/[0.02] border border-white/5 p-1.5 w-fit">
+        <div className="flex items-center gap-1 bg-muted/50 dark:bg-white/[0.02] border border-border p-1.5 w-fit rounded-xl">
           {TABS.map(t => (
             <button
               key={t.key}
               onClick={() => setFilter(t.key)}
-              className={`flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg ${
                 filter === t.key
                   ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                  : 'text-white/30 hover:text-white hover:bg-white/5'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted dark:hover:bg-white/5'
               }`}
             >
               {t.label}
               {t.count > 0 && (
-                <span className={`text-[8px] font-black px-2 py-0.5 ${filter === t.key ? 'bg-white/20 text-white' : 'bg-white/5 text-white/30'}`}>
+                <span className={`text-[8px] font-black px-2 py-0.5 rounded ${filter === t.key ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
                   {t.count}
                 </span>
               )}

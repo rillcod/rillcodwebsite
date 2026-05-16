@@ -551,7 +551,7 @@ export default function ContentLibraryPage() {
   };
 
   if (authLoading || loading) return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
       <div className="relative w-24 h-24">
         <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
         <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(234,88,12,0.5)]" />
@@ -570,7 +570,7 @@ export default function ContentLibraryPage() {
       )}
 
       {/* Header */}
-      <div className="bg-slate-950 border-b border-white/5 relative overflow-hidden py-12 lg:py-24">
+      <div className="bg-slate-950 dark:bg-slate-950 border-b border-border relative overflow-hidden py-12 lg:py-24">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.2),transparent_50%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(79,70,229,0.1),transparent_50%)]" />
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />

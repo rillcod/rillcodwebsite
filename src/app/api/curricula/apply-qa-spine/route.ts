@@ -46,6 +46,10 @@ export async function POST(req: NextRequest) {
   const curriculumId = typeof body.curriculum_id === 'string' ? body.curriculum_id : '';
   const classId = typeof body.class_id === 'string' ? body.class_id : '';
   const yearNumber = Math.min(3, Math.max(1, Number(body.year_number ?? 1)));
+  // program_start_term: which national term is Programme Term 1 for this school
+  // e.g. 3 = school started coding in May (Third Term), so national T3 = Prog T1
+  const bodyProgramStartTerm = [1, 2, 3].includes(Number(body.program_start_term))
+    ? Number(body.program_start_term) : 0; // 0 = auto-detect from program policy
   const manualLane = Number(body.lane_index ?? 0);
   const catalogVersion =
     typeof body.catalog_version === 'string' && body.catalog_version.trim()
@@ -159,12 +163,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Resolve program_start_term: body override → program policy → default 1
+  let programStartTerm = bodyProgramStartTerm;
+  if (!programStartTerm) {
+    const { data: prog } = await supabase
+      .from('programs')
+      .select('progression_policy')
+      .eq('id', programId)
+      .maybeSingle();
+    const saved = (prog?.progression_policy as Record<string, unknown> | null)?.program_start_term;
+    programStartTerm = [1, 2, 3].includes(Number(saved)) ? Number(saved) : 1;
+  }
+
+  // Map national term number → programme-internal term number
+  // e.g. programStartTerm=3: national Term3→Prog1, Term1→Prog2, Term2→Prog3
+  function nationalToProgTerm(nationalTerm: number): number {
+    return ((nationalTerm - programStartTerm + 3) % 3) + 1;
+  }
+
   const bySpine = new Map(rows.map((r) => [r.week_index, r]));
 
-  function buildTermWeeks(termNo: number): SyllabusWeekDraft[] {
+  // buildTermWeeks uses the PROGRAMME term number (1/2/3) for spine index
+  function buildTermWeeks(progTermNo: number): SyllabusWeekDraft[] {
     const out: SyllabusWeekDraft[] = [];
     for (let w = 1; w <= 12; w++) {
-      const cal = calendarIndex(yearNumber, termNo, w);
+      const cal = calendarIndex(yearNumber, progTermNo, w);
       const src = sourceWeekIndexForCalendar(cal, pathOffset, chosenLane);
       const row = bySpine.get(src);
       const topic = row?.topic ?? `Week ${w} (missing spine row ${src})`;
@@ -179,20 +202,18 @@ export async function POST(req: NextRequest) {
     return out;
   }
 
-  const t1Weeks = buildTermWeeks(1);
-  const t2Weeks = buildTermWeeks(2);
-  const t3Weeks = buildTermWeeks(3);
-
   const content = asObject((curriculum as { content?: unknown }).content) as CurriculumContent;
   const baseTerms = Array.isArray(content.terms) ? content.terms : [];
 
-  const nextTerms = [1, 2, 3].map((termNo) => {
-    const existing = baseTerms.find((t) => Number(t?.term ?? 0) === termNo) ?? { term: termNo };
+  // Build weeks for each national term using the correct programme-term position
+  const nextTerms = [1, 2, 3].map((nationalTermNo) => {
+    const progTermNo = nationalToProgTerm(nationalTermNo);
+    const incoming = buildTermWeeks(progTermNo);
+    const existing = baseTerms.find((t) => Number(t?.term ?? 0) === nationalTermNo) ?? { term: nationalTermNo };
     const existingWeeks = Array.isArray(existing.weeks) ? existing.weeks : [];
-    const incoming = termNo === 1 ? t1Weeks : termNo === 2 ? t2Weeks : t3Weeks;
     return {
       ...existing,
-      term: termNo,
+      term: nationalTermNo,
       weeks: overwriteExisting ? incoming : existingWeeks.length > 0 ? existingWeeks : incoming,
     };
   });
@@ -210,6 +231,7 @@ export async function POST(req: NextRequest) {
       applied_by: user.id,
       catalog_version: catalogVersion,
       program_year: yearNumber,
+      program_start_term: programStartTerm,
       lane_index: chosenLane,
       lane_source: manualLane > 0 ? 'body' : classId ? resolved.source : 'default',
       class_id: classId || null,
@@ -241,7 +263,7 @@ export async function POST(req: NextRequest) {
         lane_index: chosenLane,
         class_id: classId || null,
         path_offset: classRow ? pathOffset : 0,
-        terms_weeks: { term_1: t1Weeks.length, term_2: t2Weeks.length, term_3: t3Weeks.length },
+        terms_weeks: nextTerms.reduce((acc, t) => ({ ...acc, [`term_${t.term}`]: t.weeks.length }), {} as Record<string, number>),
         explicit_topics: true,
       },
     },

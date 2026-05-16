@@ -3,10 +3,14 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from './auth-context';
 
+/** term_calendar shape: { "1": { start: "2025-09-01", end: "2025-12-15" }, "2": {...}, "3": {...} } */
+export type TermCalendar = Record<string, { start?: string; end?: string }>;
+
 interface AcademicYearContextValue {
   academicYear: string;           // the effective year (school override or platform default)
   platformYear: string;           // platform default
   schoolYear: string | null;      // school-specific override (null = using platform)
+  termCalendar: TermCalendar | null; // configured term dates (school override or platform)
   loading: boolean;
   setAcademicYear: (year: string, schoolId?: string | null) => Promise<void>;
   yearOptions: string[];
@@ -31,6 +35,7 @@ const AcademicYearContext = createContext<AcademicYearContextValue>({
   academicYear: defaultYear(),
   platformYear: defaultYear(),
   schoolYear: null,
+  termCalendar: null,
   loading: false,
   setAcademicYear: async () => {},
   yearOptions: buildYearOptions(),
@@ -40,6 +45,7 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
   const { profile, loading: authLoading } = useAuth();
   const [platformYear, setPlatformYear] = useState(defaultYear());
   const [schoolYear, setSchoolYear] = useState<string | null>(null);
+  const [termCalendar, setTermCalendar] = useState<TermCalendar | null>(null);
   const [loading, setLoading] = useState(true);
 
   const schoolId = profile?.school_id ?? null;
@@ -54,6 +60,9 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
         const j = await res.json();
         setPlatformYear(j.platform ?? defaultYear());
         setSchoolYear(j.school ?? null);
+        if (j.term_calendar && typeof j.term_calendar === 'object') {
+          setTermCalendar(j.term_calendar as TermCalendar);
+        }
       }
     } catch {
       // fallback to auto-detect
@@ -94,6 +103,7 @@ export function AcademicYearProvider({ children }: { children: ReactNode }) {
       academicYear,
       platformYear,
       schoolYear,
+      termCalendar,
       loading,
       setAcademicYear,
       yearOptions: buildYearOptions(),
