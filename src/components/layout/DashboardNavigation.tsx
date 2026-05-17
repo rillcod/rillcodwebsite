@@ -245,7 +245,6 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Finance' },
           { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
-          { name: 'Finance Records', href: '/dashboard/finance?tab=operations', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },
           { name: 'LMS Settings', href: '/dashboard/progression/settings', icon: CogIcon },
