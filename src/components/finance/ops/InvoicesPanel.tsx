@@ -85,6 +85,9 @@ export function InvoicesPanel() {
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [showForm, setShowForm] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [emailingId, setEmailingId] = useState<string | null>(null);
+  const [emailOverride, setEmailOverride] = useState('');
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
 
   const load = async () => {
@@ -128,19 +131,24 @@ export function InvoicesPanel() {
     }
   };
 
-  const sendEmail = async (inv: InvoiceRow) => {
+  function resolvedEmail(inv: InvoiceRow) {
+    return inv.billing_contacts?.representative_email || inv.portal_users?.email || null;
+  }
+
+  const sendEmail = async (inv: InvoiceRow, recipientEmail?: string) => {
     setBusyId(inv.id);
     try {
       const res = await fetch('/api/payments/invoices/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId: inv.id }),
+        body: JSON.stringify({ invoiceId: inv.id, recipientEmail: recipientEmail?.trim() || undefined }),
       });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok || j.success === false) {
-        throw new Error(j.message || j.error || 'Failed to send email');
-      }
-      toast.success('Invoice emailed to payer');
+      if (!res.ok || j.success === false) throw new Error(j.message || j.error || 'Failed to send email');
+      setSentIds(prev => new Set(prev).add(inv.id));
+      setEmailingId(null);
+      setEmailOverride('');
+      toast.success(`Emailed to ${recipientEmail?.trim() || resolvedEmail(inv) || 'payer'}`);
     } catch (e: unknown) {
       toast.error((e as Error).message);
     } finally {
@@ -515,14 +523,46 @@ export function InvoicesPanel() {
                   )}
 
                   {canManageInvoices && (
-                    <button
-                      onClick={() => sendEmail(inv)}
-                      disabled={busyId === inv.id}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-border hover:border-primary/50 text-primary text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title="Email this invoice to the payer"
-                    >
-                      <EnvelopeIcon className="w-3 h-3" /> Email
-                    </button>
+                    emailingId === inv.id ? (
+                      <div className="flex items-center gap-1 bg-card border border-primary/40 rounded-md px-2 py-1.5">
+                        <EnvelopeIcon className="w-3 h-3 text-primary shrink-0" />
+                        <input
+                          type="email"
+                          value={emailOverride}
+                          onChange={e => setEmailOverride(e.target.value)}
+                          placeholder={resolvedEmail(inv) ?? 'email@school.com'}
+                          autoFocus
+                          className="text-[11px] outline-none bg-transparent text-foreground w-36 placeholder:text-muted-foreground/50"
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') sendEmail(inv, emailOverride || resolvedEmail(inv) || '');
+                            if (e.key === 'Escape') { setEmailingId(null); setEmailOverride(''); }
+                          }}
+                        />
+                        <button
+                          onClick={() => sendEmail(inv, emailOverride || resolvedEmail(inv) || '')}
+                          disabled={busyId === inv.id}
+                          className="text-[10px] font-black text-primary hover:text-primary/80 disabled:opacity-40 shrink-0"
+                        >
+                          {busyId === inv.id ? '…' : 'Send'}
+                        </button>
+                        <button onClick={() => { setEmailingId(null); setEmailOverride(''); }} className="text-muted-foreground hover:text-foreground shrink-0">
+                          <XMarkIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setEmailingId(inv.id); setEmailOverride(resolvedEmail(inv) ?? ''); }}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 border text-[10px] font-black uppercase tracking-widest rounded-md transition-colors ${
+                          sentIds.has(inv.id)
+                            ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10'
+                            : 'border-border hover:border-primary/50 text-primary'
+                        }`}
+                        title={sentIds.has(inv.id) ? 'Sent — click to resend' : resolvedEmail(inv) ? `Email to ${resolvedEmail(inv)}` : 'Email invoice (enter address)'}
+                      >
+                        <EnvelopeIcon className="w-3 h-3" />
+                        {sentIds.has(inv.id) ? '✓ Sent' : 'Email'}
+                      </button>
+                    )
                   )}
 
                   <button
