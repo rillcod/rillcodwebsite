@@ -13,7 +13,7 @@ interface FormData {
 }
 
 const PROGRAMS = [
-  { value: 'junior_coders',    label: 'Junior Coders :: PRY',    sub: 'Ages 5–10 · Basic programming through fun & games' },
+  { value: 'young_innovators', label: 'Young Innovators :: PRY', sub: 'Ages 5–10 · Basic programming through fun & games' },
   { value: 'teen_developers',  label: 'Teen Developers :: SEC',  sub: 'Ages 11–19 · Advanced coding & project development' },
 ] as const;
 
@@ -63,7 +63,7 @@ export default function PublicConsentForm({
     child_age: '',
     child_class: '',
     child_current_school: '',
-    program_category: '' as 'junior_coders' | 'teen_developers' | '',
+    program_category: '' as 'young_innovators' | 'teen_developers' | '',
     parent_name: '',
     parent_whatsapp: '',
     parent_email: '',
@@ -167,7 +167,7 @@ export default function PublicConsentForm({
           <div className="bg-[#1c1e22] rounded-xl p-4 text-left space-y-2 mt-2">
             {[
               { label: 'Child',     value: `${data.child_name}, Age ${data.child_age} · ${data.child_class}` },
-              { label: 'Programme', value: data.program_category === 'junior_coders' ? 'Junior Coders (PRY)' : 'Teen Developers (SEC)' },
+              { label: 'Programme', value: data.program_category === 'young_innovators' ? 'Young Innovators (PRY)' : 'Teen Developers (SEC)' },
               { label: 'Contact',   value: data.parent_whatsapp },
               ...(data.parent_email ? [{ label: 'Email', value: data.parent_email }] : []),
             ].map(r => (

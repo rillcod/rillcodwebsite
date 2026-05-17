@@ -885,8 +885,8 @@ export function buildFormLeadConfirmationEmail(opts: {
   formType?: string;
   appUrl?: string;
 }): string {
-  const program = opts.programCategory === 'junior_coders'
-    ? 'Junior Coders (PRY · Ages 5–10)'
+  const program = opts.programCategory === 'young_innovators'
+    ? 'Young Innovators (PRY · Ages 5–10)'
     : opts.programCategory === 'teen_developers'
     ? 'Teen Developers (SEC · Ages 11–19)'
     : opts.programCategory ?? 'To be confirmed';
@@ -976,8 +976,8 @@ export function buildLeadNotificationEmail(opts: {
   matchedSchoolName?: string;
   dashboardUrl?: string;
 }): string {
-  const program = opts.programCategory === 'junior_coders'
-    ? 'Junior Coders (Ages 5–10)'
+  const program = opts.programCategory === 'young_innovators'
+    ? 'Young Innovators (Ages 5–10)'
     : opts.programCategory === 'teen_developers'
     ? 'Teen Developers (Ages 11–19)'
     : opts.programCategory ?? '—';

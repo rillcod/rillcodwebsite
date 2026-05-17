@@ -46,7 +46,7 @@ interface RegistrationData {
   child_name: string;
   child_age: string;
   child_class: string;
-  program_category: 'junior_coders' | 'teen_developers' | '';
+  program_category: 'young_innovators' | 'teen_developers' | '';
   parent_name: string;
   parent_whatsapp: string;
   parent_email: string;
@@ -145,7 +145,7 @@ function printForm(form: ConsentForm) {
     <div style="flex:2"></div>
   </div>
   <p style="font-size:10.5pt;font-weight:bold;margin:14px 0 8px;">Program Category (Please check one):</p>
-  <div class="cb"><span class="box"></span><span><strong>Junior Coders :: PRY</strong> (Ages 5-10) — Basic programming through fun &amp; games.</span></div>
+  <div class="cb"><span class="box"></span><span><strong>Young Innovators :: PRY</strong> (Ages 5-10) — Basic programming through fun &amp; games.</span></div>
   <div class="cb"><span class="box"></span><span><strong>Teen Developers :: SEC</strong> (Ages 11-19) — Advanced coding &amp; Project development.</span></div>
   <div class="section">Parents/Guardian Information</div>
   <div style="margin-bottom:10px;"><span style="font-size:9.5pt;display:block;margin-bottom:4px;">Name:</span><span class="line"></span></div>
@@ -787,7 +787,7 @@ export default function ConsentFormsPage() {
                           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Programme *</p>
                           <div className="space-y-2">
                             {([
-                              { value: 'junior_coders',   label: 'Junior Coders :: PRY',   sub: 'Ages 5–10 · Fun & games' },
+                              { value: 'young_innovators', label: 'Young Innovators :: PRY', sub: 'Ages 5–10 · Fun & games' },
                               { value: 'teen_developers', label: 'Teen Developers :: SEC', sub: 'Ages 11–19 · Advanced coding' },
                             ] as const).map(opt => (
                               <button key={opt.value} type="button" onClick={() => setRegData(d => ({ ...d, program_category: opt.value }))}
