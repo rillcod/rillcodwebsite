@@ -58,9 +58,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { title, body, due_date } = await req.json();
+  const { title, body, due_date, form_type, school_id: bodySchoolId } = await req.json();
   if (!title?.trim() || !body?.trim()) {
     return NextResponse.json({ error: 'Title and body are required' }, { status: 400 });
+  }
+
+  // Resolve school_id: body override → profile → first school (admin fallback)
+  let schoolId: string | null = bodySchoolId ?? profile.school_id ?? null;
+  if (!schoolId) {
+    const { data: firstSchool } = await supabase.from('schools').select('id').limit(1).single();
+    schoolId = firstSchool?.id ?? null;
+  }
+  if (!schoolId) {
+    return NextResponse.json({ error: 'Could not determine school for this form.' }, { status: 400 });
   }
 
   const { data, error } = await (supabase as any)
@@ -70,7 +80,8 @@ export async function POST(req: NextRequest) {
       body: body.trim(),
       due_date: due_date || null,
       created_by: user.id,
-      school_id: profile.school_id,
+      school_id: schoolId,
+      form_type: form_type ?? 'general',
     })
     .select()
     .single();
