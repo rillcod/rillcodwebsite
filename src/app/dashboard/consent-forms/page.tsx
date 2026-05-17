@@ -50,6 +50,7 @@ interface RegistrationData {
   parent_name: string;
   parent_whatsapp: string;
   parent_email: string;
+  consent_acknowledged: boolean;
 }
 
 // ── Templates ────────────────────────────────────────────────────────────────
@@ -190,7 +191,7 @@ export default function ConsentFormsPage() {
   const [readModalId, setReadModalId] = useState<string | null>(null);
   const [regData, setRegData]       = useState<RegistrationData>({
     child_name: '', child_age: '', child_class: '', program_category: '',
-    parent_name: '', parent_whatsapp: '', parent_email: '',
+    parent_name: '', parent_whatsapp: '', parent_email: '', consent_acknowledged: false,
   });
   const [regStep, setRegStep] = useState<'read' | 'fill'>('read');
 
@@ -292,6 +293,7 @@ export default function ConsentFormsPage() {
       parent_name: (profile as any)?.full_name ?? '',
       parent_whatsapp: (profile as any)?.phone ?? '',
       parent_email: (profile as any)?.email ?? '',
+      consent_acknowledged: false,
     });
   }
 
@@ -733,12 +735,31 @@ export default function ConsentFormsPage() {
                         </div>
                       </div>
                       <div className="px-6 py-4 border-t border-border/50 space-y-2 shrink-0">
-                        <p className="text-[10px] text-muted-foreground">By submitting I confirm the information is accurate and I consent to the terms above.</p>
-                        <div className="flex gap-3">
+                        <div className="bg-background border border-border rounded-xl p-4 mt-2">
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Consent Statement</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            {readModal.body.replace(/_+(\s*\(parent\/guardian name\))?/gi, regData.parent_name ? ` ${regData.parent_name} ` : ' _____________ ')}
+                          </p>
+                          <label className="flex items-start gap-3 pt-4 mt-4 border-t border-border/50 cursor-pointer group">
+                            <div className="pt-0.5">
+                              <input
+                                type="checkbox"
+                                required
+                                checked={regData.consent_acknowledged}
+                                onChange={e => setRegData(d => ({ ...d, consent_acknowledged: e.target.checked }))}
+                                className="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary/20 focus:ring-offset-0 cursor-pointer"
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground font-bold group-hover:text-foreground transition-colors">
+                              I confirm that the information provided is accurate and I acknowledge and agree to the consent statement above.
+                            </span>
+                          </label>
+                        </div>
+                        <div className="flex gap-3 pt-2">
                           <button onClick={() => setRegStep('read')} className="px-4 py-2.5 border border-border text-muted-foreground font-bold rounded-xl hover:bg-muted text-sm transition-colors">← Back</button>
                           <button
                             onClick={() => signForm(readModal.id)}
-                            disabled={signingId === readModal.id || !regData.child_name.trim() || !regData.child_age || !regData.child_class.trim() || !regData.program_category || !regData.parent_name.trim() || !regData.parent_whatsapp.trim()}
+                            disabled={signingId === readModal.id || !regData.child_name.trim() || !regData.child_age || !regData.child_class.trim() || !regData.program_category || !regData.parent_name.trim() || !regData.parent_whatsapp.trim() || !regData.consent_acknowledged}
                             className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black rounded-xl text-sm transition-colors"
                           >
                             {signingId === readModal.id ? 'Submitting…' : '✅ Submit Registration & Sign'}

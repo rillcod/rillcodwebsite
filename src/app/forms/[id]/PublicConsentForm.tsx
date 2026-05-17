@@ -75,6 +75,7 @@ export default function PublicConsentForm({
     referral_source: '',
     preferred_schedule: '',
     special_notes: '',
+    consent_acknowledged: false,
   });
 
   function set(key: string, value: unknown) {
@@ -95,7 +96,8 @@ export default function PublicConsentForm({
     data.program_category &&
     data.parent_name.trim() &&
     data.parent_whatsapp.trim() &&
-    data.parent_email.trim();
+    data.parent_email.trim() &&
+    data.consent_acknowledged;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -227,11 +229,6 @@ export default function PublicConsentForm({
             Deadline: {new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         )}
-        {/* Consent statement */}
-        <div className="bg-[#141618] border border-[#2a2d33] rounded-xl p-4 mt-3">
-          <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-2">Consent Statement</p>
-          <p className="text-sm text-[#a1a1aa] leading-relaxed whitespace-pre-wrap">{form.body}</p>
-        </div>
       </div>
 
       {/* Section: Child */}
@@ -429,9 +426,26 @@ export default function PublicConsentForm({
       </section>
 
       {/* Consent notice */}
-      <p className="text-xs text-[#52525b] leading-relaxed">
-        By submitting this form I confirm that the information provided is accurate and I agree to the consent statement above.
-      </p>
+      <div className="bg-[#141618] border border-[#2a2d33] rounded-xl p-5 mt-4 space-y-4">
+        <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Consent Statement</p>
+        <p className="text-sm text-[#a1a1aa] leading-relaxed whitespace-pre-wrap">
+          {form.body.replace(/_+(\s*\(parent\/guardian name\))?/gi, data.parent_name ? ` ${data.parent_name} ` : ' _____________ ')}
+        </p>
+        <label className="flex items-start gap-3 pt-4 border-t border-[#2a2d33] cursor-pointer group">
+          <div className="pt-0.5">
+            <input
+              type="checkbox"
+              required
+              checked={data.consent_acknowledged}
+              onChange={e => set('consent_acknowledged', e.target.checked)}
+              className="w-4 h-4 rounded border-[#2a2d33] bg-[#0b0c0e] text-amber-500 focus:ring-amber-500/20 focus:ring-offset-0 cursor-pointer"
+            />
+          </div>
+          <span className="text-xs text-[#d4d4d8] font-bold group-hover:text-white transition-colors">
+            I confirm that the information provided is accurate and I acknowledge and agree to the consent statement above.
+          </span>
+        </label>
+      </div>
 
       {error && (
         <p className="text-rose-400 text-xs font-bold">{error}</p>
