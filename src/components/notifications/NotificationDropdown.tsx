@@ -103,12 +103,15 @@ export default function NotificationDropdown() {
     if (isOpen) fetchNotifications();
   }, [isOpen, fetchNotifications]);
 
-  // Real-time subscription for new notifications
+  // Real-time subscription for new notifications.
+  // Channel name includes a random suffix so StrictMode's double-invocation
+  // never collides with Supabase's internal channel cache (same name = same
+  // already-subscribed instance → "cannot add callbacks after subscribe()").
   useEffect(() => {
     if (!profile?.id) return;
     const supabase = createClient();
     const channel = supabase
-      .channel(`notif-bell-${profile.id}`)
+      .channel(`notif-bell-${profile.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
