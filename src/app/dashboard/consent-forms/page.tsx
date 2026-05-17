@@ -130,8 +130,11 @@ function printForm(form: ConsentForm) {
   .sig-label { font-size: 9.5pt; margin-top: 5px; }
   .deadline { font-size: 9pt; color: #444; margin-top: 6px; }
   .footer { margin-top: 28px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #ccc; padding-top: 8px; font-size: 8pt; color: #444; }
-  @media print { body { padding: 0; } }
+  .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
+  .print-btn:hover { background: #333; }
+  @media print { body { padding: 0; } .print-btn { display: none !important; } }
 </style></head><body>
+  <button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
   <div class="hdr"><div class="logo">R</div><div>
     <div class="school">RILLCOD TECHNOLOGIES</div>
     <div class="tagline">Empowering Young Minds Through Code....</div>
@@ -162,7 +165,6 @@ function printForm(form: ConsentForm) {
     <div>For inquiries: 08116600091<br/>@rillcod</div>
     <div style="text-align:right;font-style:italic;">Rillcod Technologies — Building Future Tech Leaders</div>
   </div>
-  <script>window.onload=function(){window.print();};<\/script>
 </body></html>`);
   win.document.close();
 }
@@ -230,12 +232,12 @@ function printQRCards(form: ConsentForm, appBase: string) {
   .title { font-size: 10pt; font-weight: bold; margin: 8px 0; background: #000; color: #fff; padding: 4px 8px; border-radius: 4px; width: 100%; max-height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .qr { width: 110px; height: 110px; margin: auto; }
   .scan-text { font-size: 8pt; font-weight: bold; color: #444; margin-top: 6px; }
-  @media print { body { padding: 0; } .card { border: 1px dashed #eee; } }
+  .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
+  .print-btn:hover { background: #333; }
+  @media print { body { padding: 0; } .card { border: 1px dashed #eee; } .print-btn { display: none !important; } }
 </style></head><body>
+  <button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
   ${cards}
-  <script>
-    window.onload = function() { setTimeout(function() { window.print(); }, 500); };
-  </script>
 </body></html>`);
   win.document.close();
 }
@@ -281,8 +283,11 @@ function printQRPoster(form: ConsentForm, appBase: string) {
   .qr { width: 450px; height: 450px; border: 12px solid #000; padding: 10px; border-radius: 20px; box-shadow: 10px 10px 0 #000; }
   .scan-text { font-size: 48pt; font-weight: 900; color: #000; margin-top: 50px; text-transform: uppercase; letter-spacing: 2px; }
   .sub-scan { font-size: 18pt; color: #444; font-weight: bold; font-family: Arial, sans-serif; margin-top: 10px; }
-  @media print { body { border: none; } .poster { border: 8px solid #000; height: 95vh; } .qr { box-shadow: none; border: 8px solid #000; } }
+  .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
+  .print-btn:hover { background: #333; }
+  @media print { body { border: none; } .poster { border: 8px solid #000; height: 95vh; } .qr { box-shadow: none; border: 8px solid #000; } .print-btn { display: none !important; } }
 </style></head><body>
+  <button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
   <div class="poster">
     <div class="hdr">
       <div class="logo">
@@ -298,9 +303,6 @@ function printQRPoster(form: ConsentForm, appBase: string) {
     <div class="scan-text">Scan To Register</div>
     <div class="sub-scan">Open your phone camera and point it at the code</div>
   </div>
-  <script>
-    window.onload = function() { setTimeout(function() { window.print(); }, 800); };
-  </script>
 </body></html>`);
   win.document.close();
 }
