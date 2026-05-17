@@ -14,6 +14,7 @@ import {
   BuildingOfficeIcon,
   UserIcon,
   ArrowDownTrayIcon,
+  ExclamationTriangleIcon,
 } from '@/lib/icons';
 import {
   classifyInvoiceStream,
