@@ -42,6 +42,30 @@ function Chip({ icon: Icon, text }: { icon: any; text: string }) {
   );
 }
 
+// ─── Fee status badge ─────────────────────────────────────────
+function FeeBadge({ entry }: { entry?: { status: string; amount: number; currency: string; dueDate: string | null } }) {
+  if (!entry) return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border bg-muted/50 text-muted-foreground border-border">
+      No invoice
+    </span>
+  );
+  const s = entry.status.toLowerCase();
+  const isOverdue = s === 'overdue' || (s === 'sent' && entry.dueDate && new Date(entry.dueDate) < new Date());
+  const cfg = isOverdue
+    ? { cls: 'bg-rose-500/15 text-rose-400 border-rose-500/30', label: 'Overdue' }
+    : s === 'paid'
+    ? { cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', label: 'Paid' }
+    : s === 'pending' || s === 'sent'
+    ? { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30', label: 'Pending' }
+    : { cls: 'bg-muted/50 text-muted-foreground border-border', label: entry.status };
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${cfg.cls}`}
+      title={`Fee: ${entry.currency} ${entry.amount.toLocaleString('en-NG')}${entry.dueDate ? ` · Due ${new Date(entry.dueDate).toLocaleDateString('en-GB')}` : ''}`}>
+      {cfg.label === 'Paid' ? '✓' : cfg.label === 'Overdue' ? '⚠' : '·'} {cfg.label}
+    </span>
+  );
+}
+
 // ─── Link Parent Modal (inline on students page) ──────────────
 function LinkParentModal({ student, onClose, onSaved }: {
   student: any;
@@ -341,6 +365,10 @@ export default function StudentsPage() {
   const [_portalLoading, setPortalLoading] = useState(false);
   const [classMap, setClassMap] = useState<Record<string, string>>({}); // class_id → name
   const [schoolList, setSchoolList] = useState<{ id: string; name: string }[]>([]);
+
+  // Fee status map: portal_user_id → { status, amount, currency, dueDate }
+  type FeeEntry = { status: string; amount: number; currency: string; dueDate: string | null };
+  const [feeMap, setFeeMap] = useState<Record<string, FeeEntry>>({});
   const [assigningSchool, setAssigningSchool] = useState<string | null>(null); // portal student id being assigned
 
   // Registry print filters
@@ -392,10 +420,11 @@ export default function StudentsPage() {
     if (!profile || !isStaff) return;
     setPortalLoading(true);
     try {
-      const [stuRes, clsRes, schRes] = await Promise.all([
+      const [stuRes, clsRes, schRes, invRes] = await Promise.all([
         fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }),
         fetch('/api/classes', { cache: 'no-store' }),
         fetch('/api/schools', { cache: 'no-store' }),
+        fetch('/api/invoices?limit=500', { cache: 'no-store' }),
       ]);
       const stuJson = await stuRes.json();
       setPortalStudents(stuJson.data ?? []);
@@ -405,6 +434,28 @@ export default function StudentsPage() {
       setClassMap(map);
       const schJson = await schRes.json();
       setSchoolList(schJson.data ?? []);
+
+      // Build fee status map keyed by portal_user_id (latest non-cancelled invoice wins)
+      const invJson = await invRes.json().catch(() => ({ data: [] }));
+      const invoices: any[] = invJson.data ?? [];
+      const map2: Record<string, FeeEntry> = {};
+      const priority = ['overdue', 'sent', 'pending', 'paid', 'cancelled'];
+      invoices
+        .filter((inv: any) => inv.portal_user_id && inv.status !== 'cancelled')
+        .forEach((inv: any) => {
+          const uid = inv.portal_user_id;
+          const existing = map2[uid];
+          const rank = (s: string) => priority.indexOf(s.toLowerCase());
+          if (!existing || rank(inv.status) < rank(existing.status)) {
+            map2[uid] = {
+              status: inv.status,
+              amount: Number(inv.amount ?? 0),
+              currency: inv.currency ?? 'NGN',
+              dueDate: inv.due_date ?? null,
+            };
+          }
+        });
+      setFeeMap(map2);
     } catch { /* ignore */ } finally {
       setPortalLoading(false);
     }
@@ -1936,6 +1987,7 @@ export default function StudentsPage() {
                                 <span className="text-[9px] font-black font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider select-all" title="Student Access Code">
                                   RC-{s.id.slice(0, 8).toUpperCase()}
                                 </span>
+                                <FeeBadge entry={feeMap[s.id]} />
                               </>
                             ) : (
                               <>
