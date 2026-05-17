@@ -490,19 +490,16 @@ export class NotificationsService {
                 text: htmlToPlainText(payload.html),
                 subject: payload.subject,
                 from: {
-                    name: payload.fromName || 'LMS Notifications',
-                    email: payload.fromEmail || 'no-reply@rillcod.com'
+                    name: payload.fromName || 'Rillcod Technologies',
+                    // support@rillcod.com is the only verified rillcod.com mailbox
+                    email: payload.fromEmail || 'support@rillcod.com',
                 },
-                to: [
-                    { email: payload.to }
-                ],
+                to: [{ name: payload.to, email: payload.to }],
+                // SendPulse requires reply_to as a dedicated object, NOT inside headers
+                ...(payload.replyTo ? { reply_to: { name: '', email: payload.replyTo } } : {}),
                 ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),
             }
         };
-
-        if (payload.replyTo) {
-            emailData.email.headers = { 'Reply-To': payload.replyTo };
-        }
 
         try {
             await this.fetchWithRetry('https://api.sendpulse.com/smtp/emails', {
@@ -540,17 +537,14 @@ export class NotificationsService {
                 text: htmlToPlainText(payload.html),
                 subject: payload.subject,
                 from: {
-                    name: payload.fromName || 'LMS Notifications',
-                    email: payload.fromEmail || 'no-reply@rillcod.com'
+                    name: payload.fromName || 'Rillcod Technologies',
+                    email: payload.fromEmail || 'support@rillcod.com',
                 },
-                to: [{ email: payload.to }],
+                to: [{ name: payload.to, email: payload.to }],
+                ...(payload.replyTo ? { reply_to: { name: '', email: payload.replyTo } } : {}),
                 ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),
             }
         };
-
-        if (payload.replyTo) {
-            emailData.email.headers = { 'Reply-To': payload.replyTo };
-        }
 
         await this.fetchWithRetry('https://api.sendpulse.com/smtp/emails', {
             method: 'POST',

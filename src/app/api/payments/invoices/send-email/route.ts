@@ -204,6 +204,7 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: false,
             message: err instanceof AppError ? err.message : 'Failed to send invoice email',
+            detail: err?.message,
         }, { status: 500 });
     }
 }
