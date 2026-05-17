@@ -123,21 +123,26 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
         if (!inv) return;
         setEditingInvoiceId(inv.id);
         // Reverse-map invoice fields back to form state
-        const mainItems: Array<{ description: string; quantity: number; unit_price: number }> =
+        const positiveItems: Array<{ description: string; quantity: number; unit_price: number }> =
           Array.isArray(inv.items)
-            ? inv.items.filter((it: any) => (it.unit_price ?? 0) > 0 && (it.quantity ?? 0) > 1)
+            ? inv.items.filter((it: any) => (it.unit_price ?? 0) > 0)
             : [];
-        const hasMultipleItems = mainItems.length > 1;
-        const firstItem = mainItems[0] ?? (Array.isArray(inv.items) ? inv.items.find((it: any) => (it.unit_price ?? 0) > 0) : null);
+        const hasMultipleItems = positiveItems.length > 1;
+        const firstItem = positiveItems[0] ?? null;
         const isFixed = !hasMultipleItems && (!firstItem?.quantity || firstItem.quantity === 1);
         const pricingMode: PricingMode = hasMultipleItems ? 'tiered' : isFixed ? 'fixed_package' : 'per_student';
+        
         const restoredTiers: PricingTier[] = hasMultipleItems
-          ? mainItems.map((it) => ({
+          ? positiveItems.map((it) => ({
               label: it.description.split('—')[0]?.trim().split('–')[0]?.trim() ?? 'Students',
               count: String(it.quantity),
               rate: String(it.unit_price),
             }))
           : [{ label: '', count: '', rate: '' }];
+          
+        const depositItem = Array.isArray(inv.items) ? inv.items.find((it: any) => it.description?.includes('Deposit')) : null;
+        const commissionItem = Array.isArray(inv.items) ? inv.items.find((it: any) => it.description?.includes('Commission')) : null;
+        
         const meta = inv.metadata ?? {};
         setForm(f => ({
           ...f,
@@ -146,13 +151,16 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
           term_number: (['1','2','3'].includes(String(meta.term_number)) ? String(meta.term_number) : '1') as '1'|'2'|'3',
           pricing_mode: pricingMode,
           rate_per_child: pricingMode === 'per_student' ? String(firstItem?.unit_price ?? '') : '',
+          manual_student_count: pricingMode === 'per_student' ? String(firstItem?.quantity ?? '') : '',
           fixed_package_price: pricingMode === 'fixed_package' ? String(firstItem?.unit_price ?? '') : '',
           tiers: restoredTiers,
+          rillcod_quota_percent: meta.commission_rate ? String(meta.commission_rate) : '',
+          show_revenue_share: !!commissionItem || !!meta.commission_rate,
           currency: (inv.currency ?? 'NGN') as Currency,
           payment_method: (meta.payment_method ?? 'bank_transfer') as PaymentMode,
           due_date: inv.due_date ? inv.due_date.split('T')[0] : f.due_date,
           notes: inv.notes ?? '',
-          deposit_amount: '',
+          deposit_amount: depositItem ? String(Math.abs(depositItem.unit_price)) : '',
         }));
       })
       .catch(() => toast.error('Failed to load invoice for editing'))
