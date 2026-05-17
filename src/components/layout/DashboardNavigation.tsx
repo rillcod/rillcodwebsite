@@ -571,8 +571,8 @@ export default function DashboardNavigation() {
               className="flex flex-col items-center gap-0.5 py-1 flex-1 min-w-0 transition-all duration-200"
             >
               <div className={`relative flex items-center justify-center w-10 h-7 rounded-lg transition-all duration-200 ${active
-                  ? 'bg-primary/10'
-                  : ''
+                ? 'bg-primary/10'
+                : ''
                 }`}>
                 <Icon className={`w-5 h-5 transition-colors ${active ? 'text-primary' : 'text-sidebar-foreground/35'}`} />
                 {name === 'WhatsApp Inbox' && unreadCount > 0 && (
