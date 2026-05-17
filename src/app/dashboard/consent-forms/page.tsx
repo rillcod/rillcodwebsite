@@ -153,6 +153,16 @@ function printForm(form: ConsentForm) {
   win.document.close();
 }
 
+interface RegistrationData {
+  child_name: string;
+  child_age: string;
+  child_class: string;
+  program_category: 'junior_coders' | 'teen_developers' | '';
+  parent_name: string;
+  parent_whatsapp: string;
+  parent_email: string;
+}
+
 export default function ConsentFormsPage() {
   const { profile } = useAuth();
   const [forms, setForms] = useState<ConsentForm[]>([]);
@@ -168,6 +178,11 @@ export default function ConsentFormsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [readModalId, setReadModalId] = useState<string | null>(null);
+  const [regData, setRegData] = useState<RegistrationData>({
+    child_name: '', child_age: '', child_class: '',
+    program_category: '', parent_name: '', parent_whatsapp: '', parent_email: '',
+  });
+  const [regStep, setRegStep] = useState<'read' | 'fill'>('read');
 
   const isStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
   const isParent = profile?.role === 'parent';
@@ -205,10 +220,28 @@ export default function ConsentFormsPage() {
     }
   }
 
+  function openReadModal(id: string) {
+    setReadModalId(id);
+    setRegStep('read');
+    setRegData({
+      child_name: '',
+      child_age: '',
+      child_class: '',
+      program_category: '',
+      parent_name: (profile as any)?.full_name ?? '',
+      parent_whatsapp: (profile as any)?.phone ?? '',
+      parent_email: (profile as any)?.email ?? '',
+    });
+  }
+
   async function signForm(id: string) {
     setSigningId(id);
     try {
-      const res = await fetch(`/api/consent-forms/${id}/sign`, { method: 'POST' });
+      const res = await fetch(`/api/consent-forms/${id}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response_data: regData }),
+      });
       if (res.ok || res.status === 409) {
         setForms(prev => prev.map(f => f.id === id ? { ...f, has_signed: true } : f));
       }
@@ -392,7 +425,7 @@ export default function ConsentFormsPage() {
           )}
         </AnimatePresence>
 
-        {/* Full-read modal before signing */}
+        {/* Full-read modal + structured registration form */}
         <AnimatePresence>
           {readModal && (
             <motion.div
@@ -404,40 +437,163 @@ export default function ConsentFormsPage() {
                 initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
                 className="bg-card border border-border rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col"
               >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+                {/* Modal header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border/50 shrink-0">
                   <div>
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Consent Form</p>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">
+                      {regStep === 'read' ? 'Consent Form' : 'Student Registration'}
+                    </p>
                     <h2 className="font-black text-base">{readModal.title}</h2>
                   </div>
                   <button onClick={() => setReadModalId(null)} className="p-1 rounded-lg hover:bg-muted transition-colors">
                     <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto px-6 py-5">
-                  <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{readModal.body}</p>
-                </div>
-                <div className="px-6 py-4 border-t border-border/50 space-y-3">
-                  {readModal.due_date && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <CalendarIcon className="w-3.5 h-3.5" />
-                      Response deadline: <strong>{new Date(readModal.due_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
-                    </p>
+
+                {/* Step 1: Read the form */}
+                <AnimatePresence mode="wait">
+                  {regStep === 'read' && (
+                    <motion.div key="read" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col flex-1 overflow-hidden">
+                      <div className="flex-1 overflow-y-auto px-6 py-5">
+                        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{readModal.body}</p>
+                      </div>
+                      <div className="px-6 py-4 border-t border-border/50 space-y-3 shrink-0">
+                        {readModal.due_date && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            Response deadline: <strong>{new Date(readModal.due_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+                          </p>
+                        )}
+                        {isParent && !readModal.has_signed && (
+                          <button
+                            onClick={() => setRegStep('fill')}
+                            className="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground font-black rounded-xl transition-colors"
+                          >
+                            I have read this — Continue to Registration →
+                          </button>
+                        )}
+                        {isParent && readModal.has_signed && (
+                          <div className="w-full py-3 bg-emerald-600/15 border border-emerald-500/20 text-emerald-400 font-black rounded-xl text-center text-sm">
+                            ✓ You have already signed this form
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
                   )}
-                  {isParent && !readModal.has_signed && (
-                    <button
-                      onClick={() => signForm(readModal.id)}
-                      disabled={signingId === readModal.id}
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black rounded-xl transition-colors"
-                    >
-                      {signingId === readModal.id ? 'Signing…' : '✅ I have read and I agree — Sign Now'}
-                    </button>
+
+                  {/* Step 2: Fill registration details */}
+                  {regStep === 'fill' && (
+                    <motion.div key="fill" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col flex-1 overflow-hidden">
+                      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                        {/* Child info */}
+                        <div>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Child's Information</p>
+                          <div className="space-y-3">
+                            <input
+                              value={regData.child_name}
+                              onChange={e => setRegData(d => ({ ...d, child_name: e.target.value }))}
+                              placeholder="Child's full name *"
+                              className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                              <input
+                                value={regData.child_age}
+                                onChange={e => setRegData(d => ({ ...d, child_age: e.target.value }))}
+                                placeholder="Age *"
+                                type="number"
+                                min="4" max="19"
+                                className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                              />
+                              <input
+                                value={regData.child_class}
+                                onChange={e => setRegData(d => ({ ...d, child_class: e.target.value }))}
+                                placeholder="Class / Grade *"
+                                className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Program category */}
+                        <div>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Program Category *</p>
+                          <div className="space-y-2">
+                            {([
+                              { value: 'junior_coders', label: 'Junior Coders :: PRY', sub: 'Ages 5–10 · Basic programming through fun & games' },
+                              { value: 'teen_developers', label: 'Teen Developers :: SEC', sub: 'Ages 11–19 · Advanced coding & project development' },
+                            ] as const).map(opt => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setRegData(d => ({ ...d, program_category: opt.value }))}
+                                className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
+                                  regData.program_category === opt.value
+                                    ? 'border-primary bg-primary/10 text-foreground'
+                                    : 'border-border bg-background text-muted-foreground hover:border-border/80'
+                                }`}
+                              >
+                                <p className="font-black text-sm">{opt.label}</p>
+                                <p className="text-xs mt-0.5 opacity-70">{opt.sub}</p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Parent/guardian info */}
+                        <div>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">Parent / Guardian Information</p>
+                          <div className="space-y-3">
+                            <input
+                              value={regData.parent_name}
+                              onChange={e => setRegData(d => ({ ...d, parent_name: e.target.value }))}
+                              placeholder="Parent / guardian full name *"
+                              className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                            />
+                            <input
+                              value={regData.parent_whatsapp}
+                              onChange={e => setRegData(d => ({ ...d, parent_whatsapp: e.target.value }))}
+                              placeholder="WhatsApp / contact number *"
+                              className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                            />
+                            <input
+                              value={regData.parent_email}
+                              onChange={e => setRegData(d => ({ ...d, parent_email: e.target.value }))}
+                              placeholder="Email address (optional)"
+                              type="email"
+                              className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Submit footer */}
+                      <div className="px-6 py-4 border-t border-border/50 space-y-2 shrink-0">
+                        <p className="text-[10px] text-muted-foreground leading-snug">
+                          By submitting, I confirm the information above is accurate and I consent to the terms of this form.
+                        </p>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => setRegStep('read')}
+                            className="px-4 py-2.5 border border-border text-muted-foreground font-bold rounded-xl hover:bg-muted text-sm transition-colors"
+                          >
+                            ← Back
+                          </button>
+                          <button
+                            onClick={() => signForm(readModal.id)}
+                            disabled={
+                              signingId === readModal.id ||
+                              !regData.child_name.trim() || !regData.child_age || !regData.child_class.trim() ||
+                              !regData.program_category || !regData.parent_name.trim() || !regData.parent_whatsapp.trim()
+                            }
+                            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black rounded-xl text-sm transition-colors"
+                          >
+                            {signingId === readModal.id ? 'Submitting…' : '✅ Submit Registration & Sign'}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
                   )}
-                  {isParent && readModal.has_signed && (
-                    <div className="w-full py-3 bg-emerald-600/15 border border-emerald-500/20 text-emerald-400 font-black rounded-xl text-center text-sm">
-                      ✓ You have signed this form
-                    </div>
-                  )}
-                </div>
+                </AnimatePresence>
               </motion.div>
             </motion.div>
           )}
@@ -550,7 +706,7 @@ export default function ConsentFormsPage() {
                     <div className="flex flex-wrap gap-2 pt-1">
                       {/* Read full form */}
                       <button
-                        onClick={() => setReadModalId(cf.id)}
+                        onClick={() => openReadModal(cf.id)}
                         className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
                       >
                         Read Full Form
@@ -570,7 +726,7 @@ export default function ConsentFormsPage() {
                       {/* Parent sign */}
                       {isParent && !cf.has_signed && (
                         <button
-                          onClick={() => setReadModalId(cf.id)}
+                          onClick={() => openReadModal(cf.id)}
                           className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition-colors"
                         >
                           ✅ Read & Sign

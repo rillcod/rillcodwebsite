@@ -4,11 +4,6 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceEmail } from '@/lib/email/rillcod-transactional-email';
 import { AppError } from '@/lib/errors';
 
-const ROLE_LABELS: Record<string, string> = {
-    admin: 'Admin',
-    teacher: 'Teacher',
-    school: 'School Admin',
-};
 
 export async function POST(req: Request) {
     try {
@@ -25,7 +20,6 @@ export async function POST(req: Request) {
             : { data: null };
 
         const callerName = caller?.full_name || 'Rillcod Staff';
-        const callerRole = ROLE_LABELS[caller?.role] || caller?.role || '';
 
         const { invoiceId, recipientEmail } = await req.json();
 
@@ -126,8 +120,6 @@ export async function POST(req: Request) {
             ? `Invoice ${invoice.invoice_number} — Rillcod Technologies (School Billing)`
             : `Invoice ${invoice.invoice_number} from Rillcod Technologies`;
 
-        const senderLabel = `${callerName}${callerRole ? ` · ${callerRole}` : ''}`;
-
         const lineItems = (invoice.items || []).map((item: any) => ({
             description: String(item.description || 'Service'),
             qty: item.quantity ? Number(item.quantity) : undefined,
@@ -144,7 +136,20 @@ export async function POST(req: Request) {
             });
         }
 
-        const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/finance`;
+        // ── Payment URL ───────────────────────────────────────────────
+        // Parents pay via their invoices dashboard; schools via the finance portal
+        const appBase = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+        const portalUrl = isSchoolStream
+            ? `${appBase}/dashboard/finance`
+            : `${appBase}/dashboard/parent-invoices`;
+
+        // ── Fetch bank accounts for transfer details ──────────────────
+        const { data: bankAccounts } = await (supabase as any)
+            .from('payment_accounts')
+            .select('label, bank_name, account_number, account_name, payment_note')
+            .eq('is_active', true)
+            .or(invoice.school_id ? `school_id.eq.${invoice.school_id},owner_type.eq.global` : 'owner_type.eq.global')
+            .limit(3);
 
         const html = buildInvoiceEmail({
             recipientName: recipientName,
@@ -153,8 +158,9 @@ export async function POST(req: Request) {
             dueDate: invoice.due_date || new Date(Date.now() + 7 * 86400000).toISOString(),
             items: lineItems,
             currency: invoice.currency || 'NGN',
-            notes: `Sent by ${senderLabel}. For queries contact ${isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com'}.`,
+            isSchool: isSchoolStream,
             schoolName: isSchoolStream ? (invoice.schools?.name || 'Rillcod Technologies') : undefined,
+            bankAccounts: bankAccounts ?? [],
             paymentUrl: portalUrl,
         });
 

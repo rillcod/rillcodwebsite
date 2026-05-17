@@ -15,9 +15,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Only parents can sign consent forms' }, { status: 403 });
   }
 
-  const { error } = await supabase
+  const body = await req.json().catch(() => ({}));
+  const response_data = body?.response_data ?? null;
+
+  const { error } = await (supabase as any)
     .from('consent_responses')
-    .insert({ form_id: id, parent_id: user.id, signed_at: new Date().toISOString() });
+    .insert({ form_id: id, parent_id: user.id, signed_at: new Date().toISOString(), response_data });
 
   if (error) {
     if (error.code === '23505') {
@@ -48,11 +51,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     .order('signed_at');
 
   const rows = [
-    'Parent Name,Email,Signed At',
+    'Parent Name,Email,Child Name,Child Age,Child Class,Program,WhatsApp,Signed At',
     ...(responses ?? []).map((r: any) => {
       const name = r.portal_users?.full_name ?? '';
       const email = r.portal_users?.email ?? '';
-      return `"${name}","${email}","${r.signed_at}"`;
+      const d = r.response_data ?? {};
+      return `"${name}","${email}","${d.child_name ?? ''}","${d.child_age ?? ''}","${d.child_class ?? ''}","${d.program_category ?? ''}","${d.parent_whatsapp ?? ''}","${r.signed_at}"`;
     }),
   ].join('\n');
 

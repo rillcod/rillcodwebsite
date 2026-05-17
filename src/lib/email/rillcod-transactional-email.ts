@@ -379,6 +379,7 @@ export function buildPaymentConfirmationEmail(opts: {
 
 /** Invoice issued — with optional line items table. */
 export type InvoiceLineItem = { description: string; qty?: number; unitPrice: number; currency?: string };
+export type InvoiceBankAccount = { bank_name: string; account_number: string; account_name: string; label?: string | null; payment_note?: string | null };
 
 export function buildInvoiceEmail(opts: {
   recipientName: string;
@@ -389,7 +390,9 @@ export function buildInvoiceEmail(opts: {
   currency?: string;
   notes?: string;
   schoolName?: string;
+  isSchool?: boolean;
   paymentUrl: string;
+  bankAccounts?: InvoiceBankAccount[];
   appUrl?: string;
 }): string {
   const curr = opts.currency ?? 'NGN';
@@ -418,31 +421,94 @@ export function buildInvoiceEmail(opts: {
       </tr>
     </table>`;
 
-  const dueStr = new Date(opts.dueDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+  // ── Bank transfer section ──────────────────────────────────────────────────
+  // Always show Providus Bank as fallback; append any extra accounts from DB
+  const defaultAccount: InvoiceBankAccount = {
+    bank_name: 'Providus Bank',
+    account_number: '7901178957',
+    account_name: 'Rillcod Technologies',
+  };
+  const accounts: InvoiceBankAccount[] = (opts.bankAccounts && opts.bankAccounts.length > 0)
+    ? opts.bankAccounts
+    : [defaultAccount];
+
+  const accountRows = accounts.map(acc => `
+    <tr>
+      <td style="padding:10px 16px;border-bottom:1px solid ${BRAND.border};">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="font-size:12px;color:${BRAND.textMuted};width:38%;vertical-align:top;">${escapeHtml(acc.label ?? acc.bank_name)}</td>
+            <td style="font-size:13px;color:${BRAND.white};font-weight:700;text-align:right;font-family:monospace,Arial;">
+              ${escapeHtml(acc.account_number)}<br/>
+              <span style="font-size:11px;color:${BRAND.textMuted};font-family:Arial;font-weight:400;">${escapeHtml(acc.account_name)}</span>
+            </td>
+          </tr>
+        </table>
+        ${acc.payment_note ? `<p style="margin:4px 0 0;font-size:11px;color:${BRAND.textMuted};">${escapeHtml(acc.payment_note)}</p>` : ''}
+      </td>
+    </tr>`).join('');
+
+  const bankTransferBlock = `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="margin:16px 0 6px;border-collapse:collapse;border:1px solid ${BRAND.border};border-radius:4px;overflow:hidden;">
+      <tr style="background:${BRAND.cardAlt};">
+        <td style="padding:10px 16px;border-bottom:1px solid ${BRAND.border};">
+          <p style="margin:0;font-size:10px;color:${BRAND.textMuted};text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">
+            Bank Transfer Details
+          </p>
+        </td>
+      </tr>
+      ${accountRows}
+      <tr style="background:${BRAND.cardAlt};">
+        <td style="padding:10px 16px;">
+          <p style="margin:0;font-size:11px;color:${BRAND.textMuted};">
+            After transferring, please reply to this email with your payment proof so we can confirm promptly.
+          </p>
+        </td>
+      </tr>
+    </table>`;
+
+  const notesBlock = opts.notes
+    ? `<p style="margin:8px 0 20px;font-size:12px;color:${BRAND.textMuted};">Note: ${escapeHtml(opts.notes)}</p>`
+    : '';
+
+  const dueStr   = new Date(opts.dueDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
   const issueStr = new Date(opts.issueDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  return buildRillcodTransactionalEmailHtml({
-    appUrl:      opts.appUrl,
-    eyebrow:     opts.schoolName ?? BRAND.name,
-    title:       `Invoice #${opts.invoiceNumber}`,
-    accentColor: BRAND.primary,
-    bodyHtml: `
-      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+  // School-specific intro copy vs individual
+  const introCopy = opts.isSchool
+    ? `<p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Dear <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong> Team,
+      </p>
+      <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        Please find your school's invoice from <strong style="color:${BRAND.white};">Rillcod Technologies</strong> below.
+        Kindly arrange payment by the due date to avoid any service interruption for your students.
+      </p>`
+    : `<p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
         Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
       </p>
       <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
         Please find your invoice details below. Kindly settle the balance by the due date to avoid any service interruption.
-      </p>
-    `,
+      </p>`;
+
+  const accentColor = opts.isSchool ? '#4338ca' : BRAND.primary;
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     opts.isSchool ? `School Invoice — ${opts.schoolName ?? 'Partner School'}` : (opts.schoolName ?? BRAND.name),
+    title:       `Invoice #${opts.invoiceNumber}`,
+    accentColor,
+    bodyHtml: introCopy,
     summaryRows: [
       { label: 'Invoice No.',  value: opts.invoiceNumber, highlight: true },
       { label: 'Issue Date',   value: issueStr },
       { label: 'Due Date',     value: dueStr,  highlight: true },
       { label: 'Amount Due',   value: currency(total, curr), highlight: true },
     ],
-    extraBlock: lineItemsTable + (opts.notes ? `<p style="margin:8px 0 20px;font-size:12px;color:${BRAND.textMuted};">Note: ${escapeHtml(opts.notes)}</p>` : ''),
-    cta:        { href: opts.paymentUrl, label: 'Pay Now', color: BRAND.primary },
-    footerNote: `Invoice issued by Rillcod Technologies. Late payments may result in service suspension.`,
+    extraBlock: lineItemsTable + bankTransferBlock + notesBlock,
+    cta:        { href: opts.paymentUrl, label: opts.isSchool ? 'Pay via Portal' : 'Pay Now via Paystack', color: accentColor },
+    secondaryCta: { href: `mailto:${opts.isSchool ? 'partners@rillcod.com' : 'support@rillcod.com'}`, label: `Questions? Reply to ${opts.isSchool ? 'partners@rillcod.com' : 'support@rillcod.com'}` },
+    footerNote: `Invoice issued by Rillcod Technologies · ${BRAND.address} · ${BRAND.phone}. Late payments may result in service suspension.`,
   });
 }
 
