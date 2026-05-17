@@ -18,7 +18,8 @@ import { ReceiptBuilderPanel } from './ReceiptBuilderPanel';
 import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
 import { SchoolBillingDocsPanel } from './SchoolBillingDocsPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
-import { ReceiptPercentIcon, BuildingOfficeIcon, ShieldCheckIcon } from '@/lib/icons';
+import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
+import { ReceiptPercentIcon, BuildingOfficeIcon, ShieldCheckIcon, CalendarDaysIcon } from '@/lib/icons';
 
 type OpsTab =
   | 'approvals'
@@ -27,6 +28,7 @@ type OpsTab =
   | 'receipt_builder'
   | 'school_invoice_builder'
   | 'billing_docs'
+  | 'billing_cycles'
   | 'accounts'
   | 'diagnostics';
 
@@ -148,6 +150,13 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
       show: isAdmin,
     },
     {
+      k: 'billing_cycles',
+      label: 'Billing Cycles',
+      Icon: CalendarDaysIcon,
+      hint: 'Termly billing cycles — create, track and manage school billing periods',
+      show: isAdmin,
+    },
+    {
       k: 'accounts',
       label: 'Accounts',
       Icon: BanknotesIcon,
@@ -246,6 +255,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
         {tab === 'receipt_builder' && isAdmin && <ReceiptBuilderPanel />}
         {tab === 'school_invoice_builder' && isAdmin && <SchoolInvoiceBuilderPanel editInvoiceId={editInvoiceId ?? undefined} />}
         {tab === 'billing_docs' && isAdmin && <SchoolBillingDocsPanel />}
+        {tab === 'billing_cycles' && isAdmin && <BillingCyclesTab />}
         {tab === 'accounts' && isAdmin && <AccountsPanel />}
         {tab === 'diagnostics' && isAdmin && <DiagnosticsPanel />}
       </div>

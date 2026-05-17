@@ -12,6 +12,7 @@ import {
 } from '@/lib/icons';
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
 import { ScaledIframePreview } from './ScaledIframePreview';
+import { DEFAULT_COMMISSION_RATE } from '@/lib/finance/streams';
 
 interface SchoolRow {
   id: string;
@@ -177,8 +178,9 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
       });
 
     const sch = schools.find((s) => s.id === form.school_id);
-    if (sch?.rillcod_quota_percent != null && !form.rillcod_quota_percent) {
-      setForm((f) => ({ ...f, rillcod_quota_percent: String(sch.rillcod_quota_percent) }));
+    if (!form.rillcod_quota_percent) {
+      const quotaVal = sch?.rillcod_quota_percent ?? sch?.commission_rate ?? DEFAULT_COMMISSION_RATE;
+      setForm((f) => ({ ...f, rillcod_quota_percent: String(quotaVal) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.school_id]);
@@ -360,6 +362,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
           term_number: parseInt(form.term_number),
           term_label: termLabel,
           payment_method: form.payment_method,
+          commission_rate: parseFloat(form.rillcod_quota_percent) || DEFAULT_COMMISSION_RATE,
         },
         items: computed.revenueShareOn
           ? [
@@ -710,12 +713,12 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
             )}
 
             <div>
-              <Lbl>Rillcod % Share</Lbl>
+              <Lbl>Rillcod Commission % (default: {DEFAULT_COMMISSION_RATE}%)</Lbl>
               <input
                 type="number"
                 min={0}
                 max={100}
-                placeholder="e.g. 60"
+                placeholder={`default ${DEFAULT_COMMISSION_RATE}`}
                 value={form.rillcod_quota_percent}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, rillcod_quota_percent: e.target.value }))

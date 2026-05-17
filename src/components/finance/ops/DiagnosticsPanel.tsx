@@ -110,10 +110,18 @@ function deriveIssues(h: BillingHealthPayload): DerivedIssue[] {
  * the legacy PaymentsHub's billing view — improved to surface issues as
  * categorised cards instead of raw JSON.
  */
+interface EmailTestResult {
+  ok: boolean;
+  sent?: { to: string; subject: string }[];
+  error?: string;
+  testedAt: string;
+}
+
 export function DiagnosticsPanel() {
   const [health, setHealth] = useState<BillingHealthPayload | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [loadingEmail, setLoadingEmail] = useState(false);
+  const [emailResult, setEmailResult] = useState<EmailTestResult | null>(null);
 
   const runHealthCheck = async () => {
     setLoadingHealth(true);
@@ -133,6 +141,7 @@ export function DiagnosticsPanel() {
   const sendTestEmail = async () => {
     if (!confirm('Send two diagnostic emails via the transactional provider?')) return;
     setLoadingEmail(true);
+    setEmailResult(null);
     try {
       const res = await fetch('/api/admin/test-email', {
         method: 'POST',
@@ -140,14 +149,15 @@ export function DiagnosticsPanel() {
         body: JSON.stringify({}),
       });
       const j = await res.json();
+      const testedAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       if (!res.ok) {
-        throw new Error(
-          typeof j.error === 'string' ? j.error : JSON.stringify(j.error) || 'Test email failed',
-        );
+        const errMsg = typeof j.error === 'string' ? j.error : JSON.stringify(j.error) || 'Test email failed';
+        setEmailResult({ ok: false, error: errMsg, testedAt });
+        throw new Error(errMsg);
       }
-      const list = (j.sent as { to: string; subject: string }[] | undefined)
-        ?.map((s) => `${s.to}`)
-        .join(', ');
+      const sent = (j.sent as { to: string; subject: string }[] | undefined) ?? [];
+      setEmailResult({ ok: true, sent, testedAt });
+      const list = sent.map((s) => s.to).join(', ');
       toast.success(list ? `Delivered to ${list}` : 'Delivered.');
     } catch (e: unknown) {
       toast.error((e as Error).message || 'Test email failed');
@@ -300,6 +310,40 @@ export function DiagnosticsPanel() {
             Send tests
           </button>
         </div>
+
+        {emailResult && (
+          <div
+            className={`rounded-xl border px-4 py-3 mt-1 ${
+              emailResult.ok
+                ? 'border-emerald-500/40 bg-emerald-500/5'
+                : 'border-rose-500/40 bg-rose-500/5'
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              {emailResult.ok ? (
+                <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <XCircleIcon className="w-4 h-4 text-rose-400 shrink-0" />
+              )}
+              <p className={`text-xs font-black ${emailResult.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
+                {emailResult.ok ? 'SMTP delivery confirmed' : 'Delivery failed'}
+              </p>
+              <span className="ml-auto text-[10px] text-muted-foreground">{emailResult.testedAt}</span>
+            </div>
+            {emailResult.ok && emailResult.sent && emailResult.sent.length > 0 ? (
+              <ul className="space-y-1 mt-1">
+                {emailResult.sent.map((s, i) => (
+                  <li key={i} className="text-[11px] text-emerald-200">
+                    <span className="font-mono">{s.to}</span>
+                    <span className="text-emerald-400/60 ml-2">— {s.subject}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : emailResult.error ? (
+              <p className="text-[11px] text-rose-200 mt-1">{emailResult.error}</p>
+            ) : null}
+          </div>
+        )}
       </section>
     </div>
   );

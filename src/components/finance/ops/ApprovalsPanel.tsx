@@ -87,6 +87,7 @@ export function ApprovalsPanel() {
   const [search, setSearch] = useState('');
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [bulkIssuing, setBulkIssuing] = useState(false);
   const [proofModal, setProofModal] = useState<{ invoiceId: string; invoiceNumber: string } | null>(
     null,
   );
@@ -171,6 +172,29 @@ export function ApprovalsPanel() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const bulkIssueReceipts = async () => {
+    const missing = txs.filter(
+      (tx) => ['completed', 'success'].includes(tx.payment_status) && !tx.receipt_url,
+    );
+    if (missing.length === 0) { toast.info('No completed transactions missing receipts.'); return; }
+    if (!confirm(`Issue receipts for ${missing.length} transaction${missing.length === 1 ? '' : 's'}?`)) return;
+    setBulkIssuing(true);
+    let ok = 0;
+    let fail = 0;
+    for (const tx of missing) {
+      try {
+        const res = await fetch(`/api/payments/receipt/${tx.id}`);
+        if (res.ok) ok++; else fail++;
+      } catch {
+        fail++;
+      }
+    }
+    setBulkIssuing(false);
+    if (ok > 0) toast.success(`${ok} receipt${ok === 1 ? '' : 's'} issued${fail > 0 ? ` · ${fail} failed` : ''}`);
+    if (fail > 0 && ok === 0) toast.error(`All ${fail} failed — check API logs`);
+    await loadAll();
   };
 
   const filtered = useMemo(() => {
@@ -293,6 +317,21 @@ export function ApprovalsPanel() {
             className="w-full md:w-64 pl-9 pr-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
           />
         </div>
+
+        {tab === 'all_tx' && isAdmin && (() => {
+          const missingCount = txs.filter(tx => ['completed','success'].includes(tx.payment_status) && !tx.receipt_url).length;
+          return missingCount > 0 ? (
+            <button
+              onClick={bulkIssueReceipts}
+              disabled={bulkIssuing}
+              className="inline-flex items-center gap-1 px-3 py-2 text-xs font-black uppercase tracking-widest bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 rounded-md disabled:opacity-50"
+              title="Issue receipts for all completed transactions missing one"
+            >
+              {bulkIssuing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
+              Issue missing ({missingCount})
+            </button>
+          ) : null;
+        })()}
 
         <button
           onClick={loadAll}
@@ -445,63 +484,94 @@ function TxList({
   );
 }
 
+function proofAgeBadge(createdAt: string): { label: string; cls: string } {
+  const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
+  if (days < 7) return { label: `${days}d in queue`, cls: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' };
+  if (days < 14) return { label: `${days}d in queue`, cls: 'bg-amber-500/10 border-amber-500/30 text-amber-400' };
+  return { label: `${days}d overdue`, cls: 'bg-rose-500/10 border-rose-500/30 text-rose-400' };
+}
+
 function ProofQueueList({
   rows,
   onOpen,
+  onAutoReject,
 }: {
   rows: Array<InvoiceRow & { stream: FinanceStream }>;
   onOpen: (inv: InvoiceRow) => void;
+  onAutoReject?: (inv: InvoiceRow) => void;
 }) {
+  const stale = rows.filter(inv => Math.floor((Date.now() - new Date(inv.created_at).getTime()) / 86400000) > 30);
+
   return (
     <div className="space-y-2">
-      {rows.map((inv) => (
-        <div
-          key={inv.id}
-          className="border border-border rounded-xl p-4 bg-card/50 hover:bg-card transition-colors"
-        >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black border ${streamPillClasses(inv.stream)}`}>
-                  {streamLabel(inv.stream)}
-                </span>
-                <span className="text-[11px] font-mono text-muted-foreground">
-                  #{inv.invoice_number}
-                </span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                  {inv.status}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center gap-2 flex-wrap text-sm">
-                <span className="font-black text-foreground">
-                  {formatMoney(inv.amount, inv.currency)}
-                </span>
-                {inv.schools?.name && (
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <BuildingOfficeIcon className="w-3 h-3" /> {inv.schools.name}
-                  </span>
-                )}
-                {inv.portal_users?.full_name && (
-                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <UserIcon className="w-3 h-3" /> {inv.portal_users.full_name}
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px] text-muted-foreground mt-1">
-                Issued {formatShortDate(inv.created_at)}
-                {inv.due_date && ` · Due ${formatShortDate(inv.due_date)}`}
-              </div>
-            </div>
-
-            <button
-              onClick={() => onOpen(inv)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
-            >
-              <PaperClipIcon className="w-3 h-3" /> Review proofs
-            </button>
-          </div>
+      {stale.length > 0 && onAutoReject && (
+        <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-2">
+          <ExclamationTriangleIcon className="w-4 h-4 text-rose-400 shrink-0" />
+          <p className="text-xs text-rose-300 flex-1">
+            {stale.length} proof{stale.length === 1 ? '' : 's'} in queue for 30+ days.
+          </p>
+          <button
+            onClick={() => stale.forEach(inv => onAutoReject(inv))}
+            className="text-[10px] font-black uppercase tracking-widest text-rose-400 hover:text-rose-300 border border-rose-500/40 rounded px-2 py-1"
+          >
+            Reject all stale
+          </button>
         </div>
-      ))}
+      )}
+      {rows.map((inv) => {
+        const age = proofAgeBadge(inv.created_at);
+        return (
+          <div
+            key={inv.id}
+            className="border border-border rounded-xl p-4 bg-card/50 hover:bg-card transition-colors"
+          >
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black border ${streamPillClasses(inv.stream)}`}>
+                    {streamLabel(inv.stream)}
+                  </span>
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    #{inv.invoice_number}
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                    {inv.status}
+                  </span>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${age.cls}`}>
+                    {age.label}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2 flex-wrap text-sm">
+                  <span className="font-black text-foreground">
+                    {formatMoney(inv.amount, inv.currency)}
+                  </span>
+                  {inv.schools?.name && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <BuildingOfficeIcon className="w-3 h-3" /> {inv.schools.name}
+                    </span>
+                  )}
+                  {inv.portal_users?.full_name && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <UserIcon className="w-3 h-3" /> {inv.portal_users.full_name}
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  Issued {formatShortDate(inv.created_at)}
+                  {inv.due_date && ` · Due ${formatShortDate(inv.due_date)}`}
+                </div>
+              </div>
+
+              <button
+                onClick={() => onOpen(inv)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
+              >
+                <PaperClipIcon className="w-3 h-3" /> Review proofs
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
