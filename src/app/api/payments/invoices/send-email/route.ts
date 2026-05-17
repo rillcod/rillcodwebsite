@@ -53,7 +53,10 @@ export async function POST(req: Request) {
 
         if (error || !invoice) {
             console.error('Invoice fetch error:', error);
-            return NextResponse.json({ success: false, message: 'Invoice not found' }, { status: 404 });
+            return NextResponse.json({ 
+                success: false, 
+                message: error ? `Supabase error: ${error.message || error.details}` : 'Invoice not found in DB' 
+            }, { status: 404 });
         }
 
         let billingContact = null;
