@@ -47,6 +47,7 @@ export interface EmailPayload {
     html: string;
     fromName?: string;
     fromEmail?: string;
+    replyTo?: string;
     /** Optional file attachments (PDF, images, etc.) */
     attachments?: EmailAttachment[];
 }
@@ -483,7 +484,7 @@ export class NotificationsService {
             }))
             : undefined;
 
-        const emailData = {
+        const emailData: any = {
             email: {
                 html: Buffer.from(payload.html).toString('base64'),
                 text: htmlToPlainText(payload.html),
@@ -498,6 +499,10 @@ export class NotificationsService {
                 ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),
             }
         };
+
+        if (payload.replyTo) {
+            emailData.email.headers = { 'Reply-To': payload.replyTo };
+        }
 
         try {
             await this.fetchWithRetry('https://api.sendpulse.com/smtp/emails', {
@@ -529,7 +534,7 @@ export class NotificationsService {
             }))
             : undefined;
 
-        const emailData = {
+        const emailData: any = {
             email: {
                 html: Buffer.from(payload.html).toString('base64'),
                 text: htmlToPlainText(payload.html),
@@ -542,6 +547,10 @@ export class NotificationsService {
                 ...(attachmentsBinary ? { attachments_binary: attachmentsBinary } : {}),
             }
         };
+
+        if (payload.replyTo) {
+            emailData.email.headers = { 'Reply-To': payload.replyTo };
+        }
 
         await this.fetchWithRetry('https://api.sendpulse.com/smtp/emails', {
             method: 'POST',

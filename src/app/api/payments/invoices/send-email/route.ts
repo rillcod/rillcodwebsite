@@ -53,9 +53,9 @@ export async function POST(req: Request) {
 
         if (error || !invoice) {
             console.error('Invoice fetch error:', error);
-            return NextResponse.json({ 
-                success: false, 
-                message: error ? `Supabase error: ${error.message || error.details}` : 'Invoice not found in DB' 
+            return NextResponse.json({
+                success: false,
+                message: error ? `Supabase error: ${error.message || error.details}` : 'Invoice not found in DB'
             }, { status: 404 });
         }
 
@@ -130,17 +130,17 @@ export async function POST(req: Request) {
 
         const lineItems = (invoice.items || []).map((item: any) => ({
             description: String(item.description || 'Service'),
-            qty:         item.quantity ? Number(item.quantity) : undefined,
-            unitPrice:   Number(item.unit_price ?? item.amount ?? 0),
-            currency:    invoice.currency || 'NGN',
+            qty: item.quantity ? Number(item.quantity) : undefined,
+            unitPrice: Number(item.unit_price ?? item.amount ?? 0),
+            currency: invoice.currency || 'NGN',
         }));
 
         // Fall back to a single line item using invoice.amount if items array is empty
         if (lineItems.length === 0) {
             lineItems.push({
                 description: invoice.description || (isSchoolStream ? 'School Platform Fee' : 'Platform Fee'),
-                unitPrice:   Number(invoice.amount),
-                currency:    invoice.currency || 'NGN',
+                unitPrice: Number(invoice.amount),
+                currency: invoice.currency || 'NGN',
             });
         }
 
@@ -149,22 +149,22 @@ export async function POST(req: Request) {
         const html = buildInvoiceEmail({
             recipientName: recipientName,
             invoiceNumber: invoice.invoice_number,
-            issueDate:     invoice.created_at || new Date().toISOString(),
-            dueDate:       invoice.due_date || new Date(Date.now() + 7 * 86400000).toISOString(),
-            items:         lineItems,
-            currency:      invoice.currency || 'NGN',
-            notes:         `Sent by ${senderLabel}. For queries contact ${isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com'}.`,
-            schoolName:    isSchoolStream ? (invoice.schools?.name || 'Rillcod Technologies') : undefined,
-            paymentUrl:    portalUrl,
+            issueDate: invoice.created_at || new Date().toISOString(),
+            dueDate: invoice.due_date || new Date(Date.now() + 7 * 86400000).toISOString(),
+            items: lineItems,
+            currency: invoice.currency || 'NGN',
+            notes: `Sent by ${senderLabel}. For queries contact ${isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com'}.`,
+            schoolName: isSchoolStream ? (invoice.schools?.name || 'Rillcod Technologies') : undefined,
+            paymentUrl: portalUrl,
         });
 
         // ── Send ──────────────────────────────────────────────────────
         await notificationsService.sendEmail(caller?.id || 'system', {
-            to:        toEmail,
+            to: toEmail,
             subject,
             html,
-            fromName:  `${callerName} via Rillcod Technologies`,
-            fromEmail: isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com',
+            fromName: `${callerName} via Rillcod Technologies`,
+            replyTo: isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com',
         });
 
         // ── Post-send housekeeping ────────────────────────────────────
