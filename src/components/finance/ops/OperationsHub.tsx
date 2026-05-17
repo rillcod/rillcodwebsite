@@ -255,7 +255,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
         {tab === 'receipt_builder' && isAdmin && <ReceiptBuilderPanel />}
         {tab === 'school_invoice_builder' && isAdmin && <SchoolInvoiceBuilderPanel editInvoiceId={editInvoiceId ?? undefined} />}
         {tab === 'billing_docs' && isAdmin && <SchoolBillingDocsPanel />}
-        {tab === 'billing_cycles' && isAdmin && <BillingCyclesTab />}
+        {tab === 'billing_cycles' && isAdmin && <BillingCyclesTab profile={profile} />}
         {tab === 'accounts' && isAdmin && <AccountsPanel />}
         {tab === 'diagnostics' && isAdmin && <DiagnosticsPanel />}
       </div>
