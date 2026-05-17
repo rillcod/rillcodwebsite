@@ -25,8 +25,26 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // For parents: fetch which forms they have already signed so the UI
+  // shows correct signed state across page reloads.
+  let signedFormIds: string[] = [];
+  if (profile?.role === 'parent' && data && data.length > 0) {
+    const ids = data.map((f: any) => f.id);
+    const { data: myResponses } = await supabase
+      .from('consent_responses')
+      .select('form_id')
+      .eq('parent_id', user.id)
+      .in('form_id', ids);
+    signedFormIds = (myResponses ?? []).map((r: any) => r.form_id);
+  }
+
+  const enriched = (data ?? []).map((f: any) => ({
+    ...f,
+    has_signed: signedFormIds.includes(f.id),
+  }));
+
   const nextCursor = data && data.length === 20 ? data[data.length - 1].created_at : null;
-  return NextResponse.json({ data, nextCursor });
+  return NextResponse.json({ data: enriched, nextCursor });
 }
 
 // POST /api/consent-forms — create a consent form
