@@ -25,9 +25,9 @@ export function createMiddlewareSupabase(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
-          cookieState.current = NextResponse.next({
-            request: { headers: request.headers },
-          });
+          // Pass the full request (not just headers) so route handlers receive
+          // the updated auth cookies after a token refresh.
+          cookieState.current = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) => {
             cookieState.current.cookies.set(name, value, options);
           });
