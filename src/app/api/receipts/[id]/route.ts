@@ -74,7 +74,7 @@ export async function DELETE(
     action: 'deleted',
     old_value: `${(receipt as any).receipt_number} · ${(receipt as any).currency} ${(receipt as any).amount}`,
     new_value: reason,
-  }).catch((err: unknown) => {
+  }).then(null, (err: unknown) => {
     // Non-fatal — fall back to console log if audit_logs insert fails
     console.warn('[RECEIPT DELETED — audit_logs insert failed]', err);
   });
