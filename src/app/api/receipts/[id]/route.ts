@@ -69,6 +69,7 @@ export async function DELETE(
   // Write to audit_logs table for queryable trail
   await admin.from('audit_logs').insert({
     actor_id: user.id,
+    user_id: user.id,
     resource_type: 'receipt',
     resource_id: id,
     action: 'deleted',

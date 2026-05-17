@@ -334,20 +334,17 @@ export function ApprovalsPanel() {
           />
         </div>
 
-        {tab === 'all_tx' && isAdmin && (() => {
-          const missingCount = txs.filter(tx => ['completed','success'].includes(tx.payment_status) && !tx.receipt_url).length;
-          return missingCount > 0 ? (
-            <button
-              onClick={bulkIssueReceipts}
-              disabled={bulkIssuing}
-              className="inline-flex items-center gap-1 px-3 py-2 text-xs font-black uppercase tracking-widest bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 rounded-md disabled:opacity-50"
-              title="Issue receipts for all completed transactions missing one"
-            >
-              {bulkIssuing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
-              Issue missing ({missingCount})
-            </button>
-          ) : null;
-        })()}
+        {tab === 'all_tx' && isAdmin && txs.filter(tx => ['completed','success'].includes(tx.payment_status) && !tx.receipt_url).length > 0 && (
+          <button
+            onClick={bulkIssueReceipts}
+            disabled={bulkIssuing}
+            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-black uppercase tracking-widest bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 rounded-md disabled:opacity-50"
+            title="Issue receipts for all completed transactions missing one"
+          >
+            {bulkIssuing ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}
+            Issue missing ({txs.filter(tx => ['completed','success'].includes(tx.payment_status) && !tx.receipt_url).length})
+          </button>
+        )}
 
         <button
           onClick={loadAll}

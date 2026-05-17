@@ -51,26 +51,25 @@ export function useDashboardData(enabled: boolean = true): UseDashboardDataRetur
     setError(null);
 
     try {
-      // Fetch stats and activities in parallel
+      // Fetch stats and activities in parallel; treat non-ok as empty, not fatal
       const [statsRes, activityRes] = await Promise.all([
         fetch('/api/dashboard/stats', {
           signal: abortControllerRef.current.signal,
           cache: 'no-store',
-        }),
+        }).catch(() => null),
         fetch('/api/dashboard/activity', {
           signal: abortControllerRef.current.signal,
           cache: 'no-store',
-        }),
+        }).catch(() => null),
       ]);
 
-      if (!statsRes.ok || !activityRes.ok) {
-        throw new Error('Failed to fetch dashboard data');
+      const statsData = statsRes?.ok ? await statsRes.json().catch(() => ({})) : {};
+      const activityData = activityRes?.ok ? await activityRes.json().catch(() => ({})) : {};
+
+      // If stats returned an auth error, surface that (user needs to re-login)
+      if (statsRes && statsRes.status === 401) {
+        throw new Error('Session expired — please sign in again.');
       }
-
-      const [statsData, activityData] = await Promise.all([
-        statsRes.json(),
-        activityRes.json(),
-      ]);
 
       const newData = {
         stats: statsData.stats || null,
