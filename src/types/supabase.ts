@@ -1906,16 +1906,19 @@ export type Database = {
         Row: {
           form_id: string
           parent_id: string
+          response_data: Json | null
           signed_at: string
         }
         Insert: {
           form_id: string
           parent_id: string
+          response_data?: Json | null
           signed_at?: string
         }
         Update: {
           form_id?: string
           parent_id?: string
+          response_data?: Json | null
           signed_at?: string
         }
         Relationships: [

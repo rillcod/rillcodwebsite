@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const body = await req.json().catch(() => ({}));
   const response_data = body?.response_data ?? null;
 
-  const { error } = await (supabase as any)
+  const { error } = await supabase
     .from('consent_responses')
     .insert({ form_id: id, parent_id: user.id, signed_at: new Date().toISOString(), response_data });
 
