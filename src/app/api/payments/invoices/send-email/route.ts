@@ -46,19 +46,25 @@ export async function POST(req: Request) {
                 ),
                 schools (
                     name
-                ),
-                billing_contacts (
-                    representative_email,
-                    representative_name,
-                    owner_user_id
                 )
             `)
             .eq('id', invoiceId)
             .single();
 
         if (error || !invoice) {
+            console.error('Invoice fetch error:', error);
             return NextResponse.json({ success: false, message: 'Invoice not found' }, { status: 404 });
         }
+
+        let billingContact = null;
+        if (invoice.school_id) {
+            const { data } = await (supabase as any).from('billing_contacts').select('*').eq('school_id', invoice.school_id).maybeSingle();
+            billingContact = data;
+        } else if (invoice.portal_user_id) {
+            const { data } = await (supabase as any).from('billing_contacts').select('*').eq('owner_user_id', invoice.portal_user_id).maybeSingle();
+            billingContact = data;
+        }
+        invoice.billing_contacts = billingContact;
 
         const isSchoolStream = invoice.stream === 'school' || (invoice.school_id && !invoice.portal_user_id);
         const portalUser = invoice.portal_users;
