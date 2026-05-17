@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceEmail } from '@/lib/email/rillcod-transactional-email';
 import { AppError } from '@/lib/errors';
+import { env } from '@/config/env';
 
 
 export async function POST(req: Request) {
@@ -136,12 +137,67 @@ export async function POST(req: Request) {
             });
         }
 
-        // ── Payment URL ───────────────────────────────────────────────
-        // Parents pay via their invoices dashboard; schools via the finance portal
+        // ── Generate Paystack payment link ────────────────────────────
         const appBase = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-        const portalUrl = isSchoolStream
+        const fallbackUrl = isSchoolStream
             ? `${appBase}/dashboard/finance`
             : `${appBase}/dashboard/parent-invoices`;
+
+        let paystackUrl: string = fallbackUrl;
+
+        if (env.PAYSTACK_SECRET_KEY && invoice.amount > 0) {
+            try {
+                const reference = `EMAIL-INV-${invoice.invoice_number}-${Date.now()}`;
+                const callbackUrl = isSchoolStream
+                    ? `${appBase}/dashboard/finance`
+                    : `${appBase}/dashboard/parent-invoices?paid=1&invoice=${invoiceId}`;
+
+                const psRes = await fetch('https://api.paystack.co/transaction/initialize', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: toEmail,
+                        amount: Math.round(Number(invoice.amount) * 100), // kobo
+                        reference,
+                        currency: invoice.currency ?? 'NGN',
+                        callback_url: callbackUrl,
+                        metadata: {
+                            invoice_id: invoiceId,
+                            invoice_number: invoice.invoice_number,
+                            cancel_action: callbackUrl,
+                        },
+                    }),
+                });
+
+                const psData = await psRes.json();
+                if (psData.status && psData.data?.authorization_url) {
+                    paystackUrl = psData.data.authorization_url;
+
+                    // Record the pending transaction for webhook reconciliation
+                    await (supabase as any).from('payment_transactions').insert({
+                        portal_user_id: invoice.portal_user_id ?? caller?.id ?? null,
+                        school_id: invoice.school_id ?? null,
+                        amount: invoice.amount,
+                        currency: invoice.currency ?? 'NGN',
+                        payment_method: 'paystack',
+                        payment_status: 'pending',
+                        transaction_reference: reference,
+                        invoice_id: invoiceId,
+                        payment_gateway_response: {
+                            payment_type: 'invoice_email',
+                            invoice_id: invoiceId,
+                            sent_to: toEmail,
+                        },
+                    });
+                }
+            } catch (psErr) {
+                // Non-fatal — fall back to portal URL
+                console.warn('Paystack init failed for invoice email, using portal URL:', psErr);
+            }
+        }
 
         // ── Fetch bank accounts for transfer details ──────────────────
         const { data: bankAccounts } = await (supabase as any)
@@ -161,7 +217,7 @@ export async function POST(req: Request) {
             isSchool: isSchoolStream,
             schoolName: isSchoolStream ? (invoice.schools?.name || 'Rillcod Technologies') : undefined,
             bankAccounts: bankAccounts ?? [],
-            paymentUrl: portalUrl,
+            paymentUrl: paystackUrl,
         });
 
         // ── Send ──────────────────────────────────────────────────────
