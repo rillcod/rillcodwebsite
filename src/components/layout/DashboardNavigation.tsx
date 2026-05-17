@@ -22,6 +22,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from '@/components/ThemeToggle';
 import ViewAsSwitcher from './ViewAsSwitcher';
+import NotificationDropdown from '@/components/notifications/NotificationDropdown';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type NavItem = { name: string; href: string; icon: any };
@@ -413,14 +414,7 @@ export default function DashboardNavigation() {
           </span>
         </Link>
         <div className="flex items-center gap-1.5">
-          {unreadCount > 0 && (
-            <Link href="/dashboard/inbox" className="relative p-2">
-              <BellIcon className="w-5 h-5 text-sidebar-foreground/40" />
-              <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            </Link>
-          )}
+          <NotificationDropdown />
           <ThemeToggle />
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -481,11 +475,9 @@ export default function DashboardNavigation() {
               {profile.role === 'school' && profile.school_name ? profile.school_name : profile.role}
             </span>
           </div>
-          {unreadCount > 0 && (
-            <span className="ml-auto flex-shrink-0 w-5 h-5 bg-rose-500 text-white text-[9px] font-black rounded-xl flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
+          <div className="ml-auto flex-shrink-0">
+            <NotificationDropdown />
+          </div>
         </div>
 
         {/* Role simulator — admin/teacher only (enforced inside component) */}
