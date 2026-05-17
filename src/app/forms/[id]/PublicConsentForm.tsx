@@ -94,7 +94,8 @@ export default function PublicConsentForm({
     data.child_class.trim() &&
     data.program_category &&
     data.parent_name.trim() &&
-    data.parent_whatsapp.trim();
+    data.parent_whatsapp.trim() &&
+    data.parent_email.trim();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -420,9 +421,9 @@ export default function PublicConsentForm({
           className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
         />
         <input
-          type="email" value={data.parent_email}
+          required type="email" value={data.parent_email}
           onChange={e => set('parent_email', e.target.value)}
-          placeholder="Email address (optional — for confirmation)"
+          placeholder="Email address (for confirmation) *"
           className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
         />
       </section>

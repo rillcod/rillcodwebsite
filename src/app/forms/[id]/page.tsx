@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import Image from 'next/image';
 import PublicConsentForm from './PublicConsentForm';
 
 export const dynamic = 'force-dynamic';
@@ -45,11 +46,16 @@ export default async function PublicFormPage({ params }: { params: Promise<{ id:
         <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px]" />
       </div>
 
+      {/* Watermark (B/W Logo) */}
+      <div className="pointer-events-none fixed inset-0 flex items-center justify-center opacity-[0.03] grayscale mix-blend-overlay">
+        <Image src="/images/logo.png" alt="Watermark" width={800} height={800} className="w-[150%] max-w-[1000px] object-contain" />
+      </div>
+
       <div className="relative z-10 max-w-xl mx-auto px-4 py-10">
         {/* Rillcod header */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center font-black text-black text-lg shrink-0">
-            R
+          <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shrink-0 p-1.5 shadow-lg">
+            <Image src="/images/logo.png" alt="Rillcod Logo" width={40} height={40} className="w-full h-full object-contain" />
           </div>
           <div>
             <p className="font-black text-white leading-tight">RILLCOD TECHNOLOGIES</p>
