@@ -874,3 +874,88 @@ export function buildInboxOutboundEmail(opts: {
     footerNote: `Sent via Rillcod Technologies Unified Inbox &middot; Reply to this email to respond directly to the sender.`,
   });
 }
+
+/** Confirmation email sent to a parent after submitting a public form lead. */
+export function buildFormLeadConfirmationEmail(opts: {
+  parentName: string;
+  childName: string;
+  programCategory?: string;
+  formTitle: string;
+  schoolName?: string;
+  formType?: string;
+  appUrl?: string;
+}): string {
+  const program = opts.programCategory === 'junior_coders'
+    ? 'Junior Coders (PRY · Ages 5–10)'
+    : opts.programCategory === 'teen_developers'
+    ? 'Teen Developers (SEC · Ages 11–19)'
+    : opts.programCategory ?? 'To be confirmed';
+
+  const isAssessment = opts.formType === 'assessment';
+
+  const nextSteps = isAssessment
+    ? [
+        'Our team will review your child\'s assessment responses',
+        'We\'ll reach out within 24 hours to discuss the best programme fit',
+        'A personalised learning plan will be prepared for your child',
+      ]
+    : [
+        'Your registration details have been received',
+        'Our team will confirm your child\'s placement within 24 hours',
+        'You\'ll receive a welcome message with next steps and class schedule',
+      ];
+
+  const stepsHtml = nextSteps.map((step, i) => `
+    <tr>
+      <td style="padding:10px 16px;border-bottom:1px solid ${BRAND.border};">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr>
+            <td style="width:28px;vertical-align:top;">
+              <div style="width:22px;height:22px;border-radius:50%;background:${BRAND.primary};
+                          color:#111;font-size:11px;font-weight:800;text-align:center;
+                          line-height:22px;font-family:Arial,sans-serif;">${i + 1}</div>
+            </td>
+            <td style="font-size:13px;color:${BRAND.text};padding-left:10px;line-height:1.5;">
+              ${escapeHtml(step)}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`).join('');
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.appUrl,
+    eyebrow:     opts.schoolName ?? BRAND.name,
+    title:       isAssessment ? 'Assessment Received ✓' : 'Registration Confirmed ✓',
+    accentColor: BRAND.success,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Dear <strong style="color:${BRAND.white};">${escapeHtml(opts.parentName)}</strong>,
+      </p>
+      <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        Thank you for ${isAssessment ? 'completing the assessment' : 'registering'}
+        <strong style="color:${BRAND.white};">${escapeHtml(opts.childName)}</strong>
+        with <strong style="color:${BRAND.white};">${escapeHtml(opts.schoolName ?? 'Rillcod Technologies')}</strong>.
+        We are excited to welcome your child to our coding family!
+      </p>
+    `,
+    summaryRows: [
+      { label: 'Child',    value: opts.childName,  highlight: true },
+      { label: 'Form',     value: opts.formTitle },
+      { label: 'Programme', value: program, highlight: true },
+    ],
+    extraBlock: `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"
+             style="margin:0 0 20px;border-collapse:collapse;border:1px solid ${BRAND.border};border-radius:4px;overflow:hidden;">
+        <tr style="background:${BRAND.cardAlt};">
+          <td style="padding:10px 16px;border-bottom:1px solid ${BRAND.border};">
+            <p style="margin:0;font-size:10px;color:${BRAND.textMuted};text-transform:uppercase;
+                      letter-spacing:1.5px;font-weight:800;">What happens next</p>
+          </td>
+        </tr>
+        ${stepsHtml}
+      </table>`,
+    secondaryCta: { href: `mailto:support@rillcod.com`, label: 'Questions? Email us at support@rillcod.com' },
+    footerNote: `${BRAND.name} · ${BRAND.address} · ${BRAND.phone}. Empowering Young Minds Through Code.`,
+  });
+}

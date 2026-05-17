@@ -1856,7 +1856,9 @@ export type Database = {
           created_at: string
           created_by: string
           due_date: string | null
+          form_type: string | null
           id: string
+          is_public: boolean | null
           school_id: string
           title: string
         }
@@ -1865,7 +1867,9 @@ export type Database = {
           created_at?: string
           created_by: string
           due_date?: string | null
+          form_type?: string | null
           id?: string
+          is_public?: boolean | null
           school_id: string
           title: string
         }
@@ -1874,7 +1878,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           due_date?: string | null
+          form_type?: string | null
           id?: string
+          is_public?: boolean | null
           school_id?: string
           title?: string
         }
@@ -4071,6 +4077,61 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      form_leads: {
+        Row: {
+          child_current_school: string | null
+          email: string | null
+          form_id: string
+          id: string
+          matched_school_id: string | null
+          response_data: Json
+          school_id: string | null
+          submitted_at: string | null
+        }
+        Insert: {
+          child_current_school?: string | null
+          email?: string | null
+          form_id: string
+          id?: string
+          matched_school_id?: string | null
+          response_data?: Json
+          school_id?: string | null
+          submitted_at?: string | null
+        }
+        Update: {
+          child_current_school?: string | null
+          email?: string | null
+          form_id?: string
+          id?: string
+          matched_school_id?: string | null
+          response_data?: Json
+          school_id?: string | null
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_leads_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "consent_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_matched_school_id_fkey"
+            columns: ["matched_school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
           },
         ]
       }
