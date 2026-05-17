@@ -188,6 +188,7 @@ function renderSchoolBuilderInvoiceHtml(invoice: any): string {
     payToAcc: null,
     showRevenueShare: revenueShareOn,
     showWhatsapp: false,
+    paymentMethod: invoice.metadata?.payment_method,
     notes: invoice.notes || '',
     currency: invoice.currency,
   });

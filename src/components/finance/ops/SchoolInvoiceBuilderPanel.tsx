@@ -40,6 +40,16 @@ interface PricingTier {
 
 const CURRENT_YEAR = new Date().getFullYear();
 
+type PaymentMode = 'bank_transfer' | 'cash' | 'pos' | 'cheque' | 'online';
+
+const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
+  bank_transfer: 'Bank Transfer',
+  cash: 'Cash Payment',
+  pos: 'POS Terminal',
+  cheque: 'Cheque',
+  online: 'Online Payment',
+};
+
 const BLANK = {
   school_id: '',
   academic_year: String(CURRENT_YEAR),
@@ -50,6 +60,7 @@ const BLANK = {
   tiers: [{ label: '', count: '', rate: '' }] as PricingTier[],
   rillcod_quota_percent: '',
   currency: 'NGN' as Currency,
+  payment_method: 'bank_transfer' as PaymentMode,
   notes: '',
   due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
   deposit_amount: '',
@@ -137,6 +148,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
           fixed_package_price: pricingMode === 'fixed_package' ? String(firstItem?.unit_price ?? '') : '',
           tiers: restoredTiers,
           currency: (inv.currency ?? 'NGN') as Currency,
+          payment_method: (meta.payment_method ?? 'bank_transfer') as PaymentMode,
           due_date: inv.due_date ? inv.due_date.split('T')[0] : f.due_date,
           notes: inv.notes ?? '',
           deposit_amount: '',
@@ -257,6 +269,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
       payToAcc,
       showRevenueShare: form.show_revenue_share,
       showWhatsapp: form.show_whatsapp_option,
+      paymentMethod: form.payment_method,
       notes: [
         `${['First','Second','Third'][parseInt(form.term_number)-1]} Term ${form.academic_year}/${parseInt(form.academic_year)+1}`,
         form.notes,
@@ -346,6 +359,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
           academic_year: parseInt(form.academic_year),
           term_number: parseInt(form.term_number),
           term_label: termLabel,
+          payment_method: form.payment_method,
         },
         items: computed.revenueShareOn
           ? [
@@ -718,6 +732,19 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                 onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               />
+            </div>
+
+            <div>
+              <Lbl>Payment Mode</Lbl>
+              <select
+                value={form.payment_method}
+                onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value as PaymentMode }))}
+                className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
+              >
+                {(Object.entries(PAYMENT_MODE_LABELS) as [PaymentMode, string][]).map(([v, label]) => (
+                  <option key={v} value={v}>{label}</option>
+                ))}
+              </select>
             </div>
 
             <div>

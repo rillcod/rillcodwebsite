@@ -245,6 +245,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Finance' },
           { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
+          { name: 'Finance Records', href: '/dashboard/finance?tab=operations', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },
           { name: 'LMS Settings', href: '/dashboard/progression/settings', icon: CogIcon },
@@ -333,7 +334,7 @@ export default function DashboardNavigation() {
           { name: 'Performance', href: '/dashboard/progress', icon: PresentationChartLineIcon },
 
           { divider: true, label: 'Finance' },
-          // Consolidated school finance surface.
+          { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
           { name: 'My Billing', href: '/dashboard/finance?tab=billing_cycles', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },

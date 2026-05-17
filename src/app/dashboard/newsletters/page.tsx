@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -86,6 +86,8 @@ interface Newsletter {
   status: string | null;
   created_at: string | null;
   published_at: string | null;
+  _total?: number;
+  _viewed?: number;
 }
 
 type FontSize = 'compact' | 'normal' | 'large';
@@ -122,7 +124,72 @@ export default function NewslettersPage() {
   const [fontSize, setFontSize] = useState<FontSize>('normal');
   const [twoColumn, setTwoColumn] = useState(false);
 
+  // Scheduling
+  const [publishDate, setPublishDate] = useState('');
+
   const supabase = createClient();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // ── Toolbar formatting ─────────────────────────────────────
+
+  const applyFormat = useCallback((type: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const { selectionStart: ss, selectionEnd: se, value } = ta;
+    const selected = value.slice(ss, se);
+    const before = value.slice(0, ss);
+    const after = value.slice(se);
+
+    let newValue = value;
+    let newSs = ss;
+    let newSe = se;
+
+    if (type === 'bold') {
+      const text = selected || 'bold text';
+      newValue = before + `**${text}**` + after;
+      newSs = ss + 2; newSe = newSs + text.length;
+    } else if (type === 'italic') {
+      const text = selected || 'italic text';
+      newValue = before + `*${text}*` + after;
+      newSs = ss + 1; newSe = newSs + text.length;
+    } else if (type === 'h1' || type === 'h2' || type === 'h3') {
+      const prefix = type === 'h1' ? '# ' : type === 'h2' ? '## ' : '### ';
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const lineEnd = value.indexOf('\n', ss) === -1 ? value.length : value.indexOf('\n', ss);
+      const line = value.slice(lineStart, lineEnd);
+      const cleanLine = line.replace(/^#{1,6} /, '');
+      const newLine = prefix + (cleanLine || 'Heading');
+      newValue = value.slice(0, lineStart) + newLine + value.slice(lineEnd);
+      newSs = lineStart + prefix.length; newSe = lineStart + newLine.length;
+    } else if (type === 'ul') {
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const lineEnd = value.indexOf('\n', ss) === -1 ? value.length : value.indexOf('\n', ss);
+      const line = value.slice(lineStart, lineEnd);
+      const cleanLine = line.replace(/^[*-] /, '').replace(/^\d+\. /, '');
+      const newLine = `- ${cleanLine || 'List item'}`;
+      newValue = value.slice(0, lineStart) + newLine + value.slice(lineEnd);
+      newSs = lineStart + 2; newSe = lineStart + newLine.length;
+    } else if (type === 'ol') {
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const lineEnd = value.indexOf('\n', ss) === -1 ? value.length : value.indexOf('\n', ss);
+      const line = value.slice(lineStart, lineEnd);
+      const cleanLine = line.replace(/^[*-] /, '').replace(/^\d+\. /, '');
+      const newLine = `1. ${cleanLine || 'List item'}`;
+      newValue = value.slice(0, lineStart) + newLine + value.slice(lineEnd);
+      newSs = lineStart + 3; newSe = lineStart + newLine.length;
+    } else if (type === 'hr') {
+      const gap = before.endsWith('\n') ? '' : '\n';
+      const insertion = `${gap}\n---\n\n`;
+      newValue = before + insertion + after;
+      newSs = newSe = ss + insertion.length;
+    }
+
+    setActiveNewsletter(p => ({ ...p, content: newValue }));
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(newSs, newSe);
+    });
+  }, []);
 
   // ── Print helpers ──────────────────────────────────────────
 
@@ -607,7 +674,7 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                   />
                 </div>
 
-                {/* Source / Preview tab bar */}
+                {/* Tab bar */}
                 <div className="flex border-b border-border px-6">
                   {(['write', 'preview'] as EditorTab[]).map(tab => (
                     <button key={tab} onClick={() => setEditorTab(tab)}
@@ -616,23 +683,63 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                       {tab === 'write' ? 'Write' : 'Preview'}
                     </button>
                   ))}
-                  <div className="ml-auto flex items-center gap-1 px-4 py-2">
-                    <span className="text-[9px] text-muted-foreground">Markdown supported</span>
-                  </div>
                 </div>
+
+                {/* Formatting toolbar — only shown in Write mode */}
+                {editorTab === 'write' && (
+                  <div className="flex flex-wrap items-center gap-0.5 px-4 py-2 border-b border-border bg-muted/30">
+                    {([
+                      { id: 'bold',   label: 'B',   title: 'Bold',           cls: 'font-black italic' },
+                      { id: 'italic', label: 'I',   title: 'Italic',         cls: 'italic' },
+                    ] as const).map(btn => (
+                      <button key={btn.id} onMouseDown={e => { e.preventDefault(); applyFormat(btn.id); }}
+                        title={btn.title}
+                        className={`w-7 h-7 flex items-center justify-center rounded text-xs text-foreground hover:bg-border transition-colors ${btn.cls}`}>
+                        {btn.label}
+                      </button>
+                    ))}
+                    <span className="w-px h-4 bg-border mx-1" />
+                    {([
+                      { id: 'h1', label: 'H1', title: 'Heading 1' },
+                      { id: 'h2', label: 'H2', title: 'Heading 2' },
+                      { id: 'h3', label: 'H3', title: 'Heading 3' },
+                    ] as const).map(btn => (
+                      <button key={btn.id} onMouseDown={e => { e.preventDefault(); applyFormat(btn.id); }}
+                        title={btn.title}
+                        className="w-8 h-7 flex items-center justify-center rounded text-[10px] font-black text-foreground hover:bg-border transition-colors">
+                        {btn.label}
+                      </button>
+                    ))}
+                    <span className="w-px h-4 bg-border mx-1" />
+                    <button onMouseDown={e => { e.preventDefault(); applyFormat('ul'); }} title="Bullet list"
+                      className="h-7 px-2 flex items-center justify-center rounded text-[11px] text-foreground hover:bg-border transition-colors">
+                      • List
+                    </button>
+                    <button onMouseDown={e => { e.preventDefault(); applyFormat('ol'); }} title="Numbered list"
+                      className="h-7 px-2 flex items-center justify-center rounded text-[11px] text-foreground hover:bg-border transition-colors">
+                      1. List
+                    </button>
+                    <span className="w-px h-4 bg-border mx-1" />
+                    <button onMouseDown={e => { e.preventDefault(); applyFormat('hr'); }} title="Insert divider"
+                      className="h-7 px-2 flex items-center justify-center rounded text-[11px] text-muted-foreground hover:bg-border hover:text-foreground transition-colors">
+                      — Divider
+                    </button>
+                  </div>
+                )}
 
                 <div className="p-6">
                   {editorTab === 'write' ? (
                     <textarea
+                      ref={textareaRef}
                       value={activeNewsletter?.content || ''}
                       onChange={e => setActiveNewsletter(p => ({ ...p, content: e.target.value }))}
-                      placeholder={`Write using Markdown:\n\n## Introduction\n\nWelcome to this term's newsletter...\n\n## Key Updates\n\n- First update\n- Second update\n\n## Upcoming Events\n\n1. Workshop on Saturday\n2. Prize-giving ceremony`}
-                      className="w-full bg-transparent text-sm leading-relaxed min-h-[600px] focus:outline-none placeholder-muted-foreground resize-none font-mono scrollbar-hide"
+                      placeholder={`Start writing your newsletter...\n\nTip: Select text and click B for bold, H1 for a big heading, or • List for bullets.`}
+                      className="w-full bg-transparent text-sm leading-relaxed min-h-[600px] focus:outline-none placeholder-muted-foreground resize-none scrollbar-hide"
                     />
                   ) : (
                     <div
                       className="min-h-[600px] text-sm leading-[1.85] text-foreground prose-custom"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdown(activeNewsletter?.content || '<p class="text-muted-foreground">Nothing to preview yet — switch to Write tab and add content.</p>') }}
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(activeNewsletter?.content || '') || '<p style="color:var(--muted-foreground)">Nothing to preview yet.</p>' }}
                     />
                   )}
                 </div>

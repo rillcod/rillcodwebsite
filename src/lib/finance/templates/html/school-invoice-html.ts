@@ -37,6 +37,7 @@ export interface SchoolInvoiceHTMLInput {
   payToAcc?: { bank_name: string; account_number: string; account_name: string } | null;
   showRevenueShare: boolean;
   showWhatsapp: boolean;
+  paymentMethod?: string;
   notes: string;
   currency?: string;
 }
@@ -45,8 +46,13 @@ export function buildSchoolInvoiceHTML(p: SchoolInvoiceHTMLInput): string {
   const {
     sch, isFixed, isTiered, tiers, count, ratePerChild, fixedPrice, quotaPct, subtotal, deposit,
     rillcodShare, schoolShare, balance, revenueShareOn, dateStr, dueStr, docRef,
-    payToAcc, showRevenueShare, showWhatsapp, notes, currency,
+    payToAcc, showRevenueShare, showWhatsapp, paymentMethod, notes, currency,
   } = p;
+  const pmLabels: Record<string, string> = {
+    bank_transfer: 'Bank Transfer', cash: 'Cash Payment', pos: 'POS Terminal',
+    cheque: 'Cheque', online: 'Online Payment',
+  };
+  const pmLabel = paymentMethod ? (pmLabels[paymentMethod] ?? paymentMethod) : 'Bank Transfer';
   const activeTiers: PricingTierRow[] = isTiered && tiers && tiers.length > 0 ? tiers : [];
   const cur = (currency || 'NGN').toUpperCase();
   const fmt = (n: number) =>
@@ -155,6 +161,7 @@ hr{border:none;border-top:1px solid #7c3aed22;margin:8px 0}
        <div class="meta-cell"><div class="meta-label">Rate / Child</div><div class="meta-val">${fmt(ratePerChild)}</div></div>`
   }
   <div class="meta-cell"><div class="meta-label">Total Amount</div><div class="meta-val">${fmt(subtotal)}</div></div>
+  <div class="meta-cell" style="background:#f0fdf4;border-color:#16a34a33"><div class="meta-label" style="color:#16a34a">Payment Mode</div><div class="meta-val" style="color:#15803d;font-size:11px">${pmLabel}</div></div>
   ${showRevenueShare ? `
   <div class="meta-cell"><div class="meta-label">Rillcod %</div><div class="meta-val">${quotaPct}%</div></div>
   <div class="meta-cell"><div class="meta-label">School %</div><div class="meta-val">${100 - quotaPct}%</div></div>
