@@ -52,27 +52,68 @@ const QUICK_LINKS = (id: string) => [
   { label: 'Certificates',  href: `/dashboard/parent-certificates?student=${id}`, icon: TrophyIcon,                 color: 'bg-amber-500/20 text-amber-400', hover: 'group-hover/link:bg-amber-500/30' },
 ];
 
+interface ActivityEvent {
+  id: string;
+  type: string;
+  title: string;
+  detail: string | null;
+  date: string;
+  icon: string;
+  color: string;
+  childName?: string;
+}
+
+const COLOR_MAP: Record<string, string> = {
+  emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
+  rose: 'bg-rose-500/10 border-rose-500/20 text-rose-400',
+  primary: 'bg-primary/10 border-primary/20 text-primary',
+  amber: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
+  sky: 'bg-sky-500/10 border-sky-500/20 text-sky-400',
+};
+
 export default function MyChildrenPage() {
   const { profile } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
   const [statsMap, setStatsMap] = useState<Record<string, ChildStats>>({});
+  const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
     setLoading(true);
     fetch('/api/parents/portal?section=summary')
       .then(res => res.json())
-      .then(data => {
+      .then(async data => {
         const list = (data.children ?? []) as (Child & { stats: ChildStats })[];
         setChildren(list);
-        
+
         const stats: Record<string, ChildStats> = {};
         list.forEach(c => {
           stats[c.id] = c.stats;
         });
         setStatsMap(stats);
         setLoading(false);
+
+        // Fetch activity feed for all children
+        if (list.length > 0) {
+          setActivityLoading(true);
+          try {
+            const activityResults = await Promise.all(
+              list.map(c =>
+                fetch(`/api/parents/portal?section=activity&child_id=${c.id}`)
+                  .then(r => r.json())
+                  .then(d => (d.events ?? []).map((e: ActivityEvent) => ({ ...e, childName: c.full_name })))
+                  .catch(() => [])
+              )
+            );
+            const allEvents: ActivityEvent[] = activityResults.flat();
+            allEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setActivityEvents(allEvents.slice(0, 25));
+          } finally {
+            setActivityLoading(false);
+          }
+        }
       })
       .catch(err => {
         console.error('Failed to load summary:', err);
@@ -279,6 +320,73 @@ export default function MyChildrenPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Activity Feed ──────────────────────────────────────────── */}
+      {!loading && children.length > 0 && (
+        <div className="bg-card border border-border overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-base">📡</span>
+              <div>
+                <h3 className="text-sm font-black text-foreground tracking-tight">Recent Activity</h3>
+                <p className="text-[10px] text-muted-foreground">What your child{children.length > 1 ? 'ren have' : ' has'} been doing in the last 90 days</p>
+              </div>
+            </div>
+            {activityLoading && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
+          </div>
+
+          {!activityLoading && activityEvents.length === 0 && (
+            <div className="p-10 text-center">
+              <p className="text-2xl mb-2">📚</p>
+              <p className="text-sm text-muted-foreground">No recent activity in the last 90 days.</p>
+              <p className="text-xs text-muted-foreground mt-1">Activity appears here as your child attends classes, submits work, and earns certificates.</p>
+            </div>
+          )}
+
+          {activityEvents.length > 0 && (
+            <ul className="divide-y divide-border">
+              {activityEvents.map((evt, i) => {
+                const clsMap = COLOR_MAP[evt.color] ?? COLOR_MAP.primary;
+                return (
+                  <li key={`${evt.id}-${i}`} className="flex items-start gap-3 px-5 py-3 hover:bg-muted/20 transition-colors">
+                    <div className={`w-8 h-8 rounded-lg border flex items-center justify-center text-sm shrink-0 mt-0.5 ${clsMap}`}>
+                      {evt.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-bold text-foreground">{evt.title}</p>
+                        {evt.detail && (
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${clsMap}`}>
+                            {evt.detail}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(evt.date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                        {children.length > 1 && evt.childName && (
+                          <span className="text-[10px] font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
+                            {evt.childName.split(' ')[0]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {activityEvents.length > 0 && (
+            <div className="px-5 py-3 border-t border-border flex items-center gap-4">
+              <Link href="/dashboard/parent-attendance" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">View Attendance →</Link>
+              <Link href="/dashboard/parent-grades" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">View Grades →</Link>
+              <Link href="/dashboard/parent-certificates" className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:underline">View Certificates →</Link>
+            </div>
+          )}
         </div>
       )}
 

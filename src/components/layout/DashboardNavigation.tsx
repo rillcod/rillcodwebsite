@@ -227,6 +227,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Students' },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
+          { name: 'Student Fees', href: '/dashboard/money', icon: BanknotesIcon },
           { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
           { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
           { name: 'Gamification', href: '/dashboard/gamification', icon: FireIcon },

@@ -366,6 +366,9 @@ export default function StudentsPage() {
   const [classMap, setClassMap] = useState<Record<string, string>>({}); // class_id → name
   const [schoolList, setSchoolList] = useState<{ id: string; name: string }[]>([]);
 
+  // Fee filter for enrolled students
+  const [feeFilter, setFeeFilter] = useState<'all' | 'paid' | 'pending' | 'overdue' | 'none'>('all');
+
   // Fee status map: portal_user_id → { status, amount, currency, dueDate }
   type FeeEntry = { status: string; amount: number; currency: string; dueDate: string | null };
   const [feeMap, setFeeMap] = useState<Record<string, FeeEntry>>({});
@@ -1224,7 +1227,18 @@ export default function StudentsPage() {
     const studentClass = s.section_class || (s.class_id && classMap[s.class_id]) || '';
     const matchClassReg = !filterClassReg || studentClass === filterClassReg;
     const matchGradeReg = !filterGradeReg || (s.grade_level ?? '') === filterGradeReg;
-    return ms && matchSource && matchStatus && matchSchoolReg && matchClassReg && matchGradeReg;
+    const matchFee = feeFilter === 'all' || (() => {
+      if (s._source !== 'enrolled') return true;
+      const fe = feeMap[s.id];
+      if (feeFilter === 'none') return !fe;
+      if (!fe) return false;
+      const isOv = fe.status.toLowerCase() === 'overdue' || (fe.status === 'sent' && fe.dueDate && new Date(fe.dueDate) < new Date());
+      if (feeFilter === 'overdue') return !!isOv;
+      if (feeFilter === 'paid') return fe.status.toLowerCase() === 'paid';
+      if (feeFilter === 'pending') return !isOv && ['pending', 'sent'].includes(fe.status.toLowerCase());
+      return true;
+    })();
+    return ms && matchSource && matchStatus && matchSchoolReg && matchClassReg && matchGradeReg && matchFee;
   });
 
   // Distinct values for registry filter dropdowns
@@ -1236,6 +1250,23 @@ export default function StudentsPage() {
   const distinctGradesReg = [...new Set(combined.map(s => s.grade_level).filter(Boolean))].sort() as string[];
 
   const pending = normalizedApplications.filter(s => s.status === 'pending').length;
+
+  // Fee stats computed from enrolled students
+  const feeStats = {
+    paid: normalizedEnrolled.filter(s => feeMap[s.id]?.status === 'paid').length,
+    overdue: normalizedEnrolled.filter(s => {
+      const fe = feeMap[s.id];
+      if (!fe) return false;
+      return fe.status.toLowerCase() === 'overdue' || (fe.status === 'sent' && fe.dueDate && new Date(fe.dueDate) < new Date());
+    }).length,
+    pending: normalizedEnrolled.filter(s => {
+      const fe = feeMap[s.id];
+      if (!fe) return false;
+      const isOv = fe.status.toLowerCase() === 'overdue' || (fe.status === 'sent' && fe.dueDate && new Date(fe.dueDate) < new Date());
+      return !isOv && ['pending', 'sent'].includes(fe.status.toLowerCase());
+    }).length,
+    none: normalizedEnrolled.filter(s => !feeMap[s.id]).length,
+  };
 
   // ── Calculate age ──────────────────────────────────────────
   const calcAge = (dob?: string) => {
@@ -1821,6 +1852,38 @@ export default function StudentsPage() {
               </button>
             ))}
           </div>
+
+          {/* ── Fee Status Bar (enrolled students only) ─────── */}
+          {normalizedEnrolled.length > 0 && (profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school') && (
+            <div className="print:hidden">
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">Fee Payment Status — Enrolled Students</p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { key: 'all', label: 'All Enrolled', count: normalizedEnrolled.length, cls: 'border-border text-muted-foreground hover:border-primary/40', activeCls: 'border-primary bg-primary/10 text-primary' },
+                  { key: 'paid', label: '✓ Paid', count: feeStats.paid, cls: 'border-emerald-500/30 text-emerald-400 hover:border-emerald-500/60', activeCls: 'border-emerald-500 bg-emerald-500/15 text-emerald-400' },
+                  { key: 'pending', label: '· Pending', count: feeStats.pending, cls: 'border-amber-500/30 text-amber-400 hover:border-amber-500/60', activeCls: 'border-amber-500 bg-amber-500/15 text-amber-400' },
+                  { key: 'overdue', label: '⚠ Overdue', count: feeStats.overdue, cls: 'border-rose-500/30 text-rose-400 hover:border-rose-500/60', activeCls: 'border-rose-500 bg-rose-500/15 text-rose-400' },
+                  { key: 'none', label: 'No Invoice', count: feeStats.none, cls: 'border-border text-muted-foreground hover:border-border', activeCls: 'border-border bg-muted text-foreground' },
+                ] as const).map(({ key, label, count, cls, activeCls }) => (
+                  <button
+                    key={key}
+                    onClick={() => { setFeeFilter(key); if (key !== 'all') setSourceFilter('enrolled'); }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${feeFilter === key ? activeCls : cls}`}
+                  >
+                    {label}
+                    <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[9px] font-black ${feeFilter === key ? 'bg-white/20' : 'bg-muted'}`}>
+                      {count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {feeStats.overdue > 0 && (
+                <p className="text-[10px] text-rose-400 mt-2 px-1">
+                  ⚠ {feeStats.overdue} student{feeStats.overdue !== 1 ? 's' : ''} with overdue fee{feeStats.overdue !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* ── Pending alert ───────────────────────────────── */}
           {pending > 0 && (

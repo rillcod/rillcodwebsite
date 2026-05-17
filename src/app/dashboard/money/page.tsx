@@ -267,19 +267,104 @@ export default function MoneyHubPage() {
   const isSchool = role === 'school';
   const isStaff = isAdmin || isSchool;
 
-  // Teachers have no finance visibility — redirect them away
+  // Teachers: limited view — student fee tracking only (no financial management)
   if (role === 'teacher') {
+    const outstandingForTeacher = invoices.filter(i =>
+      i.portal_user_id && !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase())
+    );
+    const overdueForTeacher = outstandingForTeacher.filter(i => i.due_date && new Date(i.due_date) < new Date());
+    const paidForTeacher = invoices.filter(i => i.portal_user_id && (i.status || '').toLowerCase() === 'paid');
+
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="text-center max-w-sm space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-muted mx-auto flex items-center justify-center">
-            <Wallet className="w-7 h-7 text-muted-foreground" />
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+          <header className="flex items-center gap-3">
+            <Link href="/dashboard" className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-card border border-border hover:bg-muted transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
+              <FileText className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.22em]">Teacher View</p>
+              <h1 className="text-xl font-black">Student Fee Tracker</h1>
+            </div>
+            <Link href="/dashboard/students" className="ml-auto inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-primary text-primary-foreground">
+              Student Roster <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </header>
+
+          <p className="text-sm text-muted-foreground">
+            Track which students in your school have outstanding fees. Share payment links with students or parents to help them pay.
+            Full financial management is handled by the Rillcod admin team.
+          </p>
+
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center">
+              <p className="text-2xl font-black text-emerald-400">{paidForTeacher.length}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Paid</p>
+            </div>
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center">
+              <p className="text-2xl font-black text-amber-400">{outstandingForTeacher.length - overdueForTeacher.length}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Pending</p>
+            </div>
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-center">
+              <p className="text-2xl font-black text-rose-400">{overdueForTeacher.length}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Overdue</p>
+            </div>
           </div>
-          <h2 className="text-lg font-black uppercase tracking-tight text-foreground">Finance is Admin-Only</h2>
-          <p className="text-sm text-muted-foreground">Financial records and transactions are managed by the Rillcod admin team.</p>
-          <Link href="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest">
-            Back to Dashboard
-          </Link>
+
+          {/* Outstanding invoices */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400" />
+              <h2 className="text-[11px] font-black uppercase tracking-widest">Students with Outstanding Fees</h2>
+              <span className="ml-auto text-[10px] text-muted-foreground">{outstandingForTeacher.length} student{outstandingForTeacher.length !== 1 ? 's' : ''}</span>
+            </div>
+            {outstandingForTeacher.length === 0 ? (
+              <div className="p-10 text-center">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400/50 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">All students are up to date with fees.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {outstandingForTeacher.slice(0, 20).map(inv => {
+                  const isOv = inv.due_date && new Date(inv.due_date) < new Date();
+                  return (
+                    <li key={inv.id} className="flex items-center gap-3 p-4 hover:bg-muted/30">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isOv ? 'bg-rose-500/10' : 'bg-amber-500/10'}`}>
+                        <FileText className={`w-4 h-4 ${isOv ? 'text-rose-400' : 'text-amber-400'}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-foreground truncate">
+                          {(inv as any).portal_users?.full_name || 'Student'}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {formatMoney(inv.amount, inv.currency)} · Due {formatDate(inv.due_date)}
+                          {isOv && <span className="text-rose-400 font-black"> · OVERDUE</span>}
+                        </p>
+                      </div>
+                      {inv.payment_link && (
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(inv.payment_link!); alert('Payment link copied!'); }}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 shrink-0"
+                        >
+                          Copy Link
+                        </button>
+                      )}
+                      <StatusPill status={inv.status} />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground text-center">
+            Students with the <span className="text-emerald-400 font-bold">✓ Paid</span> badge on the Student Roster have cleared their fees.
+            Share the payment link with students or parents so they can pay online.
+          </p>
         </div>
       </div>
     );
@@ -331,8 +416,8 @@ export default function MoneyHubPage() {
           </div>
         )}
 
-        {/* ── Stream tabs (admin + school roles only) ─────────────────── */}
-        {(isAdmin || isSchool) && (
+        {/* ── Stream tabs (admin only — schools see their own stream implicitly) ── */}
+        {isAdmin && (
           <div
             role="tablist"
             aria-label="Finance stream"
@@ -368,6 +453,72 @@ export default function MoneyHubPage() {
             ))}
           </div>
         )}
+
+        {/* ── Fee status hero (student / parent) ────────────────────── */}
+        {(role === 'student' || role === 'parent') && (() => {
+          const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()));
+          const overdue = outstanding.filter(i => i.due_date && new Date(i.due_date) < new Date());
+          if (outstanding.length === 0) return null;
+          const isOver = overdue.length > 0;
+          return (
+            <div className={`rounded-2xl border-2 p-4 sm:p-5 flex items-start gap-4 ${isOver ? 'border-rose-500/40 bg-rose-500/5' : 'border-amber-500/40 bg-amber-500/5'}`}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOver ? 'bg-rose-500/15' : 'bg-amber-500/15'}`}>
+                {isOver
+                  ? <AlertCircle className="w-6 h-6 text-rose-400" />
+                  : <Clock className="w-6 h-6 text-amber-400" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-black ${isOver ? 'text-rose-400' : 'text-amber-400'}`}>
+                  {isOver
+                    ? `${overdue.length} invoice${overdue.length !== 1 ? 's' : ''} overdue — action required`
+                    : `${outstanding.length} outstanding invoice${outstanding.length !== 1 ? 's' : ''}`}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Total due: <span className="font-black text-foreground">{formatMoney(outstanding.reduce((s, i) => s + Number(i.amount || 0), 0))}</span>
+                  {' · '}
+                  {role === 'parent' ? 'Pay your child\'s fees to keep their access active.' : 'Pay promptly to maintain your course access.'}
+                </p>
+              </div>
+              <a
+                href={role === 'parent' ? '/dashboard/parent-invoices' : '/dashboard/my-payments'}
+                className={`inline-flex items-center gap-1 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-white shrink-0 min-h-[40px] ${isOver ? 'bg-rose-500 hover:bg-rose-400' : 'bg-amber-500 hover:bg-amber-400'} transition-colors`}
+              >
+                Pay Now <ChevronRight className="w-3 h-3" />
+              </a>
+            </div>
+          );
+        })()}
+
+        {/* ── School balance banner ──────────────────────────────────── */}
+        {isSchool && (() => {
+          const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()));
+          if (outstanding.length === 0) return null;
+          const overdue = outstanding.filter(i => i.due_date && new Date(i.due_date) < new Date());
+          const totalDue = outstanding.reduce((s, i) => s + Number(i.amount || 0), 0);
+          return (
+            <div className={`rounded-2xl border-2 p-4 sm:p-5 flex items-start gap-4 ${overdue.length > 0 ? 'border-rose-500/40 bg-rose-500/5' : 'border-indigo-500/40 bg-indigo-500/5'}`}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${overdue.length > 0 ? 'bg-rose-500/15' : 'bg-indigo-500/15'}`}>
+                <FileText className={`w-6 h-6 ${overdue.length > 0 ? 'text-rose-400' : 'text-indigo-400'}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-black ${overdue.length > 0 ? 'text-rose-400' : 'text-indigo-400'}`}>
+                  {overdue.length > 0
+                    ? `Overdue balance — ${formatMoney(totalDue)}`
+                    : `Outstanding balance — ${formatMoney(totalDue)}`}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {outstanding.length} open invoice{outstanding.length !== 1 ? 's' : ''} · Remit via bank transfer or contact Rillcod.
+                </p>
+              </div>
+              <a
+                href="/dashboard/finance"
+                className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-500 shrink-0 min-h-[40px] transition-colors"
+              >
+                View Invoices <ChevronRight className="w-3 h-3" />
+              </a>
+            </div>
+          );
+        })()}
 
         {/* ── Summary tiles ──────────────────────────────────────────── */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -428,8 +579,9 @@ export default function MoneyHubPage() {
           )}
           {isSchool && (
             <>
-              <ActionLink href="/dashboard/finance?tab=billing_cycles" icon={FileText} label="My Invoices" />
-              <ActionLink href="/dashboard/finance?tab=operations" icon={Receipt} label="My Receipts" />
+              <ActionLink href="/dashboard/finance" icon={FileText} label="My Invoices" />
+              <ActionLink href="/dashboard/finance?tab=receipts" icon={Receipt} label="My Receipts" />
+              <ActionLink href="/dashboard/finance?tab=billing_docs" icon={Banknote} label="Billing Docs" />
             </>
           )}
           {role === 'student' && (

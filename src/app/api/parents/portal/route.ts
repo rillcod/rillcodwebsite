@@ -315,6 +315,52 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, certs });
     }
 
+    // ── Activity Feed — combines attendance, submissions, certificates, exams ──
+    if (section === 'activity') {
+      if (!child.user_id) {
+        return NextResponse.json({ success: true, events: [] });
+      }
+      if (!linkedUserIds.includes(child.user_id)) {
+        return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
+      }
+      const since = new Date(Date.now() - 90 * 86400000).toISOString(); // last 90 days
+
+      const [attRes, subRes, certRes, cbtRes] = await Promise.all([
+        admin.from('attendance').select('id, status, created_at, class_sessions(session_date, topic, classes(name))').eq('user_id', child.user_id).gte('created_at', since).order('created_at', { ascending: false }).limit(30),
+        admin.from('assignment_submissions').select('id, status, grade, submitted_at, assignments(title, max_points)').eq('portal_user_id', child.user_id).gte('submitted_at', since).order('submitted_at', { ascending: false }).limit(20),
+        admin.from('certificates').select('id, issued_date, courses(title)').eq('portal_user_id', child.user_id).gte('issued_date', since).order('issued_date', { ascending: false }).limit(10),
+        admin.from('cbt_sessions').select('id, status, score, end_time, cbt_exams(title, total_marks)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(10),
+      ]);
+
+      type FeedEvent = { id: string; type: string; title: string; detail: string | null; date: string; icon: string; color: string };
+      const events: FeedEvent[] = [];
+
+      (attRes.data ?? []).forEach((r: any) => {
+        const date = r.class_sessions?.session_date ?? r.created_at?.slice(0, 10) ?? '';
+        const cls = r.class_sessions?.classes?.name ?? r.class_sessions?.topic ?? 'STEM session';
+        if (r.status === 'present') events.push({ id: r.id, type: 'attendance', title: `Attended: ${cls}`, detail: null, date, icon: '✅', color: 'emerald' });
+        else events.push({ id: r.id, type: 'absence', title: `Missed: ${cls}`, detail: null, date, icon: '❌', color: 'rose' });
+      });
+
+      (subRes.data ?? []).forEach((r: any) => {
+        const title = r.assignments?.title ?? 'Assignment';
+        const pct = r.grade != null && r.assignments?.max_points ? `${Math.round((r.grade / r.assignments.max_points) * 100)}%` : r.grade != null ? `${r.grade} pts` : null;
+        events.push({ id: r.id, type: 'submission', title: `Submitted: ${title}`, detail: pct ? `Scored ${pct}` : null, date: r.submitted_at?.slice(0, 10) ?? '', icon: '📝', color: 'primary' });
+      });
+
+      (certRes.data ?? []).forEach((r: any) => {
+        events.push({ id: r.id, type: 'certificate', title: `Certificate earned: ${(r.courses as any)?.title ?? 'Course'}`, detail: null, date: r.issued_date ?? '', icon: '🏆', color: 'amber' });
+      });
+
+      (cbtRes.data ?? []).forEach((r: any) => {
+        const pct = r.score != null && r.cbt_exams?.total_marks ? `${Math.round((r.score / r.cbt_exams.total_marks) * 100)}%` : `${r.score} pts`;
+        events.push({ id: r.id, type: 'exam', title: `Exam: ${r.cbt_exams?.title ?? 'CBT Exam'}`, detail: `Scored ${pct}`, date: r.end_time?.slice(0, 10) ?? '', icon: '🎯', color: 'sky' });
+      });
+
+      events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return NextResponse.json({ success: true, events: events.slice(0, 30), child_name: child.full_name });
+    }
+
     return NextResponse.json({ error: `Unknown section: ${section}` }, { status: 400 });
   } catch (err: any) {
     console.error('GET /api/parents/portal error:', err);

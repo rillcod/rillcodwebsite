@@ -350,7 +350,7 @@ export default function WhatsAppGroupsPage() {
     setPusherSending(true);
     await navigator.clipboard?.writeText(pusherMsg).catch(() => {});
     const targets = groups.filter(g => pusherGroups.has(g.id) && g.status === 'active');
-    showToast(`Opening ${targets.length} group${targets.length !== 1 ? 's' : ''} — paste in each`, 'ok');
+    showToast(`✓ Message copied! Opening ${targets.length} group${targets.length !== 1 ? 's' : ''} — paste in each`, 'ok');
     for (let i = 0; i < targets.length; i++) {
       await new Promise(r => setTimeout(r, i === 0 ? 80 : 1300));
       window.open(targets[i].link, '_blank', 'noopener,noreferrer');
@@ -491,7 +491,7 @@ export default function WhatsAppGroupsPage() {
     if (message.trim()) await navigator.clipboard?.writeText(message).catch(() => {});
     setTimeout(() => window.open(group.link, '_blank', 'noopener,noreferrer'), 60);
     await logBroadcast(group.id);
-    showToast(`✓ Copied & opening "${group.name}" — paste and send`);
+    showToast(`✓ Message copied! Opening "${group.name}" — paste and send`);
   }
 
   async function broadcastToSelected() {
@@ -499,7 +499,7 @@ export default function WhatsAppGroupsPage() {
     if (!message.trim())      { showToast('Write a message first', 'err'); return; }
     setSending(true);
     await navigator.clipboard?.writeText(message).catch(() => {});
-    showToast(`Opening ${selected.size} group${selected.size > 1 ? 's' : ''} — paste in each`, 'ok');
+    showToast(`✓ Message copied! Opening ${selected.size} group${selected.size > 1 ? 's' : ''} — paste in each`, 'ok');
     const targets = groups.filter(g => selected.has(g.id));
     for (let i = 0; i < targets.length; i++) {
       await new Promise(r => setTimeout(r, i === 0 ? 80 : 1300));
@@ -686,9 +686,9 @@ export default function WhatsAppGroupsPage() {
               <button onClick={openPusher}
                 className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl text-white text-[12px] font-black uppercase tracking-widest transition-all active:scale-95"
                 style={{ background: '#7c3aed' }}
-                title="Push Content to Groups">
+                title="Quick Send to Groups">
                 <Zap className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Push</span>
+                <span className="hidden sm:inline">Quick Send</span>
               </button>
 
               {/* New Group — icon only on mobile */}
@@ -743,7 +743,7 @@ export default function WhatsAppGroupsPage() {
                   className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-white text-[12px] font-black disabled:opacity-40 active:scale-95 transition-all"
                   style={{ background: '#00a884' }}>
                   <Layers className="w-3.5 h-3.5" />
-                  {sending ? `Opening…` : `Broadcast (${selected.size})`}
+                  {sending ? `Opening…` : `Send to ${selected.size}`}
                 </button>
               </div>
             </div>
@@ -758,6 +758,7 @@ export default function WhatsAppGroupsPage() {
 
               {/* Select all header */}
               {filtered.length > 0 && (
+                <>
                 <div className="flex items-center justify-between px-4 py-2.5 shrink-0"
                   style={{ background: '#111b21', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   <span className="text-[11px] font-black uppercase tracking-widest" style={{ color: '#8696a0' }}>
@@ -770,6 +771,34 @@ export default function WhatsAppGroupsPage() {
                     {selected.size === filtered.length ? 'Deselect all' : 'Select all'}
                   </button>
                 </div>
+                {/* Quick-select by audience type */}
+                <div className="flex gap-1 px-4 py-1.5 overflow-x-auto shrink-0" style={{ background: '#111b21', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  {[
+                    { type: 'parents', emoji: '👨‍👩‍👧', label: 'Parents' },
+                    { type: 'teachers', emoji: '👨‍🏫', label: 'Teachers' },
+                    { type: 'students', emoji: '🎓', label: 'Students' },
+                    { type: 'class', emoji: '📖', label: 'Classes' },
+                  ].map(q => {
+                    const matching = filtered.filter(g => g.group_type === q.type);
+                    if (matching.length === 0) return null;
+                    const allSelected = matching.every(g => selected.has(g.id));
+                    return (
+                      <button key={q.type} onClick={() => {
+                        setSelected(prev => {
+                          const s = new Set(prev);
+                          if (allSelected) matching.forEach(g => s.delete(g.id));
+                          else matching.forEach(g => s.add(g.id));
+                          return s;
+                        });
+                      }}
+                        className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black transition-all"
+                        style={{ background: allSelected ? 'rgba(0,168,132,0.15)' : 'rgba(255,255,255,0.05)', color: allSelected ? '#00a884' : '#8696a0', border: `1px solid ${allSelected ? 'rgba(0,168,132,0.3)' : 'transparent'}` }}>
+                        <span>{q.emoji}</span> {q.label} ({matching.length})
+                      </button>
+                    );
+                  })}
+                </div>
+                </>
               )}
 
               <div className="flex-1 overflow-y-auto">
@@ -778,16 +807,26 @@ export default function WhatsAppGroupsPage() {
                 ) : error ? (
                   <div className="p-8 text-center text-[13px]" style={{ color: '#f87171' }}>{error}</div>
                 ) : filtered.length === 0 ? (
-                  <div className="p-12 text-center space-y-3">
-                    <Users className="w-10 h-10 mx-auto" style={{ color: '#2a3942' }} />
-                    <p className="text-[13px]" style={{ color: '#8696a0' }}>
-                      {groups.length === 0 ? 'No groups yet. Add your first group.' : 'No groups match your filters.'}
-                    </p>
-                    {groups.length === 0 && (
-                      <button onClick={() => { setShowForm(true); setForm({ group_type: 'general', status: 'active' }); }}
-                        className="text-[12px] font-black uppercase tracking-widest transition-colors" style={{ color: '#00a884' }}>
-                        + Add First Group →
-                      </button>
+                  <div className="p-8 text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: 'rgba(0,168,132,0.1)', border: '2px solid rgba(0,168,132,0.2)' }}>
+                      <MessageSquare className="w-7 h-7" style={{ color: '#00a884' }} />
+                    </div>
+                    {groups.length === 0 ? (
+                      <>
+                        <div>
+                          <p className="font-bold text-white text-[15px] mb-1">Connect Your WhatsApp Groups</p>
+                          <p className="text-[12px] leading-relaxed max-w-xs mx-auto" style={{ color: '#8696a0' }}>
+                            Add your school's WhatsApp group links here to send announcements, fee reminders, and assignment alerts to parents and teachers — all from one place.
+                          </p>
+                        </div>
+                        <button onClick={() => { setShowForm(true); setForm({ group_type: 'general', status: 'active' }); }}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-[12px] font-black transition-all active:scale-95"
+                          style={{ background: '#00a884' }}>
+                          <Plus className="w-4 h-4" /> Add Your First Group
+                        </button>
+                      </>
+                    ) : (
+                      <p className="text-[13px]" style={{ color: '#8696a0' }}>No groups match your current filters. Try adjusting your search or filters.</p>
                     )}
                   </div>
                 ) : (
@@ -848,7 +887,7 @@ export default function WhatsAppGroupsPage() {
                               <span className="text-[10px]" style={{ color: '#8696a0' }}>Sent {relTime(group.last_broadcast_at)}</span>
                             </div>
                           ) : (
-                            <span className="text-[10px] mt-0.5 block" style={{ color: '#8696a0' }}>Never broadcast</span>
+                            <span className="text-[10px] mt-0.5 block" style={{ color: '#8696a0' }}>No messages sent yet</span>
                           )}
                         </div>
 
@@ -859,7 +898,7 @@ export default function WhatsAppGroupsPage() {
                             if (message.trim()) {
                               navigator.clipboard?.writeText(message).catch(() => {});
                               logBroadcast(group.id);
-                              showToast(`✓ Copied & opening "${group.name}"`);
+                              showToast(`✓ Message copied! Opening "${group.name}"`);
                             }
                             window.open(group.link, '_blank', 'noopener,noreferrer');
                           }}
@@ -939,6 +978,10 @@ export default function WhatsAppGroupsPage() {
                         </div>
                         {/* Actions menu */}
                         <div className="flex items-center gap-1 shrink-0">
+                          <button onClick={() => { navigator.clipboard?.writeText(g.link); showToast('Group link copied!'); }}
+                            className="p-2 rounded-full hover:bg-white/10 transition-colors" title="Copy invite link">
+                            <Copy className="w-4 h-4" style={{ color: '#8696a0' }} />
+                          </button>
                           <button onClick={() => { setShowHistory(true); loadHistory(g.id); }}
                             className="p-2 rounded-full hover:bg-white/10 transition-colors" title="History">
                             <History className="w-4 h-4" style={{ color: '#8696a0' }} />
@@ -1001,12 +1044,30 @@ export default function WhatsAppGroupsPage() {
                         {/* Composer header */}
                         <div className="px-5 py-3 flex items-center justify-between shrink-0"
                           style={{ background: '#1f2c34', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                          <span className="text-[11px] font-black uppercase tracking-widest" style={{ color: '#8696a0' }}>Compose Announcement</span>
+                          <span className="text-[11px] font-black uppercase tracking-widest" style={{ color: '#8696a0' }}>Write Your Message</span>
                           <button onClick={() => setShowTemplates(v => !v)}
                             className="flex items-center gap-1.5 text-[11px] font-black px-3 py-1.5 rounded-lg transition-colors"
                             style={{ background: showTemplates ? 'rgba(0,168,132,0.15)' : 'rgba(255,255,255,0.05)', color: showTemplates ? '#00a884' : '#8696a0' }}>
-                            <BookOpen className="w-3.5 h-3.5" /> Templates
+                            <BookOpen className="w-3.5 h-3.5" /> All Templates
                           </button>
+                        </div>
+
+                        {/* Quick template chips */}
+                        <div className="px-5 py-2 flex gap-1.5 overflow-x-auto shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          {[
+                            { icon: '📝', label: 'Exam Notice', id: 'exam_timetable' },
+                            { icon: '💰', label: 'Fee Reminder', id: 'fee_remind' },
+                            { icon: '📱', label: 'Portal Setup', id: 'portal_onboarding' },
+                            { icon: '📊', label: 'Results Ready', id: 'results_ready' },
+                            { icon: '📚', label: 'Assignment', id: 'assignment_reminder' },
+                            { icon: '🗓️', label: 'Resumption', id: 'resumption' },
+                          ].map(chip => (
+                            <button key={chip.id} onClick={() => { const tpl = NEWSLETTER_TPLS.find(t => t.id === chip.id); if (tpl) { setMessage(tpl.body); showToast(`Loaded: ${chip.label}`); } }}
+                              className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all hover:scale-105"
+                              style={{ background: 'rgba(255,255,255,0.06)', color: '#d1d7db', border: '1px solid rgba(255,255,255,0.08)' }}>
+                              <span>{chip.icon}</span> {chip.label}
+                            </button>
+                          ))}
                         </div>
 
                         <div className="flex-1 flex overflow-hidden">
@@ -1020,9 +1081,11 @@ export default function WhatsAppGroupsPage() {
                               style={{ background: '#1f2c34', caretColor: '#00a884', minHeight: '120px' }}
                             />
                             <div className="flex items-center justify-between gap-3">
-                              <span className="text-[11px]" style={{ color: message.length > 4000 ? '#f87171' : message.length > 3000 ? '#fbbf24' : '#8696a0' }}>
-                                {message.length > 3000 ? `${4096 - message.length} chars left` : `${message.length} chars`}
-                              </span>
+                              {message.length > 2500 ? (
+                                <span className="text-[11px]" style={{ color: message.length > 4000 ? '#f87171' : message.length > 3000 ? '#fbbf24' : '#8696a0' }}>
+                                  {message.length > 3000 ? `${4096 - message.length} characters remaining` : `${message.length} / 4,096`}
+                                </span>
+                              ) : <span />}
                               <div className="flex gap-2 flex-wrap justify-end">
                                 {/* Save template */}
                                 <input value={tplTitle} onChange={e => setTplTitle(e.target.value)}
@@ -1038,13 +1101,20 @@ export default function WhatsAppGroupsPage() {
                                 <button onClick={() => sendToGroup(g)} disabled={!message.trim() || message.length > 4096}
                                   className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-[13px] font-black transition-all active:scale-95 disabled:opacity-40"
                                   style={{ background: '#00a884' }}>
-                                  <Send className="w-4 h-4" /> Open Group
+                                  <Send className="w-4 h-4" /> Copy & Send
                                 </button>
                               </div>
                             </div>
-                            <p className="text-[11px]" style={{ color: '#8696a0' }}>
-                              Message is copied to clipboard → WhatsApp group opens → paste and send.
-                            </p>
+                            <div className="flex items-center gap-2 flex-wrap text-[11px]" style={{ color: '#8696a0' }}>
+                              <span className="flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-black shrink-0" style={{ background: '#00a884', color: '#fff' }}>1</span>
+                              <span>Write your message</span>
+                              <ChevronRight className="w-3 h-3 shrink-0" style={{ color: '#2a3942' }} />
+                              <span className="flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-black shrink-0" style={{ background: '#00a884', color: '#fff' }}>2</span>
+                              <span>Tap "Copy & Send"</span>
+                              <ChevronRight className="w-3 h-3 shrink-0" style={{ color: '#2a3942' }} />
+                              <span className="flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-black shrink-0" style={{ background: '#00a884', color: '#fff' }}>3</span>
+                              <span>Paste in WhatsApp</span>
+                            </div>
                           </div>
 
                           {/* Templates sidebar */}
@@ -1246,9 +1316,9 @@ export default function WhatsAppGroupsPage() {
               </button>
               <div className="flex-1 min-w-0">
                 <h2 className="font-black text-white text-[16px] flex items-center gap-2">
-                  <Zap className="w-5 h-5" style={{ color: '#7c3aed' }} /> Push Content to Groups
+                  <Zap className="w-5 h-5" style={{ color: '#7c3aed' }} /> Quick Send
                 </h2>
-                <p className="text-[11px]" style={{ color: '#8696a0' }}>Select content, craft your message, choose target groups</p>
+                <p className="text-[11px]" style={{ color: '#8696a0' }}>Pick a template, edit your message, then choose who gets it</p>
               </div>
             </div>
 
@@ -1442,8 +1512,8 @@ export default function WhatsAppGroupsPage() {
             <div className="px-5 py-4 flex items-center justify-between gap-3 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: '#2a3942' }}>
               <div className="text-[12px]" style={{ color: '#8696a0' }}>
                 {pusherGroups.size > 0
-                  ? `Will open ${pusherGroups.size} group${pusherGroups.size !== 1 ? 's' : ''} sequentially`
-                  : 'Pick groups on the right'}
+                  ? `Will open ${pusherGroups.size} group${pusherGroups.size !== 1 ? 's' : ''} one by one`
+                  : 'Select groups to send to'}
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowPusher(false)} className="px-4 py-2.5 rounded-xl text-[13px] font-black"
@@ -1452,8 +1522,8 @@ export default function WhatsAppGroupsPage() {
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-[13px] font-black disabled:opacity-40 transition-all active:scale-95"
                   style={{ background: '#7c3aed' }}>
                   {pusherSending
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Pushing…</>
-                    : <><Zap className="w-4 h-4" /> Push to {pusherGroups.size || '?'} Group{pusherGroups.size !== 1 ? 's' : ''}</>}
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+                    : <><Zap className="w-4 h-4" /> Send to {pusherGroups.size || '?'} Group{pusherGroups.size !== 1 ? 's' : ''}</>}
                 </button>
               </div>
             </div>
@@ -1472,7 +1542,7 @@ export default function WhatsAppGroupsPage() {
                 <X className="w-5 h-5" style={{ color: '#8696a0' }} />
               </button>
               <div className="flex-1 min-w-0">
-                <h2 className="font-black text-white text-[16px]">Broadcast History</h2>
+                <h2 className="font-black text-white text-[16px]">Message History</h2>
                 <p className="text-[11px]" style={{ color: '#8696a0' }}>
                   {activeGroup ? `"${activeGroup.name}"` : 'All groups'}
                   {broadcasts.length > 0 && ` · ${broadcasts.length} entr${broadcasts.length === 1 ? 'y' : 'ies'}`}

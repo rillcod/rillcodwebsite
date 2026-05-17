@@ -16,6 +16,7 @@ import { InvoicesPanel } from './InvoicesPanel';
 import { ReceiptsPanel } from './ReceiptsPanel';
 import { ReceiptBuilderPanel } from './ReceiptBuilderPanel';
 import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
+import { SchoolBillingDocsPanel } from './SchoolBillingDocsPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ReceiptPercentIcon, BuildingOfficeIcon, ShieldCheckIcon } from '@/lib/icons';
 
@@ -25,6 +26,7 @@ type OpsTab =
   | 'receipts'
   | 'receipt_builder'
   | 'school_invoice_builder'
+  | 'billing_docs'
   | 'accounts'
   | 'diagnostics';
 
@@ -139,6 +141,13 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
       show: isAdmin,
     },
     {
+      k: 'billing_docs',
+      label: 'Billing Docs',
+      Icon: DocumentTextIcon,
+      hint: 'Payment Register & Attendance Roster — official documents for school billing',
+      show: isAdmin,
+    },
+    {
       k: 'accounts',
       label: 'Accounts',
       Icon: BanknotesIcon,
@@ -236,6 +245,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
         {tab === 'receipts' && <ReceiptsPanel />}
         {tab === 'receipt_builder' && isAdmin && <ReceiptBuilderPanel />}
         {tab === 'school_invoice_builder' && isAdmin && <SchoolInvoiceBuilderPanel editInvoiceId={editInvoiceId ?? undefined} />}
+        {tab === 'billing_docs' && isAdmin && <SchoolBillingDocsPanel />}
         {tab === 'accounts' && isAdmin && <AccountsPanel />}
         {tab === 'diagnostics' && isAdmin && <DiagnosticsPanel />}
       </div>
