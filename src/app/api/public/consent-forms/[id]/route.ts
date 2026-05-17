@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
-import { buildFormLeadConfirmationEmail } from '@/lib/email/rillcod-transactional-email';
+import { buildFormLeadConfirmationEmail, buildLeadNotificationEmail } from '@/lib/email/rillcod-transactional-email';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +34,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const { id } = await context.params;
   const sb = adminClient();
 
-  // Verify form is still public
+  // Verify form is still public — also fetch school email for staff notification
   const { data: form, error: formErr } = await sb
     .from('consent_forms')
-    .select('id, title, school_id, form_type, is_public')
+    .select('id, title, school_id, form_type, is_public, schools(name, email)')
     .eq('id', id)
     .single();
 
@@ -86,11 +86,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
-  // ── Send confirmation email to the submitter ──────────────────────────────
+  const schoolData = (form as any).schools as { name?: string; email?: string } | null;
+  const schoolName = schoolData?.name ?? 'Rillcod Technologies';
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+
+  // ── Confirmation email to submitter ──────────────────────────────────────
   const toEmail = email?.trim();
   if (toEmail && toEmail.includes('@')) {
     try {
-      const schoolName = (form as any).schools?.name ?? 'Rillcod Technologies';
       const html = buildFormLeadConfirmationEmail({
         parentName:      response_data.parent_name || 'Parent/Guardian',
         childName:       response_data.child_name,
@@ -98,9 +101,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         formTitle:       form.title,
         schoolName,
         formType:        form.form_type ?? 'general',
-        appUrl:          process.env.NEXT_PUBLIC_APP_URL,
+        appUrl,
       });
-
       await notificationsService.sendEmail('system', {
         to: toEmail,
         subject: `✅ Registration Received — Rillcod Technologies`,
@@ -109,7 +111,41 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         replyTo: 'support@rillcod.com',
       });
     } catch {
-      // Non-fatal — lead is saved even if email fails
+      // Non-fatal
+    }
+  }
+
+  // ── Notification email to school staff ───────────────────────────────────
+  const staffEmail = schoolData?.email;
+  if (staffEmail && staffEmail.includes('@')) {
+    try {
+      const { data: matchedSchool } = matched_school_id
+        ? await sb.from('schools').select('name').eq('id', matched_school_id).single()
+        : { data: null };
+
+      const html = buildLeadNotificationEmail({
+        schoolName,
+        formTitle:         form.title,
+        childName:         response_data.child_name,
+        childAge:          response_data.child_age,
+        childClass:        response_data.child_class,
+        programCategory:   response_data.program_category,
+        parentName:        response_data.parent_name,
+        parentWhatsapp:    response_data.parent_whatsapp,
+        parentEmail:       response_data.parent_email || toEmail,
+        currentSchool:     child_current_school?.trim() || undefined,
+        matchedSchoolName: (matchedSchool as any)?.name,
+        dashboardUrl:      appUrl,
+      });
+      await notificationsService.sendEmail('system', {
+        to: staffEmail,
+        subject: `🔔 New Enquiry: ${response_data.child_name} — ${form.title}`,
+        html,
+        fromName: 'Rillcod Forms',
+        replyTo: toEmail || 'support@rillcod.com',
+      });
+    } catch {
+      // Non-fatal
     }
   }
 

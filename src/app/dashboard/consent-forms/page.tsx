@@ -39,6 +39,7 @@ interface FormLead {
   child_current_school: string | null;
   response_data: Record<string, unknown>;
   schools: { name: string } | null;
+  status: 'new' | 'contacted' | 'enrolled' | 'lost';
 }
 
 interface RegistrationData {
@@ -203,6 +204,9 @@ export default function ConsentFormsPage() {
   const [qrFormId, setQrFormId]                 = useState<string | null>(null);
   const [copiedId, setCopiedId]                 = useState<string | null>(null);
 
+  // Lead status
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+
   const isStaff  = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
   const isParent = profile?.role === 'parent';
 
@@ -333,6 +337,26 @@ export default function ConsentFormsPage() {
     await navigator.clipboard.writeText(url).catch(() => {});
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  // ── Lead status ───────────────────────────────────────────────────────────
+
+  async function updateLeadStatus(formId: string, leadId: string, status: FormLead['status']) {
+    setUpdatingLeadId(leadId);
+    try {
+      const res = await fetch(`/api/consent-forms/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) return;
+      setLeads(prev => ({
+        ...prev,
+        [formId]: (prev[formId] ?? []).map(l => l.id === leadId ? { ...l, status } : l),
+      }));
+    } finally {
+      setUpdatingLeadId(null);
+    }
   }
 
   // ── CSV export ────────────────────────────────────────────────────────────
@@ -917,25 +941,54 @@ export default function ConsentFormsPage() {
                               <div className="space-y-2">
                                 {formLeads.map(lead => {
                                   const rd = lead.response_data as Record<string, string>;
+                                  const waNumber = rd.parent_whatsapp?.replace(/\D/g, '');
+                                  const status = lead.status ?? 'new';
+                                  const statusCfg: Record<string, { label: string; cls: string }> = {
+                                    new:       { label: 'New',       cls: 'bg-amber-500/10 text-amber-400' },
+                                    contacted: { label: 'Contacted', cls: 'bg-blue-500/10 text-blue-400' },
+                                    enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/10 text-emerald-400' },
+                                    lost:      { label: 'Lost',      cls: 'bg-muted text-muted-foreground' },
+                                  };
                                   return (
-                                    <div key={lead.id} className="bg-card border border-primary/20 rounded-xl p-3 space-y-1.5">
-                                      <div className="flex items-center justify-between gap-3">
+                                    <div key={lead.id} className="bg-card border border-primary/20 rounded-xl p-3 space-y-2">
+                                      <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                           <p className="text-sm font-bold text-foreground truncate">{rd.parent_name ?? 'Unknown'}</p>
                                           <p className="text-xs text-muted-foreground truncate">{lead.email ?? rd.parent_email ?? ''}</p>
                                         </div>
-                                        <span className="text-[10px] text-muted-foreground shrink-0">
-                                          {new Date(lead.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                        </span>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                          <select
+                                            value={status}
+                                            disabled={updatingLeadId === lead.id}
+                                            onChange={e => updateLeadStatus(cf.id, lead.id, e.target.value as FormLead['status'])}
+                                            className={`text-[10px] font-bold px-2 py-1 rounded-full border-0 outline-none cursor-pointer disabled:opacity-50 ${statusCfg[status].cls}`}
+                                            style={{ background: 'transparent' }}
+                                          >
+                                            {Object.entries(statusCfg).map(([val, cfg]) => (
+                                              <option key={val} value={val} className="bg-card text-foreground">{cfg.label}</option>
+                                            ))}
+                                          </select>
+                                          <span className="text-[10px] text-muted-foreground">
+                                            {new Date(lead.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                        </div>
                                       </div>
-                                      <div className="flex flex-wrap gap-2 pt-0.5">
+                                      <div className="flex flex-wrap gap-2">
                                         {rd.child_name && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-foreground font-bold">{rd.child_name}</span>}
                                         {rd.child_age && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Age {rd.child_age}</span>}
                                         {rd.program_category && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">{rd.program_category === 'junior_coders' ? 'Junior Coders' : 'Teen Developers'}</span>}
-                                        {rd.parent_whatsapp && <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">📱 {rd.parent_whatsapp}</span>}
+                                        {waNumber && (
+                                          <a
+                                            href={`https://wa.me/${waNumber}`}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full hover:bg-emerald-500/20 transition-colors"
+                                          >
+                                            💬 {rd.parent_whatsapp}
+                                          </a>
+                                        )}
                                         {lead.child_current_school && (
                                           <span className={`text-[10px] px-2 py-0.5 rounded-full ${lead.schools?.name ? 'bg-blue-500/10 text-blue-400' : 'bg-muted text-muted-foreground'}`}>
-                                            🏫 {lead.child_current_school}{lead.schools?.name ? ` (→ ${lead.schools.name})` : ''}
+                                            🏫 {lead.child_current_school}{lead.schools?.name ? ` → ${lead.schools.name}` : ''}
                                           </span>
                                         )}
                                       </div>

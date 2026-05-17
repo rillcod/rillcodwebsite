@@ -959,3 +959,87 @@ export function buildFormLeadConfirmationEmail(opts: {
     footerNote: `${BRAND.name} · ${BRAND.address} · ${BRAND.phone}. Empowering Young Minds Through Code.`,
   });
 }
+
+// ── Staff lead notification ───────────────────────────────────────────────────
+
+export function buildLeadNotificationEmail(opts: {
+  schoolName: string;
+  formTitle: string;
+  childName: string;
+  childAge?: string;
+  childClass?: string;
+  programCategory?: string;
+  parentName?: string;
+  parentWhatsapp?: string;
+  parentEmail?: string;
+  currentSchool?: string;
+  matchedSchoolName?: string;
+  dashboardUrl?: string;
+}): string {
+  const program = opts.programCategory === 'junior_coders'
+    ? 'Junior Coders (Ages 5–10)'
+    : opts.programCategory === 'teen_developers'
+    ? 'Teen Developers (Ages 11–19)'
+    : opts.programCategory ?? '—';
+
+  const waLink = opts.parentWhatsapp
+    ? `https://wa.me/${opts.parentWhatsapp.replace(/\D/g, '')}`
+    : null;
+
+  const rows = [
+    ['Child', opts.childName],
+    ['Age', opts.childAge || '—'],
+    ['Class / Year', opts.childClass || '—'],
+    ['Programme', program],
+    ['Parent / Guardian', opts.parentName || '—'],
+    ['WhatsApp', opts.parentWhatsapp || '—'],
+    ['Email', opts.parentEmail || '—'],
+    ['Current School', opts.currentSchool
+      ? `${opts.currentSchool}${opts.matchedSchoolName ? ` (matched: ${opts.matchedSchoolName})` : ''}`
+      : '—'],
+  ].map(([label, value]) => `
+    <tr>
+      <td style="padding:8px 12px;font-size:12px;font-weight:700;color:${BRAND.textMuted};
+                 white-space:nowrap;border-bottom:1px solid ${BRAND.border};">${escapeHtml(label)}</td>
+      <td style="padding:8px 12px;font-size:13px;color:${BRAND.text};
+                 border-bottom:1px solid ${BRAND.border};">${escapeHtml(String(value))}</td>
+    </tr>`).join('');
+
+  return buildRillcodTransactionalEmailHtml({
+    appUrl:      opts.dashboardUrl,
+    eyebrow:     opts.schoolName,
+    title:       '🔔 New Enquiry Received',
+    accentColor: BRAND.primary,
+    bodyHtml: `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        A parent just submitted an enquiry via your public form
+        <strong style="color:${BRAND.white};">${escapeHtml(opts.formTitle)}</strong>.
+        Here are their details:
+      </p>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%"
+             style="border:1px solid ${BRAND.border};border-radius:10px;overflow:hidden;margin-bottom:20px;">
+        ${rows}
+      </table>
+      ${waLink ? `
+      <p style="margin:0 0 6px;color:${BRAND.textMuted};font-size:12px;font-weight:700;">QUICK CONTACT</p>
+      <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
+        <tr>
+          <td style="padding-right:10px;">
+            <a href="${waLink}" style="display:inline-block;background:#25d366;color:#fff;
+               font-size:13px;font-weight:800;padding:10px 20px;border-radius:8px;
+               text-decoration:none;">💬 WhatsApp Now</a>
+          </td>
+          ${opts.parentEmail ? `<td>
+            <a href="mailto:${escapeHtml(opts.parentEmail)}" style="display:inline-block;
+               background:${BRAND.card};color:${BRAND.text};border:1px solid ${BRAND.border};
+               font-size:13px;font-weight:800;padding:10px 20px;border-radius:8px;
+               text-decoration:none;">✉️ Send Email</a>
+          </td>` : ''}
+        </tr>
+      </table>` : ''}`,
+    cta: opts.dashboardUrl
+      ? { href: `${opts.dashboardUrl}/dashboard/consent-forms`, label: 'View in Dashboard →', color: BRAND.primary }
+      : undefined,
+    footerNote: `${BRAND.name} · ${BRAND.address}. You are receiving this because you manage a consent form on the platform.`,
+  });
+}

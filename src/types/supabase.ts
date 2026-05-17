@@ -4089,6 +4089,7 @@ export type Database = {
           matched_school_id: string | null
           response_data: Json
           school_id: string | null
+          status: string | null
           submitted_at: string | null
         }
         Insert: {
@@ -4099,6 +4100,7 @@ export type Database = {
           matched_school_id?: string | null
           response_data?: Json
           school_id?: string | null
+          status?: string | null
           submitted_at?: string | null
         }
         Update: {
@@ -4109,6 +4111,7 @@ export type Database = {
           matched_school_id?: string | null
           response_data?: Json
           school_id?: string | null
+          status?: string | null
           submitted_at?: string | null
         }
         Relationships: [
