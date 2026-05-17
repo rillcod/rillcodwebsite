@@ -167,6 +167,79 @@ function printForm(form: ConsentForm) {
   win.document.close();
 }
 
+function printQRCards(form: ConsentForm, appBase: string) {
+  const win = window.open('', '_blank', 'width=820,height=1000');
+  if (!win) return;
+  const publicUrl = `${appBase}/forms/${form.id}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publicUrl)}`;
+  const title = esc(form.title);
+  
+  const cards = Array(8).fill(0).map(() => `
+    <div class="card">
+      <div class="card-inner">
+        <div class="hdr">
+          <div class="logo">
+            <img src="${appBase}/images/logo.png" style="width:100%; height:100%; object-fit:contain; filter:grayscale(1)"/>
+          </div>
+          <div class="brand">
+            <div class="school">RILLCOD</div>
+            <div class="tagline">Tech Academy</div>
+          </div>
+        </div>
+        <div class="title">${title}</div>
+        <img class="qr" src="${qrUrl}" />
+        <div class="scan-text">Scan with your phone's<br/>camera to register</div>
+      </div>
+    </div>
+  `).join('');
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>QR Cards — ${title}</title>
+<style>
+  @page { margin: 10mm; size: A4 portrait; }
+  * { box-sizing: border-box; font-family: Arial, sans-serif; }
+  body { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .card { 
+    width: 48%; 
+    height: 68mm; 
+    border: 1px dashed #ccc; 
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    page-break-inside: avoid;
+  }
+  .card-inner {
+    border: 2px solid #000;
+    border-radius: 8px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    text-align: center;
+  }
+  .hdr { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
+  .logo { width: 28px; height: 28px; }
+  .brand { text-align: left; line-height: 1; }
+  .school { font-size: 14pt; font-weight: 900; letter-spacing: -0.5px; }
+  .tagline { font-size: 6pt; color: #555; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
+  .title { font-size: 10pt; font-weight: bold; margin: 8px 0; background: #000; color: #fff; padding: 4px 8px; border-radius: 4px; width: 100%; max-height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .qr { width: 110px; height: 110px; margin: auto; }
+  .scan-text { font-size: 8pt; font-weight: bold; color: #444; margin-top: 6px; }
+  @media print { body { padding: 0; } .card { border: 1px dashed #eee; } }
+</style></head><body>
+  ${cards}
+  <script>
+    window.onload = function() { setTimeout(function() { window.print(); }, 500); };
+  </script>
+</body></html>`);
+  win.document.close();
+}
+
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function ConsentFormsPage() {
@@ -934,6 +1007,12 @@ export default function ConsentFormsPage() {
                       {isStaff && (
                         <button onClick={() => printForm(cf)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
                           <PrinterIcon className="w-3.5 h-3.5" /> Print
+                        </button>
+                      )}
+
+                      {isStaff && cf.is_public && (
+                        <button onClick={() => printQRCards(cf, appBase)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
+                          📇 Print QR Cards
                         </button>
                       )}
 
