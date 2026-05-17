@@ -175,6 +175,21 @@ export function ApprovalsPanel() {
     }
   };
 
+  const rejectStalePoof = async (inv: InvoiceRow) => {
+    if (!isAdmin) return;
+    try {
+      await fetch(`/api/invoices/${inv.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+      toast.success(`#${inv.invoice_number} auto-rejected`);
+    } catch {
+      toast.error(`Failed to reject #${inv.invoice_number}`);
+    }
+    await loadAll();
+  };
+
   const bulkIssueReceipts = async () => {
     const missing = txs.filter(
       (tx) => ['completed', 'success'].includes(tx.payment_status) && !tx.receipt_url,
@@ -358,6 +373,7 @@ export function ApprovalsPanel() {
           onOpen={(i) =>
             setProofModal({ invoiceId: i.id, invoiceNumber: i.invoice_number })
           }
+          onAutoReject={isAdmin ? rejectStalePoof : undefined}
         />
       ) : (
         <TxList

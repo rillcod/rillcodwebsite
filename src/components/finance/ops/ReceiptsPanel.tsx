@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
 import {
   ReceiptPercentIcon,
   MagnifyingGlassIcon,
@@ -11,6 +12,7 @@ import {
   BuildingOfficeIcon,
   UserIcon,
   TrashIcon,
+  ShieldCheckIcon,
 } from '@/lib/icons';
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import {
@@ -20,6 +22,15 @@ import {
   type FinanceStream,
 } from '@/lib/finance/streams';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
+
+interface AuditEntry {
+  id: string;
+  resource_id: string;
+  old_value: string | null;
+  new_value: string | null;
+  created_at: string;
+  portal_users?: { full_name?: string } | null;
+}
 
 interface ReceiptRow {
   id: string;
@@ -55,6 +66,7 @@ interface ReceiptRow {
  */
 export function ReceiptsPanel() {
   const { profile } = useAuth();
+  const db = createClient();
   const isAdmin = profile?.role === 'admin';
   const canManage = ['admin', 'school', 'teacher'].includes(profile?.role || '');
 
@@ -64,17 +76,43 @@ export function ReceiptsPanel() {
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [showAudit, setShowAudit] = useState(false);
+
+  const loadAuditLog = async () => {
+    if (!isAdmin) return;
+    const { data } = await (db as any)
+      .from('audit_logs')
+      .select('id, resource_id, old_value, new_value, created_at, portal_users(full_name)')
+      .eq('resource_type', 'receipt')
+      .eq('action', 'deleted')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    setAuditLog((data ?? []) as AuditEntry[]);
+  };
 
   const deleteReceipt = async (r: ReceiptRow) => {
     const payer = r.metadata?.payer_name || r.schools?.name || r.portal_users?.full_name || r.receipt_number;
-    if (!confirm(`Permanently delete receipt ${r.receipt_number} for ${payer}?\n\nThis cannot be undone. The payment transaction will keep its record but the receipt PDF link will be cleared.`)) return;
+    const reason = window.prompt(
+      `Delete receipt ${r.receipt_number} for ${payer}?\n\nEnter a reason for deletion (required for audit trail):`,
+      '',
+    );
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error('A deletion reason is required.');
+      return;
+    }
     setDeletingId(r.id);
     try {
-      const res = await fetch(`/api/receipts/${r.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/receipts/${r.id}?reason=${encodeURIComponent(reason.trim())}`, { method: 'DELETE' });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Delete failed');
-      toast.success(`Receipt ${r.receipt_number} deleted`);
+      toast.success(
+        `Receipt ${r.receipt_number} deleted · Reason: "${j.audit?.reason ?? reason}" · Logged to audit trail`,
+        { duration: 6000 },
+      );
       setRows((prev) => prev.filter((x) => x.id !== r.id));
+      loadAuditLog();
     } catch (e: unknown) {
       toast.error((e as Error).message);
     } finally {
@@ -219,6 +257,15 @@ export function ReceiptsPanel() {
           />
         </div>
 
+        {isAdmin && (
+          <button
+            onClick={() => { setShowAudit(v => !v); if (!showAudit) loadAuditLog(); }}
+            className={`inline-flex items-center gap-1 px-3 py-2 text-xs font-black uppercase tracking-widest rounded-md border ${showAudit ? 'border-primary/40 text-primary bg-primary/5' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+          >
+            <ShieldCheckIcon className="w-4 h-4" /> Audit log
+          </button>
+        )}
+
         <button
           onClick={load}
           className="inline-flex items-center gap-1 px-3 py-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground"
@@ -226,6 +273,32 @@ export function ReceiptsPanel() {
           <ArrowPathIcon className="w-4 h-4" /> Refresh
         </button>
       </div>
+
+      {showAudit && isAdmin && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <ShieldCheckIcon className="w-4 h-4 text-amber-400" />
+            <p className="text-xs font-black uppercase tracking-widest text-amber-400">Receipt deletion audit trail</p>
+          </div>
+          {auditLog.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No receipt deletions recorded yet.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {auditLog.map((entry) => (
+                <div key={entry.id} className="rounded-lg bg-card border border-border px-3 py-2 text-xs flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-foreground">{entry.old_value}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-muted-foreground">by {entry.portal_users?.full_name ?? 'Admin'}</span>
+                    <span className="text-muted-foreground ml-auto">{formatShortDate(entry.created_at)}</span>
+                  </div>
+                  <p className="text-amber-300/80">Reason: {entry.new_value ?? '—'}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12">

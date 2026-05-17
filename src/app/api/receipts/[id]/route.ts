@@ -11,8 +11,9 @@ function adminClient() {
 
 // DELETE /api/receipts/[id] — admin-only hard delete of a receipt record.
 // Removes the receipts row and clears receipt_url on the linked transaction.
+// Requires a ?reason= query param for audit trail.
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createServerClient();
@@ -21,7 +22,7 @@ export async function DELETE(
 
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('role')
+    .select('role, full_name, email')
     .eq('id', user.id)
     .single();
 
@@ -30,12 +31,13 @@ export async function DELETE(
   }
 
   const { id } = await context.params;
+  const reason = req.nextUrl.searchParams.get('reason') || '(no reason provided)';
   const admin = adminClient();
 
-  // Fetch first so we can clean up the linked transaction
+  // Fetch receipt + receipt_number for the audit log
   const { data: receipt } = await admin
     .from('receipts')
-    .select('id, transaction_id')
+    .select('id, receipt_number, amount, currency, transaction_id')
     .eq('id', id)
     .single();
 
@@ -52,5 +54,33 @@ export async function DELETE(
   const { error } = await admin.from('receipts').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ success: true });
+  const auditEntry = {
+    receipt_id: id,
+    receipt_number: (receipt as any).receipt_number,
+    amount: (receipt as any).amount,
+    currency: (receipt as any).currency,
+    deleted_by_id: user.id,
+    deleted_by_name: (profile as any)?.full_name ?? 'unknown',
+    deleted_by_email: (profile as any)?.email ?? 'unknown',
+    reason,
+    deleted_at: new Date().toISOString(),
+  };
+
+  // Write to audit_logs table for queryable trail
+  await admin.from('audit_logs').insert({
+    actor_id: user.id,
+    resource_type: 'receipt',
+    resource_id: id,
+    action: 'deleted',
+    old_value: `${(receipt as any).receipt_number} · ${(receipt as any).currency} ${(receipt as any).amount}`,
+    new_value: reason,
+  }).catch((err: unknown) => {
+    // Non-fatal — fall back to console log if audit_logs insert fails
+    console.warn('[RECEIPT DELETED — audit_logs insert failed]', err);
+  });
+
+  // Structured server log as secondary trail
+  console.warn('[RECEIPT DELETED]', JSON.stringify(auditEntry));
+
+  return NextResponse.json({ success: true, audit: { receipt_number: (receipt as any).receipt_number, reason } });
 }
