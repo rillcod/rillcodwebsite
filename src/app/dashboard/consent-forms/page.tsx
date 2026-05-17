@@ -180,6 +180,11 @@ export default function ConsentFormsPage() {
   const [newForm, setNewForm]         = useState({ title: '', body: '', due_date: '', form_type: 'general', school_id: '' });
   const [schools, setSchools]         = useState<{ id: string; name: string }[]>([]);
 
+  // Edit modal
+  const [editingForm, setEditingForm] = useState<ConsentForm & { school_id?: string } | null>(null);
+  const [savingEdit, setSavingEdit]   = useState(false);
+  const [editError, setEditError]     = useState('');
+
   // Signing
   const [signingId, setSigningId]   = useState<string | null>(null);
   const [readModalId, setReadModalId] = useState<string | null>(null);
@@ -249,6 +254,32 @@ export default function ConsentFormsPage() {
       setNewForm({ title: '', body: '', due_date: '', form_type: 'general', school_id: '' });
       setShowCreate(false);
     } finally { setCreating(false); }
+  }
+
+  // ── Edit ──────────────────────────────────────────────────────────────────
+
+  async function saveEdit() {
+    if (!editingForm || !editingForm.title.trim() || !editingForm.body.trim()) return;
+    setSavingEdit(true); setEditError('');
+    try {
+      const res = await fetch(`/api/consent-forms/${editingForm.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editingForm.title,
+          body: editingForm.body,
+          due_date: editingForm.due_date || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setEditError(json.error || 'Failed to update'); return; }
+      setForms(prev => prev.map(f => f.id === editingForm.id ? { ...f, title: json.data.title, body: json.data.body, due_date: json.data.due_date } : f));
+      setEditingForm(null);
+    } catch {
+      setEditError('Network error');
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   // ── Sign ──────────────────────────────────────────────────────────────────
@@ -545,6 +576,76 @@ export default function ConsentFormsPage() {
           )}
         </AnimatePresence>
 
+        {/* ── Edit modal ─────────────────────────────────────────────── */}
+        <AnimatePresence>
+          {editingForm && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              onClick={e => { if (e.target === e.currentTarget) setEditingForm(null); }}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-card border border-border rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="font-black text-lg">Edit Form</h2>
+                  <button onClick={() => setEditingForm(null)} className="p-1 rounded-lg hover:bg-muted transition-colors">
+                    <XMarkIcon className="w-5 h-5 text-muted-foreground" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Title *</label>
+                    <input
+                      value={editingForm.title}
+                      onChange={e => setEditingForm(f => f ? ({ ...f, title: e.target.value }) : null)}
+                      className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Body / Consent Statement *</label>
+                    <textarea
+                      value={editingForm.body}
+                      onChange={e => setEditingForm(f => f ? ({ ...f, body: e.target.value }) : null)}
+                      rows={6}
+                      className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary resize-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Response Deadline</label>
+                    <input
+                      type="date" value={editingForm.due_date ? editingForm.due_date.split('T')[0] : ''}
+                      onChange={e => setEditingForm(f => f ? ({ ...f, due_date: e.target.value }) : null)}
+                      className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {editError && (
+                  <p className="text-rose-400 text-xs flex items-center gap-1.5">
+                    <ExclamationTriangleIcon className="w-3.5 h-3.5" /> {editError}
+                  </p>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button onClick={() => setEditingForm(null)} className="flex-1 py-2.5 border border-border text-muted-foreground font-bold rounded-xl hover:bg-muted text-sm transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveEdit}
+                    disabled={!editingForm.title.trim() || !editingForm.body.trim() || savingEdit}
+                    className="flex-1 py-2.5 bg-primary text-primary-foreground disabled:opacity-40 font-bold rounded-xl text-sm hover:opacity-90 transition-all"
+                  >
+                    {savingEdit ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── Read / Sign modal ─────────────────────────────────────────── */}
         <AnimatePresence>
           {readModal && (
@@ -802,6 +903,12 @@ export default function ConsentFormsPage() {
                       <button onClick={() => openReadModal(cf.id)} className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
                         Read Full Form
                       </button>
+
+                      {isStaff && (
+                        <button onClick={() => setEditingForm(cf)} className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
+                          ✏️ Edit
+                        </button>
+                      )}
 
                       {isStaff && (
                         <button onClick={() => printForm(cf)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
