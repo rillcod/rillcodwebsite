@@ -109,6 +109,26 @@ interface StudentBillingData {
   statusColor: string;
 }
 
+interface OverdueSchool {
+  id: string;
+  name: string;
+  invoice_number: string;
+  amount: number;
+  currency: string;
+  due_date: string;
+  daysOverdue: number;
+}
+
+interface LastStatement {
+  docRef: string;
+  invoiceRef: string;
+  amount: number;
+  studentCount: number;
+  period: string;
+  dueDate: string;
+  currency: string;
+}
+
 export function SchoolBillingDocsPanel() {
   const { profile } = useAuth();
   const db = createClient();
@@ -133,16 +153,43 @@ export function SchoolBillingDocsPanel() {
   const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [invoiceCreated, setInvoiceCreated] = useState<{ id: string; invoice_number: string } | null>(null);
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
+  const [overdueSchools, setOverdueSchools] = useState<OverdueSchool[]>([]);
+  const [lastStatement, setLastStatement] = useState<LastStatement | null>(null);
+  const [lastStudents, setLastStudents] = useState<StudentBillingData[]>([]);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState('');
   const resultRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     db.from('schools').select('id, name').order('name').then(({ data }) => setSchools(data ?? []));
-    // Fetch Rillcod bank accounts for payment instructions (used in billing statement)
     fetch('/api/payment-accounts')
       .then(r => r.ok ? r.json() : { data: [] })
       .then(j => setBankAccounts((j.data ?? []).filter((a: any) => a.is_active && !a.school_id)))
       .catch(() => { });
+    // Overdue school invoices
+    const today = new Date().toISOString().split('T')[0];
+    db.from('invoices')
+      .select('id, invoice_number, amount, currency, due_date, school_id, schools(name)')
+      .eq('stream', 'school')
+      .eq('status', 'sent')
+      .lt('due_date', today)
+      .order('due_date')
+      .limit(8)
+      .then(({ data }) => {
+        const rows: OverdueSchool[] = ((data ?? []) as any[]).map(inv => ({
+          id: inv.school_id,
+          name: inv.schools?.name ?? 'Unknown School',
+          invoice_number: inv.invoice_number,
+          amount: Number(inv.amount),
+          currency: inv.currency ?? 'NGN',
+          due_date: inv.due_date,
+          daysOverdue: Math.floor((Date.now() - new Date(inv.due_date).getTime()) / 86400000),
+        }));
+        setOverdueSchools(rows);
+      }, () => { });
   }, []); // eslint-disable-line
 
   useEffect(() => {
@@ -622,16 +669,16 @@ ${totalOwed ? `
     setLoading(true);
     setRosterResult(null);
     setInvoiceCreated(null);
+    setPreviewHtml(null);
     try {
       const rate = parseFloat(flatRate) || null;
       const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const docRef = `BS-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 
-      // Fetch students + payment data
+      // ── Collect student billing data ────────────────────────────────
+      let students: StudentBillingData[] = [];
       let totalAmount = 0;
-      let studentRows: string[] = [];
-      let studentCount = 0;
 
       if (billStyle === 'payment') {
         const [stuRes, invRes, recRes] = await Promise.all([
@@ -639,23 +686,20 @@ ${totalOwed ? `
           db.from('invoices').select('portal_user_id, amount, currency, status, due_date').eq('school_id', schoolId).not('portal_user_id', 'is', null),
           db.from('receipts').select('id, receipt_number, amount, issued_at, portal_user_id').eq('school_id', schoolId),
         ]);
-        const students: StudentRow[] = (stuRes.data ?? []) as StudentRow[];
+        const rawStudents: StudentRow[] = (stuRes.data ?? []) as StudentRow[];
         const invoices: InvoiceRow[] = (invRes.data ?? []).map((i: any) => ({ ...i, currency: i.currency ?? 'NGN' })) as InvoiceRow[];
         const receipts: ReceiptRow[] = (recRes.data ?? []) as unknown as ReceiptRow[];
-
         const invMap: Record<string, InvoiceRow> = {};
         invoices.forEach(inv => { if (inv.portal_user_id && (!invMap[inv.portal_user_id] || inv.status === 'paid')) invMap[inv.portal_user_id] = inv; });
         const recMap: Record<string, ReceiptRow> = {};
         receipts.forEach(rec => { if (rec.portal_user_id && !recMap[rec.portal_user_id]) recMap[rec.portal_user_id] = rec; });
-
-        studentCount = students.length;
-        studentRows = students.map((s, i) => {
+        students = rawStudents.map(s => {
           const inv = invMap[s.id]; const rec = recMap[s.id];
-          const amt = rec?.amount ?? inv?.amount ?? (rate ?? 0);
+          const amt = rec?.amount ?? inv?.amount ?? (rate ?? null);
           if (amt) totalAmount += amt;
           const status = rec ? 'PAID' : inv ? inv.status.toUpperCase() : '—';
           const col = rec || inv?.status === 'paid' ? '#059669' : inv?.status === 'sent' ? '#d97706' : '#6b7280';
-          return `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.full_name}</td><td style="text-align:center">${s.section_class || '—'}</td><td style="text-align:right;font-weight:700">${amt ? fmt(amt, currency) : '—'}</td><td style="text-align:center;font-family:monospace;font-size:10px">${rec?.receipt_number ?? '—'}</td><td style="text-align:center;font-weight:900;color:${col}">${status}</td></tr>`;
+          return { name: s.full_name, cls: s.section_class || '—', amount: amt, receiptNumber: rec?.receipt_number ?? '—', status, statusColor: col };
         });
       } else {
         const { data: records } = await db.from('attendance').select(`student_id, status, class_sessions(session_date, classes(name)), portal_users!attendance_student_id_fkey(full_name, section_class)`).eq('status', 'present').gte('class_sessions.session_date', dateFrom).lte('class_sessions.session_date', dateTo);
@@ -665,14 +709,15 @@ ${totalOwed ? `
           if (!byStudent[r.student_id]) byStudent[r.student_id] = { full_name: r.portal_users?.full_name ?? '—', section_class: r.portal_users?.section_class ?? '—', sessions: new Set() };
           if (r.class_sessions?.session_date) byStudent[r.student_id].sessions.add(r.class_sessions.session_date);
         });
-        const students = Object.values(byStudent).sort((a, b) => a.full_name.localeCompare(b.full_name));
-        studentCount = students.length;
-        students.forEach((s, i) => {
+        Object.values(byStudent).sort((a, b) => a.full_name.localeCompare(b.full_name)).forEach(s => {
           const amt = rate ? rate * s.sessions.size : null;
           if (amt) totalAmount += amt;
-          studentRows.push(`<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.full_name}</td><td style="text-align:center">${s.section_class}</td><td style="text-align:center;font-weight:700">${s.sessions.size}</td><td style="text-align:right;font-weight:700">${amt ? fmt(amt, currency) : `${s.sessions.size} sessions`}</td></tr>`);
+          students.push({ name: s.full_name, cls: s.section_class, amount: amt, sessions: s.sessions.size, status: 'PENDING', statusColor: '#d97706' });
         });
       }
+
+      // Snapshot students for CSV export
+      setLastStudents(students);
 
       // Look up school invoice
       const { data: invData } = await db.from('invoices').select('id, invoice_number, amount, currency, status, due_date, payment_link, metadata').eq('school_id', schoolId).eq('stream', 'school').not('status', 'eq', 'cancelled').filter('metadata->>academic_year', 'eq', academicYear).filter('metadata->>term_number', 'eq', termNumber).order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -680,28 +725,28 @@ ${totalOwed ? `
       const invoiceTotal = schoolInv ? Number(schoolInv.amount) : totalAmount;
       const invoiceRef = schoolInv?.invoice_number ?? docRef;
       const dueDate = schoolInv?.due_date ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+      const periodLabel = billStyle === 'payment' ? termLabel : `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`;
 
-      // Payment instructions from bank accounts
+      // Bank payment instructions
       const bankHtml = bankAccounts.length > 0
-        ? bankAccounts.slice(0, 2).map(a => `
-          <div style="padding:10px 14px;border:1px solid #e5e7eb;border-radius:6px;margin-top:8px">
-            <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px">${a.label || a.bank_name}</div>
-            <div style="font-size:13px;font-weight:900;color:#4c1d95;font-family:monospace;margin:2px 0">${a.account_number}</div>
-            <div style="font-size:11px;color:#374151">${a.account_name} · ${a.bank_name}</div>
-            ${a.payment_note ? `<div style="font-size:9px;color:#6b7280;margin-top:2px">${a.payment_note}</div>` : ''}
-          </div>`).join('')
+        ? bankAccounts.slice(0, 2).map(a => `<div style="padding:10px 14px;border:1px solid #e5e7eb;border-radius:6px;margin-top:8px"><div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px">${a.label || a.bank_name}</div><div style="font-size:13px;font-weight:900;color:#4c1d95;font-family:monospace;margin:2px 0">${a.account_number}</div><div style="font-size:11px;color:#374151">${a.account_name} · ${a.bank_name}</div>${a.payment_note ? `<div style="font-size:9px;color:#6b7280;margin-top:2px">${a.payment_note}</div>` : ''}</div>`).join('')
         : '<p style="color:#6b7280;font-size:11px">Contact Rillcod for bank details.</p>';
-
       const payLinkHtml = (schoolInv as any)?.payment_link
         ? `<div style="margin-top:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px"><div style="font-size:9px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.5px">Online Payment</div><div style="font-size:11px;color:#065f46;margin-top:2px;word-break:break-all">${(schoolInv as any).payment_link}</div></div>`
         : '';
 
-      const colHeaders = billStyle === 'payment'
-        ? '<th style="width:5%;text-align:center">#</th><th style="width:35%">Student Name</th><th style="width:12%;text-align:center">Class</th><th style="width:16%;text-align:right">Amount</th><th style="width:16%;text-align:center">Receipt No.</th><th style="width:16%;text-align:center">Status</th>'
-        : '<th style="width:5%;text-align:center">#</th><th style="width:40%">Student Name</th><th style="width:15%;text-align:center">Class</th><th style="width:15%;text-align:center">Sessions</th><th style="width:25%;text-align:right">Amount</th>';
-
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>School Billing Statement — ${school?.name}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 26px;font-size:12px}@page{size:A4 portrait;margin:12mm 14mm}@media print{body{padding:0}}.header{display:flex;align-items:center;gap:14px;border-bottom:4px solid #7c3aed;padding-bottom:12px;margin-bottom:14px}.logo{width:52px;height:52px;object-fit:contain}.org-name{font-size:18px;font-weight:900;color:#7c3aed}.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}.doc-badge{margin-left:auto;text-align:right}.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;padding:12px 14px;background:#f3f0ff;border-radius:8px;border:1px solid #7c3aed22}.inv-left,.inv-right{}.inv-lbl{font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}.inv-val{font-size:13px;font-weight:900;color:#4c1d95}.inv-right{text-align:right}.divider{border:none;border-top:1px solid #e5e7eb;margin:12px 0}table{width:100%;border-collapse:collapse;font-size:11px}thead tr{background:#4c1d95;color:#fff}thead th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}tbody tr{border-bottom:1px solid #e5e7eb}tbody tr:nth-child(even){background:#f9fafb}tbody td{padding:6px 10px;color:#374151}.pay-section{margin-top:16px;padding:12px 14px;background:#faf5ff;border:1px solid #7c3aed22;border-radius:8px}.pay-title{font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}.total-bar{margin-top:14px;display:flex;justify-content:flex-end}.total-box{padding:12px 20px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right}.total-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8}.total-val{font-size:22px;font-weight:900;margin-top:2px}.footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end;font-size:9px;color:#9ca3af}.sig-line{border-top:1px solid #374151;width:160px;padding-top:4px;color:#6b7280;margin-top:30px}</style></head><body>
+      // ── HTML builder: combined table document ───────────────────────
+      const buildCombinedHtml = (autoprint: boolean) => {
+        const colHeaders = billStyle === 'payment'
+          ? '<th style="width:5%;text-align:center">#</th><th style="width:35%">Student Name</th><th style="width:12%;text-align:center">Class</th><th style="width:16%;text-align:right">Amount</th><th style="width:16%;text-align:center">Receipt No.</th><th style="width:16%;text-align:center">Status</th>'
+          : '<th style="width:5%;text-align:center">#</th><th style="width:40%">Student Name</th><th style="width:15%;text-align:center">Class</th><th style="width:15%;text-align:center">Sessions</th><th style="width:25%;text-align:right">Amount</th>';
+        const rows = students.map((s, i) => billStyle === 'payment'
+          ? `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center">${s.cls}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : '—'}</td><td style="text-align:center;font-family:monospace;font-size:10px">${s.receiptNumber ?? '—'}</td><td style="text-align:center;font-weight:900;color:${s.statusColor}">${s.status}</td></tr>`
+          : `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center">${s.cls}</td><td style="text-align:center;font-weight:700">${s.sessions ?? 0}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : `${s.sessions ?? 0} sessions`}</td></tr>`
+        ).join('');
+        const watermarkCss = autoprint ? '' : `body::before{content:'PREVIEW';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:90px;font-weight:900;color:rgba(124,58,237,0.06);pointer-events:none;z-index:9999;letter-spacing:8px;white-space:nowrap;}`;
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>School Billing Statement — ${school?.name}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 26px;font-size:12px}@page{size:A4 portrait;margin:12mm 14mm}@media print{body{padding:0}}${watermarkCss}.header{display:flex;align-items:center;gap:14px;border-bottom:4px solid #7c3aed;padding-bottom:12px;margin-bottom:14px}.logo{width:52px;height:52px;object-fit:contain}.org-name{font-size:18px;font-weight:900;color:#7c3aed}.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}.doc-badge{margin-left:auto;text-align:right}.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;padding:12px 14px;background:#f3f0ff;border-radius:8px;border:1px solid #7c3aed22}table{width:100%;border-collapse:collapse;font-size:11px}thead tr{background:#4c1d95;color:#fff}thead th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}tbody tr{border-bottom:1px solid #e5e7eb}tbody tr:nth-child(even){background:#f9fafb}tbody td{padding:6px 10px;color:#374151}.pay-section{margin-top:16px;padding:12px 14px;background:#faf5ff;border:1px solid #7c3aed22;border-radius:8px}.total-bar{margin-top:14px;display:flex;justify-content:flex-end}.total-box{padding:12px 20px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right}.footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end;font-size:9px;color:#9ca3af}.sig-line{border-top:1px solid #374151;width:160px;padding-top:4px;color:#6b7280;margin-top:30px}</style></head><body>
 <div class="header">
   <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
   <div><div class="org-name">RILLCOD TECHNOLOGIES</div><div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div></div>
@@ -711,56 +756,130 @@ ${totalOwed ? `
     <div style="font-size:9px;color:#6b7280;margin-top:2px">Issued: ${today}</div>
   </div>
 </div>
-
 <div class="inv-block">
-  <div class="inv-left">
-    <div class="inv-lbl">Billed To</div><div class="inv-val">${school?.name}</div>
-    <div class="inv-lbl" style="margin-top:8px">Period</div><div class="inv-val" style="font-size:11px">${billStyle === 'payment' ? termLabel : `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`}</div>
+  <div>
+    <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Billed To</div><div style="font-size:13px;font-weight:900;color:#4c1d95">${school?.name}</div>
+    <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-top:8px;margin-bottom:2px">Period</div><div style="font-size:11px;font-weight:900;color:#4c1d95">${periodLabel}</div>
   </div>
-  <div class="inv-right">
-    <div class="inv-lbl">Invoice Ref</div><div class="inv-val" style="font-family:monospace">${invoiceRef}</div>
-    <div class="inv-lbl" style="margin-top:8px">Due Date</div><div class="inv-val" style="font-size:11px;color:#d97706">${fmtDate(dueDate)}</div>
-    ${schoolInv ? `<div class="inv-lbl" style="margin-top:6px">Status</div><div class="inv-val" style="font-size:10px;color:${schoolInv.status === 'paid' ? '#059669' : '#7c3aed'}">${schoolInv.status.toUpperCase()}</div>` : ''}
+  <div style="text-align:right">
+    <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Invoice Ref</div><div style="font-size:13px;font-weight:900;color:#4c1d95;font-family:monospace">${invoiceRef}</div>
+    <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-top:8px;margin-bottom:2px">Due Date</div><div style="font-size:11px;font-weight:900;color:#d97706">${fmtDate(dueDate)}</div>
+    ${schoolInv ? `<div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-top:6px;margin-bottom:2px">Status</div><div style="font-size:10px;font-weight:900;color:${schoolInv.status === 'paid' ? '#059669' : '#7c3aed'}">${schoolInv.status.toUpperCase()}</div>` : ''}
   </div>
 </div>
-
-<p style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
-  ${billStyle === 'payment' ? 'Student Payment Breakdown' : 'Student Attendance Breakdown'}
-</p>
-<table><thead><tr>${colHeaders}</tr></thead><tbody>${studentRows.join('')}</tbody></table>
-
+<p style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">${billStyle === 'payment' ? 'Student Payment Breakdown' : 'Student Attendance Breakdown'}</p>
+<table><thead><tr>${colHeaders}</tr></thead><tbody>${rows}</tbody></table>
 <div class="total-bar">
   <div class="total-box">
-    <div class="total-lbl">Total Amount Due to Rillcod Technologies</div>
-    <div class="total-val">${fmt(invoiceTotal, currency)}</div>
-    <div style="font-size:9px;opacity:0.7;margin-top:2px">${studentCount} students · ${billStyle === 'payment' ? termLabel : `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`}</div>
+    <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8">Total Amount Due to Rillcod Technologies</div>
+    <div style="font-size:22px;font-weight:900;margin-top:2px">${fmt(invoiceTotal, currency)}</div>
+    <div style="font-size:9px;opacity:0.7;margin-top:2px">${students.length} students · ${periodLabel}</div>
   </div>
 </div>
-
 <div class="pay-section">
-  <div class="pay-title">Payment Instructions — Remit to Rillcod Technologies</div>
+  <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Payment Instructions — Remit to Rillcod Technologies</div>
   ${bankHtml}
   ${payLinkHtml}
   <div style="font-size:10px;color:#6b7280;margin-top:10px">Please quote invoice reference <strong>${invoiceRef}</strong> in all payments. Contact accounts@rillcod.com for queries.</div>
 </div>
-
 <div class="footer">
   <div><div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} · Rillcod Technologies</div></div>
   <div style="text-align:center"><div class="sig-line">School Authorised Signatory &amp; Stamp</div></div>
   <div style="text-align:right"><div>Ref: ${docRef} · rillcod.com/verify</div><div>Confidential — For Official Use Only</div></div>
 </div>
-<script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
+${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>' : ''}
 </body></html>`;
+      };
 
-      const w = window.open('', '_blank', 'width=960,height=820');
-      if (!w) { alert('Pop-up blocked — please allow pop-ups for printing.'); return; }
-      w.document.write(html);
-      w.document.close();
+      // ── HTML builder: per-student slip pages ────────────────────────
+      const buildIndividualHtml = () => {
+        const firstBankAcc = bankAccounts[0];
+        const paymentLink = (schoolInv as any)?.payment_link ?? null;
+        const qrUrl = paymentLink
+          ? `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(paymentLink)}&size=72x72&ecc=M&margin=2`
+          : null;
+        const slips = students.map((s, i) => {
+          const isLast = i === students.length - 1;
+          return `<div style="page-break-after:${isLast ? 'auto' : 'always'};padding:12mm 10mm;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="border:2px solid #7c3aed;border-radius:10px;padding:14px 16px;max-width:560px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;border-bottom:2px solid #7c3aed;padding-bottom:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:13px;font-weight:900;color:#7c3aed;">RILLCOD TECHNOLOGIES</div>
+        <div style="font-size:8px;color:#6b7280;">STEM, Robotics &amp; AI Education Partner</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Student Fee Slip</div>
+        <div style="font-size:11px;font-weight:900;font-family:monospace;color:#4c1d95;">${invoiceRef}</div>
+        <div style="font-size:8px;color:#6b7280;">${today}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;">School</div><div style="font-size:11px;font-weight:900;">${school?.name}</div></div>
+      <div><div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;">Period</div><div style="font-size:11px;font-weight:900;">${periodLabel}</div></div>
+    </div>
+    <div style="background:#f3f0ff;border:1px solid #7c3aed22;border-radius:6px;padding:8px 12px;margin-bottom:10px;">
+      <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;">Student</div>
+      <div style="font-size:16px;font-weight:900;color:#4c1d95;">${s.name}</div>
+      <div style="font-size:9px;color:#6b7280;">Class / Grade: <strong>${s.cls}</strong></div>
+    </div>
+    <div style="background:#4c1d95;color:#fff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div>
+        <div style="font-size:8px;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px;">Amount Due</div>
+        <div style="font-size:20px;font-weight:900;">${s.amount ? fmt(s.amount, currency) : '—'}</div>
+        ${s.sessions !== undefined ? `<div style="font-size:9px;opacity:0.7;">${s.sessions} session${s.sessions !== 1 ? 's' : ''} attended</div>` : ''}
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:8px;opacity:0.7;">Status</div>
+        <div style="font-size:13px;font-weight:900;color:${s.statusColor === '#059669' ? '#4ade80' : s.statusColor === '#d97706' ? '#fbbf24' : '#d1d5db'};">${s.status}</div>
+        ${s.receiptNumber && s.receiptNumber !== '—' ? `<div style="font-size:8px;opacity:0.7;font-family:monospace;">Rcpt: ${s.receiptNumber}</div>` : ''}
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
+      ${firstBankAcc ? `<div style="flex:1;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;">
+        <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px;">Pay to Rillcod Technologies</div>
+        <div style="font-size:11px;font-weight:700;color:#4c1d95;font-family:monospace;">${firstBankAcc.account_number}</div>
+        <div style="font-size:9px;color:#374151;">${firstBankAcc.account_name} · ${firstBankAcc.bank_name}</div>
+        <div style="font-size:8px;color:#6b7280;margin-top:2px;">Ref: <strong>${invoiceRef}</strong></div>
+      </div>` : ''}
+      ${qrUrl ? `<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;text-align:center;min-width:84px;">
+        <img src="${qrUrl}" width="72" height="72" alt="Scan to pay" style="display:block;margin:0 auto 3px;" />
+        <div style="font-size:7px;color:#6b7280;">Scan to pay</div>
+      </div>` : ''}
+    </div>
+    <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #e5e7eb;">
+      <div style="border-top:1px solid #374151;width:140px;padding-top:4px;font-size:8px;color:#6b7280;margin-top:24px;">Parent/Guardian Signature</div>
+      <div style="border-top:1px solid #374151;width:140px;padding-top:4px;font-size:8px;color:#6b7280;text-align:right;margin-top:24px;">School Rep. Signature</div>
+    </div>
+  </div>
+</div>`;
+        }).join('');
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Student Fee Slips — ${school?.name}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#fff;color:#111}@page{size:A4 portrait;margin:6mm}@media print{body{padding:0}}</style></head>
+<body>${slips}<script>window.onload = () => { setTimeout(() => window.print(), 500); }</script></body></html>`;
+      };
+
+      // ── Output based on printMode ───────────────────────────────────
+      if (printMode === 'individual') {
+        const html = buildIndividualHtml();
+        const w = window.open('', '_blank', 'width=960,height=820');
+        if (!w) { alert('Pop-up blocked — please allow pop-ups for printing.'); } else { w.document.write(html); w.document.close(); }
+      } else if (printMode === 'preview') {
+        setPreviewHtml(buildCombinedHtml(false));
+        setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+      } else {
+        const html = buildCombinedHtml(true);
+        const w = window.open('', '_blank', 'width=960,height=820');
+        if (!w) { alert('Pop-up blocked — please allow pop-ups for printing.'); } else { w.document.write(html); w.document.close(); }
+      }
+
+      setLastStatement({ docRef, invoiceRef, amount: invoiceTotal, studentCount: students.length, period: periodLabel, dueDate, currency });
+      setEmailSent(null);
+      setEmailError(null);
 
       saveRecentDoc({
         ref: docRef, type: 'billing_statement',
         school: school?.name ?? schoolId,
-        term: billStyle === 'payment' ? termLabel : `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`,
+        term: periodLabel,
         amount: invoiceTotal, currency,
         invoiceNumber: invoiceRef,
         date: new Date().toISOString(),
@@ -770,7 +889,45 @@ ${totalOwed ? `
     } finally {
       setLoading(false);
     }
-  }, [schoolId, billStyle, termNumber, academicYear, flatRate, currency, dateFrom, dateTo, school, profile, db, fmt, termLabel, bankAccounts, saveRecentDoc]); // eslint-disable-line
+  }, [schoolId, billStyle, termNumber, academicYear, flatRate, currency, dateFrom, dateTo, school, profile, db, fmt, termLabel, bankAccounts, printMode, saveRecentDoc]); // eslint-disable-line
+
+  // ── CSV export of last generated student list ─────────────────────
+  const downloadCsv = useCallback(() => {
+    if (!lastStudents.length) return;
+    const headers = ['#', 'Name', 'Class', 'Amount', 'Sessions', 'Receipt No.', 'Status'];
+    const rows = lastStudents.map((s, i) =>
+      [i + 1, `"${s.name.replace(/"/g, '""')}"`, `"${s.cls}"`, s.amount ?? '', s.sessions ?? '', `"${(s.receiptNumber ?? '').replace(/"/g, '""')}"`, s.status].join(',')
+    );
+    const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `billing-${(school?.name ?? 'school').replace(/[^a-z0-9]/gi, '-')}-${(lastStatement?.period ?? 'export').replace(/[^a-z0-9]/gi, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [lastStudents, school, lastStatement]);
+
+  // ── Email billing statement to school ────────────────────────────
+  const sendToSchool = useCallback(async () => {
+    if (!lastStatement || !schoolId) return;
+    setSendingEmail(true);
+    setEmailSent(null);
+    setEmailError(null);
+    try {
+      const res = await fetch('/api/billing/email-statement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schoolId, ...lastStatement, recipientEmail: recipientEmail.trim() || undefined }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) throw new Error(j.message ?? 'Failed to send');
+      setEmailSent(j.message);
+    } catch (e: any) {
+      setEmailError(e.message ?? 'Failed to send email');
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [lastStatement, schoolId, recipientEmail]);
 
   const canGenerate = docType === 'payment_register'
     ? !!schoolId
@@ -801,6 +958,39 @@ ${totalOwed ? `
         </div>
       </div>
 
+      {/* ── Overdue schools alert ──────────────────────────────────── */}
+      {overdueSchools.length > 0 && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-red-400 text-sm">⚠</span>
+            <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+              {overdueSchools.length} School{overdueSchools.length !== 1 ? 's' : ''} with Overdue Invoice{overdueSchools.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {overdueSchools.map(ov => (
+              <div key={ov.invoice_number} className="flex items-center gap-3 px-3 py-2 bg-card border border-border rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs font-black text-foreground truncate">{ov.name}</p>
+                    <span className="text-[9px] font-mono text-muted-foreground">{ov.invoice_number}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {ov.currency === 'USD' ? '$' : '₦'}{ov.amount.toLocaleString('en-NG')} · {ov.daysOverdue}d overdue
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setSchoolId(ov.id); setDocType('billing_statement'); }}
+                  className="shrink-0 text-[9px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  Generate Statement
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Step 1 — Document type */}
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 1 — Choose Document Type</p>
@@ -828,7 +1018,7 @@ ${totalOwed ? `
           ] as const).map(opt => (
             <button key={opt.id}
               className={`text-left p-4 rounded-xl border-2 transition-all ${docType === opt.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
-              onClick={() => { setDocType(opt.id); setRosterResult(null); setInvoiceCreated(null); if (opt.id !== 'billing_statement') setBillStyle('payment'); }}>
+              onClick={() => { setDocType(opt.id); setRosterResult(null); setInvoiceCreated(null); setPreviewHtml(null); if (opt.id !== 'billing_statement') setBillStyle('payment'); }}>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-base">{opt.emoji}</span>
                 {(opt as any).badge && (
@@ -935,6 +1125,30 @@ ${totalOwed ? `
                 <Lbl>Rate <span className="text-muted-foreground/60 normal-case font-normal">(per student or per session)</span></Lbl>
                 <Input type="number" min={0} placeholder="e.g. 15000" value={flatRate} onChange={e => setFlatRate(e.target.value)} />
               </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Lbl>Output Mode</Lbl>
+                <div className="flex rounded-lg overflow-hidden border border-border text-[10px] font-black uppercase tracking-widest">
+                  {([
+                    { id: 'combined', label: '📄 Combined', tip: 'All students in one table document' },
+                    { id: 'individual', label: '🗂 Individual Slips', tip: 'One printable slip per student — distribute physically' },
+                    { id: 'preview', label: '👁 Inline Preview', tip: 'Preview inside this panel — print from here' },
+                  ] as const).map((m, i) => (
+                    <button
+                      key={m.id}
+                      title={m.tip}
+                      onClick={() => { setPrintMode(m.id); setPreviewHtml(null); }}
+                      className={`flex-1 px-3 py-2.5 transition-colors ${i > 0 ? 'border-l border-border' : ''} ${printMode === m.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-primary/5'}`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-muted-foreground mt-1">
+                  {printMode === 'combined' && 'Opens a full-page printable billing statement with all students listed.'}
+                  {printMode === 'individual' && 'Opens individual fee slips — one page per student — for physical distribution.'}
+                  {printMode === 'preview' && 'Shows the document inline below — inspect before printing with the Print button.'}
+                </p>
+              </div>
               {billStyle === 'attendance' && (
                 <>
                   <div>
@@ -998,15 +1212,18 @@ ${totalOwed ? `
             disabled={!canGenerate || loading}
             className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 transition-all shadow-lg shadow-primary/20"
           >
-            {loading
-              ? <ArrowPathIcon className="w-4 h-4 animate-spin" />
-              : <PrinterIcon className="w-4 h-4" />}
-            {loading
-              ? 'Generating…'
-              : docType === 'billing_statement' ? 'Generate Billing Statement'
-            : docType === 'payment_register' ? 'Generate Payment Register'
-            : 'Generate Attendance Roster'}
+            {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
+            {loading ? 'Generating…' : docType === 'billing_statement' ? 'Generate Billing Statement' : docType === 'payment_register' ? 'Generate Payment Register' : 'Generate Attendance Roster'}
           </button>
+          {lastStudents.length > 0 && docType === 'billing_statement' && (
+            <button
+              onClick={downloadCsv}
+              className="flex items-center gap-1.5 px-4 py-3 rounded-xl border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:text-foreground hover:border-primary/40 transition-colors"
+              title="Download student list as CSV"
+            >
+              <DocumentTextIcon className="w-3.5 h-3.5" /> Export CSV
+            </button>
+          )}
           {(rosterResult || invoiceCreated) && (
             <button
               onClick={() => { setRosterResult(null); setInvoiceCreated(null); }}
@@ -1018,12 +1235,80 @@ ${totalOwed ? `
         </div>
         {!canGenerate && (
           <p className="text-[10px] text-muted-foreground mt-2">
-            {!schoolId
-              ? '↑ Select a partner school to continue.'
-              : 'Enter the date range to continue.'}
+            {!schoolId ? '↑ Select a partner school to continue.' : 'Enter the date range to continue.'}
           </p>
         )}
+
+        {/* Send to school email section */}
+        {lastStatement && docType === 'billing_statement' && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Send Statement to School</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="email"
+                placeholder="school@email.com (leave blank to auto-resolve)"
+                value={recipientEmail}
+                onChange={e => setRecipientEmail(e.target.value)}
+                className="flex-1 min-w-48 px-3 py-2.5 bg-card border border-border text-sm rounded-xl focus:outline-none focus:border-primary placeholder:text-muted-foreground/50"
+              />
+              <button
+                onClick={sendToSchool}
+                disabled={sendingEmail}
+                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 transition-colors"
+              >
+                {sendingEmail ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <span>✉</span>}
+                {sendingEmail ? 'Sending…' : 'Email Statement'}
+              </button>
+            </div>
+            {emailSent && (
+              <p className="text-[10px] text-emerald-400 font-black mt-2 flex items-center gap-1">
+                <CheckCircleIcon className="w-3.5 h-3.5" /> {emailSent}
+              </p>
+            )}
+            {emailError && (
+              <p className="text-[10px] text-red-400 mt-2">{emailError}</p>
+            )}
+            <p className="text-[9px] text-muted-foreground mt-1.5">
+              Sends a branded email summary of ref <span className="font-mono">{lastStatement.invoiceRef}</span> · {lastStatement.period} to the school's billing contact.
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* ── Inline preview pane (billing_statement preview mode) ───── */}
+      {docType === 'billing_statement' && previewHtml && (
+        <div ref={resultRef} className="rounded-xl border-2 border-primary/20 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-primary/5 border-b border-primary/20">
+            <div className="flex items-center gap-2">
+              <DocumentTextIcon className="w-4 h-4 text-primary" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Document Preview</p>
+              <span className="text-[9px] text-muted-foreground">(scroll to inspect · use Print to output)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => iframeRef.current?.contentWindow?.print()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors shadow-sm shadow-primary/20"
+              >
+                <PrinterIcon className="w-3 h-3" /> Print
+              </button>
+              <button
+                onClick={() => setPreviewHtml(null)}
+                className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+                title="Close preview"
+              >
+                <XMarkIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <iframe
+            ref={iframeRef}
+            srcDoc={previewHtml}
+            title="Billing Statement Preview"
+            className="w-full"
+            style={{ height: '620px', border: 'none', background: '#fff' }}
+          />
+        </div>
+      )}
 
       {/* ── Roster result card ─────────────────────────────────────── */}
       {rosterResult && (
@@ -1110,8 +1395,8 @@ ${totalOwed ? `
           <div className="space-y-2">
             {recentDocs.map(doc => (
               <div key={doc.ref} className="flex items-center gap-3 px-3 py-2.5 bg-card border border-border rounded-lg">
-                <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs ${doc.type === 'payment_register' ? 'bg-primary/10 text-primary' : 'bg-sky-500/10 text-sky-400'}`}>
-                  {doc.type === 'payment_register' ? '📋' : '📅'}
+                <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs ${doc.type === 'billing_statement' ? 'bg-violet-500/10' : doc.type === 'payment_register' ? 'bg-primary/10' : 'bg-sky-500/10'}`}>
+                  {doc.type === 'billing_statement' ? '🏫' : doc.type === 'payment_register' ? '📋' : '📅'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
