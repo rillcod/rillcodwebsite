@@ -243,9 +243,6 @@ export default function DashboardNavigation() {
           { name: 'Report Builder', href: '/dashboard/reports/builder', icon: DocumentTextIcon },
           { name: 'Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
 
-          { divider: true, label: 'Finance' },
-          { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
-
           { divider: true, label: 'More' },
           { name: 'LMS Settings', href: '/dashboard/progression/settings', icon: CogIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },

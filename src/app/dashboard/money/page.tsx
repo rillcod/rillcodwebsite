@@ -265,7 +265,25 @@ export default function MoneyHubPage() {
 
   const isAdmin = role === 'admin';
   const isSchool = role === 'school';
-  const isStaff = isAdmin || isSchool || role === 'teacher';
+  const isStaff = isAdmin || isSchool;
+
+  // Teachers have no finance visibility — redirect them away
+  if (role === 'teacher') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center max-w-sm space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-muted mx-auto flex items-center justify-center">
+            <Wallet className="w-7 h-7 text-muted-foreground" />
+          </div>
+          <h2 className="text-lg font-black uppercase tracking-tight text-foreground">Finance is Admin-Only</h2>
+          <p className="text-sm text-muted-foreground">Financial records and transactions are managed by the Rillcod admin team.</p>
+          <Link href="/dashboard" className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest">
+            Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -410,16 +428,8 @@ export default function MoneyHubPage() {
           )}
           {isSchool && (
             <>
-              <ActionLink href="/dashboard/finance?tab=billing_cycles" icon={FileText} label="My Billing" />
-              <ActionLink href="/dashboard/finance?tab=operations" icon={CreditCard} label="Transactions" />
-              <ActionLink href="/dashboard/payments/bulk" icon={Banknote} label="Bulk invoices" />
-              <ActionLink href="/dashboard/finance?tab=setup" icon={CheckCircle2} label="Settings" />
-            </>
-          )}
-          {role === 'teacher' && (
-            <>
-              <ActionLink href="/dashboard/finance?tab=operations" icon={CreditCard} label="Operations" />
-              <ActionLink href="/dashboard/finance?tab=billing_cycles" icon={FileText} label="Billing cycles" />
+              <ActionLink href="/dashboard/finance?tab=billing_cycles" icon={FileText} label="My Invoices" />
+              <ActionLink href="/dashboard/finance?tab=operations" icon={Receipt} label="My Receipts" />
             </>
           )}
           {role === 'student' && (
