@@ -89,9 +89,9 @@ function dueBadge(due: string | null) {
   if (!due) return null;
   const d = new Date(due);
   const daysLeft = Math.ceil((d.getTime() - Date.now()) / 86400000);
-  if (daysLeft < 0)  return { label: 'Overdue',  cls: 'bg-rose-500/15 text-rose-400 border-rose-500/20' };
+  if (daysLeft < 0) return { label: 'Overdue', cls: 'bg-rose-500/15 text-rose-400 border-rose-500/20' };
   if (daysLeft === 0) return { label: 'Due today', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' };
-  if (daysLeft <= 3)  return { label: `${daysLeft}d left`, cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' };
+  if (daysLeft <= 3) return { label: `${daysLeft}d left`, cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' };
   return { label: `Due ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`, cls: 'bg-muted text-muted-foreground border-border/40' };
 }
 
@@ -173,7 +173,7 @@ function printQRCards(form: ConsentForm, appBase: string) {
   const publicUrl = `${appBase}/forms/${form.id}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publicUrl)}`;
   const title = esc(form.title);
-  
+
   const cards = Array(8).fill(0).map(() => `
     <div class="card">
       <div class="card-inner">
@@ -240,53 +240,118 @@ function printQRCards(form: ConsentForm, appBase: string) {
   win.document.close();
 }
 
+
+
+function printQRPoster(form: ConsentForm, appBase: string) {
+  const win = window.open('', '_blank', 'width=820,height=1000');
+  if (!win) return;
+  const publicUrl = `${appBase}/forms/${form.id}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(publicUrl)}`;
+  const title = esc(form.title);
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>QR Poster — ${title}</title>
+<style>
+  @page { margin: 15mm; size: A4 portrait; }
+  * { box-sizing: border-box; font-family: 'Arial Black', Arial, sans-serif; }
+  body { 
+    margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh;
+    border: 8px solid #000;
+  }
+  .poster {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+  }
+  .hdr { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
+  .logo { width: 70px; height: 70px; }
+  .brand { text-align: left; line-height: 1.1; }
+  .school { font-size: 32pt; font-weight: 900; letter-spacing: -1px; }
+  .tagline { font-size: 14pt; color: #555; text-transform: uppercase; letter-spacing: 2px; }
+  .title { 
+    font-size: 24pt; margin: 0 0 40px; background: #000; color: #fff; padding: 15px 30px; 
+    border-radius: 12px; width: 100%; max-width: 90%; 
+  }
+  .qr { width: 450px; height: 450px; border: 12px solid #000; padding: 10px; border-radius: 20px; box-shadow: 10px 10px 0 #000; }
+  .scan-text { font-size: 48pt; font-weight: 900; color: #000; margin-top: 50px; text-transform: uppercase; letter-spacing: 2px; }
+  .sub-scan { font-size: 18pt; color: #444; font-weight: bold; font-family: Arial, sans-serif; margin-top: 10px; }
+  @media print { body { border: none; } .poster { border: 8px solid #000; height: 95vh; } .qr { box-shadow: none; border: 8px solid #000; } }
+</style></head><body>
+  <div class="poster">
+    <div class="hdr">
+      <div class="logo">
+        <img src="${appBase}/images/logo.png" style="width:100%; height:100%; object-fit:contain; filter:grayscale(1)"/>
+      </div>
+      <div class="brand">
+        <div class="school">RILLCOD</div>
+        <div class="tagline">Tech Academy</div>
+      </div>
+    </div>
+    <div class="title">${title}</div>
+    <img class="qr" src="${qrUrl}" />
+    <div class="scan-text">Scan To Register</div>
+    <div class="sub-scan">Open your phone camera and point it at the code</div>
+  </div>
+  <script>
+    window.onload = function() { setTimeout(function() { window.print(); }, 800); };
+  </script>
+</body></html>`);
+  win.document.close();
+}
+
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function ConsentFormsPage() {
   const { profile } = useAuth();
-  const [forms, setForms]     = useState<ConsentForm[]>([]);
+  const [forms, setForms] = useState<ConsentForm[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Create modal
-  const [showCreate, setShowCreate]   = useState(false);
-  const [creating, setCreating]       = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [newForm, setNewForm]         = useState({ title: '', body: '', due_date: '', form_type: 'general', school_id: '' });
-  const [schools, setSchools]         = useState<{ id: string; name: string }[]>([]);
+  const [newForm, setNewForm] = useState({ title: '', body: '', due_date: '', form_type: 'general', school_id: '' });
+  const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
 
   // Edit modal
   const [editingForm, setEditingForm] = useState<ConsentForm & { school_id?: string } | null>(null);
-  const [savingEdit, setSavingEdit]   = useState(false);
-  const [editError, setEditError]     = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
 
   // Signing
-  const [signingId, setSigningId]   = useState<string | null>(null);
+  const [signingId, setSigningId] = useState<string | null>(null);
   const [readModalId, setReadModalId] = useState<string | null>(null);
-  const [regData, setRegData]       = useState<RegistrationData>({
+  const [regData, setRegData] = useState<RegistrationData>({
     child_name: '', child_age: '', child_class: '', program_category: '',
     parent_name: '', parent_whatsapp: '', parent_email: '', consent_acknowledged: false,
   });
   const [regStep, setRegStep] = useState<'read' | 'fill'>('read');
 
   // Signatories + leads panel
-  const [expandedId, setExpandedId]   = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [signatories, setSignatories] = useState<Record<string, Signatory[]>>({});
-  const [leads, setLeads]             = useState<Record<string, FormLead[]>>({});
+  const [leads, setLeads] = useState<Record<string, FormLead[]>>({});
   const [loadingSigs, setLoadingSigs] = useState<string | null>(null);
 
   // Delete
-  const [deletingId, setDeletingId]       = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Public link / QR
   const [togglingPublicId, setTogglingPublicId] = useState<string | null>(null);
-  const [qrFormId, setQrFormId]                 = useState<string | null>(null);
-  const [copiedId, setCopiedId]                 = useState<string | null>(null);
+  const [qrFormId, setQrFormId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Lead status
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
 
-  const isStaff  = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
+  const isStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
   const isParent = profile?.role === 'parent';
 
   const appBase = typeof window !== 'undefined' ? window.location.origin : '';
@@ -300,7 +365,7 @@ export default function ConsentFormsPage() {
         fetch('/api/consent-forms'),
         fetch('/api/schools'),
       ]);
-      const formsJson   = await formsRes.json();
+      const formsJson = await formsRes.json();
       const schoolsJson = await schoolsRes.json();
       setForms(formsJson.data ?? []);
       setSchools(schoolsJson.schools ?? schoolsJson.data ?? []);
@@ -317,7 +382,7 @@ export default function ConsentFormsPage() {
     if (!newForm.title.trim() || !newForm.body.trim()) return;
     setCreating(true); setCreateError('');
     try {
-      const res  = await fetch('/api/consent-forms', {
+      const res = await fetch('/api/consent-forms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newForm),
@@ -393,7 +458,7 @@ export default function ConsentFormsPage() {
     if (signatories[id] !== undefined) { setExpandedId(id); return; }
     setLoadingSigs(id);
     try {
-      const res  = await fetch(`/api/consent-forms/${id}`);
+      const res = await fetch(`/api/consent-forms/${id}`);
       const json = await res.json();
       setSignatories(prev => ({ ...prev, [id]: json.data ?? [] }));
       setLeads(prev => ({ ...prev, [id]: json.leads ?? [] }));
@@ -424,7 +489,7 @@ export default function ConsentFormsPage() {
   async function togglePublic(id: string, current: boolean) {
     setTogglingPublicId(id);
     try {
-      const res  = await fetch(`/api/consent-forms/${id}`, {
+      const res = await fetch(`/api/consent-forms/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_public: !current }),
@@ -440,7 +505,7 @@ export default function ConsentFormsPage() {
 
   async function copyLink(id: string) {
     const url = `${appBase}/forms/${id}`;
-    await navigator.clipboard.writeText(url).catch(() => {});
+    await navigator.clipboard.writeText(url).catch(() => { });
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   }
@@ -468,21 +533,21 @@ export default function ConsentFormsPage() {
   // ── CSV export ────────────────────────────────────────────────────────────
 
   async function exportCSV(id: string, title: string) {
-    const res  = await fetch(`/api/consent-forms/${id}/sign`);
+    const res = await fetch(`/api/consent-forms/${id}/sign`);
     if (!res.ok) return;
     const blob = await res.blob();
-    const a    = document.createElement('a');
-    a.href     = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
     a.download = `${title.replace(/[^a-z0-9]/gi, '_')}-responses.csv`;
     a.click();
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  const readModal      = forms.find(f => f.id === readModalId);
-  const qrForm         = forms.find(f => f.id === qrFormId);
+  const readModal = forms.find(f => f.id === readModalId);
+  const qrForm = forms.find(f => f.id === qrFormId);
   const totalResponses = forms.reduce((s, f) => s + (f.consent_responses?.[0]?.count ?? 0), 0);
-  const signedCount    = forms.filter(f => f.has_signed).length;
+  const signedCount = forms.filter(f => f.has_signed).length;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -521,12 +586,12 @@ export default function ConsentFormsPage() {
         {!loading && forms.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
             {(isStaff ? [
-              { label: 'Forms',     value: forms.length },
+              { label: 'Forms', value: forms.length },
               { label: 'Responses', value: totalResponses },
-              { label: 'Overdue',   value: forms.filter(f => f.due_date && new Date(f.due_date) < new Date()).length },
+              { label: 'Overdue', value: forms.filter(f => f.due_date && new Date(f.due_date) < new Date()).length },
             ] : [
-              { label: 'Forms',   value: forms.length },
-              { label: 'Signed',  value: signedCount },
+              { label: 'Forms', value: forms.length },
+              { label: 'Signed', value: signedCount },
               { label: 'Pending', value: forms.length - signedCount },
             ]).map(s => (
               <div key={s.label} className="bg-card border border-border/50 rounded-xl p-4 text-center">
@@ -564,11 +629,10 @@ export default function ConsentFormsPage() {
                       key={t.id}
                       type="button"
                       onClick={() => setNewForm(f => ({ ...f, title: t.title, body: t.body, form_type: t.form_type }))}
-                      className={`w-full flex items-center gap-3 px-4 py-3 border rounded-xl text-sm font-bold transition-colors text-left ${
-                        newForm.form_type === t.form_type && newForm.title === t.title
+                      className={`w-full flex items-center gap-3 px-4 py-3 border rounded-xl text-sm font-bold transition-colors text-left ${newForm.form_type === t.form_type && newForm.title === t.title
                           ? 'border-primary bg-primary/10 text-foreground'
                           : 'border-dashed border-border/60 hover:bg-muted/50 text-muted-foreground'
-                      }`}
+                        }`}
                     >
                       <span className="text-lg">{t.icon}</span>
                       <div>
@@ -948,9 +1012,9 @@ export default function ConsentFormsPage() {
           <div className="space-y-3">
             {forms.map(cf => {
               const responseCount = cf.consent_responses?.[0]?.count ?? 0;
-              const badge   = dueBadge(cf.due_date);
+              const badge = dueBadge(cf.due_date);
               const isExpanded = expandedId === cf.id;
-              const sigs    = signatories[cf.id] ?? [];
+              const sigs = signatories[cf.id] ?? [];
               const formLeads = leads[cf.id] ?? [];
               const publicUrl = `${appBase}/forms/${cf.id}`;
 
@@ -1011,9 +1075,14 @@ export default function ConsentFormsPage() {
                       )}
 
                       {isStaff && cf.is_public && (
-                        <button onClick={() => printQRCards(cf, appBase)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
-                          📇 Print QR Cards
-                        </button>
+                        <div className="flex gap-1">
+                          <button onClick={() => printQRCards(cf, appBase)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-l-xl transition-colors border-r border-background">
+                            📇 QR Cards
+                          </button>
+                          <button onClick={() => printQRPoster(cf, appBase)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-r-xl transition-colors">
+                            🖼️ QR Poster
+                          </button>
+                        </div>
                       )}
 
                       {isParent && !cf.has_signed && (
@@ -1046,11 +1115,10 @@ export default function ConsentFormsPage() {
                         <button
                           onClick={() => togglePublic(cf.id, cf.is_public)}
                           disabled={togglingPublicId === cf.id}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors ${
-                            cf.is_public
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors ${cf.is_public
                               ? 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
                               : 'border-border bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
+                            }`}
                         >
                           {togglingPublicId === cf.id
                             ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -1151,10 +1219,10 @@ export default function ConsentFormsPage() {
                                   const waNumber = rd.parent_whatsapp?.replace(/\D/g, '');
                                   const status = lead.status ?? 'new';
                                   const statusCfg: Record<string, { label: string; cls: string }> = {
-                                    new:       { label: 'New',       cls: 'bg-amber-500/10 text-amber-400' },
+                                    new: { label: 'New', cls: 'bg-amber-500/10 text-amber-400' },
                                     contacted: { label: 'Contacted', cls: 'bg-blue-500/10 text-blue-400' },
-                                    enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/10 text-emerald-400' },
-                                    lost:      { label: 'Lost',      cls: 'bg-muted text-muted-foreground' },
+                                    enrolled: { label: 'Enrolled', cls: 'bg-emerald-500/10 text-emerald-400' },
+                                    lost: { label: 'Lost', cls: 'bg-muted text-muted-foreground' },
                                   };
                                   return (
                                     <div key={lead.id} className="bg-card border border-primary/20 rounded-xl p-3 space-y-2">
