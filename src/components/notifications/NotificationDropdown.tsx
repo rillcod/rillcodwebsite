@@ -105,7 +105,7 @@ export default function NotificationDropdown() {
 
   // Real-time subscription for new notifications
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.id) return;
     const supabase = createClient();
     const channel = supabase
       .channel(`notif-bell-${profile.id}`)
@@ -134,8 +134,11 @@ export default function NotificationDropdown() {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [profile]);
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id]);
 
   // Close on outside click
   useEffect(() => {

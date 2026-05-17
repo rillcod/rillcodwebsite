@@ -125,15 +125,20 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Fetch platform-wide branding
-  const supabase = await createClient();
-  const { data: settings } = await supabase
-    .from('app_settings')
-    .select('key, value')
-    .in('key', ['brand_primary_color', 'platform_logo_url']);
-
-  const brandColor = settings?.find(s => s.key === 'brand_primary_color')?.value || '#1A3A8F';
-  const logoUrl = settings?.find(s => s.key === 'platform_logo_url')?.value;
+  // Fetch platform-wide branding — wrapped so a Supabase/auth error never crashes the root layout
+  let brandColor = '#1A3A8F';
+  let logoUrl: string | undefined;
+  try {
+    const supabase = await createClient();
+    const { data: settings } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['brand_primary_color', 'platform_logo_url']);
+    brandColor = settings?.find(s => s.key === 'brand_primary_color')?.value || '#1A3A8F';
+    logoUrl = settings?.find(s => s.key === 'platform_logo_url')?.value;
+  } catch {
+    // fall back to defaults — layout must never throw
+  }
 
   return (
     <html lang="en" dir="ltr">
