@@ -7,7 +7,7 @@ import {
   ClipboardDocumentCheckIcon, PlusIcon, XMarkIcon, CheckCircleIcon,
   ArrowDownTrayIcon, CalendarIcon, TrashIcon, UserGroupIcon,
   ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon,
-  ArrowPathIcon,
+  ArrowPathIcon, PrinterIcon, DocumentTextIcon,
 } from '@/lib/icons';
 
 interface ConsentForm {
@@ -44,6 +44,113 @@ function dueBadge(due: string | null) {
   if (daysLeft === 0) return { label: 'Due today', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' };
   if (daysLeft <= 3) return { label: `${daysLeft}d left`, cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' };
   return { label: `Due ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`, cls: 'bg-muted text-muted-foreground border-border/40' };
+}
+
+const RILLCOD_TEMPLATE = {
+  title: 'Student Registration & Consent',
+  body: `I, _________________ (parent/guardian name), give permission for my child to participate in the Rillcod Technologies coding program. I understand that my child will be learning computer programming in a supervised environment. I acknowledge that the program fee of ₦20,000 ought to be paid before the mid-term break.`,
+};
+
+function esc(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function printForm(form: ConsentForm) {
+  const win = window.open('', '_blank', 'width=820,height=1000');
+  if (!win) return;
+  const dueLabel = form.due_date
+    ? new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '';
+  win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${esc(form.title)} — Rillcod Technologies</title>
+  <style>
+    @page { margin: 14mm 18mm; size: A4 portrait; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; }
+    .hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+    .logo { width: 46px; height: 46px; border: 2.5px solid #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 24px; line-height: 1; }
+    .school { font-size: 21pt; font-weight: 900; letter-spacing: -0.5px; line-height: 1.1; }
+    .tagline { font-size: 7.5pt; color: #555; margin-top: 2px; }
+    .form-title { text-align: center; font-size: 10.5pt; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; border-top: 2.5px solid #000; border-bottom: 2.5px solid #000; padding: 7px 0; margin: 10px 0 14px; }
+    .section { background: #000; color: #fff; font-weight: 900; padding: 5px 10px; font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 10px; }
+    .row { display: flex; gap: 16px; margin-bottom: 10px; }
+    .field { flex: 1; min-width: 0; }
+    .field span { display: block; font-size: 9.5pt; margin-bottom: 4px; }
+    .line { border: none; border-bottom: 1px solid #000; height: 26px; display: block; width: 100%; }
+    .cb { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 9px; font-size: 10.5pt; line-height: 1.4; }
+    .box { width: 13px; height: 13px; border: 1.5px solid #000; display: inline-block; flex-shrink: 0; margin-top: 2px; }
+    .consent { border: 1px solid #bbb; padding: 12px 14px; font-size: 10.5pt; line-height: 1.7; margin: 8px 0; min-height: 90px; background: #fafafa; white-space: pre-wrap; }
+    .prog-label { font-size: 10.5pt; font-weight: bold; margin: 14px 0 8px; }
+    .sig-row { display: flex; gap: 40px; margin-top: 26px; }
+    .sig-field { flex: 1; }
+    .sig-label { font-size: 9.5pt; margin-top: 5px; }
+    .deadline { font-size: 9pt; color: #444; margin-top: 6px; }
+    .footer { margin-top: 28px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #ccc; padding-top: 8px; font-size: 8pt; color: #444; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <div class="hdr">
+    <div class="logo">R</div>
+    <div>
+      <div class="school">RILLCOD TECHNOLOGIES</div>
+      <div class="tagline">Empowering Young Minds Through Code....</div>
+    </div>
+  </div>
+
+  <div class="form-title">Student Registration &amp; Consent</div>
+
+  <div class="section">Child's Information</div>
+  <div style="margin-bottom:10px;">
+    <span style="font-size:9.5pt;display:block;margin-bottom:4px;">Full Name:</span>
+    <span class="line"></span>
+  </div>
+  <div class="row">
+    <div class="field" style="max-width:130px;">
+      <span>Age:</span><span class="line"></span>
+    </div>
+    <div class="field" style="max-width:180px;">
+      <span>Class:</span><span class="line"></span>
+    </div>
+    <div style="flex:2"></div>
+  </div>
+
+  <p class="prog-label">Program Category (Please check one):</p>
+  <div class="cb"><span class="box"></span><span><strong>Junior Coders :: PRY</strong> (Ages 5-10) — Basic programming concepts through fun &amp; games.</span></div>
+  <div class="cb"><span class="box"></span><span><strong>Teen Developers :: SEC</strong> (Ages 11-19) — Advanced coding &amp; Project development.</span></div>
+
+  <div class="section">Parents/Guardian Information</div>
+  <div style="margin-bottom:10px;"><span style="font-size:9.5pt;display:block;margin-bottom:4px;">Name:</span><span class="line"></span></div>
+  <div style="margin-bottom:10px;"><span style="font-size:9.5pt;display:block;margin-bottom:4px;">Contact/WhatsApp Number:</span><span class="line"></span></div>
+  <div style="margin-bottom:10px;"><span style="font-size:9.5pt;display:block;margin-bottom:4px;">Email (optional):</span><span class="line"></span></div>
+
+  <div class="section">Consent Statement</div>
+  <div class="consent">${esc(form.body)}</div>
+  ${dueLabel ? `<p class="deadline">Response deadline: <strong>${dueLabel}</strong></p>` : ''}
+
+  <div class="sig-row">
+    <div class="sig-field">
+      <span class="line"></span>
+      <p class="sig-label">Signature:</p>
+    </div>
+    <div class="sig-field">
+      <span class="line"></span>
+      <p class="sig-label">Date:</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>For inquiries contact us: 08116600091<br/>&#128248; &#120143; &#128994; @rillcod</div>
+    <div style="text-align:right;font-style:italic;">Rillcod Technologies — Building Future Tech Leaders</div>
+  </div>
+
+  <script>window.onload = function(){ window.print(); };<\/script>
+</body>
+</html>`);
+  win.document.close();
 }
 
 export default function ConsentFormsPage() {
@@ -221,6 +328,17 @@ export default function ConsentFormsPage() {
                     <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>
+
+                {/* Template shortcut */}
+                <button
+                  type="button"
+                  onClick={() => setNewForm(f => ({ ...f, title: RILLCOD_TEMPLATE.title, body: RILLCOD_TEMPLATE.body }))}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary rounded-xl text-sm font-bold transition-colors text-left"
+                >
+                  <DocumentTextIcon className="w-4 h-4 shrink-0" />
+                  <span>Use Rillcod Student Registration &amp; Consent Template</span>
+                </button>
+
                 <div className="space-y-4">
                   <div>
                     <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Title *</label>
@@ -437,6 +555,17 @@ export default function ConsentFormsPage() {
                       >
                         Read Full Form
                       </button>
+
+                      {/* Print physical copy */}
+                      {isStaff && (
+                        <button
+                          onClick={() => printForm(cf)}
+                          title="Print physical copy"
+                          className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
+                        >
+                          <PrinterIcon className="w-3.5 h-3.5" /> Print
+                        </button>
+                      )}
 
                       {/* Parent sign */}
                       {isParent && !cf.has_signed && (
