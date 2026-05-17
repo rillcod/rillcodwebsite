@@ -42,8 +42,16 @@ export default function NotificationDropdown() {
         .limit(5);
 
       if (data) {
-        setNotifications(data);
-        setUnreadCount(data.filter(n => !n.is_read).length);
+        const mappedData: Notification[] = data.map((n: any) => ({
+          id: n.id,
+          title: n.title || '',
+          message: n.message || '',
+          type: n.type || 'info',
+          is_read: !!n.is_read,
+          created_at: n.created_at || new Date().toISOString()
+        }));
+        setNotifications(mappedData);
+        setUnreadCount(mappedData.filter(n => !n.is_read).length);
       }
     };
 
@@ -57,7 +65,16 @@ export default function NotificationDropdown() {
         table: 'notifications',
         filter: `user_id=eq.${profile.id}`
       }, (payload) => {
-        setNotifications(prev => [payload.new as Notification, ...prev].slice(0, 5));
+        const n = payload.new as any;
+        const newNotif: Notification = {
+          id: n.id,
+          title: n.title || '',
+          message: n.message || '',
+          type: n.type || 'info',
+          is_read: !!n.is_read,
+          created_at: n.created_at || new Date().toISOString()
+        };
+        setNotifications(prev => [newNotif, ...prev].slice(0, 5));
         setUnreadCount(prev => prev + 1);
       })
       .subscribe();
