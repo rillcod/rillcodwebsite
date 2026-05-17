@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BellIcon, CheckCircleIcon, ExclamationTriangleIcon,
   InformationCircleIcon, XCircleIcon, TrophyIcon,
-  FireIcon, SparklesIcon, TrashIcon, ArchiveBoxIcon,
+  FireIcon, SparklesIcon, TrashIcon,
   FunnelIcon, MagnifyingGlassIcon, EyeIcon, EyeSlashIcon
 } from '@/lib/icons';
 
@@ -77,6 +78,7 @@ const typeConfig = {
 
 export default function NotificationsPage() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
@@ -128,9 +130,32 @@ export default function NotificationsPage() {
 
   // Load notifications
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.id) return;
     loadNotifications();
-  }, [profile]);
+  }, [profile?.id]);
+
+  // Real-time: push new notifications into the list as they arrive
+  useEffect(() => {
+    if (!profile?.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`notif-page-${profile.id}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
+        (payload) => {
+          const n = payload.new as any;
+          setNotifications(prev => [{
+            ...n,
+            type: n.type || 'info',
+            is_read: false,
+            created_at: n.created_at || new Date().toISOString(),
+          }, ...prev]);
+        },
+      )
+      .subscribe();
+    return () => { channel.unsubscribe(); supabase.removeChannel(channel); };
+  }, [profile?.id]);
 
   async function loadNotifications() {
     if (!profile?.id) return;
@@ -203,12 +228,12 @@ export default function NotificationsPage() {
   async function toggleReadStatus(notificationId: string, isRead: boolean) {
     try {
       const supabase = createClient();
-      await supabase
-        .from('notifications')
-        .update({ is_read: !isRead })
-        .eq('id', notificationId);
-
-      setNotifications(prev => 
+      await supabase.from('notifications').update(
+        !isRead
+          ? { is_read: true, read_at: new Date().toISOString() }
+          : { is_read: false }
+      ).eq('id', notificationId);
+      setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: !isRead } : n)
       );
     } catch (error) {
@@ -556,15 +581,12 @@ export default function NotificationsPage() {
                             </div>
 
                             {notification.action_url && (
-                              <a
-                                href={notification.action_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-xs font-medium text-primary hover:text-primary transition-colors"
+                              <button
+                                onClick={(e) => { e.stopPropagation(); router.push(notification.action_url!); }}
+                                className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                               >
                                 View Details →
-                              </a>
+                              </button>
                             )}
                           </div>
                         </div>

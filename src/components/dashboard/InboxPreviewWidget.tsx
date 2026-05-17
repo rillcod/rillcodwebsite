@@ -59,15 +59,16 @@ export default function InboxPreviewWidget() {
     if (!profile || !hasAccess) { setLoading(false); return; }
     loadPreview();
 
-    // Real-time: refresh preview on any new WhatsApp message or conversation update
-    const ch = supabase.channel(`inbox_widget_${profile.id}`)
+    // Real-time: refresh preview on any new WhatsApp message or conversation update.
+    // Random suffix avoids Supabase channel-cache collision in React StrictMode.
+    const ch = supabase.channel(`inbox_widget_${profile.id}_${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
         () => loadPreview())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_conversations' },
         () => loadPreview())
       .subscribe();
 
-    return () => { supabase.removeChannel(ch); };
+    return () => { ch.unsubscribe(); supabase.removeChannel(ch); };
   }, [profile?.id]); // eslint-disable-line
 
   const loadPreview = async () => {
