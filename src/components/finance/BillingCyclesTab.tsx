@@ -13,6 +13,7 @@ import {
   CreditCardIcon,
   PaperClipIcon,
   TrashIcon,
+  PencilIcon,
 } from '@/lib/icons';
 
 export type BillingCycleRow = {
@@ -428,12 +429,11 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                     <span className="font-black text-foreground text-sm tabular-nums">
                       {fmt(row.currency, Number(row.amount_due ?? 0))}
                     </span>
-                    <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-xl ${
-                      row.status === 'paid' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
-                      row.status === 'past_due' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' :
-                      row.status === 'due' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
-                      'text-muted-foreground border-border'
-                    }`}>
+                    <span className={`text-[10px] font-black uppercase tracking-widest border px-2 py-0.5 rounded-xl ${row.status === 'paid' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                        row.status === 'past_due' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' :
+                          row.status === 'due' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
+                            'text-muted-foreground border-border'
+                      }`}>
                       {row.status === 'past_due' ? 'Overdue' : row.status.replace(/_/g, ' ')}
                     </span>
                     {open ? <ChevronUpIcon className="w-4 h-4 text-muted-foreground" /> : <ChevronDownIcon className="w-4 h-4 text-muted-foreground" />}
@@ -568,21 +568,20 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         <button
                           type="button"
                           onClick={() => startEdit(row)}
-                          className="px-3 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted rounded-xl"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted rounded-xl"
                         >
+                          <PencilIcon className="w-3.5 h-3.5" />
                           Edit
                         </button>
-                        {['cancelled', 'rolled_over'].includes(row.status) && (
-                          <button
-                            type="button"
-                            disabled={deleting === row.id}
-                            onClick={() => void deleteCycle(row.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 rounded-xl"
-                          >
-                            <TrashIcon className="w-3.5 h-3.5" />
-                            {deleting === row.id ? 'Deleting…' : 'Delete'}
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          disabled={deleting === row.id}
+                          onClick={() => void deleteCycle(row.id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rose-500/40 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 disabled:opacity-40 rounded-xl"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                          {deleting === row.id ? 'Deleting…' : 'Delete'}
+                        </button>
                       </div>
                     )}
                     {isAdmin && row.status !== 'rolled_over' && (
