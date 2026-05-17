@@ -176,7 +176,8 @@ export default function ConsentFormsPage() {
   const [showCreate, setShowCreate]   = useState(false);
   const [creating, setCreating]       = useState(false);
   const [createError, setCreateError] = useState('');
-  const [newForm, setNewForm]         = useState({ title: '', body: '', due_date: '', form_type: 'general' });
+  const [newForm, setNewForm]         = useState({ title: '', body: '', due_date: '', form_type: 'general', school_id: '' });
+  const [schools, setSchools]         = useState<{ id: string; name: string }[]>([]);
 
   // Signing
   const [signingId, setSigningId]   = useState<string | null>(null);
@@ -212,9 +213,14 @@ export default function ConsentFormsPage() {
   const loadForms = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch('/api/consent-forms');
-      const json = await res.json();
-      setForms(json.data ?? []);
+      const [formsRes, schoolsRes] = await Promise.all([
+        fetch('/api/consent-forms'),
+        fetch('/api/schools'),
+      ]);
+      const formsJson   = await formsRes.json();
+      const schoolsJson = await schoolsRes.json();
+      setForms(formsJson.data ?? []);
+      setSchools(schoolsJson.schools ?? schoolsJson.data ?? []);
     } finally {
       setLoading(false);
     }
@@ -236,7 +242,7 @@ export default function ConsentFormsPage() {
       const json = await res.json();
       if (!res.ok) { setCreateError(json.error || 'Failed'); return; }
       setForms(prev => [{ ...json.data, has_signed: false }, ...prev]);
-      setNewForm({ title: '', body: '', due_date: '', form_type: 'general' });
+      setNewForm({ title: '', body: '', due_date: '', form_type: 'general', school_id: '' });
       setShowCreate(false);
     } finally { setCreating(false); }
   }
@@ -475,6 +481,21 @@ export default function ConsentFormsPage() {
                       className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
                     />
                   </div>
+                  {profile?.role === 'admin' && schools.length > 0 && (
+                    <div>
+                      <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">School</label>
+                      <select
+                        value={newForm.school_id}
+                        onChange={e => setNewForm(f => ({ ...f, school_id: e.target.value }))}
+                        className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                      >
+                        <option value="">— Auto (first school) —</option>
+                        {schools.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 {createError && (
