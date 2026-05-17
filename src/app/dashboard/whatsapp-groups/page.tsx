@@ -85,7 +85,7 @@ function tplDefaults(fields?: TplField[]): Record<string, string> {
   return vals;
 }
 function fmtDate(iso: string) { if (!iso) return '________'; try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); } catch { return iso; } }
-function fmtTime(t: string) { if (!t) return '________'; const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; }
+function fmtTime(t: string) { if (!t) return '________'; const parts = t.split(':'); const h = parseInt(parts[0] ?? '0') || 0; const m = parseInt(parts[1] ?? '0') || 0; return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; }
 function vl(v: Record<string, string>, k: string, fb = '________') { return v[k]?.trim() || fb; }
 
 const NEWSLETTER_TPLS: NewsletterTpl[] = [
@@ -355,16 +355,19 @@ export default function WhatsAppGroupsPage() {
     if (pusherGroups.size === 0)   { showToast('Select at least one target group', 'err'); return; }
     setPusherSending(true);
     await navigator.clipboard?.writeText(pusherMsg).catch(() => {});
-    const targets = groups.filter(g => pusherGroups.has(g.id) && g.status === 'active');
+    const targets = groups.filter(g => pusherGroups.has(g.id) && g.status === 'active' && g.link);
+    if (targets.length === 0) { showToast('No active groups with a valid link selected', 'err'); setPusherSending(false); return; }
     showToast(`✓ Message copied! Opening ${targets.length} group${targets.length !== 1 ? 's' : ''} — paste in each`, 'ok');
     for (let i = 0; i < targets.length; i++) {
-      await new Promise(r => setTimeout(r, i === 0 ? 80 : 1300));
-      window.open(targets[i].link, '_blank', 'noopener,noreferrer');
-      await fetch('/api/whatsapp-groups/broadcasts', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ group_id: targets[i].id, message: pusherMsg.trim() }),
-      });
-      setGroups(prev => prev.map(g => g.id === targets[i].id ? { ...g, last_broadcast_at: new Date().toISOString() } : g));
+      try {
+        await new Promise(r => setTimeout(r, i === 0 ? 80 : 1300));
+        window.open(targets[i].link, '_blank', 'noopener,noreferrer');
+        await fetch('/api/whatsapp-groups/broadcasts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ group_id: targets[i].id, message: pusherMsg.trim() }),
+        }).catch(() => {});
+        setGroups(prev => prev.map(g => g.id === targets[i].id ? { ...g, last_broadcast_at: new Date().toISOString() } : g));
+      } catch {}
     }
     setPusherSending(false);
     setShowPusher(false);
@@ -483,17 +486,19 @@ export default function WhatsAppGroupsPage() {
   // ── Send logic ────────────────────────────────────────────────────────────
   async function logBroadcast(groupId: string) {
     if (!message.trim()) return;
-    await fetch('/api/whatsapp-groups/broadcasts', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ group_id: groupId, message: message.trim() }),
-    });
-    // Refresh last_broadcast_at on the local group
+    try {
+      await fetch('/api/whatsapp-groups/broadcasts', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ group_id: groupId, message: message.trim() }),
+      });
+    } catch {}
     setGroups(prev => prev.map(g => g.id === groupId
       ? { ...g, last_broadcast_at: new Date().toISOString() } : g));
     if (activeGroup?.id === groupId) setActiveGroup(a => a ? { ...a, last_broadcast_at: new Date().toISOString() } : a);
   }
 
   async function sendToGroup(group: Group) {
+    if (!group.link) { showToast('This group has no link set', 'err'); return; }
     if (message.trim()) await navigator.clipboard?.writeText(message).catch(() => {});
     setTimeout(() => window.open(group.link, '_blank', 'noopener,noreferrer'), 60);
     await logBroadcast(group.id);
@@ -505,12 +510,15 @@ export default function WhatsAppGroupsPage() {
     if (!message.trim())      { showToast('Write a message first', 'err'); return; }
     setSending(true);
     await navigator.clipboard?.writeText(message).catch(() => {});
-    showToast(`✓ Message copied! Opening ${selected.size} group${selected.size > 1 ? 's' : ''} — paste in each`, 'ok');
-    const targets = groups.filter(g => selected.has(g.id));
+    const targets = groups.filter(g => selected.has(g.id) && g.link);
+    if (targets.length === 0) { showToast('No selected groups have a valid link', 'err'); setSending(false); return; }
+    showToast(`✓ Message copied! Opening ${targets.length} group${targets.length > 1 ? 's' : ''} — paste in each`, 'ok');
     for (let i = 0; i < targets.length; i++) {
-      await new Promise(r => setTimeout(r, i === 0 ? 80 : 1300));
-      window.open(targets[i].link, '_blank', 'noopener,noreferrer');
-      await logBroadcast(targets[i].id);
+      try {
+        await new Promise(r => setTimeout(r, i === 0 ? 80 : 1300));
+        window.open(targets[i].link, '_blank', 'noopener,noreferrer');
+        await logBroadcast(targets[i].id);
+      } catch {}
     }
     setSending(false);
   }
@@ -901,6 +909,7 @@ export default function WhatsAppGroupsPage() {
                         <button
                           onClick={e => {
                             e.stopPropagation();
+                            if (!group.link) { showToast('This group has no link set', 'err'); return; }
                             if (message.trim()) {
                               navigator.clipboard?.writeText(message).catch(() => {});
                               logBroadcast(group.id);
