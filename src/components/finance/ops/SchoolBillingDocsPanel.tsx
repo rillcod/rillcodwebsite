@@ -164,21 +164,28 @@ export function SchoolBillingDocsPanel() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    db.from('schools').select('id, name').order('name').then(({ data }) => setSchools(data ?? []));
-    fetch('/api/payment-accounts')
-      .then(r => r.ok ? r.json() : { data: [] })
-      .then(j => setBankAccounts((j.data ?? []).filter((a: any) => a.is_active && !a.school_id)))
-      .catch(() => { });
-    // Overdue school invoices
-    const today = new Date().toISOString().split('T')[0];
-    db.from('invoices')
-      .select('id, invoice_number, amount, currency, due_date, school_id, schools(name)')
-      .eq('stream', 'school')
-      .eq('status', 'sent')
-      .lt('due_date', today)
-      .order('due_date')
-      .limit(8)
-      .then(({ data }) => {
+    const init = async () => {
+      try {
+        const { data: schData } = await db.from('schools').select('id, name').order('name');
+        if (schData) setSchools(schData);
+      } catch (e) {}
+
+      try {
+        const r = await fetch('/api/payment-accounts');
+        const j = r.ok ? await r.json() : { data: [] };
+        setBankAccounts((j.data ?? []).filter((a: any) => a.is_active && !a.school_id));
+      } catch (e) {}
+
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const { data } = await db.from('invoices')
+          .select('id, invoice_number, amount, currency, due_date, school_id, schools(name)')
+          .eq('stream', 'school')
+          .eq('status', 'sent')
+          .lt('due_date', today)
+          .order('due_date')
+          .limit(8);
+
         const rows: OverdueSchool[] = ((data ?? []) as any[]).map(inv => ({
           id: inv.school_id,
           name: inv.schools?.name ?? 'Unknown School',
@@ -189,7 +196,9 @@ export function SchoolBillingDocsPanel() {
           daysOverdue: Math.floor((Date.now() - new Date(inv.due_date).getTime()) / 86400000),
         }));
         setOverdueSchools(rows);
-      }, () => { });
+      } catch (e) {}
+    };
+    init();
   }, []); // eslint-disable-line
 
   useEffect(() => {
