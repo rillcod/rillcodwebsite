@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   // Auth is already verified above (role check + school scope on the form itself).
   const admin = adminClient();
 
-  const [formRes, { data: responses, error: rErr }, leadsResult] = await Promise.all([
+  const [formRes, { data: responses }, leadsResult] = await Promise.all([
     supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public').eq('id', id).single(),
     supabase
       .from('consent_responses')
@@ -53,7 +53,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     leads = fallback.data ?? [];
   }
 
-  if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
   return NextResponse.json({ form: formRes.data ?? null, data: responses ?? [], leads: leads ?? [] });
 }
 
