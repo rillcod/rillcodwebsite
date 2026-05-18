@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const [formRes, { data: responses, error: rErr }, { data: leads }] = await Promise.all([
+  const [formRes, { data: responses, error: rErr }, leadsResult] = await Promise.all([
     supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public').eq('id', id).single(),
     supabase
       .from('consent_responses')
@@ -24,10 +24,22 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .order('signed_at', { ascending: false }),
     (supabase as any)
       .from('form_leads')
-      .select('id, submitted_at, email, child_current_school, matched_school_id, response_data, status, match_status, match_confidence, match_notes, match_candidate_id, matched_student_id, matched_parent_id, contact_id, prospect_id, schools!matched_school_id(name), match_candidate:portal_users!match_candidate_id(id, full_name, section_class, email)')
+      .select('id, submitted_at, email, child_current_school, response_data, status, match_status, match_confidence, match_notes, match_candidate_id, matched_student_id, matched_parent_id, contact_id, prospect_id, schools!matched_school_id(name), match_candidate:portal_users!match_candidate_id(id, full_name, section_class, email)')
       .eq('form_id', id)
       .order('submitted_at', { ascending: false }),
   ]);
+
+  // If the full leads query fails (e.g. CRM migration columns not yet applied),
+  // fall back to the basic columns that always exist.
+  let leads = leadsResult.data;
+  if (leadsResult.error) {
+    const fallback = await (supabase as any)
+      .from('form_leads')
+      .select('id, submitted_at, email, child_current_school, response_data, status')
+      .eq('form_id', id)
+      .order('submitted_at', { ascending: false });
+    leads = fallback.data ?? [];
+  }
 
   if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
   return NextResponse.json({ form: formRes.data ?? null, data: responses ?? [], leads: leads ?? [] });
