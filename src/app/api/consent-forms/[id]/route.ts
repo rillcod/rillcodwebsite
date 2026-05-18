@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+}
 
 // GET /api/consent-forms/[id] — staff: signed responses + public leads
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -15,6 +24,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Use service-role for form_leads so RLS on that table never blocks staff reads.
+  // Auth is already verified above (role check + school scope on the form itself).
+  const admin = adminClient();
+
   const [formRes, { data: responses, error: rErr }, leadsResult] = await Promise.all([
     supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public').eq('id', id).single(),
     supabase
@@ -22,18 +35,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .select('id, signed_at, response_data, portal_users!parent_id(full_name, email, phone)')
       .eq('form_id', id)
       .order('signed_at', { ascending: false }),
-    (supabase as any)
+    (admin as any)
       .from('form_leads')
       .select('id, submitted_at, email, child_current_school, response_data, status, match_status, match_confidence, match_notes, match_candidate_id, matched_student_id, matched_parent_id, contact_id, prospect_id, schools!matched_school_id(name), match_candidate:portal_users!match_candidate_id(id, full_name, section_class, email)')
       .eq('form_id', id)
       .order('submitted_at', { ascending: false }),
   ]);
 
-  // If the full leads query fails (e.g. CRM migration columns not yet applied),
-  // fall back to the basic columns that always exist.
+  // If full query fails (CRM columns missing — run db migrations), fall back to basic columns.
   let leads = leadsResult.data;
   if (leadsResult.error) {
-    const fallback = await (supabase as any)
+    const fallback = await (admin as any)
       .from('form_leads')
       .select('id, submitted_at, email, child_current_school, response_data, status')
       .eq('form_id', id)

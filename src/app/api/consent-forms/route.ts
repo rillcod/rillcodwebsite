@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+
+function adminClient() {
+  return createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+}
 
 // GET /api/consent-forms
 export async function GET(req: NextRequest) {
@@ -13,9 +22,11 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const cursor = url.searchParams.get('cursor');
 
+  // form_leads(count) is excluded here — RLS blocks server-client reads on form_leads.
+  // We fetch lead counts separately via the admin client below.
   let query = supabase
     .from('consent_forms')
-    .select('*, consent_responses(count), form_leads(count)')
+    .select('*, consent_responses(count)')
     .order('created_at', { ascending: false })
     .limit(20);
 
@@ -24,6 +35,22 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Fetch form_leads counts via service role (bypasses RLS on form_leads table).
+  let leadCountMap: Record<string, number> = {};
+  if (data && data.length > 0) {
+    const formIds = data.map((f: any) => f.id);
+    const admin = adminClient();
+    const { data: leadRows } = await (admin as any)
+      .from('form_leads')
+      .select('form_id')
+      .in('form_id', formIds);
+    if (leadRows) {
+      for (const row of leadRows) {
+        leadCountMap[row.form_id] = (leadCountMap[row.form_id] ?? 0) + 1;
+      }
+    }
+  }
 
   // For parents: fetch which forms they have already signed so the UI
   // shows correct signed state across page reloads.
@@ -40,6 +67,7 @@ export async function GET(req: NextRequest) {
 
   const enriched = (data ?? []).map((f: any) => ({
     ...f,
+    form_leads: [{ count: leadCountMap[f.id] ?? 0 }],
     has_signed: signedFormIds.includes(f.id),
   }));
 
