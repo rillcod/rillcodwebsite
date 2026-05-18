@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
 import { buildFormLeadConfirmationEmail, buildLeadNotificationEmail } from '@/lib/email/rillcod-transactional-email';
+import { sendWhatsApp } from '@/lib/whatsapp/send';
 
 export const dynamic = 'force-dynamic';
 
@@ -535,6 +536,39 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
           } catch { /* non-fatal */ }
         }
       }
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Immediate WhatsApp confirmation to parent ─────────────────────────────
+  try {
+    const parentWhatsapp = response_data.parent_whatsapp;
+    if (parentWhatsapp?.trim()) {
+      const programme =
+        response_data.program_category === 'young_innovators' ? 'Young Innovators' :
+        response_data.program_category === 'teen_developers'  ? 'Teen Developers'  :
+        response_data.program_category || 'coding programme';
+      const waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received ${response_data.child_name}'s registration for ${programme} at Rillcod Technologies.\n\nOur team will reach out within 24 hours to confirm your child's placement and share next steps.\n\nQuestions? Call us: +234 811 660 0091\nReply STOP to opt out.`;
+      await sendWhatsApp(parentWhatsapp, waMsg);
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Staff follow-up task (CRM interaction) ────────────────────────────────
+  try {
+    const savedContactId = contactId;
+    if (savedContactId) {
+      const programme =
+        response_data.program_category === 'young_innovators' ? 'Young Innovators' :
+        response_data.program_category === 'teen_developers'  ? 'Teen Developers'  :
+        response_data.program_category || 'coding programme';
+      await (sb as any).from('crm_interactions').insert({
+        contact_id:   savedContactId,
+        contact_name: response_data.parent_name || 'Parent',
+        contact_type: 'form_lead',
+        type:         'task_followup',
+        direction:    'internal',
+        content:      `Follow-up task: Contact ${response_data.parent_name || 'parent'} about ${response_data.child_name || 'child'}'s registration (${programme}). Submitted: ${new Date().toLocaleDateString('en-GB')}`,
+        created_at:   now,
+      });
     }
   } catch { /* non-fatal */ }
 
