@@ -596,6 +596,225 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
   win.document.close();
 }
 
+function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[], appBase: string) {
+  const win = window.open('', '_blank', 'width=1100,height=900');
+  if (!win) return;
+
+  const now     = new Date();
+  const printed = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const isAssessment = form.form_type === 'assessment';
+
+  const progLabel = (cat: string) =>
+    cat === 'young_innovators' ? 'Young Innovators' :
+    cat === 'teen_developers'  ? 'Teen Developers'  : cat || '—';
+
+  const statusLabel = (s: string) =>
+    ({ new: 'New', contacted: 'Contacted', enrolled: 'Enrolled', lost: 'Lost' }[s] ?? s);
+
+  /* ── Lead rows ─────────────────────────────────────────────────────── */
+  const leadRows = leads.map((lead, i) => {
+    const rd  = (lead.response_data ?? {}) as Record<string, unknown>;
+    const str = (k: string) => (rd[k] as string) ?? '';
+    const sub = new Date(lead.submitted_at);
+    const dateCell = sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeCell = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const devs  = Array.isArray(rd.devices) ? (rd.devices as string[]).join(', ') : '';
+    const prog  = progLabel(str('program_category'));
+    const stat  = statusLabel(lead.status ?? 'new');
+    const statCls = lead.status === 'enrolled' ? 'enrolled' : lead.status === 'contacted' ? 'contacted' : lead.status === 'lost' ? 'lost' : 'new-s';
+
+    return `
+    <tr class="data-row">
+      <td class="num">${i + 1}</td>
+      <td class="date-col">${dateCell}<br/><span class="time">${timeCell}</span></td>
+      <td><strong>${esc(str('parent_name') || '—')}</strong>${rd.is_existing_parent ? '<span class="exist">↩ Existing</span>' : ''}<br/><span class="sub">${esc(lead.email || str('parent_email') || '')}</span><br/><span class="sub">${esc(str('parent_whatsapp') || '')}</span></td>
+      <td><strong>${esc(str('child_name') || '—')}</strong><br/><span class="sub">Age ${esc(str('child_age') || '—')} · ${esc(str('child_class') || '—')}</span></td>
+      <td><span class="sub">${esc(lead.child_current_school || str('child_current_school') || '—')}</span></td>
+      <td><span class="prog">${esc(prog)}</span></td>
+      ${isAssessment ? `
+      <td><span class="sub">${str('prior_coding') === 'yes' ? `Yes${str('prior_platform') ? ': ' + esc(str('prior_platform')) : ''}` : str('prior_coding') === 'no' ? 'No' : '—'}</span></td>
+      <td><span class="sub">${esc(devs || '—')}</span></td>
+      <td><span class="sub">${esc(str('learning_goal') || '—')}</span></td>
+      <td><span class="sub">${esc(str('preferred_schedule') || '—')}</span></td>
+      ` : ''}
+      <td><span class="stat ${statCls}">${stat}</span></td>
+      <td><span class="sub">${esc(str('special_notes') || '')}</span></td>
+    </tr>`;
+  }).join('');
+
+  /* ── Signature rows ─────────────────────────────────────────────────── */
+  const sigRows = sigs.map((s, i) => {
+    const rd   = (s.response_data ?? {}) as Record<string, unknown>;
+    const str2 = (k: string) => (rd[k] as string) ?? '';
+    const sub  = new Date(s.signed_at);
+    const dateCell = sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeCell = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const prog  = progLabel(str2('program_category'));
+
+    return `
+    <tr class="data-row sig-row">
+      <td class="num">${leads.length + i + 1}</td>
+      <td class="date-col">${dateCell}<br/><span class="time">${timeCell}</span></td>
+      <td><strong>${esc(s.portal_users?.full_name ?? '—')}</strong><span class="portal-tag">Portal</span><br/><span class="sub">${esc(s.portal_users?.email ?? '')}</span><br/><span class="sub">${esc(s.portal_users?.phone ?? '')}</span></td>
+      <td><strong>${esc(str2('child_name') || '—')}</strong><br/><span class="sub">Age ${esc(str2('child_age') || '—')} · ${esc(str2('child_class') || '—')}</span></td>
+      <td>—</td>
+      <td><span class="prog">${esc(prog)}</span></td>
+      ${isAssessment ? `<td>—</td><td>—</td><td>—</td><td>—</td>` : ''}
+      <td><span class="stat enrolled">Signed</span></td>
+      <td></td>
+    </tr>`;
+  }).join('');
+
+  const assessmentHeaders = isAssessment
+    ? `<th>Prior Coding</th><th>Device(s)</th><th>Goal</th><th>Schedule</th>`
+    : '';
+
+  const totalRows = leads.length + sigs.length;
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Data Sheet — ${esc(form.title)}</title>
+<style>
+  @page { margin: 10mm 8mm; size: A4 landscape; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 8pt; color: #111; background: #fff; }
+
+  /* ── Letterhead ──────────────────────────────────────────── */
+  .letterhead { background: #0d0d0f; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .letterhead-logo { height: 40px; width: auto; object-fit: contain; }
+  .letterhead-div { width: 1px; height: 38px; background: rgba(255,255,255,0.2); }
+  .co-name { font-size: 13pt; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
+  .co-tag  { font-size: 6.5pt; color: #999; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+  .lh-contact { text-align: right; color: #999; font-size: 7pt; line-height: 1.7; }
+  .lh-contact span { color: #f5a623; }
+  .accent-strip { height: 3px; background: linear-gradient(90deg,#f5a623,#f5c84a); }
+
+  /* ── Doc header ──────────────────────────────────────────── */
+  .doc-hdr { padding: 10px 18px 8px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #111; }
+  .doc-type { font-size: 6.5pt; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; color: #f5a623; }
+  .doc-title { font-size: 12pt; font-weight: 900; color: #0d0d0f; margin-top: 2px; }
+  .doc-meta { text-align: right; font-size: 7.5pt; color: #555; line-height: 1.8; }
+  .doc-meta strong { color: #111; }
+
+  /* ── Stats bar ───────────────────────────────────────────── */
+  .stats-bar { display: flex; gap: 0; border-bottom: 1px solid #e0e0e0; }
+  .stat-cell { flex: 1; padding: 6px 14px; border-right: 1px solid #e0e0e0; }
+  .stat-cell:last-child { border-right: none; }
+  .stat-num  { font-size: 13pt; font-weight: 900; color: #0d0d0f; line-height: 1; }
+  .stat-lbl  { font-size: 6pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #888; margin-top: 2px; }
+
+  /* ── Data table ──────────────────────────────────────────── */
+  .wrap { padding: 0 8px 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  thead th {
+    background: #0d0d0f; color: #fff; font-size: 7pt; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 7px;
+    text-align: left; white-space: nowrap; border-right: 1px solid #333;
+  }
+  thead th:last-child { border-right: none; }
+  .data-row td { padding: 6px 7px; border-bottom: 1px solid #ebebeb; vertical-align: top; font-size: 7.5pt; border-right: 1px solid #f0f0f0; }
+  .data-row:nth-child(even) td { background: #f9f9f9; }
+  .data-row:hover td { background: #fff8ec; }
+  .sig-row td { background: #f0f8ff !important; }
+  .num { color: #aaa; font-size: 7pt; text-align: center; width: 24px; }
+  .date-col { white-space: nowrap; width: 72px; }
+  .time { color: #999; font-size: 6.5pt; }
+  .sub  { color: #666; font-size: 7pt; display: block; margin-top: 1px; }
+  strong { font-size: 8pt; }
+  .prog { display: inline-block; background: #0d0d0f; color: #f5a623; font-size: 6.5pt; font-weight: 900; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+  .stat { display: inline-block; font-size: 6.5pt; font-weight: 900; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+  .new-s     { background: #fff7e0; color: #b45309; }
+  .contacted { background: #e0f0ff; color: #1d4ed8; }
+  .enrolled  { background: #e0f9ec; color: #166534; }
+  .lost      { background: #f0f0f0; color: #777; }
+  .exist { display: inline-block; background: #7c3aed; color: #fff; font-size: 6pt; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+  .portal-tag { display: inline-block; background: #0369a1; color: #fff; font-size: 6pt; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+
+  /* ── Footer ──────────────────────────────────────────────── */
+  .page-footer { padding: 6px 18px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; font-size: 6.5pt; color: #999; }
+  .page-footer strong { color: #555; }
+
+  /* ── Print button ─────────────────────────────────────────── */
+  .print-btn { position: fixed; top: 14px; right: 14px; background: #0d0d0f; color: #fff; border: none; padding: 10px 20px; font-size: 13px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25); z-index: 1000; font-family: Arial; }
+  .print-btn:hover { background: #333; }
+  @media print { .print-btn { display: none !important; } }
+</style></head><body>
+
+<button class="print-btn" onclick="window.print()">🖨️ Print Sheet</button>
+
+<!-- Letterhead -->
+<div class="letterhead">
+  <img src="${appBase}/images/logoB.png" class="letterhead-logo" alt="Rillcod" />
+  <div class="letterhead-div"></div>
+  <div>
+    <div class="co-name">RILLCOD TECHNOLOGIES</div>
+    <div class="co-tag">Empowering Young Minds Through Code</div>
+  </div>
+  <div class="lh-contact">
+    <span>+234 811 660 0091</span> &nbsp;·&nbsp; support@rillcod.com &nbsp;·&nbsp; www.rillcod.com
+  </div>
+</div>
+<div class="accent-strip"></div>
+
+<!-- Doc header -->
+<div class="doc-hdr">
+  <div>
+    <div class="doc-type">Response Data Sheet</div>
+    <div class="doc-title">${esc(form.title)}</div>
+  </div>
+  <div class="doc-meta">
+    <div><strong>Printed:</strong> ${printed}</div>
+    <div><strong>Form Type:</strong> ${form.form_type === 'assessment' ? 'Assessment' : form.form_type === 'registration' ? 'Registration' : 'General'}</div>
+    ${form.due_date ? `<div><strong>Deadline:</strong> ${new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>` : ''}
+  </div>
+</div>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+  <div class="stat-cell"><div class="stat-num">${totalRows}</div><div class="stat-lbl">Total Responses</div></div>
+  <div class="stat-cell"><div class="stat-num">${leads.length}</div><div class="stat-lbl">Public Registrations</div></div>
+  <div class="stat-cell"><div class="stat-num">${sigs.length}</div><div class="stat-lbl">Portal Signatures</div></div>
+  <div class="stat-cell"><div class="stat-num">${leads.filter(l => l.status === 'enrolled').length}</div><div class="stat-lbl">Enrolled</div></div>
+  <div class="stat-cell"><div class="stat-num">${leads.filter(l => l.status === 'contacted').length}</div><div class="stat-lbl">Contacted</div></div>
+  <div class="stat-cell"><div class="stat-num">${leads.filter(l => (l.response_data as Record<string,unknown>)?.program_category === 'young_innovators').length}</div><div class="stat-lbl">Young Innovators</div></div>
+  <div class="stat-cell"><div class="stat-num">${leads.filter(l => (l.response_data as Record<string,unknown>)?.program_category === 'teen_developers').length}</div><div class="stat-lbl">Teen Developers</div></div>
+</div>
+
+<!-- Data table -->
+<div class="wrap">
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Date / Time</th>
+      <th>Parent / Guardian</th>
+      <th>Child</th>
+      <th>Current School</th>
+      <th>Programme</th>
+      ${assessmentHeaders}
+      <th>Status</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${leadRows}
+    ${sigRows}
+    ${totalRows === 0 ? `<tr><td colspan="100" style="text-align:center;padding:20px;color:#aaa;font-style:italic;">No responses recorded yet.</td></tr>` : ''}
+  </tbody>
+</table>
+</div>
+
+<!-- Footer -->
+<div class="page-footer">
+  <span>Rillcod Technologies &mdash; <strong>${esc(form.title)}</strong></span>
+  <span>Generated ${printed} &nbsp;·&nbsp; ${totalRows} record${totalRows !== 1 ? 's' : ''}</span>
+  <span>Confidential &mdash; For internal use only</span>
+</div>
+
+</body></html>`);
+  win.document.close();
+}
+
 function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
@@ -1586,13 +1805,21 @@ export default function ConsentFormsPage() {
                         <div className="border-t border-border/50 bg-muted/20 px-5 py-5 space-y-5">
 
                           {/* Summary bar */}
-                          <div className="flex items-center gap-4 text-xs">
-                            <span className="font-black text-foreground">{sigs.length + formLeads.length} total responses</span>
-                            {sigs.length > 0 && <span className="text-emerald-400 font-bold">✓ {sigs.length} signed</span>}
-                            {formLeads.length > 0 && <span className="text-amber-400 font-bold">◉ {formLeads.length} public leads</span>}
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-xs font-black text-foreground">{sigs.length + formLeads.length} total responses</span>
+                            {sigs.length > 0 && <span className="text-xs text-emerald-400 font-bold">✓ {sigs.length} signed</span>}
+                            {formLeads.length > 0 && <span className="text-xs text-amber-400 font-bold">◉ {formLeads.length} leads</span>}
                             {formLeads.filter(l => l.match_status === 'pending_review').length > 0 && (
-                              <span className="text-rose-400 font-bold animate-pulse">⚠ {formLeads.filter(l => l.match_status === 'pending_review').length} need review</span>
+                              <span className="text-xs text-rose-400 font-bold animate-pulse">⚠ {formLeads.filter(l => l.match_status === 'pending_review').length} need review</span>
                             )}
+                            <div className="ml-auto flex gap-2">
+                              <button
+                                onClick={() => printDataSheet(cf, formLeads, sigs, appBase)}
+                                className="flex items-center gap-1.5 text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded-lg font-bold transition-colors border border-border/50"
+                              >
+                                <PrinterIcon className="w-3 h-3" /> Data Sheet
+                              </button>
+                            </div>
                           </div>
 
                           {/* Portal Signatures */}
