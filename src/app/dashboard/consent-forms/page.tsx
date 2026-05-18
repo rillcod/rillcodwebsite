@@ -121,7 +121,7 @@ function printForm(form: ConsentForm, appBase: string) {
   body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; }
   table { border-collapse: collapse; }
   .hdr-table { width: 100%; margin-bottom: 4px; }
-  .logo-box { width: 46px; height: 46px; vertical-align: middle; }
+  .logo-box { height: 46px; width: auto; vertical-align: middle; }
   .school { font-size: 20pt; font-weight: 900; letter-spacing: -0.5px; vertical-align: middle; padding-left: 12px; }
   .tagline { font-size: 7.5pt; color: #555; padding-left: 12px; padding-top: 2px; }
   .form-title { text-align: center; font-size: 10.5pt; font-weight: 900; letter-spacing: 2.5px;
@@ -331,7 +331,8 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
     text-align: center;
   }
   .hdr { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
-  .logo-box { width: 28px; height: 28px; }
+  .logo-box { height: 36px; width: auto; display: flex; align-items: center; }
+  .logo-box img { height: 36px; width: auto; object-fit: contain; }
   .brand { text-align: left; line-height: 1; }
   .school { font-size: 14pt; font-weight: 900; letter-spacing: -0.5px; }
   .tagline { font-size: 6pt; color: #555; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
@@ -369,7 +370,8 @@ function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
   body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; border: 8px solid #000; }
   .poster { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
   .hdr { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
-  .logo-box { width: 70px; height: 70px; }
+  .logo-box { height: 80px; width: auto; display: flex; align-items: center; }
+  .logo-box img { height: 80px; width: auto; object-fit: contain; }
   .brand { text-align: left; line-height: 1.1; }
   .school { font-size: 32pt; font-weight: 900; letter-spacing: -1px; }
   .tagline { font-size: 14pt; color: #555; text-transform: uppercase; letter-spacing: 2px; }
