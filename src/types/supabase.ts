@@ -4083,10 +4083,12 @@ export type Database = {
       form_leads: {
         Row: {
           child_current_school: string | null
+          contact_id: string | null
           email: string | null
           form_id: string
           id: string
           matched_school_id: string | null
+          prospect_id: string | null
           response_data: Json
           school_id: string | null
           status: string | null
@@ -4094,10 +4096,12 @@ export type Database = {
         }
         Insert: {
           child_current_school?: string | null
+          contact_id?: string | null
           email?: string | null
           form_id: string
           id?: string
           matched_school_id?: string | null
+          prospect_id?: string | null
           response_data?: Json
           school_id?: string | null
           status?: string | null
@@ -4105,16 +4109,25 @@ export type Database = {
         }
         Update: {
           child_current_school?: string | null
+          contact_id?: string | null
           email?: string | null
           form_id?: string
           id?: string
           matched_school_id?: string | null
+          prospect_id?: string | null
           response_data?: Json
           school_id?: string | null
           status?: string | null
           submitted_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "form_leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "customer_contact_book"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "form_leads_form_id_fkey"
             columns: ["form_id"]
@@ -4127,6 +4140,13 @@ export type Database = {
             columns: ["matched_school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "prospective_students"
             referencedColumns: ["id"]
           },
           {
