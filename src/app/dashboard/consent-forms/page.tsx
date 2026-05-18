@@ -284,11 +284,11 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
     ? `<div class="qr">${qrSvg}</div>`
     : `<img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publicUrl)}" />`;
 
-  const cards = Array(8).fill(0).map(() => `
+  const cards = Array(12).fill(0).map(() => `
     <div class="card">
       <div class="card-inner">
         <div class="hdr">
-          <div class="logo-box"><img src="${appBase}/images/logoB.png" style="height:100%;width:auto;object-fit:contain;" /></div>
+          <div class="logo-box"><img src="${appBase}/images/logoB.png" /></div>
           <div class="brand">
             <div class="school">RILLCOD</div>
             <div class="tagline">Tech Academy</div>
@@ -296,7 +296,7 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
         </div>
         <div class="title">${title}</div>
         ${qrContent}
-        <div class="scan-text">Scan with your phone's<br/>camera to register</div>
+        <div class="scan-text">Scan to register</div>
       </div>
     </div>
   `).join('');
@@ -305,14 +305,14 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
 <html lang="en"><head><meta charset="UTF-8">
 <title>QR Cards — ${title}</title>
 <style>
-  @page { margin: 10mm; size: A4 portrait; }
+  @page { margin: 8mm; size: A4 landscape; }
   * { box-sizing: border-box; font-family: Arial, sans-serif; }
-  body { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-  .card { 
-    width: 48%; 
-    height: 68mm; 
-    border: 1px dashed #ccc; 
-    padding: 10px;
+  body { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-content: flex-start; }
+  .card {
+    width: calc(25% - 5px);
+    height: 55mm;
+    border: 1px dashed #ccc;
+    padding: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -320,26 +320,25 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
   }
   .card-inner {
     border: 2px solid #000;
-    border-radius: 8px;
+    border-radius: 6px;
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 12px;
+    padding: 8px 6px;
     text-align: center;
   }
-  .hdr { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
-  .logo-box { height: 36px; width: auto; display: flex; align-items: center; }
-  .logo-box img { height: 36px; width: auto; object-fit: contain; }
+  .hdr { display: flex; align-items: center; gap: 5px; width: 100%; justify-content: center; }
+  .logo-box img { height: 26px; width: auto; object-fit: contain; }
   .brand { text-align: left; line-height: 1; }
-  .school { font-size: 14pt; font-weight: 900; letter-spacing: -0.5px; }
-  .tagline { font-size: 6pt; color: #555; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
-  .title { font-size: 10pt; font-weight: bold; margin: 8px 0; background: #000; color: #fff; padding: 4px 8px; border-radius: 4px; width: 100%; max-height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .qr { width: 110px; height: 110px; margin: auto; display: flex; align-items: center; justify-content: center; }
-  .qr svg { width: 110px; height: 110px; }
-  .scan-text { font-size: 8pt; font-weight: bold; color: #444; margin-top: 6px; }
+  .school { font-size: 10pt; font-weight: 900; letter-spacing: -0.5px; }
+  .tagline { font-size: 5pt; color: #555; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
+  .title { font-size: 7.5pt; font-weight: bold; margin: 4px 0; background: #000; color: #fff; padding: 3px 6px; border-radius: 3px; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .qr { width: 80px; height: 80px; margin: auto; display: flex; align-items: center; justify-content: center; }
+  .qr svg { width: 80px; height: 80px; }
+  .scan-text { font-size: 6.5pt; font-weight: bold; color: #444; }
   .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
   .print-btn:hover { background: #333; }
   @media print { body { padding: 0; } .card { border: 1px dashed #eee; } .print-btn { display: none !important; } }
