@@ -4,6 +4,7 @@ import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
+import { reconcileWithCRM } from '@/lib/consent-forms/reconcile-crm';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,11 +62,62 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // ── CRM automation on status change ──────────────────────────────────────
+  if (status === 'contacted' || status === 'enrolled') {
+    const now = new Date().toISOString();
+
+    try {
+      const sb = adminClient();
+      const { data: lead } = await (sb as any)
+        .from('form_leads')
+        .select('contact_id, prospect_id, response_data, school_id, email, child_current_school, matched_school_id, form_id')
+        .eq('id', leadId)
+        .single();
+
+      if (lead) {
+        const rd = (lead.response_data ?? {}) as Record<string, string>;
+
+        // ── Ensure CRM contact exists on first staff action ────────────────
+        let effectiveContactId = lead.contact_id as string | null;
+        if (!effectiveContactId) {
+          const contactEmail = (rd.parent_email || lead.email || '').trim();
+          const contactPhone = (rd.parent_whatsapp || '').replace(/\D/g, '');
+          if (contactEmail || contactPhone) {
+            const formRow = await (sb as any).from('consent_forms').select('title, school_id, schools(name)').eq('id', lead.form_id).maybeSingle();
+            const formData = formRow?.data;
+            const schoolName = (formData?.schools as any)?.name ?? 'Rillcod Technologies';
+            try {
+              const { contactId: newCId, prospectId: newPId } = await reconcileWithCRM({
+                parentName:      rd.parent_name || 'Parent/Guardian',
+                parentEmail:     contactEmail,
+                parentWhatsapp:  rd.parent_whatsapp || '',
+                childName:       rd.child_name || '',
+                childAge:        rd.child_age || '',
+                childClass:      rd.child_class || '',
+                programCategory: rd.program_category || '',
+                currentSchool:   lead.child_current_school ?? null,
+                matchedSchoolId: lead.matched_school_id ?? null,
+                schoolId:        lead.school_id ?? null,
+                schoolName,
+                formId:          leadId,
+                formTitle:       formData?.title ?? '',
+              });
+              effectiveContactId = newCId;
+              if (newCId || newPId) {
+                await (sb as any).from('form_leads').update({ contact_id: newCId, prospect_id: newPId }).eq('id', leadId);
+              }
+            } catch { /* non-fatal */ }
+          }
+        }
+      }
+    } catch { /* non-fatal */ }
+  }
+
   // ── Enrollment automation ─────────────────────────────────────────────────
   if (status === 'enrolled') {
     const now = new Date().toISOString();
 
-    // Step 1 — Advance CRM pipeline to enrolled
+    // Advance CRM pipeline to enrolled
     try {
       const sb = adminClient();
       const { data: lead } = await (sb as any)
