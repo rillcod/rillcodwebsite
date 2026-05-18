@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const admin = adminClient();
 
   const [formRes, { data: responses }, leadsResult] = await Promise.all([
-    supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public').eq('id', id).single(),
+    supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public, schools(name)').eq('id', id).single(),
     supabase
       .from('consent_responses')
       .select('id, signed_at, response_data, portal_users!parent_id(full_name, email, phone)')

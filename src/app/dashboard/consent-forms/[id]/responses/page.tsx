@@ -17,6 +17,7 @@ interface ConsentForm {
   form_type: string;
   due_date: string | null;
   is_public: boolean;
+  schools?: { name: string } | null;
 }
 
 interface Signatory {
@@ -79,7 +80,12 @@ function fillPlaceholders(text: string, data: Record<string, string>): string {
     'programme': data.programme, 'program': data.programme, 'program_category': data.programme,
     'child age': data.childAge, 'child_age': data.childAge, 'age': data.childAge,
     'class': data.childClass, 'child class': data.childClass, 'child_class': data.childClass,
-    'school': data.currentSchool, 'current school': data.currentSchool,
+    // [School] → the Rillcod school/branch running this form
+    'school': data.school ?? data.currentSchool,
+    'school name': data.school ?? data.currentSchool,
+    'branch': data.school ?? data.currentSchool,
+    // [Current School] → the child's current school
+    'current school': data.currentSchool, 'child school': data.currentSchool,
   };
   return text.replace(/\{\{([^}]+)\}\}|\{([^}]+)\}|\[([^\]]+)\]/gi, (_m, p1, p2, p3) => {
     const key = (p1 ?? p2 ?? p3 ?? '').toLowerCase().trim();
@@ -97,8 +103,9 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
   const dateShort = sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   const timeStr  = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const shortRef = 'RC-' + lead.id.slice(0, 8).toUpperCase();
-  const parentName = str('parent_name') || 'Parent/Guardian';
-  const childName  = str('child_name')  || '—';
+  const parentName  = str('parent_name') || 'Parent/Guardian';
+  const childName   = str('child_name')  || '—';
+  const schoolName  = form.schools?.name ?? 'Rillcod Technologies';
   const pLabel   = str('program_category') === 'young_innovators' ? 'Young Innovators — PRY (Ages 5–10)'
                  : str('program_category') === 'teen_developers'  ? 'Teen Developers — SEC (Ages 11–19)'
                  : str('program_category') || '—';
@@ -116,6 +123,7 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
     childAge:     str('child_age'),
     childClass:   str('child_class'),
     currentSchool: lead.child_current_school || str('child_current_school'),
+    school:       schoolName,
   });
 
   const row = (label: string, value: string) =>
@@ -204,7 +212,7 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
   <div class="lh-div"></div>
   <div class="lh-co">
     <div class="lh-name">RILLCOD TECHNOLOGIES</div>
-    <div class="lh-tag">Empowering Young Minds Through Code</div>
+    <div class="lh-tag">${esc(schoolName)}</div>
   </div>
   <div class="lh-contact">
     <div>+234 811 660 0091</div>
@@ -222,6 +230,10 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
     <div class="meta-cell">
       <div class="meta-lbl">Reference No.</div>
       <div class="meta-val mono">${shortRef}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-lbl">School / Branch</div>
+      <div class="meta-val" style="font-weight:900;color:#0d0d0f">${esc(schoolName)}</div>
     </div>
     <div class="meta-cell">
       <div class="meta-lbl">Date Submitted</div>
