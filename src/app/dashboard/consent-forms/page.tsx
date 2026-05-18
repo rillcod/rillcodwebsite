@@ -102,69 +102,169 @@ function esc(s: string) {
 function printForm(form: ConsentForm) {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
+  const isAssessment = form.form_type === 'assessment';
   const dueLabel = form.due_date
     ? new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : '';
-  win.document.write(`<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8">
-<title>${esc(form.title)} — Rillcod Technologies</title>
-<style>
+
+  const sharedCss = `
   @page { margin: 14mm 18mm; size: A4 portrait; }
   * { box-sizing: border-box; }
   body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; }
-  .hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
-  .logo { width: 46px; height: 46px; border: 2.5px solid #000; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 24px; }
-  .school { font-size: 21pt; font-weight: 900; letter-spacing: -0.5px; }
-  .tagline { font-size: 7.5pt; color: #555; margin-top: 2px; }
-  .form-title { text-align: center; font-size: 10.5pt; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; border-top: 2.5px solid #000; border-bottom: 2.5px solid #000; padding: 7px 0; margin: 10px 0 14px; }
-  .section { background: #000; color: #fff; font-weight: 900; padding: 5px 10px; font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 10px; }
-  .row { display: flex; gap: 16px; margin-bottom: 10px; }
-  .field { flex: 1; min-width: 0; }
-  .field span { display: block; font-size: 9.5pt; margin-bottom: 4px; }
+  table { border-collapse: collapse; }
+  .hdr-table { width: 100%; margin-bottom: 4px; }
+  .logo-box { width: 46px; height: 46px; border: 2.5px solid #000; border-radius: 6px;
+              font-weight: 900; font-size: 22px; text-align: center; vertical-align: middle;
+              line-height: 46px; }
+  .school { font-size: 20pt; font-weight: 900; letter-spacing: -0.5px; vertical-align: middle; padding-left: 12px; }
+  .tagline { font-size: 7.5pt; color: #555; padding-left: 12px; padding-top: 2px; }
+  .form-title { text-align: center; font-size: 10.5pt; font-weight: 900; letter-spacing: 2.5px;
+                text-transform: uppercase; border-top: 2.5px solid #000; border-bottom: 2.5px solid #000;
+                padding: 7px 0; margin: 10px 0 14px; }
+  .section { background: #000; color: #fff; font-weight: 900; padding: 5px 10px; font-size: 9pt;
+             letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 10px; }
+  .field-label { font-size: 9.5pt; display: block; margin-bottom: 4px; }
   .line { border: none; border-bottom: 1px solid #000; height: 26px; display: block; width: 100%; }
-  .cb { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 9px; font-size: 10.5pt; line-height: 1.4; }
-  .box { width: 13px; height: 13px; border: 1.5px solid #000; display: inline-block; flex-shrink: 0; margin-top: 2px; }
-  .consent { border: 1px solid #bbb; padding: 12px 14px; font-size: 10.5pt; line-height: 1.7; margin: 8px 0; min-height: 90px; background: #fafafa; white-space: pre-wrap; }
-  .sig-row { display: flex; gap: 40px; margin-top: 26px; }
-  .sig-field { flex: 1; }
-  .sig-label { font-size: 9.5pt; margin-top: 5px; }
+  .mb { margin-bottom: 10px; }
+  .cb-row { margin-bottom: 9px; font-size: 10.5pt; line-height: 1.5; }
+  .box { width: 13px; height: 13px; border: 1.5px solid #000; display: inline-block; vertical-align: middle; margin-right: 7px; margin-top: -2px; }
+  .consent { border: 1px solid #bbb; padding: 12px 14px; font-size: 10.5pt; line-height: 1.7;
+             margin: 8px 0; min-height: 80px; background: #fafafa; white-space: pre-wrap; }
+  .notes-box { border: 1px solid #bbb; padding: 12px 14px; font-size: 10.5pt;
+               margin: 8px 0; min-height: 60px; background: #fafafa; }
+  .sig-table { width: 100%; margin-top: 26px; }
+  .sig-line { border-bottom: 1px solid #000; height: 30px; }
+  .sig-label { font-size: 9.5pt; padding-top: 4px; }
   .deadline { font-size: 9pt; color: #444; margin-top: 6px; }
-  .footer { margin-top: 28px; display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid #ccc; padding-top: 8px; font-size: 8pt; color: #444; }
-  .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
-  .print-btn:hover { background: #333; }
-  @media print { body { padding: 0; } .print-btn { display: none !important; } }
-</style></head><body>
+  .footer-table { width: 100%; margin-top: 28px; border-top: 1px solid #ccc; padding-top: 8px; font-size: 8pt; color: #444; }
+  .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none;
+               padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;
+               box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
+  @media print { .print-btn { display: none !important; } }`;
+
+  const header = `
   <button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
-  <div class="hdr"><div class="logo">R</div><div>
-    <div class="school">RILLCOD TECHNOLOGIES</div>
-    <div class="tagline">Empowering Young Minds Through Code....</div>
-  </div></div>
-  <div class="form-title">Student Registration &amp; Consent</div>
+  <table class="hdr-table" cellpadding="0" cellspacing="0">
+    <tr>
+      <td class="logo-box" style="width:46px;">R</td>
+      <td><div class="school">RILLCOD TECHNOLOGIES</div><div class="tagline">Empowering Young Minds Through Code · www.rillcod.com</div></td>
+    </tr>
+  </table>
+  <div class="form-title">${esc(form.title)}</div>`;
+
+  const childInfo = `
   <div class="section">Child's Information</div>
-  <div style="margin-bottom:10px;"><span style="font-size:9.5pt;display:block;margin-bottom:4px;">Full Name:</span><span class="line"></span></div>
-  <div class="row">
-    <div class="field" style="max-width:130px;"><span>Age:</span><span class="line"></span></div>
-    <div class="field" style="max-width:180px;"><span>Class:</span><span class="line"></span></div>
-    <div style="flex:2"></div>
-  </div>
-  <p style="font-size:10.5pt;font-weight:bold;margin:14px 0 8px;">Program Category (Please check one):</p>
-  <div class="cb"><span class="box"></span><span><strong>Young Innovators :: PRY</strong> (Ages 5-10) — Basic programming through fun &amp; games.</span></div>
-  <div class="cb"><span class="box"></span><span><strong>Teen Developers :: SEC</strong> (Ages 11-19) — Advanced coding &amp; Project development.</span></div>
-  <div class="section">Parents/Guardian Information</div>
-  <div style="margin-bottom:10px;"><span style="font-size:9.5pt;display:block;margin-bottom:4px;">Name:</span><span class="line"></span></div>
-  <div style="margin-bottom:10px;"><span style="font-size:9.5pt;display:block;margin-bottom:4px;">Contact/WhatsApp Number:</span><span class="line"></span></div>
-  <div style="margin-bottom:10px;"><span style="font-size:9.5pt;display:block;margin-bottom:4px;">Email (optional):</span><span class="line"></span></div>
+  <div class="mb"><span class="field-label">Full Name:</span><span class="line"></span></div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
+    <tr>
+      <td style="width:120px;padding-right:16px;"><span class="field-label">Age:</span><span class="line"></span></td>
+      <td style="width:180px;padding-right:16px;"><span class="field-label">Class / Grade:</span><span class="line"></span></td>
+      <td><span class="field-label">Current School:</span><span class="line"></span></td>
+    </tr>
+  </table>
+  <div style="margin-bottom:6px;font-size:10.5pt;font-weight:bold;">Programme Category (tick one):</div>
+  <div class="cb-row"><span class="box"></span><strong>Young Innovators :: PRY</strong> — Ages 5–10 · Basic programming through fun &amp; games</div>
+  <div class="cb-row"><span class="box"></span><strong>Teen Developers :: SEC</strong> — Ages 11–19 · Advanced coding &amp; project development</div>`;
+
+  const parentInfo = `
+  <div class="section">Parent / Guardian Information</div>
+  <div class="mb"><span class="field-label">Full Name:</span><span class="line"></span></div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
+    <tr>
+      <td style="padding-right:16px;"><span class="field-label">WhatsApp / Contact Number:</span><span class="line"></span></td>
+      <td><span class="field-label">Email Address:</span><span class="line"></span></td>
+    </tr>
+  </table>`;
+
+  const signatureBlock = `
+  ${dueLabel ? `<p class="deadline">Response deadline: <strong>${dueLabel}</strong></p>` : ''}
+  <table class="sig-table" cellpadding="0" cellspacing="0">
+    <tr>
+      <td style="padding-right:40px;"><div class="sig-line"></div><div class="sig-label">Parent / Guardian Signature</div></td>
+      <td style="width:160px;"><div class="sig-line"></div><div class="sig-label">Date</div></td>
+    </tr>
+  </table>
+  <table class="footer-table" cellpadding="0" cellspacing="0">
+    <tr>
+      <td>For inquiries: +234 811 660 0091 · support@rillcod.com · @rillcod</td>
+      <td style="text-align:right;font-style:italic;">Rillcod Technologies — Empowering Young Minds Through Code</td>
+    </tr>
+  </table>`;
+
+  const registrationBody = `
+  ${childInfo}
+  ${parentInfo}
   <div class="section">Consent Statement</div>
   <div class="consent">${esc(form.body)}</div>
-  ${dueLabel ? `<p class="deadline">Response deadline: <strong>${dueLabel}</strong></p>` : ''}
-  <div class="sig-row">
-    <div class="sig-field"><span class="line"></span><p class="sig-label">Signature:</p></div>
-    <div class="sig-field"><span class="line"></span><p class="sig-label">Date:</p></div>
+  ${signatureBlock}`;
+
+  const assessmentBody = `
+  ${childInfo}
+
+  <div class="section">Prior Coding Experience</div>
+  <div class="cb-row"><span class="box"></span> Yes &nbsp;&nbsp;&nbsp; <span class="box"></span> No</div>
+  <div class="mb"><span class="field-label">If yes — platform / language used (e.g. Scratch, Python):</span><span class="line"></span></div>
+
+  <div class="section">Available Device(s) — tick all that apply</div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
+    <tr>
+      <td style="width:50%;padding-right:16px;"><div class="cb-row"><span class="box"></span> Computer / Laptop</div><div class="cb-row"><span class="box"></span> Smartphone</div></td>
+      <td><div class="cb-row"><span class="box"></span> Tablet / iPad</div><div class="cb-row"><span class="box"></span> None yet</div></td>
+    </tr>
+  </table>
+
+  <div class="section">Primary Learning Goal — tick one</div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
+    <tr>
+      <td style="width:50%;padding-right:16px;">
+        <div class="cb-row"><span class="box"></span> Fun &amp; creativity</div>
+        <div class="cb-row"><span class="box"></span> Academic improvement</div>
+        <div class="cb-row"><span class="box"></span> Career preparation</div>
+      </td>
+      <td>
+        <div class="cb-row"><span class="box"></span> Parent / guardian recommendation</div>
+        <div class="cb-row"><span class="box"></span> Other: ___________________________</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="section">Preferred Schedule — tick one</div>
+  <div style="margin-bottom:10px;">
+    <span class="cb-row"><span class="box"></span> Weekdays &nbsp;&nbsp; <span class="box"></span> Weekends &nbsp;&nbsp; <span class="box"></span> Either works</span>
   </div>
-  <div class="footer">
-    <div>For inquiries: 08116600091<br/>@rillcod</div>
-    <div style="text-align:right;font-style:italic;">Rillcod Technologies — Building Future Tech Leaders</div>
-  </div>
+
+  <div class="section">How Did You Hear About Us? — tick one</div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
+    <tr>
+      <td style="width:50%;padding-right:16px;">
+        <div class="cb-row"><span class="box"></span> Social media (Instagram / Facebook / TikTok)</div>
+        <div class="cb-row"><span class="box"></span> Friend or family referral</div>
+        <div class="cb-row"><span class="box"></span> School announcement</div>
+        <div class="cb-row"><span class="box"></span> Walk-in / physical visit</div>
+      </td>
+      <td>
+        <div class="cb-row"><span class="box"></span> Online search (Google etc.)</div>
+        <div class="cb-row"><span class="box"></span> Event / exhibition</div>
+        <div class="cb-row"><span class="box"></span> Other: _______________________</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="section">Special Notes / Accommodations</div>
+  <div class="notes-box">&nbsp;</div>
+
+  ${parentInfo}
+  <div class="section">Context / Notes</div>
+  <div class="consent">${esc(form.body)}</div>
+  ${signatureBlock}`;
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>${esc(form.title)} — Rillcod Technologies</title>
+<style>${sharedCss}</style>
+</head><body>
+${header}
+${isAssessment ? assessmentBody : registrationBody}
 </body></html>`);
   win.document.close();
 }
