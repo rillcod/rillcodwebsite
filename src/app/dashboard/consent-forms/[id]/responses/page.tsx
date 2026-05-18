@@ -69,6 +69,24 @@ const STATUS_CFG = {
 
 // ── Print helpers (self-contained) ────────────────────────────────────────────
 
+function fillPlaceholders(text: string, data: Record<string, string>): string {
+  const map: Record<string, string> = {
+    'parent name': data.parentName, 'parent_name': data.parentName,
+    'guardian name': data.parentName, 'guardian_name': data.parentName,
+    'child name': data.childName, 'child_name': data.childName,
+    'student name': data.childName, 'student_name': data.childName,
+    'date': data.date, 'submission date': data.date,
+    'programme': data.programme, 'program': data.programme, 'program_category': data.programme,
+    'child age': data.childAge, 'child_age': data.childAge, 'age': data.childAge,
+    'class': data.childClass, 'child class': data.childClass, 'child_class': data.childClass,
+    'school': data.currentSchool, 'current school': data.currentSchool,
+  };
+  return text.replace(/\{\{([^}]+)\}\}|\{([^}]+)\}|\[([^\]]+)\]/gi, (_m, p1, p2, p3) => {
+    const key = (p1 ?? p2 ?? p3 ?? '').toLowerCase().trim();
+    return map[key] ?? _m;
+  });
+}
+
 function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
   const win = window.open('', '_blank', 'width=860,height=1100');
   if (!win) return;
@@ -76,12 +94,30 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
   const str      = (k: string) => (rd[k] as string) ?? '';
   const sub      = new Date(lead.submitted_at);
   const dateStr  = sub.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const dateShort = sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   const timeStr  = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const shortRef = 'RC-' + lead.id.slice(0, 8).toUpperCase();
+  const parentName = str('parent_name') || 'Parent/Guardian';
+  const childName  = str('child_name')  || '—';
   const pLabel   = str('program_category') === 'young_innovators' ? 'Young Innovators — PRY (Ages 5–10)'
                  : str('program_category') === 'teen_developers'  ? 'Teen Developers — SEC (Ages 11–19)'
                  : str('program_category') || '—';
+  const pShort   = str('program_category') === 'young_innovators' ? 'Young Innovators'
+                 : str('program_category') === 'teen_developers'  ? 'Teen Developers'
+                 : str('program_category') || 'Coding Programme';
   const devicesArr = Array.isArray(rd.devices) ? (rd.devices as string[]).join(', ') : '';
+
+  // Fill placeholders in the form body with actual submission values
+  const filledBody = fillPlaceholders(form.body, {
+    parentName,
+    childName,
+    date:         dateShort,
+    programme:    pShort,
+    childAge:     str('child_age'),
+    childClass:   str('child_class'),
+    currentSchool: lead.child_current_school || str('child_current_school'),
+  });
+
   const row = (label: string, value: string) =>
     `<tr><td class="lbl">${label}</td><td class="val">${value || '—'}</td></tr>`;
   const assessmentRows = [
@@ -94,78 +130,187 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
     str('special_notes') && row('Special notes / medical info', esc(str('special_notes'))),
   ].filter(Boolean).join('');
 
+  const secNum = (n: number) => `<span class="sec-num">0${n}</span>`;
+
   win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <title>${shortRef} — ${esc(form.title)}</title>
 <style>
-@page{margin:0;size:A4 portrait}*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;color:#1a1a1a;background:#fff}
-.letterhead{background:#0d0d0f;padding:22px 30px 18px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-.letterhead-logo{height:56px;width:auto;object-fit:contain;flex-shrink:0}
-.letterhead-divider{width:1px;height:52px;background:rgba(255,255,255,0.18);flex-shrink:0}
-.letterhead-company{flex:1;color:#fff}.co-name{font-size:17pt;font-weight:900;color:#fff}
-.co-tag{font-size:7.5pt;color:#a0a0a8;text-transform:uppercase;letter-spacing:1.5px;margin-top:3px}
-.letterhead-contact{text-align:right;color:#a0a0a8;font-size:8pt;line-height:1.8;flex-shrink:0}
-.letterhead-contact a{color:#f5a623;text-decoration:none}
-.accent-strip{height:4px;background:linear-gradient(90deg,#f5a623,#f5c84a)}
-.body-wrap{padding:28px 32px 24px}
-.doc-type{font-size:7.5pt;font-weight:900;letter-spacing:3px;text-transform:uppercase;color:#f5a623;margin-bottom:4px}
-.doc-title{font-size:15pt;font-weight:900;color:#0d0d0f}
-.doc-divider{border:none;border-top:2px solid #0d0d0f;margin:10px 0 14px}
-.ref-block{display:flex;justify-content:space-between;align-items:flex-start;background:#f7f7f8;border-left:4px solid #f5a623;padding:10px 14px;margin-bottom:22px;font-size:9pt}
-.ref-id{font-family:'Courier New',monospace;font-weight:700;font-size:10pt;color:#0d0d0f}
-.ref-sub{color:#666;font-size:8pt;margin-top:2px}.ref-right{text-align:right;color:#333}
-.ref-right strong{display:block;color:#0d0d0f;font-size:10pt}
-.sec-heading{font-size:7.5pt;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#0d0d0f;border-bottom:1.5px solid #0d0d0f;padding-bottom:4px;margin:20px 0 10px}
-.sec-heading span{color:#f5a623}
-.data-table{width:100%;border-collapse:collapse}
-.data-table .lbl{width:42%;padding:7px 10px 7px 0;font-weight:700;color:#444;font-size:10pt;border-bottom:1px solid #ebebeb;vertical-align:top}
-.data-table .val{padding:7px 0;color:#111;font-size:10pt;border-bottom:1px solid #ebebeb;vertical-align:top}
-.prog-badge{display:inline-block;background:#0d0d0f;color:#f5a623;font-size:8.5pt;font-weight:900;padding:3px 10px;border-radius:4px}
-.consent-wrap{border:1px solid #d4d4d4;border-left:4px solid #0d0d0f;padding:12px 14px;background:#fafafa;font-size:10pt;line-height:1.75;white-space:pre-wrap;margin-top:8px;color:#222}
-.stamp{margin-top:22px;border:1.5px solid #d0e8d0;border-radius:8px;background:#f3fbf3;padding:12px 16px;display:flex;align-items:flex-start;gap:12px}
-.stamp-icon{font-size:22pt;line-height:1;flex-shrink:0}
-.stamp-text{font-size:9.5pt;color:#2d5a2d;line-height:1.6}.stamp-text strong{color:#1a3a1a}
-.page-footer{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;font-size:7.5pt;color:#888}
-.page-footer .ref{font-family:'Courier New',monospace;font-weight:700;color:#555}
-.print-btn{position:fixed;top:18px;right:18px;background:#0d0d0f;color:#fff;border:none;padding:11px 22px;font-size:13px;font-weight:bold;border-radius:8px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.25);z-index:1000;font-family:Arial}
+@page{margin:0;size:A4 portrait}
+*{box-sizing:border-box;margin:0;padding:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1a1a;background:#fff}
+
+/* ── Letterhead ── */
+.lh{background:#0d0d0f;print-color-adjust:exact;-webkit-print-color-adjust:exact;padding:20px 30px 16px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.lh-logo{height:50px;width:auto;object-fit:contain;flex-shrink:0}
+.lh-div{width:1px;height:46px;background:rgba(255,255,255,0.15);flex-shrink:0}
+.lh-co{flex:1}.lh-name{font-size:16pt;font-weight:900;color:#fff !important;letter-spacing:-0.3px}
+.lh-tag{font-size:7pt;color:#aaa !important;text-transform:uppercase;letter-spacing:1.8px;margin-top:3px}
+.lh-contact{text-align:right;color:#aaa !important;font-size:7.5pt;line-height:1.9;flex-shrink:0}
+.lh-contact a{color:#f5a623 !important;text-decoration:none}
+.accent{height:3px;background:linear-gradient(90deg,#f5a623 0%,#f5c84a 60%,#fff3 100%);print-color-adjust:exact;-webkit-print-color-adjust:exact}
+
+/* ── Document header ── */
+.doc-wrap{padding:24px 32px 20px}
+.doc-eyebrow{font-size:7pt;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#f5a623;margin-bottom:6px}
+.doc-title{font-size:17pt;font-weight:900;color:#0d0d0f;line-height:1.2;margin-bottom:12px}
+.doc-meta-bar{display:flex;gap:0;border:1px solid #e4e4e7;border-radius:8px;overflow:hidden;margin-bottom:20px}
+.meta-cell{flex:1;padding:9px 14px;border-right:1px solid #e4e4e7}
+.meta-cell:last-child{border-right:none}
+.meta-lbl{font-size:6.5pt;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#888;margin-bottom:3px}
+.meta-val{font-size:9.5pt;font-weight:700;color:#111}
+.meta-val.mono{font-family:'Courier New',monospace;color:#f5a623;font-size:10pt}
+
+/* ── Sections ── */
+.sec{margin-bottom:18px}
+.sec-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:5px;border-bottom:1.5px solid #111}
+.sec-num{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#0d0d0f;color:#f5a623 !important;font-size:7.5pt;font-weight:900;border-radius:3px;flex-shrink:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+.sec-title{font-size:7.5pt;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:#111}
+.dt{width:100%;border-collapse:collapse}
+.dt td{padding:6.5px 8px 6.5px 0;border-bottom:1px solid #f0f0f0;vertical-align:top;font-size:9.5pt}
+.dt .lbl{width:40%;font-weight:700;color:#555;padding-right:12px}
+.dt .val{color:#111}
+.prog-pill{display:inline-block;background:#0d0d0f;color:#f5a623 !important;font-size:8pt;font-weight:900;padding:3px 11px;border-radius:20px;letter-spacing:0.3px;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+
+/* ── Consent body ── */
+.consent-box{border:1px solid #d4d4d4;border-radius:6px;overflow:hidden;margin-top:6px}
+.consent-box-header{background:#0d0d0f;print-color-adjust:exact;-webkit-print-color-adjust:exact;padding:7px 14px;display:flex;align-items:center;justify-content:space-between}
+.consent-box-label{font-size:7pt;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#f5a623 !important}
+.consent-box-name{font-size:8pt;font-weight:700;color:#fff !important}
+.consent-text{padding:14px 16px;background:#fafafa;print-color-adjust:exact;-webkit-print-color-adjust:exact;font-size:9.5pt;line-height:1.8;white-space:pre-wrap;color:#222;font-family:Georgia,'Times New Roman',serif}
+.consent-highlight{color:#0d0d0f !important;font-weight:700;text-decoration:underline;text-decoration-color:#f5a623}
+
+/* ── Digital acknowledgement ── */
+.ack{margin-top:18px;border:1.5px solid #16a34a;border-radius:8px;overflow:hidden;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+.ack-header{background:#16a34a;print-color-adjust:exact;-webkit-print-color-adjust:exact;padding:8px 16px;display:flex;align-items:center;gap:8px}
+.ack-icon{font-size:13pt;line-height:1}
+.ack-title{font-size:8pt;font-weight:900;color:#fff !important;letter-spacing:1px;text-transform:uppercase}
+.ack-body{padding:12px 16px;background:#f0fdf4;print-color-adjust:exact;-webkit-print-color-adjust:exact;display:flex;gap:24px}
+.ack-field{flex:1}
+.ack-field-lbl{font-size:6.5pt;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#15803d;margin-bottom:3px}
+.ack-field-val{font-size:9.5pt;font-weight:700;color:#052e16}
+.ack-field-val.big{font-size:11pt;color:#0d0d0f}
+
+/* ── Footer ── */
+.footer{margin-top:20px;padding-top:9px;border-top:1px solid #e4e4e7;display:flex;justify-content:space-between;align-items:center;font-size:7pt;color:#aaa}
+.footer .mono{font-family:'Courier New',monospace;font-weight:700;color:#666}
+
+.print-btn{position:fixed;top:16px;right:16px;background:#0d0d0f;color:#fff;border:none;padding:10px 20px;font-size:12px;font-weight:800;border-radius:8px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:999;letter-spacing:0.3px}
 @media print{.print-btn{display:none!important}}
 </style></head><body>
-<button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
-<div class="letterhead">
-  <img src="${appBase}/images/logoB.png" class="letterhead-logo" alt="Rillcod Technologies" />
-  <div class="letterhead-divider"></div>
-  <div class="letterhead-company"><div class="co-name">RILLCOD TECHNOLOGIES</div><div class="co-tag">Empowering Young Minds Through Code</div></div>
-  <div class="letterhead-contact"><div>+234 811 660 0091</div><div><a href="mailto:support@rillcod.com">support@rillcod.com</a></div><div>www.rillcod.com</div></div>
-</div>
-<div class="accent-strip"></div>
-<div class="body-wrap">
-  <div class="doc-type">Form Submission Record</div>
-  <div class="doc-title">${esc(form.title)}</div>
-  <hr class="doc-divider" />
-  <div class="ref-block">
-    <div><div class="ref-id">${shortRef}</div><div class="ref-sub">Submission Reference</div></div>
-    <div class="ref-right"><strong>${dateStr}</strong><span>Received at ${timeStr}</span></div>
+<button class="print-btn" onclick="window.print()">Print Now</button>
+
+<div class="lh">
+  <img src="${appBase}/images/logoB.png" class="lh-logo" alt="Rillcod" />
+  <div class="lh-div"></div>
+  <div class="lh-co">
+    <div class="lh-name">RILLCOD TECHNOLOGIES</div>
+    <div class="lh-tag">Empowering Young Minds Through Code</div>
   </div>
-  <div class="sec-heading"><span>01 ·</span> Parent / Guardian Details</div>
-  <table class="data-table">
-    ${row('Full Name', esc(str('parent_name') || 'Not provided'))}
-    ${row('Email Address', esc(lead.email || str('parent_email') || '—'))}
-    ${row('WhatsApp / Phone', esc(str('parent_whatsapp') || '—'))}
-  </table>
-  <div class="sec-heading"><span>02 ·</span> Child&rsquo;s Information</div>
-  <table class="data-table">
-    ${row('Full Name', esc(str('child_name') || '—'))}
-    ${row('Age', esc(str('child_age') || '—'))}
-    ${row('Class / Grade', esc(str('child_class') || '—'))}
-    ${row('Current School', esc(lead.child_current_school || str('child_current_school') || '—'))}
-    <tr><td class="lbl">Programme Selected</td><td class="val"><span class="prog-badge">${pLabel}</span></td></tr>
-  </table>
-  ${assessmentRows ? `<div class="sec-heading"><span>03 ·</span> Assessment &amp; Background</div><table class="data-table">${assessmentRows}</table>` : ''}
-  <div class="sec-heading"><span>${assessmentRows ? '04' : '03'} ·</span> Consent Statement</div>
-  <div class="consent-wrap">${esc(form.body)}</div>
-  <div class="stamp"><div class="stamp-icon">✅</div><div class="stamp-text"><strong>Digitally submitted and accepted</strong><br/>Completed online on <strong>${dateStr} at ${timeStr}</strong> via rillcod.com/forms.</div></div>
-  <div class="page-footer"><span class="ref">${shortRef}</span><span>Rillcod Technologies — ${esc(form.title)}</span><span>Confidential</span></div>
-</div></body></html>`);
+  <div class="lh-contact">
+    <div>+234 811 660 0091</div>
+    <div><a href="mailto:support@rillcod.com">support@rillcod.com</a></div>
+    <div>www.rillcod.com</div>
+  </div>
+</div>
+<div class="accent"></div>
+
+<div class="doc-wrap">
+  <div class="doc-eyebrow">Consent Form · Submission Record</div>
+  <div class="doc-title">${esc(form.title)}</div>
+
+  <div class="doc-meta-bar">
+    <div class="meta-cell">
+      <div class="meta-lbl">Reference No.</div>
+      <div class="meta-val mono">${shortRef}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-lbl">Date Submitted</div>
+      <div class="meta-val">${dateStr}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-lbl">Time</div>
+      <div class="meta-val">${timeStr}</div>
+    </div>
+    <div class="meta-cell">
+      <div class="meta-lbl">Form Type</div>
+      <div class="meta-val">${form.form_type === 'assessment' ? 'Assessment' : 'Registration'}</div>
+    </div>
+  </div>
+
+  <!-- 01 · Parent / Guardian -->
+  <div class="sec">
+    <div class="sec-head">${secNum(1)}<span class="sec-title">Parent / Guardian Details</span></div>
+    <table class="dt">
+      ${row('Full Name', `<strong>${esc(parentName)}</strong>`)}
+      ${row('Email Address', esc(lead.email || str('parent_email') || '—'))}
+      ${row('WhatsApp / Phone', esc(str('parent_whatsapp') || '—'))}
+    </table>
+  </div>
+
+  <!-- 02 · Child -->
+  <div class="sec">
+    <div class="sec-head">${secNum(2)}<span class="sec-title">Child&rsquo;s Information</span></div>
+    <table class="dt">
+      ${row('Full Name', `<strong>${esc(childName)}</strong>`)}
+      ${row('Age', esc(str('child_age') || '—'))}
+      ${row('Class / Grade', esc(str('child_class') || '—'))}
+      ${row('Current School', esc(lead.child_current_school || str('child_current_school') || '—'))}
+      <tr><td class="lbl">Programme Selected</td><td class="val"><span class="prog-pill">${esc(pLabel)}</span></td></tr>
+    </table>
+  </div>
+
+  ${assessmentRows ? `
+  <!-- 03 · Assessment -->
+  <div class="sec">
+    <div class="sec-head">${secNum(3)}<span class="sec-title">Assessment &amp; Background</span></div>
+    <table class="dt">${assessmentRows}</table>
+  </div>` : ''}
+
+  <!-- Consent Statement -->
+  <div class="sec">
+    <div class="sec-head">${secNum(assessmentRows ? 4 : 3)}<span class="sec-title">Consent Statement</span></div>
+    <div class="consent-box">
+      <div class="consent-box-header">
+        <span class="consent-box-label">Consented by</span>
+        <span class="consent-box-name">${esc(parentName)}</span>
+      </div>
+      <div class="consent-text">${esc(filledBody).replace(esc(parentName), `<span class="consent-highlight">${esc(parentName)}</span>`).replace(esc(childName), `<span class="consent-highlight">${esc(childName)}</span>`)}</div>
+    </div>
+  </div>
+
+  <!-- Digital Acknowledgement -->
+  <div class="ack">
+    <div class="ack-header">
+      <span class="ack-icon">✓</span>
+      <span class="ack-title">Digital Consent Acknowledged</span>
+    </div>
+    <div class="ack-body">
+      <div class="ack-field">
+        <div class="ack-field-lbl">Consenting Party</div>
+        <div class="ack-field-val big">${esc(parentName)}</div>
+      </div>
+      <div class="ack-field">
+        <div class="ack-field-lbl">On Behalf Of</div>
+        <div class="ack-field-val big">${esc(childName)}</div>
+      </div>
+      <div class="ack-field">
+        <div class="ack-field-lbl">Submitted On</div>
+        <div class="ack-field-val">${dateStr}<br/><span style="font-weight:400;font-size:8.5pt;color:#166534">at ${timeStr} via rillcod.com/forms</span></div>
+      </div>
+      <div class="ack-field">
+        <div class="ack-field-lbl">Reference</div>
+        <div class="ack-field-val" style="font-family:'Courier New',monospace;color:#f5a623;font-size:10.5pt">${shortRef}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="mono">${shortRef}</span>
+    <span>Rillcod Technologies &mdash; ${esc(form.title)}</span>
+    <span>Confidential &middot; For Internal Use Only</span>
+  </div>
+</div>
+</body></html>`);
   win.document.close();
 }
 
