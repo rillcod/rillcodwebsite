@@ -4087,7 +4087,13 @@ export type Database = {
           email: string | null
           form_id: string
           id: string
+          match_candidate_id: string | null
+          match_confidence: string | null
+          match_notes: string | null
+          match_status: string | null
+          matched_parent_id: string | null
           matched_school_id: string | null
+          matched_student_id: string | null
           prospect_id: string | null
           response_data: Json
           school_id: string | null
@@ -4100,7 +4106,13 @@ export type Database = {
           email?: string | null
           form_id: string
           id?: string
+          match_candidate_id?: string | null
+          match_confidence?: string | null
+          match_notes?: string | null
+          match_status?: string | null
+          matched_parent_id?: string | null
           matched_school_id?: string | null
+          matched_student_id?: string | null
           prospect_id?: string | null
           response_data?: Json
           school_id?: string | null
@@ -4113,7 +4125,13 @@ export type Database = {
           email?: string | null
           form_id?: string
           id?: string
+          match_candidate_id?: string | null
+          match_confidence?: string | null
+          match_notes?: string | null
+          match_status?: string | null
+          matched_parent_id?: string | null
           matched_school_id?: string | null
+          matched_student_id?: string | null
           prospect_id?: string | null
           response_data?: Json
           school_id?: string | null
@@ -4136,11 +4154,53 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "form_leads_match_candidate_id_fkey"
+            columns: ["match_candidate_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_match_candidate_id_fkey"
+            columns: ["match_candidate_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "form_leads_matched_parent_id_fkey"
+            columns: ["matched_parent_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_matched_parent_id_fkey"
+            columns: ["matched_parent_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
             foreignKeyName: "form_leads_matched_school_id_fkey"
             columns: ["matched_school_id"]
             isOneToOne: false
             referencedRelation: "schools"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_leads_matched_student_id_fkey"
+            columns: ["matched_student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
           },
           {
             foreignKeyName: "form_leads_prospect_id_fkey"

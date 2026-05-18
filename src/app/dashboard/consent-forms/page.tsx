@@ -40,6 +40,12 @@ interface FormLead {
   response_data: Record<string, unknown>;
   schools: { name: string } | null;
   status: 'new' | 'contacted' | 'enrolled' | 'lost';
+  match_status: 'unreviewed' | 'pending_review' | 'approved' | 'rejected' | 'new_prospect' | null;
+  match_confidence: 'high' | 'medium' | 'low' | null;
+  match_notes: string | null;
+  match_candidate: { id: string; full_name: string; section_class: string | null; email: string } | null;
+  matched_student_id: string | null;
+  matched_parent_id: string | null;
 }
 
 interface RegistrationData {
@@ -450,8 +456,9 @@ export default function ConsentFormsPage() {
   const [qrFormId, setQrFormId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Lead status
-  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  // Lead status + match review
+  const [updatingLeadId, setUpdatingLeadId]   = useState<string | null>(null);
+  const [reviewingLeadId, setReviewingLeadId] = useState<string | null>(null);
 
   const isStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
   const isParent = profile?.role === 'parent';
@@ -610,6 +617,37 @@ export default function ConsentFormsPage() {
     await navigator.clipboard.writeText(url).catch(() => { });
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  // ── Lead match review ─────────────────────────────────────────────────────
+
+  async function reviewLead(formId: string, leadId: string, action: 'approve' | 'reject') {
+    setReviewingLeadId(leadId);
+    try {
+      const res = await fetch(`/api/consent-forms/leads/${leadId}/review`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      setLeads(prev => ({
+        ...prev,
+        [formId]: (prev[formId] ?? []).map(l =>
+          l.id === leadId
+            ? {
+                ...l,
+                match_status:       json.status,
+                matched_student_id: json.matched_student_id ?? l.matched_student_id,
+                matched_parent_id:  json.matched_parent_id  ?? l.matched_parent_id,
+                ...(action === 'reject' ? { match_candidate: null } : {}),
+              }
+            : l,
+        ),
+      }));
+    } finally {
+      setReviewingLeadId(null);
+    }
   }
 
   // ── Lead status ───────────────────────────────────────────────────────────
@@ -1317,23 +1355,38 @@ export default function ConsentFormsPage() {
                               </p>
                               <div className="space-y-2">
                                 {formLeads.map(lead => {
-                                  const rd = lead.response_data as Record<string, string>;
-                                  const waNumber = rd.parent_whatsapp?.replace(/\D/g, '');
-                                  const status = lead.status ?? 'new';
+                                  const rd         = lead.response_data as Record<string, string>;
+                                  const waNumber   = rd.parent_whatsapp?.replace(/\D/g, '');
+                                  const status     = lead.status ?? 'new';
+                                  const isPending  = lead.match_status === 'pending_review';
+                                  const isApproved = lead.match_status === 'approved';
                                   const statusCfg: Record<string, { label: string; cls: string }> = {
-                                    new: { label: 'New', cls: 'bg-amber-500/10 text-amber-400' },
+                                    new:       { label: 'New',       cls: 'bg-amber-500/10 text-amber-400' },
                                     contacted: { label: 'Contacted', cls: 'bg-blue-500/10 text-blue-400' },
-                                    enrolled: { label: 'Enrolled', cls: 'bg-emerald-500/10 text-emerald-400' },
-                                    lost: { label: 'Lost', cls: 'bg-muted text-muted-foreground' },
+                                    enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/10 text-emerald-400' },
+                                    lost:      { label: 'Lost',      cls: 'bg-muted text-muted-foreground' },
+                                  };
+                                  const confCls: Record<string, string> = {
+                                    high:   'bg-rose-500/10 text-rose-400',
+                                    medium: 'bg-amber-500/10 text-amber-400',
+                                    low:    'bg-muted text-muted-foreground',
                                   };
                                   return (
-                                    <div key={lead.id} className="bg-card border border-primary/20 rounded-xl p-3 space-y-2">
+                                    <div key={lead.id} className={`bg-card rounded-xl p-3 space-y-2 border ${isPending ? 'border-amber-500/40' : 'border-primary/20'}`}>
                                       <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
                                           <p className="text-sm font-bold text-foreground truncate">{rd.parent_name ?? 'Unknown'}</p>
                                           <p className="text-xs text-muted-foreground truncate">{lead.email ?? rd.parent_email ?? ''}</p>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
+                                          {isPending && (
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${confCls[lead.match_confidence ?? 'low']}`}>
+                                              ⚠️ {lead.match_confidence} match
+                                            </span>
+                                          )}
+                                          {isApproved && (
+                                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">✓ Matched</span>
+                                          )}
                                           <select
                                             value={status}
                                             disabled={updatingLeadId === lead.id}
@@ -1352,14 +1405,16 @@ export default function ConsentFormsPage() {
                                       </div>
                                       <div className="flex flex-wrap gap-2">
                                         {rd.child_name && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-foreground font-bold">{rd.child_name}</span>}
-                                        {rd.child_age && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Age {rd.child_age}</span>}
-                                        {rd.program_category && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">{rd.program_category === 'junior_coders' ? 'Junior Coders' : 'Teen Developers'}</span>}
+                                        {rd.child_age  && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Age {rd.child_age}</span>}
+                                        {rd.child_class && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{rd.child_class}</span>}
+                                        {rd.program_category && (
+                                          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                                            {rd.program_category === 'young_innovators' ? 'Young Innovators' : 'Teen Developers'}
+                                          </span>
+                                        )}
                                         {waNumber && (
-                                          <a
-                                            href={`https://wa.me/${waNumber}`}
-                                            target="_blank" rel="noopener noreferrer"
-                                            className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full hover:bg-emerald-500/20 transition-colors"
-                                          >
+                                          <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer"
+                                            className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full hover:bg-emerald-500/20 transition-colors">
                                             💬 {rd.parent_whatsapp}
                                           </a>
                                         )}
@@ -1369,6 +1424,47 @@ export default function ConsentFormsPage() {
                                           </span>
                                         )}
                                       </div>
+                                      {isPending && lead.match_candidate && (
+                                        <div className="mt-1 border border-amber-500/30 bg-amber-500/5 rounded-xl p-3 space-y-2">
+                                          <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Possible Existing Student — Review</p>
+                                          <div className="grid grid-cols-2 gap-3 text-xs">
+                                            <div className="space-y-0.5">
+                                              <p className="text-[10px] text-muted-foreground font-bold uppercase">From Form</p>
+                                              <p className="text-foreground font-bold">{rd.child_name}</p>
+                                              <p className="text-muted-foreground">{rd.child_class || '—'}</p>
+                                            </div>
+                                            <div className="space-y-0.5">
+                                              <p className="text-[10px] text-muted-foreground font-bold uppercase">In System</p>
+                                              <p className="text-foreground font-bold">{lead.match_candidate.full_name}</p>
+                                              <p className="text-muted-foreground">{lead.match_candidate.section_class || '—'}</p>
+                                            </div>
+                                          </div>
+                                          {lead.match_notes && (
+                                            <p className="text-[10px] text-muted-foreground italic leading-relaxed">{lead.match_notes}</p>
+                                          )}
+                                          <div className="flex gap-2 pt-1">
+                                            <button
+                                              disabled={reviewingLeadId === lead.id}
+                                              onClick={() => reviewLead(cf.id, lead.id, 'approve')}
+                                              className="flex-1 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-black text-xs rounded-lg transition-colors disabled:opacity-40"
+                                            >
+                                              {reviewingLeadId === lead.id ? '…' : '✓ Yes, same student'}
+                                            </button>
+                                            <button
+                                              disabled={reviewingLeadId === lead.id}
+                                              onClick={() => reviewLead(cf.id, lead.id, 'reject')}
+                                              className="flex-1 py-2 bg-muted hover:bg-muted/80 text-muted-foreground font-black text-xs rounded-lg transition-colors disabled:opacity-40"
+                                            >
+                                              ✗ New prospect
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                      {isApproved && lead.matched_student_id && (
+                                        <p className="text-[10px] text-emerald-400 font-bold">
+                                          ✓ Linked to existing student record{lead.matched_parent_id ? ' · Parent portal account found' : ''}
+                                        </p>
+                                      )}
                                     </div>
                                   );
                                 })}
