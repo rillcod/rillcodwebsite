@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
-import { reconcileWithCRM } from '@/lib/consent-forms/reconcile-crm';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +39,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   // Fetch the lead with its candidate
   const { data: lead } = await sb
     .from('form_leads')
-    .select('id, school_id, form_id, match_candidate_id, match_status, response_data, email, contact_id, child_current_school, matched_school_id')
+    .select('id, school_id, match_candidate_id, match_status, response_data, email, contact_id')
     .eq('id', leadId)
     .single();
 
@@ -83,49 +82,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     matchedParentId = (data as any)?.id ?? null;
   }
 
-  // ── Ensure CRM contact exists (created here on first staff action) ──────────
-  let resolvedContactId = (lead as any).contact_id as string | null;
-  if (!resolvedContactId) {
-    // Try to find existing contact
-    if (parentEmail) {
-      const { data: existing } = await sb.from('customer_contact_book').select('id').eq('email', parentEmail).maybeSingle();
-      resolvedContactId = (existing as any)?.id ?? null;
-    }
-    if (!resolvedContactId && parentPhone) {
-      const { data: existing } = await sb.from('customer_contact_book').select('id').ilike('phone', `%${parentPhone.slice(-9)}%`).maybeSingle();
-      resolvedContactId = (existing as any)?.id ?? null;
-    }
-    // If still no contact, create one via full CRM reconciliation
-    if (!resolvedContactId) {
-      const formRow = await (sb as any).from('consent_forms').select('title, school_id, schools(name)').eq('id', (lead as any).form_id).maybeSingle();
-      const formData = formRow.data;
-      const schoolName = (formData?.schools as any)?.name ?? 'Rillcod Technologies';
-      try {
-        const { contactId: newContactId, prospectId: newProspectId } = await reconcileWithCRM({
-          parentName:      rd.parent_name || 'Parent/Guardian',
-          parentEmail:     parentEmail,
-          parentWhatsapp:  rd.parent_whatsapp || '',
-          childName:       rd.child_name || '',
-          childAge:        rd.child_age || '',
-          childClass:      rd.child_class || '',
-          programCategory: rd.program_category || '',
-          currentSchool:   (lead as any).child_current_school ?? null,
-          matchedSchoolId: (lead as any).matched_school_id ?? null,
-          schoolId:        (lead as any).school_id ?? null,
-          schoolName,
-          formId:          leadId,
-          formTitle:       formData?.title ?? '',
-        });
-        resolvedContactId = newContactId;
-        if (newContactId || newProspectId) {
-          await sb.from('form_leads').update({ contact_id: newContactId, prospect_id: newProspectId } as any).eq('id', leadId);
-        }
-      } catch { /* non-fatal */ }
-    } else {
-      await sb.from('form_leads').update({ contact_id: resolvedContactId } as any).eq('id', leadId);
-    }
-  }
-
   // Link the lead and mark as contacted
   await sb.from('form_leads').update({
     match_status:       'approved',
@@ -134,6 +90,12 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     matched_parent_id:  matchedParentId,
     updated_at:         now,
   } as any).eq('id', leadId);
+
+  // Advance CRM pipeline + log interaction
+  const contactId = (lead as any).contact_id as string | null;
+  const resolvedContactId = contactId || (parentEmail
+    ? ((await sb.from('customer_contact_book').select('id').eq('email', parentEmail).maybeSingle()).data as any)?.id ?? null
+    : null);
 
   if (resolvedContactId) {
     try {
