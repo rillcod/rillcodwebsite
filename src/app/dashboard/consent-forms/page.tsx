@@ -46,6 +46,8 @@ interface FormLead {
   match_candidate: { id: string; full_name: string; section_class: string | null; email: string } | null;
   matched_student_id: string | null;
   matched_parent_id: string | null;
+  contact_id: string | null;
+  prospect_id: string | null;
 }
 
 interface RegistrationData {
@@ -105,7 +107,7 @@ function esc(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function printForm(form: ConsentForm) {
+function printForm(form: ConsentForm, appBase: string) {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
   const isAssessment = form.form_type === 'assessment';
@@ -119,9 +121,7 @@ function printForm(form: ConsentForm) {
   body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; }
   table { border-collapse: collapse; }
   .hdr-table { width: 100%; margin-bottom: 4px; }
-  .logo-box { width: 46px; height: 46px; border: 2.5px solid #000; border-radius: 6px;
-              font-weight: 900; font-size: 22px; text-align: center; vertical-align: middle;
-              line-height: 46px; }
+  .logo-box { width: 46px; height: 46px; vertical-align: middle; }
   .school { font-size: 20pt; font-weight: 900; letter-spacing: -0.5px; vertical-align: middle; padding-left: 12px; }
   .tagline { font-size: 7.5pt; color: #555; padding-left: 12px; padding-top: 2px; }
   .form-title { text-align: center; font-size: 10.5pt; font-weight: 900; letter-spacing: 2.5px;
@@ -152,7 +152,7 @@ function printForm(form: ConsentForm) {
   <button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
   <table class="hdr-table" cellpadding="0" cellspacing="0">
     <tr>
-      <td class="logo-box" style="width:46px;">R</td>
+      <td class="logo-box" style="width:auto;padding-right:10px;"><img src="${appBase}/images/logoB.png" style="height:46px;width:auto;object-fit:contain;" /></td>
       <td><div class="school">RILLCOD TECHNOLOGIES</div><div class="tagline">Empowering Young Minds Through Code · www.rillcod.com</div></td>
     </tr>
   </table>
@@ -275,27 +275,27 @@ ${isAssessment ? assessmentBody : registrationBody}
   win.document.close();
 }
 
-function printQRCards(form: ConsentForm, appBase: string) {
+function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
   const publicUrl = `${appBase}/forms/${form.id}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publicUrl)}`;
   const title = esc(form.title);
+  const qrContent = qrSvg
+    ? `<div class="qr">${qrSvg}</div>`
+    : `<img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publicUrl)}" />`;
 
   const cards = Array(8).fill(0).map(() => `
     <div class="card">
       <div class="card-inner">
         <div class="hdr">
-          <div class="logo">
-            <img src="${appBase}/images/logo.png" style="width:100%; height:100%; object-fit:contain; filter:grayscale(1)"/>
-          </div>
+          <div class="logo-box"><img src="${appBase}/images/logoB.png" style="height:100%;width:auto;object-fit:contain;" /></div>
           <div class="brand">
             <div class="school">RILLCOD</div>
             <div class="tagline">Tech Academy</div>
           </div>
         </div>
         <div class="title">${title}</div>
-        <img class="qr" src="${qrUrl}" />
+        ${qrContent}
         <div class="scan-text">Scan with your phone's<br/>camera to register</div>
       </div>
     </div>
@@ -331,12 +331,13 @@ function printQRCards(form: ConsentForm, appBase: string) {
     text-align: center;
   }
   .hdr { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
-  .logo { width: 28px; height: 28px; }
+  .logo-box { width: 28px; height: 28px; }
   .brand { text-align: left; line-height: 1; }
   .school { font-size: 14pt; font-weight: 900; letter-spacing: -0.5px; }
   .tagline { font-size: 6pt; color: #555; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
   .title { font-size: 10pt; font-weight: bold; margin: 8px 0; background: #000; color: #fff; padding: 4px 8px; border-radius: 4px; width: 100%; max-height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .qr { width: 110px; height: 110px; margin: auto; }
+  .qr { width: 110px; height: 110px; margin: auto; display: flex; align-items: center; justify-content: center; }
+  .qr svg { width: 110px; height: 110px; }
   .scan-text { font-size: 8pt; font-weight: bold; color: #444; margin-top: 6px; }
   .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
   .print-btn:hover { background: #333; }
@@ -350,12 +351,14 @@ function printQRCards(form: ConsentForm, appBase: string) {
 
 
 
-function printQRPoster(form: ConsentForm, appBase: string) {
+function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
   const publicUrl = `${appBase}/forms/${form.id}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(publicUrl)}`;
   const title = esc(form.title);
+  const qrContent = qrSvg
+    ? `<div class="qr-wrap">${qrSvg}</div>`
+    : `<img class="qr-wrap" src="https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(publicUrl)}" />`;
 
   win.document.write(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
@@ -363,49 +366,33 @@ function printQRPoster(form: ConsentForm, appBase: string) {
 <style>
   @page { margin: 15mm; size: A4 portrait; }
   * { box-sizing: border-box; font-family: 'Arial Black', Arial, sans-serif; }
-  body { 
-    margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh;
-    border: 8px solid #000;
-  }
-  .poster {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    text-align: center;
-  }
+  body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; border: 8px solid #000; }
+  .poster { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
   .hdr { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
-  .logo { width: 70px; height: 70px; }
+  .logo-box { width: 70px; height: 70px; }
   .brand { text-align: left; line-height: 1.1; }
   .school { font-size: 32pt; font-weight: 900; letter-spacing: -1px; }
   .tagline { font-size: 14pt; color: #555; text-transform: uppercase; letter-spacing: 2px; }
-  .title { 
-    font-size: 24pt; margin: 0 0 40px; background: #000; color: #fff; padding: 15px 30px; 
-    border-radius: 12px; width: 100%; max-width: 90%; 
-  }
-  .qr { width: 450px; height: 450px; border: 12px solid #000; padding: 10px; border-radius: 20px; box-shadow: 10px 10px 0 #000; }
+  .title { font-size: 24pt; margin: 0 0 40px; background: #000; color: #fff; padding: 15px 30px; border-radius: 12px; width: 100%; max-width: 90%; }
+  .qr-wrap { width: 420px; height: 420px; border: 12px solid #000; padding: 10px; border-radius: 20px; box-shadow: 10px 10px 0 #000; display: flex; align-items: center; justify-content: center; }
+  .qr-wrap svg { width: 390px; height: 390px; }
   .scan-text { font-size: 48pt; font-weight: 900; color: #000; margin-top: 50px; text-transform: uppercase; letter-spacing: 2px; }
   .sub-scan { font-size: 18pt; color: #444; font-weight: bold; font-family: Arial, sans-serif; margin-top: 10px; }
   .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
   .print-btn:hover { background: #333; }
-  @media print { body { border: none; } .poster { border: 8px solid #000; height: 95vh; } .qr { box-shadow: none; border: 8px solid #000; } .print-btn { display: none !important; } }
+  @media print { body { border: none; } .poster { border: 8px solid #000; height: 95vh; } .qr-wrap { box-shadow: none; border: 8px solid #000; } .print-btn { display: none !important; } }
 </style></head><body>
   <button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
   <div class="poster">
     <div class="hdr">
-      <div class="logo">
-        <img src="${appBase}/images/logo.png" style="width:100%; height:100%; object-fit:contain; filter:grayscale(1)"/>
-      </div>
+      <div class="logo-box"><img src="${appBase}/images/logoB.png" style="height:100%;width:auto;object-fit:contain;" /></div>
       <div class="brand">
         <div class="school">RILLCOD</div>
         <div class="tagline">Tech Academy</div>
       </div>
     </div>
     <div class="title">${title}</div>
-    <img class="qr" src="${qrUrl}" />
+    ${qrContent}
     <div class="scan-text">Scan To Register</div>
     <div class="sub-scan">Open your phone camera and point it at the code</div>
   </div>
@@ -992,7 +979,7 @@ export default function ConsentFormsPage() {
                           <div className="space-y-2">
                             {([
                               { value: 'young_innovators', label: 'Young Innovators :: PRY', sub: 'Ages 5–10 · Fun & games' },
-                              { value: 'teen_developers', label: 'Teen Developers :: SEC', sub: 'Ages 11–19 · Advanced coding' },
+                              { value: 'teen_developers',  label: 'Teen Developers :: SEC',  sub: 'Ages 11–19 · Advanced coding' },
                             ] as const).map(opt => (
                               <button key={opt.value} type="button" onClick={() => setRegData(d => ({ ...d, program_category: opt.value }))}
                                 className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${regData.program_category === opt.value ? 'border-primary bg-primary/10 text-foreground' : 'border-border bg-background text-muted-foreground hover:border-border/80'}`}>
@@ -1160,6 +1147,12 @@ export default function ConsentFormsPage() {
 
               return (
                 <motion.div key={cf.id} layout className={`bg-card border rounded-2xl overflow-hidden transition-colors ${cf.has_signed ? 'border-emerald-500/20' : cf.is_public ? 'border-primary/20' : 'border-border/60'}`}>
+                  {/* Hidden QR pre-render for offline print — do not remove */}
+                  {cf.is_public && (
+                    <div id={`qr-cache-${cf.id}`} className="hidden" aria-hidden>
+                      <QRCode value={publicUrl} size={400} />
+                    </div>
+                  )}
                   <div className="p-5 space-y-3">
 
                     {/* Title row */}
@@ -1209,17 +1202,29 @@ export default function ConsentFormsPage() {
                       )}
 
                       {isStaff && (
-                        <button onClick={() => printForm(cf)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
+                        <button onClick={() => printForm(cf, appBase)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
                           <PrinterIcon className="w-3.5 h-3.5" /> Print
                         </button>
                       )}
 
                       {isStaff && cf.is_public && (
                         <div className="flex gap-1">
-                          <button onClick={() => printQRCards(cf, appBase)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-l-xl transition-colors border-r border-background">
+                          <button
+                            onClick={() => {
+                              const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML;
+                              printQRCards(cf, appBase, svg);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-l-xl transition-colors border-r border-background"
+                          >
                             📇 QR Cards
                           </button>
-                          <button onClick={() => printQRPoster(cf, appBase)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-r-xl transition-colors">
+                          <button
+                            onClick={() => {
+                              const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML;
+                              printQRPoster(cf, appBase, svg);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-r-xl transition-colors"
+                          >
                             🖼️ QR Poster
                           </button>
                         </div>
@@ -1423,7 +1428,59 @@ export default function ConsentFormsPage() {
                                             🏫 {lead.child_current_school}{lead.schools?.name ? ` → ${lead.schools.name}` : ''}
                                           </span>
                                         )}
+                                        {(rd as any).is_existing_parent && (
+                                          <span className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full font-bold">↩️ Existing parent</span>
+                                        )}
                                       </div>
+                                      {/* Assessment details */}
+                                      {((rd as any).prior_coding || (rd as any).learning_goal || (rd as any).preferred_schedule || (rd as any).special_notes) && (
+                                        <div className="bg-muted/30 rounded-lg px-3 py-2 space-y-1">
+                                          {(rd as any).prior_coding && (
+                                            <p className="text-[10px] text-muted-foreground">
+                                              <span className="font-bold text-foreground">Prior coding:</span>{' '}
+                                              {(rd as any).prior_coding === 'yes'
+                                                ? `Yes${(rd as any).prior_platform ? ` — ${(rd as any).prior_platform}` : ''}`
+                                                : 'No'}
+                                            </p>
+                                          )}
+                                          {Array.isArray((rd as any).devices) && (rd as any).devices.length > 0 && (
+                                            <p className="text-[10px] text-muted-foreground">
+                                              <span className="font-bold text-foreground">Devices:</span>{' '}
+                                              {((rd as any).devices as string[]).join(', ')}
+                                            </p>
+                                          )}
+                                          {(rd as any).learning_goal && (
+                                            <p className="text-[10px] text-muted-foreground">
+                                              <span className="font-bold text-foreground">Goal:</span> {(rd as any).learning_goal}
+                                            </p>
+                                          )}
+                                          {(rd as any).preferred_schedule && (
+                                            <p className="text-[10px] text-muted-foreground">
+                                              <span className="font-bold text-foreground">Schedule:</span> {(rd as any).preferred_schedule}
+                                            </p>
+                                          )}
+                                          {(rd as any).special_notes && (
+                                            <p className="text-[10px] text-muted-foreground italic">
+                                              <span className="font-bold not-italic text-foreground">Notes:</span> {(rd as any).special_notes}
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+                                      {/* CRM links */}
+                                      {(lead.contact_id || lead.prospect_id) && (
+                                        <div className="flex gap-2">
+                                          {lead.contact_id && (
+                                            <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold">
+                                              ✓ CRM contact saved
+                                            </span>
+                                          )}
+                                          {lead.prospect_id && (
+                                            <span className="text-[10px] bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded-full font-bold">
+                                              ✓ Prospect record saved
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
                                       {isPending && lead.match_candidate && (
                                         <div className="mt-1 border border-amber-500/30 bg-amber-500/5 rounded-xl p-3 space-y-2">
                                           <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Possible Existing Student — Review</p>

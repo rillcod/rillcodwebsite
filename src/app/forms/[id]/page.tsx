@@ -47,16 +47,19 @@ export default async function PublicFormPage({ params }: { params: Promise<{ id:
 
       <div className="relative z-10 max-w-xl mx-auto px-4 py-10">
         {/* Rillcod header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center font-black text-black text-xl shrink-0 shadow-lg shadow-amber-500/20">
-            R
-          </div>
-          <div>
-            <p className="font-black text-white leading-tight">RILLCOD TECHNOLOGIES</p>
-            <p className="text-[10px] text-amber-400/80 font-bold tracking-widest uppercase">
-              {form.schools?.name ?? 'STEM & Coding Academy'}
-            </p>
-          </div>
+        <div className="flex items-center gap-4 mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/logoB.png"
+            alt="Rillcod Technologies"
+            className="h-14 w-auto shrink-0 object-contain"
+          />
+          {form.schools?.name && (
+            <div className="border-l border-[#2a2d33] pl-4">
+              <p className="text-[9px] text-[#52525b] font-bold uppercase tracking-widest">Location</p>
+              <p className="text-sm font-black text-amber-400 leading-tight">{form.schools.name}</p>
+            </div>
+          )}
         </div>
 
         <PublicConsentForm form={form} publicUrl={publicUrl} />

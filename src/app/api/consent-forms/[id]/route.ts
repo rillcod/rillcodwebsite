@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .order('signed_at', { ascending: false }),
     (supabase as any)
       .from('form_leads')
-      .select('id, submitted_at, email, child_current_school, matched_school_id, response_data, status, match_status, match_confidence, match_notes, match_candidate_id, matched_student_id, matched_parent_id, schools!matched_school_id(name), match_candidate:portal_users!match_candidate_id(id, full_name, section_class, email)')
+      .select('id, submitted_at, email, child_current_school, matched_school_id, response_data, status, match_status, match_confidence, match_notes, match_candidate_id, matched_student_id, matched_parent_id, contact_id, prospect_id, schools!matched_school_id(name), match_candidate:portal_users!match_candidate_id(id, full_name, section_class, email)')
       .eq('form_id', id)
       .order('submitted_at', { ascending: false }),
   ]);

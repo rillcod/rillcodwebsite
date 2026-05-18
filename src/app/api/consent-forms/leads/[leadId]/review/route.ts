@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   // Fetch the lead with its candidate
   const { data: lead } = await sb
     .from('form_leads')
-    .select('id, school_id, match_candidate_id, match_status, response_data, email')
+    .select('id, school_id, match_candidate_id, match_status, response_data, email, contact_id')
     .eq('id', leadId)
     .single();
 
@@ -82,21 +82,37 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     matchedParentId = (data as any)?.id ?? null;
   }
 
-  // Link the lead
+  // Link the lead and mark as contacted
   await sb.from('form_leads').update({
     match_status:       'approved',
+    status:             'contacted',
     matched_student_id: candidateId,
     matched_parent_id:  matchedParentId,
     updated_at:         now,
   } as any).eq('id', leadId);
 
-  // Log a CRM interaction for the approval event
-  try {
-    const { data: contact } = await sb.from('customer_contact_book')
-      .select('id').eq('email', parentEmail).maybeSingle();
-    if ((contact as any)?.id) {
+  // Advance CRM pipeline + log interaction
+  const contactId = (lead as any).contact_id as string | null;
+  const resolvedContactId = contactId || (parentEmail
+    ? ((await sb.from('customer_contact_book').select('id').eq('email', parentEmail).maybeSingle()).data as any)?.id ?? null
+    : null);
+
+  if (resolvedContactId) {
+    try {
+      const stageOrder = ['lead', 'enquiry', 'contacted', 'trial', 'enrolled'];
+      const { data: pipe } = await (sb as any).from('crm_pipeline').select('id, stage').eq('contact_id', resolvedContactId).maybeSingle();
+      if (pipe) {
+        if (stageOrder.indexOf(pipe.stage) < stageOrder.indexOf('contacted')) {
+          await (sb as any).from('crm_pipeline').update({ stage: 'contacted', updated_at: now }).eq('contact_id', resolvedContactId);
+        }
+      } else {
+        await (sb as any).from('crm_pipeline').insert({
+          contact_id: resolvedContactId, contact_name: rd.parent_name || 'Parent/Guardian',
+          contact_type: 'form_lead', stage: 'contacted', created_at: now, updated_at: now,
+        });
+      }
       await sb.from('crm_interactions').insert({
-        contact_id:   (contact as any).id,
+        contact_id:   resolvedContactId,
         contact_name: rd.parent_name || 'Parent/Guardian',
         contact_type: 'form_lead',
         type:         'match_approved',
@@ -104,8 +120,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
         content:      `Staff matched form lead to existing student (approved by ${profile.full_name ?? profile.role}). Student ID: ${candidateId}.`,
         created_at:   now,
       } as any);
-    }
-  } catch { /* non-fatal */ }
+    } catch { /* non-fatal */ }
+  }
 
   return NextResponse.json({
     success: true,

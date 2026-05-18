@@ -156,12 +156,15 @@ async function reconcileWithCRM(
     matchedSchoolId: string | null; schoolId: string | null; schoolName: string;
     formId: string; formTitle: string;
     referralSource?: string; preferredSchedule?: string; hearAboutUs?: string;
+    priorCoding?: string; priorPlatform?: string; devices?: string[];
+    learningGoal?: string; specialNotes?: string;
   },
 ): Promise<ReconcileResult> {
   const {
     parentName, parentEmail, parentWhatsapp, childName, childAge, childClass,
     programCategory, currentSchool, matchedSchoolId, schoolId, schoolName,
     formId, formTitle, referralSource, preferredSchedule, hearAboutUs,
+    priorCoding, priorPlatform, devices, learningGoal, specialNotes,
   } = params;
 
   const now   = new Date().toISOString();
@@ -223,6 +226,16 @@ async function reconcileWithCRM(
       const { data } = await (schoolId ? q.eq('school_id', schoolId) : q).maybeSingle();
       existingProspect = data;
     }
+    const assessmentLines: string[] = [];
+    if (priorCoding)    assessmentLines.push(`Prior coding: ${priorCoding}${priorPlatform ? ` (${priorPlatform})` : ''}`);
+    if (devices?.length) assessmentLines.push(`Devices: ${devices.join(', ')}`);
+    if (learningGoal)   assessmentLines.push(`Goal: ${learningGoal}`);
+    if (specialNotes)   assessmentLines.push(`Notes: ${specialNotes}`);
+    const notesText = [
+      `From consent form: "${formTitle}"`,
+      ...assessmentLines,
+    ].join('\n');
+
     const prospectPayload = {
       full_name: childName, email: email ?? `lead-${formId}@noemail.local`,
       age: childAge ? parseInt(childAge, 10) : null, grade: childClass || null,
@@ -232,7 +245,7 @@ async function reconcileWithCRM(
       school_name: currentSchool ?? schoolName,
       hear_about_us: hearAboutUs ?? referralSource ?? null,
       preferred_schedule: preferredSchedule ?? null,
-      notes: `From consent form: "${formTitle}"`,
+      notes: notesText,
       status: 'enquiry', updated_at: now,
     };
     if (existingProspect) {
@@ -363,9 +376,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const schoolData = (form as any).schools as { name?: string; email?: string } | null;
-  const schoolName = schoolData?.name ?? 'Rillcod Technologies';
-  const appUrl     = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-  const toEmail    = email?.trim();
+  const schoolName  = schoolData?.name ?? 'Rillcod Technologies';
+  const appUrl      = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+  const toEmail     = email?.trim();
+  const isExistingParent = Boolean(response_data.is_existing_parent);
+  const now         = new Date().toISOString();
 
   // ── CRM reconciliation ────────────────────────────────────────────────────
   const { contactId, prospectId } = await reconcileWithCRM(sb, {
@@ -382,9 +397,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     schoolName,
     formId:           lead!.id,
     formTitle:        form.title,
-    referralSource:   response_data.referral_source,
+    referralSource:    response_data.referral_source,
     preferredSchedule: response_data.preferred_schedule,
-    hearAboutUs:      response_data.hear_about_us,
+    hearAboutUs:       response_data.hear_about_us,
+    priorCoding:       response_data.prior_coding,
+    priorPlatform:     response_data.prior_platform,
+    devices:           Array.isArray(response_data.devices) ? response_data.devices : undefined,
+    learningGoal:      response_data.learning_goal,
+    specialNotes:      response_data.special_notes,
   });
 
   if (contactId || prospectId) {
@@ -393,7 +413,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       .eq('id', lead!.id);
   }
 
-  // ── Emails ────────────────────────────────────────────────────────────────
+  // ── Parent confirmation email (SMTP — send first) ─────────────────────────
   if (toEmail && toEmail.includes('@')) {
     try {
       const html = buildFormLeadConfirmationEmail({
@@ -403,47 +423,120 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         formTitle:       form.title, schoolName,
         formType:        form.form_type ?? 'general', appUrl,
       });
+      const subject = isExistingParent
+        ? `↩️ Welcome Back! We've Received Your Update — Rillcod Technologies`
+        : `✅ Registration Received — Rillcod Technologies`;
       await notificationsService.sendEmail('system', {
-        to: toEmail, subject: `✅ Registration Received — Rillcod Technologies`,
-        html, fromName: 'Rillcod Technologies', replyTo: 'support@rillcod.com',
+        to: toEmail, subject, html,
+        fromName: 'Rillcod Technologies', replyTo: 'support@rillcod.com',
       });
     } catch { /* non-fatal */ }
   }
 
-  const staffEmail = schoolData?.email;
-  if (staffEmail && staffEmail.includes('@')) {
-    try {
-      const { data: matchedSchool } = matched_school_id
-        ? await sb.from('schools').select('name').eq('id', matched_school_id).single()
-        : { data: null };
+  // ── Staff email + in-app notifications ────────────────────────────────────
+  try {
+    const { data: matchedSchool } = matched_school_id
+      ? await sb.from('schools').select('name').eq('id', matched_school_id).single()
+      : { data: null };
 
-      // Append match info to the notification
-      const matchInfo = needsReview && matchResult
-        ? `\n\n⚠️ POSSIBLE EXISTING STUDENT MATCH (${matchResult.confidence.toUpperCase()} confidence): "${matchResult.candidate.full_name}" — ${matchResult.candidate.section_class ?? 'no class'}. Please review in dashboard.`
-        : '';
+    const matchInfo = needsReview && matchResult
+      ? `\n\n⚠️ POSSIBLE EXISTING STUDENT MATCH (${matchResult.confidence.toUpperCase()} confidence): "${matchResult.candidate.full_name}" — ${matchResult.candidate.section_class ?? 'no class'}. Please review in dashboard.`
+      : '';
 
+    const notifTitle = needsReview
+      ? `⚠️ Match Needed: ${response_data.child_name}`
+      : isExistingParent
+      ? `↩️ Returning Family: ${response_data.child_name}`
+      : `🔔 New Enquiry: ${response_data.child_name}`;
+
+    const notifMessage = needsReview
+      ? `"${response_data.child_name}" (${matchResult!.confidence} confidence) may be an existing student. Review & approve in Consent Forms.`
+      : isExistingParent
+      ? `${response_data.parent_name} (existing parent) submitted ${form.title} for ${response_data.child_name}.`
+      : `New enquiry from ${response_data.parent_name} via "${form.title}". Child: ${response_data.child_name}.`;
+
+    const emailSubject = needsReview
+      ? `🔔⚠️ Match Needed: ${response_data.child_name} — ${form.title}`
+      : isExistingParent
+      ? `↩️ Returning Family: ${response_data.child_name} — ${form.title}`
+      : `🔔 New Enquiry: ${response_data.child_name} — ${form.title}`;
+
+    // Staff email
+    const staffEmail = schoolData?.email;
+    if (staffEmail && staffEmail.includes('@')) {
       const html = buildLeadNotificationEmail({
         schoolName, formTitle: form.title + matchInfo,
-        childName:        response_data.child_name,
-        childAge:         response_data.child_age,
-        childClass:       response_data.child_class,
-        programCategory:  response_data.program_category,
-        parentName:       response_data.parent_name,
-        parentWhatsapp:   response_data.parent_whatsapp,
-        parentEmail:      response_data.parent_email || toEmail,
-        currentSchool:    child_current_school?.trim() || undefined,
+        childName:         response_data.child_name,
+        childAge:          response_data.child_age,
+        childClass:        response_data.child_class,
+        programCategory:   response_data.program_category,
+        parentName:        response_data.parent_name,
+        parentWhatsapp:    response_data.parent_whatsapp,
+        parentEmail:       response_data.parent_email || toEmail,
+        currentSchool:     child_current_school?.trim() || undefined,
         matchedSchoolName: (matchedSchool as any)?.name ?? matchedSchoolName,
-        dashboardUrl:     appUrl,
+        dashboardUrl:      appUrl,
       });
       await notificationsService.sendEmail('system', {
-        to: staffEmail,
-        subject: needsReview
-          ? `🔔⚠️ Match Needed: ${response_data.child_name} — ${form.title}`
-          : `🔔 New Enquiry: ${response_data.child_name} — ${form.title}`,
-        html, fromName: 'Rillcod Forms', replyTo: toEmail || 'support@rillcod.com',
+        to: staffEmail, subject: emailSubject, html,
+        fromName: 'Rillcod Forms', replyTo: toEmail || 'support@rillcod.com',
       });
-    } catch { /* non-fatal */ }
-  }
+    }
+
+    // In-app notifications — school staff + platform admins (null school_id)
+    if (form.school_id) {
+      const [{ data: schoolStaff }, { data: platformAdmins }] = await Promise.all([
+        (sb as any)
+          .from('portal_users').select('id')
+          .in('role', ['teacher', 'school'])
+          .eq('school_id', form.school_id)
+          .eq('is_active', true).eq('is_deleted', false),
+        (sb as any)
+          .from('portal_users').select('id')
+          .eq('role', 'admin')
+          .eq('is_active', true).eq('is_deleted', false),
+      ]);
+      const staffUsers = [...(schoolStaff ?? []), ...(platformAdmins ?? [])];
+
+      if (staffUsers && staffUsers.length > 0) {
+        const notifType = needsReview ? 'warning' : 'info';
+        const notifRows = (staffUsers as { id: string }[]).map(u => ({
+          user_id:    u.id,
+          title:      notifTitle,
+          message:    notifMessage,
+          type:       notifType,
+          is_read:    false,
+          created_at: now,
+          updated_at: now,
+        }));
+        await (sb as any).from('notifications').insert(notifRows);
+
+        // Supabase Realtime broadcast for live popup
+        for (const u of staffUsers as { id: string }[]) {
+          try {
+            await sb.channel(`popup-notifications-${u.id}`).send({
+              type: 'broadcast',
+              event: 'notification:popup',
+              payload: {
+                id:          `lead-${lead!.id}-${u.id}`,
+                title:       notifTitle,
+                message:     notifMessage,
+                type:        notifType,
+                timestamp:   now,
+                priority:    needsReview ? 'high' : 'normal',
+                autoClose:   needsReview ? 0 : 6000,
+                persistent:  needsReview,
+                actionLabel: 'View Leads',
+                actionUrl:   '/dashboard/consent-forms',
+                category:    'form_lead',
+                sound:       needsReview,
+              },
+            });
+          } catch { /* non-fatal */ }
+        }
+      }
+    }
+  } catch { /* non-fatal */ }
 
   return NextResponse.json({ success: true, id: lead?.id, matchPending: needsReview });
 }
