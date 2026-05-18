@@ -463,10 +463,12 @@ export default function ResponsesPage() {
   const [sigs, setSigs]       = useState<Signatory[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [search, setSearch]           = useState('');
+  const [search, setSearch]             = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [progFilter, setProgFilter]   = useState<string>('all');
-  const [activeTab, setActiveTab]     = useState<'leads' | 'signed'>('leads');
+  const [progFilter, setProgFilter]     = useState<string>('all');
+  const [schoolFilter, setSchoolFilter] = useState<string>('all');
+  const [classFilter, setClassFilter]   = useState<string>('all');
+  const [activeTab, setActiveTab]       = useState<'leads' | 'signed'>('leads');
 
   const [updatingId, setUpdatingId]   = useState<string | null>(null);
 
@@ -508,6 +510,21 @@ export default function ResponsesPage() {
     }
   }
 
+  // ── Derived filter options ───────────────────────────────────────────────
+
+  const uniqueSchools = useMemo(() => {
+    const s = new Set<string>();
+    leads.forEach(l => { const v = l.child_current_school || (l.response_data as Record<string,string>)?.child_current_school; if (v?.trim()) s.add(v.trim()); });
+    return [...s].sort();
+  }, [leads]);
+
+  const uniqueClasses = useMemo(() => {
+    const s = new Set<string>();
+    leads.forEach(l => { const v = (l.response_data as Record<string,string>)?.child_class; if (v?.trim()) s.add(v.trim()); });
+    sigs.forEach(s2 => { const v = (s2.response_data as Record<string,string>)?.child_class; if (v?.trim()) s.add(v.trim()); });
+    return [...s].sort();
+  }, [leads, sigs]);
+
   // ── Filtered views ───────────────────────────────────────────────────────
 
   const filteredLeads = useMemo(() => {
@@ -522,18 +539,23 @@ export default function ResponsesPage() {
         || (rd.parent_whatsapp ?? '').includes(q);
       const matchStatus = statusFilter === 'all' || lead.status === statusFilter;
       const matchProg   = progFilter   === 'all' || (rd.program_category ?? '') === progFilter;
-      return matchSearch && matchStatus && matchProg;
+      const matchSchool = schoolFilter === 'all' || (lead.child_current_school ?? rd.child_current_school ?? '') === schoolFilter;
+      const matchClass  = classFilter  === 'all' || (rd.child_class ?? '') === classFilter;
+      return matchSearch && matchStatus && matchProg && matchSchool && matchClass;
     });
-  }, [leads, search, statusFilter, progFilter]);
+  }, [leads, search, statusFilter, progFilter, schoolFilter, classFilter]);
 
   const filteredSigs = useMemo(() => {
     const q = search.toLowerCase();
-    return sigs.filter(s =>
-      !q
-      || (s.portal_users?.full_name ?? '').toLowerCase().includes(q)
-      || (s.portal_users?.email     ?? '').toLowerCase().includes(q)
-    );
-  }, [sigs, search]);
+    return sigs.filter(s => {
+      const rd = (s.response_data ?? {}) as Record<string, string>;
+      const matchSearch = !q
+        || (s.portal_users?.full_name ?? '').toLowerCase().includes(q)
+        || (s.portal_users?.email     ?? '').toLowerCase().includes(q);
+      const matchClass = classFilter === 'all' || (rd.child_class ?? '') === classFilter;
+      return matchSearch && matchClass;
+    });
+  }, [sigs, search, classFilter]);
 
   // ── Stats ────────────────────────────────────────────────────────────────
 
@@ -687,7 +709,28 @@ export default function ResponsesPage() {
                 <option value="young_innovators">Young Innovators</option>
                 <option value="teen_developers">Teen Developers</option>
               </select>
+              {uniqueSchools.length > 0 && (
+                <select
+                  value={schoolFilter}
+                  onChange={e => setSchoolFilter(e.target.value)}
+                  className="bg-card border border-border text-foreground text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="all">All Schools</option>
+                  {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
             </>
+          )}
+
+          {uniqueClasses.length > 0 && (
+            <select
+              value={classFilter}
+              onChange={e => setClassFilter(e.target.value)}
+              className="bg-card border border-border text-foreground text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-primary transition-colors"
+            >
+              <option value="all">All Classes / Grades</option>
+              {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           )}
 
           <span className="text-xs text-muted-foreground ml-auto">
@@ -711,7 +754,7 @@ export default function ResponsesPage() {
                 <p className="text-muted-foreground text-sm font-bold">No registrations match your filters</p>
                 {(search || statusFilter !== 'all' || progFilter !== 'all') && (
                   <button
-                    onClick={() => { setSearch(''); setStatusFilter('all'); setProgFilter('all'); }}
+                    onClick={() => { setSearch(''); setStatusFilter('all'); setProgFilter('all'); setSchoolFilter('all'); setClassFilter('all'); }}
                     className="text-xs text-primary hover:underline mt-1"
                   >
                     Clear filters
