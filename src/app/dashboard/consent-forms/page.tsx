@@ -369,13 +369,14 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orient
 
 
 function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
-  const win = window.open('', '_blank', 'width=820,height=1000');
+  const win = window.open('', '_blank', 'width=860,height=1100');
   if (!win) return;
   const rd  = (lead.response_data ?? {}) as Record<string, unknown>;
   const str = (k: string) => (rd[k] as string) ?? '';
   const sub = new Date(lead.submitted_at);
-  const dateStr = sub.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const timeStr = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const dateStr  = sub.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr  = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const shortRef = 'RC-' + lead.id.slice(0, 8).toUpperCase();
 
   const programLabel = str('program_category') === 'young_innovators'
     ? 'Young Innovators — PRY (Ages 5–10)'
@@ -385,96 +386,212 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
 
   const devicesArr = Array.isArray(rd.devices) ? (rd.devices as string[]).join(', ') : '';
 
+  const row = (label: string, value: string) =>
+    `<tr><td class="lbl">${label}</td><td class="val">${value || '—'}</td></tr>`;
+
   const assessmentRows = [
-    str('prior_coding') && `<tr><td class="lbl">Prior coding experience</td><td>${str('prior_coding') === 'yes' ? `Yes${str('prior_platform') ? ` — ${str('prior_platform')}` : ''}` : 'No'}</td></tr>`,
-    devicesArr && `<tr><td class="lbl">Available device(s)</td><td>${esc(devicesArr)}</td></tr>`,
-    str('learning_goal') && `<tr><td class="lbl">Primary learning goal</td><td>${esc(str('learning_goal'))}</td></tr>`,
-    str('preferred_schedule') && `<tr><td class="lbl">Preferred schedule</td><td>${esc(str('preferred_schedule'))}</td></tr>`,
-    str('how_heard') && `<tr><td class="lbl">How they heard about us</td><td>${esc(str('how_heard'))}</td></tr>`,
-    str('special_notes') && `<tr><td class="lbl">Special notes</td><td>${esc(str('special_notes'))}</td></tr>`,
+    str('prior_coding') && row('Prior coding experience',
+      str('prior_coding') === 'yes' ? `Yes${str('prior_platform') ? ` — ${str('prior_platform')}` : ''}` : 'No'),
+    devicesArr && row('Available device(s)', esc(devicesArr)),
+    str('learning_goal') && row('Primary learning goal', esc(str('learning_goal'))),
+    str('preferred_schedule') && row('Preferred schedule', esc(str('preferred_schedule'))),
+    str('how_heard') && row('How they heard about us', esc(str('how_heard'))),
+    str('special_notes') && row('Special notes / medical info', esc(str('special_notes'))),
   ].filter(Boolean).join('');
 
   win.document.write(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
-<title>Submission — ${esc(form.title)}</title>
+<title>${shortRef} — ${esc(form.title)}</title>
 <style>
-  @page { margin: 18mm; size: A4 portrait; }
-  * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; }
-  table { border-collapse: collapse; }
-  .hdr-table { width: 100%; margin-bottom: 6px; }
-  .logo-box { height: 46px; width: auto; vertical-align: middle; padding-right: 12px; }
-  .school-name { font-size: 20pt; font-weight: 900; letter-spacing: -0.5px; vertical-align: middle; }
-  .tagline { font-size: 7.5pt; color: #555; padding-top: 2px; }
-  .form-title { text-align: center; font-size: 12pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
-                border-top: 2.5px solid #000; border-bottom: 2.5px solid #000; padding: 8px 0; margin: 12px 0; }
-  .sub-meta { background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 8px 14px; margin-bottom: 14px;
-              display: flex; justify-content: space-between; align-items: center; font-size: 9.5pt; }
-  .sub-meta .id { font-family: monospace; font-size: 8pt; color: #666; }
-  .section { background: #000; color: #fff; font-weight: 900; padding: 5px 10px; font-size: 9pt;
-             letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 10px; }
-  .data-table { width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 6px; }
-  .data-table td { padding: 7px 12px; border-bottom: 1px solid #eee; font-size: 10.5pt; vertical-align: top; }
-  .data-table tr:last-child td { border-bottom: none; }
-  .lbl { font-weight: 700; width: 44%; color: #333; white-space: nowrap; }
-  .consent-box { border: 1px solid #bbb; padding: 12px 14px; font-size: 10pt; line-height: 1.7;
-                 margin: 8px 0; background: #fafafa; white-space: pre-wrap; min-height: 60px; }
-  .badge { display: inline-block; background: #000; color: #fff; font-size: 8.5pt; font-weight: bold;
-           padding: 3px 8px; border-radius: 3px; margin-left: 8px; letter-spacing: 0.5px; }
-  .badge.purple { background: #7c3aed; }
-  .digital-sig { border: 1px solid #ccc; border-radius: 6px; padding: 10px 14px; margin-top: 14px;
-                 background: #f9fafb; font-size: 9.5pt; }
-  .footer-table { width: 100%; margin-top: 24px; border-top: 1px solid #ccc; padding-top: 8px; font-size: 8pt; color: #555; }
-  .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none;
-               padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;
-               box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
+  @page { margin: 0; size: A4 portrait; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #1a1a1a; background: #fff; }
+
+  /* ── Letterhead header ─────────────────────────────── */
+  .letterhead {
+    background: #0d0d0f;
+    padding: 22px 30px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .letterhead-logo { height: 56px; width: auto; object-fit: contain; flex-shrink: 0; }
+  .letterhead-divider { width: 1px; height: 52px; background: rgba(255,255,255,0.18); flex-shrink: 0; }
+  .letterhead-company { flex: 1; color: #fff; }
+  .letterhead-company .co-name { font-size: 17pt; font-weight: 900; letter-spacing: -0.5px; line-height: 1; color: #fff; }
+  .letterhead-company .co-tag  { font-size: 7.5pt; color: #a0a0a8; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 3px; }
+  .letterhead-contact { text-align: right; color: #a0a0a8; font-size: 8pt; line-height: 1.8; flex-shrink: 0; }
+  .letterhead-contact a { color: #f5a623; text-decoration: none; }
+
+  /* Gold accent strip */
+  .accent-strip { height: 4px; background: linear-gradient(90deg, #f5a623 0%, #f5c84a 100%); }
+
+  /* ── Document body ─────────────────────────────────── */
+  .body-wrap { padding: 28px 32px 24px; }
+
+  /* Doc title block */
+  .doc-type { font-size: 7.5pt; font-weight: 900; letter-spacing: 3px; text-transform: uppercase;
+              color: #f5a623; margin-bottom: 4px; }
+  .doc-title { font-size: 15pt; font-weight: 900; color: #0d0d0f; line-height: 1.2; }
+  .doc-divider { border: none; border-top: 2px solid #0d0d0f; margin: 10px 0 14px; }
+
+  /* Ref + date block */
+  .ref-block { display: flex; justify-content: space-between; align-items: flex-start;
+               background: #f7f7f8; border-left: 4px solid #f5a623;
+               padding: 10px 14px; margin-bottom: 22px; font-size: 9pt; }
+  .ref-block .ref-id { font-family: 'Courier New', monospace; font-weight: 700; font-size: 10pt; color: #0d0d0f; }
+  .ref-block .ref-sub { color: #666; font-size: 8pt; margin-top: 2px; }
+  .ref-block .ref-right { text-align: right; color: #333; }
+  .ref-block .ref-right strong { display: block; color: #0d0d0f; font-size: 10pt; }
+
+  /* Section headings */
+  .sec-heading {
+    font-size: 7.5pt; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase;
+    color: #0d0d0f; border-bottom: 1.5px solid #0d0d0f; padding-bottom: 4px;
+    margin: 20px 0 10px;
+  }
+  .sec-heading span { color: #f5a623; }
+
+  /* Data table */
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table .lbl { width: 42%; padding: 7px 10px 7px 0; font-weight: 700; color: #444; font-size: 10pt;
+                     border-bottom: 1px solid #ebebeb; vertical-align: top; }
+  .data-table .val { padding: 7px 0; color: #111; font-size: 10pt; border-bottom: 1px solid #ebebeb; vertical-align: top; }
+  .data-table tr:last-child .lbl,
+  .data-table tr:last-child .val { border-bottom: none; }
+
+  /* Programme badge */
+  .prog-badge { display: inline-block; background: #0d0d0f; color: #f5a623;
+                font-size: 8.5pt; font-weight: 900; padding: 3px 10px; border-radius: 4px;
+                letter-spacing: 0.5px; }
+  .exist-badge { display: inline-block; background: #7c3aed; color: #fff;
+                 font-size: 8pt; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+                 margin-left: 8px; letter-spacing: 0.5px; }
+
+  /* Consent body */
+  .consent-wrap { border: 1px solid #d4d4d4; border-left: 4px solid #0d0d0f;
+                  padding: 12px 14px; background: #fafafa;
+                  font-size: 10pt; line-height: 1.75; white-space: pre-wrap;
+                  margin-top: 8px; color: #222; }
+
+  /* Digital confirmation stamp */
+  .stamp {
+    margin-top: 22px;
+    border: 1.5px solid #d0e8d0; border-radius: 8px;
+    background: #f3fbf3; padding: 12px 16px;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .stamp-icon { font-size: 22pt; line-height: 1; flex-shrink: 0; }
+  .stamp-text { font-size: 9.5pt; color: #2d5a2d; line-height: 1.6; }
+  .stamp-text strong { color: #1a3a1a; }
+
+  /* Footer */
+  .page-footer {
+    margin-top: 28px; padding-top: 10px;
+    border-top: 1px solid #ddd;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 7.5pt; color: #888;
+  }
+  .page-footer .ref { font-family: 'Courier New', monospace; font-weight: 700; color: #555; }
+  .page-footer .conf { font-style: italic; }
+
+  /* Print button */
+  .print-btn {
+    position: fixed; top: 18px; right: 18px;
+    background: #0d0d0f; color: #fff; border: none;
+    padding: 11px 22px; font-size: 13px; font-weight: bold;
+    border-radius: 8px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    z-index: 1000; font-family: Arial, sans-serif;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .print-btn:hover { background: #333; }
   @media print { .print-btn { display: none !important; } }
 </style></head><body>
-  <button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
 
-  <table class="hdr-table" cellpadding="0" cellspacing="0"><tr>
-    <td><img src="${appBase}/images/logoB.png" class="logo-box" /></td>
-    <td><div class="school-name">RILLCOD TECHNOLOGIES</div><div class="tagline">Empowering Young Minds Through Code · www.rillcod.com</div></td>
-  </tr></table>
+<button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
 
-  <div class="form-title">${esc(form.title)}</div>
+<!-- ── Letterhead ───────────────────────────────────────── -->
+<div class="letterhead">
+  <img src="${appBase}/images/logoB.png" class="letterhead-logo" alt="Rillcod Technologies" />
+  <div class="letterhead-divider"></div>
+  <div class="letterhead-company">
+    <div class="co-name">RILLCOD TECHNOLOGIES</div>
+    <div class="co-tag">Empowering Young Minds Through Code</div>
+  </div>
+  <div class="letterhead-contact">
+    <div>+234 811 660 0091</div>
+    <div><a href="mailto:support@rillcod.com">support@rillcod.com</a></div>
+    <div>www.rillcod.com</div>
+    <div>@rillcod</div>
+  </div>
+</div>
+<div class="accent-strip"></div>
 
-  <div class="sub-meta">
-    <span><strong>Submitted:</strong> ${dateStr} at ${timeStr}</span>
-    <span class="id">ID: ${lead.id.slice(0, 8).toUpperCase()}</span>
+<!-- ── Body ─────────────────────────────────────────────── -->
+<div class="body-wrap">
+
+  <div class="doc-type">Form Submission Record</div>
+  <div class="doc-title">${esc(form.title)}</div>
+  <hr class="doc-divider" />
+
+  <div class="ref-block">
+    <div>
+      <div class="ref-id">${shortRef}</div>
+      <div class="ref-sub">Submission Reference</div>
+    </div>
+    <div class="ref-right">
+      <strong>${dateStr}</strong>
+      <span>Received at ${timeStr}</span>
+    </div>
   </div>
 
-  <div class="section">Parent / Guardian</div>
+  <!-- Parent / Guardian -->
+  <div class="sec-heading"><span>01 ·</span> Parent / Guardian Details</div>
   <table class="data-table" cellpadding="0" cellspacing="0">
-    <tr><td class="lbl">Full Name</td><td>${esc(str('parent_name') || 'Not provided')}${rd.is_existing_parent ? '<span class="badge purple">Existing Parent</span>' : ''}</td></tr>
-    <tr><td class="lbl">Email Address</td><td>${esc(lead.email || str('parent_email') || '—')}</td></tr>
-    <tr><td class="lbl">WhatsApp / Phone</td><td>${esc(str('parent_whatsapp') || '—')}</td></tr>
+    ${row('Full Name', esc(str('parent_name') || 'Not provided') + (rd.is_existing_parent ? '<span class="exist-badge">Existing Parent</span>' : ''))}
+    ${row('Email Address', esc(lead.email || str('parent_email') || '—'))}
+    ${row('WhatsApp / Phone', esc(str('parent_whatsapp') || '—'))}
   </table>
 
-  <div class="section">Child's Information</div>
+  <!-- Child Information -->
+  <div class="sec-heading"><span>02 ·</span> Child&rsquo;s Information</div>
   <table class="data-table" cellpadding="0" cellspacing="0">
-    <tr><td class="lbl">Full Name</td><td>${esc(str('child_name') || '—')}</td></tr>
-    <tr><td class="lbl">Age</td><td>${esc(str('child_age') || '—')}</td></tr>
-    <tr><td class="lbl">Class / Grade</td><td>${esc(str('child_class') || '—')}</td></tr>
-    <tr><td class="lbl">Current School</td><td>${esc(lead.child_current_school || str('child_current_school') || '—')}</td></tr>
-    <tr><td class="lbl">Programme</td><td>${programLabel}</td></tr>
+    ${row('Full Name', esc(str('child_name') || '—'))}
+    ${row('Age', esc(str('child_age') || '—'))}
+    ${row('Class / Grade', esc(str('child_class') || '—'))}
+    ${row('Current School', esc(lead.child_current_school || str('child_current_school') || '—'))}
+    <tr><td class="lbl">Programme Selected</td><td class="val"><span class="prog-badge">${programLabel}</span></td></tr>
   </table>
 
-  ${assessmentRows ? `<div class="section">Assessment</div>
+  ${assessmentRows ? `
+  <!-- Assessment -->
+  <div class="sec-heading"><span>03 ·</span> Assessment &amp; Background</div>
   <table class="data-table" cellpadding="0" cellspacing="0">${assessmentRows}</table>` : ''}
 
-  <div class="section">Consent Statement</div>
-  <div class="consent-box">${esc(form.body)}</div>
+  <!-- Consent Statement -->
+  <div class="sec-heading"><span>${assessmentRows ? '04' : '03'} ·</span> Consent Statement</div>
+  <div class="consent-wrap">${esc(form.body)}</div>
 
-  <div class="digital-sig">
-    ✅ <strong>Digitally submitted</strong> on ${dateStr} at ${timeStr} via <strong>rillcod.com/forms</strong>.
-    The parent/guardian completed and submitted this form online; their submission constitutes acceptance of the above consent.
+  <!-- Digital confirmation -->
+  <div class="stamp">
+    <div class="stamp-icon">✅</div>
+    <div class="stamp-text">
+      <strong>Digitally submitted and accepted</strong><br/>
+      This form was completed online by the parent/guardian on <strong>${dateStr} at ${timeStr}</strong>
+      via <strong>rillcod.com/forms</strong>. Submission of this form constitutes the parent/guardian&rsquo;s
+      acknowledgement and acceptance of the consent statement above.
+    </div>
   </div>
 
-  <table class="footer-table" cellpadding="0" cellspacing="0"><tr>
-    <td>For inquiries: +234 811 660 0091 · support@rillcod.com · @rillcod</td>
-    <td style="text-align:right;font-style:italic;">Rillcod Technologies — Empowering Young Minds Through Code</td>
-  </tr></table>
+  <div class="page-footer">
+    <span class="ref">${shortRef}</span>
+    <span>Rillcod Technologies &mdash; ${esc(form.title)}</span>
+    <span class="conf">Confidential · For official use only</span>
+  </div>
+
+</div><!-- /body-wrap -->
 </body></html>`);
   win.document.close();
 }
