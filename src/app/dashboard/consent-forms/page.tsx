@@ -275,20 +275,35 @@ ${isAssessment ? assessmentBody : registrationBody}
   win.document.close();
 }
 
-function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
+function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orientation: 'portrait' | 'landscape' = 'portrait') {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
   const publicUrl = `${appBase}/forms/${form.id}`;
   const title = esc(form.title);
+
+  const isLandscape = orientation === 'landscape';
+  // Portrait : 2 cols × 4 rows = 8 cards  (A4 portrait,  usable 194×281mm → card 65mm tall)
+  // Landscape: 4 cols × 3 rows = 12 cards (A4 landscape, usable 281×194mm → card 60mm tall)
+  const count     = isLandscape ? 12 : 8;
+  const qrSize    = isLandscape ? 78 : 110;
+  const logoH     = isLandscape ? 26 : 34;
+  const schoolPt  = isLandscape ? 10 : 13;
+  const titlePt   = isLandscape ? 7.5 : 9.5;
+  const scanPt    = isLandscape ? 6.5 : 8;
+  const pageSize  = isLandscape ? 'A4 landscape' : 'A4 portrait';
+  const cardW     = isLandscape ? 'calc(25% - 5px)' : 'calc(50% - 4px)';
+  const cardH     = isLandscape ? '60mm' : '65mm';
+  const cardPad   = isLandscape ? '7px 5px' : '10px 8px';
+
   const qrContent = qrSvg
     ? `<div class="qr">${qrSvg}</div>`
-    : `<img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(publicUrl)}" />`;
+    : `<img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize*2}x${qrSize*2}&data=${encodeURIComponent(publicUrl)}" style="width:${qrSize}px;height:${qrSize}px;" />`;
 
-  const cards = Array(12).fill(0).map(() => `
+  const cards = Array(count).fill(0).map(() => `
     <div class="card">
       <div class="card-inner">
         <div class="hdr">
-          <div class="logo-box"><img src="${appBase}/images/logoB.png" /></div>
+          <img class="logo" src="${appBase}/images/logoB.png" />
           <div class="brand">
             <div class="school">RILLCOD</div>
             <div class="tagline">Tech Academy</div>
@@ -303,16 +318,16 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
 
   win.document.write(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
-<title>QR Cards — ${title}</title>
+<title>QR Cards (${orientation}) — ${title}</title>
 <style>
-  @page { margin: 8mm; size: A4 landscape; }
+  @page { margin: 8mm; size: ${pageSize}; }
   * { box-sizing: border-box; font-family: Arial, sans-serif; }
   body { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-content: flex-start; }
   .card {
-    width: calc(25% - 5px);
-    height: 55mm;
+    width: ${cardW};
+    height: ${cardH};
     border: 1px dashed #ccc;
-    padding: 6px;
+    padding: 5px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -327,18 +342,19 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string) {
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 6px;
+    padding: ${cardPad};
     text-align: center;
+    overflow: hidden;
   }
   .hdr { display: flex; align-items: center; gap: 5px; width: 100%; justify-content: center; }
-  .logo-box img { height: 26px; width: auto; object-fit: contain; }
+  .logo { height: ${logoH}px; width: auto; object-fit: contain; flex-shrink: 0; }
   .brand { text-align: left; line-height: 1; }
-  .school { font-size: 10pt; font-weight: 900; letter-spacing: -0.5px; }
+  .school { font-size: ${schoolPt}pt; font-weight: 900; letter-spacing: -0.5px; }
   .tagline { font-size: 5pt; color: #555; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
-  .title { font-size: 7.5pt; font-weight: bold; margin: 4px 0; background: #000; color: #fff; padding: 3px 6px; border-radius: 3px; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .qr { width: 80px; height: 80px; margin: auto; display: flex; align-items: center; justify-content: center; }
-  .qr svg { width: 80px; height: 80px; }
-  .scan-text { font-size: 6.5pt; font-weight: bold; color: #444; }
+  .title { font-size: ${titlePt}pt; font-weight: bold; margin: 3px 0; background: #000; color: #fff; padding: 3px 6px; border-radius: 3px; width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .qr { width: ${qrSize}px; height: ${qrSize}px; margin: auto; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .qr svg { width: ${qrSize}px; height: ${qrSize}px; }
+  .scan-text { font-size: ${scanPt}pt; font-weight: bold; color: #444; }
   .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
   .print-btn:hover { background: #333; }
   @media print { body { padding: 0; } .card { border: 1px dashed #eee; } .print-btn { display: none !important; } }
@@ -1213,11 +1229,22 @@ export default function ConsentFormsPage() {
                           <button
                             onClick={() => {
                               const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML;
-                              printQRCards(cf, appBase, svg);
+                              printQRCards(cf, appBase, svg, 'portrait');
                             }}
                             className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-l-xl transition-colors border-r border-background"
+                            title="8 cards — A4 portrait"
                           >
-                            📇 QR Cards
+                            📇 Cards ↕
+                          </button>
+                          <button
+                            onClick={() => {
+                              const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML;
+                              printQRCards(cf, appBase, svg, 'landscape');
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-colors border-r border-background"
+                            title="12 cards — A4 landscape"
+                          >
+                            📇 Cards ↔
                           </button>
                           <button
                             onClick={() => {
@@ -1225,8 +1252,9 @@ export default function ConsentFormsPage() {
                               printQRPoster(cf, appBase, svg);
                             }}
                             className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-r-xl transition-colors"
+                            title="Full-page QR poster"
                           >
-                            🖼️ QR Poster
+                            🖼️ Poster
                           </button>
                         </div>
                       )}
