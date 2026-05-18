@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'react-qr-code';
 import {
@@ -869,6 +870,7 @@ function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
 
 export default function ConsentFormsPage() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [forms, setForms] = useState<ConsentForm[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -1016,7 +1018,6 @@ export default function ConsentFormsPage() {
   // ── Signatories + leads ───────────────────────────────────────────────────
 
   async function loadSignatories(id: string) {
-    if (signatories[id] !== undefined) { setExpandedId(id); return; }
     setLoadingSigs(id);
     try {
       const res = await fetch(`/api/consent-forms/${id}`);
@@ -1120,6 +1121,17 @@ export default function ConsentFormsPage() {
     } finally {
       setUpdatingLeadId(null);
     }
+  }
+
+  // ── Data sheet (always fetches fresh data) ────────────────────────────────
+
+  async function handlePrintDataSheet(formId: string, form: ConsentForm) {
+    const res = await fetch(`/api/consent-forms/${formId}`);
+    if (!res.ok) return;
+    const json = await res.json();
+    const freshLeads: FormLead[]   = json.leads ?? [];
+    const freshSigs: Signatory[]   = json.data  ?? [];
+    printDataSheet(form, freshLeads, freshSigs, appBase);
   }
 
   // ── CSV export ────────────────────────────────────────────────────────────
@@ -1814,7 +1826,13 @@ export default function ConsentFormsPage() {
                             )}
                             <div className="ml-auto flex gap-2">
                               <button
-                                onClick={() => printDataSheet(cf, formLeads, sigs, appBase)}
+                                onClick={() => router.push(`/dashboard/consent-forms/${cf.id}/responses`)}
+                                className="flex items-center gap-1.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded-lg font-bold transition-colors border border-primary/20"
+                              >
+                                Full View →
+                              </button>
+                              <button
+                                onClick={() => handlePrintDataSheet(cf.id, cf)}
                                 className="flex items-center gap-1.5 text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded-lg font-bold transition-colors border border-border/50"
                               >
                                 <PrinterIcon className="w-3 h-3" /> Data Sheet

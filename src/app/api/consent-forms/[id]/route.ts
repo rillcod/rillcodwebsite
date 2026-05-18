@@ -15,7 +15,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const [{ data: responses, error: rErr }, { data: leads, error: lErr }] = await Promise.all([
+  const [formRes, { data: responses, error: rErr }, { data: leads }] = await Promise.all([
+    supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public').eq('id', id).single(),
     supabase
       .from('consent_responses')
       .select('id, signed_at, response_data, portal_users!parent_id(full_name, email, phone)')
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   ]);
 
   if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
-  return NextResponse.json({ data: responses ?? [], leads: leads ?? [] });
+  return NextResponse.json({ form: formRes.data ?? null, data: responses ?? [], leads: leads ?? [] });
 }
 
 // PATCH /api/consent-forms/[id] — staff: toggle is_public / form_type
