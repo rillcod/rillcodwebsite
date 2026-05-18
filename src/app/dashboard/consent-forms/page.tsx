@@ -23,6 +23,7 @@ interface ConsentForm {
   created_at: string;
   has_signed: boolean;
   consent_responses: { count: number }[];
+  form_leads?: { count: number }[];
 }
 
 interface Signatory {
@@ -367,6 +368,117 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orient
 
 
 
+function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
+  const win = window.open('', '_blank', 'width=820,height=1000');
+  if (!win) return;
+  const rd  = (lead.response_data ?? {}) as Record<string, unknown>;
+  const str = (k: string) => (rd[k] as string) ?? '';
+  const sub = new Date(lead.submitted_at);
+  const dateStr = sub.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const timeStr = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  const programLabel = str('program_category') === 'young_innovators'
+    ? 'Young Innovators — PRY (Ages 5–10)'
+    : str('program_category') === 'teen_developers'
+    ? 'Teen Developers — SEC (Ages 11–19)'
+    : str('program_category') || '—';
+
+  const devicesArr = Array.isArray(rd.devices) ? (rd.devices as string[]).join(', ') : '';
+
+  const assessmentRows = [
+    str('prior_coding') && `<tr><td class="lbl">Prior coding experience</td><td>${str('prior_coding') === 'yes' ? `Yes${str('prior_platform') ? ` — ${str('prior_platform')}` : ''}` : 'No'}</td></tr>`,
+    devicesArr && `<tr><td class="lbl">Available device(s)</td><td>${esc(devicesArr)}</td></tr>`,
+    str('learning_goal') && `<tr><td class="lbl">Primary learning goal</td><td>${esc(str('learning_goal'))}</td></tr>`,
+    str('preferred_schedule') && `<tr><td class="lbl">Preferred schedule</td><td>${esc(str('preferred_schedule'))}</td></tr>`,
+    str('how_heard') && `<tr><td class="lbl">How they heard about us</td><td>${esc(str('how_heard'))}</td></tr>`,
+    str('special_notes') && `<tr><td class="lbl">Special notes</td><td>${esc(str('special_notes'))}</td></tr>`,
+  ].filter(Boolean).join('');
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Submission — ${esc(form.title)}</title>
+<style>
+  @page { margin: 18mm; size: A4 portrait; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; }
+  table { border-collapse: collapse; }
+  .hdr-table { width: 100%; margin-bottom: 6px; }
+  .logo-box { height: 46px; width: auto; vertical-align: middle; padding-right: 12px; }
+  .school-name { font-size: 20pt; font-weight: 900; letter-spacing: -0.5px; vertical-align: middle; }
+  .tagline { font-size: 7.5pt; color: #555; padding-top: 2px; }
+  .form-title { text-align: center; font-size: 12pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+                border-top: 2.5px solid #000; border-bottom: 2.5px solid #000; padding: 8px 0; margin: 12px 0; }
+  .sub-meta { background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 8px 14px; margin-bottom: 14px;
+              display: flex; justify-content: space-between; align-items: center; font-size: 9.5pt; }
+  .sub-meta .id { font-family: monospace; font-size: 8pt; color: #666; }
+  .section { background: #000; color: #fff; font-weight: 900; padding: 5px 10px; font-size: 9pt;
+             letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 10px; }
+  .data-table { width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 6px; }
+  .data-table td { padding: 7px 12px; border-bottom: 1px solid #eee; font-size: 10.5pt; vertical-align: top; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .lbl { font-weight: 700; width: 44%; color: #333; white-space: nowrap; }
+  .consent-box { border: 1px solid #bbb; padding: 12px 14px; font-size: 10pt; line-height: 1.7;
+                 margin: 8px 0; background: #fafafa; white-space: pre-wrap; min-height: 60px; }
+  .badge { display: inline-block; background: #000; color: #fff; font-size: 8.5pt; font-weight: bold;
+           padding: 3px 8px; border-radius: 3px; margin-left: 8px; letter-spacing: 0.5px; }
+  .badge.purple { background: #7c3aed; }
+  .digital-sig { border: 1px solid #ccc; border-radius: 6px; padding: 10px 14px; margin-top: 14px;
+                 background: #f9fafb; font-size: 9.5pt; }
+  .footer-table { width: 100%; margin-top: 24px; border-top: 1px solid #ccc; padding-top: 8px; font-size: 8pt; color: #555; }
+  .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none;
+               padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer;
+               box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
+  @media print { .print-btn { display: none !important; } }
+</style></head><body>
+  <button class="print-btn" onclick="window.print()">🖨️ Print Now</button>
+
+  <table class="hdr-table" cellpadding="0" cellspacing="0"><tr>
+    <td><img src="${appBase}/images/logoB.png" class="logo-box" /></td>
+    <td><div class="school-name">RILLCOD TECHNOLOGIES</div><div class="tagline">Empowering Young Minds Through Code · www.rillcod.com</div></td>
+  </tr></table>
+
+  <div class="form-title">${esc(form.title)}</div>
+
+  <div class="sub-meta">
+    <span><strong>Submitted:</strong> ${dateStr} at ${timeStr}</span>
+    <span class="id">ID: ${lead.id.slice(0, 8).toUpperCase()}</span>
+  </div>
+
+  <div class="section">Parent / Guardian</div>
+  <table class="data-table" cellpadding="0" cellspacing="0">
+    <tr><td class="lbl">Full Name</td><td>${esc(str('parent_name') || 'Not provided')}${rd.is_existing_parent ? '<span class="badge purple">Existing Parent</span>' : ''}</td></tr>
+    <tr><td class="lbl">Email Address</td><td>${esc(lead.email || str('parent_email') || '—')}</td></tr>
+    <tr><td class="lbl">WhatsApp / Phone</td><td>${esc(str('parent_whatsapp') || '—')}</td></tr>
+  </table>
+
+  <div class="section">Child's Information</div>
+  <table class="data-table" cellpadding="0" cellspacing="0">
+    <tr><td class="lbl">Full Name</td><td>${esc(str('child_name') || '—')}</td></tr>
+    <tr><td class="lbl">Age</td><td>${esc(str('child_age') || '—')}</td></tr>
+    <tr><td class="lbl">Class / Grade</td><td>${esc(str('child_class') || '—')}</td></tr>
+    <tr><td class="lbl">Current School</td><td>${esc(lead.child_current_school || str('child_current_school') || '—')}</td></tr>
+    <tr><td class="lbl">Programme</td><td>${programLabel}</td></tr>
+  </table>
+
+  ${assessmentRows ? `<div class="section">Assessment</div>
+  <table class="data-table" cellpadding="0" cellspacing="0">${assessmentRows}</table>` : ''}
+
+  <div class="section">Consent Statement</div>
+  <div class="consent-box">${esc(form.body)}</div>
+
+  <div class="digital-sig">
+    ✅ <strong>Digitally submitted</strong> on ${dateStr} at ${timeStr} via <strong>rillcod.com/forms</strong>.
+    The parent/guardian completed and submitted this form online; their submission constitutes acceptance of the above consent.
+  </div>
+
+  <table class="footer-table" cellpadding="0" cellspacing="0"><tr>
+    <td>For inquiries: +234 811 660 0091 · support@rillcod.com · @rillcod</td>
+    <td style="text-align:right;font-style:italic;">Rillcod Technologies — Empowering Young Minds Through Code</td>
+  </tr></table>
+</body></html>`);
+  win.document.close();
+}
+
 function printQRPoster(form: ConsentForm, appBase: string, qrSvg?: string) {
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
@@ -690,7 +802,7 @@ export default function ConsentFormsPage() {
 
   const readModal = forms.find(f => f.id === readModalId);
   const qrForm = forms.find(f => f.id === qrFormId);
-  const totalResponses = forms.reduce((s, f) => s + (f.consent_responses?.[0]?.count ?? 0), 0);
+  const totalResponses = forms.reduce((s, f) => s + (f.consent_responses?.[0]?.count ?? 0) + (f.form_leads?.[0]?.count ?? 0), 0);
   const signedCount = forms.filter(f => f.has_signed).length;
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1156,10 +1268,12 @@ export default function ConsentFormsPage() {
           <div className="space-y-3">
             {forms.map(cf => {
               const responseCount = cf.consent_responses?.[0]?.count ?? 0;
+              const initialLeadCount = cf.form_leads?.[0]?.count ?? 0;
               const badge = dueBadge(cf.due_date);
               const isExpanded = expandedId === cf.id;
               const sigs = signatories[cf.id] ?? [];
               const formLeads = leads[cf.id] ?? [];
+              const totalCount = responseCount + (leads[cf.id] ? formLeads.length : initialLeadCount);
               const publicUrl = `${appBase}/forms/${cf.id}`;
 
               return (
@@ -1199,9 +1313,13 @@ export default function ConsentFormsPage() {
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>{relativeDate(cf.created_at)}</span>
                       {isStaff && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 font-bold">
                           <UserGroupIcon className="w-3.5 h-3.5" />
-                          {responseCount} signed{formLeads.length > 0 ? ` · ${formLeads.length} leads` : ''}
+                          {totalCount} {totalCount === 1 ? 'response' : 'responses'}
+                          {responseCount > 0 && <span className="text-muted-foreground font-normal">· {responseCount} signed</span>}
+                          {(leads[cf.id] ? formLeads.length : initialLeadCount) > 0 && (
+                            <span className="text-amber-400 font-normal">· {leads[cf.id] ? formLeads.length : initialLeadCount} leads</span>
+                          )}
                         </span>
                       )}
                     </div>
@@ -1265,16 +1383,19 @@ export default function ConsentFormsPage() {
                         </button>
                       )}
 
-                      {isStaff && responseCount + formLeads.length > 0 && (
+                      {isStaff && (
                         <button
                           onClick={() => toggleSignatories(cf.id)}
                           disabled={loadingSigs === cf.id}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition-colors border border-primary/20"
                         >
                           {loadingSigs === cf.id
                             ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                             : isExpanded ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
                           {isExpanded ? 'Hide' : 'View'} Responses
+                          {totalCount > 0 && (
+                            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">{totalCount}</span>
+                          )}
                         </button>
                       )}
 
@@ -1345,33 +1466,55 @@ export default function ConsentFormsPage() {
                         exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="border-t border-border/50 bg-muted/20 px-5 py-4 space-y-4">
+                        <div className="border-t border-border/50 bg-muted/20 px-5 py-5 space-y-5">
 
-                          {/* Authenticated signatures */}
+                          {/* Summary bar */}
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="font-black text-foreground">{sigs.length + formLeads.length} total responses</span>
+                            {sigs.length > 0 && <span className="text-emerald-400 font-bold">✓ {sigs.length} signed</span>}
+                            {formLeads.length > 0 && <span className="text-amber-400 font-bold">◉ {formLeads.length} public leads</span>}
+                            {formLeads.filter(l => l.match_status === 'pending_review').length > 0 && (
+                              <span className="text-rose-400 font-bold animate-pulse">⚠ {formLeads.filter(l => l.match_status === 'pending_review').length} need review</span>
+                            )}
+                          </div>
+
+                          {/* Portal Signatures */}
                           {sigs.length > 0 && (
-                            <div>
-                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">
-                                Portal Signatures ({sigs.length})
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <CheckCircleIcon className="w-3 h-3" /> Portal Signatures — {sigs.length}
                               </p>
                               <div className="space-y-2">
                                 {sigs.map(s => {
                                   const rd = s.response_data as Record<string, string> | null;
                                   return (
-                                    <div key={s.id} className="bg-card border border-border/30 rounded-xl p-3 space-y-1.5">
-                                      <div className="flex items-center justify-between gap-3">
-                                        <div className="min-w-0">
-                                          <p className="text-sm font-bold text-foreground truncate">{s.portal_users?.full_name ?? 'Unknown'}</p>
-                                          <p className="text-xs text-muted-foreground truncate">{s.portal_users?.email ?? ''}</p>
+                                    <div key={s.id} className="bg-card border border-emerald-500/15 rounded-xl p-4">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                          <p className="font-bold text-foreground">{s.portal_users?.full_name ?? 'Unknown'}</p>
+                                          <p className="text-xs text-muted-foreground mt-0.5">{s.portal_users?.email ?? ''}</p>
+                                          {s.portal_users?.phone && <p className="text-xs text-muted-foreground">{s.portal_users.phone}</p>}
                                         </div>
-                                        <span className="text-[10px] text-muted-foreground shrink-0">
-                                          {new Date(s.signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                        </span>
+                                        <div className="text-right shrink-0">
+                                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">Signed</span>
+                                          <p className="text-[10px] text-muted-foreground mt-1">
+                                            {new Date(s.signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                          </p>
+                                          <p className="text-[10px] text-muted-foreground">
+                                            {new Date(s.signed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                          </p>
+                                        </div>
                                       </div>
                                       {rd && (rd.child_name || rd.program_category) && (
-                                        <div className="flex flex-wrap gap-2 pt-0.5">
-                                          {rd.child_name && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-foreground font-bold">{rd.child_name}</span>}
-                                          {rd.child_age && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Age {rd.child_age}</span>}
-                                          {rd.program_category && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">{rd.program_category === 'junior_coders' ? 'Junior Coders' : 'Teen Developers'}</span>}
+                                        <div className="mt-2 pt-2 border-t border-border/30 flex flex-wrap gap-2">
+                                          {rd.child_name && <span className="text-xs bg-muted px-2.5 py-1 rounded-lg text-foreground font-bold">👦 {rd.child_name}</span>}
+                                          {rd.child_age && <span className="text-xs bg-muted px-2.5 py-1 rounded-lg text-muted-foreground">Age {rd.child_age}</span>}
+                                          {rd.child_class && <span className="text-xs bg-muted px-2.5 py-1 rounded-lg text-muted-foreground">{rd.child_class}</span>}
+                                          {rd.program_category && (
+                                            <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-lg font-bold">
+                                              {rd.program_category === 'young_innovators' ? '🚀 Young Innovators' : '💻 Teen Developers'}
+                                            </span>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -1381,13 +1524,13 @@ export default function ConsentFormsPage() {
                             </div>
                           )}
 
-                          {/* Public leads */}
+                          {/* Public Leads */}
                           {formLeads.length > 0 && (
-                            <div>
-                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-3">
-                                Public Registrations / Leads ({formLeads.length})
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <UserGroupIcon className="w-3 h-3" /> Public Registrations — {formLeads.length}
                               </p>
-                              <div className="space-y-2">
+                              <div className="space-y-3">
                                 {formLeads.map(lead => {
                                   const rd         = lead.response_data as Record<string, string>;
                                   const waNumber   = rd.parent_whatsapp?.replace(/\D/g, '');
@@ -1395,10 +1538,10 @@ export default function ConsentFormsPage() {
                                   const isPending  = lead.match_status === 'pending_review';
                                   const isApproved = lead.match_status === 'approved';
                                   const statusCfg: Record<string, { label: string; cls: string }> = {
-                                    new:       { label: 'New',       cls: 'bg-amber-500/10 text-amber-400' },
-                                    contacted: { label: 'Contacted', cls: 'bg-blue-500/10 text-blue-400' },
-                                    enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/10 text-emerald-400' },
-                                    lost:      { label: 'Lost',      cls: 'bg-muted text-muted-foreground' },
+                                    new:       { label: 'New',       cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' },
+                                    contacted: { label: 'Contacted', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+                                    enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
+                                    lost:      { label: 'Lost',      cls: 'bg-muted text-muted-foreground border-border' },
                                   };
                                   const confCls: Record<string, string> = {
                                     high:   'bg-rose-500/10 text-rose-400',
@@ -1406,150 +1549,178 @@ export default function ConsentFormsPage() {
                                     low:    'bg-muted text-muted-foreground',
                                   };
                                   return (
-                                    <div key={lead.id} className={`bg-card rounded-xl p-3 space-y-2 border ${isPending ? 'border-amber-500/40' : 'border-primary/20'}`}>
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0">
-                                          <p className="text-sm font-bold text-foreground truncate">{rd.parent_name ?? 'Unknown'}</p>
-                                          <p className="text-xs text-muted-foreground truncate">{lead.email ?? rd.parent_email ?? ''}</p>
+                                    <div key={lead.id} className={`bg-card rounded-xl border overflow-hidden ${isPending ? 'border-amber-500/40' : 'border-border/50'}`}>
+                                      {/* Lead header */}
+                                      <div className="p-4 space-y-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <p className="font-bold text-foreground">{rd.parent_name ?? 'Unknown Parent'}</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{lead.email ?? rd.parent_email ?? ''}</p>
+                                          </div>
+                                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                            <select
+                                              value={status}
+                                              disabled={updatingLeadId === lead.id}
+                                              onChange={e => updateLeadStatus(cf.id, lead.id, e.target.value as FormLead['status'])}
+                                              className={`text-xs font-bold px-2.5 py-1 rounded-lg border cursor-pointer disabled:opacity-50 outline-none ${statusCfg[status].cls}`}
+                                              style={{ background: 'transparent' }}
+                                            >
+                                              {Object.entries(statusCfg).map(([val, cfg]) => (
+                                                <option key={val} value={val} className="bg-card text-foreground">{cfg.label}</option>
+                                              ))}
+                                            </select>
+                                            <p className="text-[10px] text-muted-foreground">
+                                              {new Date(lead.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                              {' · '}
+                                              {new Date(lead.submitted_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                          </div>
                                         </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                          {isPending && (
-                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${confCls[lead.match_confidence ?? 'low']}`}>
-                                              ⚠️ {lead.match_confidence} match
+
+                                        {/* Child info chips */}
+                                        <div className="flex flex-wrap gap-2">
+                                          {rd.child_name && <span className="text-xs bg-muted px-2.5 py-1 rounded-lg text-foreground font-bold">👦 {rd.child_name}</span>}
+                                          {rd.child_age  && <span className="text-xs bg-muted px-2.5 py-1 rounded-lg text-muted-foreground">Age {rd.child_age}</span>}
+                                          {rd.child_class && <span className="text-xs bg-muted px-2.5 py-1 rounded-lg text-muted-foreground">{rd.child_class}</span>}
+                                          {rd.program_category && (
+                                            <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-lg font-bold">
+                                              {rd.program_category === 'young_innovators' ? '🚀 Young Innovators' : '💻 Teen Developers'}
                                             </span>
                                           )}
-                                          {isApproved && (
-                                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">✓ Matched</span>
+                                          {(rd as any).is_existing_parent && (
+                                            <span className="text-xs bg-purple-500/10 text-purple-400 px-2.5 py-1 rounded-lg font-bold">↩️ Existing parent</span>
                                           )}
-                                          <select
-                                            value={status}
-                                            disabled={updatingLeadId === lead.id}
-                                            onChange={e => updateLeadStatus(cf.id, lead.id, e.target.value as FormLead['status'])}
-                                            className={`text-[10px] font-bold px-2 py-1 rounded-full border-0 outline-none cursor-pointer disabled:opacity-50 ${statusCfg[status].cls}`}
-                                            style={{ background: 'transparent' }}
+                                          {lead.child_current_school && (
+                                            <span className="text-xs bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-lg">
+                                              🏫 {lead.child_current_school}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Contact actions + print */}
+                                        <div className="flex flex-wrap gap-2">
+                                          {waNumber && (
+                                            <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer"
+                                              className="flex items-center gap-1.5 text-xs bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 px-3 py-1.5 rounded-lg font-bold transition-colors border border-emerald-500/20">
+                                              💬 {rd.parent_whatsapp}
+                                            </a>
+                                          )}
+                                          {(lead.email ?? rd.parent_email) && (
+                                            <a href={`mailto:${lead.email ?? rd.parent_email}`}
+                                              className="flex items-center gap-1.5 text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded-lg font-bold transition-colors">
+                                              ✉️ {lead.email ?? rd.parent_email}
+                                            </a>
+                                          )}
+                                          <button
+                                            onClick={() => printFilledForm(cf, lead, appBase)}
+                                            className="flex items-center gap-1.5 text-xs bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-1.5 rounded-lg font-bold transition-colors ml-auto"
                                           >
-                                            {Object.entries(statusCfg).map(([val, cfg]) => (
-                                              <option key={val} value={val} className="bg-card text-foreground">{cfg.label}</option>
-                                            ))}
-                                          </select>
-                                          <span className="text-[10px] text-muted-foreground">
-                                            {new Date(lead.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                          </span>
+                                            <PrinterIcon className="w-3 h-3" /> Print Submission
+                                          </button>
                                         </div>
+
+                                        {/* Match badges */}
+                                        {(isPending || isApproved || lead.contact_id || lead.prospect_id) && (
+                                          <div className="flex flex-wrap gap-2">
+                                            {isPending && (
+                                              <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${confCls[lead.match_confidence ?? 'low']}`}>
+                                                ⚠️ {lead.match_confidence} confidence match
+                                              </span>
+                                            )}
+                                            {isApproved && (
+                                              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400">✓ Matched to student</span>
+                                            )}
+                                            {lead.contact_id && (
+                                              <span className="text-xs bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-lg font-bold">✓ CRM contact</span>
+                                            )}
+                                            {lead.prospect_id && (
+                                              <span className="text-xs bg-violet-500/10 text-violet-400 px-2.5 py-1 rounded-lg font-bold">✓ Prospect saved</span>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* Assessment details */}
+                                        {((rd as any).prior_coding || (rd as any).learning_goal || (rd as any).preferred_schedule || (rd as any).special_notes || (Array.isArray((rd as any).devices) && (rd as any).devices.length > 0)) && (
+                                          <div className="bg-muted/40 rounded-xl px-3 py-2.5 space-y-1.5 border border-border/30">
+                                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Assessment Details</p>
+                                            {(rd as any).prior_coding && (
+                                              <p className="text-xs text-muted-foreground">
+                                                <span className="font-bold text-foreground">Prior coding:</span>{' '}
+                                                {(rd as any).prior_coding === 'yes'
+                                                  ? `Yes${(rd as any).prior_platform ? ` — ${(rd as any).prior_platform}` : ''}`
+                                                  : 'No'}
+                                              </p>
+                                            )}
+                                            {Array.isArray((rd as any).devices) && (rd as any).devices.length > 0 && (
+                                              <p className="text-xs text-muted-foreground">
+                                                <span className="font-bold text-foreground">Devices:</span>{' '}
+                                                {((rd as any).devices as string[]).join(', ')}
+                                              </p>
+                                            )}
+                                            {(rd as any).learning_goal && (
+                                              <p className="text-xs text-muted-foreground">
+                                                <span className="font-bold text-foreground">Goal:</span> {(rd as any).learning_goal}
+                                              </p>
+                                            )}
+                                            {(rd as any).preferred_schedule && (
+                                              <p className="text-xs text-muted-foreground">
+                                                <span className="font-bold text-foreground">Schedule:</span> {(rd as any).preferred_schedule}
+                                              </p>
+                                            )}
+                                            {(rd as any).special_notes && (
+                                              <p className="text-xs text-muted-foreground italic">
+                                                <span className="font-bold not-italic text-foreground">Notes:</span> {(rd as any).special_notes}
+                                              </p>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
-                                      <div className="flex flex-wrap gap-2">
-                                        {rd.child_name && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-foreground font-bold">{rd.child_name}</span>}
-                                        {rd.child_age  && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">Age {rd.child_age}</span>}
-                                        {rd.child_class && <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{rd.child_class}</span>}
-                                        {rd.program_category && (
-                                          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
-                                            {rd.program_category === 'young_innovators' ? 'Young Innovators' : 'Teen Developers'}
-                                          </span>
-                                        )}
-                                        {waNumber && (
-                                          <a href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener noreferrer"
-                                            className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full hover:bg-emerald-500/20 transition-colors">
-                                            💬 {rd.parent_whatsapp}
-                                          </a>
-                                        )}
-                                        {lead.child_current_school && (
-                                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${lead.schools?.name ? 'bg-blue-500/10 text-blue-400' : 'bg-muted text-muted-foreground'}`}>
-                                            🏫 {lead.child_current_school}{lead.schools?.name ? ` → ${lead.schools.name}` : ''}
-                                          </span>
-                                        )}
-                                        {(rd as any).is_existing_parent && (
-                                          <span className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full font-bold">↩️ Existing parent</span>
-                                        )}
-                                      </div>
-                                      {/* Assessment details */}
-                                      {((rd as any).prior_coding || (rd as any).learning_goal || (rd as any).preferred_schedule || (rd as any).special_notes) && (
-                                        <div className="bg-muted/30 rounded-lg px-3 py-2 space-y-1">
-                                          {(rd as any).prior_coding && (
-                                            <p className="text-[10px] text-muted-foreground">
-                                              <span className="font-bold text-foreground">Prior coding:</span>{' '}
-                                              {(rd as any).prior_coding === 'yes'
-                                                ? `Yes${(rd as any).prior_platform ? ` — ${(rd as any).prior_platform}` : ''}`
-                                                : 'No'}
-                                            </p>
-                                          )}
-                                          {Array.isArray((rd as any).devices) && (rd as any).devices.length > 0 && (
-                                            <p className="text-[10px] text-muted-foreground">
-                                              <span className="font-bold text-foreground">Devices:</span>{' '}
-                                              {((rd as any).devices as string[]).join(', ')}
-                                            </p>
-                                          )}
-                                          {(rd as any).learning_goal && (
-                                            <p className="text-[10px] text-muted-foreground">
-                                              <span className="font-bold text-foreground">Goal:</span> {(rd as any).learning_goal}
-                                            </p>
-                                          )}
-                                          {(rd as any).preferred_schedule && (
-                                            <p className="text-[10px] text-muted-foreground">
-                                              <span className="font-bold text-foreground">Schedule:</span> {(rd as any).preferred_schedule}
-                                            </p>
-                                          )}
-                                          {(rd as any).special_notes && (
-                                            <p className="text-[10px] text-muted-foreground italic">
-                                              <span className="font-bold not-italic text-foreground">Notes:</span> {(rd as any).special_notes}
-                                            </p>
-                                          )}
-                                        </div>
-                                      )}
-                                      {/* CRM links */}
-                                      {(lead.contact_id || lead.prospect_id) && (
-                                        <div className="flex gap-2">
-                                          {lead.contact_id && (
-                                            <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold">
-                                              ✓ CRM contact saved
-                                            </span>
-                                          )}
-                                          {lead.prospect_id && (
-                                            <span className="text-[10px] bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded-full font-bold">
-                                              ✓ Prospect record saved
-                                            </span>
-                                          )}
-                                        </div>
-                                      )}
+
+                                      {/* Pending review block */}
                                       {isPending && lead.match_candidate && (
-                                        <div className="mt-1 border border-amber-500/30 bg-amber-500/5 rounded-xl p-3 space-y-2">
-                                          <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Possible Existing Student — Review</p>
-                                          <div className="grid grid-cols-2 gap-3 text-xs">
-                                            <div className="space-y-0.5">
-                                              <p className="text-[10px] text-muted-foreground font-bold uppercase">From Form</p>
-                                              <p className="text-foreground font-bold">{rd.child_name}</p>
-                                              <p className="text-muted-foreground">{rd.child_class || '—'}</p>
+                                        <div className="border-t border-amber-500/30 bg-amber-500/5 px-4 py-3 space-y-3">
+                                          <p className="text-xs font-black text-amber-400 uppercase tracking-widest">⚠ Possible existing student — please review</p>
+                                          <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-card border border-border/30 rounded-xl p-3 space-y-0.5">
+                                              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">From Form</p>
+                                              <p className="font-bold text-foreground">{rd.child_name}</p>
+                                              <p className="text-xs text-muted-foreground">{rd.child_class || '—'}</p>
                                             </div>
-                                            <div className="space-y-0.5">
-                                              <p className="text-[10px] text-muted-foreground font-bold uppercase">In System</p>
-                                              <p className="text-foreground font-bold">{lead.match_candidate.full_name}</p>
-                                              <p className="text-muted-foreground">{lead.match_candidate.section_class || '—'}</p>
+                                            <div className="bg-card border border-amber-500/20 rounded-xl p-3 space-y-0.5">
+                                              <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">In System</p>
+                                              <p className="font-bold text-foreground">{lead.match_candidate.full_name}</p>
+                                              <p className="text-xs text-muted-foreground">{lead.match_candidate.section_class || '—'}</p>
                                             </div>
                                           </div>
                                           {lead.match_notes && (
-                                            <p className="text-[10px] text-muted-foreground italic leading-relaxed">{lead.match_notes}</p>
+                                            <p className="text-xs text-muted-foreground italic leading-relaxed">{lead.match_notes}</p>
                                           )}
-                                          <div className="flex gap-2 pt-1">
+                                          <div className="flex gap-2">
                                             <button
                                               disabled={reviewingLeadId === lead.id}
                                               onClick={() => reviewLead(cf.id, lead.id, 'approve')}
-                                              className="flex-1 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-black text-xs rounded-lg transition-colors disabled:opacity-40"
+                                              className="flex-1 py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-black text-sm rounded-xl transition-colors disabled:opacity-40 border border-emerald-500/20"
                                             >
                                               {reviewingLeadId === lead.id ? '…' : '✓ Yes, same student'}
                                             </button>
                                             <button
                                               disabled={reviewingLeadId === lead.id}
                                               onClick={() => reviewLead(cf.id, lead.id, 'reject')}
-                                              className="flex-1 py-2 bg-muted hover:bg-muted/80 text-muted-foreground font-black text-xs rounded-lg transition-colors disabled:opacity-40"
+                                              className="flex-1 py-2.5 bg-muted hover:bg-muted/80 text-muted-foreground font-black text-sm rounded-xl transition-colors disabled:opacity-40"
                                             >
                                               ✗ New prospect
                                             </button>
                                           </div>
                                         </div>
                                       )}
+
+                                      {/* Approved link */}
                                       {isApproved && lead.matched_student_id && (
-                                        <p className="text-[10px] text-emerald-400 font-bold">
-                                          ✓ Linked to existing student record{lead.matched_parent_id ? ' · Parent portal account found' : ''}
-                                        </p>
+                                        <div className="border-t border-emerald-500/20 bg-emerald-500/5 px-4 py-2.5">
+                                          <p className="text-xs text-emerald-400 font-bold">
+                                            ✓ Linked to existing student record{lead.matched_parent_id ? ' · Parent portal account found' : ''}
+                                          </p>
+                                        </div>
                                       )}
                                     </div>
                                   );
@@ -1559,7 +1730,10 @@ export default function ConsentFormsPage() {
                           )}
 
                           {sigs.length === 0 && formLeads.length === 0 && (
-                            <p className="text-sm text-muted-foreground">No responses yet.</p>
+                            <div className="text-center py-6">
+                              <p className="text-sm text-muted-foreground">No responses yet.</p>
+                              <p className="text-xs text-muted-foreground mt-1">Share the public link or QR code to start collecting registrations.</p>
+                            </div>
                           )}
                         </div>
                       </motion.div>

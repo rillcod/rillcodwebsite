@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('consent_forms')
-    .select('*, consent_responses(count)')
+    .select('*, consent_responses(count), form_leads(count)')
     .order('created_at', { ascending: false })
     .limit(20);
 
