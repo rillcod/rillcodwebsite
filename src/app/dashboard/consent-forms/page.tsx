@@ -916,8 +916,13 @@ export default function ConsentFormsPage() {
   const [updatingLeadId, setUpdatingLeadId]   = useState<string | null>(null);
   const [reviewingLeadId, setReviewingLeadId] = useState<string | null>(null);
 
-  // Clone
-  const [cloningId, setCloningId] = useState<string | null>(null);
+  // Clone / Copy-to-school modal
+  const [cloningId, setCloningId]                   = useState<string | null>(null);
+  const [cloneModalForm, setCloneModalForm]         = useState<ConsentForm | null>(null);
+  const [cloneTargetSchoolId, setCloneTargetSchoolId] = useState('');
+  const [cloneSchools, setCloneSchools]             = useState<{ id: string; name: string }[]>([]);
+  const [cloneSchoolsLoading, setCloneSchoolsLoading] = useState(false);
+  const [cloneError, setCloneError]                 = useState('');
 
   const isStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
   const isParent = profile?.role === 'parent';
@@ -1079,13 +1084,38 @@ export default function ConsentFormsPage() {
 
   // ── Clone form ────────────────────────────────────────────────────────────
 
-  async function cloneForm(id: string) {
-    setCloningId(id);
+  async function openCloneModal(form: ConsentForm) {
+    setCloneModalForm(form);
+    setCloneTargetSchoolId('');
+    setCloneError('');
+    setCloneSchoolsLoading(true);
     try {
-      const res = await fetch(`/api/consent-forms/${id}/clone`, { method: 'POST' });
+      const res = await fetch('/api/teacher-schools');
       const json = await res.json();
-      if (!res.ok || !json.data) return;
+      setCloneSchools(json.data ?? []);
+    } finally {
+      setCloneSchoolsLoading(false);
+    }
+  }
+
+  async function cloneForm() {
+    if (!cloneModalForm || !cloneTargetSchoolId) return;
+    setCloningId(cloneModalForm.id);
+    setCloneError('');
+    try {
+      const res = await fetch(`/api/consent-forms/${cloneModalForm.id}/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_school_id: cloneTargetSchoolId }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setCloneError(json.error ?? 'Failed to copy form');
+        return;
+      }
+      if (!json.data) return;
       setForms(prev => [{ ...json.data, has_signed: false, consent_responses: [{ count: 0 }], form_leads: [{ count: 0 }] }, ...prev]);
+      setCloneModalForm(null);
     } finally {
       setCloningId(null);
     }
@@ -1618,6 +1648,69 @@ export default function ConsentFormsPage() {
           )}
         </AnimatePresence>
 
+        {/* ── Copy-to-school modal ─────────────────────────────────────── */}
+        <AnimatePresence>
+          {cloneModalForm && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              onClick={e => { if (e.target === e.currentTarget) setCloneModalForm(null); }}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-card border border-primary/20 rounded-2xl w-full max-w-sm p-6 space-y-5 shadow-2xl"
+              >
+                <div>
+                  <h3 className="font-black text-base">Copy Form to School</h3>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{cloneModalForm.title}</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Target School</label>
+                  {cloneSchoolsLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                      <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" /> Loading schools…
+                    </div>
+                  ) : cloneSchools.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2">No assigned schools found.</p>
+                  ) : (
+                    <select
+                      value={cloneTargetSchoolId}
+                      onChange={e => { setCloneTargetSchoolId(e.target.value); setCloneError(''); }}
+                      className="w-full bg-muted border border-border rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    >
+                      <option value="">— Select a school —</option>
+                      {cloneSchools.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {cloneError && (
+                  <p className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{cloneError}</p>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => setCloneModalForm(null)}
+                    className="flex-1 py-2.5 border border-border text-muted-foreground font-bold rounded-xl text-sm hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={cloneForm}
+                    disabled={!cloneTargetSchoolId || cloningId === cloneModalForm.id}
+                    className="flex-1 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-black rounded-xl text-sm transition-colors"
+                  >
+                    {cloningId === cloneModalForm.id ? 'Copying…' : '⧉ Copy Form'}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── Forms list ────────────────────────────────────────────────── */}
         {loading ? (
           <div className="flex justify-center py-20">
@@ -1811,12 +1904,12 @@ export default function ConsentFormsPage() {
 
                       {isStaff && (
                         <button
-                          onClick={() => cloneForm(cf.id)}
+                          onClick={() => openCloneModal(cf)}
                           disabled={cloningId === cf.id}
                           className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                          title="Duplicate this form"
+                          title="Copy form to a school"
                         >
-                          {cloningId === cf.id ? '…' : '⧉ Duplicate'}
+                          {cloningId === cf.id ? '…' : '⧉ Copy to School'}
                         </button>
                       )}
 
