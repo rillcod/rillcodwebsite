@@ -242,6 +242,16 @@ export default function CRMPage() {
   const [newSaving, setNewSaving]             = useState(false);
   const [newErr, setNewErr]                   = useState('');
 
+  // ── Link student modal states ────────────────────────────────────
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentOptions, setStudentOptions] = useState<{ id: string; full_name: string; section_class: string | null }[]>([]);
+  const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; section_class: string | null }[]>([]);
+  const [linkingStudentId, setLinkingStudentId] = useState<string | null>(null);
+  const [relationship, setRelationship] = useState('Guardian');
+  const [linkError, setLinkError] = useState<string | null>(null);
+
   // ── Children (linked students for a parent contact) ────────────
   const [children, setChildren] = useState<{ id: string; full_name: string; school_name?: string; school_id?: string; grade_level?: string; section_class?: string; relationship?: string; user_id?: string }[]>([]);
 
@@ -386,6 +396,59 @@ export default function CRMPage() {
     setSelected(prev => prev ? { ...prev, pipeline_stage: pipelineStage } : prev);
     setContacts(prev => prev.map(c => c.id === selected.id ? { ...c, pipeline_stage: pipelineStage } : c));
     setPipelineSaving(false);
+  };
+
+  // ─── Link student to parent ─────────────────────────────────────────
+  const openLinkStudent = async () => {
+    setShowLinkModal(true);
+    setStudentSearch('');
+    setLinkError(null);
+    setStudentsLoading(true);
+    try {
+      const res = await fetch(`/api/parents/manage?include_picker_data=true`);
+      const json = await res.json();
+      const list = (json.students ?? []) as { id: string; full_name: string; section_class: string | null }[];
+      setAllStudents(list);
+      setStudentOptions(list.slice(0, 40));
+    } catch (err: any) {
+      setLinkError('Failed to load students list');
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  const handleLinkStudentSearch = (q: string) => {
+    setStudentSearch(q);
+    const lower = q.toLowerCase();
+    setStudentOptions(
+      lower ? allStudents.filter(s => s.full_name.toLowerCase().includes(lower)) : allStudents.slice(0, 40)
+    );
+  };
+
+  const linkStudent = async (studentId: string) => {
+    if (!selected) return;
+    setLinkingStudentId(studentId);
+    setLinkError(null);
+    try {
+      const res = await fetch('/api/parents/manage', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_id: selected.id, student_id: studentId, relationship }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.error ?? 'Failed to link');
+      }
+      // Re-fetch selected contact details to update children list
+      const detailRes = await fetch(`/api/crm/contacts/${selected.id}`);
+      const detailJson = await detailRes.json();
+      setChildren(detailJson.children || []);
+      setShowLinkModal(false);
+    } catch (err: any) {
+      setLinkError(err.message || 'Failed to link student');
+    } finally {
+      setLinkingStudentId(null);
+    }
   };
 
   // ─── Log interaction ───────────────────────────────────────────────────────
@@ -868,7 +931,7 @@ export default function CRMPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {selected.email && (
+                    {(selected.phone || selected.phone_number) && (
                       <a href={`https://wa.me/${(selected.phone || selected.phone_number || '').replace(/\D/g, '')}`}
                         target="_blank" rel="noopener noreferrer"
                         className="p-1.5 rounded-lg bg-[#25d366]/10 text-[#25d366] hover:bg-[#25d366]/20 transition-colors" title="WhatsApp">
@@ -979,12 +1042,20 @@ export default function CRMPage() {
                     {/* Children section — shown for parent contacts */}
                     {selected.role === 'parent' && (
                       <div className="p-4 bg-[#18181b] rounded-xl border border-[#27272a] space-y-2">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-[#f5a623] flex items-center gap-2">
-                          Children / Students
-                          {children.length > 0 && (
-                            <span className="px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-bold">{children.length}</span>
-                          )}
-                        </h3>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-black uppercase tracking-widest text-[#f5a623] flex items-center gap-2">
+                            Children / Students
+                            {children.length > 0 && (
+                              <span className="px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-bold">{children.length}</span>
+                            )}
+                          </h3>
+                          <button
+                            onClick={openLinkStudent}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-500/10 hover:bg-violet-500/25 border border-violet-500/20 text-violet-300 text-[10px] font-bold transition-colors"
+                          >
+                            <Plus size={10} /> Connect Student
+                          </button>
+                        </div>
                         {children.length === 0 ? (
                           <p className="text-xs text-[#52525b] italic">No linked students found for this parent's email.</p>
                         ) : (
@@ -1385,6 +1456,96 @@ export default function CRMPage() {
               </button>
               <button onClick={() => { setShowNewContact(false); setNewErr(''); }}
                 className="px-4 py-2.5 rounded-xl bg-[#27272a] text-[#a1a1aa] text-sm hover:bg-[#3f3f46] transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Student Modal ────────────────────────────────────────────────── */}
+      {showLinkModal && selected && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#18181b] rounded-2xl border border-[#27272a] shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#27272a]">
+              <div>
+                <h2 className="text-sm font-black text-white">Connect Student</h2>
+                <p className="text-[10px] text-[#71717a] mt-0.5">
+                  Link child to: <span className="text-white font-bold">{selected.full_name}</span>
+                </p>
+              </div>
+              <button onClick={() => setShowLinkModal(false)} className="p-1.5 rounded-lg text-[#71717a] hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {linkError && (
+                <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+                  {linkError}
+                </p>
+              )}
+              
+              <div className="space-y-1">
+                <label className="block text-[10px] text-[#71717a] uppercase tracking-wider">Search Student</label>
+                <input
+                  type="search"
+                  value={studentSearch}
+                  onChange={e => handleLinkStudentSearch(e.target.value)}
+                  placeholder="Type student name..."
+                  className="w-full px-3 py-2.5 text-sm bg-[#09090b] border border-[#27272a] rounded-lg text-white placeholder-[#3f3f46] focus:outline-none focus:border-[#f5a623]/50"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] text-[#71717a] uppercase tracking-wider">Relationship</label>
+                <select
+                  value={relationship}
+                  onChange={e => setRelationship(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-[#09090b] border border-[#27272a] rounded-lg text-white focus:outline-none focus:border-[#f5a623]/50"
+                >
+                  {['Guardian', 'Father', 'Mother', 'Sibling', 'Uncle', 'Aunt', 'Other'].map(r => (
+                    <option key={r} value={r} className="bg-card text-foreground">{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-[10px] text-[#71717a] uppercase tracking-wider">Select Student</label>
+                {studentsLoading ? (
+                  <div className="flex justify-center py-6">
+                    <Loader2 className="w-6 h-6 text-[#f5a623] animate-spin" />
+                  </div>
+                ) : studentOptions.length === 0 ? (
+                  <p className="text-xs text-[#52525b] italic text-center py-4">No students found matching that name.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {studentOptions.map(s => (
+                      <button
+                        key={s.id}
+                        disabled={linkingStudentId === s.id}
+                        onClick={() => linkStudent(s.id)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 bg-[#09090b] hover:bg-[#18181b] border border-[#27272a] rounded-xl text-left transition-colors disabled:opacity-50 group"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{s.full_name}</p>
+                          {s.section_class && (
+                            <p className="text-[10px] text-[#71717a] mt-0.5">{s.section_class}</p>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold text-[#f5a623] opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          {linkingStudentId === s.id ? 'Connecting...' : 'Connect →'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-5 pb-5">
+              <button
+                onClick={() => setShowLinkModal(false)}
+                className="w-full py-2.5 rounded-xl bg-[#27272a] text-[#a1a1aa] text-sm hover:bg-[#3f3f46] transition-colors"
+              >
                 Cancel
               </button>
             </div>
