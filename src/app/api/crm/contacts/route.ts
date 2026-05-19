@@ -13,14 +13,15 @@ async function requireCrmStaff() {
   return { profile, db };
 }
 
-// GET /api/crm/contacts?search=&role=all&stage=&limit=80
+// GET /api/crm/contacts?search=&role=all&stage=&limit=80&format=json|print|csv
 export async function GET(req: NextRequest) {
   try {
     const { profile, db } = await requireCrmStaff();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || 'all';
-    const limit = Math.min(parseInt(searchParams.get('limit') || '80'), 200);
+    const format = searchParams.get('format') || 'json';
+    const limit = Math.min(parseInt(searchParams.get('limit') || '80'), format === 'json' ? 200 : 2000);
 
     let q = db.from('portal_users')
       .select('id, full_name, email, phone, role, school_name, school_id, section_class, is_active, created_at, metadata')
@@ -68,7 +69,61 @@ export async function GET(req: NextRequest) {
       }));
     }
 
-    return NextResponse.json({ contacts: [...contacts, ...external] });
+    const allContacts = [...contacts, ...external];
+
+    if (format === 'csv') {
+      const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const header = ['#', 'Name', 'Email', 'Phone', 'Role', 'School', 'Class', 'Pipeline'];
+      const rows = allContacts.map((c, i) => [
+        i + 1, c.full_name, c.email || '', c.phone || c.phone_number || '',
+        c.role, c.school_name || '', c.section_class || '', c.pipeline_stage || 'prospect',
+      ].map(esc).join(','));
+      const csv = '﻿' + [header.join(','), ...rows].join('\n');
+      return new NextResponse(csv, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="crm-contacts-${new Date().toISOString().slice(0, 10)}.csv"`,
+        },
+      });
+    }
+
+    if (format === 'print') {
+      const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const rowsHtml = allContacts.map((c, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td><strong>${c.full_name ?? '—'}</strong></td>
+          <td>${c.email ?? '—'}</td>
+          <td>${c.phone || c.phone_number || '—'}</td>
+          <td>${c.role ?? '—'}</td>
+          <td>${c.school_name ?? '—'}</td>
+          <td>${c.section_class ?? '—'}</td>
+          <td>${c.pipeline_stage ?? 'prospect'}</td>
+        </tr>`).join('');
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>CRM Directory — Rillcod Technologies</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:11px;margin:20px;color:#111}
+  h1{font-size:18px;margin-bottom:2px}.sub{font-size:11px;color:#666;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;page-break-inside:auto}
+  th{background:#09090b;color:#f5a623;font-size:9px;text-transform:uppercase;letter-spacing:.08em;padding:6px 8px;text-align:left}
+  td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:top}
+  tr:nth-child(even) td{background:#fafafa}
+  .footer{margin-top:20px;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:8px}
+  @media print{@page{size:A4 landscape;margin:15mm}}
+</style></head><body>
+<h1>Rillcod Technologies — CRM Contact Directory</h1>
+<p class="sub">Generated: ${date} · ${allContacts.length} contacts</p>
+<table><thead><tr>
+  <th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>School</th><th>Class</th><th>Pipeline</th>
+</tr></thead><tbody>${rowsHtml}</tbody></table>
+<div class="footer">Rillcod Technologies · 26 Ogiesoba Avenue, GRA, Benin City · +234 811 660 0091 · rillcod.com</div>
+<script>window.onload=()=>window.print()</script>
+</body></html>`;
+      return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+
+    return NextResponse.json({ contacts: allContacts });
   } catch (e: any) {
     const msg = e.message as string;
     return NextResponse.json({ error: msg }, { status: msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500 });

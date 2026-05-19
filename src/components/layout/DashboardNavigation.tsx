@@ -186,7 +186,6 @@ export default function DashboardNavigation() {
           { divider: true, label: 'System' },
           { name: 'LMS Settings', href: '/dashboard/progression/settings', icon: CogIcon },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
-          { name: 'School Directory', href: '/dashboard/directory', icon: BuildingOfficeIcon },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
@@ -253,7 +252,6 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'CRM' },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
-          { name: 'School Directory', href: '/dashboard/directory', icon: ShieldCheckIcon },
 
           { divider: true, label: 'Account' },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },

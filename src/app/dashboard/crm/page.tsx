@@ -566,6 +566,25 @@ export default function CRMPage() {
 
   const sm = stageMeta(selected?.pipeline_stage);
 
+  // ─── Directory export / print ─────────────────────────────────────────────
+  function buildExportParams() {
+    const p = new URLSearchParams({ format: 'csv', limit: '2000' });
+    if (search) p.set('search', search);
+    if (roleFilter !== 'all') p.set('role', roleFilter);
+    return p.toString();
+  }
+
+  function exportContactsCSV() {
+    window.location.href = `/api/crm/contacts?${buildExportParams()}`;
+  }
+
+  function printContactDirectory() {
+    const p = new URLSearchParams({ format: 'print', limit: '2000' });
+    if (search) p.set('search', search);
+    if (roleFilter !== 'all') p.set('role', roleFilter);
+    window.open(`/api/crm/contacts?${p.toString()}`, '_blank');
+  }
+
   if (!isStaff) {
     return (
       <div className="flex items-center justify-center min-h-screen text-[#71717a]">
@@ -647,8 +666,14 @@ export default function CRMPage() {
                 <option value="school">Schools</option>
                 <option value="external">External</option>
               </select>
-              <button onClick={loadContacts} className="p-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-white transition-colors">
+              <button onClick={loadContacts} title="Refresh" className="p-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-white transition-colors">
                 <RefreshCw size={13} />
+              </button>
+              <button onClick={exportContactsCSV} title="Export CSV" className="p-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-emerald-400 transition-colors">
+                <Download size={13} />
+              </button>
+              <button onClick={printContactDirectory} title="Print Directory" className="p-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-[#f5a623] transition-colors">
+                <FileText size={13} />
               </button>
             </div>
             {/* Pipeline filter pills */}
