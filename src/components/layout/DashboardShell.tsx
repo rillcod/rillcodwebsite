@@ -23,6 +23,8 @@ const FULLSCREEN_PATHS = [
   '/dashboard/school-teacher-messages',
   '/dashboard/whatsapp-groups',
   '/dashboard/crm',
+  '/dashboard/identity-cards',
+  '/dashboard/card-studio',
 ];
 
 function ShellInner({ children }: { children: React.ReactNode }) {
