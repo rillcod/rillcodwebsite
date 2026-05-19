@@ -53,10 +53,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   }
 
   const rd = (lead.response_data ?? {}) as Record<string, string>;
-  const parentEmail = (rd.parent_email || lead.email || '').trim().toLowerCase();
-  const parentName  = (rd.parent_name || '').trim() || 'Parent/Guardian';
-  const parentPhone = (rd.parent_whatsapp || rd.parent_phone || '').trim();
-  const childName   = (rd.child_name || '').trim();
+  const parentEmail  = (rd.parent_email || lead.email || '').trim().toLowerCase();
+  const parentName   = (rd.parent_name || '').trim() || 'Parent/Guardian';
+  const parentPhone  = (rd.parent_whatsapp || rd.parent_phone || '').trim();
+  const childName    = (rd.child_name || '').trim();
+  const childGender  = rd.child_gender || null;
 
   if (!parentEmail || !parentEmail.includes('@')) {
     return NextResponse.json({ error: 'No valid email address on this lead' }, { status: 400 });
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       parent_email:    parentEmail,
       parent_name:     parentName,
       parent_phone:    parentPhone || null,
+      ...(childGender ? { gender: childGender } : {}),
       updated_at:      new Date().toISOString(),
     }).eq('id', lead.matched_student_id);
   }
@@ -201,11 +203,14 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
   const { data: lead } = await (sb as any)
     .from('form_leads')
-    .select('id, school_id, matched_parent_id')
+    .select('id, school_id, matched_parent_id, response_data')
     .eq('id', leadId).single();
 
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
   if (!lead.matched_parent_id) return NextResponse.json({ error: 'No portal account on this lead yet' }, { status: 400 });
+
+  const leadRd      = (lead.response_data ?? {}) as Record<string, string>;
+  const leadGender  = leadRd.child_gender || null;
 
   // Resolve student portal user → students table row
   const { data: studentRow } = await (sb as any)
@@ -225,6 +230,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
       parent_email: parent.email,
       parent_name:  parent.full_name,
       parent_phone: parent.phone ?? null,
+      ...(leadGender ? { gender: leadGender } : {}),
       updated_at:   new Date().toISOString(),
     }).eq('id', studentRow.id);
   }

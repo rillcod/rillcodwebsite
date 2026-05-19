@@ -143,14 +143,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Student record not found. Contact your school to complete the link.' }, { status: 404 });
   }
 
+  // Get gender from the lead if available
+  let leadGender: string | null = null;
+  if (lead_id) {
+    const { data: leadRow } = await (sb as any)
+      .from('form_leads').select('response_data').eq('id', lead_id).maybeSingle();
+    leadGender = (leadRow?.response_data as Record<string, string>)?.child_gender || null;
+  }
+
   // Create parent_student_links
   await syncExplicitParentStudentLink(sb as any, profile.id, studentRow.id);
 
-  // Denormalise parent info onto the student row so school-scoped queries work
+  // Denormalise parent info + gender onto the student row
   await (sb as any).from('students').update({
     parent_email: profile.email,
     parent_name:  profile.full_name,
     parent_phone: profile.phone ?? null,
+    ...(leadGender ? { gender: leadGender } : {}),
     updated_at:   new Date().toISOString(),
   }).eq('id', studentRow.id);
 
