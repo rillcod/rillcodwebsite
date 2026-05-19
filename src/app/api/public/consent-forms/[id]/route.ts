@@ -317,10 +317,56 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Form not found or no longer accepting submissions' }, { status: 404 });
   }
 
+  // Simple IP-based rate limiting — max 5 submissions per IP per 10 minutes
+  const clientIp = req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  if (clientIp !== 'unknown') {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { count } = await (sb as any)
+      .from('form_leads')
+      .select('id', { count: 'exact', head: true })
+      .eq('form_id', id)
+      .gte('submitted_at', tenMinutesAgo)
+      .eq('response_data->>_ip', clientIp);
+    if ((count ?? 0) >= 5) {
+      return NextResponse.json({ error: 'Too many submissions. Please try again later.' }, { status: 429 });
+    }
+  }
+
   const body = await req.json().catch(() => ({}));
-  const { response_data = {}, child_current_school, email } = body;
-  if (!response_data.child_name?.trim()) {
+  const { response_data: rawData = {}, child_current_school, email } = body;
+
+  // Validate required fields
+  if (!rawData.child_name?.trim()) {
     return NextResponse.json({ error: 'Child name is required' }, { status: 400 });
+  }
+  if (!rawData.parent_name?.trim()) {
+    return NextResponse.json({ error: 'Parent/guardian name is required' }, { status: 400 });
+  }
+  if (!email?.trim() && !rawData.parent_email?.trim() && !rawData.parent_whatsapp?.trim()) {
+    return NextResponse.json({ error: 'At least one contact method (email or WhatsApp) is required' }, { status: 400 });
+  }
+
+  // Stamp the IP into response_data for rate-limit tracking (not displayed to users)
+  const response_data = { ...rawData, _ip: clientIp };
+
+  // Duplicate detection — same email + child name + form within 30 days
+  const parentEmail = (rawData.parent_email || email || '').trim().toLowerCase();
+  if (parentEmail) {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: existing } = await (sb as any)
+      .from('form_leads')
+      .select('id, submitted_at')
+      .eq('form_id', id)
+      .eq('email', parentEmail)
+      .gte('submitted_at', thirtyDaysAgo)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        message: `We already have a submission for this email. Our team will be in touch soon!`,
+      });
+    }
   }
 
   // ── Fuzzy-match child's current school ───────────────────────────────────

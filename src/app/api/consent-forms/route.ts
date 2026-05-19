@@ -36,18 +36,22 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Fetch form_leads counts via service role (bypasses RLS on form_leads table).
+  // Fetch form_leads counts + pending_review counts via service role (bypasses RLS).
   let leadCountMap: Record<string, number> = {};
+  let pendingReviewMap: Record<string, number> = {};
   if (data && data.length > 0) {
     const formIds = data.map((f: any) => f.id);
     const admin = adminClient();
     const { data: leadRows } = await (admin as any)
       .from('form_leads')
-      .select('form_id')
+      .select('form_id, match_status')
       .in('form_id', formIds);
     if (leadRows) {
       for (const row of leadRows) {
         leadCountMap[row.form_id] = (leadCountMap[row.form_id] ?? 0) + 1;
+        if (row.match_status === 'pending_review') {
+          pendingReviewMap[row.form_id] = (pendingReviewMap[row.form_id] ?? 0) + 1;
+        }
       }
     }
   }
@@ -67,8 +71,9 @@ export async function GET(req: NextRequest) {
 
   const enriched = (data ?? []).map((f: any) => ({
     ...f,
-    form_leads: [{ count: leadCountMap[f.id] ?? 0 }],
-    has_signed: signedFormIds.includes(f.id),
+    form_leads:          [{ count: leadCountMap[f.id] ?? 0 }],
+    pending_review_count: pendingReviewMap[f.id] ?? 0,
+    has_signed:          signedFormIds.includes(f.id),
   }));
 
   const nextCursor = data && data.length === 20 ? data[data.length - 1].created_at : null;

@@ -25,6 +25,7 @@ interface ConsentForm {
   has_signed: boolean;
   consent_responses: { count: number }[];
   form_leads?: { count: number }[];
+  pending_review_count?: number;
 }
 
 interface Signatory {
@@ -914,6 +915,9 @@ export default function ConsentFormsPage() {
   const [updatingLeadId, setUpdatingLeadId]   = useState<string | null>(null);
   const [reviewingLeadId, setReviewingLeadId] = useState<string | null>(null);
 
+  // Clone
+  const [cloningId, setCloningId] = useState<string | null>(null);
+
   const isStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
   const isParent = profile?.role === 'parent';
 
@@ -1070,6 +1074,20 @@ export default function ConsentFormsPage() {
     await navigator.clipboard.writeText(url).catch(() => { });
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  // ── Clone form ────────────────────────────────────────────────────────────
+
+  async function cloneForm(id: string) {
+    setCloningId(id);
+    try {
+      const res = await fetch(`/api/consent-forms/${id}/clone`, { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.data) return;
+      setForms(prev => [{ ...json.data, has_signed: false, consent_responses: [{ count: 0 }], form_leads: [{ count: 0 }] }, ...prev]);
+    } finally {
+      setCloningId(null);
+    }
   }
 
   // ── Lead match review ─────────────────────────────────────────────────────
@@ -1649,6 +1667,11 @@ export default function ConsentFormsPage() {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                         {badge && <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>}
+                        {(cf.pending_review_count ?? 0) > 0 && (
+                          <span className="text-[10px] font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full animate-pulse">
+                            ⚠ {cf.pending_review_count} to review
+                          </span>
+                        )}
                         {cf.is_public && <span className="text-[10px] font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">Public</span>}
                         {cf.has_signed && <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Signed</span>}
                       </div>
@@ -1677,6 +1700,31 @@ export default function ConsentFormsPage() {
                       <button onClick={() => openReadModal(cf.id)} className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
                         Read Full Form
                       </button>
+
+                      {isStaff && (
+                        <button
+                          onClick={() => router.push(`/dashboard/consent-forms/${cf.id}/responses`)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition-colors border border-primary/20"
+                        >
+                          <DocumentTextIcon className="w-3.5 h-3.5" />
+                          All Responses
+                          {totalCount > 0 && (
+                            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">{totalCount}</span>
+                          )}
+                        </button>
+                      )}
+
+                      {isStaff && cf.is_public && (
+                        <a
+                          href={`${appBase}/forms/${cf.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-bold rounded-xl transition-colors"
+                          title="Open public form in new tab"
+                        >
+                          🔗 Preview
+                        </a>
+                      )}
 
                       {isStaff && (
                         <button onClick={() => setEditingForm(cf)} className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
@@ -1750,6 +1798,17 @@ export default function ConsentFormsPage() {
                       {isStaff && (
                         <button onClick={() => exportCSV(cf.id, cf.title)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
                           <ArrowDownTrayIcon className="w-3.5 h-3.5" /> CSV
+                        </button>
+                      )}
+
+                      {isStaff && (
+                        <button
+                          onClick={() => cloneForm(cf.id)}
+                          disabled={cloningId === cf.id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+                          title="Duplicate this form"
+                        >
+                          {cloningId === cf.id ? '…' : '⧉ Duplicate'}
                         </button>
                       )}
 

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowLeftIcon, ArrowPathIcon, PrinterIcon, UserGroupIcon,
-  MagnifyingGlassIcon, CheckCircleIcon, FunnelIcon,
+  MagnifyingGlassIcon, CheckCircleIcon, FunnelIcon, ArrowDownTrayIcon,
 } from '@/lib/icons';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -35,9 +35,11 @@ interface FormLead {
   response_data: Record<string, unknown>;
   status: 'new' | 'contacted' | 'enrolled' | 'lost';
   match_status: string | null;
-  match_confidence: string | null;
+  match_confidence: 'high' | 'medium' | 'low' | null;
   match_notes: string | null;
   match_candidate: { id: string; full_name: string; section_class: string | null } | null;
+  matched_student_id: string | null;
+  matched_parent_id: string | null;
   contact_id: string | null;
   prospect_id: string | null;
 }
@@ -470,7 +472,21 @@ export default function ResponsesPage() {
   const [classFilter, setClassFilter]   = useState<string>('all');
   const [activeTab, setActiveTab]       = useState<'leads' | 'signed'>('leads');
 
-  const [updatingId, setUpdatingId]   = useState<string | null>(null);
+  const [updatingId, setUpdatingId]     = useState<string | null>(null);
+  const [creatingPortalId, setCreatingPortalId] = useState<string | null>(null);
+  const [portalStatus, setPortalStatus] = useState<Record<string, 'created' | 'exists'>>({});
+  const [credsModal, setCredsModal] = useState<{ email: string; password: string; parentName: string } | null>(null);
+
+  // Bulk selection
+  const [selected, setSelected]         = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkStatus, setBulkStatus]     = useState<FormLead['status']>('contacted');
+
+  // Match review
+  const [reviewingId, setReviewingId]   = useState<string | null>(null);
+
+  // Export
+  const [exporting, setExporting]       = useState(false);
 
   const appBase = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -507,6 +523,110 @@ export default function ResponsesPage() {
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status } : l));
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  // ── Create portal account ────────────────────────────────────────────────
+
+  async function createPortalAccount(leadId: string, parentName: string) {
+    setCreatingPortalId(leadId);
+    try {
+      const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, {
+        method: 'POST',
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        alert(json.error ?? 'Failed to create account');
+        return;
+      }
+      setPortalStatus(prev => ({ ...prev, [leadId]: json.alreadyExisted ? 'exists' : 'created' }));
+      if (!json.alreadyExisted) {
+        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_parent_id: json.parentId } : l));
+        setCredsModal({ email: json.email, password: json.tempPassword, parentName });
+      } else {
+        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_parent_id: json.parentId ?? l.matched_parent_id } : l));
+      }
+    } finally {
+      setCreatingPortalId(null);
+    }
+  }
+
+  // ── Bulk status update ───────────────────────────────────────────────────
+
+  async function applyBulkStatus() {
+    if (selected.size === 0) return;
+    setBulkUpdating(true);
+    try {
+      const res = await fetch('/api/consent-forms/leads/bulk-status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadIds: [...selected], status: bulkStatus }),
+      });
+      if (!res.ok) return;
+      setLeads(prev => prev.map(l => selected.has(l.id) ? { ...l, status: bulkStatus } : l));
+      setSelected(new Set());
+    } finally {
+      setBulkUpdating(false);
+    }
+  }
+
+  function toggleSelect(leadId: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(leadId) ? next.delete(leadId) : next.add(leadId);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filteredLeads.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filteredLeads.map(l => l.id)));
+    }
+  }
+
+  // ── Match review ─────────────────────────────────────────────────────────
+
+  async function reviewLead(leadId: string, action: 'approve' | 'reject') {
+    setReviewingId(leadId);
+    try {
+      const res = await fetch(`/api/consent-forms/leads/${leadId}/review`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      setLeads(prev => prev.map(l => l.id === leadId ? {
+        ...l,
+        match_status:       json.status,
+        matched_student_id: json.matched_student_id ?? l.matched_student_id,
+        matched_parent_id:  json.matched_parent_id  ?? l.matched_parent_id,
+        match_candidate:    action === 'reject' ? null : l.match_candidate,
+      } : l));
+    } finally {
+      setReviewingId(null);
+    }
+  }
+
+  // ── Export CSV ───────────────────────────────────────────────────────────
+
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const params = statusFilter !== 'all' ? `?status=${statusFilter}` : '';
+      const res = await fetch(`/api/consent-forms/${id}/leads/export${params}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = res.headers.get('content-disposition')?.match(/filename="([^"]+)"/)?.[1] ?? 'leads.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -626,12 +746,23 @@ export default function ResponsesPage() {
               <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
             </button>
             {form && (
-              <button
-                onClick={() => printDataSheet(form, leads, sigs, appBase)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50"
-              >
-                <PrinterIcon className="w-3.5 h-3.5" /> Data Sheet
-              </button>
+              <>
+                <button
+                  onClick={exportCsv}
+                  disabled={exporting}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50 disabled:opacity-50"
+                  title="Download leads as CSV"
+                >
+                  <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                  {exporting ? 'Exporting…' : 'Export CSV'}
+                </button>
+                <button
+                  onClick={() => printDataSheet(form, leads, sigs, appBase)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50"
+                >
+                  <PrinterIcon className="w-3.5 h-3.5" /> Data Sheet
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -738,6 +869,38 @@ export default function ResponsesPage() {
           </span>
         </div>
 
+        {/* Bulk action bar */}
+        {activeTab === 'leads' && selected.size > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl">
+            <span className="text-xs font-black text-primary">{selected.size} selected</span>
+            <div className="flex items-center gap-2 ml-auto">
+              <select
+                value={bulkStatus}
+                onChange={e => setBulkStatus(e.target.value as FormLead['status'])}
+                className="bg-card border border-border text-foreground text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none focus:border-primary"
+              >
+                <option value="new">→ New</option>
+                <option value="contacted">→ Contacted</option>
+                <option value="enrolled">→ Enrolled</option>
+                <option value="lost">→ Lost</option>
+              </select>
+              <button
+                onClick={applyBulkStatus}
+                disabled={bulkUpdating}
+                className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-black rounded-lg disabled:opacity-50 transition-colors"
+              >
+                {bulkUpdating ? 'Updating…' : 'Apply'}
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="px-3 py-1.5 bg-muted text-muted-foreground text-xs font-bold rounded-lg hover:bg-muted/80 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Loading */}
         {loading && (
           <div className="flex justify-center py-20">
@@ -766,6 +929,15 @@ export default function ResponsesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border/50 bg-muted/30">
+                      <th className="px-3 py-3 w-8">
+                        <input
+                          type="checkbox"
+                          checked={selected.size > 0 && selected.size === filteredLeads.length}
+                          ref={el => { if (el) el.indeterminate = selected.size > 0 && selected.size < filteredLeads.length; }}
+                          onChange={toggleSelectAll}
+                          className="rounded accent-primary cursor-pointer"
+                        />
+                      </th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3 w-8">#</th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Date</th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Parent / Guardian</th>
@@ -779,6 +951,7 @@ export default function ResponsesPage() {
                           <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Schedule</th>
                         </>
                       )}
+                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Match</th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Status</th>
                       <th className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Actions</th>
                     </tr>
@@ -790,8 +963,25 @@ export default function ResponsesPage() {
                       const status = lead.status ?? 'new';
                       const cfg    = STATUS_CFG[status];
 
+                      const isPending  = lead.match_status === 'pending_review';
+                      const isApproved = lead.match_status === 'approved';
+                      const confCls: Record<string, string> = {
+                        high:   'bg-rose-500/10 text-rose-400 border-rose-500/20',
+                        medium: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                        low:    'bg-muted text-muted-foreground border-border/40',
+                      };
+
                       return (
-                        <tr key={lead.id} className="hover:bg-muted/20 transition-colors group">
+                        <tr key={lead.id} className={`transition-colors group ${isPending ? 'bg-amber-500/5 hover:bg-amber-500/10' : 'hover:bg-muted/20'} ${selected.has(lead.id) ? 'bg-primary/5' : ''}`}>
+                          {/* Checkbox */}
+                          <td className="px-3 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(lead.id)}
+                              onChange={() => toggleSelect(lead.id)}
+                              className="rounded accent-primary cursor-pointer"
+                            />
+                          </td>
                           {/* # */}
                           <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
 
@@ -862,6 +1052,46 @@ export default function ResponsesPage() {
                             </>
                           )}
 
+                          {/* Match */}
+                          <td className="px-4 py-3 min-w-[140px]">
+                            {isPending && lead.match_candidate ? (
+                              <div className="space-y-1.5">
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${confCls[lead.match_confidence ?? 'low']}`}>
+                                  ⚠ {lead.match_confidence} match
+                                </span>
+                                <p className="text-[10px] text-foreground font-bold leading-tight">{lead.match_candidate.full_name}</p>
+                                <p className="text-[10px] text-muted-foreground">{lead.match_candidate.section_class ?? '—'}</p>
+                                <div className="flex gap-1 pt-0.5">
+                                  <button
+                                    disabled={reviewingId === lead.id}
+                                    onClick={() => reviewLead(lead.id, 'approve')}
+                                    className="flex-1 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[9px] font-black rounded-lg border border-emerald-500/20 transition-colors disabled:opacity-40"
+                                    title={`Link to ${lead.match_candidate.full_name}`}
+                                  >
+                                    {reviewingId === lead.id ? '…' : '✓ Same'}
+                                  </button>
+                                  <button
+                                    disabled={reviewingId === lead.id}
+                                    onClick={() => reviewLead(lead.id, 'reject')}
+                                    className="flex-1 py-1 bg-muted hover:bg-muted/80 text-muted-foreground text-[9px] font-black rounded-lg transition-colors disabled:opacity-40"
+                                  >
+                                    ✗ New
+                                  </button>
+                                </div>
+                              </div>
+                            ) : isApproved ? (
+                              <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                ✓ Matched
+                              </span>
+                            ) : lead.contact_id ? (
+                              <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                                CRM linked
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">—</span>
+                            )}
+                          </td>
+
                           {/* Status */}
                           <td className="px-4 py-3">
                             <select
@@ -879,30 +1109,57 @@ export default function ResponsesPage() {
 
                           {/* Actions */}
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {waNum && (
-                                <a href={`https://wa.me/${waNum}`} target="_blank" rel="noopener noreferrer"
-                                  className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 px-2 py-1 rounded-lg font-bold transition-colors border border-emerald-500/20"
-                                  title="WhatsApp">
-                                  💬
-                                </a>
-                              )}
-                              {(lead.email || rd.parent_email) && (
-                                <a href={`mailto:${lead.email ?? rd.parent_email}`}
-                                  className="text-[10px] bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-lg font-bold transition-colors"
-                                  title="Email">
-                                  ✉️
-                                </a>
-                              )}
-                              {form && (
-                                <button
-                                  onClick={() => printFilledForm(form, lead, appBase)}
-                                  className="text-[10px] bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-lg font-bold transition-colors flex items-center gap-1"
-                                  title="Print submission"
-                                >
-                                  <PrinterIcon className="w-3 h-3" />
-                                </button>
-                              )}
+                            <div className="flex flex-col items-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {waNum && (
+                                  <a href={`https://wa.me/${waNum}`} target="_blank" rel="noopener noreferrer"
+                                    className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 px-2 py-1 rounded-lg font-bold transition-colors border border-emerald-500/20"
+                                    title="WhatsApp">
+                                    💬
+                                  </a>
+                                )}
+                                {(lead.email || rd.parent_email) && (
+                                  <a href={`mailto:${lead.email ?? rd.parent_email}`}
+                                    className="text-[10px] bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-lg font-bold transition-colors"
+                                    title="Email">
+                                    ✉️
+                                  </a>
+                                )}
+                                {form && (
+                                  <button
+                                    onClick={() => printFilledForm(form, lead, appBase)}
+                                    className="text-[10px] bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-lg font-bold transition-colors flex items-center gap-1"
+                                    title="Print submission"
+                                  >
+                                    <PrinterIcon className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                              {/* Create portal account */}
+                              {(lead.email || rd.parent_email) && (() => {
+                                const ps = portalStatus[lead.id];
+                                const alreadyLinked = !!(lead.matched_parent_id);
+                                if (ps === 'created') return (
+                                  <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                    ✓ Account created · credentials sent
+                                  </span>
+                                );
+                                if (ps === 'exists' || alreadyLinked) return (
+                                  <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                                    ✓ Portal account linked
+                                  </span>
+                                );
+                                return (
+                                  <button
+                                    disabled={creatingPortalId === lead.id}
+                                    onClick={() => createPortalAccount(lead.id, rd.parent_name || 'Parent/Guardian')}
+                                    className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                    title="Create parent portal account & send temp password"
+                                  >
+                                    {creatingPortalId === lead.id ? '…Creating' : '+ Portal Account'}
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>
@@ -985,6 +1242,79 @@ export default function ResponsesPage() {
         )}
 
       </div>
+
+      {/* ── Credentials modal ─────────────────────────────────────────────── */}
+      {credsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-lg shrink-0">🔑</div>
+              <div>
+                <p className="text-sm font-black text-foreground">Portal Account Created</p>
+                <p className="text-[11px] text-muted-foreground">For {credsModal.parentName}</p>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Credentials have been sent via WhatsApp and email. Copy them below to share manually if needed.
+              </p>
+
+              {/* Email */}
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Email</p>
+                <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
+                  <span className="flex-1 text-sm font-mono text-foreground select-all">{credsModal.email}</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(credsModal.email)}
+                    className="text-[10px] font-bold text-primary hover:text-primary/80 transition-colors shrink-0"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Temporary Password</p>
+                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
+                  <span className="flex-1 text-sm font-mono font-black text-amber-400 select-all tracking-wide">{credsModal.password}</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(credsModal.password)}
+                    className="text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors shrink-0"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* WhatsApp share */}
+              <div className="pt-1">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Hello ${credsModal.parentName}!\n\nYour Rillcod Parent Portal account is ready.\n\n📧 Email: ${credsModal.email}\n🔑 Temp Password: ${credsModal.password}\n\nLog in at: ${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}\n\nPlease change your password after first login.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/20 transition-colors"
+                >
+                  💬 Share via WhatsApp
+                </a>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 pb-5">
+              <button
+                onClick={() => setCredsModal(null)}
+                className="w-full py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
