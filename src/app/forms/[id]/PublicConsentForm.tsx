@@ -89,7 +89,6 @@ export default function PublicConsentForm({
     parent_name: '',
     parent_whatsapp: '',
     parent_email: '',
-    is_existing_parent: false,
     // Assessment extras
     prior_coding: '' as 'yes' | 'no' | '',
     prior_platform: '',
@@ -170,7 +169,6 @@ export default function PublicConsentForm({
             parent_name:     data.parent_name,
             parent_whatsapp: data.parent_whatsapp,
             parent_email:    data.parent_email,
-            ...(data.is_existing_parent && { is_existing_parent: true }),
             ...(bodyHasFee && {
               fee_per_child: feePerChild,
               total_amount:  totalAmount,
@@ -563,17 +561,6 @@ export default function PublicConsentForm({
           placeholder="Email address (for confirmation) *"
           className={inputCls}
         />
-        <label className="flex items-start gap-3 pt-1 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={data.is_existing_parent}
-            onChange={e => set('is_existing_parent', e.target.checked)}
-            className="mt-0.5 w-4 h-4 rounded border-[#2a2d33] bg-[#0b0c0e] text-amber-500 focus:ring-amber-500/20 focus:ring-offset-0 cursor-pointer shrink-0"
-          />
-          <span className="text-xs text-[#a1a1aa] font-bold leading-relaxed group-hover:text-white transition-colors">
-            My child is already enrolled at Rillcod — I am an existing parent
-          </span>
-        </label>
       </section>
 
       {/* Consent notice */}
