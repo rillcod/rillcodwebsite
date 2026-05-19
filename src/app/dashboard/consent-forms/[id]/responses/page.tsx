@@ -115,6 +115,9 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
                  : str('program_category') === 'teen_developers'  ? 'Teen Developers'
                  : str('program_category') || 'Coding Programme';
   const devicesArr = Array.isArray(rd.devices) ? (rd.devices as string[]).join(', ') : '';
+  const multiChildren = Array.isArray(rd.children) && (rd.children as unknown[]).length > 1
+    ? (rd.children as Array<Record<string, string>>)
+    : null;
 
   // Fill placeholders in the form body with actual submission values
   const filledBody = fillPlaceholders(form.body, {
@@ -126,7 +129,10 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
     childClass:   str('child_class'),
     currentSchool: lead.child_current_school || str('child_current_school'),
     school:       schoolName,
-  });
+  })
+    // Also replace underscore-based blanks e.g. _____ (parent/guardian name)
+    .replace(/_+(\s*\(parent[\s/]*guardian name\))?/gi, parentName)
+    .replace(/_+(\s*\(child['']?s?\s*name\))?/gi, childName);
 
   const row = (label: string, value: string) =>
     `<tr><td class="lbl">${label}</td><td class="val">${value || '—'}</td></tr>`;
@@ -263,15 +269,33 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
 
   <!-- 02 · Child -->
   <div class="sec">
-    <div class="sec-head">${secNum(2)}<span class="sec-title">Child&rsquo;s Information</span></div>
-    <table class="dt">
-      ${row('Full Name', `<strong>${esc(childName)}</strong>`)}
-      ${str('child_gender') ? row('Gender', str('child_gender') === 'male' ? 'Male' : 'Female') : ''}
-      ${row('Age', esc(str('child_age') || '—'))}
-      ${row('Class / Grade', esc(str('child_class') || '—'))}
-      ${row('Current School', esc(lead.child_current_school || str('child_current_school') || '—'))}
-      <tr><td class="lbl">Programme Selected</td><td class="val"><span class="prog-pill">${esc(pLabel)}</span></td></tr>
-    </table>
+    <div class="sec-head">${secNum(2)}<span class="sec-title">Child${multiChildren ? 'ren&rsquo;s' : '&rsquo;s'} Information${multiChildren ? ` (${multiChildren.length} enrolled)` : ''}</span></div>
+    ${multiChildren
+      ? multiChildren.map((child, ci) => `
+        <div style="margin-bottom:${ci < multiChildren.length - 1 ? '12px' : '0'};padding-bottom:${ci < multiChildren.length - 1 ? '12px' : '0'};border-bottom:${ci < multiChildren.length - 1 ? '1px dashed #e4e4e7' : 'none'}">
+          <div style="font-size:7pt;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#f5a623;margin-bottom:6px">Child ${ci + 1}</div>
+          <table class="dt">
+            ${row('Full Name', `<strong>${esc(child.name || '—')}</strong>`)}
+            ${child.gender ? row('Gender', child.gender === 'male' ? 'Male' : 'Female') : ''}
+            ${row('Age', esc(child.age || '—'))}
+            ${row('Class / Grade', esc(child.class || '—'))}
+            ${child.school ? row('Current School', esc(child.school)) : ''}
+            <tr><td class="lbl">Programme</td><td class="val"><span class="prog-pill">${esc(
+              child.program === 'young_innovators' ? 'Young Innovators — PRY' :
+              child.program === 'teen_developers'  ? 'Teen Developers — SEC' :
+              child.program || '—'
+            )}</span></td></tr>
+          </table>
+        </div>`).join('')
+      : `<table class="dt">
+          ${row('Full Name', `<strong>${esc(childName)}</strong>`)}
+          ${str('child_gender') ? row('Gender', str('child_gender') === 'male' ? 'Male' : 'Female') : ''}
+          ${row('Age', esc(str('child_age') || '—'))}
+          ${row('Class / Grade', esc(str('child_class') || '—'))}
+          ${row('Current School', esc(lead.child_current_school || str('child_current_school') || '—'))}
+          <tr><td class="lbl">Programme Selected</td><td class="val"><span class="prog-pill">${esc(pLabel)}</span></td></tr>
+        </table>`
+    }
   </div>
 
   ${assessmentRows ? `
@@ -306,7 +330,7 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
       </div>
       <div class="ack-field">
         <div class="ack-field-lbl">On Behalf Of</div>
-        <div class="ack-field-val big">${esc(childName)}</div>
+        <div class="ack-field-val big">${multiChildren ? multiChildren.map(c => esc(c.name || '—')).join(', ') : esc(childName)}</div>
       </div>
       <div class="ack-field">
         <div class="ack-field-lbl">Submitted On</div>

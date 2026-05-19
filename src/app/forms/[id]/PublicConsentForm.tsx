@@ -33,15 +33,25 @@ const GOALS = [
 ];
 
 const REFERRALS = [
-  'Social media (Instagram / Facebook / TikTok)',
-  'Friend or family referral',
-  'School announcement',
+  'School (teacher / announcement)',
+  'Parent WhatsApp group / PTA',
+  'Friend or family',
   'Walk-in / physical visit',
-  'Online search',
-  'Event / exhibition',
+  'Rillcod event or demo',
+  'Social media',
   'Other',
 ];
 
+type ChildEntry = {
+  name: string;
+  gender: 'male' | 'female' | '';
+  age: string;
+  class_: string;
+  program: 'young_innovators' | 'teen_developers' | '';
+  school: string;
+};
+
+const emptyChild = (): ChildEntry => ({ name: '', gender: '', age: '', class_: '', program: '', school: '' });
 
 export default function PublicConsentForm({
   form,
@@ -57,13 +67,10 @@ export default function PublicConsentForm({
   const [error, setError] = useState('');
   const [showQr, setShowQr] = useState(false);
 
+  const [childCount, setChildCount] = useState(1);
+  const [children, setChildren] = useState<ChildEntry[]>([emptyChild()]);
+
   const [data, setData] = useState({
-    child_name: '',
-    child_age: '',
-    child_gender: '' as 'male' | 'female' | '',
-    child_class: '',
-    child_current_school: '',
-    program_category: '' as 'young_innovators' | 'teen_developers' | '',
     parent_name: '',
     parent_whatsapp: '',
     parent_email: '',
@@ -79,6 +86,19 @@ export default function PublicConsentForm({
     consent_acknowledged: false,
   });
 
+  function updateChildCount(n: number) {
+    setChildCount(n);
+    setChildren(prev => {
+      const next = [...prev];
+      while (next.length < n) next.push(emptyChild());
+      return next.slice(0, n);
+    });
+  }
+
+  function updateChild(idx: number, field: keyof ChildEntry, value: string) {
+    setChildren(prev => prev.map((c, i) => i === idx ? { ...c, [field]: value } : c));
+  }
+
   function set(key: string, value: unknown) {
     setData(d => ({ ...d, [key]: value }));
   }
@@ -90,12 +110,11 @@ export default function PublicConsentForm({
     }));
   }
 
+  const allChildrenValid = children.every(
+    c => c.name.trim() && c.gender && c.age && c.class_.trim() && c.program
+  );
   const canSubmit =
-    data.child_name.trim() &&
-    data.child_age &&
-    data.child_gender &&
-    data.child_class.trim() &&
-    data.program_category &&
+    allChildrenValid &&
     data.parent_name.trim() &&
     data.parent_whatsapp.trim() &&
     data.parent_email.trim() &&
@@ -111,26 +130,38 @@ export default function PublicConsentForm({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          child_current_school: data.child_current_school || undefined,
+          child_current_school: children[0].school || undefined,
           email: data.parent_email || undefined,
           response_data: {
-            child_name: data.child_name,
-            child_age: data.child_age,
-            child_gender: data.child_gender,
-            child_class: data.child_class,
-            program_category: data.program_category,
-            parent_name: data.parent_name,
+            // Legacy primary-child fields (backward compat)
+            child_name:    children[0].name,
+            child_age:     children[0].age,
+            child_gender:  children[0].gender,
+            child_class:   children[0].class_,
+            program_category: children[0].program,
+            child_current_school: children[0].school || undefined,
+            // Multi-child full data
+            child_count: children.length,
+            children: children.map(c => ({
+              name:    c.name,
+              gender:  c.gender,
+              age:     c.age,
+              class:   c.class_,
+              program: c.program,
+              school:  c.school || undefined,
+            })),
+            parent_name:     data.parent_name,
             parent_whatsapp: data.parent_whatsapp,
-            parent_email: data.parent_email,
+            parent_email:    data.parent_email,
             ...(data.is_existing_parent && { is_existing_parent: true }),
             ...(isAssessment && {
-              prior_coding: data.prior_coding,
-              prior_platform: data.prior_platform,
-              devices: data.devices,
-              learning_goal: data.learning_goal,
+              prior_coding:    data.prior_coding,
+              prior_platform:  data.prior_platform,
+              devices:         data.devices,
+              learning_goal:   data.learning_goal,
               referral_source: data.referral_source,
-              is_returning: data.is_returning,
-              special_notes: data.special_notes,
+              is_returning:    data.is_returning,
+              special_notes:   data.special_notes,
             }),
           },
         }),
@@ -144,6 +175,8 @@ export default function PublicConsentForm({
       setSubmitting(false);
     }
   }
+
+  const inputCls = 'w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]';
 
   /* ── Thank-you screen ─────────────────────────────────────────────────── */
   if (step === 'thanks') {
@@ -161,25 +194,47 @@ export default function PublicConsentForm({
               {isAssessment ? 'Assessment Received!' : 'Registration Confirmed!'}
             </h1>
             <p className="text-[#a1a1aa] mt-1 text-sm">
-              Thank you, <strong className="text-white">{data.parent_name}</strong>. We've received{' '}
-              <strong className="text-white">{data.child_name}</strong>'s{' '}
-              {isAssessment ? 'assessment' : 'registration'}.
+              Thank you, <strong className="text-white">{data.parent_name}</strong>.{' '}
+              {children.length === 1
+                ? <>We've received <strong className="text-white">{children[0].name}</strong>'s {isAssessment ? 'assessment' : 'registration'}.</>
+                : <>We've received the {isAssessment ? 'assessment' : 'registration'} for <strong className="text-white">{children.length} children</strong>.</>
+              }
             </p>
           </div>
 
           {/* Summary */}
           <div className="bg-[#1c1e22] rounded-xl p-4 text-left space-y-2 mt-2">
-            {[
-              { label: 'Child', value: `${data.child_name}, ${data.child_gender ? data.child_gender.charAt(0).toUpperCase() + data.child_gender.slice(1) + ', ' : ''}Age ${data.child_age} · ${data.child_class}` },
-              { label: 'Programme', value: data.program_category === 'young_innovators' ? 'Young Innovators (PRY)' : 'Teen Developers (SEC)' },
-              { label: 'Contact', value: data.parent_whatsapp },
-              ...(data.parent_email ? [{ label: 'Email', value: data.parent_email }] : []),
-            ].map(r => (
-              <div key={r.label} className="flex justify-between gap-3 text-sm">
-                <span className="text-[#71717a] font-bold w-24 shrink-0">{r.label}</span>
-                <span className="text-white text-right">{r.value}</span>
+            {children.map((child, idx) => (
+              <div key={idx} className="flex justify-between gap-3 text-sm">
+                <span className="text-[#71717a] font-bold w-24 shrink-0">
+                  {children.length > 1 ? `Child ${idx + 1}` : 'Child'}
+                </span>
+                <span className="text-white text-right">
+                  {child.name}
+                  {child.gender ? `, ${child.gender.charAt(0).toUpperCase() + child.gender.slice(1)}` : ''}
+                  {child.age ? `, Age ${child.age}` : ''}
+                  {child.class_ ? ` · ${child.class_}` : ''}
+                </span>
               </div>
             ))}
+            {children.length === 1 && (
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="text-[#71717a] font-bold w-24 shrink-0">Programme</span>
+                <span className="text-white text-right">
+                  {children[0].program === 'young_innovators' ? 'Young Innovators (PRY)' : 'Teen Developers (SEC)'}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="text-[#71717a] font-bold w-24 shrink-0">Contact</span>
+              <span className="text-white text-right">{data.parent_whatsapp}</span>
+            </div>
+            {data.parent_email && (
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="text-[#71717a] font-bold w-24 shrink-0">Email</span>
+                <span className="text-white text-right">{data.parent_email}</span>
+              </div>
+            )}
           </div>
 
           {data.parent_email && (
@@ -201,12 +256,12 @@ export default function PublicConsentForm({
               'Your registration details have been received',
               'Our team confirms your child\'s placement within 24 hours',
               'You\'ll receive class schedule and onboarding details via WhatsApp',
-            ]).map((step, i) => (
+            ]).map((s, i) => (
               <div key={i} className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center text-black font-black text-xs shrink-0 mt-0.5">
                   {i + 1}
                 </div>
-                <p className="text-sm text-[#d4d4d8]">{step}</p>
+                <p className="text-sm text-[#d4d4d8]">{s}</p>
               </div>
             ))}
           </div>
@@ -235,73 +290,99 @@ export default function PublicConsentForm({
         )}
       </div>
 
-      {/* Section: Child */}
+      {/* How many children */}
       <section className="space-y-3">
-        <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">Child's Information</p>
-        <input
-          required value={data.child_name}
-          onChange={e => set('child_name', e.target.value)}
-          placeholder="Child's full name *"
-          className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
-        />
-        <div>
-          <p className="text-[10px] font-bold text-[#71717a] mb-2">Gender *</p>
-          <div className="grid grid-cols-2 gap-3">
-            {(['male', 'female'] as const).map(g => (
-              <button
-                key={g} type="button"
-                onClick={() => set('child_gender', g)}
-                className={`py-3 rounded-xl border font-black text-sm transition-all ${data.child_gender === g
-                  ? 'border-amber-500 bg-amber-500/10 text-white'
-                  : 'border-[#2a2d33] bg-[#141618] text-[#71717a] hover:border-[#3a3d43]'
-                }`}
-              >
-                {g === 'male' ? '👦 Male' : '👧 Female'}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <input
-            required value={data.child_age} type="number" min="4" max="19"
-            onChange={e => set('child_age', e.target.value)}
-            placeholder="Age *"
-            className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
-          />
-          <input
-            required value={data.child_class}
-            onChange={e => set('child_class', e.target.value)}
-            placeholder="Class / Grade *"
-            className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
-          />
-        </div>
-        <input
-          value={data.child_current_school}
-          onChange={e => set('child_current_school', e.target.value)}
-          placeholder="Child's current school (optional)"
-          className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
-        />
-      </section>
-
-      {/* Section: Programme */}
-      <section className="space-y-3">
-        <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">Programme Category *</p>
-        <div className="space-y-2">
-          {PROGRAMS.map(p => (
+        <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">How Many Children Are You Registering?</p>
+        <div className="grid grid-cols-4 gap-2">
+          {[1, 2, 3, 4].map(n => (
             <button
-              key={p.value} type="button"
-              onClick={() => set('program_category', p.value)}
-              className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${data.program_category === p.value
+              key={n} type="button"
+              onClick={() => updateChildCount(n)}
+              className={`py-3 rounded-xl border font-black text-base transition-all ${childCount === n
                 ? 'border-amber-500 bg-amber-500/10 text-white'
                 : 'border-[#2a2d33] bg-[#141618] text-[#71717a] hover:border-[#3a3d43]'
-                }`}
+              }`}
             >
-              <p className="font-black text-sm">{p.label}</p>
-              <p className="text-xs mt-0.5 opacity-70">{p.sub}</p>
+              {n}
             </button>
           ))}
         </div>
       </section>
+
+      {/* Per-child panels */}
+      {children.map((child, idx) => (
+        <section key={idx} className="space-y-3 border border-[#2a2d33] rounded-2xl p-4">
+          <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">
+            {childCount > 1 ? `Child ${idx + 1}` : "Child's Information"}
+          </p>
+
+          <input
+            required value={child.name}
+            onChange={e => updateChild(idx, 'name', e.target.value)}
+            placeholder="Child's full name *"
+            className={inputCls}
+          />
+
+          <div>
+            <p className="text-[10px] font-bold text-[#71717a] mb-2">Gender *</p>
+            <div className="grid grid-cols-2 gap-3">
+              {(['male', 'female'] as const).map(g => (
+                <button
+                  key={g} type="button"
+                  onClick={() => updateChild(idx, 'gender', g)}
+                  className={`py-3 rounded-xl border font-black text-sm transition-all ${child.gender === g
+                    ? 'border-amber-500 bg-amber-500/10 text-white'
+                    : 'border-[#2a2d33] bg-[#141618] text-[#71717a] hover:border-[#3a3d43]'
+                  }`}
+                >
+                  {g === 'male' ? '👦 Male' : '👧 Female'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              required value={child.age} type="number" min="4" max="19"
+              onChange={e => updateChild(idx, 'age', e.target.value)}
+              placeholder="Age *"
+              className={inputCls}
+            />
+            <input
+              required value={child.class_}
+              onChange={e => updateChild(idx, 'class_', e.target.value)}
+              placeholder="Class / Grade *"
+              className={inputCls}
+            />
+          </div>
+
+          <div>
+            <p className="text-[10px] font-bold text-[#71717a] mb-2">Programme *</p>
+            <div className="space-y-2">
+              {PROGRAMS.map(p => (
+                <button
+                  key={p.value} type="button"
+                  onClick={() => updateChild(idx, 'program', p.value)}
+                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${child.program === p.value
+                    ? 'border-amber-500 bg-amber-500/10 text-white'
+                    : 'border-[#2a2d33] bg-[#141618] text-[#71717a] hover:border-[#3a3d43]'
+                  }`}
+                >
+                  <p className="font-black text-sm">{p.label}</p>
+                  <p className="text-xs mt-0.5 opacity-70">{p.sub}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <input
+            value={child.school}
+            onChange={e => updateChild(idx, 'school', e.target.value)}
+            placeholder="Child's current school (optional)"
+            className={inputCls}
+          />
+        </section>
+      ))}
 
       {/* Section: Assessment extras */}
       {isAssessment && (
@@ -327,7 +408,7 @@ export default function PublicConsentForm({
                 value={data.prior_platform}
                 onChange={e => set('prior_platform', e.target.value)}
                 placeholder="Which platform or language? (e.g. Scratch, Python)"
-                className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
+                className={inputCls}
               />
             )}
           </section>
@@ -424,19 +505,19 @@ export default function PublicConsentForm({
           required value={data.parent_name}
           onChange={e => set('parent_name', e.target.value)}
           placeholder="Your full name *"
-          className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
+          className={inputCls}
         />
         <input
           required value={data.parent_whatsapp}
           onChange={e => set('parent_whatsapp', e.target.value)}
           placeholder="WhatsApp / contact number *"
-          className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
+          className={inputCls}
         />
         <input
           required type="email" value={data.parent_email}
           onChange={e => set('parent_email', e.target.value)}
           placeholder="Email address (for confirmation) *"
-          className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
+          className={inputCls}
         />
         <label className="flex items-start gap-3 pt-1 cursor-pointer group">
           <input
