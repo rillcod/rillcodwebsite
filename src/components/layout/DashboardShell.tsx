@@ -25,6 +25,7 @@ const FULLSCREEN_PATHS = [
   '/dashboard/crm',
   '/dashboard/identity-cards',
   '/dashboard/card-studio',
+  '/dashboard/students/card-builder',
 ];
 
 function ShellInner({ children }: { children: React.ReactNode }) {

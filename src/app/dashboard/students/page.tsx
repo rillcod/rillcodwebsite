@@ -16,6 +16,7 @@ import {
   PrinterIcon, UserPlusIcon,
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
+import { fetchCardConfig, buildSingleCardHtml, openPrintWindow, holderCode, type CardHolder } from '@/lib/cards/printCard';
 
 // ─── Status badge ─────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
@@ -964,125 +965,25 @@ export default function StudentsPage() {
     setTimeout(() => win.print(), 600);
   };
 
-  const getCardCfg = async () => {
-    try {
-      const res = await fetch('/api/admin/settings');
-      const data = await res.json();
-      return data.config || null;
-    } catch { return null; }
-  };
-
   const handlePrintLoginSlip = async (s: any) => {
-    const [cardCfg, cardRes] = await Promise.all([
-      getCardCfg(),
-      (() => { const pid = s._source === 'enrolled' ? s.id : (s.user_id || s.id); return fetch(`/api/cards?holder_id=${pid}&holder_type=student`, { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null); })(),
-    ]);
-    const acc = cardCfg?.accentColor || '#ea580c';
-    const orgName = cardCfg?.orgName || 'RILLCOD TECHNOLOGIES';
-    const orgWeb = cardCfg?.orgWebsite || 'www.rillcod.com';
-    const footerTxt = cardCfg?.footerLeft || cardCfg?.footerText || 'rillcod.com/login';
-    const headerStyle = cardCfg?.headerStyle || 'band';
-    const cfgFields: Array<{key:string;visible:boolean;label?:string}> = cardCfg?.fields || [];
-    const fVis = (k: string) => cfgFields.length > 0 ? (cfgFields.find((f:any) => f.key === k)?.visible ?? false) : true;
-    const showQr = fVis('qr');
-    const showSchool = fVis('school');
-    const showPwd = fVis('password');
-    const showProg = cfgFields.length > 0 ? fVis('programme') : false;
-    const showId = fVis('studentId');
-    const showClass = fVis('className');
-    const showExpiry = fVis('expiry');
-    const expiryLabel = cfgFields.find((f:any) => f.key === 'expiry')?.label || 'Expiry Date';
-    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const studentName = s.full_name || s.name || 'N/A';
-    const email = s.email || s.student_email || 'N/A';
-    const schoolName = s.school_name || 'RILLCOD ACADEMY';
-    const programName = s.current_module || s.section_class || s.grade_level || 'General STEM';
     const portalId = s._source === 'enrolled' ? s.id : (s.user_id || s.id);
-    const studentCode = `RC-${portalId.slice(0, 8).toUpperCase()}`;
+    const [cfg, cardRes] = await Promise.all([
+      fetchCardConfig('student'),
+      fetch(`/api/cards?holder_id=${portalId}&holder_type=student`, { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
     const dbCard = cardRes?.data?.[0] ?? null;
-    const verificationCode = dbCard?.verification_code;
-    const expiryVal = dbCard?.expires_at ? new Date(dbCard.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-    const cardNumber = dbCard?.card_number || studentCode;
-    const qrData = verificationCode ? `${window.location.origin}/verify/${verificationCode}` : `${window.location.origin}/verify/${portalId}`;
-
-    const html = `
-      <html><head><title>Access Card — ${studentName}</title>
-      <style>
-        @page { size: A4 portrait; margin: 20mm; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; color: #111827; background: #fff; display: flex; align-items: flex-start; justify-content: center; }
-        .card { border: 1px solid #d1d5db; width: 100%; max-width: 480px; display: flex; flex-direction: column; overflow: hidden; }
-        /* Header band */
-        .card { border: 1px solid #d1d5db; ${headerStyle === 'border' ? `border-left: 4px solid ${acc};` : ''} width: 100%; max-width: 480px; display: flex; flex-direction: column; overflow: hidden; }
-        .chdr { background: ${acc}; padding: 12px 18px; display: flex; align-items: center; gap: 10px; }
-        .bhdr { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #f3f4f6; }
-        .logo { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-        .org-name { font-size: 14px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1; }
-        .org-name-b { font-size: 13px; font-weight: 900; color: #111; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1; }
-        .org-web { font-size: 9px; color: rgba(255,255,255,0.8); font-weight: 700; margin-top: 3px; }
-        .org-web-b { font-size: 8px; color: ${acc}; font-weight: 700; margin-top: 2px; }
-        .cbadge { margin-left: auto; background: rgba(0,0,0,0.22); color: #fff; padding: 5px 12px; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
-        .bbadge { margin-left: auto; background: ${acc}; color: #fff; padding: 4px 10px; font-size: 9px; font-weight: 900; text-transform: uppercase; flex-shrink: 0; }
-        .cbody { display: flex; min-height: 160px; }
-        .info { flex: 1; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #f3f4f6; overflow: hidden; }
-        .school { font-size: 9px; font-weight: 900; color: ${acc}; text-transform: uppercase; letter-spacing: 1.2px; }
-        .sname { font-size: 22px; font-weight: 900; color: #111; text-transform: uppercase; line-height: 1.15; }
-        .sep { height: 1px; background: #f3f4f6; }
-        .field { display: flex; flex-direction: column; gap: 3px; }
-        .lbl { font-size: 7.5px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; }
-        .val { font-size: 13px; font-weight: 700; font-family: monospace; color: #111; word-break: break-all; }
-        .val-accent { font-size: 13px; font-weight: 800; font-family: monospace; color: ${acc}; }
-        .qrp { width: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 18px 16px; background: #fafafa; flex-shrink: 0; }
-        .qr { width: 130px; height: 130px; border: 1px solid #e5e7eb; display: block; }
-        .qrl { font-size: 7px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; text-align: center; font-weight: 600; }
-        .qrc { font-size: 9px; font-weight: 900; font-family: monospace; color: ${acc}; text-align: center; }
-        .cftr { display: flex; justify-content: space-between; align-items: center; padding: 8px 18px; border-top: 1px solid #f3f4f6; font-size: 7.5px; color: #9ca3af; font-weight: 600; background: #fafafa; }
-        .cftr-id { font-family: monospace; color: #374151; font-weight: 900; font-size: 8px; }
-        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-      </style>
-      </head><body>
-      <div class="card">
-        ${headerStyle === 'band' ? `
-        <div class="chdr">
-          <img src="${window.location.origin}/logo.png" class="logo" />
-          <div><div class="org-name">${orgName}</div><div class="org-web">${orgWeb}</div></div>
-          ${showClass ? `<div class="cbadge">${programName || 'STUDENT'}</div>` : ''}
-        </div>` : `
-        <div class="bhdr">
-          <img src="${window.location.origin}/logo.png" class="logo" />
-          <div><div class="org-name-b">${orgName}</div><div class="org-web-b">${orgWeb}</div></div>
-          ${showClass ? `<div class="bbadge">${programName || 'STUDENT'}</div>` : ''}
-        </div>`}
-        <div class="cbody">
-          <div class="info">
-            ${showSchool ? `<div class="school">${schoolName}</div>` : ''}
-            <div class="sname">${studentName}</div>
-            <div class="sep"></div>
-            <div class="field"><div class="lbl">Login Email</div><div class="val">${email}</div></div>
-            ${showPwd ? `<div class="field"><div class="lbl">Temporary Password</div><div class="val-accent">Set on first login</div></div>` : ''}
-            ${showProg ? `<div class="field"><div class="lbl">Programme</div><div class="val-accent">${programName}</div></div>` : ''}
-            ${showId ? `<div class="field"><div class="lbl">Card No.</div><div class="val" style="color:${acc}">${cardNumber}</div></div>` : ''}
-            ${showExpiry ? `<div class="field"><div class="lbl">${expiryLabel}</div><div class="val-accent">${expiryVal}</div></div>` : ''}
-          </div>
-          ${showQr ? `
-          <div class="qrp">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}" class="qr" crossorigin="anonymous" />
-            <div class="qrl">Scan to Verify</div>
-            <div class="qrc">${cardNumber}</div>
-          </div>` : ''}
-        </div>
-        <div class="cftr">
-          <span>${footerTxt} · Keep this card safe</span>
-          <span class="cftr-id">Issued: ${dateStr}</span>
-        </div>
-      </div>
-      <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
-      </body></html>
-    `;
-    const win = window.open('', '_blank');
-    if (!win) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
-    win.document.write(html);
-    win.document.close();
+    const holder: CardHolder = {
+      id: portalId,
+      full_name: s.full_name || s.name || 'N/A',
+      email: s.email || s.student_email || null,
+      school_name: s.school_name || null,
+      section_class: s.current_module || s.section_class || s.grade_level || null,
+      card_number: dbCard?.card_number || holderCode(portalId),
+      expires_at: dbCard?.expires_at || null,
+      verification_code: dbCard?.verification_code || null,
+    };
+    openPrintWindow(buildSingleCardHtml(holder, cfg, window.location.origin));
   };
 
   const handlePrintAllLoginSlips = async () => {
@@ -1091,109 +992,19 @@ export default function StudentsPage() {
       alert('No enrolled students in the current filtered view.');
       return;
     }
-
-    // Ensure we have class and program lists for enrichment
-    if (classList.length === 0 || programsList.length === 0) {
-      try {
-        const [clsRes, progRes] = await Promise.all([
-          fetch('/api/classes'),
-          fetch('/api/programs?is_active=true')
-        ]);
-        if (clsRes.ok) setClassList((await clsRes.json()).data ?? []);
-        if (progRes.ok) setProgramsList((await progRes.json()).data ?? []);
-      } catch (e) { console.error('Enrichment fetch failed', e); }
-    }
-
-    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const logoUrl = window.location.origin + '/images/logo.png';
-
-    // Map class_id to program name via classList and programsList if needed
-    const enrichedList = list.map(s => {
-      let programName = s.current_module || s.section_class || s.grade_level;
-      if (s.class_id) {
-        const cls = classList.find((c: any) => c.id === s.class_id);
-        if (cls?.programs?.name) programName = cls.programs.name;
-        else if (cls?.program_id) {
-          const prog = programsList.find((p: any) => p.id === cls.program_id);
-          if (prog) programName = prog.name;
-        }
-      }
-      return { ...s, program_name: programName };
+    const cfg = await fetchCardConfig('student');
+    const holders: CardHolder[] = list.map(s => {
+      const pId = s._source === 'enrolled' ? s.id : (s.user_id || s.id);
+      return {
+        id: pId,
+        full_name: s.full_name || s.name || 'N/A',
+        email: s.email || s.student_email || null,
+        school_name: s.school_name || null,
+        section_class: s.section_class || s.grade_level || null,
+      };
     });
-
-    const html = `
-      <!DOCTYPE html><html><head><title>Access Cards — ${dateStr}</title>
-      <style>
-        @page { size: A4 portrait; margin: 0; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter','Segoe UI',system-ui,sans-serif; background:#fff; color:#111827; padding: 10mm; }
-        .grid { display:grid; grid-template-columns:80mm 80mm; grid-auto-rows:60mm; gap:8mm; justify-content:center; }
-        /* Card shell — exact 80×60mm */
-        .card { width:80mm; height:60mm; border:0.3mm solid #d1d5db; display:flex; flex-direction:column; overflow:hidden; break-inside:avoid; background:#fff; }
-        /* Header band — 9mm */
-        .chdr { background:#ea580c; height:9mm; padding:0 2.5mm; display:flex; align-items:center; gap:1.5mm; flex-shrink:0; }
-        .logo  { width:5mm; height:5mm; object-fit:contain; flex-shrink:0; }
-        .org-name { font-size:2.5mm; font-weight:900; color:#fff; text-transform:uppercase; line-height:1; }
-        .org-web  { font-size:1.6mm; color:rgba(255,255,255,.85); font-weight:700; margin-top:.4mm; }
-        .cbadge { margin-left:auto; background:rgba(0,0,0,.22); color:#fff; padding:.6mm 1.8mm; font-size:1.8mm; font-weight:900; text-transform:uppercase; flex-shrink:0; }
-        /* Body — 46mm */
-        .cbody { display:flex; flex:1; min-height:0; }
-        .info  { flex:1; padding:1.5mm 2mm; display:flex; flex-direction:column; gap:.8mm; overflow:hidden; min-width:0; border-right:.3mm solid #f0f0f0; }
-        .school { font-size:1.9mm; font-weight:900; color:#ea580c; text-transform:uppercase; letter-spacing:.1mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .sname  { font-size:3.8mm; font-weight:900; color:#111; text-transform:uppercase; line-height:1.15; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin:.5mm 0 1mm; }
-        .sep    { height:.3mm; background:#f0f0f0; margin:.5mm 0; }
-        .field  { display:flex; flex-direction:column; gap:.3mm; }
-        .lbl    { font-size:1.5mm; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.2mm; }
-        .val    { font-size:2.1mm; font-weight:700; font-family:monospace; color:#111; word-break:break-all; line-height:1.25; }
-        .val-a  { font-size:2.2mm; font-weight:800; font-family:monospace; color:#ea580c; line-height:1.25; }
-        /* QR panel — 22mm wide */
-        .qrp { width:22mm; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.8mm; padding:1.5mm; background:#fafafa; flex-shrink:0; }
-        .qr  { width:17mm; height:17mm; border:.3mm solid #e5e7eb; display:block; }
-        .qrl { font-size:1.4mm; color:#9ca3af; text-transform:uppercase; text-align:center; line-height:1.2; }
-        .qrc { font-size:1.7mm; font-weight:900; font-family:monospace; color:#ea580c; text-align:center; }
-        /* Footer — 5mm */
-        .cftr    { display:flex; justify-content:space-between; align-items:center; padding:0 2mm; border-top:.3mm solid #f0f0f0; font-size:1.5mm; color:#9ca3af; font-weight:600; flex-shrink:0; background:#fafafa; height:5mm; }
-        .cftr-id { font-family:monospace; color:#374151; font-weight:900; font-size:1.7mm; }
-        @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
-      </style>
-      </head><body>
-      <div class="grid">
-        ${enrichedList.map(s => {
-          const pId = s._source === 'enrolled' ? s.id : (s.user_id || s.id);
-          const sCode = 'RC-' + pId.slice(0, 8).toUpperCase();
-          const qUrl = encodeURIComponent('https://rillcod.com/student/' + pId);
-          const classLabel = s.section_class || s.grade_level || 'STUDENT';
-          return `
-          <div class="card">
-            <div class="chdr">
-              <img src="${logoUrl}" class="logo" />
-              <div><div class="org-name">RILLCOD TECHNOLOGIES</div><div class="org-web">www.rillcod.com</div></div>
-              <div class="cbadge">${classLabel}</div>
-            </div>
-            <div class="cbody">
-              <div class="info">
-                <div class="school">${s.school_name || 'RILLCOD ACADEMY'}</div>
-                <div class="sname">${s.full_name || s.name || 'N/A'}</div>
-                <div class="sep"></div>
-                <div class="field"><div class="lbl">Email</div><div class="val">${s.email || s.student_email || 'N/A'}</div></div>
-                <div class="field"><div class="lbl">Programme</div><div class="val-a">${s.program_name || 'General STEM'}</div></div>
-              </div>
-              <div class="qrp">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qUrl}" class="qr" crossorigin="anonymous" />
-                <div class="qrl">Scan to verify</div>
-                <div class="qrc">${sCode}</div>
-              </div>
-            </div>
-            <div class="cftr"><span>rillcod.com/login</span><span class="cftr-id">${sCode}</span></div>
-          </div>`;
-        }).join('')}
-      </div>
-      <script>window.onload = () => { window.print(); }</script>
-      </body></html>
-    `;
-    const win = window.open('', '_blank');
-    win?.document.write(html);
-    win?.document.close();
+    const { buildBulkPrintHtml } = await import('@/lib/cards/printCard');
+    openPrintWindow(buildBulkPrintHtml(holders, cfg, window.location.origin));
   };
 
   // ── Unified combined list ───────────────────────────────────
