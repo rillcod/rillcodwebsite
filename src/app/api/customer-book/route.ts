@@ -24,15 +24,24 @@ async function getCaller() {
 }
 
 function toCsv(rows: Tables<'customer_contact_book'>[]) {
-  const header = ['id', 'role', 'full_name', 'email', 'phone', 'school_name', 'class_name', 'source', 'last_channel', 'confirmed_at'];
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = ['S/N', 'Full Name', 'Role', 'Email', 'Phone', 'School', 'Class/Year', 'Source', 'Channel', 'Date Added'];
   const lines = [header.join(',')];
-  for (const r of rows) {
+  rows.forEach((r, i) => {
     lines.push([
-      r.id, r.role, r.full_name, r.email, r.phone, r.school_name, r.class_name, r.source, r.last_channel, r.confirmed_at,
+      i + 1,
+      r.full_name,
+      r.role,
+      r.email,
+      r.phone,
+      r.school_name,
+      r.class_name,
+      r.source,
+      r.last_channel,
+      r.confirmed_at ? new Date(r.confirmed_at).toLocaleDateString('en-GB') : '',
     ].map(esc).join(','));
-  }
-  return lines.join('\n');
+  });
+  return '﻿' + lines.join('\n'); // UTF-8 BOM so Excel opens correctly
 }
 
 export async function GET(req: NextRequest) {
@@ -44,7 +53,9 @@ export async function GET(req: NextRequest) {
   const school = url.searchParams.get('school') || '';
   const className = url.searchParams.get('class') || '';
   const q = url.searchParams.get('q') || '';
-  const asCsv = url.searchParams.get('format') === 'csv';
+  const format = url.searchParams.get('format') || 'json';
+  const asCsv  = format === 'csv';
+  const asPrint = format === 'print';
 
   let query = adminClient()
     .from('customer_contact_book')
@@ -70,11 +81,50 @@ export async function GET(req: NextRequest) {
     return new NextResponse(toCsv(rows), {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="customer-book-${new Date().toISOString().slice(0, 10)}.csv"`,
+        'Content-Disposition': `attachment; filename="rillcod-customer-book-${new Date().toISOString().slice(0, 10)}.csv"`,
       },
     });
   }
-  return NextResponse.json({ data: rows });
+
+  if (asPrint) {
+    const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const rows_html = rows.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td><strong>${r.full_name ?? '—'}</strong></td>
+        <td>${r.role ?? '—'}</td>
+        <td>${r.email ?? '—'}</td>
+        <td>${r.phone ?? '—'}</td>
+        <td>${r.school_name ?? '—'}</td>
+        <td>${r.class_name ?? '—'}</td>
+        <td>${r.source ?? '—'}</td>
+        <td>${r.confirmed_at ? new Date(r.confirmed_at).toLocaleDateString('en-GB') : '—'}</td>
+      </tr>`).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Customer Book — Rillcod Technologies</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:11px;margin:20px;color:#111}
+  h1{font-size:18px;margin-bottom:2px} .sub{font-size:11px;color:#666;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;page-break-inside:auto}
+  th{background:#09090b;color:#f5a623;font-size:9px;text-transform:uppercase;letter-spacing:.08em;padding:6px 8px;text-align:left}
+  td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:top}
+  tr:nth-child(even) td{background:#fafafa}
+  .footer{margin-top:20px;font-size:9px;color:#999;border-top:1px solid #eee;padding-top:8px}
+  @media print{@page{size:A4 landscape;margin:15mm}}
+</style></head><body>
+<h1>Rillcod Technologies — Customer Book</h1>
+<p class="sub">Generated: ${date} · ${rows.length} contacts</p>
+<table><thead><tr>
+  <th>#</th><th>Full Name</th><th>Role</th><th>Email</th><th>Phone</th>
+  <th>School</th><th>Class</th><th>Source</th><th>Date Added</th>
+</tr></thead><tbody>${rows_html}</tbody></table>
+<div class="footer">Rillcod Technologies · 26 Ogiesoba Avenue, GRA, Benin City · +234 811 660 0091 · rillcod.com</div>
+<script>window.onload=()=>window.print()</script>
+</body></html>`;
+    return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+  }
+
+  return NextResponse.json({ data: rows, total: rows.length });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -123,4 +173,40 @@ export async function PATCH(req: NextRequest) {
   if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 500 });
 
   return NextResponse.json({ success: true, merged_into: target.id, removed: source.id });
+}
+
+// POST /api/customer-book — create a new contact manually
+export async function POST(req: NextRequest) {
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const body = await req.json().catch(() => ({} as Record<string, unknown>));
+  const { full_name, email, phone, role, school_name, class_name } = body as Record<string, string>;
+
+  if (!full_name?.trim()) {
+    return NextResponse.json({ error: 'full_name is required' }, { status: 400 });
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await adminClient()
+    .from('customer_contact_book')
+    .insert({
+      full_name: full_name.trim(),
+      email: email?.trim().toLowerCase() || null,
+      phone: phone?.trim() || null,
+      role: role || 'parent',
+      school_name: school_name?.trim() || null,
+      class_name: class_name?.trim() || null,
+      source: 'manual',
+      last_channel: 'manual',
+      confirmed_at: now,
+      created_at: now,
+      updated_at: now,
+      metadata: { created_by: caller.id },
+    })
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ data }, { status: 201 });
 }
