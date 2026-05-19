@@ -118,7 +118,7 @@ const WEEKLY_CHALLENGE = {
 
 const MAX_CHARS = 1000;
 
-export default function CommunityPage() {
+export default function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { profile, loading: authLoading } = useAuth();
   const db = createClient();
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -241,37 +241,39 @@ export default function CommunityPage() {
   const charsLeft = MAX_CHARS - message.length;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className={`text-foreground ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="bg-card border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary to-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                <UserGroupIcon className="w-6 h-6 text-white" />
+      {!isEmbedded && (
+        <div className="bg-card border-b border-border">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary to-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <UserGroupIcon className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black text-foreground">Student Hub</h1>
+                  <p className="text-sm text-muted-foreground mt-0.5">Share ideas, post code, ask questions, and learn together</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-black text-foreground">Student Hub</h1>
-                <p className="text-sm text-muted-foreground mt-0.5">Share ideas, post code, ask questions, and learn together</p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-4 py-2 bg-muted border border-border rounded-xl">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-bold text-muted-foreground">{posts.length} posts</span>
+                </div>
+                {isStaff && (
+                  <span className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/30 rounded-xl text-xs font-bold text-primary">
+                    <ShieldCheckIcon className="w-3.5 h-3.5" /> Staff
+                  </span>
+                )}
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-muted border border-border rounded-xl">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-bold text-muted-foreground">{posts.length} posts</span>
-              </div>
-              {isStaff && (
-                <span className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 border border-primary/30 rounded-xl text-xs font-bold text-primary">
-                  <ShieldCheckIcon className="w-3.5 h-3.5" /> Staff
-                </span>
-              )}
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-10 py-8">
+      <div className={`max-w-6xl mx-auto ${isEmbedded ? 'px-0 py-4 sm:py-6' : 'px-4 sm:px-6 md:px-10 py-8'}`}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
           {/* ── Main column ─────────────────────────────────────────────────── */}
@@ -787,6 +789,42 @@ export default function CommunityPage() {
                 <a href="/dashboard/protocol" className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/20 rounded-xl text-[9px] font-black text-amber-400 uppercase tracking-widest transition-all">
                   Start Learning Path →
                 </a>
+              </div>
+            </div>
+
+            {/* 📚 High-Value Developer Resources */}
+            <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2 border-b border-emerald-500/10 pb-3">
+                <span className="text-lg">📚</span>
+                <div>
+                  <p className="text-xs font-black text-emerald-400 uppercase tracking-widest">Developer Reference</p>
+                  <p className="text-[8px] text-muted-foreground uppercase tracking-wider">High-Value Learning Resources</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                {[
+                  { title: 'MDN Web Docs', url: 'https://developer.mozilla.org', desc: 'HTML, CSS & JS official reference.', emoji: '🌐' },
+                  { title: 'Python Tutorial', url: 'https://docs.python.org/3/tutorial/', desc: 'Official Python standard guide.', emoji: '🐍' },
+                  { title: 'Arduino Reference', url: 'https://www.arduino.cc/reference/en/', desc: 'Hardware & electronics scripting.', emoji: '🤖' },
+                  { title: 'W3Schools Code School', url: 'https://www.w3schools.com', desc: 'Visual examples and live sandbox.', emoji: '🎨' },
+                  { title: 'Harvard CS50', url: 'https://pll.harvard.edu/course/cs50-introduction-computer-science', desc: 'Harvard’s computer science foundations.', emoji: '🎓' },
+                ].map((res, i) => (
+                  <a
+                    key={i}
+                    href={res.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2.5 p-2 bg-card/40 border border-border/60 hover:border-emerald-500/40 hover:bg-emerald-500/5 rounded-xl transition-all group"
+                  >
+                    <span className="text-base shrink-0">{res.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-foreground group-hover:text-emerald-400 transition-colors truncate">{res.title}</p>
+                      <p className="text-[8px] text-muted-foreground truncate">{res.desc}</p>
+                    </div>
+                    <span className="text-[8px] font-black uppercase text-emerald-500/70 hover:text-emerald-400 shrink-0">Open ↗</span>
+                  </a>
+                ))}
               </div>
             </div>
 

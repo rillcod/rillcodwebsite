@@ -8,7 +8,7 @@ import { brandAssets, companyInfo, contactInfo } from '@/config/brand';
 import {
   Users, Search, Plus, Phone, Mail, MessageSquare, FileText,
   ChevronRight, Loader2, Paperclip, Download, Trash2, X,
-  Phone as PhoneIcon, Building2, UserCircle, Filter,
+  Building2, UserCircle, Filter,
   CheckCircle, AlertCircle, Clock, TrendingDown, Star,
   Send, ChevronDown, ChevronUp, StickyNote, Calendar,
 } from 'lucide-react';
@@ -84,7 +84,7 @@ const PIPELINE_STAGES: { value: PipelineStage; label: string; color: string; ico
 
 const INTERACTION_TYPES = [
   { value: 'note',     label: 'Note',     icon: StickyNote },
-  { value: 'call',     label: 'Call',     icon: PhoneIcon },
+  { value: 'call',     label: 'Call',     icon: Phone },
   { value: 'email',    label: 'Email',    icon: Mail },
   { value: 'meeting',  label: 'Meeting',  icon: Calendar },
   { value: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
@@ -151,6 +151,7 @@ export default function CRMPage() {
   const [contactsLoading, setContactsLoading] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [stageFilter, setStageFilter] = useState<PipelineStage | 'all'>('all');
   const [selectedContact, setSelectedContact] = useState<CRMContact | null>(null);
 
   // Right panel tabs
@@ -362,6 +363,10 @@ export default function CRMPage() {
     } catch { /**/ } finally { setSavingPipeline(false); }
   };
 
+  const displayedContacts = stageFilter === 'all'
+    ? contacts
+    : contacts.filter(c => c.pipeline_stage === stageFilter);
+
   // ── Guard ─────────────────────────────────────────────────────────────────
 
   if (authLoading) {
@@ -429,12 +434,16 @@ export default function CRMPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {PIPELINE_STAGES.map(s => {
           const count = contacts.filter(c => c.pipeline_stage === s.value).length;
+          const isActive = stageFilter === s.value;
           return (
             <button key={s.value}
-              onClick={() => setRoleFilter(prev => prev)}
-              className={`flex flex-col items-center py-3 px-2 rounded-xl border ${s.color} text-center transition-all hover:brightness-110`}>
+              onClick={() => setStageFilter(prev => prev === s.value ? 'all' : s.value)}
+              className={`flex flex-col items-center py-3 px-2 rounded-xl border text-center transition-all hover:brightness-110 ${
+                isActive ? `${s.color} ring-2 ring-current` : s.color
+              }`}>
               <span className="text-lg font-black">{count}</span>
               <span className="text-[10px] font-bold uppercase tracking-wide mt-0.5">{s.label}</span>
+              {isActive && <span className="text-[8px] font-black uppercase mt-0.5 opacity-70">filtered</span>}
             </button>
           );
         })}
@@ -490,13 +499,20 @@ export default function CRMPage() {
               <div className="flex justify-center p-10">
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
-            ) : contacts.length === 0 ? (
+            ) : displayedContacts.length === 0 ? (
               <div className="text-center p-10">
                 <UserCircle className="w-8 h-8 text-white/10 mx-auto mb-2" />
-                <p className="text-white/30 text-sm">No contacts found</p>
+                <p className="text-white/30 text-sm">
+                  {stageFilter !== 'all' ? `No ${stageFilter} contacts` : 'No contacts found'}
+                </p>
+                {stageFilter !== 'all' && (
+                  <button onClick={() => setStageFilter('all')} className="mt-2 text-[11px] text-primary font-bold underline">
+                    Clear filter
+                  </button>
+                )}
               </div>
             ) : (
-              contacts.map(c => {
+              displayedContacts.map(c => {
                 const sm = stageMeta(c.pipeline_stage);
                 return (
                   <div key={c.id}
@@ -609,7 +625,7 @@ export default function CRMPage() {
                                   {item.channel}
                                 </span>
                                 <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
-                                  item.direction === 'inbound' ? 'bg-primary/15 text-blue-300' : 'bg-primary/15 text-primary'
+                                  item.direction === 'inbound' ? 'bg-blue-500/15 text-blue-300' : 'bg-amber-500/15 text-amber-400'
                                 }`}>
                                   {item.direction}
                                 </span>
@@ -705,7 +721,7 @@ export default function CRMPage() {
                                 <div className="flex items-center justify-between gap-2 mb-1">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[11px] font-black text-white uppercase">{i.type}</span>
-                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${i.direction === 'outbound' ? 'bg-primary/10 text-primary' : 'bg-primary/10 text-primary'}`}>{i.direction}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${i.direction === 'outbound' ? 'bg-amber-500/10 text-amber-400' : 'bg-blue-500/10 text-blue-400'}`}>{i.direction}</span>
                                     {i.staff_name && <span className="text-[10px] text-white/30">by {i.staff_name}</span>}
                                   </div>
                                   <div className="flex items-center gap-1.5 shrink-0">

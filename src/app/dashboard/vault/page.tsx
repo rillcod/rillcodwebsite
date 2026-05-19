@@ -89,7 +89,172 @@ const BLANK_FORM: SnippetFormState = {
   code: '',
 };
 
-export default function VaultPage() {
+const STARTER_TEMPLATES = [
+  {
+    title: 'Fetch Web Data',
+    language: 'javascript',
+    description: 'Simple utility to grab data from the web using modern fetch methods.',
+    code: `// ⚡ Reusable API Fetch Wrapper
+// Handles response validation and extracts JSON safely.
+
+async function fetchJSON(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const config = { ...options, headers };
+
+  try {
+    const response = await fetch(url, config);
+    if (!response.ok) {
+      throw new Error(\`HTTP error! status: \${response.status}\`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[API Fetch Error]:', error.message);
+    throw error;
+  }
+}
+
+// --- Usage Example ---
+// fetchJSON('https://api.github.com/users/octocat')
+//   .then(data => console.log('User Profile:', data))
+//   .catch(err => console.error('Fetch failed:', err));`,
+    tags: ['api', 'fetch', 'async', 'json']
+  },
+  {
+    title: 'Frosted Glass Card',
+    language: 'html',
+    description: 'A modern card design with beautiful blurry glass backgrounds and hover scales.',
+    code: `<!-- 🎨 CSS Glassmorphism Card Layout -->
+<div class="glass-card">
+  <div class="glow-orb"></div>
+  <h3>My Creative Card</h3>
+  <p>A standard card design with beautiful blurry glass backgrounds and hover scales.</p>
+  <button class="glass-btn">Activate</button>
+</div>
+
+<style>
+  .glass-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 32px;
+    text-align: center;
+    max-width: 320px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+  .glass-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: rgba(249, 115, 22, 0.3);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  }
+  .glass-btn {
+    background: linear-gradient(135deg, #f97316, #ec4899);
+    border: none;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .glass-btn:hover {
+    transform: scale(1.05);
+  }
+</style>`,
+    tags: ['css', 'glassmorphism', 'card', 'ui']
+  },
+  {
+    title: 'Python Grade Analyzer',
+    language: 'python',
+    description: 'A clean Python script to calculate average grades from a student database file.',
+    code: `# 🐍 Python CSV Marksheet Analyzer
+# Computes totals, averages, and ranks students based on score.
+import csv
+
+def analyze_marksheet(file_path):
+    students = []
+    
+    with open(file_path, mode='r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            name = row['Name']
+            score = float(row['Score'])
+            students.append({'name': name, 'score': score})
+            
+    # Calculations
+    highest = max(students, key=lambda x: x['score'])
+    lowest = min(students, key=lambda x: x['score'])
+    avg_score = sum(s['score'] for s in students) / len(students)
+    
+    # Sort by rank
+    students.sort(key=lambda x: x['score'], reverse=True)
+    
+    print(f"--- Student Report Analytics ({len(students)} Records) ---")
+    print(f"Class Average: {avg_score:.2f}")
+    print(f"Top Performer: {highest['name']} ({highest['score']})")
+    print(f"Needs Support: {lowest['name']} ({lowest['score']})")
+    print("-" * 40)
+    for rank, s in enumerate(students, 1):
+        print(f"#{rank} - {s['name']}: {s['score']}%")
+
+# --- Example Usage (Assumes data.csv exists) ---
+# analyze_marksheet('marks.csv')`,
+    tags: ['python', 'csv', 'analytics', 'files']
+  },
+  {
+    title: 'Arduino Blinking Light',
+    language: 'robotics',
+    description: 'A standard microcontroller script to blink an LED without blocking other sensors.',
+    code: `// 🤖 Non-blocking LED Controller Class
+// Replaces delay() with millis() comparison for responsive hardware.
+
+class LedController {
+  private:
+    int pin;
+    long interval;
+    int state;
+    unsigned long previousMillis;
+
+  public:
+    LedController(int pinNumber, long blinkInterval) {
+      pin = pinNumber;
+      interval = blinkInterval;
+      state = LOW;
+      previousMillis = 0;
+    }
+
+    void begin() {
+      pinMode(pin, OUTPUT);
+    }
+
+    void update() {
+      unsigned long currentMillis = millis();
+      if (currentMillis - previousMillis >= interval) {
+        previousMillis = currentMillis;
+        state = (state == LOW) ? HIGH : LOW;
+        digitalWrite(pin, state);
+      }
+    }
+};
+
+// --- Execution Setup ---
+LedController statusLed(13, 500); // LED on PIN 13, blink every 500ms
+
+void setup() {
+  statusLed.begin();
+}
+
+void loop() {
+  statusLed.update(); // Keeps responsive to other sensors
+}`,
+    tags: ['robotics', 'arduino', 'cpp', 'millis']
+  }
+];
+
+export default function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { profile, loading: authLoading } = useAuth();
   const db = createClient();
 
@@ -111,6 +276,31 @@ export default function VaultPage() {
   const [aiExplaining, setAiExplaining] = useState<string | null>(null);
   const [aiExplanations, setAiExplanations] = useState<Record<string, string>>({});
   const [expandedExplanations, setExpandedExplanations] = useState<Set<string>>(new Set());
+
+  const [importing, setImporting] = useState<string | null>(null);
+
+  async function handleImport(template: typeof STARTER_TEMPLATES[0]) {
+    if (!profile) return;
+    setImporting(template.title);
+    setError(null);
+    try {
+      const payload = {
+        user_id: profile.id,
+        title: template.title,
+        language: template.language,
+        code: template.code,
+        description: template.description,
+        tags: template.tags,
+      };
+      const { error: insertErr } = await db.from('vault_items').insert(payload);
+      if (insertErr) throw insertErr;
+      await fetchItems();
+    } catch (e: any) {
+      setError(e.message || 'Failed to import template.');
+    } finally {
+      setImporting(null);
+    }
+  }
 
   useEffect(() => {
     if (!authLoading && profile) fetchItems();
@@ -264,20 +454,24 @@ export default function VaultPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className={`text-foreground ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
+      <div className={`max-w-4xl mx-auto ${isEmbedded ? 'px-0 py-4' : 'px-4 py-8'}`}>
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-primary/10 flex items-center justify-center rounded-xl">
-            <ArchiveBoxIcon className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tight">Vault</h1>
-            <p className="text-sm text-muted-foreground">Your personal code library</p>
-          </div>
+          {!isEmbedded && (
+            <>
+              <div className="w-10 h-10 bg-primary/10 flex items-center justify-center rounded-xl">
+                <ArchiveBoxIcon className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-foreground tracking-tight">Vault</h1>
+                <p className="text-sm text-muted-foreground">Your personal code library</p>
+              </div>
+            </>
+          )}
           <button
             onClick={openNew}
-            className="ml-auto flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
+            className={`${isEmbedded ? '' : 'ml-auto'} flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/95 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20`}
           >
             <PlusIcon className="w-4 h-4" />
             New Snippet
@@ -436,14 +630,72 @@ export default function VaultPage() {
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="text-center py-20">
-            <ArchiveBoxIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-foreground font-bold text-lg mb-1">
-              {search ? 'No matching snippets' : 'No snippets yet'}
-            </p>
-            <p className="text-muted-foreground text-sm">
-              {search ? 'Try a different search term.' : 'Click "New Snippet" to add your first one!'}
-            </p>
+          <div className="space-y-10 py-10">
+            <div className="text-center bg-card border border-border rounded-2xl p-8 max-w-xl mx-auto">
+              <ArchiveBoxIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-foreground font-black text-lg mb-1">
+                {search ? 'No matching snippets' : 'Your Vault is Empty'}
+              </p>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {search
+                  ? 'Try a different search term.'
+                  : 'Your personal code library is ready. Store your custom snippets, APIs, and micro-controllers here.'}
+              </p>
+            </div>
+
+            {!search && (
+              <div className="space-y-6">
+                <div className="border-b border-border pb-3">
+                  <div className="flex items-center gap-2 text-foreground font-black uppercase tracking-wider text-xs">
+                    <SparklesIcon className="w-4 h-4 text-primary animate-pulse" />
+                    🚀 Professional Starter Templates
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Click Import to instantly populate your vault with these curated, industry-standard code files.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {STARTER_TEMPLATES.map((tpl, i) => (
+                    <div key={i} className="bg-card border border-border hover:border-primary/30 rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:shadow-lg transition-all group">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{tpl.title}</h4>
+                          <span className="text-[8px] font-black uppercase px-2 py-0.5 bg-primary/10 border border-primary/20 text-primary rounded-full">
+                            {tpl.language}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">{tpl.description}</p>
+                        
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {tpl.tags.map((tag, ti) => (
+                            <span key={ti} className="text-[8px] font-semibold bg-muted px-2 py-0.5 rounded text-muted-foreground">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleImport(tpl)}
+                        disabled={importing !== null}
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-muted hover:bg-primary hover:text-white border border-border hover:border-primary text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+                      >
+                        {importing === tpl.title ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+                            Importing...
+                          </>
+                        ) : (
+                          <>
+                            <PlusIcon className="w-3.5 h-3.5" />
+                            Import to Vault
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

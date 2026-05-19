@@ -1460,7 +1460,7 @@ const DIFFICULTY_STYLES: Record<Difficulty, string> = {
   Advanced: 'bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]',
 };
 
-export default function MissionsPage() {
+export default function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { profile, loading: authLoading } = useAuth();
 
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -1559,72 +1559,76 @@ export default function MissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
-      <div className="max-w-5xl mx-auto px-4 py-8 sm:py-12">
+    <div className={`text-foreground selection:bg-primary/30 ${isEmbedded ? '' : 'min-h-screen bg-background'}`}>
+      <div className={`max-w-5xl mx-auto ${isEmbedded ? 'px-0 py-4' : 'px-4 py-8 sm:py-12'}`}>
         {/* Back Button */}
-        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
-          <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
-            <ArrowLeftIcon className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
-        </motion.div>
+        {!isEmbedded && (
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="mb-8">
+            <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 hover:bg-muted border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+              <ArrowLeftIcon className="w-4 h-4" />
+              Back to Dashboard
+            </Link>
+          </motion.div>
+        )}
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 sm:gap-5 mb-10">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10">
-            <RocketLaunchIcon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight mb-0.5 sm:mb-1 uppercase">Missions</h1>
-            <p className="text-[9px] sm:text-[10px] text-primary font-black tracking-[0.2em] uppercase">Rillcod Tactical Exercises</p>
-          </div>
-        </motion.div>
+        {!isEmbedded && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 sm:gap-5 mb-10">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-primary to-amber-600 flex items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(249,115,22,0.3)] border border-white/10">
+              <RocketLaunchIcon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight mb-0.5 sm:mb-1 uppercase">Missions</h1>
+              <p className="text-[9px] sm:text-[10px] text-primary font-black tracking-[0.2em] uppercase">Rillcod Tactical Exercises</p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Stats bar */}
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+          <div className="bg-card border border-border p-5 rounded-2xl relative overflow-hidden group hover:bg-muted/30 transition-colors">
             <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 mb-2 relative z-10">
-              <CheckBadgeIcon className="w-4 h-4 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-              <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">Completed</span>
+              <CheckBadgeIcon className="w-4 h-4 text-emerald-500" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Completed</span>
             </div>
-            <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{completedIds.size} <span className="text-sm font-medium text-white/30">/ {MISSIONS.length}</span></p>
+            <p className="text-2xl font-black text-foreground relative z-10">{completedIds.size} <span className="text-sm font-medium text-muted-foreground/40">/ {MISSIONS.length}</span></p>
           </div>
-          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+          <div className="bg-card border border-border p-5 rounded-2xl relative overflow-hidden group hover:bg-muted/30 transition-colors">
             <div className="absolute inset-0 bg-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 mb-2 relative z-10">
-              <BoltIcon className="w-4 h-4 text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-              <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">XP Earned</span>
+              <BoltIcon className="w-4 h-4 text-amber-500" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">XP Earned</span>
             </div>
-            <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{totalXP}</p>
+            <p className="text-2xl font-black text-foreground relative z-10">{totalXP}</p>
           </div>
-          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+          <div className="bg-card border border-border p-5 rounded-2xl relative overflow-hidden group hover:bg-muted/30 transition-colors">
             <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 mb-2 relative z-10">
-              <TrophyIcon className="w-4 h-4 text-primary drop-shadow-[0_0_10px_rgba(249,115,22,0.5)]" />
-              <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">Level</span>
+              <TrophyIcon className="w-4 h-4 text-primary" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Level</span>
             </div>
-            <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{level}</p>
+            <p className="text-2xl font-black text-foreground relative z-10">{level}</p>
           </div>
-          <div className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+          <div className="bg-card border border-border p-5 rounded-2xl relative overflow-hidden group hover:bg-muted/30 transition-colors">
             <div className="absolute inset-0 bg-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 mb-2 relative z-10">
-              <StarIcon className="w-4 h-4 text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
-              <span className="text-[10px] text-white/50 uppercase tracking-widest font-black">Remaining XP</span>
+              <StarIcon className="w-4 h-4 text-cyan-500" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Remaining XP</span>
             </div>
-            <p className="text-2xl font-black text-white relative z-10 drop-shadow-md">{XP_PER_LEVEL - (totalXP % XP_PER_LEVEL)}</p>
+            <p className="text-2xl font-black text-foreground relative z-10">{XP_PER_LEVEL - (totalXP % XP_PER_LEVEL)}</p>
           </div>
         </motion.div>
 
         {/* XP Progress bar */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white/[0.02] backdrop-blur-xl border border-white/10 p-5 rounded-2xl mb-8 relative overflow-hidden">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-card border border-border p-5 rounded-2xl mb-8 relative overflow-hidden">
           <div className="absolute -right-24 -top-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
           <div className="flex items-center justify-between mb-3 relative z-10">
-            <span className="text-xs font-black text-white/60 uppercase tracking-widest">Level {level} Progress</span>
-            <span className="text-xs text-primary font-black tracking-widest uppercase">{totalXP % XP_PER_LEVEL} <span className="text-white/30">/ {XP_PER_LEVEL} XP</span></span>
+            <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Level {level} Progress</span>
+            <span className="text-xs text-primary font-black tracking-widest uppercase">{totalXP % XP_PER_LEVEL} <span className="text-muted-foreground/30">/ {XP_PER_LEVEL} XP</span></span>
           </div>
-          <div className="h-2.5 bg-black/50 rounded-full overflow-hidden shadow-inner relative z-10">
+          <div className="h-2.5 bg-muted rounded-full overflow-hidden shadow-inner relative z-10">
             <div
-              className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary via-amber-500 to-rose-500 transition-all duration-700 ease-out shadow-[0_0_15px_rgba(249,115,22,0.5)]"
+              className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary via-amber-500 to-rose-500 transition-all duration-700 ease-out shadow-[0_0_15px_rgba(249,115,22,0.3)]"
               style={{ width: `${Math.min(100, ((totalXP % XP_PER_LEVEL) / XP_PER_LEVEL) * 100)}%` }}
             />
           </div>
@@ -1713,8 +1717,8 @@ export default function MissionsPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2, delay: idx * 0.03 }}
-                  className={`bg-white/[0.02] backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-300 border ${
-                    isCompleted ? 'border-emerald-500/30 inset-shadow-[0_0_20px_rgba(16,185,129,0.05)]' : isActive ? 'border-primary/50 shadow-[0_0_30px_rgba(26,58,143,0.15)] ring-2 ring-brand-red-600/50' : 'border-white/5 hover:border-white/20 hover:bg-white/[0.04]'
+                  className={`bg-card rounded-3xl overflow-hidden transition-all duration-300 border ${
+                    isCompleted ? 'border-emerald-500/30 inset-shadow-[0_0_20px_rgba(16,185,129,0.05)]' : isActive ? 'border-primary/50 shadow-[0_0_30px_rgba(26,58,143,0.15)] ring-2 ring-brand-red-600/50' : 'border-border hover:border-primary/20 hover:bg-muted/40'
                   } ${isActive ? 'md:col-span-2' : ''}`}
                 >
                   {/* Mission card header */}
@@ -1724,22 +1728,22 @@ export default function MissionsPage() {
                     
                     <div className="flex items-start gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-3 border-b border-white/5 pb-3">
+                        <div className="flex items-center gap-2 flex-wrap mb-3 border-b border-border pb-3">
                           <span
                             className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full border ${DIFFICULTY_STYLES[mission.difficulty]}`}
                           >
                             {mission.difficulty}
                           </span>
-                          <span className="px-3 py-1 bg-white/[0.05] border border-white/10 rounded-full text-[9px] uppercase font-black tracking-widest text-white/70">
+                          <span className="px-3 py-1 bg-muted border border-border rounded-full text-[9px] uppercase font-black tracking-widest text-muted-foreground">
                             {mission.language}
                           </span>
-                          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-amber-400 font-black tracking-widest bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]">
+                          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-amber-500 font-black tracking-widest bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]">
                             <BoltIcon className="w-3.5 h-3.5" />
                             {mission.xp} XP
                           </span>
                         </div>
-                        <h3 className="font-black text-white text-xl mb-2 tracking-tight drop-shadow-sm">{mission.title}</h3>
-                        <p className="text-sm text-white/60 leading-relaxed font-medium">{mission.description}</p>
+                        <h3 className="font-black text-foreground text-xl mb-2 tracking-tight">{mission.title}</h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed font-medium">{mission.description}</p>
                       </div>
                       {isCompleted && (
                         <div className="flex-shrink-0 bg-emerald-500/10 p-2.5 rounded-2xl border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.3)] transform rotate-12">
@@ -1752,21 +1756,21 @@ export default function MissionsPage() {
                       {mission.tags.slice(0, 4).map((tag) => (
                         <span
                           key={tag}
-                          className="px-3 py-1 bg-black/40 border border-white/5 rounded-lg text-[10px] text-white/40 font-black font-mono tracking-widest uppercase"
+                          className="px-3 py-1 bg-muted border border-border rounded-lg text-[10px] text-muted-foreground/60 font-black font-mono tracking-widest uppercase"
                         >
                           #{tag}
                         </span>
                       ))}
                     </div>
 
-                    <div className="flex items-center gap-3 mt-6 pt-6 border-t border-white/5">
+                    <div className="flex items-center gap-3 mt-6 pt-6 border-t border-border">
                       <button
                         onClick={() =>
                           setActiveMission(isActive ? null : mission.id)
                         }
                         className={`flex items-center justify-center min-w-[140px] gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${
                           isActive
-                            ? 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10'
+                            ? 'bg-muted border border-border text-muted-foreground hover:bg-muted/80'
                             : 'bg-gradient-to-r from-primary to-amber-600 text-white shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:shadow-[0_0_30px_rgba(249,115,22,0.6)] hover:-translate-y-0.5'
                         }`}
                       >
@@ -1794,18 +1798,18 @@ export default function MissionsPage() {
                   {/* Expanded mission area */}
                   <AnimatePresence>
                     {isActive && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-white/10 bg-black/50">
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-border bg-muted/20">
                         {/* Instructions */}
                         <div className="px-8 py-6 bg-primary/5 border-b border-primary/10 relative overflow-hidden">
                           <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
                           <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-2">
                             <RocketLaunchIcon className="w-4 h-4" /> Mission Briefing
                           </p>
-                          <p className="text-[15px] text-white/80 leading-relaxed font-medium">{mission.instructions}</p>
+                          <p className="text-[15px] text-foreground/80 leading-relaxed font-medium">{mission.instructions}</p>
                         </div>
 
                         {/* Code editor */}
-                        <div className="relative p-4 sm:p-8 bg-black/40 backdrop-blur-sm border-b border-white/5">
+                        <div className="relative p-4 sm:p-8 bg-card border-b border-border">
                           <CodeEditor
                             value={missionCode[mission.id] ?? mission.starterCode}
                             onChange={(v) =>
@@ -1828,7 +1832,7 @@ export default function MissionsPage() {
                         </div>
 
                         {/* AI Hint + Mark Complete */}
-                        <div className="px-8 py-5 flex flex-wrap items-center gap-4 bg-white/[0.02]">
+                        <div className="px-8 py-5 flex flex-wrap items-center gap-4 bg-muted/40 border-t border-border">
                           <button
                             onClick={() =>
                               hints[mission.id]
@@ -1836,7 +1840,7 @@ export default function MissionsPage() {
                                 : getHint(mission)
                             }
                             disabled={hintLoading === mission.id}
-                            className="flex items-center gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all rounded-xl disabled:opacity-50 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                            className="flex items-center gap-2 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all rounded-xl disabled:opacity-50"
                           >
                             <LightBulbIcon className="w-4 h-4" />
                             {hintLoading === mission.id
@@ -1844,23 +1848,23 @@ export default function MissionsPage() {
                               : hints[mission.id]
                               ? showHints.has(mission.id)
                                 ? 'Hide Hint'
-                                : 'Request Intel'
-                              : 'Request Intel'}
+                                : 'Get Hint'
+                              : 'Get Hint'}
                           </button>
 
                           {!isCompleted && (
                             <button
                               onClick={() => markComplete(mission.id)}
-                              className="flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 text-emerald-400 hover:text-white rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] ml-auto"
+                              className="flex items-center gap-2 px-6 py-3 text-[11px] font-black uppercase tracking-widest bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 text-emerald-600 hover:text-white rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] ml-auto"
                             >
                               <CheckBadgeIcon className="w-5 h-5" />
                               Submit Solution (+{mission.xp} XP)
                             </button>
                           )}
                           {isCompleted && (
-                            <span className="ml-auto flex items-center gap-2 text-[11px] text-emerald-400 font-black uppercase tracking-widest bg-emerald-500/10 px-5 py-3 border border-emerald-500/30 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                            <span className="ml-auto flex items-center gap-2 text-[11px] text-emerald-500 font-black uppercase tracking-widest bg-emerald-500/10 px-5 py-3 border border-emerald-500/30 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.05)]">
                               <CheckBadgeIcon className="w-5 h-5" />
-                              Data Validated
+                              Exercise Completed
                             </span>
                           )}
                         </div>
