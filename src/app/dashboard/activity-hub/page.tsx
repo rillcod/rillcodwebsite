@@ -12,17 +12,18 @@ import {
 } from '@/lib/icons';
 import dynamic from 'next/dynamic';
 
-// Dynamically import named exports so the default page export stays Next.js-compliant
-const SocialHub = dynamic(() => import('../engage/page').then(m => ({ default: m.CommunityPage })), {
+// Dynamically import from sibling component files (not page.tsx) to satisfy
+// Next.js 15's rule that page files may only contain recognised export fields.
+const SocialHub = dynamic(() => import('../engage/CommunityPage').then(m => ({ default: m.CommunityPage })), {
   loading: () => <div className="p-12 text-center animate-pulse text-muted-foreground uppercase font-black tracking-widest">Loading Social Hub...</div>
 });
-const ResourceVault = dynamic(() => import('../vault/page').then(m => ({ default: m.VaultPage })), {
+const ResourceVault = dynamic(() => import('../vault/VaultPage').then(m => ({ default: m.VaultPage })), {
   loading: () => <div className="p-12 text-center animate-pulse text-muted-foreground uppercase font-black tracking-widest">Loading Code Vault...</div>
 });
-const SkillQuests = dynamic(() => import('../missions/page').then(m => ({ default: m.MissionsPage })), {
+const SkillQuests = dynamic(() => import('../missions/MissionsPage').then(m => ({ default: m.MissionsPage })), {
   loading: () => <div className="p-12 text-center animate-pulse text-muted-foreground uppercase font-black tracking-widest">Loading Skill Quests...</div>
 });
-const MasteryProtocol = dynamic(() => import('../protocol/page').then(m => ({ default: m.ProtocolPage })), {
+const MasteryProtocol = dynamic(() => import('../protocol/ProtocolPage').then(m => ({ default: m.ProtocolPage })), {
   loading: () => <div className="p-12 text-center animate-pulse text-muted-foreground uppercase font-black tracking-widest">Loading Mastery Protocol...</div>
 });
 
