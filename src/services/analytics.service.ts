@@ -134,17 +134,21 @@ export class AnalyticsService {
         const supabase = await createClient();
 
         if (type === 'performance') {
-            let query = supabase.from('student_performance_summary').select('*');
-            if (filters.schoolId) query = query.eq('school_id', filters.schoolId);
-            
-            const { data, error } = await query;
+            // school_id is required — never export cross-school performance data
+            if (!filters.schoolId) throw new AppError('schoolId is required for performance export', 400);
+            const { data, error } = await supabase
+                .from('student_performance_summary')
+                .select('*')
+                .eq('school_id', filters.schoolId);
             if (error) throw new AppError(error.message, 500);
             return data;
         } else {
-            let query = supabase.from('activity_logs').select('*, portal_users(full_name)');
-            if (filters.schoolId) query = query.eq('school_id', filters.schoolId);
-            
-            const { data, error } = await query;
+            // school_id is required — never export cross-school activity data
+            if (!filters.schoolId) throw new AppError('schoolId is required for engagement export', 400);
+            const { data, error } = await supabase
+                .from('activity_logs')
+                .select('*, portal_users(full_name)')
+                .eq('school_id', filters.schoolId);
             if (error) throw new AppError(error.message, 500);
             return data;
         }
