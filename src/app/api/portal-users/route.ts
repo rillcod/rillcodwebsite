@@ -280,8 +280,16 @@ export async function DELETE(request: NextRequest) {
     const parentEmails = (targets ?? []).filter(t => t.role === 'parent' && t.email).map(t => t.email as string);
 
     // ── Cleanup dependent records ──────────────────────────────────────
+    const parentIds = (targets ?? []).filter(t => t.role === 'parent').map(t => t.id as string);
     if (parentEmails.length > 0) {
-      await admin.from('students').update({ parent_email: null, parent_name: null }).in('parent_email', parentEmails);
+      await admin.from('students').update({
+        parent_email: null, parent_name: null, parent_phone: null,
+        updated_at: new Date().toISOString(),
+      }).in('parent_email', parentEmails);
+    }
+    if (parentIds.length > 0) {
+      await admin.from('parent_student_links').delete().in('parent_id', parentIds);
+      await admin.from('form_leads').update({ matched_parent_id: null }).in('matched_parent_id', parentIds);
     }
     await admin.from('teacher_schools').delete().in('teacher_id', safeIds);
     await admin.from('student_progress_reports').update({ teacher_id: null }).in('teacher_id', safeIds);

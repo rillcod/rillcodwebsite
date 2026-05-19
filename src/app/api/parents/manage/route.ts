@@ -362,6 +362,7 @@ export async function GET(req: Request) {
         .from('portal_users')
         .select('id, email, full_name, phone, is_active, created_at')
         .eq('role', 'parent')
+        .neq('is_deleted', true)
         .order('created_at', { ascending: false });
 
       if (search) {
@@ -386,7 +387,7 @@ export async function GET(req: Request) {
           .in('parent_email', emails)
       : null;
     if (childrenQuery && effectiveSchool) {
-      childrenQuery = childrenQuery.eq('school_name', effectiveSchool);
+      childrenQuery = childrenQuery.ilike('school_name', effectiveSchool);
     }
     const { data: linkedStudents } = childrenQuery ? await childrenQuery : { data: [] };
 

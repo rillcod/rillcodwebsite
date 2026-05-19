@@ -25,7 +25,7 @@ function generateTempPassword(): string {
 
 // POST /api/consent-forms/leads/[leadId]/create-portal-account
 // Creates a parent portal account from a form lead, sends credentials via WhatsApp/email.
-export async function POST(req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
+export async function POST(_req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
   const { leadId } = await context.params;
 
   const supabase = await createClient();
@@ -243,7 +243,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
 // DELETE /api/consent-forms/leads/[leadId]/create-portal-account
 // Hard-deletes the portal account created from this lead (auth user + portal_users + links).
-export async function DELETE(req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
+export async function DELETE(_req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
   const { leadId } = await context.params;
 
   const supabase = await createClient();
@@ -274,13 +274,24 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ lead
 
   const parentId = lead.matched_parent_id;
 
-  // Remove parent_student_links rows
+  // Fetch parent email before deletion so we can wipe student denorm fields
+  const { data: parentRow } = await (sb as any)
+    .from('portal_users').select('email').eq('id', parentId).maybeSingle();
+
+  // Remove explicit parent-child link rows
   await (sb as any).from('parent_student_links').delete().eq('parent_id', parentId);
 
-  // Clear parent_email on the student record (if applicable)
-  if (lead.matched_student_id) {
+  // Clear parent fields from ALL students linked to this parent by email
+  if (parentRow?.email) {
     await (sb as any).from('students').update({
-      parent_email: null, parent_name: null, parent_phone: null, updated_at: new Date().toISOString(),
+      parent_email: null, parent_name: null, parent_phone: null,
+      updated_at: new Date().toISOString(),
+    }).eq('parent_email', parentRow.email);
+  } else if (lead.matched_student_id) {
+    // Fallback: clear by student id if email lookup failed
+    await (sb as any).from('students').update({
+      parent_email: null, parent_name: null, parent_phone: null,
+      updated_at: new Date().toISOString(),
     }).eq('id', lead.matched_student_id);
   }
 
@@ -290,8 +301,11 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ lead
   // Hard-delete the Supabase auth user
   await sb.auth.admin.deleteUser(parentId);
 
-  // Clear matched_parent_id on the lead
-  await (sb as any).from('form_leads').update({ matched_parent_id: null }).eq('id', leadId);
+  // Clear lead references so it no longer shows as linked
+  await (sb as any).from('form_leads').update({
+    matched_parent_id: null,
+    matched_student_id: null,
+  }).eq('id', leadId);
 
   return NextResponse.json({ success: true });
 }

@@ -161,9 +161,19 @@ export async function DELETE(
     }
   }
 
-  // ── Step 0: If this is a parent, clear linked student records ────────
-  if (pu?.role === 'parent' && pu?.email) {
-    await admin.from('students').update({ parent_email: null, parent_name: null }).eq('parent_email', pu.email);
+  // ── Step 0: If this is a parent, wipe all linked data ──────────────
+  if (pu?.role === 'parent') {
+    // Clear parent fields from all students linked by email
+    if (pu.email) {
+      await admin.from('students').update({
+        parent_email: null, parent_name: null, parent_phone: null,
+        updated_at: new Date().toISOString(),
+      }).eq('parent_email', pu.email);
+    }
+    // Remove explicit parent-child link rows
+    await admin.from('parent_student_links').delete().eq('parent_id', id);
+    // Unlink from any consent-form leads so the UI doesn't show stale data
+    await admin.from('form_leads').update({ matched_parent_id: null }).eq('matched_parent_id', id);
   }
 
   // ── Step 1: Remove all child records that FK-reference this portal user ──
