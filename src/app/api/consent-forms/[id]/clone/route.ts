@@ -77,7 +77,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const { data: clone, error } = await (sb as any)
     .from('consent_forms')
     .insert({
-      title:      `${original.title} (Copy)`,
+      title:      original.title,
       body:       original.body,
       form_type:  original.form_type,
       school_id:  target_school_id,

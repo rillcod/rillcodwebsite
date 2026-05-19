@@ -10,6 +10,9 @@ import {
   ArrowDownTrayIcon, CalendarIcon, TrashIcon, UserGroupIcon,
   ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon,
   ArrowPathIcon, PrinterIcon, DocumentTextIcon,
+  EyeIcon, PencilSquareIcon, GlobeAltIcon, LockClosedIcon,
+  ArrowTopRightOnSquareIcon, LinkIcon, QrCodeIcon, TableCellsIcon,
+  DocumentDuplicateIcon,
 } from '@/lib/icons';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -600,12 +603,14 @@ function printFilledForm(form: ConsentForm, lead: FormLead, appBase: string) {
 }
 
 function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[], appBase: string) {
-  const win = window.open('', '_blank', 'width=1100,height=900');
+  const win = window.open('', '_blank', 'width=1200,height=900');
   if (!win) return;
 
-  const now     = new Date();
-  const printed = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  const isAssessment = form.form_type === 'assessment';
+  const now      = new Date();
+  const printed  = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const printTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const isAssessment  = form.form_type === 'assessment';
+  const schoolName    = form.schools?.name ?? null;
 
   const progLabel = (cat: string) =>
     cat === 'young_innovators' ? 'Young Innovators' :
@@ -614,6 +619,9 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
   const statusLabel = (s: string) =>
     ({ new: 'New', contacted: 'Contacted', enrolled: 'Enrolled', lost: 'Lost' }[s] ?? s);
 
+  const genderLabel = (g: string) =>
+    g === 'male' ? 'Male' : g === 'female' ? 'Female' : '';
+
   /* ── Lead rows ─────────────────────────────────────────────────────── */
   const leadRows = leads.map((lead, i) => {
     const rd  = (lead.response_data ?? {}) as Record<string, unknown>;
@@ -621,17 +629,27 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
     const sub = new Date(lead.submitted_at);
     const dateCell = sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const timeCell = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    const devs  = Array.isArray(rd.devices) ? (rd.devices as string[]).join(', ') : '';
-    const prog  = progLabel(str('program_category'));
-    const stat  = statusLabel(lead.status ?? 'new');
-    const statCls = lead.status === 'enrolled' ? 'enrolled' : lead.status === 'contacted' ? 'contacted' : lead.status === 'lost' ? 'lost' : 'new-s';
+    const devs     = Array.isArray(rd.devices) ? (rd.devices as string[]).join(', ') : '';
+    const prog     = progLabel(str('program_category'));
+    const stat     = statusLabel(lead.status ?? 'new');
+    const statCls  = lead.status === 'enrolled' ? 'enrolled' : lead.status === 'contacted' ? 'contacted' : lead.status === 'lost' ? 'lost' : 'new-s';
+    const gender   = genderLabel(str('child_gender'));
+    const childSub = [gender, str('child_age') ? `Age ${esc(str('child_age'))}` : '', esc(str('child_class') || '')].filter(Boolean).join(' · ');
 
     return `
     <tr class="data-row">
       <td class="num">${i + 1}</td>
       <td class="date-col">${dateCell}<br/><span class="time">${timeCell}</span></td>
-      <td><strong>${esc(str('parent_name') || '—')}</strong>${rd.is_existing_parent ? '<span class="exist">↩ Existing</span>' : ''}<br/><span class="sub">${esc(lead.email || str('parent_email') || '')}</span><br/><span class="sub">${esc(str('parent_whatsapp') || '')}</span></td>
-      <td><strong>${esc(str('child_name') || '—')}</strong><br/><span class="sub">Age ${esc(str('child_age') || '—')} · ${esc(str('child_class') || '—')}</span></td>
+      <td>
+        <strong>${esc(str('parent_name') || '—')}</strong>${rd.is_existing_parent ? '<span class="tag tag-purple">Existing</span>' : ''}
+        <br/><span class="sub">${esc(lead.email || str('parent_email') || '')}</span>
+        ${str('parent_whatsapp') ? `<br/><span class="sub">${esc(str('parent_whatsapp'))}</span>` : ''}
+      </td>
+      <td>
+        <strong>${esc(str('child_name') || '—')}</strong>
+        ${gender ? `<span class="tag ${gender === 'Male' ? 'tag-blue' : 'tag-pink'}">${gender}</span>` : ''}
+        ${childSub ? `<br/><span class="sub">${childSub}</span>` : ''}
+      </td>
       <td><span class="sub">${esc(lead.child_current_school || str('child_current_school') || '—')}</span></td>
       <td><span class="prog">${esc(prog)}</span></td>
       ${isAssessment ? `
@@ -650,17 +668,27 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
     const rd   = (s.response_data ?? {}) as Record<string, unknown>;
     const str2 = (k: string) => (rd[k] as string) ?? '';
     const sub  = new Date(s.signed_at);
-    const dateCell = sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const timeCell = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    const prog  = progLabel(str2('program_category'));
+    const dateCell  = sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeCell  = sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const prog      = progLabel(str2('program_category'));
+    const gender    = genderLabel(str2('child_gender'));
+    const childSub2 = [gender, str2('child_age') ? `Age ${esc(str2('child_age'))}` : '', esc(str2('child_class') || '')].filter(Boolean).join(' · ');
 
     return `
     <tr class="data-row sig-row">
       <td class="num">${leads.length + i + 1}</td>
       <td class="date-col">${dateCell}<br/><span class="time">${timeCell}</span></td>
-      <td><strong>${esc(s.portal_users?.full_name ?? '—')}</strong><span class="portal-tag">Portal</span><br/><span class="sub">${esc(s.portal_users?.email ?? '')}</span><br/><span class="sub">${esc(s.portal_users?.phone ?? '')}</span></td>
-      <td><strong>${esc(str2('child_name') || '—')}</strong><br/><span class="sub">Age ${esc(str2('child_age') || '—')} · ${esc(str2('child_class') || '—')}</span></td>
-      <td>—</td>
+      <td>
+        <strong>${esc(s.portal_users?.full_name ?? '—')}</strong><span class="tag tag-blue">Portal</span>
+        <br/><span class="sub">${esc(s.portal_users?.email ?? '')}</span>
+        ${s.portal_users?.phone ? `<br/><span class="sub">${esc(s.portal_users.phone)}</span>` : ''}
+      </td>
+      <td>
+        <strong>${esc(str2('child_name') || '—')}</strong>
+        ${gender ? `<span class="tag ${gender === 'Male' ? 'tag-blue' : 'tag-pink'}">${gender}</span>` : ''}
+        ${childSub2 ? `<br/><span class="sub">${childSub2}</span>` : ''}
+      </td>
+      <td><span class="sub">—</span></td>
       <td><span class="prog">${esc(prog)}</span></td>
       ${isAssessment ? `<td>—</td><td>—</td><td>—</td><td>—</td>` : ''}
       <td><span class="stat enrolled">Signed</span></td>
@@ -672,119 +700,153 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
     ? `<th>Prior Coding</th><th>Device(s)</th><th>Goal</th><th>Schedule</th>`
     : '';
 
-  const totalRows = leads.length + sigs.length;
+  const totalRows  = leads.length + sigs.length;
+  const enrolled   = leads.filter(l => l.status === 'enrolled').length;
+  const contacted  = leads.filter(l => l.status === 'contacted').length;
+  const lostCount  = leads.filter(l => l.status === 'lost').length;
+  const yiCount    = leads.filter(l => (l.response_data as Record<string,unknown>)?.program_category === 'young_innovators').length;
+  const tdCount    = leads.filter(l => (l.response_data as Record<string,unknown>)?.program_category === 'teen_developers').length;
+  const maleCount  = leads.filter(l => (l.response_data as Record<string,unknown>)?.child_gender === 'male').length;
+  const femaleCount = leads.filter(l => (l.response_data as Record<string,unknown>)?.child_gender === 'female').length;
 
   win.document.write(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
 <title>Data Sheet — ${esc(form.title)}</title>
 <style>
-  @page { margin: 10mm 8mm; size: A4 landscape; }
+  @page { margin: 8mm 6mm; size: A4 landscape; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 8pt; color: #111; background: #fff; }
+  body { font-family: 'Arial', Helvetica, sans-serif; font-size: 7.5pt; color: #111; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  /* ── Letterhead ──────────────────────────────────────────── */
-  .letterhead { background: #0d0d0f; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .letterhead-logo { height: 40px; width: auto; object-fit: contain; }
-  .letterhead-div { width: 1px; height: 38px; background: rgba(255,255,255,0.2); }
-  .co-name { font-size: 13pt; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
-  .co-tag  { font-size: 6.5pt; color: #999; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
-  .lh-contact { text-align: right; color: #999; font-size: 7pt; line-height: 1.7; }
-  .lh-contact span { color: #f5a623; }
-  .accent-strip { height: 3px; background: linear-gradient(90deg,#f5a623,#f5c84a); }
+  /* ── Letterhead ──────────────────────────────────────────────────── */
+  .lh { background: #0a0a0b; display: flex; align-items: stretch; }
+  .lh-brand { display: flex; align-items: center; gap: 12px; padding: 12px 18px; }
+  .lh-logo { height: 36px; width: auto; object-fit: contain; }
+  .lh-vr { width: 1px; background: rgba(255,255,255,0.15); margin: 10px 0; }
+  .lh-names { padding: 0 16px; display: flex; flex-direction: column; justify-content: center; }
+  .lh-main { font-size: 11pt; font-weight: 900; color: #fff; letter-spacing: -0.3px; line-height: 1.1; }
+  .lh-sub  { font-size: 6pt; color: #f5a623; letter-spacing: 1.8px; text-transform: uppercase; margin-top: 3px; }
+  .lh-school-wrap { display: flex; align-items: center; gap: 8px; padding: 0 18px; border-left: 1px solid rgba(255,255,255,0.1); }
+  .lh-school-label { font-size: 6pt; color: #888; letter-spacing: 1.5px; text-transform: uppercase; }
+  .lh-school-name  { font-size: 9pt; font-weight: 900; color: #fff; margin-top: 2px; }
+  .lh-contact { margin-left: auto; text-align: right; padding: 12px 18px; display: flex; flex-direction: column; justify-content: center; color: #888; font-size: 6.5pt; line-height: 1.8; }
+  .lh-contact a { color: #f5a623; text-decoration: none; }
+  .accent { height: 3px; background: linear-gradient(90deg,#f5a623 0%,#f5d35a 60%,#e84e1d 100%); }
 
-  /* ── Doc header ──────────────────────────────────────────── */
-  .doc-hdr { padding: 10px 18px 8px; display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5px solid #111; }
-  .doc-type { font-size: 6.5pt; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; color: #f5a623; }
-  .doc-title { font-size: 12pt; font-weight: 900; color: #0d0d0f; margin-top: 2px; }
-  .doc-meta { text-align: right; font-size: 7.5pt; color: #555; line-height: 1.8; }
-  .doc-meta strong { color: #111; }
+  /* ── Doc header ──────────────────────────────────────────────────── */
+  .doc-hdr { padding: 9px 18px 7px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; }
+  .doc-badge { display: inline-block; font-size: 6pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #f5a623; background: #0a0a0b; padding: 2px 7px; margin-bottom: 4px; }
+  .doc-title { font-size: 11pt; font-weight: 900; color: #0a0a0b; line-height: 1.2; max-width: 480px; }
+  .doc-meta-grid { display: grid; grid-template-columns: auto auto; gap: 1px 14px; text-align: right; }
+  .doc-meta-lbl { font-size: 6pt; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+  .doc-meta-val { font-size: 7.5pt; font-weight: 700; color: #111; }
 
-  /* ── Stats bar ───────────────────────────────────────────── */
-  .stats-bar { display: flex; gap: 0; border-bottom: 1px solid #e0e0e0; }
-  .stat-cell { flex: 1; padding: 6px 14px; border-right: 1px solid #e0e0e0; }
-  .stat-cell:last-child { border-right: none; }
-  .stat-num  { font-size: 13pt; font-weight: 900; color: #0d0d0f; line-height: 1; }
-  .stat-lbl  { font-size: 6pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #888; margin-top: 2px; }
+  /* ── Stats strip ─────────────────────────────────────────────────── */
+  .stats { display: flex; border-bottom: 1px solid #d0d0d0; background: #fafafa; }
+  .sc   { flex: 1; padding: 7px 10px; border-right: 1px solid #e4e4e4; }
+  .sc:last-child { border-right: none; }
+  .sc-n { font-size: 14pt; font-weight: 900; color: #0a0a0b; line-height: 1; }
+  .sc-l { font-size: 5.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1.4px; color: #999; margin-top: 2px; }
+  .sc.hi .sc-n { color: #166534; }
+  .sc.bl .sc-n { color: #1d4ed8; }
+  .sc.am .sc-n { color: #b45309; }
+  .sc.pu .sc-n { color: #6d28d9; }
 
-  /* ── Data table ──────────────────────────────────────────── */
-  .wrap { padding: 0 8px 12px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  /* ── Section label ───────────────────────────────────────────────── */
+  .section-wrap { padding: 0 8px 10px; }
+  .section-lbl { font-size: 6pt; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #aaa; padding: 6px 0 4px; border-bottom: 1px solid #eee; margin-bottom: 0; }
+
+  /* ── Table ───────────────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; }
   thead th {
-    background: #0d0d0f; color: #fff; font-size: 7pt; font-weight: 700;
-    letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 7px;
-    text-align: left; white-space: nowrap; border-right: 1px solid #333;
+    background: #0a0a0b; color: #fff; font-size: 6.5pt; font-weight: 800;
+    letter-spacing: 0.8px; text-transform: uppercase; padding: 5px 7px;
+    text-align: left; white-space: nowrap; border-right: 1px solid #222;
   }
   thead th:last-child { border-right: none; }
-  .data-row td { padding: 6px 7px; border-bottom: 1px solid #ebebeb; vertical-align: top; font-size: 7.5pt; border-right: 1px solid #f0f0f0; }
-  .data-row:nth-child(even) td { background: #f9f9f9; }
-  .data-row:hover td { background: #fff8ec; }
-  .sig-row td { background: #f0f8ff !important; }
-  .num { color: #aaa; font-size: 7pt; text-align: center; width: 24px; }
-  .date-col { white-space: nowrap; width: 72px; }
-  .time { color: #999; font-size: 6.5pt; }
-  .sub  { color: #666; font-size: 7pt; display: block; margin-top: 1px; }
-  strong { font-size: 8pt; }
-  .prog { display: inline-block; background: #0d0d0f; color: #f5a623; font-size: 6.5pt; font-weight: 900; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
-  .stat { display: inline-block; font-size: 6.5pt; font-weight: 900; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+  .data-row td { padding: 5px 7px; border-bottom: 1px solid #efefef; vertical-align: top; font-size: 7pt; border-right: 1px solid #f3f3f3; }
+  .data-row td:last-child { border-right: none; }
+  .data-row:nth-child(even) td { background: #f8f8f8; }
+  .sig-row td { background: #edf7ff !important; }
+  .sig-row:nth-child(even) td { background: #e4f2fd !important; }
+  .num { color: #bbb; font-size: 6.5pt; text-align: center; width: 20px; white-space: nowrap; }
+  .date-col { white-space: nowrap; width: 68px; }
+  .time { color: #aaa; font-size: 6pt; }
+  .sub  { color: #666; font-size: 6.5pt; display: block; margin-top: 1px; }
+  strong { font-size: 7.5pt; color: #111; }
+  .prog { display: inline-block; background: #0a0a0b; color: #f5a623; font-size: 6pt; font-weight: 900; padding: 1px 5px; letter-spacing: 0.3px; white-space: nowrap; }
+  .stat { display: inline-block; font-size: 6pt; font-weight: 900; padding: 1px 5px; white-space: nowrap; }
   .new-s     { background: #fff7e0; color: #b45309; }
-  .contacted { background: #e0f0ff; color: #1d4ed8; }
-  .enrolled  { background: #e0f9ec; color: #166534; }
-  .lost      { background: #f0f0f0; color: #777; }
-  .exist { display: inline-block; background: #7c3aed; color: #fff; font-size: 6pt; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
-  .portal-tag { display: inline-block; background: #0369a1; color: #fff; font-size: 6pt; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+  .contacted { background: #dbeafe; color: #1d4ed8; }
+  .enrolled  { background: #dcfce7; color: #166534; }
+  .lost      { background: #f3f4f6; color: #6b7280; }
+  .tag { display: inline-block; font-size: 5.5pt; font-weight: 900; padding: 1px 4px; letter-spacing: 0.3px; margin-left: 3px; vertical-align: middle; }
+  .tag-purple { background: #ede9fe; color: #6d28d9; }
+  .tag-blue   { background: #dbeafe; color: #1d4ed8; }
+  .tag-pink   { background: #fce7f3; color: #be185d; }
 
-  /* ── Footer ──────────────────────────────────────────────── */
-  .page-footer { padding: 6px 18px; border-top: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; font-size: 6.5pt; color: #999; }
-  .page-footer strong { color: #555; }
+  /* ── Footer ──────────────────────────────────────────────────────── */
+  .page-footer { padding: 5px 18px; border-top: 1.5px solid #ccc; display: flex; justify-content: space-between; align-items: center; font-size: 6pt; color: #bbb; margin-top: 4px; }
+  .page-footer strong { color: #666; }
 
-  /* ── Print button ─────────────────────────────────────────── */
-  .print-btn { position: fixed; top: 14px; right: 14px; background: #0d0d0f; color: #fff; border: none; padding: 10px 20px; font-size: 13px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25); z-index: 1000; font-family: Arial; }
-  .print-btn:hover { background: #333; }
+  /* ── Screen-only print button ─────────────────────────────────────── */
+  .print-btn { position: fixed; top: 12px; right: 12px; background: #0a0a0b; color: #fff; border: none; padding: 9px 18px; font-size: 12px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.3); z-index: 999; font-family: Arial; letter-spacing: 0.3px; }
+  .print-btn:hover { background: #1f1f1f; }
   @media print { .print-btn { display: none !important; } }
 </style></head><body>
 
-<button class="print-btn" onclick="window.print()">🖨️ Print Sheet</button>
+<button class="print-btn" onclick="window.print()">&#128438; Print Sheet</button>
 
 <!-- Letterhead -->
-<div class="letterhead">
-  <img src="${appBase}/images/logoB.png" class="letterhead-logo" alt="Rillcod" />
-  <div class="letterhead-div"></div>
-  <div>
-    <div class="co-name">RILLCOD TECHNOLOGIES</div>
-    <div class="co-tag">Empowering Young Minds Through Code</div>
+<div class="lh">
+  <div class="lh-brand">
+    <img src="${appBase}/images/logoB.png" class="lh-logo" alt="Rillcod" />
   </div>
+  <div class="lh-vr"></div>
+  <div class="lh-names">
+    <div class="lh-main">${schoolName ? esc(schoolName.toUpperCase()) : 'RILLCOD TECHNOLOGIES'}</div>
+    <div class="lh-sub">${schoolName ? 'via Rillcod Technologies' : 'Empowering Young Minds Through Code'}</div>
+  </div>
+  ${schoolName ? `
+  <div class="lh-school-wrap" style="display:none"></div>
+  ` : ''}
   <div class="lh-contact">
-    <span>+234 811 660 0091</span> &nbsp;·&nbsp; support@rillcod.com &nbsp;·&nbsp; www.rillcod.com
+    <span><a>+234 811 660 0091</a></span>
+    <span>support@rillcod.com &nbsp;·&nbsp; www.rillcod.com</span>
   </div>
 </div>
-<div class="accent-strip"></div>
+<div class="accent"></div>
 
 <!-- Doc header -->
 <div class="doc-hdr">
   <div>
-    <div class="doc-type">Response Data Sheet</div>
+    <div class="doc-badge">Response Data Sheet &nbsp;·&nbsp; ${form.form_type === 'assessment' ? 'Assessment' : form.form_type === 'registration' ? 'Registration' : 'General'}</div>
     <div class="doc-title">${esc(form.title)}</div>
   </div>
-  <div class="doc-meta">
-    <div><strong>Printed:</strong> ${printed}</div>
-    <div><strong>Form Type:</strong> ${form.form_type === 'assessment' ? 'Assessment' : form.form_type === 'registration' ? 'Registration' : 'General'}</div>
-    ${form.due_date ? `<div><strong>Deadline:</strong> ${new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>` : ''}
+  <div class="doc-meta-grid">
+    <span class="doc-meta-lbl">Printed</span><span class="doc-meta-val">${printed} &nbsp;${printTime}</span>
+    ${schoolName ? `<span class="doc-meta-lbl">School</span><span class="doc-meta-val">${esc(schoolName)}</span>` : ''}
+    ${form.due_date ? `<span class="doc-meta-lbl">Deadline</span><span class="doc-meta-val">${new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>` : ''}
+    <span class="doc-meta-lbl">Records</span><span class="doc-meta-val">${totalRows}</span>
   </div>
 </div>
 
-<!-- Stats bar -->
-<div class="stats-bar">
-  <div class="stat-cell"><div class="stat-num">${totalRows}</div><div class="stat-lbl">Total Responses</div></div>
-  <div class="stat-cell"><div class="stat-num">${leads.length}</div><div class="stat-lbl">Public Registrations</div></div>
-  <div class="stat-cell"><div class="stat-num">${sigs.length}</div><div class="stat-lbl">Portal Signatures</div></div>
-  <div class="stat-cell"><div class="stat-num">${leads.filter(l => l.status === 'enrolled').length}</div><div class="stat-lbl">Enrolled</div></div>
-  <div class="stat-cell"><div class="stat-num">${leads.filter(l => l.status === 'contacted').length}</div><div class="stat-lbl">Contacted</div></div>
-  <div class="stat-cell"><div class="stat-num">${leads.filter(l => (l.response_data as Record<string,unknown>)?.program_category === 'young_innovators').length}</div><div class="stat-lbl">Young Innovators</div></div>
-  <div class="stat-cell"><div class="stat-num">${leads.filter(l => (l.response_data as Record<string,unknown>)?.program_category === 'teen_developers').length}</div><div class="stat-lbl">Teen Developers</div></div>
+<!-- Stats strip -->
+<div class="stats">
+  <div class="sc"><div class="sc-n">${totalRows}</div><div class="sc-l">Total</div></div>
+  <div class="sc"><div class="sc-n">${leads.length}</div><div class="sc-l">Registrations</div></div>
+  <div class="sc"><div class="sc-n">${sigs.length}</div><div class="sc-l">Portal Signed</div></div>
+  <div class="sc hi"><div class="sc-n">${enrolled}</div><div class="sc-l">Enrolled</div></div>
+  <div class="sc bl"><div class="sc-n">${contacted}</div><div class="sc-l">Contacted</div></div>
+  <div class="sc am"><div class="sc-n">${lostCount}</div><div class="sc-l">Lost</div></div>
+  <div class="sc bl"><div class="sc-n">${maleCount}</div><div class="sc-l">Boys</div></div>
+  <div class="sc pu"><div class="sc-n">${femaleCount}</div><div class="sc-l">Girls</div></div>
+  <div class="sc"><div class="sc-n">${yiCount}</div><div class="sc-l">Young Innovators</div></div>
+  <div class="sc"><div class="sc-n">${tdCount}</div><div class="sc-l">Teen Developers</div></div>
 </div>
 
 <!-- Data table -->
-<div class="wrap">
+<div class="section-wrap">
+<div class="section-lbl">Registrations &amp; Responses</div>
 <table>
   <thead>
     <tr>
@@ -792,7 +854,7 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
       <th>Date / Time</th>
       <th>Parent / Guardian</th>
       <th>Child</th>
-      <th>Current School</th>
+      <th>Child&apos;s School</th>
       <th>Programme</th>
       ${assessmentHeaders}
       <th>Status</th>
@@ -802,16 +864,16 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
   <tbody>
     ${leadRows}
     ${sigRows}
-    ${totalRows === 0 ? `<tr><td colspan="100" style="text-align:center;padding:20px;color:#aaa;font-style:italic;">No responses recorded yet.</td></tr>` : ''}
+    ${totalRows === 0 ? `<tr><td colspan="100" style="text-align:center;padding:18px;color:#bbb;font-style:italic;font-size:8pt;">No responses recorded yet.</td></tr>` : ''}
   </tbody>
 </table>
 </div>
 
 <!-- Footer -->
 <div class="page-footer">
-  <span>Rillcod Technologies &mdash; <strong>${esc(form.title)}</strong></span>
-  <span>Generated ${printed} &nbsp;·&nbsp; ${totalRows} record${totalRows !== 1 ? 's' : ''}</span>
-  <span>Confidential &mdash; For internal use only</span>
+  <strong>${schoolName ? esc(schoolName) + ' — via Rillcod Technologies' : 'Rillcod Technologies'}</strong>
+  <span>${esc(form.title)}</span>
+  <span>Generated ${printed} &nbsp;·&nbsp; ${totalRows} record${totalRows !== 1 ? 's' : ''} &nbsp;·&nbsp; Confidential</span>
 </div>
 
 </body></html>`);
@@ -1796,172 +1858,196 @@ export default function ConsentFormsPage() {
                       )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button onClick={() => openReadModal(cf.id)} className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
-                        Read Full Form
-                      </button>
+                    {/* ── Action Centre ───────────────────────────────── */}
+                    <div className="mt-3 border border-border/60 rounded-xl overflow-hidden">
 
-                      {isStaff && (
+                      {/* Row 1 — Primary actions */}
+                      <div className="flex items-stretch divide-x divide-border/60 bg-muted/20">
+
+                        {/* Parent: Read & Sign CTA */}
+                        {isParent && !cf.has_signed && (
+                          <button
+                            onClick={() => openReadModal(cf.id)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black uppercase tracking-widest transition-colors flex-shrink-0"
+                          >
+                            <DocumentTextIcon className="w-3.5 h-3.5" /> Read &amp; Sign
+                          </button>
+                        )}
+
+                        {/* Staff: All Responses */}
+                        {isStaff && (
+                          <button
+                            onClick={() => router.push(`/dashboard/consent-forms/${cf.id}/responses`)}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-black uppercase tracking-widest transition-colors flex-shrink-0"
+                          >
+                            <DocumentTextIcon className="w-3.5 h-3.5" />
+                            Responses
+                            {totalCount > 0 && (
+                              <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">{totalCount}</span>
+                            )}
+                          </button>
+                        )}
+
+                        {/* Read / View Form */}
                         <button
-                          onClick={() => router.push(`/dashboard/consent-forms/${cf.id}/responses`)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition-colors border border-primary/20"
+                          onClick={() => openReadModal(cf.id)}
+                          className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          <DocumentTextIcon className="w-3.5 h-3.5" />
-                          All Responses
-                          {totalCount > 0 && (
-                            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">{totalCount}</span>
+                          <EyeIcon className="w-3.5 h-3.5" /> Read Form
+                        </button>
+
+                        {/* Staff: Edit */}
+                        {isStaff && (
+                          <button
+                            onClick={() => setEditingForm(cf)}
+                            className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                          </button>
+                        )}
+
+                        {/* Staff: View/Hide inline responses */}
+                        {isStaff && (
+                          <button
+                            onClick={() => toggleSignatories(cf.id)}
+                            disabled={loadingSigs === cf.id}
+                            className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                          >
+                            {loadingSigs === cf.id
+                              ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              : isExpanded
+                                ? <ChevronUpIcon className="w-3.5 h-3.5" />
+                                : <ChevronDownIcon className="w-3.5 h-3.5" />}
+                            {isExpanded ? 'Hide' : 'Expand'}
+                          </button>
+                        )}
+
+                        {/* Spacer */}
+                        <div className="flex-1" />
+
+                        {/* Staff: Public / Private toggle */}
+                        {isStaff && (
+                          <button
+                            onClick={() => togglePublic(cf.id, cf.is_public)}
+                            disabled={togglingPublicId === cf.id}
+                            className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 flex-shrink-0 ${
+                              cf.is_public
+                                ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                                : 'bg-muted/40 text-muted-foreground hover:bg-muted'
+                            }`}
+                          >
+                            {togglingPublicId === cf.id
+                              ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              : cf.is_public
+                                ? <><GlobeAltIcon className="w-3.5 h-3.5" /> Public</>
+                                : <><LockClosedIcon className="w-3.5 h-3.5" /> Private</>}
+                          </button>
+                        )}
+
+                        {/* Staff: Delete */}
+                        {isStaff && (
+                          <button
+                            onClick={() => setConfirmDeleteId(cf.id)}
+                            className="flex items-center gap-1.5 px-3 py-2.5 text-rose-400 hover:bg-rose-500/10 text-[11px] font-bold transition-colors flex-shrink-0"
+                            title="Delete form"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Row 2 — Tools (staff only) */}
+                      {isStaff && (
+                        <div className="flex items-stretch flex-wrap divide-x divide-border/40 border-t border-border/40 bg-background/60 text-[10px]">
+
+                          {/* ── Share group ── */}
+                          {cf.is_public && (
+                            <>
+                              <a
+                                href={`${appBase}/forms/${cf.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                title="Open public form"
+                              >
+                                <ArrowTopRightOnSquareIcon className="w-3 h-3" /> Preview
+                              </a>
+                              <button
+                                onClick={() => copyLink(cf.id)}
+                                className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                              >
+                                <LinkIcon className="w-3 h-3" />
+                                {copiedId === cf.id ? 'Copied!' : 'Copy Link'}
+                              </button>
+                              <button
+                                onClick={() => setQrFormId(cf.id)}
+                                className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                title="Show QR code"
+                              >
+                                <QrCodeIcon className="w-3 h-3" /> QR Code
+                              </button>
+                            </>
                           )}
-                        </button>
-                      )}
 
-                      {isStaff && cf.is_public && (
-                        <a
-                          href={`${appBase}/forms/${cf.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-bold rounded-xl transition-colors"
-                          title="Open public form in new tab"
-                        >
-                          🔗 Preview
-                        </a>
-                      )}
-
-                      {isStaff && (
-                        <button onClick={() => setEditingForm(cf)} className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
-                          ✏️ Edit
-                        </button>
-                      )}
-
-                      {isStaff && (
-                        <button onClick={() => printForm(cf, appBase)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
-                          <PrinterIcon className="w-3.5 h-3.5" /> Print
-                        </button>
-                      )}
-
-                      {isStaff && cf.is_public && (
-                        <div className="flex gap-1">
+                          {/* ── Print group ── */}
                           <button
-                            onClick={() => {
-                              const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML;
-                              printQRCards(cf, appBase, svg, 'portrait');
-                            }}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-l-xl transition-colors border-r border-background"
-                            title="8 cards — A4 portrait"
+                            onClick={() => printForm(cf, appBase)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                           >
-                            📇 Cards ↕
+                            <PrinterIcon className="w-3 h-3" /> Print Form
+                          </button>
+
+                          {cf.is_public && (
+                            <>
+                              <button
+                                onClick={() => { const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML; printQRCards(cf, appBase, svg, 'portrait'); }}
+                                className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                title="8 QR cards — A4 portrait"
+                              >
+                                <PrinterIcon className="w-3 h-3" /> QR Cards ↕
+                              </button>
+                              <button
+                                onClick={() => { const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML; printQRCards(cf, appBase, svg, 'landscape'); }}
+                                className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                title="12 QR cards — A4 landscape"
+                              >
+                                <PrinterIcon className="w-3 h-3" /> QR Cards ↔
+                              </button>
+                              <button
+                                onClick={() => { const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML; printQRPoster(cf, appBase, svg); }}
+                                className="flex items-center gap-1 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                                title="Full-page QR poster"
+                              >
+                                <PrinterIcon className="w-3 h-3" /> QR Poster
+                              </button>
+                            </>
+                          )}
+
+                          {/* ── Export group ── */}
+                          <button
+                            onClick={() => handlePrintDataSheet(cf.id, cf)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
+                          >
+                            <TableCellsIcon className="w-3 h-3" /> Data Sheet
                           </button>
                           <button
-                            onClick={() => {
-                              const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML;
-                              printQRCards(cf, appBase, svg, 'landscape');
-                            }}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold transition-colors border-r border-background"
-                            title="12 cards — A4 landscape"
+                            onClick={() => exportCSV(cf.id, cf.title)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold"
                           >
-                            📇 Cards ↔
+                            <ArrowDownTrayIcon className="w-3 h-3" /> CSV
                           </button>
+
+                          {/* ── Management group ── */}
                           <button
-                            onClick={() => {
-                              const svg = document.getElementById(`qr-cache-${cf.id}`)?.querySelector('svg')?.outerHTML;
-                              printQRPoster(cf, appBase, svg);
-                            }}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-r-xl transition-colors"
-                            title="Full-page QR poster"
+                            onClick={() => openCloneModal(cf)}
+                            disabled={cloningId === cf.id}
+                            className="flex items-center gap-1.5 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors font-bold disabled:opacity-40"
+                            title="Copy this form to another school"
                           >
-                            🖼️ Poster
+                            <DocumentDuplicateIcon className="w-3 h-3" />
+                            {cloningId === cf.id ? 'Copying…' : 'Copy to School'}
                           </button>
                         </div>
-                      )}
-
-                      {isParent && !cf.has_signed && (
-                        <button onClick={() => openReadModal(cf.id)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl transition-colors">
-                          ✅ Read & Sign
-                        </button>
-                      )}
-
-                      {isStaff && (
-                        <button
-                          onClick={() => toggleSignatories(cf.id)}
-                          disabled={loadingSigs === cf.id}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold rounded-xl transition-colors border border-primary/20"
-                        >
-                          {loadingSigs === cf.id
-                            ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                            : isExpanded ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
-                          {isExpanded ? 'Hide' : 'View'} Responses
-                          {totalCount > 0 && (
-                            <span className="bg-primary text-primary-foreground text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">{totalCount}</span>
-                          )}
-                        </button>
-                      )}
-
-                      {isStaff && (
-                        <button onClick={() => exportCSV(cf.id, cf.title)} className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
-                          <ArrowDownTrayIcon className="w-3.5 h-3.5" /> CSV
-                        </button>
-                      )}
-
-                      {isStaff && (
-                        <button
-                          onClick={() => openCloneModal(cf)}
-                          disabled={cloningId === cf.id}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                          title="Copy form to a school"
-                        >
-                          {cloningId === cf.id ? '…' : '⧉ Copy to School'}
-                        </button>
-                      )}
-
-                      {/* Make Public toggle */}
-                      {isStaff && (
-                        <button
-                          onClick={() => togglePublic(cf.id, cf.is_public)}
-                          disabled={togglingPublicId === cf.id}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors ${cf.is_public
-                              ? 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
-                              : 'border-border bg-muted text-muted-foreground hover:bg-muted/80'
-                            }`}
-                        >
-                          {togglingPublicId === cf.id
-                            ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                            : <span>{cf.is_public ? '🌐 Public' : '🔒 Private'}</span>}
-                        </button>
-                      )}
-
-                      {/* Copy link + QR — only when public */}
-                      {isStaff && cf.is_public && (
-                        <>
-                          <button
-                            onClick={() => copyLink(cf.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
-                          >
-                            {copiedId === cf.id ? '✓ Copied' : '🔗 Copy Link'}
-                          </button>
-                          <button
-                            onClick={() => setQrFormId(cf.id)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
-                            title="Show QR code"
-                          >
-                            ▦ QR Code
-                          </button>
-                        </>
-                      )}
-
-                      {/* Public link hint when private */}
-                      {isStaff && !cf.is_public && (
-                        <p className="text-[10px] text-muted-foreground self-center ml-1">
-                          Toggle public to get a shareable link + QR code
-                        </p>
-                      )}
-
-                      {isStaff && (
-                        <button
-                          onClick={() => setConfirmDeleteId(cf.id)}
-                          className="ml-auto flex items-center gap-1 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-xl transition-colors"
-                        >
-                          <TrashIcon className="w-3.5 h-3.5" />
-                        </button>
                       )}
                     </div>
                   </div>
