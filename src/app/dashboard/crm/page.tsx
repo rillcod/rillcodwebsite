@@ -787,8 +787,22 @@ export default function CRMPage() {
                                   <span className="text-sm font-semibold truncate">{c.full_name}</span>
                                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cSm.dot}`} />
                                 </div>
-                                <div className="text-[10px] text-[#71717a] truncate">
-                                  {c.phone || c.phone_number || c.email || (c.section_class && c.role !== 'student' ? c.section_class : '')}
+                                <div className="space-y-0.5">
+                                  {(c.phone || c.phone_number) && (
+                                    <div className="flex items-center gap-1 text-[10px] text-[#71717a]">
+                                      <Phone size={8} className="shrink-0 text-emerald-500/70" />
+                                      <span className="truncate">{c.phone || c.phone_number}</span>
+                                    </div>
+                                  )}
+                                  {c.email && (
+                                    <div className="flex items-center gap-1 text-[10px] text-[#71717a]">
+                                      <Mail size={8} className="shrink-0 text-sky-500/70" />
+                                      <span className="truncate">{c.email}</span>
+                                    </div>
+                                  )}
+                                  {!c.phone && !c.phone_number && !c.email && (
+                                    <div className="text-[10px] text-[#3f3f46] italic">no contact info</div>
+                                  )}
                                 </div>
                               </div>
                             </div>
