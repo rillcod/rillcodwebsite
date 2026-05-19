@@ -12,6 +12,17 @@ interface FormData {
   schools: { name: string } | null;
 }
 
+// Parse the per-child fee from the form body (e.g. "₦20,000") — defaults to 15,000 minimum
+function parseBodyFee(body: string): number {
+  const m = body.match(/₦([\d,]+)/);
+  if (!m) return 15_000;
+  return Math.max(parseInt(m[1].replace(/,/g, ''), 10) || 15_000, 15_000);
+}
+
+function fmtNaira(n: number): string {
+  return '₦' + n.toLocaleString('en-NG');
+}
+
 const PROGRAMS = [
   { value: 'young_innovators', label: 'Young Innovators :: PRY', sub: 'Ages 5–10 · Basic programming through fun & games' },
   { value: 'teen_developers',  label: 'Teen Developers :: SEC',  sub: 'Ages 11–19 · Advanced coding & project development' },
@@ -62,6 +73,10 @@ export default function PublicConsentForm({
 }) {
   const isAssessment = form.form_type === 'assessment';
 
+  // Fee — only active when the form body contains a ₦ amount
+  const bodyHasFee = /₦[\d,]+/.test(form.body);
+  const feePerChild = bodyHasFee ? parseBodyFee(form.body) : 0;
+
   const [step, setStep] = useState<'form' | 'thanks'>('form');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -110,6 +125,8 @@ export default function PublicConsentForm({
     }));
   }
 
+  const totalAmount = bodyHasFee ? feePerChild * childCount : 0;
+
   const allChildrenValid = children.every(
     c => c.name.trim() && c.gender && c.age && c.class_.trim() && c.program
   );
@@ -154,6 +171,11 @@ export default function PublicConsentForm({
             parent_whatsapp: data.parent_whatsapp,
             parent_email:    data.parent_email,
             ...(data.is_existing_parent && { is_existing_parent: true }),
+            ...(bodyHasFee && {
+              fee_per_child: feePerChild,
+              total_amount:  totalAmount,
+              child_count:   children.length,
+            }),
             ...(isAssessment && {
               prior_coding:    data.prior_coding,
               prior_platform:  data.prior_platform,
@@ -223,6 +245,12 @@ export default function PublicConsentForm({
                 <span className="text-white text-right">
                   {children[0].program === 'young_innovators' ? 'Young Innovators (PRY)' : 'Teen Developers (SEC)'}
                 </span>
+              </div>
+            )}
+            {bodyHasFee && (
+              <div className="flex justify-between gap-3 text-sm pt-2 mt-1 border-t border-[#2a2d33]">
+                <span className="text-[#71717a] font-bold w-24 shrink-0">Total Fee</span>
+                <span className="text-amber-400 font-black text-right text-base">{fmtNaira(totalAmount)}</span>
               </div>
             )}
             <div className="flex justify-between gap-3 text-sm">
@@ -308,6 +336,22 @@ export default function PublicConsentForm({
           ))}
         </div>
       </section>
+
+      {/* Fee calculator — only shown when form body specifies a fee */}
+      {bodyHasFee && (
+        <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-2">
+          <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Programme Fee</p>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[#a1a1aa]">
+              {fmtNaira(feePerChild)} × {childCount} {childCount === 1 ? 'child' : 'children'}
+            </span>
+            <span className="text-white font-black text-xl">{fmtNaira(totalAmount)}</span>
+          </div>
+          {childCount > 1 && (
+            <p className="text-[10px] text-[#71717a]">Total programme fee for {childCount} children</p>
+          )}
+        </div>
+      )}
 
       {/* Per-child panels */}
       {children.map((child, idx) => (
@@ -536,7 +580,13 @@ export default function PublicConsentForm({
       <div className="bg-[#141618] border border-[#2a2d33] rounded-xl p-5 mt-4 space-y-4">
         <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Consent Statement</p>
         <p className="text-sm text-[#a1a1aa] leading-relaxed whitespace-pre-wrap">
-          {form.body.replace(/_+(\s*\(parent\/guardian name\))?/gi, data.parent_name ? ` ${data.parent_name} ` : ' _____________ ')}
+          {(() => {
+            let body = form.body;
+            // Replace the ₦ fee in the body with computed total when >1 child
+            if (bodyHasFee && childCount > 1) body = body.replace(/₦[\d,]+/, fmtNaira(totalAmount));
+            // Fill in parent name placeholder
+            return body.replace(/_+(\s*\(parent\/guardian name\))?/gi, data.parent_name ? ` ${data.parent_name} ` : ' _____________ ');
+          })()}
         </p>
         <label className="flex items-start gap-3 pt-4 border-t border-[#2a2d33] cursor-pointer group">
           <div className="pt-0.5">
