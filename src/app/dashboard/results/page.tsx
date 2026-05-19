@@ -139,6 +139,7 @@ function ResultsPageInner() {
     const [filterClass, setFilterClass] = useState('');
     const [filterGrade, setFilterGrade] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'none'>('all');
+    const [filterParentEmail, setFilterParentEmail] = useState<'all' | 'has' | 'missing'>('all');
 
     // ── Multi-select ───────────────────────────────────────────────────────────
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -464,7 +465,12 @@ function ResultsPageInner() {
                 filterStatus === 'published' ? r?.is_published === true :
                     filterStatus === 'draft' ? (r && r.is_published === false) :
             /* none */ !r;
-        return matchSearch && matchSchool && matchClass && matchGrade && matchStatus;
+        const hasParentEmail = !!(s as any).parent_email;
+        const matchParentEmail =
+            filterParentEmail === 'all' ? true :
+                filterParentEmail === 'has' ? hasParentEmail :
+            /* missing */ !hasParentEmail;
+        return matchSearch && matchSchool && matchClass && matchGrade && matchStatus && matchParentEmail;
     });
 
     const stats = {
@@ -516,13 +522,18 @@ function ResultsPageInner() {
             const term = (reportToDisplay.report_term || 'Report').replace(/\s+/g, '_');
             const filename = `${name}_${term}.pdf`;
             const subject = `Progress Report — ${reportToDisplay.student_name || 'Student'} (${reportToDisplay.report_term || ''})`;
+            const appOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com';
+            const trackToken = reportToDisplay.id
+                ? btoa(JSON.stringify({ reportId: reportToDisplay.id, email: emailShareTo.trim(), type: 'report' }))
+                : null;
             const htmlBody = buildReportEmail({
                 recipientName: emailShareTo.trim().split('@')[0],
                 studentName: reportToDisplay.student_name || 'Your Child',
                 term: reportToDisplay.report_term || 'Current Term',
                 schoolName: (orgSettings as any)?.school_name || (selectedStudent as any)?.school_name || undefined,
                 overallGrade: reportToDisplay.overall_grade || undefined,
-                portalUrl: `${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}/dashboard/results`,
+                portalUrl: `${appOrigin}/dashboard/results`,
+                trackingPixelUrl: trackToken ? `${appOrigin}/api/inbox/track/${trackToken}` : undefined,
             });
             const res = await fetch('/api/inbox/email', {
                 method: 'POST',
@@ -741,6 +752,9 @@ function ResultsPageInner() {
                             const base64 = await generateReportPDFBase64(captureRef.current!);
                             const sName = sDisplayName.replace(/\s+/g, '_');
                             const term = (captureReport.report_term || 'Report').replace(/\s+/g, '_');
+                            const bulkTrackToken = captureReport.id
+                                ? btoa(JSON.stringify({ reportId: captureReport.id, email: dest, type: 'report' }))
+                                : null;
                             const htmlBody = buildReportEmail({
                                 recipientName: dest.split('@')[0],
                                 studentName: captureReport.student_name || 'Your Child',
@@ -748,6 +762,7 @@ function ResultsPageInner() {
                                 schoolName: (stu as any)?.school_name || undefined,
                                 overallGrade: captureReport.overall_grade || undefined,
                                 portalUrl: `${window.location.origin}/dashboard/results`,
+                                trackingPixelUrl: bulkTrackToken ? `${window.location.origin}/api/inbox/track/${bulkTrackToken}` : undefined,
                             });
                             const res = await fetch('/api/inbox/email', {
                                 method: 'POST',
@@ -1245,6 +1260,22 @@ tbody tr:hover{background:#f3f4f6}
                                         <option value="none">No Report</option>
                                     </select>
                                 </div>
+                                {/* Parent email filter */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">Parent Email</span>
+                                    <div className="flex gap-1 flex-wrap">
+                                        {(['all', 'has', 'missing'] as const).map(v => (
+                                            <button key={v}
+                                                onClick={() => setFilterParentEmail(v)}
+                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterParentEmail === v
+                                                    ? v === 'missing' ? 'bg-orange-500 text-white border-orange-500' : 'bg-emerald-600 text-white border-emerald-600'
+                                                    : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
+                                            >
+                                                {v === 'all' ? 'All' : v === 'has' ? '✓ Has' : '⚠ Missing'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 {/* Grade filter chips */}
                                 {distinctGrades.length > 0 && (
                                     <div className="space-y-1">
@@ -1302,6 +1333,12 @@ tbody tr:hover{background:#f3f4f6}
                                 <span className="text-[10px] text-muted-foreground">{filtered.length} shown</span>
                             </div>
 
+                            {/* Parent email legend */}
+                            <div className="flex items-center gap-3 px-1 text-[9px] text-muted-foreground/60 font-bold uppercase tracking-wider">
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Parent email</span>
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block" /> No email</span>
+                            </div>
+
                             {/* Student list */}
                             <div className="space-y-1.5 max-h-[calc(100vh-380px)] overflow-y-auto pr-0.5">
                                 {filtered.length === 0 && (
@@ -1313,6 +1350,7 @@ tbody tr:hover{background:#f3f4f6}
                                     const isChecked = selectedIds.has(s.id);
                                     const cls = studentClassName(s) || undefined;
                                     const sch = studentSchoolName(s) || undefined;
+                                    const hasParentEmail = !!(s as any).parent_email;
 
                                     return (
                                         <div
@@ -1328,9 +1366,15 @@ tbody tr:hover{background:#f3f4f6}
                                                 {isChecked && <CheckIcon className="w-3 h-3 text-foreground" />}
                                             </button>
 
-                                            {/* Avatar */}
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground flex-shrink-0">
-                                                {s.full_name ? s.full_name[0].toUpperCase() : '?'}
+                                            {/* Avatar with parent-email indicator dot */}
+                                            <div className="relative flex-shrink-0">
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary from-primary to-primary flex items-center justify-center text-xs font-black text-foreground">
+                                                    {s.full_name ? s.full_name[0].toUpperCase() : '?'}
+                                                </div>
+                                                <span
+                                                    title={hasParentEmail ? `Parent email: ${(s as any).parent_email}` : 'No parent email on file'}
+                                                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${hasParentEmail ? 'bg-emerald-500' : 'bg-orange-500'}`}
+                                                />
                                             </div>
 
                                             {/* Info */}

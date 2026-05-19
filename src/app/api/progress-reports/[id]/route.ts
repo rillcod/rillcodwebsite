@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
-import { buildReportEmail, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
+import { buildReportEmail, buildEmailTrackingPixelUrl, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 
 function adminClient() {
   return createClient(
@@ -119,6 +119,7 @@ export async function PATCH(
 
       // 2 — Email the student (skip @rillcod.com in-app handles — use in-app notification instead)
       if (student?.email && !isInAppEmail(student.email)) {
+        const trackingPixelUrl = buildEmailTrackingPixelUrl({ appUrl, reportId: id, email: student.email });
         const html = buildReportEmail({
           recipientName: studentName,
           studentName,
@@ -126,6 +127,7 @@ export async function PATCH(
           overallGrade: grade,
           portalUrl,
           appUrl,
+          trackingPixelUrl,
         });
         await queueService.queueNotification(data.student_id!, 'email', {
           to:        student.email,
@@ -185,6 +187,7 @@ export async function PATCH(
       const { notificationsService } = await import('@/services/notifications.service');
       for (const [email, parentName] of parentEmails) {
         if (isInAppEmail(email)) continue; // in-app handle — no SMTP mailbox
+        const trackingPixelUrl = buildEmailTrackingPixelUrl({ appUrl, reportId: id, email });
         const html = buildReportEmail({
           recipientName: parentName,
           studentName,
@@ -192,6 +195,7 @@ export async function PATCH(
           overallGrade: grade,
           portalUrl,
           appUrl,
+          trackingPixelUrl,
         });
         await notificationsService.sendExternalEmail({
           to:        email,
