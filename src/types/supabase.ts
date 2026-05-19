@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activity_logs: {
@@ -3208,6 +3183,38 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      email_events: {
+        Row: {
+          email: string | null
+          event: string
+          id: string
+          occurred_at: string | null
+          report_id: string | null
+        }
+        Insert: {
+          email?: string | null
+          event: string
+          id?: string
+          occurred_at?: string | null
+          report_id?: string | null
+        }
+        Update: {
+          email?: string | null
+          event?: string
+          id?: string
+          occurred_at?: string | null
+          report_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_events_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "student_progress_reports"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -10455,9 +10462,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
