@@ -288,7 +288,7 @@ export default function OverviewPage() {
         {role === 'parent' && !childLinked && childSuggestions.length > 0 && (
           <div className="bg-amber-500/5 border border-amber-500/30 rounded-2xl overflow-hidden">
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-amber-500/20">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-xl shrink-0">👦</div>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-xl shrink-0">🧒</div>
               <div>
                 <p className="text-sm font-black text-foreground">Connect With Your Child</p>
                 <p className="text-xs text-muted-foreground">

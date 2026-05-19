@@ -1245,7 +1245,7 @@ export default function ResponsesPage() {
                               {lead.matched_parent_id && (
                                 lead.matched_student_id ? (
                                   <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                    👦 {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} linked
+                                    🧒 {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} linked
                                   </span>
                                 ) : (
                                   <button
@@ -1421,7 +1421,7 @@ export default function ResponsesPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
               <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center text-lg shrink-0">👦</div>
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center text-lg shrink-0">🧒</div>
                 <div>
                   <p className="text-sm font-black text-foreground">Link Child to Parent Account</p>
                   <p className="text-[11px] text-muted-foreground">
