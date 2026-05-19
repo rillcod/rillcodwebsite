@@ -250,6 +250,12 @@ export default function DashboardNavigation() {
           { name: 'LMS Settings', href: '/dashboard/progression/settings', icon: CogIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
+
+          { divider: true, label: 'CRM' },
+          { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
+          { name: 'School Directory', href: '/dashboard/directory', icon: ShieldCheckIcon },
+
+          { divider: true, label: 'Account' },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },
         ]);

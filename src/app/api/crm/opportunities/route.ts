@@ -23,57 +23,58 @@ async function requireStaff() {
   return data;
 }
 
-// GET /api/crm/tasks?contact_id=&mine=1&overdue=1&status=all
+// GET /api/crm/opportunities?contact_id=&stage=
 export async function GET(req: NextRequest) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   const url = new URL(req.url);
-  const mine = url.searchParams.get('mine') === '1';
-  const overdue = url.searchParams.get('overdue') === '1';
-  const status = url.searchParams.get('status') || 'all';
   const contact_id = url.searchParams.get('contact_id');
-  const nowIso = new Date().toISOString();
+  const stage = url.searchParams.get('stage');
 
   let q = adminClient()
-    .from('crm_tasks')
-    .select('id, contact_id, contact_name, title, due_at, priority, status, owner_id, owner_name, created_by, created_at, updated_at')
-    .order('due_at', { ascending: true, nullsFirst: false })
-    .limit(150);
+    .from('crm_opportunities')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
   if (contact_id) q = q.eq('contact_id', contact_id);
-  if (mine) q = q.eq('owner_id', caller.id);
-  if (status !== 'all') q = q.eq('status', status);
-  if (overdue) q = q.not('due_at', 'is', null).lt('due_at', nowIso).in('status', ['open', 'in_progress']);
+  if (stage) q = q.eq('stage', stage);
 
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ?? [] });
+  return NextResponse.json({ opportunities: data ?? [] });
 }
 
-// POST /api/crm/tasks — create task
+// POST /api/crm/opportunities — create
 export async function POST(req: NextRequest) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
-  const { contact_id, contact_name, title, due_at, priority = 'normal', owner_id, owner_name } = body;
+  const {
+    contact_id, contact_name, stage = 'lead',
+    estimated_value, expected_close_at, close_probability, notes, source,
+  } = body;
 
-  if (!contact_id || !contact_name || !title?.trim()) {
-    return NextResponse.json({ error: 'contact_id, contact_name and title are required' }, { status: 400 });
+  if (!contact_id || !contact_name) {
+    return NextResponse.json({ error: 'contact_id and contact_name are required' }, { status: 400 });
   }
 
   const now = new Date().toISOString();
   const { data, error } = await adminClient()
-    .from('crm_tasks')
+    .from('crm_opportunities')
     .insert({
       contact_id,
       contact_name,
-      title: title.trim(),
-      due_at: due_at || null,
-      priority,
-      status: 'open',
-      owner_id: owner_id || caller.id,
-      owner_name: owner_name || (caller as any).full_name || null,
-      created_by: caller.id,
+      stage,
+      estimated_value: estimated_value ?? null,
+      expected_close_at: expected_close_at ?? null,
+      close_probability: close_probability ?? null,
+      notes: notes ?? null,
+      source: source ?? null,
+      owner_id: caller.id,
+      owner_name: (caller as any).full_name ?? null,
       created_at: now,
       updated_at: now,
     })
@@ -81,27 +82,27 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ task: data }, { status: 201 });
+  return NextResponse.json({ opportunity: data }, { status: 201 });
 }
 
-// PATCH /api/crm/tasks — update task
+// PATCH /api/crm/opportunities — update
 export async function PATCH(req: NextRequest) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
-  const { id, title, due_at, priority, status, owner_id, owner_name } = body;
+  const { id, stage, estimated_value, expected_close_at, close_probability, notes, source } = body;
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
   const { data, error } = await (adminClient() as any)
-    .from('crm_tasks')
+    .from('crm_opportunities')
     .update({
-      ...(title !== undefined && { title }),
-      ...(due_at !== undefined && { due_at: due_at || null }),
-      ...(priority !== undefined && { priority }),
-      ...(status !== undefined && { status }),
-      ...(owner_id !== undefined && { owner_id }),
-      ...(owner_name !== undefined && { owner_name }),
+      ...(stage !== undefined && { stage }),
+      ...(estimated_value !== undefined && { estimated_value }),
+      ...(expected_close_at !== undefined && { expected_close_at: expected_close_at || null }),
+      ...(close_probability !== undefined && { close_probability }),
+      ...(notes !== undefined && { notes }),
+      ...(source !== undefined && { source }),
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -109,10 +110,10 @@ export async function PATCH(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ task: data });
+  return NextResponse.json({ opportunity: data });
 }
 
-// DELETE /api/crm/tasks?id=xxx
+// DELETE /api/crm/opportunities?id=xxx
 export async function DELETE(req: NextRequest) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -120,7 +121,7 @@ export async function DELETE(req: NextRequest) {
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  const { error } = await adminClient().from('crm_tasks').delete().eq('id', id);
+  const { error } = await adminClient().from('crm_opportunities').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
