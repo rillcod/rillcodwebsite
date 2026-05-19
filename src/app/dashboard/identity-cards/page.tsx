@@ -1,6 +1,12 @@
 // Unified: identity cards manager is now the Manage tab of Card Studio
 import { redirect } from 'next/navigation';
-export default function IdentityCardsRedirect({ searchParams }: { searchParams?: { type?: string } }) {
-  const type = searchParams?.type ?? 'student';
+
+type PageProps = {
+  searchParams: Promise<{ type?: string }>;
+};
+
+export default async function IdentityCardsRedirect({ searchParams }: PageProps) {
+  const resolvedParams = await searchParams;
+  const type = resolvedParams.type ?? 'student';
   redirect(`/dashboard/card-studio?tab=manage&type=${type}`);
 }
