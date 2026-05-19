@@ -506,6 +506,8 @@ export default function ResponsesPage() {
 
   // Child link
   const [linkChildLeadId, setLinkChildLeadId]   = useState<string | null>(null);
+  const [linkChildIndex, setLinkChildIndex]      = useState(0);
+  const [additionalLinks, setAdditionalLinks]    = useState<Record<string, Array<{ childIndex: number; studentId: string; studentName: string }>>>({});
   const [studentSearch, setStudentSearch]        = useState('');
   const [studentOptions, setStudentOptions]      = useState<{ id: string; full_name: string; section_class: string | null }[]>([]);
   const [studentsLoading, setStudentsLoading]    = useState(false);
@@ -605,8 +607,9 @@ export default function ResponsesPage() {
 
   // ── Link child to parent portal account ─────────────────────────────────
 
-  async function openLinkChild(leadId: string, childName: string) {
+  async function openLinkChild(leadId: string, childName: string, childIndex = 0) {
     setLinkChildLeadId(leadId);
+    setLinkChildIndex(childIndex);
     setStudentSearch(childName);
     setStudentsLoading(true);
     try {
@@ -628,15 +631,25 @@ export default function ResponsesPage() {
 
   async function linkStudentToParent(leadId: string, studentPortalId: string) {
     setLinkingStudentId(studentPortalId);
+    const thisChildIndex = linkChildIndex;
+    const studentName = studentOptions.find(s => s.id === studentPortalId)?.full_name ?? '';
     try {
       const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_portal_id: studentPortalId }),
+        body: JSON.stringify({ student_portal_id: studentPortalId, child_index: thisChildIndex }),
       });
       if (!res.ok) { const j = await res.json(); alert(j.error ?? 'Failed to link'); return; }
       const json = await res.json();
-      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_student_id: json.student_id } : l));
+      if (thisChildIndex === 0) {
+        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_student_id: json.student_id } : l));
+      } else {
+        setAdditionalLinks(prev => ({
+          ...prev,
+          [leadId]: [...(prev[leadId] ?? []).filter(l => l.childIndex !== thisChildIndex),
+                     { childIndex: thisChildIndex, studentId: json.student_id, studentName }],
+        }));
+      }
       setLinkChildLeadId(null);
     } finally {
       setLinkingStudentId(null);
@@ -1270,22 +1283,54 @@ export default function ResponsesPage() {
                                 );
                               })()}
 
-                              {/* Child link status */}
-                              {lead.matched_parent_id && (
-                                lead.matched_student_id ? (
-                                  <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                    {rd.child_gender === 'male' ? '👦' : rd.child_gender === 'female' ? '👧' : '🧒'} {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} linked
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() => openLinkChild(lead.id, rd.child_name || '')}
-                                    className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors whitespace-nowrap"
-                                    title="Link this parent to their child's student record"
-                                  >
-                                    ⚠ Link Child
-                                  </button>
-                                )
-                              )}
+                              {/* Child link status — handles single and multi-child */}
+                              {lead.matched_parent_id && (() => {
+                                const childrenArr = Array.isArray(rd.children)
+                                  ? (rd.children as Array<Record<string, string>>)
+                                  : null;
+                                const count = childrenArr ? childrenArr.length : 1;
+                                if (count === 1) {
+                                  return lead.matched_student_id ? (
+                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                      {rd.child_gender === 'male' ? '👦' : rd.child_gender === 'female' ? '👧' : '🧒'} {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} linked
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => openLinkChild(lead.id, rd.child_name || '', 0)}
+                                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors whitespace-nowrap"
+                                      title="Link this parent to their child's student record"
+                                    >
+                                      ⚠ Link Child
+                                    </button>
+                                  );
+                                }
+                                // Multi-child — show a slot for each child
+                                return (
+                                  <>
+                                    {childrenArr!.map((child, ci) => {
+                                      const isLinked = ci === 0
+                                        ? !!lead.matched_student_id
+                                        : !!(additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci);
+                                      const linkedName = ci === 0
+                                        ? (lead.match_candidate?.full_name ?? child.name)
+                                        : (additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci)?.studentName ?? child.name;
+                                      return isLinked ? (
+                                        <span key={ci} className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                          {child.gender === 'male' ? '👦' : child.gender === 'female' ? '👧' : '🧒'} {linkedName} linked
+                                        </span>
+                                      ) : (
+                                        <button key={ci}
+                                          onClick={() => openLinkChild(lead.id, child.name || '', ci)}
+                                          className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors whitespace-nowrap"
+                                          title={`Link Child ${ci + 1} to a student record`}
+                                        >
+                                          ⚠ Link Child {ci + 1}
+                                        </button>
+                                      );
+                                    })}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>
@@ -1444,18 +1489,25 @@ export default function ResponsesPage() {
 
       {/* ── Link Child modal (staff) ──────────────────────────────────────── */}
       {linkChildLeadId && (() => {
-        const lead = leads.find(l => l.id === linkChildLeadId);
-        const rd   = (lead?.response_data ?? {}) as Record<string, string>;
+        const lead      = leads.find(l => l.id === linkChildLeadId);
+        const rd        = (lead?.response_data ?? {}) as Record<string, unknown>;
+        const childArr  = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
+        const modalChild = childArr?.[linkChildIndex] ?? null;
+        const displayName  = modalChild?.name   || (rd.child_name as string)  || '—';
+        const displayClass = modalChild?.class  || (rd.child_class as string) || '';
+        const isMulti      = (childArr?.length ?? 1) > 1;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
               <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center text-lg shrink-0">🧒</div>
                 <div>
-                  <p className="text-sm font-black text-foreground">Link Child to Parent Account</p>
+                  <p className="text-sm font-black text-foreground">
+                    {isMulti ? `Link Child ${linkChildIndex + 1} to Parent Account` : 'Link Child to Parent Account'}
+                  </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Finding student for: <strong>{rd.child_name || '—'}</strong>
-                    {rd.child_class ? ` · ${rd.child_class}` : ''}
+                    Finding student for: <strong>{displayName}</strong>
+                    {displayClass ? ` · ${displayClass}` : ''}
                   </p>
                 </div>
                 <button onClick={() => setLinkChildLeadId(null)} className="ml-auto text-muted-foreground hover:text-foreground">✕</button>
@@ -1468,8 +1520,7 @@ export default function ResponsesPage() {
                   onChange={e => {
                     const q = e.target.value;
                     setStudentSearch(q);
-                    // re-filter from existing options (re-fetch only if cleared)
-                    if (!q) openLinkChild(linkChildLeadId, '');
+                    if (!q) openLinkChild(linkChildLeadId, '', linkChildIndex);
                     else setStudentOptions(prev => prev.filter(s => s.full_name.toLowerCase().includes(q.toLowerCase())));
                   }}
                   placeholder="Search by student name…"

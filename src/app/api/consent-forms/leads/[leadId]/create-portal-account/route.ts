@@ -196,21 +196,23 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { student_portal_id } = await req.json();
+  const { student_portal_id, child_index } = await req.json();
   if (!student_portal_id) return NextResponse.json({ error: 'student_portal_id is required' }, { status: 400 });
 
   const sb = adminClient();
 
   const { data: lead } = await (sb as any)
     .from('form_leads')
-    .select('id, school_id, matched_parent_id, response_data')
+    .select('id, school_id, matched_parent_id, matched_student_id, response_data')
     .eq('id', leadId).single();
 
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
   if (!lead.matched_parent_id) return NextResponse.json({ error: 'No portal account on this lead yet' }, { status: 400 });
 
-  const leadRd      = (lead.response_data ?? {}) as Record<string, string>;
-  const leadGender  = leadRd.child_gender || null;
+  const leadRd      = (lead.response_data ?? {}) as Record<string, unknown>;
+  const childrenArr = Array.isArray(leadRd.children) ? (leadRd.children as Array<Record<string, string>>) : null;
+  const effectiveIdx = typeof child_index === 'number' ? child_index : 0;
+  const leadGender  = (childrenArr?.[effectiveIdx]?.gender ?? (leadRd.child_gender as string)) || null;
 
   // Resolve student portal user → students table row
   const { data: studentRow } = await (sb as any)
@@ -235,10 +237,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     }).eq('id', studentRow.id);
   }
 
-  // Record the link on the lead
-  await (sb as any).from('form_leads').update({ matched_student_id: studentRow.id }).eq('id', leadId);
+  // Record the link on the lead — only overwrite matched_student_id for the primary child (index 0)
+  // Additional children are tracked only via parent_student_links
+  if (effectiveIdx === 0 || !lead.matched_student_id) {
+    await (sb as any).from('form_leads').update({ matched_student_id: studentRow.id }).eq('id', leadId);
+  }
 
-  return NextResponse.json({ success: true, student_id: studentRow.id, student_portal_id });
+  return NextResponse.json({ success: true, student_id: studentRow.id, student_portal_id, child_index: effectiveIdx });
 }
 
 // DELETE /api/consent-forms/leads/[leadId]/create-portal-account
