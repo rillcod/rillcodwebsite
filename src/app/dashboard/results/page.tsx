@@ -28,6 +28,7 @@ import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
+import { buildReportEmail } from '@/lib/email/rillcod-transactional-email';
 import { Database } from '@/types/supabase';
 import { cn } from '@/lib/utils';
 
@@ -160,7 +161,11 @@ function ResultsPageInner() {
     const [emailShareError, setEmailShareError] = useState<string | null>(null);
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
     const [isBulkPrinting, setIsBulkPrinting] = useState(false);
-    const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; mode: 'download' | 'print' } | null>(null);
+    const [isBulkEmailing, setIsBulkEmailing] = useState(false);
+    const [bulkEmailResults, setBulkEmailResults] = useState<{ studentName: string; email: string; success: boolean; error?: string }[]>([]);
+    const [showBulkEmailSummary, setShowBulkEmailSummary] = useState(false);
+    const bulkEmailResultsRef = useRef<{ studentName: string; email: string; success: boolean; error?: string }[]>([]);
+    const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; mode: 'download' | 'print' | 'email' } | null>(null);
     const [captureReport, setCaptureReport] = useState<StudentReport | null>(null);
     const [bulkPrintReports, setBulkPrintReports] = useState<StudentReport[] | null>(null);
 
@@ -169,7 +174,7 @@ function ResultsPageInner() {
     const captureRef = useRef<HTMLDivElement>(null);  // batch capture
     const captureQueue = useRef<StudentReport[]>([]);
     const captureIdx = useRef<number>(0);
-    const batchMode = useRef<'download' | 'print'>('download');
+    const batchMode = useRef<'download' | 'print' | 'email'>('download');
     const pdfPages = useRef<{ dataUrl: string; format: 'JPEG'; w: number; h: number }[]>([]);
     const bulkPrintTemplateRef = useRef<'standard' | 'modern' | 'printable'>('standard');
     const [showSidebar, setShowSidebar] = useState(true);
@@ -345,14 +350,22 @@ function ResultsPageInner() {
 
             const studs = (sRes.data ?? []) as unknown as PortalUser[];
 
-            // Enrich with grade_level from the students shadow table (portal_users has no grade_level column)
+            // Enrich with grade_level + parent_email from the students shadow table
             const portalIds = studs.map(s => s.id).filter(Boolean);
             const gradeByUserId: Record<string, string> = {};
+            const parentEmailByUserId: Record<string, string> = {};
             if (portalIds.length > 0) {
-                const { data: gradeRows } = await db.from('students').select('user_id, grade_level').in('user_id', portalIds);
-                (gradeRows ?? []).forEach((r: any) => { if (r.user_id && r.grade_level) gradeByUserId[r.user_id] = r.grade_level; });
+                const { data: gradeRows } = await db.from('students').select('user_id, grade_level, parent_email').in('user_id', portalIds);
+                (gradeRows ?? []).forEach((r: any) => {
+                    if (r.user_id && r.grade_level) gradeByUserId[r.user_id] = r.grade_level;
+                    if (r.user_id && r.parent_email) parentEmailByUserId[r.user_id] = r.parent_email;
+                });
             }
-            const studsWithGrade = studs.map(s => ({ ...s, grade_level: gradeByUserId[(s as any).id] ?? '' }));
+            const studsWithGrade = studs.map(s => ({
+                ...s,
+                grade_level: gradeByUserId[(s as any).id] ?? '',
+                parent_email: parentEmailByUserId[(s as any).id] ?? null,
+            }));
             setStudents(studsWithGrade as unknown as PortalUser[]);
             setOrgSettings(orgRes.data);
 
@@ -503,19 +516,41 @@ function ResultsPageInner() {
             const term = (reportToDisplay.report_term || 'Report').replace(/\s+/g, '_');
             const filename = `${name}_${term}.pdf`;
             const subject = `Progress Report — ${reportToDisplay.student_name || 'Student'} (${reportToDisplay.report_term || ''})`;
-            const body = `Please find attached the progress report for ${reportToDisplay.student_name || 'your child'} for ${reportToDisplay.report_term || 'the current term'}.\n\nFor questions, please contact us via the Rillcod portal.\n\nRillcod Technologies`;
+            const htmlBody = buildReportEmail({
+                recipientName: emailShareTo.trim().split('@')[0],
+                studentName: reportToDisplay.student_name || 'Your Child',
+                term: reportToDisplay.report_term || 'Current Term',
+                schoolName: (orgSettings as any)?.school_name || (selectedStudent as any)?.school_name || undefined,
+                overallGrade: reportToDisplay.overall_grade || undefined,
+                portalUrl: `${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}/dashboard/results`,
+            });
             const res = await fetch('/api/inbox/email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     to: emailShareTo.trim(),
                     subject,
-                    body,
+                    body: htmlBody,
                     attachments: [{ filename, content: base64 }],
                 }),
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed to send email');
+            // Log send in report metadata
+            if (reportToDisplay.id) {
+                const rd = reportToDisplay as any;
+                fetch(`/api/progress-reports/${reportToDisplay.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        metadata: {
+                            ...(rd.metadata && typeof rd.metadata === 'object' ? rd.metadata : {}),
+                            email_sent_at: new Date().toISOString(),
+                            email_sent_to: emailShareTo.trim(),
+                        },
+                    }),
+                }).catch(() => null);
+            }
             setEmailShareOpen(false);
             setEmailShareTo('');
         } catch (err: any) {
@@ -631,6 +666,52 @@ function ResultsPageInner() {
         }, 1500);
     }
 
+    // ── Bulk Email to Parents ──────────────────────────────────────────────────
+    async function sendBulkReportEmails() {
+        const ids = [...selectedIds];
+        if (ids.length === 0) return;
+        batchMode.current = 'email';
+        setIsBulkEmailing(true);
+
+        const { data: reports } = await createClient()
+            .from('student_progress_reports')
+            .select('*')
+            .in('student_id', ids)
+            .order('updated_at', { ascending: false });
+
+        if (!reports || reports.length === 0) {
+            setIsBulkEmailing(false);
+            alert('No reports found for the selected students.');
+            return;
+        }
+
+        // Dedupe: keep latest per student; only include students with a parent_email on file
+        const seen = new Set<string>();
+        const queue: StudentReport[] = [];
+        for (const r of reports) {
+            if (!seen.has(r.student_id)) {
+                const stu = students.find(s => s.id === r.student_id);
+                if ((stu as any)?.parent_email) {
+                    seen.add(r.student_id);
+                    queue.push(r as StudentReport);
+                }
+            }
+        }
+
+        if (queue.length === 0) {
+            setIsBulkEmailing(false);
+            alert('None of the selected students have a parent email on file.');
+            return;
+        }
+
+        bulkEmailResultsRef.current = [];
+        captureQueue.current = queue;
+        captureIdx.current = 0;
+        pdfPages.current = [];
+        setBatchProgress({ current: 0, total: queue.length, mode: 'email' });
+        setCaptureReport(queue[0]);
+    }
+
     // ── Batch capture effect ───────────────────────────────────────────────────
     // After each setCaptureReport(), React re-renders the capture div,
     // then this effect fires after paint — we capture and advance the queue.
@@ -650,6 +731,46 @@ function ResultsPageInner() {
                 if (mode === 'download') {
                     const name = (captureReport.student_name ?? 'Student').replace(/\s+/g, '_');
                     await generateReportPDF(captureRef.current, `Report_${name}.pdf`);
+                } else if (mode === 'email') {
+                    const stu = students.find(s => s.id === captureReport.student_id);
+                    const dest = (stu as any)?.parent_email as string | undefined;
+                    const sDisplayName = captureReport.student_name || 'Unknown';
+                    if (dest) {
+                        try {
+                            const { generateReportPDFBase64 } = await import('@/lib/pdf-utils');
+                            const base64 = await generateReportPDFBase64(captureRef.current!);
+                            const sName = sDisplayName.replace(/\s+/g, '_');
+                            const term = (captureReport.report_term || 'Report').replace(/\s+/g, '_');
+                            const htmlBody = buildReportEmail({
+                                recipientName: dest.split('@')[0],
+                                studentName: captureReport.student_name || 'Your Child',
+                                term: captureReport.report_term || 'Current Term',
+                                schoolName: (stu as any)?.school_name || undefined,
+                                overallGrade: captureReport.overall_grade || undefined,
+                                portalUrl: `${window.location.origin}/dashboard/results`,
+                            });
+                            const res = await fetch('/api/inbox/email', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    to: dest,
+                                    subject: `Progress Report — ${captureReport.student_name || 'Student'} (${captureReport.report_term || ''})`,
+                                    body: htmlBody,
+                                    attachments: [{ filename: `${sName}_${term}.pdf`, content: base64 }],
+                                }),
+                            });
+                            if (res.ok) {
+                                bulkEmailResultsRef.current.push({ studentName: sDisplayName, email: dest, success: true });
+                            } else {
+                                const j = await res.json().catch(() => ({}));
+                                bulkEmailResultsRef.current.push({ studentName: sDisplayName, email: dest, success: false, error: j.error || 'Send failed' });
+                            }
+                        } catch (sendErr: any) {
+                            bulkEmailResultsRef.current.push({ studentName: sDisplayName, email: dest, success: false, error: sendErr?.message || 'Unknown error' });
+                        }
+                    } else {
+                        bulkEmailResultsRef.current.push({ studentName: sDisplayName, email: '—', success: false, error: 'No parent email recorded' });
+                    }
                 }
             } catch (err) {
                 console.error('Capture failed for:', captureReport.student_name, err);
@@ -670,6 +791,11 @@ function ResultsPageInner() {
                 if (mode === 'download') {
                     setIsBatchDownloading(false);
                     setSelectedIds(new Set());
+                } else if (mode === 'email') {
+                    setIsBulkEmailing(false);
+                    setSelectedIds(new Set());
+                    setBulkEmailResults([...bulkEmailResultsRef.current]);
+                    setShowBulkEmailSummary(true);
                 }
             }
         }, 450); // wait for DOM paint
@@ -1019,7 +1145,7 @@ tbody tr:hover{background:#f3f4f6}
                         {isStaff && selectedIds.size > 0 && (
                             <button
                                 onClick={startBatchDownload}
-                                disabled={isBatchDownloading || isBulkPrinting}
+                                disabled={isBatchDownloading || isBulkPrinting || isBulkEmailing}
                                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-foreground font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-900/30"
                             >
                                 {isBatchDownloading
@@ -1030,31 +1156,50 @@ tbody tr:hover{background:#f3f4f6}
                                     : `Export ${selectedIds.size} PDF${selectedIds.size > 1 ? 's' : ''}`}
                             </button>
                         )}
+                        {/* Bulk email to parents */}
+                        {isStaff && selectedIds.size > 0 && (
+                            <button
+                                onClick={sendBulkReportEmails}
+                                disabled={isBulkEmailing || isBatchDownloading || isBulkPrinting}
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-900/30"
+                            >
+                                {isBulkEmailing
+                                    ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    : <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                {isBulkEmailing && batchProgress
+                                    ? `Emailing ${batchProgress.current}/${batchProgress.total}…`
+                                    : `Email ${selectedIds.size} to Parents`}
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 {/* ── Batch progress bar ── */}
                 {batchProgress && (
-                    <div className={`border rounded-xl px-5 py-4 ${batchProgress.mode === 'print' ? 'bg-violet-500/10 border-violet-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                    <div className={`border rounded-xl px-5 py-4 ${batchProgress.mode === 'print' ? 'bg-violet-500/10 border-violet-500/20' : batchProgress.mode === 'email' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
                         <div className="flex items-center justify-between mb-2">
-                            <p className={`font-bold text-sm ${batchProgress.mode === 'print' ? 'text-violet-300' : 'text-emerald-300'}`}>
+                            <p className={`font-bold text-sm ${batchProgress.mode === 'print' ? 'text-violet-300' : batchProgress.mode === 'email' ? 'text-blue-300' : 'text-emerald-300'}`}>
                                 {batchProgress.mode === 'print'
                                     ? `Building print PDF — ${batchProgress.current} of ${batchProgress.total} rendered`
+                                    : batchProgress.mode === 'email'
+                                    ? `Emailing reports — ${batchProgress.current} of ${batchProgress.total} sent`
                                     : `Generating PDFs — ${batchProgress.current} of ${batchProgress.total} complete`}
                             </p>
-                            <span className={`font-black text-sm ${batchProgress.mode === 'print' ? 'text-violet-400' : 'text-emerald-400'}`}>
+                            <span className={`font-black text-sm ${batchProgress.mode === 'print' ? 'text-violet-400' : batchProgress.mode === 'email' ? 'text-blue-400' : 'text-emerald-400'}`}>
                                 {Math.round((batchProgress.current / batchProgress.total) * 100)}%
                             </span>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                             <div
-                                className={`h-full rounded-full transition-all duration-300 ${batchProgress.mode === 'print' ? 'bg-violet-500' : 'bg-emerald-500'}`}
+                                className={`h-full rounded-full transition-all duration-300 ${batchProgress.mode === 'print' ? 'bg-violet-500' : batchProgress.mode === 'email' ? 'bg-blue-500' : 'bg-emerald-500'}`}
                                 style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
                             />
                         </div>
-                        <p className={`text-xs mt-2 ${batchProgress.mode === 'print' ? 'text-violet-300/50' : 'text-emerald-300/50'}`}>
+                        <p className={`text-xs mt-2 ${batchProgress.mode === 'print' ? 'text-violet-300/50' : batchProgress.mode === 'email' ? 'text-blue-300/50' : 'text-emerald-300/50'}`}>
                             {batchProgress.mode === 'print'
                                 ? 'Rendering each report — combined PDF will open for printing when done.'
+                                : batchProgress.mode === 'email'
+                                ? 'Sending each report PDF to the parent email on file. Do not navigate away.'
                                 : 'Files are saved one at a time. Allow each download to complete.'}
                         </p>
                     </div>
@@ -1439,7 +1584,7 @@ tbody tr:hover{background:#f3f4f6}
                                                     <button
                                                         title="Send via Email"
                                                         onClick={() => {
-                                                            setEmailShareTo(selectedStudent?.email ?? '');
+                                                            setEmailShareTo((selectedStudent as any)?.parent_email || selectedStudent?.email || '');
                                                             setEmailShareError(null);
                                                             setEmailShareOpen(true);
                                                         }}
@@ -1464,6 +1609,11 @@ tbody tr:hover{background:#f3f4f6}
                                                     </button>
                                                 </div>
                                                 <p className="text-[11px] text-white/50">The report will be attached as a PDF. Enter the recipient's email address below.</p>
+                                                {(selectedStudent as any)?.parent_email && (
+                                                    <p className="text-[10px] text-emerald-400 font-bold">
+                                                        ✓ Pre-filled with parent email on file
+                                                    </p>
+                                                )}
                                                 <div>
                                                     <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Recipient Email</label>
                                                     <input
@@ -1491,6 +1641,48 @@ tbody tr:hover{background:#f3f4f6}
                                                             : <>Send PDF</>}
                                                     </button>
                                                 </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Bulk email summary modal */}
+                                    {showBulkEmailSummary && bulkEmailResults.length > 0 && (
+                                        <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                                            <div className="w-full max-w-lg bg-[#0f0f1a] border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4 max-h-[80vh] flex flex-col">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-sm font-black text-white">Bulk Email Results</p>
+                                                    <button onClick={() => setShowBulkEmailSummary(false)} className="text-white/40 hover:text-white">
+                                                        <XMarkIcon className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                <div className="flex gap-4 text-xs font-bold">
+                                                    <span className="text-emerald-400">{bulkEmailResults.filter(r => r.success).length} sent</span>
+                                                    <span className="text-red-400">{bulkEmailResults.filter(r => !r.success).length} failed</span>
+                                                </div>
+                                                <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+                                                    {bulkEmailResults.map((r, i) => (
+                                                        <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${r.success ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                                                            <div className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${r.success ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                                                                {r.success
+                                                                    ? <CheckIcon className="w-2.5 h-2.5 text-white" />
+                                                                    : <XMarkIcon className="w-2.5 h-2.5 text-white" />}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-xs font-bold text-white truncate">{r.studentName}</p>
+                                                                <p className="text-[10px] text-white/40 truncate">{r.email}</p>
+                                                                {!r.success && r.error && (
+                                                                    <p className="text-[10px] text-red-400 mt-0.5">{r.error}</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <button
+                                                    onClick={() => setShowBulkEmailSummary(false)}
+                                                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-white/70 text-[10px] font-black uppercase tracking-widest rounded-lg transition-colors"
+                                                >
+                                                    Close
+                                                </button>
                                             </div>
                                         </div>
                                     )}
