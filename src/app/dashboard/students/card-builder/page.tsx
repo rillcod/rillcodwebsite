@@ -565,6 +565,73 @@ export default function CardBuilderPage() {
     doc.save('rillcod_sample_card.pdf');
   };
 
+  const handleExportBatchPDF = async () => {
+    const { default: jsPDF } = await import('jspdf');
+    const acc = cfg.accentColor;
+    const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
+    const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
+    const expiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const sampleData: Record<string, string> = { school: SAMPLE.school, email: SAMPLE.email, password: SAMPLE.password, programme: SAMPLE.programme, studentId: SAMPLE.id, className: SAMPLE.className, expiry };
+    const r = (hex: string) => parseInt(hex.slice(1,3),16);
+    const g = (hex: string) => parseInt(hex.slice(3,5),16);
+    const b = (hex: string) => parseInt(hex.slice(5,7),16);
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const marginX = 8, marginY = 8, gapX = 6, gapY = 6;
+    const cardW = parseFloat(cfg.width), cardH = parseFloat(cfg.height);
+    for (let i = 0; i < 8; i++) {
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = marginX + col * (cardW + gapX);
+      const y = marginY + row * (cardH + gapY);
+      doc.setDrawColor(209,213,219); doc.setLineWidth(0.3);
+      doc.rect(x, y, cardW, cardH);
+      if (cfg.headerStyle === 'band') {
+        doc.setFillColor(r(acc), g(acc), b(acc));
+        doc.rect(x, y, cardW, 8, 'F');
+        doc.setFontSize(5.5); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold');
+        doc.text(cfg.orgName, x + 3, y + 4);
+        doc.setFontSize(3.5); doc.setFont('helvetica','normal');
+        doc.text(cfg.orgWebsite, x + 3, y + 7);
+        if (vis('className')) {
+          const bw = SAMPLE.className.length * 1.5 + 4;
+          doc.setFillColor(0,0,0); doc.rect(x + cardW - bw - 1, y + 1.5, bw, 5, 'F');
+          doc.setFontSize(4); doc.setTextColor(255,255,255);
+          doc.text(SAMPLE.className, x + cardW - bw/2 - 1, y + 5, { align: 'center' });
+        }
+      } else {
+        doc.setFillColor(r(acc), g(acc), b(acc));
+        doc.rect(x, y, 1.5, cardH, 'F');
+        doc.setFontSize(5); doc.setTextColor(17,24,39); doc.setFont('helvetica','bold');
+        doc.text(cfg.orgName, x + 4, y + 5);
+        doc.setFontSize(3.5); doc.setTextColor(r(acc),g(acc),b(acc)); doc.setFont('helvetica','normal');
+        doc.text(cfg.orgWebsite, x + 4, y + 8.5);
+      }
+      const bodyY = y + (cfg.headerStyle === 'band' ? 10 : 11);
+      const ix = x + 4;
+      doc.setFontSize(8); doc.setTextColor(17,24,39); doc.setFont('helvetica','bold');
+      doc.text(SAMPLE.name, ix, bodyY + 4);
+      doc.setDrawColor(243,244,246); doc.setLineWidth(0.2);
+      doc.line(ix, bodyY + 6, x + cardW - (vis('qr') ? 22 : 3), bodyY + 6);
+      let fy = bodyY + 10;
+      infoFields.slice(0, 3).forEach(f => {
+        const labelCol = cfg.typo.fieldLabel.color;
+        doc.setFontSize(3.5); doc.setTextColor(r(labelCol), g(labelCol), b(labelCol)); doc.setFont('helvetica','normal');
+        doc.text(f.label.toUpperCase(), ix, fy);
+        doc.setFontSize(5); doc.setFont('courier','bold');
+        const isAccent = ['password','studentId','programme','school','expiry'].includes(f.key);
+        doc.setTextColor(isAccent ? r(acc) : 17, isAccent ? g(acc) : 24, isAccent ? b(acc) : 39);
+        doc.text(doc.splitTextToSize(sampleData[f.key] ?? '', cardW - (vis('qr') ? 24 : 8))[0], ix, fy + 3.5);
+        fy += 8;
+      });
+      doc.setDrawColor(243,244,246); doc.setLineWidth(0.2);
+      doc.line(ix, y + cardH - 6, x + cardW - 2, y + cardH - 6);
+      doc.setFontSize(3.5); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal');
+      doc.text(cfg.footerLeft, ix, y + cardH - 2.5);
+      doc.setTextColor(55,65,81); doc.setFont('courier','bold');
+      doc.text(SAMPLE.id, x + cardW - 2, y + cardH - 2.5, { align: 'right' });
+    }
+    doc.save('rillcod_batch_cards_sample.pdf');
+  };
+
   const loadStudents = () => {
     if (studentsLoaded) return;
     setStudentsLoading(true);
@@ -791,7 +858,7 @@ export default function CardBuilderPage() {
             {/* Background */}
             <div>
               <div className="text-[9px] uppercase tracking-widest text-white/30 mb-2">Background</div>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 mb-2">
                 {[{ label: 'White', value: '#ffffff' }, { label: 'Off-White', value: '#f9fafb' }, { label: 'Cream', value: '#fffbeb' }].map(c => (
                   <button key={c.value} onClick={() => update({ bgColor: c.value })} style={{ background: c.value }}
                     className={`flex-1 py-1.5 border text-[8px] font-bold text-gray-700 transition-all ${cfg.bgColor === c.value ? 'ring-2 ring-primary ring-offset-1 ring-offset-[#09090b]' : 'border-white/10'}`}>
@@ -799,6 +866,49 @@ export default function CardBuilderPage() {
                   </button>
                 ))}
               </div>
+              <div className="flex items-center gap-2">
+                <input type="color" value={cfg.bgColor} onChange={e => update({ bgColor: e.target.value })}
+                  className="w-8 h-7 cursor-pointer border border-white/10 bg-transparent p-0" />
+                <input type="text" value={cfg.bgColor}
+                  onChange={e => /^#[0-9a-fA-F]{0,6}$/.test(e.target.value) && update({ bgColor: e.target.value })}
+                  className="flex-1 px-2 py-1.5 bg-white/5 border border-white/10 text-white text-[11px] font-mono focus:outline-none focus:border-primary/50" />
+              </div>
+            </div>
+
+            {/* Corner radius */}
+            <div>
+              <div className="text-[9px] uppercase tracking-widest text-white/30 mb-2">Corners</div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([
+                  { value: 'sharp',   label: 'Sharp'   },
+                  { value: 'rounded', label: 'Rounded' },
+                  { value: 'pill',    label: 'Pill'    },
+                ] as const).map(s => (
+                  <button key={s.value} onClick={() => update({ cornerRadius: s.value })}
+                    className={`py-2 border text-[9px] font-bold uppercase transition-all ${cfg.cornerRadius === s.value ? 'border-primary bg-primary/10 text-primary' : 'border-white/10 text-white/40 hover:text-white/60'}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Toggles */}
+            <div className="space-y-2">
+              {([
+                { key: 'showLogo'     as const, label: 'Show Logo',       desc: 'Logo in header' },
+                { key: 'showPhotoSlot'as const, label: 'Photo Slot',      desc: 'Student photo space' },
+              ]).map(opt => (
+                <label key={opt.key} className="flex items-center gap-3 cursor-pointer py-1">
+                  <div onClick={() => update({ [opt.key]: !cfg[opt.key] })}
+                    className={`w-8 h-4 rounded-full flex-shrink-0 transition-all relative ${cfg[opt.key] ? 'bg-primary' : 'bg-white/10'}`}>
+                    <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${cfg[opt.key] ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-white/60">{opt.label}</div>
+                    <div className="text-[8px] text-white/25">{opt.desc}</div>
+                  </div>
+                </label>
+              ))}
             </div>
           </SidebarSection>
 
@@ -899,6 +1009,12 @@ export default function CardBuilderPage() {
                         ))}
                       </div>
                     </div>
+                    {/* Preview swatch */}
+                    <div className="bg-white px-3 py-1.5 overflow-hidden">
+                      <span style={{ fontSize: s.fontSize, fontWeight: parseInt(s.fontWeight), color: s.color.startsWith('rgba') || s.color === '#ffffff' ? '#374151' : s.color, fontFamily: s.fontFamily === 'mono' ? 'monospace' : 'inherit' }}>
+                        Sample — {label}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
@@ -918,6 +1034,10 @@ export default function CardBuilderPage() {
             <button onClick={handleExportSinglePDF}
               className="flex items-center gap-1.5 px-4 py-2 border border-white/10 hover:border-white/25 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">
               <ArrowDownTrayIcon className="w-3.5 h-3.5" /> PDF Single
+            </button>
+            <button onClick={handleExportBatchPDF}
+              className="flex items-center gap-1.5 px-4 py-2 border border-white/10 hover:border-white/25 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">
+              <ArrowDownTrayIcon className="w-3.5 h-3.5" /> PDF 8×A4
             </button>
           </div>
           <p className="text-[9px] text-white/20 text-center max-w-xs">
