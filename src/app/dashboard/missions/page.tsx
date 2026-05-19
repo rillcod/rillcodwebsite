@@ -1460,7 +1460,7 @@ const DIFFICULTY_STYLES: Record<Difficulty, string> = {
   Advanced: 'bg-rose-500/10 text-rose-400 border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]',
 };
 
-export default function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
+export function MissionsPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { profile, loading: authLoading } = useAuth();
 
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -1898,4 +1898,8 @@ export default function MissionsPage({ isEmbedded = false }: { isEmbedded?: bool
       </div>
     </div>
   );
+}
+
+export default function Page() {
+  return <MissionsPage />;
 }

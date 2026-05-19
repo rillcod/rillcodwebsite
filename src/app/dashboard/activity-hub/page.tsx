@@ -12,17 +12,17 @@ import {
 } from '@/lib/icons';
 import dynamic from 'next/dynamic';
 
-// Dynamically import the core contents of each page to keep the Hub bundle manageable
-const SocialHub = dynamic(() => import('../engage/page'), {
+// Dynamically import named exports so the default page export stays Next.js-compliant
+const SocialHub = dynamic(() => import('../engage/page').then(m => ({ default: m.CommunityPage })), {
   loading: () => <div className="p-12 text-center animate-pulse text-muted-foreground uppercase font-black tracking-widest">Loading Social Hub...</div>
 });
-const ResourceVault = dynamic(() => import('../vault/page'), {
+const ResourceVault = dynamic(() => import('../vault/page').then(m => ({ default: m.VaultPage })), {
   loading: () => <div className="p-12 text-center animate-pulse text-muted-foreground uppercase font-black tracking-widest">Loading Code Vault...</div>
 });
-const SkillQuests = dynamic(() => import('../missions/page'), {
+const SkillQuests = dynamic(() => import('../missions/page').then(m => ({ default: m.MissionsPage })), {
   loading: () => <div className="p-12 text-center animate-pulse text-muted-foreground uppercase font-black tracking-widest">Loading Skill Quests...</div>
 });
-const MasteryProtocol = dynamic(() => import('../protocol/page'), {
+const MasteryProtocol = dynamic(() => import('../protocol/page').then(m => ({ default: m.ProtocolPage })), {
   loading: () => <div className="p-12 text-center animate-pulse text-muted-foreground uppercase font-black tracking-widest">Loading Mastery Protocol...</div>
 });
 

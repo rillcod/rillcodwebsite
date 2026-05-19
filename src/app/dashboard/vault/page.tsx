@@ -254,7 +254,7 @@ void loop() {
   }
 ];
 
-export default function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
+export function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { profile, loading: authLoading } = useAuth();
   const db = createClient();
 
@@ -829,4 +829,8 @@ export default function VaultPage({ isEmbedded = false }: { isEmbedded?: boolean
       </div>
     </div>
   );
+}
+
+export default function Page() {
+  return <VaultPage />;
 }

@@ -118,7 +118,7 @@ const WEEKLY_CHALLENGE = {
 
 const MAX_CHARS = 1000;
 
-export default function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
+export function CommunityPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { profile, loading: authLoading } = useAuth();
   const db = createClient();
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -853,4 +853,8 @@ export default function CommunityPage({ isEmbedded = false }: { isEmbedded?: boo
       </div>
     </div>
   );
+}
+
+export default function Page() {
+  return <CommunityPage />;
 }

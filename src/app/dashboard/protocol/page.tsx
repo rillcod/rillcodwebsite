@@ -50,7 +50,7 @@ function getModuleStatus(moduleId: string, completed: Set<string>): ModuleStatus
   return 'available';
 }
 
-export default function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
+export function ProtocolPage({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { profile, loading: authLoading } = useAuth();
 
   const [completedModules, setCompletedModules] = useState<Set<string>>(new Set());
@@ -451,4 +451,8 @@ export default function ProtocolPage({ isEmbedded = false }: { isEmbedded?: bool
       </div>
     </div>
   );
+}
+
+export default function Page() {
+  return <ProtocolPage />;
 }
