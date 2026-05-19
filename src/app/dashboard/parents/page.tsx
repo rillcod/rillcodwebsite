@@ -769,6 +769,8 @@ export default function ParentsPage() {
   const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerLoaded, setPickerLoaded] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanResult, setCleanResult] = useState<{ total_cleaned: number; stats: Record<string, number> } | null>(null);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
@@ -939,6 +941,18 @@ export default function ParentsPage() {
     } catch { alert('Failed to delete'); } finally { setDeleting(null); }
   };
 
+  const handleCleanup = async () => {
+    setCleaning(true);
+    setCleanResult(null);
+    try {
+      const res = await fetch('/api/parents/cleanup', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error || 'Cleanup failed'); return; }
+      setCleanResult(json);
+      if (json.total_cleaned > 0) load();
+    } catch { alert('Cleanup failed'); } finally { setCleaning(false); }
+  };
+
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -1061,6 +1075,18 @@ export default function ParentsPage() {
               className="flex items-center gap-2 px-3 py-2.5 border border-border hover:border-foreground/30 text-muted-foreground hover:text-foreground text-[10px] font-black uppercase tracking-widest transition-all shrink-0" title="Bulk Import">
               <ArrowUpTrayIcon className="w-4 h-4" />
               <span className="hidden sm:inline">Import</span>
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleCleanup}
+              disabled={cleaning}
+              className="flex items-center gap-2 px-3 py-2.5 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest transition-all shrink-0 disabled:opacity-50"
+              title="Purge orphaned parent records, stale links and soft-deleted accounts">
+              {cleaning
+                ? <span className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                : <span>⚡</span>}
+              <span className="hidden sm:inline">{cleaning ? 'Pruning…' : 'Prune'}</span>
             </button>
           )}
           <button
@@ -1194,6 +1220,29 @@ export default function ParentsPage() {
         <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/5 border border-primary/20 text-xs text-primary">
           <BuildingOfficeIcon className="w-4 h-4" />
           Showing parents and students for: <span className="font-black">{profile.school_name}</span>
+        </div>
+      )}
+
+      {/* Prune result banner */}
+      {cleanResult && (
+        <div className={`flex items-center justify-between gap-3 px-4 py-3 border text-xs font-bold ${
+          cleanResult.total_cleaned > 0
+            ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+        }`}>
+          <span>
+            {cleanResult.total_cleaned > 0
+              ? `Pruned ${cleanResult.total_cleaned} orphaned record${cleanResult.total_cleaned !== 1 ? 's' : ''}: ${
+                  [
+                    cleanResult.stats.soft_deleted_parents_purged     ? `${cleanResult.stats.soft_deleted_parents_purged} deleted accounts` : '',
+                    cleanResult.stats.orphaned_student_parent_emails_cleared ? `${cleanResult.stats.orphaned_student_parent_emails_cleared} stale student links` : '',
+                    cleanResult.stats.orphaned_links_deleted          ? `${cleanResult.stats.orphaned_links_deleted} broken link rows` : '',
+                    cleanResult.stats.stale_lead_parent_refs_cleared  ? `${cleanResult.stats.stale_lead_parent_refs_cleared} stale form refs` : '',
+                  ].filter(Boolean).join(' · ')
+                }`
+              : 'All clean — no orphaned records found.'}
+          </span>
+          <button onClick={() => setCleanResult(null)} className="text-muted-foreground hover:text-foreground transition-colors text-base leading-none">×</button>
         </div>
       )}
 
