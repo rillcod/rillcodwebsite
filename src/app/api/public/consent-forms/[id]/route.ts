@@ -429,7 +429,22 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const isExistingParent = Boolean(response_data.is_existing_parent);
   const now         = new Date().toISOString();
 
-  // ── CRM reconciliation ────────────────────────────────────────────────────
+  // Extract multi-child array (children[0] == legacy primary fields, already stored)
+  const childrenArr = Array.isArray(response_data.children) && response_data.children.length > 1
+    ? (response_data.children as Array<Record<string, string>>)
+    : null;
+
+  // Human-readable children list for messages e.g. "Ayo, Bisi and Chidi"
+  function listChildNames(arr: Array<Record<string, string>> | null, primary: string): string {
+    if (!arr || arr.length === 0) return primary || 'your child';
+    const names = arr.map(c => c.name).filter(Boolean);
+    if (names.length === 0) return primary || 'your child';
+    if (names.length === 1) return names[0];
+    return names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+  }
+  const allChildrenDisplay = listChildNames(childrenArr, response_data.child_name);
+
+  // ── CRM reconciliation (primary child / child 1) ──────────────────────────
   const { contactId, prospectId } = await reconcileWithCRM(sb, {
     parentName:       response_data.parent_name || 'Parent/Guardian',
     parentEmail:      response_data.parent_email || toEmail || '',
@@ -460,19 +475,82 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       .eq('id', lead!.id);
   }
 
+  // ── Additional children (multi-child) → CRM entries ─────────────────────
+  if (childrenArr && contactId) {
+    for (const child of childrenArr.slice(1)) {
+      if (!child.name?.trim()) continue;
+      const cLabel =
+        child.program === 'young_innovators' ? 'Young Innovators (PRY · Ages 5–10)' :
+        child.program === 'teen_developers'  ? 'Teen Developers (SEC · Ages 11–19)' :
+        child.program || null;
+
+      // Add child to contact book children array
+      try {
+        const { data: cb } = await (sb as any)
+          .from('customer_contact_book').select('metadata').eq('id', contactId).single();
+        if (cb) {
+          const meta = (cb.metadata as Record<string, unknown>) ?? {};
+          const kids = Array.isArray(meta.children) ? meta.children as Record<string, unknown>[] : [];
+          const entry = { name: child.name, age: child.age, class: child.class, program: cLabel, school: child.school };
+          const idx = kids.findIndex(k => String(k.name ?? '').toLowerCase() === child.name.toLowerCase());
+          if (idx >= 0) kids[idx] = { ...kids[idx], ...entry };
+          else kids.push(entry);
+          await (sb as any).from('customer_contact_book')
+            .update({ metadata: { ...meta, children: kids }, updated_at: now })
+            .eq('id', contactId);
+        }
+      } catch { /* non-fatal */ }
+
+      // Create / update prospective_students row for this child
+      try {
+        const pEmail = (response_data.parent_email || toEmail || '').trim().toLowerCase();
+        const pPhone = (response_data.parent_whatsapp || '').replace(/\D/g, '') || null;
+        let existingP: { id: string } | null = null;
+        if (pEmail) {
+          const { data } = await (sb as any)
+            .from('prospective_students').select('id')
+            .eq('parent_email', pEmail).ilike('full_name', child.name).maybeSingle();
+          existingP = data;
+        }
+        const payload = {
+          full_name:       child.name,
+          email:           pEmail || `lead-${lead!.id}-${child.name.replace(/\s+/g, '-').toLowerCase()}@noemail.local`,
+          age:             child.age ? parseInt(child.age, 10) : null,
+          grade:           child.class || null,
+          course_interest: cLabel,
+          parent_name:     response_data.parent_name || 'Parent/Guardian',
+          parent_email:    pEmail || null,
+          parent_phone:    pPhone,
+          school_id:       matched_school_id ?? form.school_id ?? null,
+          school_name:     child.school || schoolName,
+          status:          'enquiry',
+          updated_at:      now,
+        };
+        if (existingP) {
+          await (sb as any).from('prospective_students').update(payload).eq('id', existingP.id);
+        } else {
+          await (sb as any).from('prospective_students')
+            .insert({ ...payload, created_at: now, is_active: true, is_deleted: false });
+        }
+      } catch { /* non-fatal */ }
+    }
+  }
+
   // ── Parent confirmation email (SMTP — send first) ─────────────────────────
   if (toEmail && toEmail.includes('@')) {
     try {
       const html = buildFormLeadConfirmationEmail({
         parentName:      response_data.parent_name || 'Parent/Guardian',
-        childName:       response_data.child_name,
-        programCategory: response_data.program_category,
+        childName:       allChildrenDisplay,
+        programCategory: childrenArr ? undefined : response_data.program_category,
         formTitle:       form.title, schoolName,
         formType:        form.form_type ?? 'general', appUrl,
       });
       const subject = isExistingParent
         ? `↩️ Welcome Back! We've Received Your Update — Rillcod Technologies`
-        : `✅ Registration Received — Rillcod Technologies`;
+        : childrenArr
+          ? `✅ Registration Received for ${childrenArr.length} Children — Rillcod Technologies`
+          : `✅ Registration Received — Rillcod Technologies`;
       await notificationsService.sendEmail('system', {
         to: toEmail, subject, html,
         fromName: 'Rillcod Technologies', replyTo: 'support@rillcod.com',
@@ -490,30 +568,39 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       ? `\n\n⚠️ POSSIBLE EXISTING STUDENT MATCH (${matchResult.confidence.toUpperCase()} confidence): "${matchResult.candidate.full_name}" — ${matchResult.candidate.section_class ?? 'no class'}. Please review in dashboard.`
       : '';
 
+    const childDisplay = allChildrenDisplay;
+    const childCountNote = childrenArr ? ` (${childrenArr.length} children)` : '';
+
     const notifTitle = needsReview
-      ? `⚠️ Match Needed: ${response_data.child_name}`
+      ? `⚠️ Match Needed: ${childDisplay}`
       : isExistingParent
-      ? `↩️ Returning Family: ${response_data.child_name}`
-      : `🔔 New Enquiry: ${response_data.child_name}`;
+      ? `↩️ Returning Family: ${childDisplay}`
+      : `🔔 New Enquiry: ${childDisplay}`;
 
     const notifMessage = needsReview
-      ? `"${response_data.child_name}" (${matchResult!.confidence} confidence) may be an existing student. Review & approve in Consent Forms.`
+      ? `"${childDisplay}" (${matchResult!.confidence} confidence) may be an existing student. Review & approve in Consent Forms.`
       : isExistingParent
-      ? `${response_data.parent_name} (existing parent) submitted ${form.title} for ${response_data.child_name}.`
-      : `New enquiry from ${response_data.parent_name} via "${form.title}". Child: ${response_data.child_name}.`;
+      ? `${response_data.parent_name} (existing parent) submitted ${form.title} for ${childDisplay}${childCountNote}.`
+      : `New enquiry from ${response_data.parent_name} via "${form.title}". Children: ${childDisplay}${childCountNote}.`;
 
     const emailSubject = needsReview
-      ? `🔔⚠️ Match Needed: ${response_data.child_name} — ${form.title}`
+      ? `🔔⚠️ Match Needed: ${childDisplay} — ${form.title}`
       : isExistingParent
-      ? `↩️ Returning Family: ${response_data.child_name} — ${form.title}`
-      : `🔔 New Enquiry: ${response_data.child_name} — ${form.title}`;
+      ? `↩️ Returning Family: ${childDisplay} — ${form.title}`
+      : `🔔 New Enquiry: ${childDisplay}${childCountNote} — ${form.title}`;
 
     // Staff email
     const staffEmail = schoolData?.email;
     if (staffEmail && staffEmail.includes('@')) {
+      const extraChildrenNote = childrenArr && childrenArr.length > 1
+        ? `\n\nADDITIONAL CHILDREN (${childrenArr.length - 1} more):\n` +
+          childrenArr.slice(1).map((c, i) =>
+            `Child ${i + 2}: ${c.name || '—'} | ${c.gender || '—'} | Age ${c.age || '—'} | ${c.class || '—'} | ${c.program || '—'}`
+          ).join('\n')
+        : '';
       const html = buildLeadNotificationEmail({
-        schoolName, formTitle: form.title + matchInfo,
-        childName:         response_data.child_name,
+        schoolName, formTitle: form.title + matchInfo + extraChildrenNote,
+        childName:         childDisplay,
         childAge:          response_data.child_age,
         childClass:        response_data.child_class,
         programCategory:   response_data.program_category,
@@ -589,11 +676,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   try {
     const parentWhatsapp = response_data.parent_whatsapp;
     if (parentWhatsapp?.trim()) {
-      const programme =
-        response_data.program_category === 'young_innovators' ? 'Young Innovators' :
-        response_data.program_category === 'teen_developers'  ? 'Teen Developers'  :
-        response_data.program_category || 'coding programme';
-      const waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received ${response_data.child_name}'s registration for ${programme} at Rillcod Technologies.\n\nOur team will reach out within 24 hours to confirm your child's placement and share next steps.\n\nQuestions? Call us: +234 811 660 0091\nReply STOP to opt out.`;
+      let waMsg: string;
+      if (childrenArr && childrenArr.length > 1) {
+        const childLines = childrenArr.map((c, i) => {
+          const prog = c.program === 'young_innovators' ? 'Young Innovators' :
+                       c.program === 'teen_developers'  ? 'Teen Developers'  : c.program || 'coding programme';
+          return `${i + 1}. ${c.name} — ${prog}`;
+        }).join('\n');
+        waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received registrations for ${childrenArr.length} children at Rillcod Technologies:\n\n${childLines}\n\nOur team will reach out within 24 hours to confirm placements and share next steps.\n\nQuestions? Call us: +234 811 660 0091\nReply STOP to opt out.`;
+      } else {
+        const programme =
+          response_data.program_category === 'young_innovators' ? 'Young Innovators' :
+          response_data.program_category === 'teen_developers'  ? 'Teen Developers'  :
+          response_data.program_category || 'coding programme';
+        waMsg = `Hi ${response_data.parent_name || 'there'}! 🎉 We've received ${response_data.child_name}'s registration for ${programme} at Rillcod Technologies.\n\nOur team will reach out within 24 hours to confirm your child's placement and share next steps.\n\nQuestions? Call us: +234 811 660 0091\nReply STOP to opt out.`;
+      }
       await sendWhatsApp(parentWhatsapp, waMsg);
     }
   } catch { /* non-fatal */ }
@@ -612,7 +709,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         contact_type: 'form_lead',
         type:         'task_followup',
         direction:    'internal',
-        content:      `Follow-up task: Contact ${response_data.parent_name || 'parent'} about ${response_data.child_name || 'child'}'s registration (${programme}). Submitted: ${new Date().toLocaleDateString('en-GB')}`,
+        content:      `Follow-up task: Contact ${response_data.parent_name || 'parent'} about ${allChildrenDisplay}'s registration (${programme}${childrenArr ? ` · ${childrenArr.length} children` : ''}). Submitted: ${new Date().toLocaleDateString('en-GB')}`,
         created_at:   now,
       });
     }
