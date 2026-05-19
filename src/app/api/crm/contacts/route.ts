@@ -13,7 +13,13 @@ async function requireCrmStaff() {
   return { profile, db };
 }
 
-// GET /api/crm/contacts?search=&role=all&stage=&limit=80&format=json|print|csv
+// GET /api/crm/contacts?search=&role=all|parent|student|external|everyone&format=json|print|csv
+//
+// role=all (default) — parents + students who have a phone number on file
+// role=parent        — parents with a phone number
+// role=student       — students with a phone number
+// role=external      — unlinked WhatsApp conversations
+// role=everyone      — all portal_users regardless of role or phone (admin view)
 export async function GET(req: NextRequest) {
   try {
     const { profile, db } = await requireCrmStaff();
@@ -21,15 +27,35 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || 'all';
     const format = searchParams.get('format') || 'json';
-    const limit = Math.min(parseInt(searchParams.get('limit') || '80'), format === 'json' ? 200 : 2000);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100'), format === 'json' ? 300 : 3000);
+
+    // Primary CRM targets: parents + students with actual phone numbers
+    const isPrimary = role === 'all' || role === 'parent' || role === 'student';
+    const isEveryone = role === 'everyone';
 
     let q = db.from('portal_users')
       .select('id, full_name, email, phone, role, school_name, school_id, section_class, is_active, created_at, metadata')
       .eq('is_active', true)
-      .order('full_name');
+      .order('created_at', { ascending: false });
+
+    if (isPrimary) {
+      // Restrict to parents and/or students, and require a real phone number
+      if (role === 'parent') {
+        q = q.eq('role', 'parent');
+      } else if (role === 'student') {
+        q = q.eq('role', 'student');
+      } else {
+        // role === 'all': both parents and students
+        q = q.in('role', ['parent', 'student']);
+      }
+      q = q.not('phone', 'is', null).neq('phone', '');
+    } else if (!isEveryone && role !== 'external') {
+      // Explicit single role requested (e.g. teacher, school)
+      q = q.eq('role', role);
+    }
+    // isEveryone → no role filter, no phone filter
 
     if (search) q = q.ilike('full_name', `%${search}%`);
-    if (role !== 'all' && role !== 'external') q = q.eq('role', role);
 
     if (profile.role === 'teacher' && profile.school_id) {
       q = q.eq('school_id', profile.school_id);
@@ -37,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     const { data: portalUsers } = await q.limit(limit);
 
-    // Fetch pipeline stages for all portal users in one query
+    // Fetch pipeline stages in one query
     const ids = (portalUsers || []).map((u: any) => u.id);
     let stageMap: Record<string, string> = {};
     if (ids.length > 0) {
@@ -50,15 +76,16 @@ export async function GET(req: NextRequest) {
 
     const contacts = (portalUsers || []).map((u: any) => ({ ...u, pipeline_stage: stageMap[u.id] }));
 
-    // External WA contacts
+    // External WA contacts — unlinked conversations with a phone number
     let external: any[] = [];
     if (role === 'all' || role === 'external') {
       let waQ = db.from('whatsapp_conversations')
         .select('id, contact_name, phone_number, last_message_at')
         .is('portal_user_id', null)
+        .not('phone_number', 'is', null)
         .order('last_message_at', { ascending: false });
       if (search) waQ = waQ.ilike('contact_name', `%${search}%`);
-      const { data: waContacts } = await waQ.limit(50);
+      const { data: waContacts } = await waQ.limit(80);
       external = (waContacts || []).map(c => ({
         id: c.id,
         full_name: c.contact_name || c.phone_number,

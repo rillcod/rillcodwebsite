@@ -244,7 +244,7 @@ export default function CRMPage() {
   const [newErr, setNewErr]                   = useState('');
 
   // ── Stats ──────────────────────────────────────────────────────
-  const [stats, setStats] = useState({ total: 0, active: 0, prospect: 0, at_risk: 0, won: 0, churned: 0, overdueTasks: 0, pipelineValue: 0 });
+  const [stats, setStats] = useState({ total: 0, parents: 0, students: 0, active: 0, prospect: 0, at_risk: 0, won: 0, churned: 0, overdueTasks: 0, pipelineValue: 0 });
 
   const isAdmin = profile?.role === 'admin';
   const isStaff = isAdmin || profile?.role === 'teacher';
@@ -253,9 +253,9 @@ export default function CRMPage() {
   const loadContacts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '200' });
+      const params = new URLSearchParams({ limit: '300' });
       if (search) params.set('search', search);
-      if (roleFilter !== 'all') params.set('role', roleFilter);
+      params.set('role', roleFilter);
       const res = await fetch(`/api/crm/contacts?${params}`);
       const json = await res.json();
       const list: CRMContact[] = json.contacts || [];
@@ -263,10 +263,18 @@ export default function CRMPage() {
 
       // Compute stats
       const stageCounts: Record<string, number> = {};
-      list.forEach(c => { const s = c.pipeline_stage || 'prospect'; stageCounts[s] = (stageCounts[s] || 0) + 1; });
+      let parentCount = 0, studentCount = 0;
+      list.forEach(c => {
+        const s = c.pipeline_stage || 'prospect';
+        stageCounts[s] = (stageCounts[s] || 0) + 1;
+        if (c.role === 'parent') parentCount++;
+        if (c.role === 'student') studentCount++;
+      });
       setStats(prev => ({
         ...prev,
-        total: list.length,
+        total:    list.length,
+        parents:  parentCount,
+        students: studentCount,
         active:   stageCounts['active'] || 0,
         prospect: stageCounts['prospect'] || 0,
         at_risk:  stageCounts['at_risk'] || 0,
@@ -567,22 +575,19 @@ export default function CRMPage() {
   const sm = stageMeta(selected?.pipeline_stage);
 
   // ─── Directory export / print ─────────────────────────────────────────────
-  function buildExportParams() {
-    const p = new URLSearchParams({ format: 'csv', limit: '2000' });
+  function buildExportParams(fmt: string) {
+    const p = new URLSearchParams({ format: fmt, limit: '3000' });
     if (search) p.set('search', search);
-    if (roleFilter !== 'all') p.set('role', roleFilter);
+    p.set('role', roleFilter);
     return p.toString();
   }
 
   function exportContactsCSV() {
-    window.location.href = `/api/crm/contacts?${buildExportParams()}`;
+    window.location.href = `/api/crm/contacts?${buildExportParams('csv')}`;
   }
 
   function printContactDirectory() {
-    const p = new URLSearchParams({ format: 'print', limit: '2000' });
-    if (search) p.set('search', search);
-    if (roleFilter !== 'all') p.set('role', roleFilter);
-    window.open(`/api/crm/contacts?${p.toString()}`, '_blank');
+    window.open(`/api/crm/contacts?${buildExportParams('print')}`, '_blank');
   }
 
   if (!isStaff) {
@@ -604,12 +609,13 @@ export default function CRMPage() {
         <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto scrollbar-none">
           <span className="text-xs font-black uppercase tracking-widest text-[#f5a623] mr-2 shrink-0">CRM</span>
           {[
-            { label: 'Contacts', value: stats.total, color: 'text-white' },
-            { label: 'Active', value: stats.active, color: 'text-emerald-400' },
+            { label: 'Total', value: stats.total, color: 'text-white' },
+            { label: 'Parents', value: stats.parents, color: 'text-emerald-400' },
+            { label: 'Students', value: stats.students, color: 'text-sky-400' },
+            { label: 'Active', value: stats.active, color: 'text-violet-400' },
             { label: 'Prospect', value: stats.prospect, color: 'text-blue-400' },
             { label: 'At Risk', value: stats.at_risk, color: 'text-amber-400' },
-            { label: 'Won', value: stats.won, color: 'text-violet-400' },
-            { label: 'Overdue', value: stats.overdueTasks, color: stats.overdueTasks > 0 ? 'text-rose-400' : 'text-[#52525b]' },
+            { label: 'Overdue Tasks', value: stats.overdueTasks, color: stats.overdueTasks > 0 ? 'text-rose-400' : 'text-[#52525b]' },
           ].map(s => (
             <div key={s.label} className="shrink-0 px-3 py-1 rounded-lg bg-[#18181b] border border-[#27272a] text-center min-w-[64px]">
               <div className={`text-sm font-black ${s.color}`}>{s.value}</div>
@@ -659,12 +665,11 @@ export default function CRMPage() {
             <div className="flex gap-2">
               <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
                 className="flex-1 text-xs bg-[#18181b] border border-[#27272a] rounded-lg px-2 py-1.5 text-[#a1a1aa] focus:outline-none">
-                <option value="all">All roles</option>
-                <option value="parent">Parents</option>
-                <option value="student">Students</option>
-                <option value="teacher">Teachers</option>
-                <option value="school">Schools</option>
-                <option value="external">External</option>
+                <option value="all">Parents &amp; Students</option>
+                <option value="parent">Parents only</option>
+                <option value="student">Students only</option>
+                <option value="external">External (WhatsApp)</option>
+                <option value="everyone">Everyone (all users)</option>
               </select>
               <button onClick={loadContacts} title="Refresh" className="p-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-[#71717a] hover:text-white transition-colors">
                 <RefreshCw size={13} />
