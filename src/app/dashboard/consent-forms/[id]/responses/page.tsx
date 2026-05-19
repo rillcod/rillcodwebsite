@@ -213,8 +213,8 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
   <img src="${appBase}/images/logoB.png" class="lh-logo" alt="Rillcod" />
   <div class="lh-div"></div>
   <div class="lh-co">
-    <div class="lh-name">RILLCOD TECHNOLOGIES</div>
-    <div class="lh-tag">${esc(schoolName)}</div>
+    <div class="lh-name">${form.schools?.name ? esc(form.schools.name.toUpperCase()) : 'RILLCOD TECHNOLOGIES'}</div>
+    <div class="lh-tag">${form.schools?.name ? 'via Rillcod Technologies' : 'Empowering Young Minds Through Code'}</div>
   </div>
   <div class="lh-contact">
     <div>+234 811 660 0091</div>
@@ -331,7 +331,8 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
 function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[], appBase: string) {
   const win = window.open('', '_blank', 'width=1100,height=900');
   if (!win) return;
-  const printed = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const printed    = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const schoolName = form.schools?.name ?? '';
   const isAssessment = form.form_type === 'assessment';
   const statusLabel = (s: string) => ({ new: 'New', contacted: 'Contacted', enrolled: 'Enrolled', lost: 'Lost' }[s] ?? s);
 
@@ -416,13 +417,13 @@ strong{font-size:8pt}
 <div class="letterhead">
   <img src="${appBase}/images/logoB.png" class="letterhead-logo" alt="Rillcod" />
   <div class="letterhead-div"></div>
-  <div><div class="co-name">RILLCOD TECHNOLOGIES</div><div class="co-tag">Empowering Young Minds Through Code</div></div>
+  <div><div class="co-name">${schoolName ? esc(schoolName.toUpperCase()) : 'RILLCOD TECHNOLOGIES'}</div><div class="co-tag">${schoolName ? 'via Rillcod Technologies' : 'Empowering Young Minds Through Code'}</div></div>
   <div class="lh-contact">+234 811 660 0091 · support@rillcod.com · www.rillcod.com</div>
 </div>
 <div class="accent-strip"></div>
 <div class="doc-hdr">
   <div><div class="doc-type">Response Data Sheet</div><div class="doc-title">${esc(form.title)}</div></div>
-  <div class="doc-meta"><div><strong>Printed:</strong> ${printed}</div><div><strong>Form Type:</strong> ${form.form_type === 'assessment' ? 'Assessment' : 'Registration'}</div>${form.due_date ? `<div><strong>Deadline:</strong> ${new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>` : ''}</div>
+  <div class="doc-meta"><div><strong>Printed:</strong> ${printed}</div><div><strong>Form Type:</strong> ${form.form_type === 'assessment' ? 'Assessment' : 'Registration'}</div>${schoolName ? `<div><strong>School:</strong> ${esc(schoolName)}</div>` : ''}${form.due_date ? `<div><strong>Deadline:</strong> ${new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>` : ''}</div>
 </div>
 <div class="stats-bar">
   <div class="stat-cell"><div class="stat-num">${totalRows}</div><div class="stat-lbl">Total</div></div>
@@ -435,7 +436,7 @@ strong{font-size:8pt}
 </div>
 <div class="wrap"><table>
   <thead><tr>
-    <th>#</th><th>Date / Time</th><th>Parent / Guardian</th><th>Child</th><th>Current School</th><th>Programme</th>
+    <th>#</th><th>Date / Time</th><th>Parent / Guardian</th><th>Child</th><th>Child&apos;s School</th><th>Programme</th>
     ${isAssessment ? '<th>Prior Coding</th><th>Device(s)</th><th>Goal</th><th>Schedule</th>' : ''}
     <th>Status</th><th>Notes</th>
   </tr></thead>
@@ -720,7 +721,12 @@ export default function ResponsesPage() {
               <h1 className="text-2xl font-black truncate">{form?.title ?? 'Responses'}</h1>
             )}
             {form && (
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                {form.schools?.name && (
+                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    🏫 {form.schools.name}
+                  </span>
+                )}
                 {form.form_type !== 'general' && (
                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">
                     {form.form_type === 'assessment' ? '🔍 Assessment' : '📋 Registration'}
@@ -942,7 +948,7 @@ export default function ResponsesPage() {
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Date</th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Parent / Guardian</th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">School</th>
+                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child&apos;s School</th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Programme</th>
                       {form?.form_type === 'assessment' && (
                         <>

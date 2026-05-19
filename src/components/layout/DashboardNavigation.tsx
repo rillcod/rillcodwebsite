@@ -246,6 +246,7 @@ export default function DashboardNavigation() {
           { name: 'Certificates', href: '/dashboard/certificates/management', icon: TrophyIcon },
 
           { divider: true, label: 'More' },
+          { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
           { name: 'LMS Settings', href: '/dashboard/progression/settings', icon: CogIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
