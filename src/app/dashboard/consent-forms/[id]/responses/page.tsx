@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import QRCode from 'react-qr-code';
+import { toPng } from 'html-to-image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -496,7 +498,7 @@ export default function ResponsesPage() {
   const [progFilter, setProgFilter]     = useState<string>('all');
   const [schoolFilter, setSchoolFilter] = useState<string>('all');
   const [classFilter, setClassFilter]   = useState<string>('all');
-  const [activeTab, setActiveTab]       = useState<'leads' | 'signed'>('leads');
+  const [activeTab, setActiveTab]       = useState<'leads' | 'signed' | 'portal-log'>('leads');
 
   const [updatingId, setUpdatingId]     = useState<string | null>(null);
   const [creatingPortalId, setCreatingPortalId] = useState<string | null>(null);
@@ -523,6 +525,24 @@ export default function ResponsesPage() {
 
   // Export
   const [exporting, setExporting]       = useState(false);
+
+  // Bulk portal
+  const [bulkPortalLoading, setBulkPortalLoading] = useState(false);
+  const [bulkPortalResult, setBulkPortalResult] = useState<{ created: number; skipped: number; no_email: number; errors: number } | null>(null);
+
+  // WhatsApp blast
+  const [waBlastOpen, setWaBlastOpen] = useState(false);
+  const [waMessage, setWaMessage]     = useState('');
+  const [waSending, setWaSending]     = useState(false);
+  const [waResult, setWaResult]       = useState<{ sent: number; failed: number; total: number } | null>(null);
+
+  // QR download
+  const qrDownloadRef = useRef<HTMLDivElement>(null);
+  const [downloadingQr, setDownloadingQr] = useState(false);
+
+  // Dedup (admin)
+  const [deduping, setDeduping]     = useState(false);
+  const [dedupResult, setDedupResult] = useState<{ merged: number; deleted: number } | null>(null);
 
   const appBase = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -672,6 +692,103 @@ export default function ResponsesPage() {
       setSelected(new Set());
     } finally {
       setBulkUpdating(false);
+    }
+  }
+
+  // ── Bulk portal creation ─────────────────────────────────────────────────
+  async function bulkCreatePortals() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkPortalLoading(true);
+    setBulkPortalResult(null);
+    try {
+      const res = await fetch('/api/consent-forms/leads/bulk-portals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadIds: ids }),
+      });
+      const json = await res.json();
+      setBulkPortalResult(json);
+      await load();
+    } catch { /* non-fatal */ } finally {
+      setBulkPortalLoading(false);
+    }
+  }
+
+  // ── Bulk WhatsApp blast ───────────────────────────────────────────────────
+  async function sendBulkWhatsApp() {
+    const ids = [...selected];
+    if (ids.length === 0 || !waMessage.trim()) return;
+    setWaSending(true);
+    setWaResult(null);
+    try {
+      const res = await fetch('/api/consent-forms/leads/bulk-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadIds: ids, message: waMessage }),
+      });
+      const json = await res.json();
+      setWaResult(json);
+      setWaBlastOpen(false);
+      setWaMessage('');
+    } catch { /* non-fatal */ } finally {
+      setWaSending(false);
+    }
+  }
+
+  // ── Branded QR PNG download ───────────────────────────────────────────────
+  async function downloadBrandedQr() {
+    if (!qrDownloadRef.current || !form) return;
+    setDownloadingQr(true);
+    try {
+      const dataUrl = await toPng(qrDownloadRef.current, { cacheBust: true, pixelRatio: 2 });
+      const a = document.createElement('a');
+      a.download = `qr-${form.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch { /* non-fatal */ } finally {
+      setDownloadingQr(false);
+    }
+  }
+
+  // ── Smart lead score ──────────────────────────────────────────────────────
+  function leadScore(lead: FormLead): { label: 'Hot' | 'Warm' | 'Cold'; cls: string } {
+    if (lead.status === 'enrolled') return { label: 'Hot', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
+    if (lead.status === 'lost')     return { label: 'Cold', cls: 'text-muted-foreground bg-muted/40 border-border/30' };
+    const rd = (lead.response_data ?? {}) as Record<string, string>;
+    let score = 0;
+    if (rd.parent_email || lead.email) score += 1;
+    if (rd.parent_whatsapp) score += 1;
+    if (lead.match_confidence === 'high') score += 3;
+    else if (lead.match_confidence === 'medium') score += 1;
+    if (lead.matched_parent_id) score += 2;
+    if (lead.matched_student_id) score += 1;
+    if (lead.status === 'contacted') score += 1;
+    if (score >= 5) return { label: 'Hot',  cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
+    if (score >= 2) return { label: 'Warm', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
+    return { label: 'Cold', cls: 'text-blue-400 bg-blue-500/10 border-blue-500/20' };
+  }
+
+  // ── Programme suggestion by age ───────────────────────────────────────────
+  function suggestProg(age: string | undefined): string | null {
+    const n = parseInt(age ?? '', 10);
+    if (isNaN(n)) return null;
+    if (n >= 5  && n <= 10) return 'Young Innovators';
+    if (n >= 11 && n <= 19) return 'Teen Developers';
+    return null;
+  }
+
+  // ── CRM dedup (admin) ─────────────────────────────────────────────────────
+  async function runDedup() {
+    if (!confirm('Scan and merge duplicate CRM contacts? This cannot be undone.')) return;
+    setDeduping(true);
+    setDedupResult(null);
+    try {
+      const res = await fetch('/api/crm/dedup', { method: 'POST' });
+      const json = await res.json();
+      setDedupResult(json);
+    } catch { /* non-fatal */ } finally {
+      setDeduping(false);
     }
   }
 
@@ -872,45 +989,123 @@ export default function ResponsesPage() {
                 >
                   <PrinterIcon className="w-3.5 h-3.5" /> Data Sheet
                 </button>
+                <button
+                  onClick={downloadBrandedQr}
+                  disabled={downloadingQr || !form}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50 disabled:opacity-50"
+                  title="Download branded QR code for this form"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                  {downloadingQr ? '…' : 'QR'}
+                </button>
               </>
+            )}
+            {profile?.role === 'admin' && (
+              <button
+                onClick={runDedup}
+                disabled={deduping}
+                className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50 disabled:opacity-50"
+                title="Merge duplicate CRM contacts"
+              >
+                {deduping ? '…' : '🔗 Dedup CRM'}
+              </button>
+            )}
+            {dedupResult && (
+              <span className="text-[9px] font-bold text-emerald-400">✓ {dedupResult.merged} merged</span>
             )}
           </div>
         </div>
 
-        {/* Stats bar */}
-        {!loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-            {[
-              { label: 'Total',          value: leads.length + sigs.length, cls: 'text-foreground' },
-              { label: 'Leads',          value: leads.length,               cls: 'text-amber-400' },
-              { label: 'Portal Signed',  value: sigs.length,                cls: 'text-emerald-400' },
-              { label: 'Enrolled',       value: enrolled,                   cls: 'text-emerald-400' },
-              { label: 'Contacted',      value: contacted,                  cls: 'text-blue-400' },
-              { label: 'Young Innovators', value: youngCount,               cls: 'text-primary' },
-              { label: 'Teen Developers',  value: teenCount,                cls: 'text-primary' },
-            ].map(s => (
-              <div key={s.label} className="bg-card border border-border/50 rounded-xl p-3 text-center">
-                <p className={`text-xl font-black ${s.cls}`}>{s.value}</p>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 leading-tight">{s.label}</p>
+        {/* Stats + Funnel */}
+        {!loading && leads.length > 0 && (() => {
+          const total     = leads.length;
+          const newCount  = leads.filter(l => l.status === 'new').length;
+          const contacted2 = leads.filter(l => l.status === 'contacted').length;
+          const enrolled2  = leads.filter(l => l.status === 'enrolled').length;
+          const lost2      = leads.filter(l => l.status === 'lost').length;
+          const convRate   = total > 0 ? Math.round((enrolled2 / total) * 100) : 0;
+          const hasPortal  = leads.filter(l => l.matched_parent_id).length;
+          return (
+            <div className="space-y-3">
+              {/* Stat tiles */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                {[
+                  { label: 'Total',     value: total,      cls: 'text-foreground' },
+                  { label: 'New',       value: newCount,   cls: 'text-amber-400' },
+                  { label: 'Contacted', value: contacted2, cls: 'text-blue-400' },
+                  { label: 'Enrolled',  value: enrolled2,  cls: 'text-emerald-400' },
+                  { label: 'Lost',      value: lost2,      cls: 'text-muted-foreground' },
+                  { label: 'Portals',   value: hasPortal,  cls: 'text-primary' },
+                  { label: 'Conv. %',   value: `${convRate}%`, cls: convRate >= 30 ? 'text-emerald-400' : convRate >= 10 ? 'text-amber-400' : 'text-rose-400' },
+                ].map(s => (
+                  <div key={s.label} className="bg-card border border-border/50 rounded-xl p-3 text-center">
+                    <p className={`text-xl font-black ${s.cls}`}>{s.value}</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5 leading-tight">{s.label}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+              {/* Conversion funnel bar */}
+              <div className="bg-card border border-border/50 rounded-xl p-4">
+                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-3">Conversion Funnel</p>
+                <div className="flex items-end gap-1 h-10">
+                  {[
+                    { label: 'New',       n: newCount,   color: 'bg-amber-500' },
+                    { label: 'Contacted', n: contacted2, color: 'bg-blue-500' },
+                    { label: 'Enrolled',  n: enrolled2,  color: 'bg-emerald-500' },
+                    { label: 'Lost',      n: lost2,      color: 'bg-zinc-600' },
+                  ].map(({ label, n, color }) => (
+                    <div key={label} className="flex-1 flex flex-col items-center gap-1">
+                      <span className="text-[9px] font-black text-muted-foreground">{n}</span>
+                      <div
+                        className={`w-full rounded-t ${color}`}
+                        style={{ height: total > 0 ? `${Math.max(4, Math.round((n / total) * 36))}px` : '4px' }}
+                      />
+                      <span className="text-[8px] text-muted-foreground hidden sm:block">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Bulk portal result banner */}
+        {bulkPortalResult && (
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm">
+            <span className="text-emerald-400 font-black">🏦 Portals:</span>
+            <span className="text-foreground">{bulkPortalResult.created} created · {bulkPortalResult.skipped} skipped · {bulkPortalResult.no_email} no email · {bulkPortalResult.errors} errors</span>
+            <button onClick={() => setBulkPortalResult(null)} className="ml-auto text-muted-foreground hover:text-foreground text-xs">✕</button>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
-          {(['leads', 'signed'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              {tab === 'leads'
-                ? `Public Registrations (${leads.length})`
-                : `Portal Signatures (${sigs.length})`}
-            </button>
-          ))}
-        </div>
+        {(() => {
+          const portalLogLeads = leads.filter(l => !!(l.response_data as Record<string, unknown>)?.portal_created_at);
+          return (
+            <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
+              <button
+                onClick={() => setActiveTab('leads')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === 'leads' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Public Registrations ({leads.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('signed')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === 'signed' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Portal Signatures ({sigs.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('portal-log')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === 'portal-log' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                🏦 Portal Log {portalLogLeads.length > 0 && `(${portalLogLeads.length})`}
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 items-center">
@@ -975,7 +1170,7 @@ export default function ResponsesPage() {
           )}
 
           <span className="text-xs text-muted-foreground ml-auto">
-            {activeTab === 'leads' ? filteredLeads.length : filteredSigs.length} shown
+            {activeTab === 'leads' ? filteredLeads.length : activeTab === 'signed' ? filteredSigs.length : leads.filter(l => !!(l.response_data as Record<string, unknown>)?.portal_created_at).length} shown
           </span>
         </div>
 
@@ -1000,6 +1195,21 @@ export default function ResponsesPage() {
                 className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-black rounded-lg disabled:opacity-50 transition-colors"
               >
                 {bulkUpdating ? 'Updating…' : 'Apply'}
+              </button>
+              <button
+                onClick={bulkCreatePortals}
+                disabled={bulkPortalLoading}
+                className="px-3 py-1.5 bg-emerald-500/15 text-emerald-400 text-xs font-black rounded-lg border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 whitespace-nowrap"
+                title="Create portal accounts for selected leads"
+              >
+                {bulkPortalLoading ? '…Portals' : '🏦 Portals'}
+              </button>
+              <button
+                onClick={() => setWaBlastOpen(true)}
+                className="px-3 py-1.5 bg-emerald-500/15 text-emerald-400 text-xs font-black rounded-lg border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors whitespace-nowrap"
+                title="Send WhatsApp to selected leads"
+              >
+                💬 WhatsApp
               </button>
               <button
                 onClick={() => setSelected(new Set())}
@@ -1054,6 +1264,7 @@ export default function ResponsesPage() {
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child</th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child&apos;s School</th>
                       <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Programme</th>
+                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Score</th>
                       {form?.form_type === 'assessment' && (
                         <>
                           <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Prior Coding</th>
@@ -1145,6 +1356,25 @@ export default function ResponsesPage() {
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
+                          </td>
+
+                          {/* Score */}
+                          <td className="px-4 py-3">
+                            {(() => {
+                              const { label, cls } = leadScore(lead);
+                              const ageHint = suggestProg(rd.child_age);
+                              const programMismatch = ageHint && rd.program_category &&
+                                ((ageHint === 'Young Innovators' && rd.program_category !== 'young_innovators') ||
+                                 (ageHint === 'Teen Developers' && rd.program_category !== 'teen_developers'));
+                              return (
+                                <div className="space-y-1">
+                                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full border ${cls}`}>{label}</span>
+                                  {programMismatch && (
+                                    <p className="text-[8px] text-amber-400" title={`Age ${rd.child_age} → ${ageHint} suggested`}>⚠ {ageHint}?</p>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           {/* Assessment extra columns */}
@@ -1342,6 +1572,113 @@ export default function ResponsesPage() {
             )}
           </div>
         )}
+
+        {/* ── Portal Log tab ──────────────────────────────────────────────── */}
+        {!loading && activeTab === 'portal-log' && (() => {
+          const logLeads = leads
+            .filter(l => !!(l.response_data as Record<string, unknown>)?.portal_created_at)
+            .sort((a, b) => {
+              const ta = (a.response_data as Record<string, unknown>).portal_created_at as string;
+              const tb = (b.response_data as Record<string, unknown>).portal_created_at as string;
+              return tb.localeCompare(ta);
+            });
+          return (
+            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+              {/* Summary bar */}
+              <div className="flex items-center gap-4 px-5 py-3 border-b border-border/50 bg-muted/20">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">🏦</div>
+                <div>
+                  <p className="text-sm font-black text-foreground">{logLeads.length} parent portal account{logLeads.length !== 1 ? 's' : ''} created</p>
+                  <p className="text-[10px] text-muted-foreground">Full audit trail — credentials sent via email and WhatsApp at time of creation</p>
+                </div>
+              </div>
+
+              {logLeads.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-12 h-12 rounded-full bg-muted/40 flex items-center justify-center text-2xl">🏦</div>
+                  <p className="text-muted-foreground text-sm font-bold">No portal accounts have been created yet</p>
+                  <p className="text-[11px] text-muted-foreground text-center max-w-xs leading-relaxed">
+                    Select leads and click <strong>🏦 Portals</strong> in the bulk action bar, or use the <strong>+ Portal Account</strong> button on individual leads.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/50 bg-muted/30">
+                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3 w-8">#</th>
+                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Created At</th>
+                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Parent</th>
+                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child(ren)</th>
+                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Credentials Sent</th>
+                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Created By</th>
+                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Lead Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30">
+                      {logLeads.map((lead, i) => {
+                        const rd = lead.response_data as Record<string, unknown>;
+                        const createdAt  = rd.portal_created_at as string;
+                        const channels   = Array.isArray(rd.portal_credentials_sent) ? rd.portal_credentials_sent as string[] : [];
+                        const createdBy  = rd.portal_created_by as string ?? 'Staff';
+                        const parentName = (rd.parent_name as string) || 'Parent/Guardian';
+                        const email      = lead.email ?? (rd.parent_email as string) ?? '';
+                        const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
+                        const childDisplay = childrenArr
+                          ? childrenArr.map(c => c.name).filter(Boolean).join(', ')
+                          : (rd.child_name as string) || '—';
+                        const status = lead.status ?? 'new';
+                        const cfg = STATUS_CFG[status];
+                        return (
+                          <tr key={lead.id} className="hover:bg-muted/20 transition-colors">
+                            <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <p className="text-xs font-bold text-foreground">{fmtDate(createdAt)}</p>
+                              <p className="text-[10px] text-muted-foreground">{fmtTime(createdAt)}</p>
+                            </td>
+                            <td className="px-4 py-3 min-w-[180px]">
+                              <p className="text-sm font-bold text-foreground">{parentName}</p>
+                              {email && (
+                                <a href={`mailto:${email}`} className="text-[10px] text-muted-foreground hover:text-primary transition-colors block truncate max-w-[200px]">
+                                  {email}
+                                </a>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 min-w-[140px]">
+                              <p className="text-sm text-foreground">{childDisplay}</p>
+                              {childrenArr && childrenArr.length > 1 && (
+                                <p className="text-[10px] text-muted-foreground">{childrenArr.length} children</p>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {channels.length === 0 ? (
+                                  <span className="text-[9px] text-muted-foreground">None recorded</span>
+                                ) : (
+                                  channels.map(ch => (
+                                    <span key={ch} className={`text-[9px] font-black px-1.5 py-0.5 rounded-full border ${ch === 'email' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                      {ch === 'email' ? '✉ Email' : '💬 WhatsApp'}
+                                    </span>
+                                  ))
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="text-xs text-muted-foreground">{createdBy}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Portal signatures table ─────────────────────────────────────── */}
         {!loading && activeTab === 'signed' && (
@@ -1568,6 +1905,77 @@ export default function ResponsesPage() {
           </div>
         );
       })()}
+
+      {/* ── WhatsApp Blast Modal ─────────────────────────────────────────────── */}
+      {waBlastOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-lg shrink-0">💬</div>
+              <div>
+                <p className="text-sm font-black text-foreground">WhatsApp Blast</p>
+                <p className="text-[11px] text-muted-foreground">Sending to {selected.size} selected lead{selected.size !== 1 ? 's' : ''}</p>
+              </div>
+              <button onClick={() => setWaBlastOpen(false)} className="ml-auto text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-[10px] text-muted-foreground font-bold">Use <code className="bg-muted px-1 rounded">{'{{name}}'}</code> to personalise with the parent&apos;s name.</p>
+              <textarea
+                value={waMessage}
+                onChange={e => setWaMessage(e.target.value)}
+                placeholder={`Hi {{name}}! 👋 Just following up about your child's registration at Rillcod Technologies. We'd love to confirm their spot! Call +234 811 660 0091 or reply here.`}
+                rows={5}
+                maxLength={1000}
+                className="w-full bg-background border border-border text-foreground text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500 resize-none transition-colors"
+              />
+              <div className="flex justify-between text-[9px] text-muted-foreground">
+                <span>{waMessage.length}/1000</span>
+                {waResult && <span className="text-emerald-400 font-black">✓ Sent {waResult.sent}/{waResult.total}</span>}
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button
+                onClick={sendBulkWhatsApp}
+                disabled={waSending || !waMessage.trim()}
+                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black font-black text-xs rounded-xl transition-colors"
+              >
+                {waSending ? 'Sending…' : `Send to ${selected.size} Parent${selected.size !== 1 ? 's' : ''} →`}
+              </button>
+              <button onClick={() => setWaBlastOpen(false)} className="px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden branded QR element (off-screen, used for PNG export) */}
+      {form && (
+        <div
+          ref={qrDownloadRef}
+          style={{
+            position: 'fixed', left: '-9999px', top: 0,
+            background: '#0d0d0f', padding: '28px', borderRadius: '16px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
+            width: '320px',
+          }}
+        >
+          <div style={{ background: '#fff', padding: '16px', borderRadius: '12px' }}>
+            <QRCode value={`${appBase}/forms/${id}`} size={200} />
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: '#f5a623', fontFamily: 'Arial, sans-serif', fontWeight: 900, fontSize: '13px', letterSpacing: '1px', textTransform: 'uppercase', margin: 0 }}>
+              {form.schools?.name ?? 'Rillcod Technologies'}
+            </p>
+            <p style={{ color: '#ffffff', fontFamily: 'Arial, sans-serif', fontWeight: 700, fontSize: '12px', margin: '4px 0 0', lineHeight: 1.3 }}>
+              {form.title}
+            </p>
+            <p style={{ color: '#71717a', fontFamily: 'Arial, sans-serif', fontSize: '10px', margin: '6px 0 0' }}>
+              Scan to register · rillcod.com
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

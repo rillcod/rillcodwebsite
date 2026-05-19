@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 function adminClient() {
   return createClient(
@@ -352,11 +353,13 @@ export async function GET(req: NextRequest) {
     // No enrollments → fall through to school-scoped query below
   } else if (role === 'parent') {
     // Parents see curricula for courses their linked children are enrolled in.
-    const { data: children } = await supabase
-      .from('students')
-      .select('user_id')
-      .eq('parent_email', user.email ?? '');
-    const childIds = (children ?? []).map((c) => c.user_id).filter(Boolean) as string[];
+    // Use getParentLinkScope so both legacy parent_email matches AND explicit
+    // parent_student_links rows (created via consent-form portal) are included.
+    const adminForLinks = adminClient();
+    const { studentUserIds: childIds } = await getParentLinkScope(adminForLinks, {
+      id: user.id,
+      email: user.email,
+    });
     if (childIds.length > 0) {
       const { data: progs } = await supabase
         .from('student_level_enrollments')

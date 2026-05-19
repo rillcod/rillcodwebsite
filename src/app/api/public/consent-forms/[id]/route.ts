@@ -297,9 +297,18 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   const sb = adminClient();
   const { data: form, error } = await sb
     .from('consent_forms')
-    .select('id, title, body, form_type, due_date, school_id, schools(name)')
+    .select('id, title, body, form_type, due_date, school_id, view_count, schools(name)')
     .eq('id', id).eq('is_public', true).single();
   if (error || !form) return NextResponse.json({ error: 'Form not found or not public' }, { status: 404 });
+
+  // Fire-and-forget view increment (non-blocking)
+  (sb as any)
+    .from('consent_forms')
+    .update({ view_count: (form as any).view_count ? (form as any).view_count + 1 : 1 })
+    .eq('id', id)
+    .then(() => {})
+    .catch(() => {});
+
   return NextResponse.json({ data: form });
 }
 
@@ -399,6 +408,49 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     matchNotes = `Matched "${c.full_name}" (${c.section_class ?? 'no class'}) — name overlap: ${c.nameOverlap}, class overlap: ${c.classOverlap}, parent in system: ${c.parentMatch}. Confidence: ${matchResult.confidence}.`;
   }
 
+  // ── Multi-child matching (index ≥ 1) ─────────────────────────────────────
+  interface ChildMatchEntry {
+    childIndex: number;
+    studentId: string;
+    studentName: string;
+    studentClass: string | null;
+    confidence: 'high' | 'medium';
+  }
+  const childMatchEntries: ChildMatchEntry[] = [];
+  const multiChildren = Array.isArray(response_data.children)
+    ? (response_data.children as Array<{ name?: string; gender?: string; age?: string; class?: string; program?: string; school?: string }>)
+    : null;
+  if (multiChildren && multiChildren.length >= 2) {
+    for (let ci = 1; ci < multiChildren.length; ci++) {
+      const child = multiChildren[ci];
+      if (!child.name?.trim()) continue;
+      try {
+        const childMatch = await findStudentMatch(sb, {
+          childName:       child.name,
+          childClass:      child.class || '',
+          parentEmail:     response_data.parent_email || email?.trim() || '',
+          parentPhone:     response_data.parent_whatsapp || '',
+          schoolId:        form.school_id ?? null,
+          matchedSchoolId: matched_school_id,
+        });
+        if (childMatch && childMatch.confidence !== 'low') {
+          childMatchEntries.push({
+            childIndex:   ci,
+            studentId:    childMatch.candidate.id,
+            studentName:  childMatch.candidate.full_name,
+            studentClass: childMatch.candidate.section_class,
+            confidence:   childMatch.confidence,
+          });
+        }
+      } catch { /* non-fatal */ }
+    }
+  }
+
+  // Enrich response_data with child_matches if any were found
+  const enrichedResponseData = childMatchEntries.length > 0
+    ? { ...response_data, child_matches: childMatchEntries }
+    : response_data;
+
   // ── Save form lead ────────────────────────────────────────────────────────
   const { data: lead, error: insertErr } = await (sb as any)
     .from('form_leads')
@@ -408,7 +460,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       matched_school_id,
       child_current_school: child_current_school?.trim() || null,
       email: email?.trim() || null,
-      response_data,
+      response_data: enrichedResponseData,
       match_status:       matchStatus,
       match_candidate_id: needsReview ? matchResult!.candidate.id : null,
       match_confidence:   matchResult?.confidence ?? null,
@@ -420,6 +472,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (insertErr) {
     if (insertErr.code === '23505') return NextResponse.json({ success: true, duplicate: true });
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
+  }
+
+  // ── Back-patch child_matches onto the saved lead (post-insert update) ─────
+  if (childMatchEntries.length > 0 && lead?.id) {
+    try {
+      await (sb as any)
+        .from('form_leads')
+        .update({ response_data: enrichedResponseData })
+        .eq('id', lead.id);
+    } catch { /* non-fatal */ }
   }
 
   const schoolData = (form as any).schools as { name?: string; email?: string } | null;

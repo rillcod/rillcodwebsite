@@ -253,5 +253,20 @@ async function handle(req: NextRequest) {
     }
   } catch { /* non-fatal */ }
 
-  return NextResponse.json({ sent: results });
+  // ── Close expired forms ───────────────────────────────────────────────────
+  let expiredClosed = 0;
+  try {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const { data: expired } = await (sb as any)
+      .from('consent_forms')
+      .select('id')
+      .eq('is_public', true)
+      .lte('due_date', today);
+    for (const f of (expired ?? [])) {
+      await (sb as any).from('consent_forms').update({ is_public: false }).eq('id', f.id);
+      expiredClosed++;
+    }
+  } catch { /* non-fatal */ }
+
+  return NextResponse.json({ sent: results, expiredClosed });
 }

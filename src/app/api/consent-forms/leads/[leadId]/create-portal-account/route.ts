@@ -33,10 +33,11 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: profile } = await supabase
-    .from('portal_users').select('role, school_id').eq('id', user.id).single();
+    .from('portal_users').select('role, school_id, full_name').eq('id', user.id).single();
   if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+  const staffName = (profile as unknown as { full_name: string | null }).full_name ?? 'Staff';
 
   const sb = adminClient();
 
@@ -52,12 +53,13 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const rd = (lead.response_data ?? {}) as Record<string, string>;
-  const parentEmail  = (rd.parent_email || lead.email || '').trim().toLowerCase();
-  const parentName   = (rd.parent_name || '').trim() || 'Parent/Guardian';
-  const parentPhone  = (rd.parent_whatsapp || rd.parent_phone || '').trim();
-  const childName    = (rd.child_name || '').trim();
-  const childGender  = rd.child_gender || null;
+  const rd = (lead.response_data ?? {}) as Record<string, unknown>;
+  const str = (k: string) => ((rd[k] as string) ?? '').trim();
+  const parentEmail  = (str('parent_email') || (lead.email as string ?? '')).trim().toLowerCase();
+  const parentName   = str('parent_name') || 'Parent/Guardian';
+  const parentPhone  = str('parent_whatsapp') || str('parent_phone');
+  const childName    = str('child_name');
+  const childGender  = str('child_gender') || null;
 
   if (!parentEmail || !parentEmail.includes('@')) {
     return NextResponse.json({ error: 'No valid email address on this lead' }, { status: 400 });
@@ -120,11 +122,9 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     }).eq('id', lead.matched_student_id);
   }
 
-  // Update form_leads
-  await (sb as any).from('form_leads').update({ matched_parent_id: parentId }).eq('id', leadId);
-
   const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
   const loginUrl  = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}&pw=${encodeURIComponent(tempPassword)}`;
+  const channelsSent: string[] = [];
 
   // Send credentials via WhatsApp
   if (parentPhone) {
@@ -143,6 +143,7 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
         `Questions? Call +234 811 660 0091`,
       ].join('\n');
       await sendWhatsApp(parentPhone, waMsg);
+      channelsSent.push('whatsapp');
     } catch { /* non-fatal */ }
   }
 
@@ -176,7 +177,19 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
       subject: 'Your Rillcod Parent Portal Account Details',
       html,
     });
+    channelsSent.push('email');
   } catch { /* non-fatal */ }
+
+  // Update form_leads: set matched_parent_id + write portal creation log into response_data
+  await (sb as any).from('form_leads').update({
+    matched_parent_id: parentId,
+    response_data: {
+      ...rd,
+      portal_created_at:       new Date().toISOString(),
+      portal_credentials_sent: channelsSent,
+      portal_created_by:       staffName,
+    },
+  }).eq('id', leadId);
 
   return NextResponse.json({ success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail });
 }
