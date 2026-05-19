@@ -540,6 +540,27 @@ export default function PublicConsentForm({
         </>
       )}
 
+      {/* First time at Rillcod? — registration forms only (assessment already asks this) */}
+      {!isAssessment && (
+        <section className="space-y-3">
+          <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">First Time at Rillcod?</p>
+          <div className="grid grid-cols-2 gap-3">
+            {([['yes', '✨ New — first time registering'], ['no', '↩ Returning — we\'ve been here before']] as const).map(([v, label]) => (
+              <button
+                key={v} type="button"
+                onClick={() => set('is_returning', v === 'no' ? 'no' : 'yes')}
+                className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all text-left ${data.is_returning === (v === 'no' ? 'no' : 'yes')
+                  ? 'border-amber-500 bg-amber-500/10 text-white'
+                  : 'border-[#2a2d33] bg-[#141618] text-[#71717a] hover:border-[#3a3d43]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Section: Parent */}
       <section className="space-y-3">
         <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">Parent / Guardian Information</p>
