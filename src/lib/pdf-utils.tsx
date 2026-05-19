@@ -268,7 +268,7 @@ async function buildPdf(element: HTMLElement, isLandscape = false, pixelRatio = 
 
 /** Download the report as a PDF file */
 export async function generateReportPDF(element: HTMLElement, filename: string, isLandscape = false): Promise<void> {
-    const pdf = await buildPdf(element, isLandscape);
+    const pdf = await buildPdf(element, isLandscape, 2, 0.95);
     pdf.save(filename);
 }
 

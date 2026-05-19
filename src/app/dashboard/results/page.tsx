@@ -27,7 +27,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
-import { ScaledReportCard, generateReportPDF, shareReportCard, printElement } from '@/lib/pdf-utils';
+import { ScaledReportCard, generateReportPDF, shareReportCard } from '@/lib/pdf-utils';
 import { Database } from '@/types/supabase';
 import { cn } from '@/lib/utils';
 
@@ -481,11 +481,8 @@ function ResultsPageInner() {
         setIsDownloadingPdf(true);
         try {
             const fileName = `${reportToDisplay.student_name || 'Student'}_Report_${reportToDisplay.report_term || ''}.pdf`.replace(/\s+/g, '_');
-            
-            // We capture the HIDDEN printable component instead of the responsive screen component
             const captureArea = printableRef.current;
             if (!captureArea) throw new Error("Printable area not found");
-            
             await generateReportPDF(captureArea, fileName);
         } catch (err) {
             console.error('PDF Error:', err);
