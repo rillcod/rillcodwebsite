@@ -171,6 +171,7 @@ const PARENT_ALLOWED_PREFIXES: string[] = [
   '/dashboard/parent-certificates',
   '/dashboard/grades/waec',
   '/dashboard/parent-card',
+  '/dashboard/my-card',
   '/dashboard/parent-invoices',
   '/dashboard/parent-feedback',
   '/dashboard/money',

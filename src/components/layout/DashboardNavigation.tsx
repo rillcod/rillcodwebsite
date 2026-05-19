@@ -364,7 +364,7 @@ export default function DashboardNavigation() {
           { name: 'Attendance', href: '/dashboard/parent-attendance', icon: ClipboardDocumentCheckIcon },
           { name: 'Certificates', href: '/dashboard/parent-certificates', icon: TrophyIcon },
           { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
-          { name: "Access Cards", href: '/dashboard/parent-card', icon: CreditCardIcon },
+          { name: 'Access Cards', href: '/dashboard/my-card', icon: CreditCardIcon },
 
           { divider: true, label: 'Finance' },
           { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
