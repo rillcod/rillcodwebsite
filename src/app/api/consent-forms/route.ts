@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   // We fetch lead counts separately via the admin client below.
   let query = supabase
     .from('consent_forms')
-    .select('*, consent_responses(count)')
+    .select('*, consent_responses(count), schools(name)')
     .order('created_at', { ascending: false })
     .limit(20);
 

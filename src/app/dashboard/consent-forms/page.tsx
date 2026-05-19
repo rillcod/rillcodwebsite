@@ -26,6 +26,7 @@ interface ConsentForm {
   consent_responses: { count: number }[];
   form_leads?: { count: number }[];
   pending_review_count?: number;
+  schools?: { name: string } | null;
 }
 
 interface Signatory {
@@ -1658,11 +1659,18 @@ export default function ConsentFormsPage() {
                         {cf.has_signed && <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />}
                         <div>
                           <h3 className="font-bold text-foreground leading-snug">{cf.title}</h3>
-                          {cf.form_type !== 'general' && (
-                            <span className="text-[9px] font-black uppercase tracking-widest text-primary">
-                              {cf.form_type === 'assessment' ? '🔍 Assessment' : '📋 Registration'}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            {cf.form_type !== 'general' && (
+                              <span className="text-[9px] font-black uppercase tracking-widest text-primary">
+                                {cf.form_type === 'assessment' ? '🔍 Assessment' : '📋 Registration'}
+                              </span>
+                            )}
+                            {cf.schools?.name && (
+                              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                🏫 {cf.schools.name}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">

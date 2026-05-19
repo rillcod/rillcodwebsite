@@ -49,3 +49,6 @@ scripts/setup-admins.mjs
 
 # Audit/Report summaries
 /*.md
+
+# PWA fallback files
+/public/fallback-*.js
