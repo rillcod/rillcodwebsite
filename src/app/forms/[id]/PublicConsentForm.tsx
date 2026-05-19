@@ -42,7 +42,6 @@ const REFERRALS = [
   'Other',
 ];
 
-const SCHEDULES = ['Weekdays', 'Weekends', 'Either works'];
 
 export default function PublicConsentForm({
   form,
@@ -75,7 +74,7 @@ export default function PublicConsentForm({
     devices: [] as string[],
     learning_goal: '',
     referral_source: '',
-    preferred_schedule: '',
+    is_returning: '' as 'yes' | 'no' | '',
     special_notes: '',
     consent_acknowledged: false,
   });
@@ -130,7 +129,7 @@ export default function PublicConsentForm({
               devices: data.devices,
               learning_goal: data.learning_goal,
               referral_source: data.referral_source,
-              preferred_schedule: data.preferred_schedule,
+              is_returning: data.is_returning,
               special_notes: data.special_notes,
             }),
           },
@@ -370,18 +369,18 @@ export default function PublicConsentForm({
           </section>
 
           <section className="space-y-3">
-            <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">Preferred Schedule</p>
-            <div className="grid grid-cols-3 gap-2">
-              {SCHEDULES.map(s => (
+            <p className="text-[10px] font-black text-[#71717a] uppercase tracking-widest">First Time with Rillcod?</p>
+            <div className="grid grid-cols-2 gap-3">
+              {([['no', '↩ Returning — we\'ve been here before'], ['yes', '✨ New — first time registering']] as const).map(([v, label]) => (
                 <button
-                  key={s} type="button"
-                  onClick={() => set('preferred_schedule', s)}
-                  className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${data.preferred_schedule === s
+                  key={v} type="button"
+                  onClick={() => set('is_returning', v === 'no' ? 'no' : 'yes')}
+                  className={`py-3 px-4 rounded-xl border text-xs font-bold transition-all text-left ${data.is_returning === (v === 'no' ? 'no' : 'yes')
                     ? 'border-amber-500 bg-amber-500/10 text-white'
                     : 'border-[#2a2d33] bg-[#141618] text-[#71717a] hover:border-[#3a3d43]'
                     }`}
                 >
-                  {s}
+                  {label}
                 </button>
               ))}
             </div>

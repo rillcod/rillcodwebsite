@@ -986,6 +986,9 @@ export default function ConsentFormsPage() {
   const [cloneSchoolsLoading, setCloneSchoolsLoading] = useState(false);
   const [cloneError, setCloneError]                 = useState('');
 
+  const [strippingCopy, setStrippingCopy]   = useState(false);
+  const [stripResult, setStripResult]       = useState('');
+
   const isStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
   const isParent = profile?.role === 'parent';
 
@@ -1183,6 +1186,19 @@ export default function ConsentFormsPage() {
     }
   }
 
+  // ── Strip "(Copy)" from form titles ──────────────────────────────────────
+
+  async function stripCopySuffix() {
+    setStrippingCopy(true); setStripResult('');
+    try {
+      const res = await fetch('/api/consent-forms/strip-copy-suffix', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) { setStripResult(json.error || 'Failed'); return; }
+      setStripResult(json.message || 'Done');
+      if (json.updated > 0) loadForms();
+    } catch { setStripResult('Request failed'); } finally { setStrippingCopy(false); }
+  }
+
   // ── Lead match review ─────────────────────────────────────────────────────
 
   async function reviewLead(formId: string, leadId: string, action: 'approve' | 'reject') {
@@ -1288,6 +1304,17 @@ export default function ConsentFormsPage() {
             </button>
             {isStaff && (
               <button
+                onClick={stripCopySuffix}
+                disabled={strippingCopy}
+                title='Remove "(Copy)" suffix from all form titles'
+                className="flex items-center gap-1.5 px-3 py-2 border border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
+              >
+                {strippingCopy ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : '✂'}
+                <span className="hidden sm:inline">{strippingCopy ? 'Cleaning…' : 'Clean Titles'}</span>
+              </button>
+            )}
+            {isStaff && (
+              <button
                 onClick={() => setShowCreate(true)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:opacity-90 transition-opacity"
               >
@@ -1295,6 +1322,11 @@ export default function ConsentFormsPage() {
               </button>
             )}
           </div>
+          {stripResult && (
+            <p className="w-full text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mt-2">
+              {stripResult} <button onClick={() => setStripResult('')} className="ml-2 text-muted-foreground hover:text-foreground">×</button>
+            </p>
+          )}
         </div>
 
         {/* Stats */}
@@ -1862,7 +1894,7 @@ export default function ConsentFormsPage() {
                     <div className="mt-3 border border-border/60 rounded-xl overflow-hidden">
 
                       {/* Row 1 — Primary actions */}
-                      <div className="flex items-stretch divide-x divide-border/60 bg-muted/20">
+                      <div className="flex items-stretch divide-x divide-border/60 bg-muted/20 overflow-x-auto scrollbar-none">
 
                         {/* Parent: Read & Sign CTA */}
                         {isParent && !cf.has_signed && (
@@ -1891,7 +1923,7 @@ export default function ConsentFormsPage() {
                         {/* Read / View Form */}
                         <button
                           onClick={() => openReadModal(cf.id)}
-                          className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                         >
                           <EyeIcon className="w-3.5 h-3.5" /> Read Form
                         </button>
@@ -1900,7 +1932,7 @@ export default function ConsentFormsPage() {
                         {isStaff && (
                           <button
                             onClick={() => setEditingForm(cf)}
-                            className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
                           >
                             <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                           </button>
@@ -1911,7 +1943,7 @@ export default function ConsentFormsPage() {
                           <button
                             onClick={() => toggleSignatories(cf.id)}
                             disabled={loadingSigs === cf.id}
-                            className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 flex-shrink-0"
                           >
                             {loadingSigs === cf.id
                               ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -1933,14 +1965,15 @@ export default function ConsentFormsPage() {
                             className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors disabled:opacity-50 flex-shrink-0 ${
                               cf.is_public
                                 ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                                : 'bg-muted/40 text-muted-foreground hover:bg-muted'
+                                : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border-l border-amber-500/20'
                             }`}
+                            title={cf.is_public ? 'Form is public — click to make private' : 'Form is private — click to publish'}
                           >
                             {togglingPublicId === cf.id
                               ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                               : cf.is_public
                                 ? <><GlobeAltIcon className="w-3.5 h-3.5" /> Public</>
-                                : <><LockClosedIcon className="w-3.5 h-3.5" /> Private</>}
+                                : <><LockClosedIcon className="w-3.5 h-3.5" /> Private — click to publish</>}
                           </button>
                         )}
 
@@ -1958,7 +1991,7 @@ export default function ConsentFormsPage() {
 
                       {/* Row 2 — Tools (staff only) */}
                       {isStaff && (
-                        <div className="flex items-stretch flex-wrap divide-x divide-border/40 border-t border-border/40 bg-background/60 text-[10px]">
+                        <div className="flex items-stretch divide-x divide-border/40 border-t border-border/40 bg-background/60 text-[10px] overflow-x-auto scrollbar-none">
 
                           {/* ── Share group ── */}
                           {cf.is_public && (
