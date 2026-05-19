@@ -74,7 +74,36 @@ export async function GET(req: NextRequest) {
       (pipes || []).forEach((p: any) => { stageMap[p.contact_id] = p.stage; });
     }
 
-    const contacts = (portalUsers || []).map((u: any) => ({ ...u, pipeline_stage: stageMap[u.id] }));
+    let contacts: any[] = (portalUsers || []).map((u: any) => ({ ...u, pipeline_stage: stageMap[u.id] }));
+
+    // Enrich parents: resolve school_name from their linked students (consent-form flow)
+    // and compute children_count. One query covers both.
+    const parentContacts = contacts.filter(c => c.role === 'parent' && c.email);
+    if (parentContacts.length > 0) {
+      const parentEmails = parentContacts.map((c: any) => c.email as string);
+      const { data: studentRows } = await db
+        .from('students')
+        .select('parent_email, school_name, school_id, full_name')
+        .in('parent_email', parentEmails);
+
+      // Build per-email: first school found + count of children
+      const schoolByEmail: Record<string, { school_name: string; school_id: string }> = {};
+      const childCountByEmail: Record<string, number> = {};
+      (studentRows || []).forEach((s: any) => {
+        const e = s.parent_email;
+        if (!e) return;
+        childCountByEmail[e] = (childCountByEmail[e] || 0) + 1;
+        if (!schoolByEmail[e] && s.school_name) {
+          schoolByEmail[e] = { school_name: s.school_name, school_id: s.school_id };
+        }
+      });
+
+      contacts = contacts.map((c: any) => {
+        if (c.role !== 'parent' || !c.email) return c;
+        const schoolFill = !c.school_name && schoolByEmail[c.email] ? schoolByEmail[c.email] : {};
+        return { ...c, ...schoolFill, children_count: childCountByEmail[c.email] || 0 };
+      });
+    }
 
     // External WA contacts — unlinked conversations with a phone number
     let external: any[] = [];

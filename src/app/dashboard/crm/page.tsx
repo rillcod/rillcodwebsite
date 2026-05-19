@@ -242,6 +242,9 @@ export default function CRMPage() {
   const [newSaving, setNewSaving]             = useState(false);
   const [newErr, setNewErr]                   = useState('');
 
+  // ── Children (linked students for a parent contact) ────────────
+  const [children, setChildren] = useState<{ id: string; full_name: string; school_name?: string; school_id?: string; grade_level?: string; section_class?: string; relationship?: string; user_id?: string }[]>([]);
+
   // ── Stats ──────────────────────────────────────────────────────
   const [stats, setStats] = useState({ total: 0, parents: 0, students: 0, active: 0, prospect: 0, at_risk: 0, won: 0, churned: 0, overdueTasks: 0, pipelineValue: 0 });
 
@@ -334,21 +337,24 @@ export default function CRMPage() {
     setAttachLoading(true);
     setTasksLoading(true);
     setOppsLoading(true);
+    setChildren([]);
 
-    const [tlRes, attRes, taskRes, oppRes] = await Promise.all([
+    const [tlRes, attRes, taskRes, oppRes, detailRes] = await Promise.all([
       fetch(`/api/crm/timeline?contact_id=${encodeURIComponent(c.id)}`),
       fetch(`/api/crm/attachments?contact_id=${c.id}`),
       fetch(`/api/crm/tasks?contact_id=${c.id}`),
       fetch(`/api/crm/opportunities?contact_id=${c.id}`),
+      fetch(`/api/crm/contacts/${c.id}`),
     ]);
-    const [tlJson, attJson, taskJson, oppJson] = await Promise.all([
-      tlRes.json(), attRes.json(), taskRes.json(), oppRes.json(),
+    const [tlJson, attJson, taskJson, oppJson, detailJson] = await Promise.all([
+      tlRes.json(), attRes.json(), taskRes.json(), oppRes.json(), detailRes.json(),
     ]);
 
     setTimeline(tlJson.timeline || []);
     setAttachments(attJson.attachments || []);
     setTasks(taskJson.data || []);
     setOpps(oppJson.opportunities || []);
+    setChildren(detailJson.children || []);
 
     // Aggregate pipeline value
     const totalValue = (oppJson.opportunities || [])
@@ -786,6 +792,11 @@ export default function CRMPage() {
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-sm font-semibold truncate">{c.full_name}</span>
                                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cSm.dot}`} />
+                                  {c.role === 'parent' && (c as any).children_count > 0 && (
+                                    <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-violet-500/20 text-violet-300 shrink-0">
+                                      {(c as any).children_count}👤
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="space-y-0.5">
                                   {(c.phone || c.phone_number) && (
@@ -960,6 +971,50 @@ export default function CRMPage() {
                           <div className="sm:col-span-2 p-3 bg-[#18181b] rounded-xl border border-[#27272a]">
                             <div className="text-[10px] text-[#52525b] uppercase tracking-wider mb-0.5">Notes</div>
                             <div className="text-sm text-[#a1a1aa] whitespace-pre-wrap">{selected.metadata.notes}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Children section — shown for parent contacts */}
+                    {selected.role === 'parent' && (
+                      <div className="p-4 bg-[#18181b] rounded-xl border border-[#27272a] space-y-2">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-[#f5a623] flex items-center gap-2">
+                          Children / Students
+                          {children.length > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-bold">{children.length}</span>
+                          )}
+                        </h3>
+                        {children.length === 0 ? (
+                          <p className="text-xs text-[#52525b] italic">No linked students found for this parent's email.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {children.map(child => (
+                              <div key={child.id} className="flex items-start gap-3 p-2.5 bg-[#09090b] rounded-lg border border-[#27272a]">
+                                <div className="w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center text-[10px] font-black text-violet-300 shrink-0">
+                                  {initials(child.full_name)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-white truncate">{child.full_name}</p>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                                    {child.school_name && (
+                                      <span className="flex items-center gap-1 text-[10px] text-[#71717a]">
+                                        <Building2 size={8} /> {child.school_name}
+                                      </span>
+                                    )}
+                                    {child.section_class && (
+                                      <span className="text-[10px] text-[#71717a]">Class {child.section_class}</span>
+                                    )}
+                                    {child.grade_level && (
+                                      <span className="text-[10px] text-[#52525b]">{child.grade_level}</span>
+                                    )}
+                                    {child.relationship && (
+                                      <span className="text-[10px] text-[#52525b] italic">{child.relationship}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>

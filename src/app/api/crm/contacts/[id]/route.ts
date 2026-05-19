@@ -71,11 +71,18 @@ export async function GET(
 
     // Run enrichment queries in parallel
     const nowIso = new Date().toISOString();
-    const [pipelineRes, interactionsRes, tasksRes, opportunitiesRes] = await Promise.all([
+    const parentEmail = (contact as any).role === 'parent' ? (contact as any).email as string | null : null;
+    const [pipelineRes, interactionsRes, tasksRes, opportunitiesRes, childrenRes] = await Promise.all([
       db.from('crm_pipeline').select('stage, pipeline_notes, updated_by_name, updated_at').eq('contact_id', id).maybeSingle(),
       (db as any).from('crm_interactions').select('id, type, direction, content, staff_name, created_at').eq('contact_id', id).order('created_at', { ascending: false }).limit(5),
       (db as any).from('crm_tasks').select('id, status, due_at').eq('contact_id', id),
       (db as any).from('crm_opportunities').select('id, stage, estimated_value').eq('contact_id', id),
+      parentEmail
+        ? db.from('students')
+            .select('id, full_name, school_name, school_id, grade_level, section_class, current_class, user_id, parent_relationship')
+            .ilike('parent_email', parentEmail)
+            .order('full_name')
+        : Promise.resolve({ data: [] }),
     ]);
 
     // Task summary
@@ -94,6 +101,17 @@ export async function GET(
       total_value: activeOpps.reduce((sum, o) => sum + (o.estimated_value || 0), 0),
     };
 
+    const children = ((childrenRes as any).data || []).map((s: any) => ({
+      id: s.id,
+      full_name: s.full_name,
+      school_name: s.school_name,
+      school_id: s.school_id,
+      grade_level: s.grade_level,
+      section_class: s.section_class || s.current_class,
+      relationship: s.parent_relationship,
+      user_id: s.user_id,
+    }));
+
     return NextResponse.json({
       contact: { ...(contact as unknown as Record<string, unknown>), _type: 'portal_user' },
       pipeline: pipelineRes.data ?? null,
@@ -101,6 +119,7 @@ export async function GET(
       task_summary,
       opportunity_summary,
       recent_interactions: interactionsRes.data || [],
+      children,
     });
   } catch (e: any) {
     const msg = e.message as string;
