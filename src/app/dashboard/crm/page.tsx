@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -245,6 +244,15 @@ export default function CRMPage() {
 
   // ── Stats ──────────────────────────────────────────────────────
   const [stats, setStats] = useState({ total: 0, parents: 0, students: 0, active: 0, prospect: 0, at_risk: 0, won: 0, churned: 0, overdueTasks: 0, pipelineValue: 0 });
+
+  // ── School grouping ────────────────────────────────────────────
+  const [collapsedSchools, setCollapsedSchools] = useState<Set<string>>(new Set());
+  const toggleSchool = (school: string) =>
+    setCollapsedSchools(prev => {
+      const next = new Set(prev);
+      if (next.has(school)) next.delete(school); else next.add(school);
+      return next;
+    });
 
   const isAdmin = profile?.role === 'admin';
   const isStaff = isAdmin || profile?.role === 'teacher';
@@ -572,6 +580,31 @@ export default function CRMPage() {
     stageFilter === 'all' || c.pipeline_stage === stageFilter || (!c.pipeline_stage && stageFilter === 'prospect'),
   );
 
+  // Group displayed contacts by school → sorted by role (parent first) then class then name
+  const groupedContacts = useMemo(() => {
+    const map = new Map<string, CRMContact[]>();
+    for (const c of displayed) {
+      const key = c.school_name?.trim() || '(No School)';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(c);
+    }
+    const roleOrder = (r: string) => r === 'parent' ? 0 : r === 'student' ? 1 : r === 'teacher' ? 2 : 3;
+    for (const arr of map.values()) {
+      arr.sort((a, b) => {
+        if (a.role !== b.role) return roleOrder(a.role) - roleOrder(b.role);
+        const ca = a.section_class || '';
+        const cb = b.section_class || '';
+        if (ca !== cb) return ca.localeCompare(cb);
+        return a.full_name.localeCompare(b.full_name);
+      });
+    }
+    return [...map.entries()].sort(([a], [b]) => {
+      if (a === '(No School)') return 1;
+      if (b === '(No School)') return -1;
+      return a.localeCompare(b);
+    });
+  }, [displayed]);
+
   const sm = stageMeta(selected?.pipeline_stage);
 
   // ─── Directory export / print ─────────────────────────────────────────────
@@ -623,13 +656,12 @@ export default function CRMPage() {
             </div>
           ))}
           <div className="ml-auto flex items-center gap-2 shrink-0">
-            <Link href="/dashboard/directory" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#18181b] border border-[#27272a] text-xs text-[#a1a1aa] hover:text-white hover:border-[#f5a623]/40 transition-colors">
-              <Building2 size={12} /> Directory
-            </Link>
-            <button onClick={() => setShowNewContact(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f5a623] text-[#09090b] text-xs font-bold hover:bg-[#fcd34d] transition-colors">
-              <UserPlus size={12} /> New Contact
-            </button>
+            {isAdmin && (
+              <button onClick={() => setShowNewContact(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f5a623] text-[#09090b] text-xs font-bold hover:bg-[#fcd34d] transition-colors">
+                <UserPlus size={12} /> New Contact
+              </button>
+            )}
           </div>
         </div>
 
@@ -696,7 +728,7 @@ export default function CRMPage() {
             </div>
           </div>
 
-          {/* Contact list */}
+          {/* Contact list — grouped by school, then role, then class */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center h-32">
@@ -705,27 +737,66 @@ export default function CRMPage() {
             ) : displayed.length === 0 ? (
               <div className="p-6 text-center text-[#52525b] text-sm">No contacts found</div>
             ) : (
-              displayed.map(c => {
-                const sm = stageMeta(c.pipeline_stage);
-                const isSelected = selected?.id === c.id;
+              groupedContacts.map(([school, schoolContacts]) => {
+                const collapsed = collapsedSchools.has(school);
+                let lastRole = '';
+                let lastClass = '';
                 return (
-                  <button key={c.id} onClick={() => selectContact(c)}
-                    className={`w-full text-left px-3 py-2.5 border-b border-[#1c1c1f] hover:bg-[#18181b] transition-colors ${isSelected ? 'bg-[#18181b] border-l-2 border-l-[#f5a623]' : ''}`}>
-                    <div className="flex items-center gap-2.5">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${isSelected ? 'bg-[#f5a623] text-[#09090b]' : 'bg-[#27272a] text-[#a1a1aa]'}`}>
-                        {initials(c.full_name)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-semibold truncate">{c.full_name}</span>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sm.dot}`} />
-                        </div>
-                        <div className="text-[11px] text-[#71717a] truncate">
-                          {ROLE_LABELS[c.role] || c.role}{c.school_name ? ` · ${c.school_name}` : ''}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
+                  <div key={school}>
+                    {/* School header */}
+                    <button
+                      onClick={() => toggleSchool(school)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 bg-[#18181b] border-b border-[#27272a] text-left sticky top-0 z-10 hover:bg-[#1c1c1f] transition-colors">
+                      <Building2 size={10} className="text-[#f5a623] shrink-0" />
+                      <span className="flex-1 text-[9px] font-black uppercase tracking-widest text-[#a1a1aa] truncate">{school}</span>
+                      <span className="text-[10px] text-[#52525b] mr-1">{schoolContacts.length}</span>
+                      <ChevronDown size={10} className={`text-[#52525b] transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+                    </button>
+                    {!collapsed && schoolContacts.map(c => {
+                      const cSm = stageMeta(c.pipeline_stage);
+                      const isSelected = selected?.id === c.id;
+                      // Role separator (e.g. switching from parent → student)
+                      const showRoleHeader = c.role !== lastRole;
+                      lastRole = c.role;
+                      // Class separator (only for students)
+                      const cls = c.role === 'student' ? (c.section_class || '') : '';
+                      const showClassHeader = c.role === 'student' && cls !== lastClass && cls !== '';
+                      lastClass = cls;
+                      return (
+                        <Fragment key={c.id}>
+                          {showRoleHeader && (
+                            <div className="px-3 py-0.5 border-b border-[#1c1c1f] bg-[#0f0f11] flex items-center gap-1.5">
+                              <span className="text-[8px] font-bold uppercase tracking-widest text-[#52525b]">
+                                {ROLE_LABELS[c.role] || c.role}
+                              </span>
+                            </div>
+                          )}
+                          {showClassHeader && (
+                            <div className="pl-4 pr-3 py-0.5 border-b border-[#1c1c1f] bg-[#0a0a0d]">
+                              <span className="text-[8px] font-semibold uppercase tracking-widest text-[#3f3f46]">Class {cls}</span>
+                            </div>
+                          )}
+                          <button onClick={() => selectContact(c)}
+                            className={`w-full text-left px-3 py-2 border-b border-[#1c1c1f] hover:bg-[#18181b] transition-colors ${isSelected ? 'bg-[#18181b] border-l-2 border-l-[#f5a623]' : ''}`}>
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${isSelected ? 'bg-[#f5a623] text-[#09090b]' : 'bg-[#27272a] text-[#a1a1aa]'}`}>
+                                {initials(c.full_name)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-semibold truncate">{c.full_name}</span>
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cSm.dot}`} />
+                                </div>
+                                <div className="text-[10px] text-[#71717a] truncate">
+                                  {c.phone || c.phone_number || c.email || (c.section_class && c.role !== 'student' ? c.section_class : '')}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        </Fragment>
+                      );
+                    })}
+                  </div>
                 );
               })
             )}

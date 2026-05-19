@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
       } else if (role === 'student') {
         q = q.eq('role', 'student');
       } else {
-        // role === 'all': both parents and students
-        q = q.in('role', ['parent', 'student']);
+        // role === 'all': parents, students, and school owners with a phone
+        q = q.in('role', ['parent', 'student', 'school']);
       }
       q = q.not('phone', 'is', null).neq('phone', '');
     } else if (!isEveryone && role !== 'external') {
