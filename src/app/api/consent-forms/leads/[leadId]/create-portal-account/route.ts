@@ -115,7 +115,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   // Update form_leads
   await (sb as any).from('form_leads').update({ matched_parent_id: parentId }).eq('id', leadId);
 
-  const portalUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+  const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
+  const loginUrl  = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}&pw=${encodeURIComponent(tempPassword)}`;
 
   // Send credentials via WhatsApp
   if (parentPhone) {
@@ -127,7 +128,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         `📧 Email: ${parentEmail}`,
         `🔑 Temp Password: ${tempPassword}`,
         ``,
-        `Login at: ${portalUrl}`,
+        `Tap to log in (email & password pre-filled):`,
+        loginUrl,
         ``,
         `Please change your password after first login.`,
         `Questions? Call +234 811 660 0091`,
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       </p>
       <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
         Your Rillcod Parent Portal account has been created${childName ? ` for ${childName}` : ''}.
-        Use the credentials below to log in and track your child's progress.
+        Click the button below to log in — your email and password are already filled in for you.
       </p>
       <div style="background:#1c1e22;border-left:4px solid #10b981;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;">
         <p style="margin:0 0 8px;font-size:10px;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Your Login Details</p>
@@ -154,15 +156,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       <p style="margin:0 0 16px;font-size:14px;color:#a1a1aa;">
         Please change your password after your first login. Keep these details safe and do not share them.
       </p>
-      <p style="margin:0;font-size:14px;color:#71717a;">
-        Warm regards,<br/>
-        <strong style="color:#d4d4d8;">The Rillcod Technologies Team</strong>
-      </p>
     `;
     const html = buildRillcodTransactionalEmailHtml({
       title:      'Your Rillcod Portal Account is Ready',
       bodyHtml,
-      cta:        { href: portalUrl, label: 'Log In to Portal', color: '#10b981' },
+      cta:        { href: loginUrl, label: 'Log In — Email & Password Pre-Filled', color: '#10b981' },
       footerNote: 'Rillcod Technologies · 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria · +234 811 660 0091',
     });
     await notificationsService.sendEmail('system', {
