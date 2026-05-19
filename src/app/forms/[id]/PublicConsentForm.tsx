@@ -61,6 +61,7 @@ export default function PublicConsentForm({
   const [data, setData] = useState({
     child_name: '',
     child_age: '',
+    child_gender: '' as 'male' | 'female' | '',
     child_class: '',
     child_current_school: '',
     program_category: '' as 'young_innovators' | 'teen_developers' | '',
@@ -93,6 +94,7 @@ export default function PublicConsentForm({
   const canSubmit =
     data.child_name.trim() &&
     data.child_age &&
+    data.child_gender &&
     data.child_class.trim() &&
     data.program_category &&
     data.parent_name.trim() &&
@@ -115,6 +117,7 @@ export default function PublicConsentForm({
           response_data: {
             child_name: data.child_name,
             child_age: data.child_age,
+            child_gender: data.child_gender,
             child_class: data.child_class,
             program_category: data.program_category,
             parent_name: data.parent_name,
@@ -168,7 +171,7 @@ export default function PublicConsentForm({
           {/* Summary */}
           <div className="bg-[#1c1e22] rounded-xl p-4 text-left space-y-2 mt-2">
             {[
-              { label: 'Child', value: `${data.child_name}, Age ${data.child_age} · ${data.child_class}` },
+              { label: 'Child', value: `${data.child_name}, ${data.child_gender ? data.child_gender.charAt(0).toUpperCase() + data.child_gender.slice(1) + ', ' : ''}Age ${data.child_age} · ${data.child_class}` },
               { label: 'Programme', value: data.program_category === 'young_innovators' ? 'Young Innovators (PRY)' : 'Teen Developers (SEC)' },
               { label: 'Contact', value: data.parent_whatsapp },
               ...(data.parent_email ? [{ label: 'Email', value: data.parent_email }] : []),
@@ -242,6 +245,23 @@ export default function PublicConsentForm({
           placeholder="Child's full name *"
           className="w-full bg-[#141618] border border-[#2a2d33] text-white px-4 py-3 rounded-xl text-sm focus:outline-none focus:border-amber-500 transition-colors placeholder:text-[#52525b]"
         />
+        <div>
+          <p className="text-[10px] font-bold text-[#71717a] mb-2">Gender *</p>
+          <div className="grid grid-cols-2 gap-3">
+            {(['male', 'female'] as const).map(g => (
+              <button
+                key={g} type="button"
+                onClick={() => set('child_gender', g)}
+                className={`py-3 rounded-xl border font-black text-sm transition-all ${data.child_gender === g
+                  ? 'border-amber-500 bg-amber-500/10 text-white'
+                  : 'border-[#2a2d33] bg-[#141618] text-[#71717a] hover:border-[#3a3d43]'
+                }`}
+              >
+                {g === 'male' ? '👦 Male' : '👧 Female'}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <input
             required value={data.child_age} type="number" min="4" max="19"

@@ -266,6 +266,7 @@ body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1
     <div class="sec-head">${secNum(2)}<span class="sec-title">Child&rsquo;s Information</span></div>
     <table class="dt">
       ${row('Full Name', `<strong>${esc(childName)}</strong>`)}
+      ${str('child_gender') ? row('Gender', str('child_gender') === 'male' ? 'Male' : 'Female') : ''}
       ${row('Age', esc(str('child_age') || '—'))}
       ${row('Class / Grade', esc(str('child_class') || '—'))}
       ${row('Current School', esc(lead.child_current_school || str('child_current_school') || '—'))}
@@ -348,7 +349,7 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
       <td class="num">${i + 1}</td>
       <td class="date-col">${sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br/><span class="time">${sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span></td>
       <td><strong>${esc(str('parent_name') || '—')}</strong><br/><span class="sub">${esc(lead.email || str('parent_email') || '')}</span><br/><span class="sub">${esc(str('parent_whatsapp') || '')}</span></td>
-      <td><strong>${esc(str('child_name') || '—')}</strong><br/><span class="sub">Age ${esc(str('child_age') || '—')} · ${esc(str('child_class') || '—')}</span></td>
+      <td><strong>${esc(str('child_name') || '—')}</strong><br/><span class="sub">${str('child_gender') ? (str('child_gender') === 'male' ? 'Male' : 'Female') + ' · ' : ''}Age ${esc(str('child_age') || '—')} · ${esc(str('child_class') || '—')}</span></td>
       <td><span class="sub">${esc(lead.child_current_school || str('child_current_school') || '—')}</span></td>
       <td><span class="prog">${esc(prog)}</span></td>
       ${isAssessment ? `<td><span class="sub">${str('prior_coding') === 'yes' ? 'Yes' + (str('prior_platform') ? ': ' + esc(str('prior_platform')) : '') : str('prior_coding') === 'no' ? 'No' : '—'}</span></td><td><span class="sub">${esc(devs || '—')}</span></td><td><span class="sub">${esc(str('learning_goal') || '—')}</span></td><td><span class="sub">${esc(str('preferred_schedule') || '—')}</span></td>` : ''}
@@ -365,7 +366,7 @@ function printDataSheet(form: ConsentForm, leads: FormLead[], sigs: Signatory[],
       <td class="num">${leads.length + i + 1}</td>
       <td class="date-col">${sub.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br/><span class="time">${sub.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span></td>
       <td><strong>${esc(s.portal_users?.full_name ?? '—')}</strong><span class="portal-tag">Portal</span><br/><span class="sub">${esc(s.portal_users?.email ?? '')}</span></td>
-      <td><strong>${esc(str2('child_name') || '—')}</strong><br/><span class="sub">Age ${esc(str2('child_age') || '—')} · ${esc(str2('child_class') || '—')}</span></td>
+      <td><strong>${esc(str2('child_name') || '—')}</strong><br/><span class="sub">${str2('child_gender') ? (str2('child_gender') === 'male' ? 'Male' : 'Female') + ' · ' : ''}Age ${esc(str2('child_age') || '—')} · ${esc(str2('child_class') || '—')}</span></td>
       <td>—</td>
       <td><span class="prog">${esc(progLabel(str2('program_category')))}</span></td>
       ${isAssessment ? '<td>—</td><td>—</td><td>—</td><td>—</td>' : ''}
@@ -1083,7 +1084,11 @@ export default function ResponsesPage() {
                           <td className="px-4 py-3 min-w-[140px]">
                             <p className="text-sm font-bold text-foreground">{rd.child_name || '—'}</p>
                             <p className="text-[10px] text-muted-foreground">
-                              {[rd.child_age && `Age ${rd.child_age}`, rd.child_class].filter(Boolean).join(' · ') || '—'}
+                              {[
+                                rd.child_gender && (rd.child_gender === 'male' ? '👦 Male' : '👧 Female'),
+                                rd.child_age && `Age ${rd.child_age}`,
+                                rd.child_class,
+                              ].filter(Boolean).join(' · ') || '—'}
                             </p>
                           </td>
 
@@ -1245,7 +1250,7 @@ export default function ResponsesPage() {
                               {lead.matched_parent_id && (
                                 lead.matched_student_id ? (
                                   <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                    🧒 {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} linked
+                                    {rd.child_gender === 'male' ? '👦' : rd.child_gender === 'female' ? '👧' : '🧒'} {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} linked
                                   </span>
                                 ) : (
                                   <button
