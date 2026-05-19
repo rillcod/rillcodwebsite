@@ -100,26 +100,33 @@ export async function POST() {
   }
 
   // ── 3. Remove parent_student_links with no valid parent in portal_users ──
-  const { data: allLinks } = await (sb as any)
-    .from('parent_student_links')
-    .select('id, parent_id');
+  try {
+    const { data: allLinks, error: linksErr } = await (sb as any)
+      .from('parent_student_links')
+      .select('id, parent_id');
 
-  if (allLinks && allLinks.length > 0) {
-    const linkParentIds = [...new Set<string>(allLinks.map((l: any) => l.parent_id as string))];
+    if (linksErr) throw linksErr;
 
-    const { data: existingParents } = await (sb as any)
-      .from('portal_users')
-      .select('id')
-      .in('id', linkParentIds);
+    if (allLinks && allLinks.length > 0) {
+      const linkParentIds = [...new Set<string>(allLinks.map((l: any) => l.parent_id as string))];
 
-    const existingIds = new Set<string>((existingParents ?? []).map((p: any) => p.id as string));
-    const orphanParentIds = linkParentIds.filter(id => !existingIds.has(id));
+      const { data: existingParents } = await (sb as any)
+        .from('portal_users')
+        .select('id')
+        .in('id', linkParentIds);
 
-    if (orphanParentIds.length > 0) {
-      const { data: deleted } = await (sb as any)
-        .from('parent_student_links').delete().in('parent_id', orphanParentIds).select('id');
-      stats.orphaned_links_deleted = deleted?.length ?? 0;
+      const existingIds = new Set<string>((existingParents ?? []).map((p: any) => p.id as string));
+      const orphanParentIds = linkParentIds.filter(id => !existingIds.has(id));
+
+      if (orphanParentIds.length > 0) {
+        const { data: deleted } = await (sb as any)
+          .from('parent_student_links').delete().in('parent_id', orphanParentIds).select('id');
+        stats.orphaned_links_deleted = deleted?.length ?? 0;
+      }
     }
+  } catch (err: any) {
+    // If the table doesn't exist yet (pre-migration), skip this step gracefully
+    if (!err?.message?.includes('relation') && err?.code !== '42P01') throw err;
   }
 
   // ── 4. Clear form_leads.matched_parent_id where parent no longer exists ──

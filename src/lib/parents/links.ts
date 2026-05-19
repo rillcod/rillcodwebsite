@@ -11,38 +11,53 @@ function unique(values: Array<string | null | undefined>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
+// Returns true when a Supabase/PostgreSQL error is "relation does not exist"
+// (code 42P01). We only want to silently skip that specific case — all other
+// errors should surface so they are not hidden.
+function isRelationMissing(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as Record<string, unknown>;
+  return e['code'] === '42P01' || String(e['message'] ?? '').includes('relation') && String(e['message'] ?? '').includes('does not exist');
+}
+
 export async function getParentLinkScope(
   admin: AnySupabase,
   parent: { id: string; email?: string | null },
 ): Promise<ParentLinkScope> {
   const normalizedEmail = parent.email?.trim().toLowerCase() || '';
 
+  // ── Explicit junction table (primary path) ─────────────────────────────────
   let explicitStudentIds: string[] = [];
-  try {
-    const { data } = await admin
-      .from('parent_student_links')
-      .select('student_id')
-      .eq('parent_id', parent.id);
-    explicitStudentIds = unique((data ?? []).map((row: any) => row.student_id));
-  } catch {
-    explicitStudentIds = [];
+  const { data: linkData, error: linkErr } = await admin
+    .from('parent_student_links')
+    .select('student_id')
+    .eq('parent_id', parent.id);
+
+  if (linkErr) {
+    if (!isRelationMissing(linkErr)) throw linkErr;
+    // Table not yet migrated — fall through to email-only path
+  } else {
+    explicitStudentIds = unique((linkData ?? []).map((row: any) => row.student_id));
   }
 
   let explicitRows: Array<{ id: string; user_id: string | null }> = [];
   if (explicitStudentIds.length > 0) {
-    const { data } = await admin
+    const { data, error } = await admin
       .from('students')
       .select('id, user_id')
       .in('id', explicitStudentIds);
+    if (error) throw error;
     explicitRows = data ?? [];
   }
 
+  // ── Email-based fallback (legacy denormalized path) ────────────────────────
   let legacyRows: Array<{ id: string; user_id: string | null }> = [];
   if (normalizedEmail) {
-    const { data } = await admin
+    const { data, error } = await admin
       .from('students')
       .select('id, user_id')
       .ilike('parent_email', normalizedEmail);
+    if (error) throw error;
     legacyRows = data ?? [];
   }
 
@@ -63,19 +78,15 @@ export async function syncExplicitParentStudentLink(
   admin: AnySupabase,
   parentId: string,
   studentId: string,
-) {
-  try {
-    await admin
-      .from('parent_student_links')
-      .upsert(
-        {
-          parent_id: parentId,
-          student_id: studentId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'parent_id,student_id' },
-      );
-  } catch {
-    // Mixed-schema environments may not have parent_student_links yet.
+): Promise<void> {
+  const { error } = await admin
+    .from('parent_student_links')
+    .upsert(
+      { parent_id: parentId, student_id: studentId, updated_at: new Date().toISOString() },
+      { onConflict: 'parent_id,student_id' },
+    );
+  if (error) {
+    if (isRelationMissing(error)) return; // table not migrated yet — no-op
+    throw new Error(`Failed to sync parent-student link: ${error.message}`);
   }
 }
