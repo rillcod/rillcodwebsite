@@ -107,9 +107,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     is_active: true,
   });
 
-  // Link student if matched
+  // Link student if matched + update students.parent_email so parent appears in school-scoped list
   if (lead.matched_student_id) {
     await syncExplicitParentStudentLink(sb as any, parentId, lead.matched_student_id);
+    await (sb as any).from('students').update({
+      parent_email:    parentEmail,
+      parent_name:     parentName,
+      parent_phone:    parentPhone || null,
+      updated_at:      new Date().toISOString(),
+    }).eq('id', lead.matched_student_id);
   }
 
   // Update form_leads
@@ -171,4 +177,59 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   } catch { /* non-fatal */ }
 
   return NextResponse.json({ success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail });
+}
+
+// DELETE /api/consent-forms/leads/[leadId]/create-portal-account
+// Hard-deletes the portal account created from this lead (auth user + portal_users + links).
+export async function DELETE(req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
+  const { leadId } = await context.params;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users').select('role, school_id').eq('id', user.id).single();
+  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const sb = adminClient();
+
+  const { data: lead } = await (sb as any)
+    .from('form_leads')
+    .select('id, school_id, matched_parent_id, matched_student_id')
+    .eq('id', leadId)
+    .single();
+
+  if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+  if (profile.role !== 'admin' && lead.school_id !== profile.school_id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  if (!lead.matched_parent_id) {
+    return NextResponse.json({ error: 'No portal account linked to this lead' }, { status: 400 });
+  }
+
+  const parentId = lead.matched_parent_id;
+
+  // Remove parent_student_links rows
+  await (sb as any).from('parent_student_links').delete().eq('parent_id', parentId);
+
+  // Clear parent_email on the student record (if applicable)
+  if (lead.matched_student_id) {
+    await (sb as any).from('students').update({
+      parent_email: null, parent_name: null, parent_phone: null, updated_at: new Date().toISOString(),
+    }).eq('id', lead.matched_student_id);
+  }
+
+  // Delete portal_users row
+  await (sb as any).from('portal_users').delete().eq('id', parentId);
+
+  // Hard-delete the Supabase auth user
+  await sb.auth.admin.deleteUser(parentId);
+
+  // Clear matched_parent_id on the lead
+  await (sb as any).from('form_leads').update({ matched_parent_id: null }).eq('id', leadId);
+
+  return NextResponse.json({ success: true });
 }

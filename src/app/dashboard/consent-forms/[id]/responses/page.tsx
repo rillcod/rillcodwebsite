@@ -475,6 +475,7 @@ export default function ResponsesPage() {
 
   const [updatingId, setUpdatingId]     = useState<string | null>(null);
   const [creatingPortalId, setCreatingPortalId] = useState<string | null>(null);
+  const [deletingPortalId, setDeletingPortalId] = useState<string | null>(null);
   const [portalStatus, setPortalStatus] = useState<Record<string, 'created' | 'exists'>>({});
   const [credsModal, setCredsModal] = useState<{ email: string; password: string; parentName: string } | null>(null);
 
@@ -549,6 +550,24 @@ export default function ResponsesPage() {
       }
     } finally {
       setCreatingPortalId(null);
+    }
+  }
+
+  // ── Delete portal account ────────────────────────────────────────────────
+
+  async function deletePortalAccount(leadId: string, parentName: string) {
+    if (!confirm(`Remove portal account for ${parentName}? This will permanently delete their login access.`)) return;
+    setDeletingPortalId(leadId);
+    try {
+      const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error ?? 'Failed to remove account'); return; }
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_parent_id: null } : l));
+      setPortalStatus(prev => { const next = { ...prev }; delete next[leadId]; return next; });
+    } finally {
+      setDeletingPortalId(null);
     }
   }
 
@@ -1141,24 +1160,32 @@ export default function ResponsesPage() {
                                   </button>
                                 )}
                               </div>
-                              {/* Create portal account */}
+                              {/* Create / manage portal account */}
                               {(lead.email || rd.parent_email) && (() => {
                                 const ps = portalStatus[lead.id];
-                                const alreadyLinked = !!(lead.matched_parent_id);
-                                if (ps === 'created') return (
-                                  <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                                    ✓ Account created · credentials sent
-                                  </span>
+                                const hasAccount = ps === 'created' || ps === 'exists' || !!(lead.matched_parent_id);
+                                const parentName  = rd.parent_name || 'Parent/Guardian';
+
+                                if (hasAccount) return (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                      ✓ Portal account
+                                    </span>
+                                    <button
+                                      disabled={deletingPortalId === lead.id}
+                                      onClick={() => deletePortalAccount(lead.id, parentName)}
+                                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                      title="Delete portal account entirely — removes auth, login access and all links"
+                                    >
+                                      {deletingPortalId === lead.id ? '…' : '✕ Remove'}
+                                    </button>
+                                  </div>
                                 );
-                                if (ps === 'exists' || alreadyLinked) return (
-                                  <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
-                                    ✓ Portal account linked
-                                  </span>
-                                );
+
                                 return (
                                   <button
                                     disabled={creatingPortalId === lead.id}
-                                    onClick={() => createPortalAccount(lead.id, rd.parent_name || 'Parent/Guardian')}
+                                    onClick={() => createPortalAccount(lead.id, parentName)}
                                     className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50 whitespace-nowrap"
                                     title="Create parent portal account & send temp password"
                                   >
