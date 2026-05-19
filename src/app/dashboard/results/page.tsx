@@ -163,6 +163,8 @@ function ResultsPageInner() {
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
     const [isBulkPrinting, setIsBulkPrinting] = useState(false);
     const [isBulkEmailing, setIsBulkEmailing] = useState(false);
+    const [reportEmailEvents, setReportEmailEvents] = useState<{ id: string; event: string; email: string | null; occurred_at: string | null }[]>([]);
+    const [loadingEmailEvents, setLoadingEmailEvents] = useState(false);
     const [bulkEmailResults, setBulkEmailResults] = useState<{ studentName: string; email: string; success: boolean; error?: string }[]>([]);
     const [showBulkEmailSummary, setShowBulkEmailSummary] = useState(false);
     const bulkEmailResultsRef = useRef<{ studentName: string; email: string; success: boolean; error?: string }[]>([]);
@@ -418,6 +420,7 @@ function ResultsPageInner() {
         setSelectedStudent(s);
         setLoadingReport(true);
         setSelectedReport(null);
+        setReportEmailEvents([]);
         // On mobile, auto-hide sidebar when student is selected
         if (typeof window !== 'undefined' && window.innerWidth < 1024) {
             setShowSidebar(false);
@@ -433,6 +436,14 @@ function ResultsPageInner() {
         const { data } = await reportQuery.maybeSingle();
         setSelectedReport(data as StudentReport | null);
         setLoadingReport(false);
+        if (data?.id) {
+            setLoadingEmailEvents(true);
+            fetch(`/api/progress-reports/${data.id}/email-events`)
+                .then(r => r.json())
+                .then(j => { if (j.events) setReportEmailEvents(j.events); })
+                .catch(() => null)
+                .finally(() => setLoadingEmailEvents(false));
+        }
     }
 
     // ── Derived data ───────────────────────────────────────────────────────────
@@ -564,6 +575,13 @@ function ResultsPageInner() {
             }
             setEmailShareOpen(false);
             setEmailShareTo('');
+            // Refresh email activity strip
+            if (reportToDisplay.id) {
+                fetch(`/api/progress-reports/${reportToDisplay.id}/email-events`)
+                    .then(r => r.json())
+                    .then(j => { if (j.events) setReportEmailEvents(j.events); })
+                    .catch(() => null);
+            }
         } catch (err: any) {
             setEmailShareError(err.message || 'Failed to send. Try again.');
         } finally {
@@ -1641,6 +1659,74 @@ tbody tr:hover{background:#f3f4f6}
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* ── Email Activity Strip ── */}
+                                    {isStaff && reportToDisplay && (
+                                        <div className="mx-0 border-t border-white/5">
+                                            {/* Header row */}
+                                            <div className="flex items-center justify-between px-4 py-2">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Email Activity</p>
+                                                {loadingEmailEvents && (
+                                                    <div className="w-3 h-3 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+                                                )}
+                                                {!loadingEmailEvents && reportToDisplay.id && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setLoadingEmailEvents(true);
+                                                            fetch(`/api/progress-reports/${reportToDisplay.id}/email-events`)
+                                                                .then(r => r.json())
+                                                                .then(j => { if (j.events) setReportEmailEvents(j.events); })
+                                                                .catch(() => null)
+                                                                .finally(() => setLoadingEmailEvents(false));
+                                                        }}
+                                                        className="text-[9px] text-white/20 hover:text-white/50 transition-colors"
+                                                    >↺ Refresh</button>
+                                                )}
+                                            </div>
+
+                                            {/* Sent badge from report metadata */}
+                                            {(() => {
+                                                const meta = (reportToDisplay as any).metadata;
+                                                const sentAt = meta?.email_sent_at as string | undefined;
+                                                const sentTo = meta?.email_sent_to as string | undefined;
+                                                if (!sentAt) return null;
+                                                return (
+                                                    <div className="mx-4 mb-2 flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                                                        <svg className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-[10px] font-bold text-blue-300 truncate">Sent to {sentTo || 'parent'}</p>
+                                                            <p className="text-[9px] text-blue-400/50">{new Date(sentAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                                                        </div>
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-400/60">Sent</span>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            {/* Open events */}
+                                            {reportEmailEvents.length > 0 ? (
+                                                <div className="px-4 pb-3 space-y-1.5">
+                                                    {reportEmailEvents.map(ev => (
+                                                        <div key={ev.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${ev.event === 'opened' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/[0.03] border-white/5'}`}>
+                                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${ev.event === 'opened' ? 'bg-emerald-400' : 'bg-white/20'}`} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className={`text-[10px] font-bold truncate ${ev.event === 'opened' ? 'text-emerald-300' : 'text-white/40'}`}>
+                                                                    {ev.email || 'Unknown recipient'}
+                                                                </p>
+                                                                <p className="text-[9px] text-white/25">
+                                                                    {ev.occurred_at ? new Date(ev.occurred_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                                </p>
+                                                            </div>
+                                                            <span className={`text-[9px] font-black uppercase tracking-widest flex-shrink-0 ${ev.event === 'opened' ? 'text-emerald-400' : 'text-white/25'}`}>
+                                                                {ev.event === 'opened' ? '✓ Opened' : ev.event}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : !loadingEmailEvents ? (
+                                                <p className="px-4 pb-3 text-[9px] text-white/20 italic">No opens recorded yet.</p>
+                                            ) : null}
+                                        </div>
+                                    )}
 
                                     {/* Email share modal */}
                                     {emailShareOpen && reportToDisplay && (
