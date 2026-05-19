@@ -21,7 +21,7 @@ function normalisePhone(raw: string): string {
 export async function sendWhatsApp(to: string, message: string): Promise<boolean> {
   try {
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-    const accessToken   = process.env.WHATSAPP_ACCESS_TOKEN;
+    const accessToken   = process.env.WHATSAPP_ACCESS_TOKEN || process.env.WHATSAPP_API_TOKEN;
 
     if (!phoneNumberId || !accessToken) return false;
     if (!to?.trim()) return false;
