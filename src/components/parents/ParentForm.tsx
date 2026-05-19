@@ -280,6 +280,9 @@ export function ParentForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,6 +328,31 @@ export function ParentForm({
     }
   };
 
+  const sendLoginEmail = async () => {
+    if (!credentials) return;
+    setEmailSending(true);
+    setEmailError(null);
+    try {
+      const res = await fetch('/api/parents/send-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: credentials.email,
+          full_name: form.full_name,
+          password: credentials.password,
+          school_name: selectedSchool || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to send');
+      setEmailSent(true);
+    } catch (err: any) {
+      setEmailError(err.message ?? 'Failed to send email');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   if (credentials) {
     return (
       <div className="space-y-6">
@@ -354,7 +382,31 @@ export function ParentForm({
           <span className="flex-shrink-0 mt-0.5">⚠</span>
           <span>Store this password securely — it cannot be retrieved after closing this window.</span>
         </div>
-        <p className="text-xs text-muted-foreground">Share these credentials with the parent. They can change their password after first login.</p>
+
+        {/* Send login email */}
+        {emailSent ? (
+          <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
+            <CheckCircleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+            Login credentials emailed to <strong>{credentials.email}</strong>. The link will open the login page with their email pre-filled.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={sendLoginEmail}
+              disabled={emailSending}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all"
+            >
+              {emailSending && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+              {emailSending ? 'Sending…' : 'Send Login Email to Parent'}
+            </button>
+            {emailError && (
+              <p className="text-[10px] text-rose-400 font-bold">{emailError}</p>
+            )}
+            <p className="text-[10px] text-muted-foreground">Email includes their username, password, and a direct link to the login page with their email pre-filled.</p>
+          </div>
+        )}
+
         <div className="flex gap-3">
           <button onClick={onCancel}
             className="px-6 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all">

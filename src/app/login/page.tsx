@@ -44,6 +44,12 @@ function LoginContent() {
     const type = searchParams?.get("type") as Role | null;
     if (type && ROLES.some(r => r.id === type)) setSelectedRole(type);
 
+    const emailParam = searchParams?.get("email");
+    if (emailParam) setEmail(decodeURIComponent(emailParam));
+
+    const pwParam = searchParams?.get("pw");
+    if (pwParam) setPassword(decodeURIComponent(pwParam));
+
     if (searchParams?.get("clear") === "1") {
       supabase.auth.signOut().then(() => {
         window.location.replace('/login');
