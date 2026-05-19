@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { toPng } from 'html-to-image';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -973,6 +974,8 @@ export default function ConsentFormsPage() {
   const [togglingPublicId, setTogglingPublicId] = useState<string | null>(null);
   const [qrFormId, setQrFormId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [downloadingQr, setDownloadingQr] = useState(false);
+  const qrDownloadRef = useRef<HTMLDivElement>(null);
 
   // Lead status + match review
   const [updatingLeadId, setUpdatingLeadId]   = useState<string | null>(null);
@@ -1271,6 +1274,22 @@ export default function ConsentFormsPage() {
     a.href = URL.createObjectURL(blob);
     a.download = `${title.replace(/[^a-z0-9]/gi, '_')}-responses.csv`;
     a.click();
+  }
+
+  // ── Branded QR download ───────────────────────────────────────────────────
+
+  async function downloadBrandedQr(form: ConsentForm) {
+    if (!qrDownloadRef.current) return;
+    setDownloadingQr(true);
+    try {
+      const dataUrl = await toPng(qrDownloadRef.current, { cacheBust: true, pixelRatio: 3 });
+      const a = document.createElement('a');
+      a.download = `qr-${form.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch { /* non-fatal */ } finally {
+      setDownloadingQr(false);
+    }
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -1668,40 +1687,88 @@ export default function ConsentFormsPage() {
             >
               <motion.div
                 initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-card border border-border rounded-2xl w-full max-w-sm p-6 space-y-5 shadow-2xl"
+                className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden"
               >
-                <div className="flex items-center justify-between">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/50">
                   <div>
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Public Form Link</p>
-                    <h2 className="font-black text-base">{qrForm.title}</h2>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">QR Code</p>
+                    <h2 className="font-black text-base leading-tight mt-0.5">{qrForm.title}</h2>
+                    {qrForm.schools?.name && (
+                      <p className="text-[10px] text-amber-400 font-bold mt-0.5">{qrForm.schools.name}</p>
+                    )}
                   </div>
-                  <button onClick={() => setQrFormId(null)} className="p-1 rounded-lg hover:bg-muted transition-colors">
+                  <button onClick={() => setQrFormId(null)} className="p-1 rounded-lg hover:bg-muted transition-colors ml-3 shrink-0">
                     <XMarkIcon className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </div>
 
-                {/* QR code */}
-                <div className="flex flex-col items-center gap-3">
-                  <div className="bg-white p-4 rounded-2xl shadow-md">
-                    <QRCode value={`${appBase}/forms/${qrForm.id}`} size={200} />
+                {/* Preview of the branded card */}
+                <div className="p-5 flex flex-col items-center gap-4">
+                  <div className="w-full rounded-2xl overflow-hidden" style={{ background: '#09090b' }}>
+                    {/* Accent bar */}
+                    <div style={{ height: '3px', background: 'linear-gradient(90deg, #f5a623, #fcd34d 60%, transparent)' }} />
+                    <div className="p-5 flex flex-col items-center gap-3">
+                      <div className="self-start">
+                        <p style={{ color: '#f5a623', fontSize: '9px', fontWeight: 900, letterSpacing: '3px', textTransform: 'uppercase', margin: 0 }}>
+                          {qrForm.schools?.name ?? 'Rillcod Technologies'}
+                        </p>
+                        <p style={{ color: '#ffffff', fontSize: '18px', fontWeight: 900, lineHeight: 1.1, margin: '4px 0 0', letterSpacing: '-0.5px' }}>
+                          SCAN TO<br />REGISTER
+                        </p>
+                      </div>
+                      <div style={{ background: '#ffffff', borderRadius: '14px', padding: '14px', boxShadow: '0 0 0 1px rgba(245,166,35,0.25), 0 8px 24px rgba(0,0,0,0.6)' }}>
+                        <QRCode value={`${appBase}/forms/${qrForm.id}`} size={160} />
+                      </div>
+                      <div className="self-start">
+                        <p style={{ color: '#e4e4e7', fontSize: '11px', fontWeight: 700, margin: 0, lineHeight: 1.3 }}>{qrForm.title}</p>
+                        <p style={{ color: '#52525b', fontSize: '9px', margin: '3px 0 0' }}>Point your camera at this code to open</p>
+                      </div>
+                      <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.07)', margin: '2px 0' }} />
+                      <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <p style={{ color: '#71717a', fontSize: '9px', fontWeight: 700, margin: 0 }}>via Rillcod Technologies</p>
+                        <p style={{ color: '#52525b', fontSize: '9px', margin: 0 }}>rillcod.com</p>
+                      </div>
+                    </div>
+                    <div style={{ height: '2px', background: 'linear-gradient(90deg, transparent, #f5a623 50%, transparent)' }} />
                   </div>
-                  <p className="text-xs text-muted-foreground text-center">Scan to open on any device</p>
-                </div>
 
-                {/* URL + copy */}
-                <div className="bg-muted/50 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground truncate flex-1 font-mono">{appBase}/forms/{qrForm.id}</p>
-                  <button
-                    onClick={() => copyLink(qrForm.id)}
-                    className="shrink-0 text-xs font-black text-primary hover:opacity-80 transition-opacity"
-                  >
-                    {copiedId === qrForm.id ? '✓ Copied' : 'Copy'}
-                  </button>
-                </div>
+                  {/* URL + copy */}
+                  <div className="w-full bg-muted/50 rounded-xl px-3 py-2 flex items-center gap-2">
+                    <p className="text-[10px] text-muted-foreground truncate flex-1 font-mono">{appBase}/forms/{qrForm.id}</p>
+                    <button
+                      onClick={() => copyLink(qrForm.id)}
+                      className="shrink-0 text-[10px] font-black text-primary hover:opacity-80 transition-opacity"
+                    >
+                      {copiedId === qrForm.id ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
 
-                <p className="text-xs text-muted-foreground text-center">
-                  Share this link or QR code on WhatsApp, social media, or print it on flyers.
-                </p>
+                  {/* Action buttons */}
+                  <div className="w-full flex gap-2">
+                    <button
+                      onClick={() => downloadBrandedQr(qrForm)}
+                      disabled={downloadingQr}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black text-xs rounded-xl transition-colors"
+                    >
+                      <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                      {downloadingQr ? 'Generating…' : 'Download PNG'}
+                    </button>
+                    <a
+                      href={`${appBase}/forms/${qrForm.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-2.5 bg-muted hover:bg-muted/80 text-muted-foreground font-bold text-xs rounded-xl transition-colors"
+                    >
+                      <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                      Open
+                    </a>
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Print on flyers, share on WhatsApp or social media.
+                  </p>
+                </div>
               </motion.div>
             </motion.div>
           )}
@@ -2386,6 +2453,106 @@ export default function ConsentFormsPage() {
           </div>
         )}
       </div>
+
+      {/* ── Hidden high-res branded QR card (off-screen, used for PNG export) ── */}
+      {qrForm && (
+        <div
+          ref={qrDownloadRef}
+          style={{
+            position: 'fixed', left: '-9999px', top: 0,
+            width: '480px',
+            fontFamily: 'Arial, Helvetica, sans-serif',
+            background: '#09090b',
+            borderRadius: '24px',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Top accent bar */}
+          <div style={{ height: '5px', background: 'linear-gradient(90deg, #f5a623, #fcd34d 60%, transparent)' }} />
+
+          {/* Dot grid pattern overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'radial-gradient(circle, rgba(245,166,35,0.10) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Ambient top-right glow */}
+          <div style={{
+            position: 'absolute', top: '-80px', right: '-80px',
+            width: '280px', height: '280px',
+            background: 'radial-gradient(circle, rgba(245,166,35,0.18) 0%, transparent 70%)',
+            borderRadius: '50%',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Content */}
+          <div style={{ padding: '36px 36px 28px', position: 'relative' }}>
+
+            {/* School badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              background: 'rgba(245,166,35,0.12)',
+              border: '1px solid rgba(245,166,35,0.25)',
+              borderRadius: '100px',
+              padding: '4px 12px',
+              marginBottom: '16px',
+            }}>
+              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#f5a623' }} />
+              <span style={{ color: '#f5a623', fontSize: '11px', fontWeight: 900, letterSpacing: '2px', textTransform: 'uppercase' }}>
+                {qrForm.schools?.name ?? 'Rillcod Technologies'}
+              </span>
+            </div>
+
+            {/* Hero headline */}
+            <p style={{ color: '#ffffff', fontSize: '36px', fontWeight: 900, lineHeight: 1.0, letterSpacing: '-1px', margin: '0 0 4px' }}>
+              SCAN TO
+            </p>
+            <p style={{ color: '#f5a623', fontSize: '36px', fontWeight: 900, lineHeight: 1.0, letterSpacing: '-1px', margin: '0 0 28px' }}>
+              REGISTER.
+            </p>
+
+            {/* QR code — white card with amber ring */}
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              padding: '22px',
+              display: 'inline-block',
+              boxShadow: '0 0 0 2px rgba(245,166,35,0.30), 0 0 0 6px rgba(245,166,35,0.06), 0 16px 48px rgba(0,0,0,0.7)',
+              marginBottom: '24px',
+            }}>
+              <QRCode value={`${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}/forms/${qrForm.id}`} size={300} />
+            </div>
+
+            {/* Form title */}
+            <p style={{ color: '#e4e4e7', fontSize: '16px', fontWeight: 800, margin: '0 0 6px', lineHeight: 1.3 }}>
+              {qrForm.title}
+            </p>
+            <p style={{ color: '#52525b', fontSize: '12px', margin: '0 0 28px', fontWeight: 500 }}>
+              Open your camera app and point at this code
+            </p>
+
+            {/* Divider */}
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', marginBottom: '20px' }} />
+
+            {/* Footer row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ color: '#3f3f46', fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>POWERED BY</p>
+                <p style={{ color: '#a1a1aa', fontSize: '13px', fontWeight: 900, margin: 0, letterSpacing: '0.3px' }}>Rillcod Technologies</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ color: '#52525b', fontSize: '11px', margin: '0 0 2px' }}>rillcod.com</p>
+                <p style={{ color: '#3f3f46', fontSize: '10px', margin: 0 }}>+234 811 660 0091</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom accent bar */}
+          <div style={{ height: '4px', background: 'linear-gradient(90deg, transparent 0%, #f5a623 50%, transparent 100%)' }} />
+        </div>
+      )}
     </div>
   );
 }

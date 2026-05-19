@@ -1949,31 +1949,87 @@ export default function ResponsesPage() {
         </div>
       )}
 
-      {/* Hidden branded QR element (off-screen, used for PNG export) */}
+      {/* Hidden high-res branded QR card (off-screen, captured with html-to-image) */}
       {form && (
         <div
           ref={qrDownloadRef}
           style={{
             position: 'fixed', left: '-9999px', top: 0,
-            background: '#0d0d0f', padding: '28px', borderRadius: '16px',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
-            width: '320px',
+            width: '480px',
+            fontFamily: 'Arial, Helvetica, sans-serif',
+            background: '#09090b',
+            borderRadius: '24px',
+            overflow: 'hidden',
           }}
         >
-          <div style={{ background: '#fff', padding: '16px', borderRadius: '12px' }}>
-            <QRCode value={`${appBase}/forms/${id}`} size={200} />
+          {/* Top accent bar */}
+          <div style={{ height: '5px', background: 'linear-gradient(90deg, #f5a623, #fcd34d 60%, transparent)' }} />
+
+          {/* Dot grid overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'radial-gradient(circle, rgba(245,166,35,0.10) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Ambient glow */}
+          <div style={{
+            position: 'absolute', top: '-80px', right: '-80px',
+            width: '280px', height: '280px',
+            background: 'radial-gradient(circle, rgba(245,166,35,0.18) 0%, transparent 70%)',
+            borderRadius: '50%', pointerEvents: 'none',
+          }} />
+
+          <div style={{ padding: '36px 36px 28px', position: 'relative' }}>
+            {/* School badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px',
+              background: 'rgba(245,166,35,0.12)',
+              border: '1px solid rgba(245,166,35,0.25)',
+              borderRadius: '100px', padding: '4px 12px', marginBottom: '16px',
+            }}>
+              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#f5a623' }} />
+              <span style={{ color: '#f5a623', fontSize: '11px', fontWeight: 900, letterSpacing: '2px', textTransform: 'uppercase' }}>
+                {form.schools?.name ?? 'Rillcod Technologies'}
+              </span>
+            </div>
+
+            {/* Hero headline */}
+            <p style={{ color: '#ffffff', fontSize: '36px', fontWeight: 900, lineHeight: 1.0, letterSpacing: '-1px', margin: '0 0 4px' }}>SCAN TO</p>
+            <p style={{ color: '#f5a623', fontSize: '36px', fontWeight: 900, lineHeight: 1.0, letterSpacing: '-1px', margin: '0 0 28px' }}>REGISTER.</p>
+
+            {/* QR code */}
+            <div style={{
+              background: '#ffffff', borderRadius: '20px', padding: '22px', display: 'inline-block',
+              boxShadow: '0 0 0 2px rgba(245,166,35,0.30), 0 0 0 6px rgba(245,166,35,0.06), 0 16px 48px rgba(0,0,0,0.7)',
+              marginBottom: '24px',
+            }}>
+              <QRCode value={`${appBase}/forms/${id}`} size={300} />
+            </div>
+
+            {/* Form title */}
+            <p style={{ color: '#e4e4e7', fontSize: '16px', fontWeight: 800, margin: '0 0 6px', lineHeight: 1.3 }}>{form.title}</p>
+            <p style={{ color: '#52525b', fontSize: '12px', margin: '0 0 28px', fontWeight: 500 }}>Open your camera app and point at this code</p>
+
+            {/* Divider */}
+            <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', marginBottom: '20px' }} />
+
+            {/* Footer */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ color: '#3f3f46', fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>POWERED BY</p>
+                <p style={{ color: '#a1a1aa', fontSize: '13px', fontWeight: 900, margin: 0 }}>Rillcod Technologies</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ color: '#52525b', fontSize: '11px', margin: '0 0 2px' }}>rillcod.com</p>
+                <p style={{ color: '#3f3f46', fontSize: '10px', margin: 0 }}>+234 811 660 0091</p>
+              </div>
+            </div>
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ color: '#f5a623', fontFamily: 'Arial, sans-serif', fontWeight: 900, fontSize: '13px', letterSpacing: '1px', textTransform: 'uppercase', margin: 0 }}>
-              {form.schools?.name ?? 'Rillcod Technologies'}
-            </p>
-            <p style={{ color: '#ffffff', fontFamily: 'Arial, sans-serif', fontWeight: 700, fontSize: '12px', margin: '4px 0 0', lineHeight: 1.3 }}>
-              {form.title}
-            </p>
-            <p style={{ color: '#71717a', fontFamily: 'Arial, sans-serif', fontSize: '10px', margin: '6px 0 0' }}>
-              Scan to register · rillcod.com
-            </p>
-          </div>
+
+          {/* Bottom accent bar */}
+          <div style={{ height: '4px', background: 'linear-gradient(90deg, transparent 0%, #f5a623 50%, transparent 100%)' }} />
         </div>
       )}
     </div>
