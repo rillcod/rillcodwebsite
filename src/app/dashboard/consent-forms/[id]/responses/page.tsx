@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import QRCode from 'react-qr-code';
-import { toPng } from 'html-to-image';
+import { downloadQrCard } from '@/lib/qr-card';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -537,7 +537,7 @@ export default function ResponsesPage() {
   const [waResult, setWaResult]       = useState<{ sent: number; failed: number; total: number } | null>(null);
 
   // QR download
-  const qrDownloadRef = useRef<HTMLDivElement>(null);
+  const qrSvgWrapperRef = useRef<HTMLDivElement>(null);
   const [downloadingQr, setDownloadingQr] = useState(false);
 
   // Dedup (admin)
@@ -738,14 +738,16 @@ export default function ResponsesPage() {
 
   // ── Branded QR PNG download ───────────────────────────────────────────────
   async function downloadBrandedQr() {
-    if (!qrDownloadRef.current || !form) return;
+    const svgEl = qrSvgWrapperRef.current?.querySelector('svg') as SVGSVGElement | null;
+    if (!svgEl || !form) return;
     setDownloadingQr(true);
     try {
-      const dataUrl = await toPng(qrDownloadRef.current, { cacheBust: true, pixelRatio: 2 });
-      const a = document.createElement('a');
-      a.download = `qr-${form.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`;
-      a.href = dataUrl;
-      a.click();
+      await downloadQrCard(
+        svgEl,
+        form.schools?.name ?? 'Rillcod Technologies',
+        form.title,
+        `qr-${form.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`,
+      );
     } catch { /* non-fatal */ } finally {
       setDownloadingQr(false);
     }
@@ -1949,87 +1951,14 @@ export default function ResponsesPage() {
         </div>
       )}
 
-      {/* Hidden high-res branded QR card (off-screen, captured with html-to-image) */}
+      {/* Hidden QR SVG — XMLSerializer reads it; visibility:hidden keeps it rendered but invisible */}
       {form && (
         <div
-          ref={qrDownloadRef}
-          style={{
-            position: 'fixed', left: '-9999px', top: 0,
-            width: '480px',
-            fontFamily: 'Arial, Helvetica, sans-serif',
-            background: '#09090b',
-            borderRadius: '24px',
-            overflow: 'hidden',
-          }}
+          ref={qrSvgWrapperRef}
+          style={{ visibility: 'hidden', position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+          aria-hidden="true"
         >
-          {/* Top accent bar */}
-          <div style={{ height: '5px', background: 'linear-gradient(90deg, #f5a623, #fcd34d 60%, transparent)' }} />
-
-          {/* Dot grid overlay */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            backgroundImage: 'radial-gradient(circle, rgba(245,166,35,0.10) 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
-            pointerEvents: 'none',
-          }} />
-
-          {/* Ambient glow */}
-          <div style={{
-            position: 'absolute', top: '-80px', right: '-80px',
-            width: '280px', height: '280px',
-            background: 'radial-gradient(circle, rgba(245,166,35,0.18) 0%, transparent 70%)',
-            borderRadius: '50%', pointerEvents: 'none',
-          }} />
-
-          <div style={{ padding: '36px 36px 28px', position: 'relative' }}>
-            {/* School badge */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '6px',
-              background: 'rgba(245,166,35,0.12)',
-              border: '1px solid rgba(245,166,35,0.25)',
-              borderRadius: '100px', padding: '4px 12px', marginBottom: '16px',
-            }}>
-              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#f5a623' }} />
-              <span style={{ color: '#f5a623', fontSize: '11px', fontWeight: 900, letterSpacing: '2px', textTransform: 'uppercase' }}>
-                {form.schools?.name ?? 'Rillcod Technologies'}
-              </span>
-            </div>
-
-            {/* Hero headline */}
-            <p style={{ color: '#ffffff', fontSize: '36px', fontWeight: 900, lineHeight: 1.0, letterSpacing: '-1px', margin: '0 0 4px' }}>SCAN TO</p>
-            <p style={{ color: '#f5a623', fontSize: '36px', fontWeight: 900, lineHeight: 1.0, letterSpacing: '-1px', margin: '0 0 28px' }}>REGISTER.</p>
-
-            {/* QR code */}
-            <div style={{
-              background: '#ffffff', borderRadius: '20px', padding: '22px', display: 'inline-block',
-              boxShadow: '0 0 0 2px rgba(245,166,35,0.30), 0 0 0 6px rgba(245,166,35,0.06), 0 16px 48px rgba(0,0,0,0.7)',
-              marginBottom: '24px',
-            }}>
-              <QRCode value={`${appBase}/forms/${id}`} size={300} />
-            </div>
-
-            {/* Form title */}
-            <p style={{ color: '#e4e4e7', fontSize: '16px', fontWeight: 800, margin: '0 0 6px', lineHeight: 1.3 }}>{form.title}</p>
-            <p style={{ color: '#52525b', fontSize: '12px', margin: '0 0 28px', fontWeight: 500 }}>Open your camera app and point at this code</p>
-
-            {/* Divider */}
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)', marginBottom: '20px' }} />
-
-            {/* Footer */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ color: '#3f3f46', fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 3px' }}>POWERED BY</p>
-                <p style={{ color: '#a1a1aa', fontSize: '13px', fontWeight: 900, margin: 0 }}>Rillcod Technologies</p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ color: '#52525b', fontSize: '11px', margin: '0 0 2px' }}>rillcod.com</p>
-                <p style={{ color: '#3f3f46', fontSize: '10px', margin: 0 }}>+234 811 660 0091</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom accent bar */}
-          <div style={{ height: '4px', background: 'linear-gradient(90deg, transparent 0%, #f5a623 50%, transparent 100%)' }} />
+          <QRCode value={`${appBase}/forms/${id}`} size={300} />
         </div>
       )}
     </div>
