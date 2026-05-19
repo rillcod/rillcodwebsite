@@ -307,6 +307,7 @@ export default function CardBuilderPage() {
   const router = useRouter();
   const [cfg, setCfg] = useState<CardConfig>(DEFAULT_CONFIG);
   const [saved, setSaved] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['templates', 'design']));
   const [students, setStudents] = useState<RealStudent[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -315,6 +316,8 @@ export default function CardBuilderPage() {
   const [selectedSchoolGen, setSelectedSchoolGen] = useState('all');
   const [selectedClassGen, setSelectedClassGen] = useState('all');
   const [studentsLoaded, setStudentsLoaded] = useState(false);
+  const [previewZoom, setPreviewZoom] = useState(1.25);
+  const [groupByClass, setGroupByClass] = useState(false);
 
   const cardType = (searchParams.get('type') || 'student').toLowerCase() as 'student' | 'parent' | 'teacher';
 
@@ -347,6 +350,9 @@ export default function CardBuilderPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardType]);
 
+  // School-role users are scoped to their own school only
+  const schoolLockGen = profile?.role === 'school' ? String(profile.school_name || '').trim() : '';
+
   const allSchoolsGen = useMemo(() => {
     const set = new Set(students.map(s => s.school_name?.trim() || '— No school —'));
     return Array.from(set).sort();
@@ -358,11 +364,16 @@ export default function CardBuilderPage() {
     return Array.from(set).sort();
   }, [students]);
 
+  const showSchoolFilter = !schoolLockGen && (profile?.role === 'admin' || profile?.role === 'teacher') && allSchoolsGen.length > 1;
+
   const visibleStudents = useMemo(() => {
     const q = studentSearch.trim().toLowerCase();
     return students.filter(s => {
       const sch = s.school_name?.trim() || '— No school —';
-      if (selectedSchoolGen !== 'all' && sch !== selectedSchoolGen) return false;
+      // School-role: only their own school
+      if (schoolLockGen && sch !== schoolLockGen) return false;
+      // Admin/teacher: apply dropdown filter
+      if (showSchoolFilter && selectedSchoolGen !== 'all' && sch !== selectedSchoolGen) return false;
       const cl = (s.section_class || '').trim();
       if (selectedClassGen !== 'all') {
         if (selectedClassGen === '__NONE__') { if (cl) return false; }
@@ -371,7 +382,19 @@ export default function CardBuilderPage() {
       if (!q) return true;
       return [s.full_name, s.email, s.school_name, s.section_class].some(v => (v || '').toLowerCase().includes(q));
     });
-  }, [students, studentSearch, selectedSchoolGen, selectedClassGen]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students, studentSearch, selectedSchoolGen, selectedClassGen, schoolLockGen, showSchoolFilter]);
+
+  // Group visible students by class for the grouped view
+  const groupedByClass = useMemo(() => {
+    const groups = new Map<string, RealStudent[]>();
+    visibleStudents.forEach(s => {
+      const cls = (s.section_class || '').trim() || '— No Class —';
+      if (!groups.has(cls)) groups.set(cls, []);
+      groups.get(cls)!.push(s);
+    });
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [visibleStudents]);
 
   if (authLoading || !profile) {
     return (
@@ -431,6 +454,7 @@ export default function CardBuilderPage() {
         body: JSON.stringify({ config: cfg, type: cardType }),
       });
       setSaved(true);
+      setLastSaved(new Date());
       setTimeout(() => setSaved(false), 2500);
     } catch { alert('Failed to save design'); }
   };
@@ -632,10 +656,10 @@ export default function CardBuilderPage() {
     doc.save('rillcod_batch_cards_sample.pdf');
   };
 
-  const loadStudents = () => {
-    if (studentsLoaded) return;
+  const loadStudents = (force = false) => {
+    if (studentsLoaded && !force) return;
     setStudentsLoading(true);
-    fetch('/api/portal-users?role=student&scoped=true')
+    fetch('/api/portal-users?role=student&scoped=true&t=' + Date.now())
       .then(r => r.json())
       .then(j => {
         setStudents((j.data ?? []).map((s: any) => ({
@@ -1023,9 +1047,27 @@ export default function CardBuilderPage() {
         </div>
 
         {/* Center: preview */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 overflow-auto p-6 min-w-0">
-          <div className="text-[9px] uppercase tracking-widest text-white/20">Live Preview — Sample Data</div>
-          <CardPreview cfg={cfg} scale={1.25} />
+        <div className="flex-1 flex flex-col items-center justify-center gap-5 overflow-auto p-6 min-w-0">
+          {/* Zoom controls + label */}
+          <div className="flex items-center gap-3">
+            <span className="text-[9px] uppercase tracking-widest text-white/20">Live Preview — Sample Data</span>
+            <div className="flex items-center gap-1 bg-white/5 border border-white/10 px-2 py-1">
+              <button onClick={() => setPreviewZoom(z => Math.max(0.6, +(z - 0.15).toFixed(2)))} className="text-white/40 hover:text-white text-[11px] font-bold px-1 transition-colors">−</button>
+              <span className="text-[9px] text-white/30 font-mono w-10 text-center">{Math.round(previewZoom * 100)}%</span>
+              <button onClick={() => setPreviewZoom(z => Math.min(2.0, +(z + 0.15).toFixed(2)))} className="text-white/40 hover:text-white text-[11px] font-bold px-1 transition-colors">+</button>
+              <button onClick={() => setPreviewZoom(1.25)} className="text-[8px] text-white/20 hover:text-white/50 ml-1 transition-colors">Reset</button>
+            </div>
+          </div>
+
+          <CardPreview cfg={cfg} scale={previewZoom} />
+
+          {/* Last saved info */}
+          {lastSaved && (
+            <p className="text-[9px] text-white/20">
+              Last saved: {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+
           <div className="flex flex-wrap gap-2 justify-center">
             <button onClick={handlePrintSample}
               className="flex items-center gap-1.5 px-4 py-2 border border-white/10 hover:border-white/25 text-white/50 hover:text-white text-[10px] font-black uppercase tracking-widest transition-all">
@@ -1041,63 +1083,101 @@ export default function CardBuilderPage() {
             </button>
           </div>
           <p className="text-[9px] text-white/20 text-center max-w-xs">
-            Save this design to apply it globally. All card prints — students page, bulk register, Card Studio — will use this layout.
+            Save to apply globally. All card prints — students page, bulk register, Card Studio — use this design.
           </p>
         </div>
 
         {/* Right: generate panel */}
-        <div className="w-[260px] flex-shrink-0 border-l border-white/[0.07] flex flex-col overflow-hidden hidden lg:flex">
+        <div className="w-[272px] flex-shrink-0 border-l border-white/[0.07] flex flex-col overflow-hidden hidden lg:flex">
+
+          {/* Header + load/reload */}
           <div className="flex-shrink-0 px-4 py-3 border-b border-white/[0.07]">
-            <div className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Generate Cards</div>
-            <button onClick={loadStudents} disabled={studentsLoading}
-              className="w-full flex items-center justify-center gap-2 py-2 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50">
-              {studentsLoading
-                ? <><div className="w-3 h-3 border-2 border-white/50 border-t-transparent rounded-full animate-spin" /> Loading…</>
-                : studentsLoaded
-                  ? <><CheckCircleIcon className="w-3.5 h-3.5" /> Reload Students</>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-white/40">Generate Cards</div>
+              {studentsLoaded && (
+                <span className="text-[9px] text-white/25 font-mono">{students.length} students</span>
+              )}
+            </div>
+            <div className="flex gap-1.5">
+              <button onClick={() => loadStudents(false)} disabled={studentsLoading || studentsLoaded}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40">
+                {studentsLoading
+                  ? <><div className="w-3 h-3 border-2 border-white/50 border-t-transparent rounded-full animate-spin" /> Loading…</>
                   : <><ArrowDownTrayIcon className="w-3.5 h-3.5" /> Load Students</>
-              }
-            </button>
+                }
+              </button>
+              {studentsLoaded && (
+                <button onClick={() => loadStudents(true)} disabled={studentsLoading}
+                  className="px-3 py-2 border border-white/10 hover:border-white/25 text-white/40 hover:text-white text-[10px] font-black uppercase transition-all disabled:opacity-40"
+                  title="Refresh student list">
+                  <ArrowDownTrayIcon className="w-3.5 h-3.5 rotate-180" />
+                </button>
+              )}
+            </div>
           </div>
 
           {students.length > 0 && (
             <>
-              {/* Bulk actions */}
-              <div className="flex-shrink-0 px-4 py-2.5 border-b border-white/[0.07] flex items-center gap-2 flex-wrap">
-                <button onClick={() => setSelectedIds(new Set(visibleStudents.map(s => s.id)))}
-                  className="text-[9px] font-black uppercase text-white/40 hover:text-white/70 transition-colors">
-                  All ({visibleStudents.length})
-                </button>
-                <span className="text-white/10">|</span>
-                <button onClick={() => setSelectedIds(new Set())}
-                  className="text-[9px] font-black uppercase text-white/40 hover:text-white/70 transition-colors">
-                  Clear
-                </button>
-                {selectedIds.size > 0 && (
-                  <button onClick={printSelectedCards}
-                    className="ml-auto flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase tracking-wide transition-all">
-                    <PrinterIcon className="w-3 h-3" /> {selectedIds.size}
+              {/* Stats + bulk actions */}
+              <div className="flex-shrink-0 px-4 py-2.5 border-b border-white/[0.07] space-y-2">
+                {/* Count stats */}
+                <div className="flex items-center gap-2 text-[9px] font-mono">
+                  <span className="text-primary font-bold">{selectedIds.size}</span>
+                  <span className="text-white/20">selected /</span>
+                  <span className="text-white/40">{visibleStudents.length}</span>
+                  <span className="text-white/20">visible /</span>
+                  <span className="text-white/25">{students.length}</span>
+                  <span className="text-white/20">total</span>
+                </div>
+                {/* Action row */}
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setSelectedIds(new Set(visibleStudents.map(s => s.id)))}
+                    className="px-2 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-black uppercase text-white/50 hover:text-white transition-all">
+                    ✓ All
                   </button>
-                )}
+                  <button onClick={() => setSelectedIds(new Set())}
+                    className="px-2 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[9px] font-black uppercase text-white/50 hover:text-white transition-all">
+                    ✗ Clear
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button onClick={printSelectedCards}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase transition-all">
+                      <PrinterIcon className="w-3 h-3" /> Print {selectedIds.size}
+                    </button>
+                  )}
+                  {selectedIds.size === 0 && visibleStudents.length > 0 && (
+                    <button onClick={() => { setSelectedIds(new Set(visibleStudents.map(s => s.id))); setTimeout(printSelectedCards, 50); }}
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 border border-white/10 hover:border-white/25 text-white/40 hover:text-white text-[9px] font-black uppercase transition-all">
+                      <PrinterIcon className="w-3 h-3" /> Print All
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Filters */}
               <div className="flex-shrink-0 px-4 py-2.5 border-b border-white/[0.07] space-y-2">
+                {/* Search */}
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30" />
                   <input value={studentSearch} onChange={e => setStudentSearch(e.target.value)}
-                    placeholder="Search students…"
+                    placeholder="Search name, email, class…"
                     className="w-full pl-6 pr-3 py-1.5 bg-white/5 border border-white/10 text-white/70 text-[10px] placeholder-white/20 focus:outline-none focus:border-primary/40" />
                 </div>
-                {allSchoolsGen.length > 1 && (
+                {/* School filter */}
+                {schoolLockGen ? (
+                  <div className="px-2 py-1.5 bg-white/5 border border-white/10 text-[10px] text-white/50 truncate" title={schoolLockGen}>
+                    🏫 {schoolLockGen}
+                  </div>
+                ) : showSchoolFilter && (
                   <select value={selectedSchoolGen} onChange={e => setSelectedSchoolGen(e.target.value)}
-                    className="w-full px-2 py-1.5 bg-white/5 border border-white/10 text-white/60 text-[10px] focus:outline-none truncate">
+                    className="w-full px-2 py-1.5 bg-white/5 border border-white/10 text-white/60 text-[10px] focus:outline-none">
                     <option value="all">All schools ({students.length})</option>
                     {allSchoolsGen.map(sch => (
                       <option key={sch} value={sch}>{sch} ({students.filter(x => (x.school_name?.trim() || '— No school —') === sch).length})</option>
                     ))}
                   </select>
                 )}
+                {/* Class filter */}
                 {allClassesGen.length > 0 && (
                   <select value={selectedClassGen} onChange={e => setSelectedClassGen(e.target.value)}
                     className="w-full px-2 py-1.5 bg-white/5 border border-white/10 text-white/60 text-[10px] focus:outline-none">
@@ -1110,39 +1190,92 @@ export default function CardBuilderPage() {
                     )}
                   </select>
                 )}
+                {/* Group by class toggle */}
+                {allClassesGen.length > 1 && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div onClick={() => setGroupByClass(g => !g)}
+                      className={`w-7 h-3.5 rounded-full transition-all relative flex-shrink-0 ${groupByClass ? 'bg-primary' : 'bg-white/10'}`}>
+                      <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white shadow transition-transform ${groupByClass ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                    </div>
+                    <span className="text-[9px] text-white/40">Group by class</span>
+                  </label>
+                )}
               </div>
 
               {/* Student list */}
-              <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 divide-y divide-white/[0.04]">
+              <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
                 {visibleStudents.length === 0 ? (
                   <div className="px-4 py-8 text-center text-[10px] text-white/25">No students match filters.</div>
-                ) : visibleStudents.map(s => {
-                  const sel = selectedIds.has(s.id);
-                  const code = `RC-${s.id.slice(0, 8).toUpperCase()}`;
-                  return (
-                    <div key={s.id} onClick={() => toggleStudent(s.id)}
-                      className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer transition-all ${sel ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-white/[0.04] border-l-2 border-l-transparent'}`}>
-                      <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all ${sel ? 'bg-primary border-primary' : 'border-white/20'}`}>
-                        {sel && <span className="text-white text-[9px]">✓</span>}
+                ) : groupByClass ? (
+                  // Grouped view
+                  groupedByClass.map(([cls, classStudents]) => {
+                    const classIds = classStudents.map(s => s.id);
+                    const allSelected = classIds.every(id => selectedIds.has(id));
+                    return (
+                      <div key={cls}>
+                        {/* Class header with select-all-in-class */}
+                        <div className="flex items-center gap-2 px-4 py-1.5 bg-white/[0.03] border-b border-white/[0.04] sticky top-0">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-white/40 flex-1 truncate">{cls}</span>
+                          <button onClick={() => {
+                            setSelectedIds(prev => {
+                              const n = new Set(prev);
+                              if (allSelected) { classIds.forEach(id => n.delete(id)); }
+                              else { classIds.forEach(id => n.add(id)); }
+                              return n;
+                            });
+                          }} className="text-[8px] font-bold text-white/25 hover:text-primary transition-colors whitespace-nowrap">
+                            {allSelected ? '✗ Desel' : `✓ ${classStudents.length}`}
+                          </button>
+                        </div>
+                        {classStudents.map(s => {
+                          const sel = selectedIds.has(s.id);
+                          const code = `RC-${s.id.slice(0, 8).toUpperCase()}`;
+                          return (
+                            <div key={s.id} onClick={() => toggleStudent(s.id)}
+                              className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer transition-all ${sel ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-white/[0.04] border-l-2 border-l-transparent'}`}>
+                              <div className={`w-3.5 h-3.5 border flex-shrink-0 flex items-center justify-center transition-all ${sel ? 'bg-primary border-primary' : 'border-white/20'}`}>
+                                {sel && <span className="text-white text-[8px]">✓</span>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-bold text-white/80 truncate">{s.full_name}</p>
+                              </div>
+                              <p className="text-[9px] font-mono font-bold text-primary/50 flex-shrink-0">{code.slice(0, 7)}</p>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold text-white/80 truncate">{s.full_name}</p>
-                        <p className="text-[9px] text-white/30 truncate">{s.section_class || '—'}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-[9px] font-mono font-bold text-primary/70">{code}</p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  // Flat list
+                  <div className="divide-y divide-white/[0.04]">
+                    {visibleStudents.map(s => {
+                      const sel = selectedIds.has(s.id);
+                      const code = `RC-${s.id.slice(0, 8).toUpperCase()}`;
+                      return (
+                        <div key={s.id} onClick={() => toggleStudent(s.id)}
+                          className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer transition-all ${sel ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-white/[0.04] border-l-2 border-l-transparent'}`}>
+                          <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all ${sel ? 'bg-primary border-primary' : 'border-white/20'}`}>
+                            {sel && <span className="text-white text-[9px]">✓</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-white/80 truncate">{s.full_name}</p>
+                            <p className="text-[9px] text-white/30 truncate">{s.section_class || '—'}</p>
+                          </div>
+                          <p className="text-[9px] font-mono font-bold text-primary/60 flex-shrink-0">{code}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </>
           )}
 
           {!studentsLoaded && (
-            <div className="flex-1 flex items-center justify-center px-4">
+            <div className="flex-1 flex items-center justify-center px-6">
               <p className="text-[10px] text-white/20 text-center leading-relaxed">
-                Load students to select and print their access cards using this design.
+                Load students to select and print their access cards using the current design.
               </p>
             </div>
           )}
