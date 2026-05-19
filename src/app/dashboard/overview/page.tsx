@@ -19,6 +19,13 @@ export default function OverviewPage() {
   const [recentStudents, setRecentStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Parent child-link suggestions
+  const [childSuggestions, setChildSuggestions] = useState<{ id: string; full_name: string; section_class: string | null; school_name: string | null }[]>([]);
+  const [childSuggestionsLeadId, setChildSuggestionsLeadId] = useState<string | null>(null);
+  const [childSuggestionsChild, setChildSuggestionsChild] = useState('');
+  const [confirmingChildId, setConfirmingChildId] = useState<string | null>(null);
+  const [childLinked, setChildLinked] = useState(false);
+
   const role = profile?.role ?? '';
 
   useEffect(() => {
@@ -133,6 +140,14 @@ export default function OverviewPage() {
             });
             setRecentSubmissions(schoolSubs.slice(0, 5));
           }
+        } else if (role === 'parent') {
+          // Fetch child suggestions in parallel
+          const sugRes = await fetch('/api/parents/child-suggestions', { cache: 'no-store' }).then(r => r.json()).catch(() => ({}));
+          if (!cancelled && sugRes.suggestions?.length > 0) {
+            setChildSuggestions(sugRes.suggestions);
+            setChildSuggestionsLeadId(sugRes.leadId ?? null);
+            setChildSuggestionsChild(sugRes.childName ?? '');
+          }
         } else {
           // student
           const [mySubs, myEnr] = await Promise.allSettled([
@@ -176,6 +191,26 @@ export default function OverviewPage() {
   );
 
   if (!profile) return null;
+
+  async function confirmChildLink(studentPortalId: string) {
+    setConfirmingChildId(studentPortalId);
+    try {
+      const res = await fetch('/api/parents/child-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_portal_id: studentPortalId, lead_id: childSuggestionsLeadId }),
+      });
+      if (res.ok) {
+        setChildLinked(true);
+        setChildSuggestions([]);
+      } else {
+        const j = await res.json();
+        alert(j.error ?? 'Failed to link. Please contact your school.');
+      }
+    } finally {
+      setConfirmingChildId(null);
+    }
+  }
 
   const adminStats = [
     { label: 'Partner Schools', value: counts.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/schools' },
@@ -248,6 +283,55 @@ export default function OverviewPage() {
             </p>
           </div>
         </div>
+
+        {/* ── Parent: Connect Your Child ──────────────────────────────────── */}
+        {role === 'parent' && !childLinked && childSuggestions.length > 0 && (
+          <div className="bg-amber-500/5 border border-amber-500/30 rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-amber-500/20">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-xl shrink-0">👦</div>
+              <div>
+                <p className="text-sm font-black text-foreground">Connect With Your Child</p>
+                <p className="text-xs text-muted-foreground">
+                  We found possible matches for <strong>{childSuggestionsChild}</strong> in our system.
+                  Is one of these your child?
+                </p>
+              </div>
+            </div>
+            <div className="p-5 space-y-2.5">
+              {childSuggestions.map(s => (
+                <div key={s.id} className="flex items-center gap-4 bg-card border border-border/50 rounded-xl px-4 py-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-base shrink-0">👤</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-foreground">{s.full_name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {[s.section_class, s.school_name].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <button
+                    disabled={!!confirmingChildId}
+                    onClick={() => confirmChildLink(s.id)}
+                    className="shrink-0 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-black text-[10px] uppercase tracking-widest rounded-xl border border-emerald-500/20 transition-colors disabled:opacity-50"
+                  >
+                    {confirmingChildId === s.id ? '…' : 'Yes, my child'}
+                  </button>
+                </div>
+              ))}
+              <p className="text-[10px] text-muted-foreground pt-1">
+                Not seeing your child? Contact your school or teacher — they can link your account manually.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {role === 'parent' && childLinked && (
+          <div className="flex items-center gap-3 px-5 py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+            <span className="text-xl">✅</span>
+            <div>
+              <p className="text-sm font-black text-emerald-400">Child linked successfully!</p>
+              <p className="text-xs text-muted-foreground">You can now view your child&apos;s progress, results and activity from your dashboard.</p>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -179,6 +179,62 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   return NextResponse.json({ success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail });
 }
 
+// PATCH /api/consent-forms/leads/[leadId]/create-portal-account
+// Manually links an existing student (by portal_users.id) to the lead's parent account.
+export async function PATCH(req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
+  const { leadId } = await context.params;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users').select('role, school_id').eq('id', user.id).single();
+  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { student_portal_id } = await req.json();
+  if (!student_portal_id) return NextResponse.json({ error: 'student_portal_id is required' }, { status: 400 });
+
+  const sb = adminClient();
+
+  const { data: lead } = await (sb as any)
+    .from('form_leads')
+    .select('id, school_id, matched_parent_id')
+    .eq('id', leadId).single();
+
+  if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+  if (!lead.matched_parent_id) return NextResponse.json({ error: 'No portal account on this lead yet' }, { status: 400 });
+
+  // Resolve student portal user → students table row
+  const { data: studentRow } = await (sb as any)
+    .from('students').select('id').eq('user_id', student_portal_id).maybeSingle();
+  if (!studentRow) return NextResponse.json({ error: 'Student not found in students table' }, { status: 404 });
+
+  // Get parent email/name for denormalisation
+  const { data: parent } = await (sb as any)
+    .from('portal_users').select('email, full_name, phone').eq('id', lead.matched_parent_id).single();
+
+  // Create explicit link
+  await syncExplicitParentStudentLink(sb as any, lead.matched_parent_id, studentRow.id);
+
+  // Update students row so parent shows in school-scoped lists
+  if (parent) {
+    await (sb as any).from('students').update({
+      parent_email: parent.email,
+      parent_name:  parent.full_name,
+      parent_phone: parent.phone ?? null,
+      updated_at:   new Date().toISOString(),
+    }).eq('id', studentRow.id);
+  }
+
+  // Record the link on the lead
+  await (sb as any).from('form_leads').update({ matched_student_id: studentRow.id }).eq('id', leadId);
+
+  return NextResponse.json({ success: true, student_id: studentRow.id, student_portal_id });
+}
+
 // DELETE /api/consent-forms/leads/[leadId]/create-portal-account
 // Hard-deletes the portal account created from this lead (auth user + portal_users + links).
 export async function DELETE(req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
