@@ -103,7 +103,8 @@ export async function PATCH(
     (async () => {
       const db = adminClient();
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
-      const portalUrl = `${appUrl}/dashboard/results`;
+      const studentPortalUrl = `${appUrl}/dashboard/results?student=${data.student_id}`;
+      const parentPortalUrl  = `${appUrl}/dashboard/parent-results`;
       const subject   = `Progress Report Published — Rillcod Technologies`;
       const grade     = data.overall_grade ?? (data.overall_score !== null ? `${data.overall_score}%` : undefined);
       const term      = data.course_name || 'Current Term';
@@ -125,7 +126,7 @@ export async function PATCH(
           studentName,
           term,
           overallGrade: grade,
-          portalUrl,
+          portalUrl: studentPortalUrl,
           appUrl,
           trackingPixelUrl,
         });
@@ -144,7 +145,7 @@ export async function PATCH(
           message:    `Your progress report for ${term} is now available. Log in to view your results.`,
           type:       'info',
           is_read:    false,
-          link:       '/dashboard/results',
+          link:       `/dashboard/results?student=${data.student_id}`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
@@ -193,7 +194,7 @@ export async function PATCH(
           studentName,
           term,
           overallGrade: grade,
-          portalUrl,
+          portalUrl: parentPortalUrl,
           appUrl,
           trackingPixelUrl,
         });

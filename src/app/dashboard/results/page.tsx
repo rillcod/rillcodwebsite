@@ -579,7 +579,9 @@ function ResultsPageInner() {
                 term: reportToDisplay.report_term || 'Current Term',
                 schoolName: (orgSettings as any)?.school_name || (selectedStudent as any)?.school_name || undefined,
                 overallGrade: reportToDisplay.overall_grade || undefined,
-                portalUrl: `${appOrigin}/dashboard/results`,
+                portalUrl: emailShareTo.trim() === selectedStudent?.email
+                    ? `${appOrigin}/dashboard/results?student=${selectedStudent?.id}`
+                    : `${appOrigin}/dashboard/parent-results`,
                 trackingPixelUrl: trackToken ? `${appOrigin}/api/inbox/track/${trackToken}` : undefined,
             });
             const res = await fetch('/api/inbox/email', {
@@ -815,7 +817,7 @@ function ResultsPageInner() {
                                 term: captureReport.report_term || 'Current Term',
                                 schoolName: (stu as any)?.school_name || undefined,
                                 overallGrade: captureReport.overall_grade || undefined,
-                                portalUrl: `${window.location.origin}/dashboard/results`,
+                                portalUrl: `${window.location.origin}/dashboard/parent-results`,
                                 trackingPixelUrl: bulkTrackToken ? `${window.location.origin}/api/inbox/track/${bulkTrackToken}` : undefined,
                             });
                             const res = await fetch('/api/inbox/email', {
