@@ -358,11 +358,23 @@ function ResultsPageInner() {
             const gradeByUserId: Record<string, string> = {};
             const parentEmailByUserId: Record<string, string> = {};
             if (portalIds.length > 0) {
-                const { data: gradeRows } = await db.from('students').select('user_id, grade_level, parent_email').in('user_id', portalIds);
-                (gradeRows ?? []).forEach((r: any) => {
-                    if (r.user_id && r.grade_level) gradeByUserId[r.user_id] = r.grade_level;
-                    if (r.user_id && r.parent_email) parentEmailByUserId[r.user_id] = r.parent_email;
-                });
+                // Batch to prevent HTTP 400 Bad Request URL length limits
+                const chunkSize = 100;
+                const chunks: string[][] = [];
+                for (let i = 0; i < portalIds.length; i += chunkSize) {
+                    chunks.push(portalIds.slice(i, i + chunkSize));
+                }
+                
+                await Promise.all(chunks.map(async (chunk) => {
+                    const { data: gradeRows } = await db.from('students')
+                        .select('user_id, grade_level, parent_email')
+                        .in('user_id', chunk);
+                    
+                    (gradeRows ?? []).forEach((r: any) => {
+                        if (r.user_id && r.grade_level) gradeByUserId[r.user_id] = r.grade_level;
+                        if (r.user_id && r.parent_email) parentEmailByUserId[r.user_id] = r.parent_email;
+                    });
+                }));
             }
             const studsWithGrade = studs.map(s => ({
                 ...s,
@@ -375,17 +387,41 @@ function ResultsPageInner() {
             const studentIds = studs.map(s => s.id);
             const rMap: Record<string, any> = {};
             if (studentIds.length > 0) {
-                let reportsQuery = db.from('student_progress_reports')
-                    .select('student_id, overall_grade, is_published, updated_at')
-                    .in('student_id', studentIds)
-                    .order('is_published', { ascending: false })
-                    .order('updated_at', { ascending: false });
-                if (profile?.role === 'teacher') reportsQuery = reportsQuery.eq('teacher_id', profile.id);
-                const { data: reports } = await reportsQuery;
+                // Batch report queries to prevent URL length limits (HTTP 400 Bad Request)
+                const chunkSize = 100;
+                const chunks: string[][] = [];
+                for (let i = 0; i < studentIds.length; i += chunkSize) {
+                    chunks.push(studentIds.slice(i, i + chunkSize));
+                }
+
+                const allReports: any[] = [];
+                await Promise.all(chunks.map(async (chunk) => {
+                    let reportsQuery = db.from('student_progress_reports')
+                        .select('student_id, overall_grade, is_published, updated_at')
+                        .in('student_id', chunk);
+
+                    if (profile?.role === 'teacher') {
+                        reportsQuery = reportsQuery.eq('teacher_id', profile.id);
+                    }
+
+                    const { data, error } = await reportsQuery;
+                    if (!error && data) {
+                        allReports.push(...data);
+                    }
+                }));
 
                 if (aborted) return;
-                (reports ?? []).forEach(r => {
-                    // Latest report for each student (since they are ordered by updated_at desc)
+
+                // Sort allReports by is_published desc, updated_at desc to make sure latest is prioritized
+                allReports.sort((a, b) => {
+                    if (a.is_published !== b.is_published) {
+                        return a.is_published ? -1 : 1;
+                    }
+                    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                });
+
+                allReports.forEach(r => {
+                    // Latest report for each student (since they are sorted)
                     if (r.student_id && !rMap[r.student_id]) rMap[r.student_id] = r;
                 });
             }
