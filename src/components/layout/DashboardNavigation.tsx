@@ -185,7 +185,7 @@ export default function DashboardNavigation() {
           { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
 
           { divider: true, label: 'System' },
-          { name: 'LMS Settings', href: '/dashboard/progression/settings', icon: CogIcon },
+          { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
           { name: 'Moderation', href: '/dashboard/moderation', icon: ShieldCheckIcon },
           { name: 'Customer Retention', href: '/dashboard/crm', icon: UserPlusIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
@@ -248,7 +248,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'More' },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
-          { name: 'LMS Settings', href: '/dashboard/progression/settings', icon: CogIcon },
+          { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
 
