@@ -311,7 +311,7 @@ export async function generateReportPDFBase64(element: HTMLElement, isLandscape 
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
     try {
-        const pdf = await buildPdf(clone, isLandscape, 1, 0.75);
+        const pdf = await buildPdf(clone, isLandscape, 3, 1.0);
         return pdfToBase64(pdf);
     } finally {
         document.body.removeChild(wrapper);
@@ -331,7 +331,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
 
     const W = 794;
     const PAGE_H = 1123; // A4 height at 96 dpi (297mm × 96/25.4)
-    const PIXEL_RATIO = 1.2;
+    const PIXEL_RATIO = 3;
     // Strip print script so it doesn't trigger a print dialog inside the iframe
     const cleanHtml = htmlString.replace(/<script[\s\S]*?<\/script>/gi, '');
 
@@ -428,7 +428,7 @@ export async function generateHtmlStringToPDFBase64(htmlString: string): Promise
             // Draw the slice of the full image at the top of this page canvas
             ctx.drawImage(fullImg, 0, srcY, W * PIXEL_RATIO, srcH, 0, 0, W * PIXEL_RATIO, srcH);
 
-            pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.75), 'JPEG', 0, 0, W, PAGE_H);
+            pdf.addImage(pageCanvas.toDataURL('image/jpeg', 1.0), 'JPEG', 0, 0, W, PAGE_H);
         }
 
         base64 = pdfToBase64(pdf);

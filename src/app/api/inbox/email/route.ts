@@ -225,14 +225,17 @@ export async function POST(req: NextRequest) {
   }
 
   // ── External address or support@rillcod.com → send via SendPulse SMTP ─────
-  const html = buildInboxOutboundEmail({
-    senderName,
-    senderRole,
-    senderOrg,
-    senderClass: senderClass || undefined,
-    subject:     subject.trim(),
-    body:        body.trim(),
-  });
+  const isHtml = body.trim().startsWith('<!DOCTYPE') || body.trim().includes('<html') || body.trim().includes('<body');
+  const html = isHtml
+    ? body.trim()
+    : buildInboxOutboundEmail({
+        senderName,
+        senderRole,
+        senderOrg,
+        senderClass: senderClass || undefined,
+        subject:     subject.trim(),
+        body:        body.trim(),
+      });
 
   try {
     await notificationsService.sendExternalEmail({
