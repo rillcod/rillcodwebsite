@@ -137,7 +137,7 @@ export default function DashboardNavigation() {
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Users', href: '/dashboard/users', icon: ShieldCheckIcon },
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
-          { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
+          { name: 'Card Studio & ID Cards', href: '/dashboard/card-studio', icon: CreditCardIcon },
 
           { divider: true, label: 'Planning' },
           { name: 'Course Syllabus', href: '/dashboard/curriculum', icon: SparklesIcon },
@@ -228,7 +228,7 @@ export default function DashboardNavigation() {
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Student Fees', href: '/dashboard/money', icon: BanknotesIcon },
-          { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
+          { name: 'Card Studio & ID Cards', href: '/dashboard/card-studio', icon: CreditCardIcon },
           { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
           { name: 'Gamification', href: '/dashboard/gamification', icon: FireIcon },
 
@@ -318,7 +318,7 @@ export default function DashboardNavigation() {
           { name: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon },
           { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Classes', href: '/dashboard/classes', icon: UserGroupIcon },
-          { name: 'Card Studio', href: '/dashboard/card-studio', icon: CreditCardIcon },
+          { name: 'Card Studio & ID Cards', href: '/dashboard/card-studio', icon: CreditCardIcon },
 
           { divider: true, label: 'Schedule' },
           { name: 'Timetable', href: '/dashboard/timetable', icon: CalendarDaysIcon },
