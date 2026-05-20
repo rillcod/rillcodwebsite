@@ -680,39 +680,95 @@ export async function POST(
   if (usageErr) return NextResponse.json({ error: usageErr.message }, { status: 500 });
   const usedProjectIds = new Set((usageRows ?? []).map((r) => r.project_id));
   const runUsedProjectIds = new Set<string>();
-  const pickProjectsForTerm = (targetWeekCount: number): SelectedProject[] => {
-    const selected: SelectedProject[] = [];
-    if (strictRoute) {
-      const platformFresh = registry.filter((p) => !p.school_id && !usedProjectIds.has(p.id) && !runUsedProjectIds.has(p.id));
-      const schoolFresh = registry.filter((p) => !!p.school_id && !usedProjectIds.has(p.id) && !runUsedProjectIds.has(p.id));
-      const platformRepeat = registry.filter((p) => !p.school_id && (usedProjectIds.has(p.id) || runUsedProjectIds.has(p.id)));
-      const schoolRepeat = registry.filter((p) => !!p.school_id && (usedProjectIds.has(p.id) || runUsedProjectIds.has(p.id)));
-      const strictPool = [
-        ...platformFresh.map((p) => ({ project: p, isRepeat: false })),
-        ...schoolFresh.map((p) => ({ project: p, isRepeat: false })),
-        ...platformRepeat.map((p) => ({ project: p, isRepeat: true })),
-        ...schoolRepeat.map((p) => ({ project: p, isRepeat: true })),
-      ];
-      for (let i = 0; i < targetWeekCount; i++) {
-        const picked = strictPool[i % strictPool.length];
-        selected.push({ project: picked.project, isRepeat: picked.isRepeat });
-        runUsedProjectIds.add(picked.project.id);
-      }
-      return selected;
-    }
-    const freshProjects = registry.filter((p) => !usedProjectIds.has(p.id) && !runUsedProjectIds.has(p.id));
-    const fallbackProjects = registry.filter((p) => usedProjectIds.has(p.id) || runUsedProjectIds.has(p.id));
-    for (let i = 0; i < targetWeekCount; i++) {
-      if (freshProjects.length > 0) {
-        const project = freshProjects[i % freshProjects.length];
-        selected.push({ project, isRepeat: false });
-        runUsedProjectIds.add(project.id);
+
+  const scoreProjectForWeek = (
+    project: ProjectRow,
+    topicText: string,
+    subtopicTexts: string[],
+    isUsed: boolean,
+  ): number => {
+    let score = 0;
+    const title = (project.title || '').toLowerCase();
+    const topic = (topicText || '').toLowerCase();
+    
+    if (topic) {
+      if (title.includes(topic) || topic.includes(title)) {
+        score += 65;
       } else {
-        const project = fallbackProjects[i % fallbackProjects.length];
-        selected.push({ project, isRepeat: true });
-        runUsedProjectIds.add(project.id);
+        // Word matches
+        const topicWords = topic.split(/[\s,.\-_/]+/).filter(w => w.length > 2);
+        for (const word of topicWords) {
+          if (title.includes(word)) {
+            score += 15;
+          }
+        }
       }
     }
+
+    // Subtopic and Concept tags match
+    const tags = (project.concept_tags || []).map(t => String(t).toLowerCase());
+    const subs = (subtopicTexts || []).map(s => String(s).toLowerCase());
+    
+    for (const sub of subs) {
+      if (tags.includes(sub)) {
+        score += 25;
+      } else {
+        const subWords = sub.split(/[\s,.\-_/]+/).filter(w => w.length > 2);
+        for (const word of subWords) {
+          if (tags.some(t => t.includes(word))) {
+            score += 5;
+          }
+        }
+      }
+    }
+
+    // Purity/freshness preference
+    if (isUsed) {
+      score -= 100;
+    }
+
+    return score;
+  };
+
+  const pickProjectsForTerm = (
+    targetWeekCount: number,
+    termCurriculumWeeks: ReturnType<typeof getSyllabusTermWeeks>,
+  ): SelectedProject[] => {
+    const selected: SelectedProject[] = [];
+    
+    for (let i = 0; i < targetWeekCount; i++) {
+      const weekNum = i + 1;
+      const currWeek = termCurriculumWeeks.find(cw => cw.week === weekNum);
+      const topicText = currWeek?.topic || '';
+      const subtopicTexts = currWeek?.subtopics || [];
+
+      let bestProject: ProjectRow | null = null;
+      let bestScore = -999;
+      let isRepeat = false;
+
+      // Score all registry items to find the best match for this week
+      for (const p of registry) {
+        const isUsed = usedProjectIds.has(p.id) || runUsedProjectIds.has(p.id);
+        const score = scoreProjectForWeek(p, topicText, subtopicTexts, isUsed);
+        if (score > bestScore) {
+          bestScore = score;
+          bestProject = p;
+          isRepeat = isUsed;
+        }
+      }
+
+      // Fallback if no projects scored/found (or registry is empty)
+      if (!bestProject && registry.length > 0) {
+        bestProject = registry[i % registry.length];
+        isRepeat = usedProjectIds.has(bestProject.id) || runUsedProjectIds.has(bestProject.id);
+      }
+
+      if (bestProject) {
+        selected.push({ project: bestProject, isRepeat });
+        runUsedProjectIds.add(bestProject.id);
+      }
+    }
+
     return selected;
   };
 
@@ -750,7 +806,7 @@ export async function POST(
     const existingWeeks = Array.isArray(existingTerm.weeks) ? (existingTerm.weeks as GeneratedWeek[]) : [];
     if (requestedScope !== 'week' && !overwriteExisting && generatedTerms[key]) return;
     if (requestedScope === 'week' && !overwriteExisting && existingWeeks.some((w) => w.week === startWeekNumber)) return;
-    const selected = pickProjectsForTerm(termWeeksCount);
+    const selected = pickProjectsForTerm(termWeeksCount, termCurriculumWeeks);
     termSelections.set(key, selected);
     const generatedWeeksForRun = buildWeekEntries({
       selected,

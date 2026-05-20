@@ -1,8 +1,9 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { fetchStudentAssignments } from '@/services/dashboard.service';
 import {
@@ -108,9 +109,10 @@ const STAFF_FILTER_TABS = [
   { value: 'active', label: 'Active' },
 ];
 
-// ─── Main page ───────────────────────────────────────────────
-export default function AssignmentsPage() {
+// ─── Main page inner ─────────────────────────────────────────
+function AssignmentsPageInner() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -121,6 +123,10 @@ export default function AssignmentsPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [sharing, setSharing] = useState<any | null>(null);
+
+  const initialPlanId = searchParams?.get('lesson_plan_id') ?? '';
+  const [lessonPlans, setLessonPlans] = useState<any[]>([]);
+  const [filterPlanId, setFilterPlanId] = useState(initialPlanId);
 
   const role = profile?.role ?? 'student';
   const schoolId = (profile as any)?.school_id ?? undefined;
@@ -135,6 +141,25 @@ export default function AssignmentsPage() {
   };
   const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
 
+  useEffect(() => {
+    const qp = searchParams?.get('lesson_plan_id');
+    if (qp) {
+      setFilterPlanId(qp);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!profile || !isStaff) return;
+    let cancelled = false;
+    fetch('/api/lesson-plans')
+      .then(res => res.json())
+      .then(json => {
+        if (!cancelled && json.data) setLessonPlans(json.data);
+      })
+      .catch(err => console.error('Failed to load lesson plans for filter:', err));
+    return () => { cancelled = true; };
+  }, [profile, isStaff]);
+
   // Only fetch after auth has resolved and we have a profile
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -146,12 +171,20 @@ export default function AssignmentsPage() {
       try {
         let data: any[];
         if (isStaff) {
-          const res = await fetch('/api/assignments', { cache: 'no-store' });
+          const url = filterPlanId ? `/api/assignments?lesson_plan_id=${filterPlanId}` : '/api/assignments';
+          const res = await fetch(url, { cache: 'no-store' });
           if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load'); }
           const json = await res.json();
           data = json.data ?? [];
         } else {
-          data = await fetchStudentAssignments(profile?.id || '');
+          let rawData = await fetchStudentAssignments(profile?.id || '');
+          if (filterPlanId) {
+            rawData = rawData.filter((a: any) => {
+              const planId = a.assignments?.metadata?.lesson_plan_id || a.metadata?.lesson_plan_id;
+              return planId === filterPlanId;
+            });
+          }
+          data = rawData;
         }
         if (!cancelled) setItems(data);
       } catch (e: any) {
@@ -162,7 +195,7 @@ export default function AssignmentsPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [profile?.id, isStaff, authLoading]); // eslint-disable-line
+  }, [profile?.id, isStaff, authLoading, filterPlanId]);
 
   /** search + filter */
   const filtered = items.filter((a: any) => {
@@ -477,7 +510,41 @@ export default function AssignmentsPage() {
             <option value="lab">Lab</option>
             <option value="discussion">Discussion</option>
           </select>
+
+          {/* Lesson Plan filter (staff only) */}
+          {isStaff && lessonPlans.length > 0 && (
+            <select
+              value={filterPlanId}
+              onChange={(e) => setFilterPlanId(e.target.value)}
+              className="px-4 py-3 bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-colors max-w-xs"
+            >
+              <option value="">All Lesson Plans</option>
+              {lessonPlans.map((p) => {
+                const courseName = p.courses?.title || 'Course';
+                const className = p.classes?.name || 'Class';
+                const termLabel = p.term || 'Term';
+                return (
+                  <option key={p.id} value={p.id}>
+                    {courseName} ({className} - {termLabel})
+                  </option>
+                );
+              })}
+            </select>
+          )}
         </div>
+
+        {filterPlanId && (
+          <div className="flex items-center gap-2 bg-primary/15 border border-primary/20 px-3 py-1.5 w-fit text-[10px] font-black uppercase tracking-widest text-primary">
+            <span>Filtered by Lesson Plan</span>
+            <button
+              onClick={() => setFilterPlanId('')}
+              className="hover:text-foreground text-primary/70 transition-colors ml-1 font-black text-sm"
+              title="Clear Filter"
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
         {/* ── EMPTY STATE ── */}
         {!error && filtered.length === 0 && (
@@ -552,6 +619,11 @@ export default function AssignmentsPage() {
                           {a.assignment_type && (
                             <span className={`px-2.5 py-0.5 text-[9px] font-black uppercase border ${TYPE_BADGE[a.assignment_type] ?? 'bg-muted text-muted-foreground border-border'}`}>
                               {a.assignment_type}
+                            </span>
+                          )}
+                          {a.metadata?.week != null && (
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border bg-violet-500/20 text-violet-400 border-violet-500/30">
+                              Week {a.metadata.week}
                             </span>
                           )}
                           {overdue && (
@@ -669,6 +741,11 @@ export default function AssignmentsPage() {
                               {a.assignment_type}
                             </span>
                           )}
+                          {a.metadata?.week != null && (
+                            <span className="px-2.5 py-0.5 text-[9px] font-black uppercase border bg-violet-500/20 text-violet-400 border-violet-500/30">
+                              Week {a.metadata.week}
+                            </span>
+                          )}
                           {overdue && (
                             <span className="flex items-center gap-1 text-[9px] font-black uppercase text-rose-400">
                               <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Overdue
@@ -762,5 +839,17 @@ export default function AssignmentsPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function AssignmentsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <AssignmentsPageInner />
+    </Suspense>
   );
 }

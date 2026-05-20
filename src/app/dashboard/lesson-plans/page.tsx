@@ -164,6 +164,8 @@ function LessonPlansPageInner() {
   /** Courses for the selected programme (fetched directly so we are not limited to the first N global rows). */
   const [programScopedCourses, setProgramScopedCourses] = useState<Course[] | null>(null);
   const [programCoursesLoading, setProgramCoursesLoading] = useState(false);
+  const [allLessons, setAllLessons] = useState<any[]>([]);
+  const [allAssignments, setAllAssignments] = useState<any[]>([]);
 
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -254,22 +256,28 @@ function LessonPlansPageInner() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [plansRes, coursesRes, classesRes, programsRes] = await Promise.all([
+      const [plansRes, coursesRes, classesRes, programsRes, lessonsRes, assignmentsRes] = await Promise.all([
         fetch('/api/lesson-plans'),
         fetch('/api/courses?limit=500'),
         // Teachers: only fetch their own classes so the form is already scoped
         fetch(isTeacher ? '/api/classes?mine=true' : '/api/classes'),
         fetch('/api/programs?is_active=true'),
+        fetch('/api/lessons'),
+        fetch('/api/assignments'),
       ]);
       const plansJson    = await plansRes.json();
       const coursesJson  = coursesRes.ok  ? await coursesRes.json()  : { data: [] };
       const classesJson  = classesRes.ok  ? await classesRes.json()  : { data: [] };
       const programsJson = programsRes.ok ? await programsRes.json() : { data: [] };
+      const lessonsJson  = lessonsRes.ok  ? await lessonsRes.json()  : { data: [] };
+      const assignmentsJson = assignmentsRes.ok ? await assignmentsRes.json() : { data: [] };
 
       setPlans(plansJson.data ?? []);
       setCourses(coursesJson.data ?? []);
       setAllClasses(classesJson.data ?? []);
       setPrograms(programsJson.data ?? []);
+      setAllLessons(lessonsJson.data ?? []);
+      setAllAssignments(assignmentsJson.data ?? []);
 
       if (isAdmin) {
         const schoolsRes = await fetch('/api/schools');
@@ -288,7 +296,7 @@ function LessonPlansPageInner() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, isTeacher]);
 
   useEffect(() => {
     if (!authLoading && !profileLoading && profile) load();
@@ -863,6 +871,14 @@ function LessonPlansPageInner() {
                 if (days < 30) return `Updated ${days}d ago`;
                 return `Updated ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
               })();
+
+              const totalWeeks = getWeekEntries(plan.plan_data).length || 1;
+              const lessonsCount = allLessons.filter(l => l.metadata?.lesson_plan_id === plan.id).length;
+              const assignmentsCount = allAssignments.filter(a => a.metadata?.lesson_plan_id === plan.id).length;
+              const lessonsPercentage = Math.min(100, Math.round((lessonsCount / totalWeeks) * 100));
+              const assignmentsPercentage = Math.min(100, Math.round((assignmentsCount / totalWeeks) * 100));
+              const readinessPercentage = Math.round(((lessonsCount + assignmentsCount) / (totalWeeks * 2)) * 100);
+
               return (
                 <motion.div
                   key={plan.id}
@@ -897,6 +913,40 @@ function LessonPlansPageInner() {
                       <h3 className="text-base font-black text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug mt-1">
                         {plan.courses?.title || 'Course Plan'}
                       </h3>
+                    </div>
+
+                    {/* Progress visualizer */}
+                    <div className="mt-3 mb-4 space-y-2 border-t border-border/40 pt-3">
+                      <div className="flex justify-between text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                        <span>LMS Readiness</span>
+                        <span className="text-primary font-black">{readinessPercentage}%</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="h-1 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-indigo-500 transition-all rounded-full" 
+                            style={{ width: `${lessonsPercentage}%` }}
+                            title={`Lessons: ${lessonsCount}/${totalWeeks}`}
+                          />
+                        </div>
+                        <div className="h-full bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-emerald-500 transition-all rounded-full" 
+                            style={{ width: `${assignmentsPercentage}%` }}
+                            title={`Assignments: ${assignmentsCount}/${totalWeeks}`}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                          {lessonsCount}/{totalWeeks} Lessons
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          {assignmentsCount}/{totalWeeks} Tasks
+                        </span>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/60 text-xs">

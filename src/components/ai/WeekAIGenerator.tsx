@@ -306,7 +306,7 @@ export default function WeekAIGenerator({
                 lesson_id: lj.data.id,
                 assignment_type: 'project',
                 max_points: 100,
-                is_active: true,
+                is_active: false,
                 metadata: { week: week.week, lesson_plan_id: planId, source: 'week-ai-generator' },
               }),
             });
@@ -439,7 +439,7 @@ export default function WeekAIGenerator({
               assignment_type: asnData.assignment_type || 'homework',
               max_points: asnData.max_points ?? 100,
               due_date: dueDate,
-              is_active: true,
+              is_active: false,
               course_id: courseId ?? null,
               lesson_id: res.lessonId ?? null,
               metadata: {

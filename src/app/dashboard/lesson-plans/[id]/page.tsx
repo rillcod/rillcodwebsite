@@ -2207,6 +2207,18 @@ export default function LessonPlanDetailPage() {
                   )}
                   {qaReport && !qaLoading && (
                     <>
+                      {qaReport.issues.length > 0 && (
+                        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 flex items-start gap-3">
+                          <span className="text-xl">💡</span>
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold text-amber-200">Curriculum Drift / Gaps Detected</h4>
+                            <p className="text-xs text-amber-300/80 leading-relaxed">
+                              There are differences between your class lesson plan and the active curriculum/QA spine. 
+                              To align them, scroll down to the <strong>Auto-Plan Builder</strong>, toggle <strong>Overwrite existing</strong> ON, and click <strong>Generate</strong>.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {qaReport.terms.map((term) => (
                           <div key={term.key} className="rounded-[24px] border border-white/[0.08] bg-white/[0.03] p-4">
