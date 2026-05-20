@@ -58,6 +58,7 @@ const CATEGORY_TO_TYPE: Record<string, string[]> = {
   'Interactive': ['interactive', 'quiz'],
   'Assets': ['presentation', 'asset'],
 };
+
 // In-App Canvas Viewer Component
 function InAppViewer({ item, onClose, onDelete }: {
   item: ContentItem;
@@ -69,7 +70,9 @@ function InAppViewer({ item, onClose, onDelete }: {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const fileUrl = item.files?.public_url;
+  const remoteUrl = item.tags?.find(t => t.startsWith('url:'))?.replace('url:', '');
+  const fileUrl = item.files?.public_url || remoteUrl;
+  const isRemote = !!remoteUrl && !item.files?.public_url;
   const fileType = item.files?.file_type || item.content_type;
 
   const isVideo = fileType?.startsWith('video/') || item.content_type === 'video';
@@ -109,44 +112,44 @@ function InAppViewer({ item, onClose, onDelete }: {
       exit={{ opacity: 0, scale: 0.95 }}
       className={`fixed inset-0 z-50 flex items-center justify-center ${isFullscreen ? 'p-0' : 'p-4 md:p-12'}`}
     >
-      <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-3xl" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/85 dark:bg-black/95 backdrop-blur-xl" onClick={onClose} />
 
-      <div className={`relative w-full h-full bg-slate-900 border border-white/10 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col ${isFullscreen ? 'rounded-0' : 'rounded-[32px]'}`}>
+      <div className={`relative w-full h-full bg-card border border-border shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col ${isFullscreen ? 'rounded-none' : 'rounded-[32px]'}`}>
 
         {/* Canvas Header */}
-        <div className="shrink-0 h-20 bg-slate-900/50 backdrop-blur-xl border-b border-white/10 px-6 flex items-center justify-between relative z-10">
+        <div className="shrink-0 h-20 bg-muted/40 backdrop-blur-xl border-b border-border px-6 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-4">
-            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors">
-              <ChevronLeftIcon className="w-6 h-6 text-white" />
+            <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center transition-colors">
+              <ChevronLeftIcon className="w-6 h-6 text-foreground" />
             </button>
             <div>
-              <h3 className="font-black text-white tracking-tight">{item.title}</h3>
+              <h3 className="font-black text-foreground tracking-tight">{item.title}</h3>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{item.content_type} • {item.subject || 'Syllabus Aligned'}</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{item.content_type} • {item.subject || 'Syllabus Aligned'}</p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             {isPDF && (
-              <div className="flex items-center gap-4 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl mr-4">
-                <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} className="text-white hover:text-primary disabled:opacity-30">
+              <div className="flex items-center gap-4 px-4 py-2 bg-muted/85 border border-border rounded-2xl mr-4">
+                <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} className="text-foreground hover:text-primary disabled:opacity-30">
                   <ChevronLeftIcon className="w-5 h-5" />
                 </button>
-                <span className="text-xs font-black text-white tabular-nums tracking-widest">{currentPage} / {totalPages}</span>
-                <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} className="text-white hover:text-primary disabled:opacity-30">
+                <span className="text-xs font-black text-foreground tabular-nums tracking-widest">{currentPage} / {totalPages}</span>
+                <button onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} className="text-foreground hover:text-primary disabled:opacity-30">
                   <ChevronRightIcon className="w-5 h-5" />
                 </button>
               </div>
             )}
 
-            <div className="flex items-center bg-white/5 border border-white/10 rounded-2xl p-1">
-              <button onClick={toggleFullscreen} className="p-2.5 text-white hover:bg-white/10 rounded-xl transition-all" title="Toggle Fullscreen">
+            <div className="flex items-center bg-muted/80 border border-border rounded-2xl p-1">
+              <button onClick={toggleFullscreen} className="p-2.5 text-foreground hover:bg-muted rounded-xl transition-all" title="Toggle Fullscreen">
                 <ArrowsPointingOutIcon className="w-5 h-5" />
               </button>
               {fileUrl && (
-                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="p-2.5 text-white hover:bg-white/10 rounded-xl transition-all" title="Download">
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="p-2.5 text-foreground hover:bg-muted rounded-xl transition-all" title="Download">
                   <ArrowDownTrayIcon className="w-5 h-5" />
                 </a>
               )}
@@ -160,19 +163,34 @@ function InAppViewer({ item, onClose, onDelete }: {
         </div>
 
         {/* Immersive Viewport */}
-        <div className="flex-1 relative bg-slate-950 overflow-hidden">
+        <div className="flex-1 relative bg-background overflow-hidden">
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center z-20">
+            <div className="absolute inset-0 flex items-center justify-center z-20 bg-background/80">
               <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(234,88,12,0.5)]" />
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Synthesizing Viewport...</p>
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(234,88,12,0.3)]" />
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Synthesizing Viewport...</p>
               </div>
             </div>
           )}
 
           <div className="w-full h-full overflow-auto flex items-center justify-center p-8 custom-scrollbar">
-            {isVideo && fileUrl ? (
-              <div className="w-full max-w-5xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/10">
+            {isRemote ? (
+              <div className="text-center space-y-6 max-w-md mx-auto">
+                <div className="w-24 h-24 rounded-[32px] bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto shadow-inner">
+                  <GlobeAltIcon className="w-10 h-10 text-primary" />
+                </div>
+                <div>
+                  <h4 className="text-2xl font-black text-foreground tracking-tight">External Resource</h4>
+                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                    This educational asset is deployed on an external cloud network. Click below to launch the resource in a secure workspace.
+                  </p>
+                </div>
+                <a href={remoteUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 px-10 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-3xl shadow-xl hover:-translate-y-1 hover:brightness-110 active:scale-95 transition-all">
+                  <GlobeAltIcon className="w-4 h-4" /> Launch Resource
+                </a>
+              </div>
+            ) : isVideo && fileUrl ? (
+              <div className="w-full max-w-5xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-border">
                 <VideoPlayer url={fileUrl} title={item.title} cinemaMode />
               </div>
             ) : isImage && fileUrl ? (
@@ -193,12 +211,12 @@ function InAppViewer({ item, onClose, onDelete }: {
               </div>
             ) : (
               <div className="text-center space-y-6">
-                <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto border border-white/10">
-                  <DocumentIcon className="w-10 h-10 text-white/20" />
+                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto border border-border">
+                  <DocumentIcon className="w-10 h-10 text-muted-foreground/30" />
                 </div>
                 <div>
-                  <h4 className="text-xl font-black text-white tracking-tight">Format Unsupported</h4>
-                  <p className="text-sm text-white/40 max-w-xs mx-auto">This asset requires external processing or download for full resolution.</p>
+                  <h4 className="text-xl font-black text-foreground tracking-tight">Format Unsupported</h4>
+                  <p className="text-sm text-muted-foreground max-w-xs mx-auto">This asset requires external processing or download for full resolution.</p>
                 </div>
                 {fileUrl && (
                   <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 px-8 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl hover:-translate-y-1 transition-all">
@@ -268,14 +286,14 @@ function UploadModal({ onClose, onCreated }: {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4 md:p-12"
+      className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 md:p-12"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-card border border-white/10 rounded-[40px] w-full max-w-2xl overflow-hidden shadow-[0_40px_120px_-20px_rgba(0,0,0,0.5)] flex flex-col"
+        className="bg-card border border-border rounded-[40px] w-full max-w-2xl overflow-hidden shadow-[0_40px_120px_-20px_rgba(0,0,0,0.3)] flex flex-col"
       >
         <div className="relative p-8 border-b border-border bg-gradient-to-br from-primary/10 to-transparent">
           <div className="flex items-center justify-between">
@@ -323,7 +341,7 @@ function UploadModal({ onClose, onCreated }: {
               <select
                 value={contentType}
                 onChange={e => setContentType(e.target.value)}
-                className="w-full bg-muted/50 border-2 border-transparent focus:border-primary/30 focus:bg-background rounded-3xl px-6 py-4 text-sm font-bold transition-all outline-none appearance-none cursor-pointer"
+                className="select-premium w-full p-4 text-sm font-bold transition-all outline-none appearance-none cursor-pointer"
               >
                 <option value="document">Digital Document</option>
                 <option value="video">Cinema Video</option>
@@ -423,7 +441,7 @@ export default function ContentLibraryPage() {
   const { profile, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const [items, setItems] = useState<ContentItem[]>([]);
-  const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
+  const [courses, setCourses] = useState<{ id: string; title: string; subject?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -482,17 +500,39 @@ export default function ContentLibraryPage() {
     loadItems();
     const courseId = searchParams.get('course_id');
     if (courseId) {
-      createClient().from("courses").select("id, title").eq("id", courseId).single()
+      createClient().from("courses").select("id, title, metadata").eq("id", courseId).single()
         .then(({ data }) => {
           if (data) {
-            setSelectedCourse(data as any);
-            setSearch(data.title);
+            const meta = data.metadata as Record<string, any> | null;
+            const subject = meta?.subject;
+            setSelectedCourse({
+              id: data.id,
+              title: data.title,
+              subject: typeof subject === 'string' ? subject : undefined
+            });
+            if (typeof subject === 'string' && subject) {
+              setSubjectFilter(subject);
+            } else {
+              setSearch(data.title);
+            }
           }
         });
     }
     if (canMutateLibrary) {
-      createClient().from("courses").select("id, title").order("title")
-        .then(({ data }) => setCourses((data ?? []) as any));
+      createClient().from("courses").select("id, title, metadata").order("title")
+        .then(({ data }) => {
+          if (data) {
+            setCourses(data.map(item => {
+              const meta = item.metadata as Record<string, any> | null;
+              const subject = meta?.subject;
+              return {
+                id: item.id,
+                title: item.title,
+                subject: typeof subject === 'string' ? subject : undefined
+              };
+            }));
+          }
+        });
     }
   }, [profile?.id, authLoading, canMutateLibrary, searchParams]);
 
@@ -561,7 +601,7 @@ export default function ContentLibraryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900/50 text-foreground selection:bg-primary selection:text-white">
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-white">
       {/* Pipeline Stepper */}
       {isStaff && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
@@ -570,26 +610,26 @@ export default function ContentLibraryPage() {
       )}
 
       {/* Header */}
-      <div className="bg-slate-950 dark:bg-slate-950 border-b border-border relative overflow-hidden py-12 lg:py-24">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.2),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(79,70,229,0.1),transparent_50%)]" />
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      <div className="bg-card border-b border-border relative overflow-hidden py-12 lg:py-24">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(234,88,12,0.2),transparent_50%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(79,70,229,0.05),transparent_50%)] dark:bg-[radial-gradient(circle_at_bottom_left,rgba(79,70,229,0.1),transparent_50%)]" />
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-10" style={{ backgroundImage: 'radial-gradient(var(--foreground) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center lg:text-left">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-12">
             <div className="max-w-3xl">
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-center lg:justify-start gap-3 mb-6">
-                <div className="p-3 bg-primary/20 rounded-2xl backdrop-blur-md border border-primary/20">
+                <div className="p-3 bg-primary/10 dark:bg-primary/20 rounded-2xl backdrop-blur-md border border-primary/20">
                   <BookOpenIcon className="w-6 h-6 text-primary" />
                 </div>
                 <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">
                   {selectedCourse ? `Intelligence Stream: ${selectedCourse.title}` : 'Knowledge Repository'}
                 </span>
               </motion.div>
-              <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-5xl lg:text-7xl font-black text-white tracking-tight mb-8">
+              <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-5xl lg:text-7xl font-black text-foreground tracking-tight mb-8">
                 {selectedCourse ? 'Course Library' : 'Content Library'}
               </motion.h1>
-              <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-xl text-slate-400 leading-relaxed max-w-2xl mx-auto lg:mx-0">
+              <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto lg:mx-0">
                 {selectedCourse
                   ? `Precision-engineered assets for ${selectedCourse.title}. Accelerate your curriculum with high-fidelity digital resources.`
                   : 'A sophisticated ecosystem of pedagogical intelligence. Manage, preview, and deploy high-impact educational content.'}
@@ -598,7 +638,7 @@ export default function ContentLibraryPage() {
 
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className="flex flex-col sm:flex-row items-center gap-6 justify-center">
               {selectedCourse && (
-                <button onClick={() => { setSelectedCourse(null); setSearch(''); setSubjectFilter('All'); }} className="w-full sm:w-auto px-10 py-5 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-3xl border border-white/10 transition-all backdrop-blur-md">
+                <button onClick={() => { setSelectedCourse(null); setSearch(''); setSubjectFilter('All'); }} className="w-full sm:w-auto px-10 py-5 bg-muted hover:bg-muted/80 text-foreground text-[10px] font-black uppercase tracking-[0.3em] rounded-3xl border border-border transition-all backdrop-blur-md">
                   Clear Context
                 </button>
               )}
@@ -615,7 +655,7 @@ export default function ContentLibraryPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-24">
         {/* Recommendations */}
         {selectedCourse && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-16 p-8 bg-slate-950 border border-white/10 rounded-[40px] relative overflow-hidden group">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-16 p-8 bg-card border border-border rounded-[40px] relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-3xl group-hover:bg-primary/20 transition-all duration-700" />
             <div className="relative z-10">
               <div className="flex items-center gap-4 mb-8">
@@ -623,26 +663,26 @@ export default function ContentLibraryPage() {
                   <SparklesIcon className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-white tracking-tight">Recommended for You</h3>
-                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Neural Matching: {selectedCourse.title}</p>
+                  <h3 className="text-2xl font-black text-foreground tracking-tight">Recommended for You</h3>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Neural Matching: {selectedCourse.title}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {items.filter(i => i.subject === selectedCourse.subject || i.title.toLowerCase().includes(selectedCourse.title.toLowerCase())).slice(0, 3).map(rec => (
-                  <div key={rec.id} onClick={() => setViewerItem(rec)} className="p-6 bg-white/5 border border-white/5 hover:border-primary/40 rounded-3xl transition-all cursor-pointer group/card flex gap-4">
+                {items.filter(i => (selectedCourse.subject && i.subject === selectedCourse.subject) || i.title.toLowerCase().includes(selectedCourse.title.toLowerCase())).slice(0, 3).map(rec => (
+                  <div key={rec.id} onClick={() => setViewerItem(rec)} className="p-6 bg-muted/30 border border-border hover:border-primary/40 rounded-3xl transition-all cursor-pointer group/card flex gap-4">
                     <div className={`w-14 h-14 shrink-0 bg-gradient-to-br ${getTypeColor(rec.content_type)} flex items-center justify-center rounded-2xl shadow-lg group-hover/card:scale-110 transition-transform duration-500 text-white`}>
                       {getTypeIcon(rec.content_type)}
                     </div>
                     <div className="min-w-0">
                       <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-1">{rec.content_type}</p>
-                      <p className="text-base font-black text-white truncate mb-1">{rec.title}</p>
-                      <p className="text-[10px] text-white/40 italic truncate uppercase tracking-widest">Subject: {rec.subject}</p>
+                      <p className="text-base font-black text-foreground truncate mb-1">{rec.title}</p>
+                      <p className="text-[10px] text-muted-foreground italic truncate uppercase tracking-widest">Subject: {rec.subject || 'General'}</p>
                     </div>
                   </div>
                 ))}
-                {items.filter(i => i.subject === selectedCourse.subject || i.title.toLowerCase().includes(selectedCourse.title.toLowerCase())).length === 0 && (
-                  <div className="col-span-full py-12 text-center text-[10px] font-black text-white/20 uppercase tracking-[0.4em] border-2 border-dashed border-white/5 rounded-3xl">
+                {items.filter(i => (selectedCourse.subject && i.subject === selectedCourse.subject) || i.title.toLowerCase().includes(selectedCourse.title.toLowerCase())).length === 0 && (
+                  <div className="col-span-full py-12 text-center text-[10px] font-black text-muted-foreground/30 uppercase tracking-[0.4em] border-2 border-dashed border-border rounded-3xl">
                     Seeking Neural Matches...
                   </div>
                 )}
@@ -652,35 +692,35 @@ export default function ContentLibraryPage() {
         )}
 
         {/* Discovery Toolbar */}
-        <div className="flex flex-col lg:flex-row gap-6 items-center bg-white dark:bg-slate-900 border border-border p-3 rounded-[32px] shadow-2xl mb-12 relative z-20">
+        <div className="flex flex-col lg:flex-row gap-6 items-center bg-card border border-border p-3 rounded-[32px] shadow-2xl mb-12 relative z-20">
           <div className="flex-1 w-full relative">
             <MagnifyingGlassIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search intelligence pool..."
-              className="w-full pl-16 pr-6 py-5 bg-slate-50 dark:bg-white/5 border-0 rounded-[24px] focus:outline-none focus:bg-white dark:focus:bg-white/10 transition-all text-sm font-bold placeholder:text-muted-foreground/50 tracking-tight"
+              className="w-full pl-16 pr-6 py-5 bg-muted/50 dark:bg-white/5 border-0 rounded-[24px] focus:outline-none focus:bg-background dark:focus:bg-white/10 transition-all text-sm font-bold placeholder:text-muted-foreground/50 tracking-tight"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto px-2">
             <div className="flex-1 lg:flex-none relative">
-              <select value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)} className="w-full lg:w-48 bg-slate-50 dark:bg-white/5 border-0 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+              <select value={subjectFilter} onChange={e => setSubjectFilter(e.target.value)} className="select-premium w-full lg:w-48 bg-muted/50 border-0 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-muted/80 transition-colors">
                 {subjects.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div className="flex-1 lg:flex-none relative">
-              <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} className="w-full lg:w-48 bg-slate-50 dark:bg-white/5 border-0 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+              <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} className="select-premium w-full lg:w-48 bg-muted/50 border-0 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-muted/80 transition-colors">
                 <option value="newest">Newest First</option>
                 <option value="most_used">Most Popular</option>
                 <option value="top_rated">Top Rated</option>
               </select>
             </div>
 
-            <div className="flex bg-slate-50 dark:bg-white/5 p-1.5 rounded-2xl border border-border/50">
-              <button onClick={() => setViewMode('grid')} className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-white/10 text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+            <div className="flex bg-muted/50 p-1.5 rounded-2xl border border-border">
+              <button onClick={() => setViewMode('grid')} className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                 <Squares2X2Icon className="w-5 h-5" />
               </button>
-              <button onClick={() => setViewMode('list')} className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white dark:bg-white/10 text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+              <button onClick={() => setViewMode('list')} className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                 <ListBulletIcon className="w-5 h-5" />
               </button>
             </div>
@@ -709,7 +749,7 @@ export default function ContentLibraryPage() {
               {CATEGORIES.map(cat => {
                 const active = activeCategory === cat;
                 return (
-                  <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border transition-all ${active ? 'bg-slate-950 text-white border-slate-950 shadow-lg' : 'bg-white dark:bg-white/5 border-border text-muted-foreground hover:border-primary/30'}`}>
+                  <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border transition-all ${active ? 'bg-foreground text-background border-foreground shadow-lg' : 'bg-card border-border text-muted-foreground hover:border-primary/30'}`}>
                     {cat} <span className="opacity-40 ml-1.5">{categoryCounts[cat] ?? 0}</span>
                   </button>
                 );
@@ -737,7 +777,7 @@ export default function ContentLibraryPage() {
         {/* Main Content Node */}
         <div className="relative min-h-[400px]">
           {saving && (
-            <div className="absolute inset-0 z-30 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm rounded-[40px] flex items-center justify-center">
+            <div className="absolute inset-0 z-30 bg-background/50 backdrop-blur-sm rounded-[40px] flex items-center justify-center">
               <div className="bg-card border border-border p-10 rounded-[32px] shadow-2xl flex flex-col items-center gap-6">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                 <p className="text-[10px] font-black uppercase tracking-[0.4em] text-foreground">Synchronizing Node...</p>
@@ -751,7 +791,7 @@ export default function ContentLibraryPage() {
                 <BookOpenIcon className="w-12 h-12 text-muted-foreground/30" />
               </div>
               <h3 className="text-3xl font-black text-foreground mb-4 tracking-tight">Intelligence Void Detected</h3>
-              <p className="text-slate-500 text-base mb-10 max-w-md mx-auto leading-relaxed">
+              <p className="text-muted-foreground text-base mb-10 max-w-md mx-auto leading-relaxed">
                 {search ? 'Your parameters returned zero neural matches. Try recalibrating your filters.' : 'This node is currently empty. Initialize your first asset deployment.'}
               </p>
               {canUpload && !search && (
@@ -761,9 +801,9 @@ export default function ContentLibraryPage() {
               )}
             </div>
           ) : viewMode === 'list' ? (
-            <div className="bg-white dark:bg-slate-900 border border-border rounded-[40px] overflow-hidden shadow-xl">
+            <div className="bg-card border border-border rounded-[40px] overflow-hidden shadow-xl">
               {filtered.map((item, index) => (
-                <motion.button key={item.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }} onClick={() => setViewerItem(item)} className="w-full text-left group flex items-center gap-8 p-8 hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-all relative border-b border-border last:border-0">
+                <motion.button key={item.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }} onClick={() => setViewerItem(item)} className="w-full text-left group flex items-center gap-8 p-8 hover:bg-muted/30 transition-all relative border-b border-border last:border-0">
                   <div className={`shrink-0 w-20 h-20 bg-gradient-to-br ${getTypeColor(item.content_type)} flex items-center justify-center rounded-2xl shadow-xl group-hover:scale-110 transition-transform duration-500 text-white`}>
                     {item.files?.thumbnail_url ? <img src={item.files.thumbnail_url} alt="" className="w-full h-full object-cover rounded-2xl mix-blend-overlay" /> : getTypeIcon(item.content_type)}
                   </div>
@@ -797,7 +837,7 @@ export default function ContentLibraryPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filtered.map((item, index) => (
-                <motion.div key={item.id} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="group relative bg-white dark:bg-slate-900 border border-border rounded-[40px] overflow-hidden hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] transition-all duration-700 hover:-translate-y-4 cursor-pointer" onClick={() => setViewerItem(item)}>
+                <motion.div key={item.id} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="group relative bg-card border border-border rounded-[40px] overflow-hidden hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.4)] transition-all duration-700 hover:-translate-y-4 cursor-pointer" onClick={() => setViewerItem(item)}>
                   <div className="relative aspect-[4/3] overflow-hidden">
                     <div className={`absolute inset-0 bg-gradient-to-br ${getTypeColor(item.content_type)} opacity-90 group-hover:scale-110 transition-transform duration-1000`} />
                     {item.files?.thumbnail_url ? <img src={item.files.thumbnail_url} alt={item.title} className="absolute inset-0 w-full h-full object-cover mix-blend-overlay group-hover:scale-110 transition-transform duration-1000" /> : item.content_type === 'video' ? <div className="absolute inset-0 flex items-center justify-center"><div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center group-hover:scale-125 transition-all duration-700"><PlayIcon className="w-8 h-8 text-white" /></div></div> : <div className="absolute inset-0 flex items-center justify-center opacity-20 group-hover:scale-125 transition-transform duration-1000 text-white">{getTypeIcon(item.content_type)}</div>}
