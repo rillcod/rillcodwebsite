@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 import {
   ArrowRightIcon, ArrowPathIcon, CheckCircleIcon,
@@ -38,6 +39,40 @@ const DECISION_META: Record<PromotionDecision, { label: string; cls: string; ico
   withdraw: { label: 'Withdraw', cls: 'bg-rose-500/10   text-rose-400   border-rose-500/30',     icon: ExclamationTriangleIcon },
 };
 
+function getSmartRecommendation(grade: string | undefined, hasNextLevel: boolean): { decision: PromotionDecision; label: string; desc: string; cls: string } {
+  if (!grade) {
+    return {
+      decision: 'promote',
+      label: 'Promote',
+      desc: 'No grade available yet. Suggest default promotion.',
+      cls: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20'
+    };
+  }
+  const g = grade.toUpperCase().trim();
+  if (g === 'F' || g === 'E') {
+    return {
+      decision: 'repeat',
+      label: 'Repeat',
+      desc: `Grade is ${g}. Academic review recommended. Suggest repeating.`,
+      cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+    };
+  }
+  if (!hasNextLevel) {
+    return {
+      decision: 'complete',
+      label: 'Complete Track',
+      desc: `Grade is ${g}. Student is at the final level. Suggest graduation.`,
+      cls: 'text-primary bg-primary/10 border-primary/20'
+    };
+  }
+  return {
+    decision: 'promote',
+    label: 'Promote',
+    desc: `Grade is ${g}. Academic good standing. Suggest promoting.`,
+    cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+  };
+}
+
 export default function ProgressionPage() {
   const { profile, loading: authLoading } = useAuth();
   const isStaff   = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
@@ -50,6 +85,8 @@ export default function ProgressionPage() {
   const [enrollments, setEnrollments]   = useState<StudentLevelEnrollment[]>([]);
   const [loading, setLoading]           = useState(false);
   const [decisions, setDecisions]       = useState<Record<string, PromotionDecision>>({});
+  const [reports, setReports]           = useState<Record<string, { overall_grade: string }>>({});
+  const [reportsLoading, setReportsLoading] = useState(false);
   const [submitting, setSubmitting]     = useState(false);
   const [submitted, setSubmitted]       = useState<string[]>([]);
   const [error, setError]               = useState('');
@@ -70,13 +107,51 @@ export default function ProgressionPage() {
     setLoading(true);
     fetch(`/api/student-level-enrollments?${params}`)
       .then(r => r.json())
-      .then(j => {
+      .then(async j => {
         const rows: StudentLevelEnrollment[] = (j.data ?? []).filter(
           (e: StudentLevelEnrollment) => e.term_label === filterTerm
         );
         setEnrollments(rows);
         setDecisions({});
         setSubmitted([]);
+
+        // Load progress reports to provide smart recommendations
+        const studentIds = rows.map(r => r.student_id).filter(Boolean);
+        if (studentIds.length > 0) {
+          setReportsLoading(true);
+          const db = createClient();
+          const chunkSize = 100;
+          const chunks: string[][] = [];
+          for (let i = 0; i < studentIds.length; i += chunkSize) {
+            chunks.push(studentIds.slice(i, i + chunkSize));
+          }
+          const allReports: any[] = [];
+          await Promise.all(chunks.map(async (chunk) => {
+            const { data: reportRows, error } = await db
+              .from('student_progress_reports')
+              .select('student_id, overall_grade, is_published, updated_at')
+              .in('student_id', chunk);
+            if (!error && reportRows) {
+              allReports.push(...reportRows);
+            }
+          }));
+
+          allReports.sort((a, b) => {
+            if (a.is_published !== b.is_published) return a.is_published ? -1 : 1;
+            return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+          });
+
+          const rMap: Record<string, { overall_grade: string }> = {};
+          allReports.forEach(r => {
+            if (r.student_id && !rMap[r.student_id]) {
+              rMap[r.student_id] = { overall_grade: r.overall_grade };
+            }
+          });
+          setReports(rMap);
+          setReportsLoading(false);
+        } else {
+          setReports({});
+        }
       })
       .finally(() => setLoading(false));
   }, [filterProgram, filterCourse, filterTerm, profile?.id]); // eslint-disable-line
@@ -249,21 +324,52 @@ export default function ProgressionPage() {
 
         {/* Summary bar */}
         {enrollments.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-4">
-            <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Students</p>
-              <p className="text-3xl font-black text-foreground tracking-tighter">{enrollments.length}</p>
-              <p className="text-[10px] font-bold text-muted-foreground mt-1">in this filter</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-4">
+            <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Students</p>
+                <p className="text-3xl font-black text-foreground tracking-tighter">{enrollments.length}</p>
+              </div>
+              <p className="text-[10px] font-bold text-muted-foreground mt-2">Active enrollments in this filter</p>
             </div>
-            <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Ready to save</p>
-              <p className="text-3xl font-black text-primary tracking-tighter">{decidedCount}</p>
-              <p className="text-[10px] font-bold text-muted-foreground mt-1">decisions made</p>
+            
+            <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Ready to save</p>
+                <p className="text-3xl font-black text-primary tracking-tighter">{decidedCount}</p>
+              </div>
+              <p className="text-[10px] font-bold text-muted-foreground mt-2">{decidedCount} decisions staged</p>
             </div>
-            <div className="md:col-span-2 bg-card border border-border p-6 rounded-[2rem] shadow-lg flex items-center justify-between gap-6">
+
+            {/* Smart Suggestions Auto-Apply */}
+            <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">Smart Suggestions</p>
+                <p className="text-xs font-bold text-muted-foreground mt-1">Suggest promotion based on academic results & track completions.</p>
+              </div>
+              <button
+                onClick={() => {
+                  const all: Record<string, PromotionDecision> = {};
+                  pending.forEach(e => {
+                    const course = (e as any).courses;
+                    const report = reports[e.student_id];
+                    const rec = getSmartRecommendation(report?.overall_grade, !!course?.next_course_id);
+                    all[e.id] = rec.decision;
+                  });
+                  setDecisions(all);
+                }}
+                disabled={reportsLoading}
+                className="mt-4 w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 disabled:opacity-40"
+              >
+                <SparklesIcon className="w-3.5 h-3.5 shrink-0 animate-spin-slow" />
+                {reportsLoading ? 'Loading standing...' : 'Apply Recommendations'}
+              </button>
+            </div>
+
+            <div className="bg-card border border-border p-6 rounded-[2rem] shadow-lg flex flex-col justify-between">
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Select all as</p>
-                <div className="flex gap-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-1">Manual Bulk Override</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
                   {(['promote', 'repeat', 'complete'] as PromotionDecision[]).map(d => (
                     <button
                       key={d}
@@ -272,19 +378,22 @@ export default function ProgressionPage() {
                         pending.forEach(e => { all[e.id] = d; });
                         setDecisions(all);
                       }}
-                      className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest border border-border hover:border-primary hover:text-primary transition-all rounded-xl"
+                      className="px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest border border-border hover:border-primary hover:text-primary transition-all rounded-lg"
                     >
                       {DECISION_META[d].label}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {decisionCounts.map(({ d, count }) => (
-                  <span key={d} className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-black ${DECISION_META[d].cls}`} title={`${count} ${DECISION_META[d].label}`}>
-                    {count}
-                  </span>
-                ))}
+              <div className="flex items-center gap-1.5 mt-4 pt-2 border-t border-border/40">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Staged:</span>
+                <div className="flex gap-1">
+                  {decisionCounts.map(({ d, count }) => (
+                    <span key={d} className={`px-2 py-0.5 rounded border text-[9px] font-black ${DECISION_META[d].cls}`} title={`${count} ${DECISION_META[d].label}`}>
+                      {count} {DECISION_META[d].label.charAt(0)}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -307,33 +416,45 @@ export default function ProgressionPage() {
              </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-4">
             {enrollments.map(enrollment => {
               const student    = (enrollment as any).portal_users;
               const course     = (enrollment as any).courses;
               const isProcessed = submitted.includes(enrollment.id);
               const decision   = decisions[enrollment.id];
 
+              const report = reports[enrollment.student_id];
+              const rec = getSmartRecommendation(report?.overall_grade, !!course?.next_course_id);
+
               return (
                 <div
                   key={enrollment.id}
-                  className={`group relative bg-card border rounded-[2.5rem] p-8 transition-all duration-500 shadow-xl overflow-hidden ${
+                  className={`group relative bg-card border rounded-[2.5rem] p-8 transition-all duration-500 shadow-xl overflow-hidden flex flex-col justify-between min-h-[300px] ${
                     isProcessed ? 'border-emerald-500/20 opacity-60 grayscale' : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  <div className="flex flex-col gap-6">
+                  <div className="space-y-4">
                     <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-2">
-                         <div className="flex items-center gap-3">
-                           <h3 className="text-xl font-black text-foreground tracking-tight group-hover:text-primary transition-colors">{student?.full_name ?? 'Anonymous Student'}</h3>
+                      <div className="space-y-2 min-w-0">
+                         <div className="flex items-center gap-2.5 flex-wrap">
+                           <h3 className="text-lg font-black text-foreground tracking-tight group-hover:text-primary transition-colors truncate max-w-[200px]" title={student?.full_name}>{student?.full_name ?? 'Anonymous Student'}</h3>
                            {enrollment.start_week > 1 && (
                              <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-[9px] font-black uppercase tracking-widest text-amber-400 border border-amber-500/20">Mid-Term Join</span>
                            )}
+                           {report?.overall_grade ? (
+                             <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/20" title={`Overall score: ${report.overall_grade}`}>
+                               Grade: {report.overall_grade}
+                             </span>
+                           ) : (
+                             <span className="px-2 py-0.5 rounded bg-zinc-500/10 text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 border border-zinc-500/20">
+                               No Grade Yet
+                             </span>
+                           )}
                          </div>
                          <div className="flex items-center gap-3">
-                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Level {course?.level_order ?? '?'}</span>
+                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest shrink-0">Level {course?.level_order ?? '?'}</span>
                            <span className="text-muted-foreground/30 text-[10px]">•</span>
-                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate max-w-[150px]">{course?.title ?? 'Unknown Course'}</span>
+                           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest truncate max-w-[200px]" title={course?.title}>{course?.title ?? 'Unknown Course'}</span>
                          </div>
                       </div>
                       
@@ -344,47 +465,58 @@ export default function ProgressionPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-6 border-t border-border mt-auto">
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">If promoted</p>
-                        <p className="text-[10px] font-bold text-foreground">
-                          {course?.next_course_id ? `Moves to Level ${(course?.level_order ?? 0) + 1}` : 'Final level — course complete'}
-                        </p>
+                    {/* Smart recommendation statement block */}
+                    <div className={`flex items-start gap-2.5 p-3 rounded-2xl border text-[11px] leading-relaxed font-semibold transition-all ${
+                      decision ? 'opacity-40' : ''
+                    } ${rec.cls}`}>
+                      <SparklesIcon className="w-4 h-4 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-black uppercase tracking-wider block text-[9px] mb-0.5">Academic Auditor Suggestion</span>
+                        {rec.desc}
                       </div>
+                    </div>
+                  </div>
 
-                      <div className="flex items-center gap-2">
-                        {canPromote && student?.id && (
-                          <Link
-                            href={`/dashboard/reports/builder?student_id=${student.id}`}
-                            className="p-3 rounded-xl border border-border bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all shadow-sm"
-                            title="View report card"
-                          >
-                            <DocumentChartBarIcon className="w-4 h-4" />
-                          </Link>
-                        )}
-                        {!isProcessed && canPromote && (
-                          <div className="flex gap-1.5 ml-2">
-                            {(['promote', 'repeat', 'withdraw'] as PromotionDecision[]).map(d => {
-                              const m = DECISION_META[d];
-                              const Icon = m.icon;
-                              const active = decision === d;
-                              if (d === 'promote' && !course?.next_course_id) return null;
-                              return (
-                                <button
-                                  key={d}
-                                  onClick={() => setDecisions(prev => ({ ...prev, [enrollment.id]: d }))}
-                                  className={`p-3 rounded-xl border transition-all shadow-sm ${
-                                    active ? m.cls + ' ring-2 ring-current' : 'border-border text-muted-foreground hover:bg-muted/30'
-                                  }`}
-                                  title={m.label}
-                                >
-                                  <Icon className="w-4 h-4" />
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                  <div className="flex items-center justify-between pt-6 border-t border-border mt-6">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">If promoted</p>
+                      <p className="text-[10px] font-bold text-foreground">
+                        {course?.next_course_id ? `Moves to Level ${(course?.level_order ?? 0) + 1}` : 'Final level — course complete'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {canPromote && student?.id && (
+                        <Link
+                          href={`/dashboard/reports/builder?student_id=${student.id}`}
+                          className="p-3 rounded-xl border border-border bg-background hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all shadow-sm"
+                          title="View report card"
+                        >
+                          <DocumentChartBarIcon className="w-4 h-4" />
+                        </Link>
+                      )}
+                      {!isProcessed && canPromote && (
+                        <div className="flex gap-1.5 ml-2">
+                          {(['promote', 'repeat', 'withdraw'] as PromotionDecision[]).map(d => {
+                            const m = DECISION_META[d];
+                            const Icon = m.icon;
+                            const active = decision === d;
+                            if (d === 'promote' && !course?.next_course_id) return null;
+                            return (
+                              <button
+                                key={d}
+                                onClick={() => setDecisions(prev => ({ ...prev, [enrollment.id]: d }))}
+                                className={`p-3 rounded-xl border transition-all shadow-sm ${
+                                  active ? m.cls + ' ring-2 ring-current' : 'border-border text-muted-foreground hover:bg-muted/30'
+                                }`}
+                                title={m.label}
+                              >
+                                <Icon className="w-4 h-4" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

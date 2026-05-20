@@ -34,6 +34,9 @@ interface SchoolProgress {
   total_weeks: number; completed: number; in_progress: number; skipped: number; pct: number;
   current_week: any; upcoming_assessments: UpcomingEvent[];
   term_progress: TermProgress[];
+  completed_weeks?: string[];
+  skipped_weeks?: string[];
+  in_progress_weeks?: string[];
   last_activity: string | null;
 }
 interface CurriculumProgress {
@@ -755,92 +758,167 @@ export default function CurriculumProgressPage() {
 function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; totalWeeks: number }) {
   const [showDetail, setShowDetail] = useState(false);
 
+  // Delivery Pacing calculation (Pacing Forecast)
+  const getPacingLabel = () => {
+    if (school.pct === 0) return { label: 'Not Started', cls: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20' };
+    if (school.pct >= 90) return { label: 'Completed', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
+    
+    const term3Info = school.term_progress.find(t => t.term === 3);
+    const term2Info = school.term_progress.find(t => t.term === 2);
+    
+    if (term3Info && term3Info.pct > 15) {
+      return { label: 'Ahead of Pace', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20 animate-pulse' };
+    }
+    if (term2Info && term2Info.pct < 80) {
+      return { label: 'Behind Schedule', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' };
+    }
+    return { label: 'On Track', cls: 'text-primary bg-primary/10 border-primary/20' };
+  };
+
+  const pacing = getPacingLabel();
+
   return (
-    <div className="px-4 py-3">
+    <div className="px-4 py-4 hover:bg-white/[0.01] transition-all">
       {/* Collapsed header: school name + progress bar + badges */}
       <div
-        className="flex items-start gap-3 cursor-pointer"
+        className="flex items-start gap-4 cursor-pointer"
         onClick={() => setShowDetail(v => !v)}
       >
-        <BuildingOfficeIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+        <BuildingOfficeIcon className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
 
-        <div className="flex-1 min-w-0 space-y-1.5">
-          {/* School name row + upcoming badge inline */}
+        <div className="flex-1 min-w-0 space-y-2">
+          {/* School name row + pacing badge inline */}
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-bold truncate">{school.school_name}</p>
+            <p className="text-sm font-black text-foreground tracking-tight">{school.school_name}</p>
+            <span className={`text-[9px] font-black px-2 py-0.5 border rounded-full uppercase tracking-wider ${pacing.cls}`}>
+              {pacing.label}
+            </span>
             {school.upcoming_assessments.length > 0 && (
-              <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wider rounded shrink-0">
-                {school.upcoming_assessments.length} upcoming
+              <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase tracking-wider rounded-full shrink-0">
+                {school.upcoming_assessments.length} upcoming assessment{school.upcoming_assessments.length !== 1 ? 's' : ''}
               </span>
             )}
           </div>
 
           {/* Progress bar — always visible, full width */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${pctColor(school.pct)}`}
                 style={{ width: `${school.pct}%` }}
               />
             </div>
-            <span className="text-[11px] font-bold text-foreground shrink-0 tabular-nums">{school.pct}%</span>
-            <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{school.completed}/{totalWeeks} wks</span>
+            <span className="text-xs font-black text-foreground shrink-0 tabular-nums">{school.pct}%</span>
+            <span className="text-[10px] text-muted-foreground shrink-0 font-bold uppercase tracking-wider tabular-nums">{school.completed}/{totalWeeks} Weeks</span>
             {school.last_activity && (
-              <span className="text-[10px] text-muted-foreground shrink-0">{relativeTime(school.last_activity)}</span>
+              <span className="text-[10px] text-muted-foreground shrink-0 bg-muted/40 px-2 py-0.5 rounded font-bold">Active {relativeTime(school.last_activity)}</span>
             )}
           </div>
         </div>
 
         {showDetail
-          ? <ChevronDownIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1" />
-          : <ChevronRightIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1" />
+          ? <ChevronDownIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
+          : <ChevronRightIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
         }
       </div>
 
       {/* Detail: per-term breakdown + upcoming */}
       {showDetail && (
-        <div className="mt-3 space-y-4 pl-7">
+        <div className="mt-4 space-y-6 pl-9 border-l-2 border-border/40 ml-2.5">
           {/* Term breakdown — responsive 3-col grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[...school.term_progress].sort((a, b) => a.term - b.term).map(term => {
               const { label, months, color } = TERM_LABELS[term.term] ?? {
                 label: `Term ${term.term}`, months: '', color: 'text-muted-foreground bg-muted border-border',
               };
               return (
-                <div key={term.term} className="bg-background border border-border p-3 space-y-2 rounded-lg">
-                  {/* Term label badge — full color string */}
+                <div key={term.term} className="bg-background border border-border/80 hover:border-primary/30 p-4 space-y-3 rounded-xl transition-all shadow-sm">
+                  {/* Term label badge ── full color string */}
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 border rounded ${color}`}>
+                    <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 border rounded-lg ${color}`}>
                       {label}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">{months}</span>
+                    <span className="text-[10px] text-muted-foreground font-semibold">{months}</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div className={`h-full rounded-full transition-all ${pctColor(term.pct)}`} style={{ width: `${term.pct}%` }} />
                   </div>
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-muted-foreground">{term.completed}/{term.totalWeeks} weeks</span>
-                    <span className="font-black text-foreground">{term.pct}%</span>
+                  <div className="flex justify-between text-[11px] font-bold">
+                    <span className="text-muted-foreground">{term.completed}/{term.totalWeeks} Weeks Covered</span>
+                    <span className="text-foreground">{term.pct}%</span>
                   </div>
                 </div>
               );
             })}
           </div>
 
+          {/* Weekly Heatmap Roadmap Tracker */}
+          <div className="space-y-3">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Weekly Learning Coverage</h4>
+            <div className="space-y-4 bg-muted/20 border border-border/50 p-4 rounded-2xl">
+              {[1, 2, 3].map(termNum => {
+                const termInfo = school.term_progress.find(t => t.term === termNum);
+                if (!termInfo) return null;
+                return (
+                  <div key={termNum} className="space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      <span>Term {termNum} Coverage Tracker</span>
+                      <span className="text-primary">{termInfo.completed} of {termInfo.totalWeeks} weeks completed</span>
+                    </div>
+                    {/* Horizontal 12 weeks bar */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {Array.from({ length: termInfo.totalWeeks || 12 }).map((_, idx) => {
+                        const wk = idx + 1;
+                        const key = `${termNum}-${wk}`;
+                        const isCompleted = school.completed_weeks?.includes(key);
+                        const isSkipped = school.skipped_weeks?.includes(key);
+                        const isInProgress = school.in_progress_weeks?.includes(key);
+
+                        let bgCls = 'border-border/60 text-muted-foreground/40 hover:border-primary/40 hover:text-foreground';
+                        let statusText = 'Upcoming / Planned';
+
+                        if (isCompleted) {
+                          bgCls = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                          statusText = 'Completed';
+                        } else if (isInProgress) {
+                          bgCls = 'bg-primary/20 text-primary border-primary/30 animate-pulse font-black';
+                          statusText = 'Currently teaching';
+                        } else if (isSkipped) {
+                          bgCls = 'bg-amber-500/10 text-amber-500/80 border-amber-500/20';
+                          statusText = 'Skipped';
+                        }
+
+                        return (
+                          <div
+                            key={wk}
+                            title={`Term ${termNum}, Week ${wk} • Status: ${statusText}`}
+                            className={`w-8 h-8 rounded-lg border text-[10px] font-bold flex items-center justify-center transition-all cursor-default select-none ${bgCls}`}
+                          >
+                            {wk}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Current week — "Now on" line with flex-wrap to prevent overflow */}
           {school.current_week && (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-              <ArrowPathIcon className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-muted-foreground font-bold shrink-0">Now on:</span>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded ${WEEK_TYPE_COLOR[school.current_week.type] ?? 'bg-muted'} text-primary-foreground font-bold uppercase shrink-0`}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs bg-primary/[0.02] border border-primary/10 p-3 rounded-xl">
+              <ArrowPathIcon className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-muted-foreground font-black uppercase tracking-wider text-[10px] shrink-0">Currently Scheduled:</span>
+              <span className={`text-[9px] px-2 py-0.5 rounded border ${TERM_LABELS[school.current_week.term]?.color ?? 'bg-muted'} font-bold uppercase shrink-0`}>
                 {TERM_LABELS[school.current_week.term]?.label ?? `Term ${school.current_week.term}`}
               </span>
-              <span className="font-bold text-foreground">
+              <span className="font-black text-foreground">
                 Week {school.current_week.week}
               </span>
               <span className="text-muted-foreground">—</span>
-              <span className="text-foreground truncate">{school.current_week.topic}</span>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded ${WEEK_TYPE_COLOR[school.current_week.type] ?? 'bg-muted'} text-primary-foreground font-bold uppercase shrink-0`}>
+              <span className="text-foreground font-medium truncate max-w-[300px]" title={school.current_week.topic}>{school.current_week.topic}</span>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded ${WEEK_TYPE_COLOR[school.current_week.type] ?? 'bg-muted'} text-primary-foreground font-black uppercase tracking-wider shrink-0`}>
                 {school.current_week.type}
               </span>
             </div>
@@ -848,28 +926,33 @@ function SchoolProgressRow({ school, totalWeeks }: { school: SchoolProgress; tot
 
           {/* Upcoming assessments */}
           {school.upcoming_assessments.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">Upcoming</p>
-              {school.upcoming_assessments.map((ev, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs bg-amber-500/5 border border-amber-500/20 px-3 py-2 rounded-lg flex-wrap">
-                  <ExclamationTriangleIcon className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                  <span className="text-foreground font-bold flex-1 min-w-0 truncate">{ev.topic}</span>
-                  <span className="text-muted-foreground shrink-0">{TERM_LABELS[ev.term]?.label ?? `Term ${ev.term}`} Wk{ev.week}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 shrink-0 ${
-                    ev.type === 'examination'
-                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                      : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                  } font-black uppercase tracking-wider rounded`}>
-                    {ev.type}
-                  </span>
-                </div>
-              ))}
+            <div className="space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-amber-400">Upcoming Assessments & Milestones</p>
+              <div className="space-y-1.5">
+                {school.upcoming_assessments.map((ev, i) => (
+                  <div key={i} className="flex items-start gap-2.5 text-xs bg-amber-500/5 border border-amber-500/20 px-3.5 py-2.5 rounded-xl flex-wrap">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <span className="text-foreground font-bold flex-1 min-w-0 truncate">{ev.topic}</span>
+                    <span className="text-muted-foreground font-semibold shrink-0">{TERM_LABELS[ev.term]?.label ?? `Term ${ev.term}`} Wk {ev.week}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 shrink-0 ${
+                      ev.type === 'examination'
+                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    } font-black uppercase tracking-wider rounded`}>
+                      {ev.type}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {/* Skipped weeks */}
           {school.skipped > 0 && (
-            <p className="text-[10px] text-muted-foreground font-bold">{school.skipped} week(s) skipped</p>
+            <div className="flex items-center gap-2 text-[10px] text-amber-500 bg-amber-500/5 border border-amber-500/20 px-3 py-1.5 rounded-lg w-max font-bold">
+              <ExclamationTriangleIcon className="w-3.5 h-3.5 shrink-0" />
+              <span>{school.skipped} week(s) skipped in planning / schedules</span>
+            </div>
           )}
         </div>
       )}

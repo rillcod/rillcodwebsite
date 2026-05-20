@@ -162,6 +162,9 @@ export async function GET(req: NextRequest) {
         current_week: nextWeek ?? null,
         upcoming_assessments: upcomingAssessments,
         term_progress: termProgress,
+        completed_weeks: Array.from(completedWeekNums),
+        skipped_weeks: Array.from(skippedWeekNums),
+        in_progress_weeks: schoolTrack.filter((t: any) => t.status === 'in_progress').map((t: any) => `${t.term_number}-${t.week_number}`),
         last_activity: schoolTrack.sort((a: any, b: any) =>
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
         )[0]?.updated_at ?? null,
