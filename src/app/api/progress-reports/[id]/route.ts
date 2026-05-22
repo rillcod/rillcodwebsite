@@ -120,7 +120,7 @@ export async function PATCH(
     'key_strengths', 'areas_for_growth',
     'current_module', 'next_module',
     // Student identity corrections — sync back to portal_users + students
-    'section_class', 'student_name', 'gender',
+    'section_class', 'student_name',
   ];
   fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
   allowed.updated_at = new Date().toISOString();
@@ -135,12 +135,11 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Sync name / class / gender corrections back to the student profile
-  if ((allowed.section_class || allowed.student_name || allowed.gender) && data?.student_id) {
+  // Sync name / class corrections back to the student profile
+  if ((allowed.section_class || allowed.student_name) && data?.student_id) {
     await syncStudentProfile(admin, data.student_id, {
       sectionClass: allowed.section_class ?? null,
       studentName:  allowed.student_name  ?? null,
-      gender:       allowed.gender        ?? null,
     });
   }
 
@@ -185,7 +184,7 @@ export async function PATCH(
         });
       } else if (student?.id) {
         // In-app notification for @rillcod.com handle users
-        await db.from('notifications').insert({
+        await (db as any).from('notifications').insert({
           user_id:    student.id,
           title:      subject,
           message:    `Your progress report for ${term} is now available. Log in to view your results.`,
