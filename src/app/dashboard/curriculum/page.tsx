@@ -427,7 +427,7 @@ export default function CurriculumPage() {
   >([]);
   const [qaInspectLane, setQaInspectLane] = useState(1);
   const [qaClassOptions, setQaClassOptions] = useState<
-    { id: string; name: string; program_id: string | null }[]
+    { id: string; name: string; program_id: string | null; qa_grade_key?: string | null; qa_track_hint?: string | null }[]
   >([]);
   const [qaClassId, setQaClassId] = useState('');
   const [qaClassGradeMode, setQaClassGradeMode] = useState<'optional' | 'compulsory'>('optional');
@@ -837,7 +837,7 @@ export default function CurriculumPage() {
     fetch('/api/classes', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => {
-        const list = (j.data ?? []) as { id: string; name: string; program_id: string | null }[];
+        const list = (j.data ?? []) as { id: string; name: string; program_id: string | null; qa_grade_key?: string | null; qa_track_hint?: string | null }[];
         setQaClassOptions(list);
       })
       .catch(() => setQaClassOptions([]));
@@ -1167,6 +1167,44 @@ export default function CurriculumPage() {
     finally { setSavingProgramStartTerm(false); }
   }, [curriculum]);
 
+  // Shared context builder — all regen calls use this to assemble rich AI payload fields
+  const buildAiContext = useCallback((
+    termN: number,
+    extraOverrides: Record<string, unknown> = {},
+  ) => {
+    // National term this programme term maps to
+    const natTermN = qaPreviewData?.terms.find(t => t.term === termN)?.national_term ?? termN;
+    // All topics already in the existing curriculum for OTHER programme terms (avoid repetition)
+    const existingTopics: string[] = [];
+    if (curriculum?.content?.terms) {
+      for (const t of curriculum.content.terms) {
+        const progT = ((t.term - effectiveProgramStartTerm + 3) % 3) + 1;
+        if (progT !== termN) {
+          (t.weeks ?? []).forEach((w: { topic?: string }) => { if (w.topic) existingTopics.push(w.topic); });
+        }
+      }
+    }
+    return {
+      lane_index: qaPreviewData?.lane_index ?? qaLaneOverride ?? 1,
+      year_number: qaYear,
+      term_number: termN,
+      national_term_number: natTermN,
+      class_name: selectedQaClass?.name,
+      course_name: selectedCourse?.title,
+      programme_name: selectedProgram?.name,
+      grade_level: selectedQaClass?.qa_grade_key ?? '',
+      academic_year: academicYear,
+      program_start_term: effectiveProgramStartTerm,
+      weak_topics: qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [],
+      existing_curriculum_topics: existingTopics,
+      ...extraOverrides,
+    };
+  }, [
+    qaPreviewData, qaLaneOverride, qaYear,
+    selectedQaClass, selectedCourse, selectedProgram,
+    academicYear, effectiveProgramStartTerm, qaLaneSuggestion, curriculum,
+  ]);
+
   // Regenerate a single week topic with AI
   const regenWeek = useCallback(async (termN: number, weekN: number, prevTopics: string[]) => {
     const key = `t${termN}-w${weekN}`;
@@ -1175,16 +1213,7 @@ export default function CurriculumPage() {
       const res = await fetch('/api/ai/spine-regen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lane_index: qaPreviewData?.lane_index ?? qaLaneOverride ?? 1,
-          year_number: qaYear,
-          term_number: termN,
-          week_number: weekN,
-          class_name: selectedQaClass?.name,
-          course_name: selectedCourse?.title,
-          weak_topics: qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [],
-          prev_topics: prevTopics,
-        }),
+        body: JSON.stringify(buildAiContext(termN, { week_number: weekN, prev_topics: prevTopics })),
       });
       const j = await res.json();
       if (res.ok && j.weeks?.[0]?.topic) {
@@ -1194,10 +1223,10 @@ export default function CurriculumPage() {
       }
     } catch { toast.error('Network error'); }
     finally { setQaWeekRegenLoading(null); }
-  }, [qaPreviewData, qaLaneOverride, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion]);
+  }, [buildAiContext]);
 
   // Regenerate all 12 weeks for a specific term sequentially (one week at a time with growing context)
-  const regenFullTerm = useCallback(async (termN: number) => {
+  const regenFullTerm = useCallback(async (termN: number, hintPrevTermTopics?: string[]) => {
     if (!qaPreviewData) return;
     setQaSpineRegenLoading(true);
     setQaSpineRegenNote('');
@@ -1210,32 +1239,27 @@ export default function CurriculumPage() {
           return tm?.weeks?.find(w => w.week === t.week_number)?.topic ?? `Week ${t.week_number}`;
         })
         .slice(0, 5);
+      // Prev-term context: caller can supply it (for progressive multi-term), else derive from preview/edits
       const prevTermWeeks = termN > 1 ? (qaPreviewData.terms.find(t => t.term === termN - 1)?.weeks ?? []) : [];
-      const prevTermTopics = prevTermWeeks.slice(-3).map(w => qaPreviewEdits[`t${termN - 1}-w${w.week}`] ?? w.topic);
-      const weakTopicNames = qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [];
+      const prevTermTopics = hintPrevTermTopics
+        ?? prevTermWeeks.slice(-3).map(w => qaPreviewEdits[`t${termN - 1}-w${w.week}`] ?? w.topic);
 
       const generatedTopics: string[] = [];
       const newEdits: Record<string, string> = {};
       let failCount = 0;
 
       for (let w = 1; w <= 12; w++) {
-        setQaSpineRegenProgress(`Generating week ${w} of 12…`);
+        setQaSpineRegenProgress(`Prog.T${termN} — Week ${w}/12…`);
         try {
           const res = await fetch('/api/ai/spine-regen', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              lane_index: qaPreviewData.lane_index,
-              year_number: qaYear,
-              term_number: termN,
+            body: JSON.stringify(buildAiContext(termN, {
               week_number: w,
-              class_name: selectedQaClass?.name,
-              course_name: selectedCourse?.title,
-              weak_topics: weakTopicNames,
               skipped_topics: skippedTopics,
               prev_term_topics: prevTermTopics,
               prev_topics: generatedTopics.slice(-4),
-            }),
+            })),
           });
           const j = await res.json();
           if (res.ok && j.weeks?.[0]?.topic) {
@@ -1245,9 +1269,7 @@ export default function CurriculumPage() {
           } else {
             failCount++;
           }
-        } catch {
-          failCount++;
-        }
+        } catch { failCount++; }
       }
 
       if (Object.keys(newEdits).length > 0) {
@@ -1255,11 +1277,12 @@ export default function CurriculumPage() {
         const successCount = Object.keys(newEdits).length;
         if (failCount > 0) {
           setQaSpineRegenNote(`${successCount} weeks personalised (${failCount} used spine defaults).`);
-          toast.success(`Term ${termN}: ${successCount}/12 weeks personalised`);
+          toast.success(`Prog.T${termN}: ${successCount}/12 weeks personalised`);
         } else {
           setQaSpineRegenNote(`All 12 weeks personalised for ${selectedQaClass?.name ?? 'this class'}.`);
-          toast.success(`Term ${termN} fully personalised — 12 weeks updated`);
+          toast.success(`Prog.T${termN} fully personalised — 12 weeks updated`);
         }
+        return generatedTopics; // caller can use for progressive chaining
       } else {
         toast.error('AI could not generate topics — try again');
       }
@@ -1268,124 +1291,31 @@ export default function CurriculumPage() {
       setQaSpineRegenLoading(false);
       setQaSpineRegenProgress(null);
     }
-  }, [qaPreviewData, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion, tracking, curriculum, qaPreviewEdits]);
+    return [];
+  }, [qaPreviewData, buildAiContext, tracking, curriculum, qaPreviewEdits, selectedQaClass?.name]);
 
-  // Regenerate all 3 terms progressively: T1 first → T2 uses T1 last 3 → T3 uses T2 last 3
+  // Regenerate all 3 terms progressively — delegates to regenFullTerm, passing each term's output as next term's context
   const regenAllTermsProgressive = useCallback(async () => {
     if (!qaPreviewData) return;
-    setQaSpineRegenLoading(true);
-    setQaSpineRegenNote('');
-    const weakTopicNames = qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [];
-    const skippedTopics = tracking
-      .filter(t => t.status === 'skipped')
-      .map(t => {
-        const tm = curriculum?.content?.terms?.find(x => x.term === t.term_number);
-        return tm?.weeks?.find(w => w.week === t.week_number)?.topic ?? `Week ${t.week_number}`;
-      })
-      .slice(0, 5);
-
-    const allNewEdits: Record<string, string> = {};
     let lastTermTopics: string[] = [];
-
     for (let termN = 1; termN <= 3; termN++) {
-      const generatedTopics: string[] = [];
-      for (let w = 1; w <= 12; w++) {
-        setQaSpineRegenProgress(`Term ${termN}/3 · Week ${w}/12…`);
-        try {
-          const res = await fetch('/api/ai/spine-regen', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              lane_index: qaPreviewData.lane_index,
-              year_number: qaYear,
-              term_number: termN,
-              week_number: w,
-              class_name: selectedQaClass?.name,
-              course_name: selectedCourse?.title,
-              weak_topics: weakTopicNames,
-              skipped_topics: skippedTopics,
-              prev_term_topics: lastTermTopics,
-              prev_topics: generatedTopics.slice(-4),
-            }),
-          });
-          const j = await res.json();
-          if (res.ok && j.weeks?.[0]?.topic) {
-            const topic = j.weeks[0].topic as string;
-            generatedTopics.push(topic);
-            allNewEdits[`t${termN}-w${w}`] = topic;
-          }
-        } catch { /* continue */ }
-      }
-      lastTermTopics = generatedTopics.slice(-3);
+      const generated = await regenFullTerm(termN, lastTermTopics.length ? lastTermTopics : undefined) ?? [];
+      lastTermTopics = (generated as string[]).slice(-3);
     }
+    setQaSpineRegenNote('All 3 terms progressively personalised.');
+  }, [qaPreviewData, regenFullTerm]);
 
-    if (Object.keys(allNewEdits).length > 0) {
-      setQaPreviewEdits(prev => ({ ...prev, ...allNewEdits }));
-      const count = Object.keys(allNewEdits).length;
-      setQaSpineRegenNote(`${count} weeks personalised across all 3 terms — progressively built.`);
-      toast.success(`All 3 terms personalised (${count}/36 weeks)`);
-    } else {
-      toast.error('AI could not generate topics — try again');
-    }
-    setQaSpineRegenLoading(false);
-    setQaSpineRegenProgress(null);
-  }, [qaPreviewData, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion, tracking, curriculum]);
-
-  // Adopt current content of termN and progressively regenerate all subsequent terms using it as context
+  // Adopt current content of fromTermN as baseline; AI-generate subsequent terms progressively from it
   const adoptAndContinueFrom = useCallback(async (fromTermN: number) => {
     if (!qaPreviewData) return;
-    setQaSpineRegenLoading(true);
-    setQaSpineRegenNote('');
-    const weakTopicNames = qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [];
-
-    // Get the adopted term's topics (from edits if available, else from spine)
-    const adoptedTermWeeks = qaPreviewData.terms.find(t => t.term === fromTermN)?.weeks ?? [];
-    let lastTermTopics = adoptedTermWeeks.slice(-3).map(w => qaPreviewEdits[`t${fromTermN}-w${w.week}`] ?? w.topic);
-
-    const allNewEdits: Record<string, string> = {};
-
+    const adoptedWeeks = qaPreviewData.terms.find(t => t.term === fromTermN)?.weeks ?? [];
+    let lastTermTopics = adoptedWeeks.slice(-3).map(w => qaPreviewEdits[`t${fromTermN}-w${w.week}`] ?? w.topic);
     for (let termN = fromTermN + 1; termN <= 3; termN++) {
-      const generatedTopics: string[] = [];
-      for (let w = 1; w <= 12; w++) {
-        setQaSpineRegenProgress(`Continuing from T${fromTermN} · T${termN}/3 Week ${w}/12…`);
-        try {
-          const res = await fetch('/api/ai/spine-regen', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              lane_index: qaPreviewData.lane_index,
-              year_number: qaYear,
-              term_number: termN,
-              week_number: w,
-              class_name: selectedQaClass?.name,
-              course_name: selectedCourse?.title,
-              weak_topics: weakTopicNames,
-              prev_term_topics: lastTermTopics,
-              prev_topics: generatedTopics.slice(-4),
-            }),
-          });
-          const j = await res.json();
-          if (res.ok && j.weeks?.[0]?.topic) {
-            const topic = j.weeks[0].topic as string;
-            generatedTopics.push(topic);
-            allNewEdits[`t${termN}-w${w}`] = topic;
-          }
-        } catch { /* continue */ }
-      }
-      lastTermTopics = generatedTopics.slice(-3);
+      const generated = await regenFullTerm(termN, lastTermTopics) ?? [];
+      lastTermTopics = (generated as string[]).slice(-3);
     }
-
-    if (Object.keys(allNewEdits).length > 0) {
-      setQaPreviewEdits(prev => ({ ...prev, ...allNewEdits }));
-      const count = Object.keys(allNewEdits).length;
-      setQaSpineRegenNote(`Adopted T${fromTermN} content — ${count} weeks generated progressively from there.`);
-      toast.success(`Adopted T${fromTermN} + continued: ${count} weeks generated`);
-    } else {
-      toast.error('AI could not generate continuation — try again');
-    }
-    setQaSpineRegenLoading(false);
-    setQaSpineRegenProgress(null);
-  }, [qaPreviewData, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion, qaPreviewEdits]);
+    setQaSpineRegenNote(`Adopted Prog.T${fromTermN} — subsequent terms generated progressively.`);
+  }, [qaPreviewData, regenFullTerm, qaPreviewEdits]);
 
   const openGenerateModal = useCallback(() => {
     let scope: 'platform' | string = 'platform';
@@ -3959,16 +3889,31 @@ export default function CurriculumPage() {
                                         </div>
                                       </div>
 
-                                      {/* Fallback warning */}
+                                      {/* Fallback warning — auto-suggest full AI regen */}
                                       {qaPreviewData.fallback_used && (
-                                        <div className="px-3 py-2.5 bg-amber-500/8 border-b border-amber-500/20 flex items-start gap-2.5">
-                                          <div className="shrink-0 w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center mt-0.5">
-                                            <span className="text-amber-400 text-[10px] font-black">!</span>
+                                        <div className="px-3 py-2.5 bg-amber-500/8 border-b border-amber-500/20">
+                                          <div className="flex items-start gap-2.5">
+                                            <div className="shrink-0 w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center mt-0.5">
+                                              <span className="text-amber-400 text-[10px] font-black">!</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-[10px] font-bold text-amber-300">No programme-specific template found</p>
+                                              <p className="text-[9px] text-amber-300/70 mt-0.5">
+                                                Topics below are generic defaults — not specific to your programme or course.
+                                                Replace them with AI-generated content tailored to <strong className="text-amber-200">{selectedCourse?.title ?? 'this course'}</strong>.
+                                              </p>
+                                            </div>
                                           </div>
-                                          <div>
-                                            <p className="text-[10px] font-bold text-amber-300">No programme-specific template found</p>
-                                            <p className="text-[9px] text-amber-300/70 mt-0.5">Topics below are generic spine defaults (not your programme). Click <strong className="text-amber-300">Personalise with AI</strong> on each term to generate correct content.</p>
-                                          </div>
+                                          {!qaSpineRegenLoading && (
+                                            <button
+                                              type="button"
+                                              onClick={() => void regenAllTermsProgressive()}
+                                              className="mt-2 w-full inline-flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-black text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-lg transition-all"
+                                            >
+                                              <SparklesIcon className="w-3 h-3" />
+                                              Fix all 3 terms with AI now (programme-specific)
+                                            </button>
+                                          )}
                                         </div>
                                       )}
 
