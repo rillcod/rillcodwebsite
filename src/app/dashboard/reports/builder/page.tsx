@@ -328,6 +328,7 @@ function ReportBuilderInner() {
     const [form, setForm] = useState({
         student_name: '',
         section_class: '',
+        gender: '' as '' | 'male' | 'female',
         // ── WAEC 6-component scores ──────────────────────────────────────────
         theory_score:       '0',   // Theory/Written    20%
         classwork_score:    '0',   // Classwork         10%  (→ engagement_metrics)
@@ -888,6 +889,7 @@ function ReportBuilderInner() {
         const loadedFormValues = {
             student_name: s.full_name ?? '',
             section_class: report?.section_class ?? (s as any).section_class ?? '',
+            gender: ((report as any)?.gender ?? (s as any).gender ?? '') as '' | 'male' | 'female',
             theory_score:        String(savedTheory),
             classwork_score:     String(savedClasswork),
             practical_score:     String(savedPractical),
@@ -1182,6 +1184,7 @@ function ReportBuilderInner() {
                 school_id: sessionConfig.school_id || (selectedStudent as any).school_id || profile?.school_id || null,
                 course_id: sessionConfig.course_id || null,
                 student_name: form.student_name,
+                gender: form.gender || null,
                 school_name: sessionConfig.school_name || (selectedStudent as any).school_name || null,
                 section_class: form.section_class || sessionConfig.section_class || (selectedStudent as any).section_class || null,
                 course_name: sessionConfig.course_name,
@@ -1241,15 +1244,17 @@ function ReportBuilderInner() {
                 setExistingReport({ ...payload, id: j.data.id } as unknown as StudentReport);
             }
 
-            // Propagate name / class corrections back to the student's root profile
+            // Propagate name / class / gender corrections back to the student's root profile
             if (!isManual && selectedStudent.id) {
                 const origName = selectedStudent.full_name ?? '';
                 const origClass = (selectedStudent as any).section_class ?? '';
+                const origGender = (selectedStudent as any).gender ?? '';
                 const newName = form.student_name.trim();
                 const newClass = (form.section_class || sessionConfig.section_class || '').trim();
                 const profilePatch: Record<string, string> = {};
                 if (newName && newName !== origName) profilePatch.full_name = newName;
                 if (newClass && newClass !== origClass) profilePatch.section_class = newClass;
+                if (form.gender && form.gender !== origGender) profilePatch.gender = form.gender;
                 if (Object.keys(profilePatch).length > 0) {
                     fetch(`/api/portal-users/${selectedStudent.id}`, {
                         method: 'PATCH',
@@ -1260,6 +1265,7 @@ function ReportBuilderInner() {
                             // Update local state so future comparisons are correct
                             (selectedStudent as any).full_name = profilePatch.full_name ?? selectedStudent.full_name;
                             (selectedStudent as any).section_class = profilePatch.section_class ?? (selectedStudent as any).section_class;
+                            if (profilePatch.gender) (selectedStudent as any).gender = profilePatch.gender;
                         }
                     }).catch(() => { /* non-critical — report was saved */ });
                 }
@@ -1353,6 +1359,7 @@ function ReportBuilderInner() {
                         courseName: sessionConfig.course_name || '',
                         programName: programName,
                         studentName: form.student_name || 'The Student',
+                        gender: form.gender || null,
                         gradeLevel: form.section_class || 'General Academic',
                         // All 6 WAEC components
                         theoryScore:        parseFloat(form.theory_score)        || 0,
@@ -2698,7 +2705,7 @@ function ReportBuilderInner() {
                                             <Field label="Full Name">
                                                 <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
                                             </Field>
-                                            <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-3 gap-3">
                                                 <div className="p-3 bg-muted/20 border border-border rounded-xl">
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">School</p>
                                                     <p className="text-sm text-muted-foreground font-semibold truncate">{sessionConfig.school_name || '—'}</p>
@@ -2712,6 +2719,17 @@ function ReportBuilderInner() {
                                                         <option value="" className="bg-background">Select —</option>
                                                         {CLASS_PRESETS.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
                                                         {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
+                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Gender</label>
+                                                    <select
+                                                        value={form.gender}
+                                                        onChange={e => setForm(f => ({ ...f, gender: e.target.value as '' | 'male' | 'female' }))}
+                                                        className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
+                                                        <option value="" className="bg-background">—</option>
+                                                        <option value="male" className="bg-background">Male</option>
+                                                        <option value="female" className="bg-background">Female</option>
                                                     </select>
                                                 </div>
                                             </div>
