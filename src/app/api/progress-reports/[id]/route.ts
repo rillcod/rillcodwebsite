@@ -36,7 +36,8 @@ async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teach
 }
 
 async function syncStudentProfile(
-  admin: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
   studentId: string,
   fields: { sectionClass?: string | null; studentName?: string | null; gender?: string | null },
 ) {
