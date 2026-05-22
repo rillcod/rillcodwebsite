@@ -30,6 +30,8 @@ export async function GET(
   const year = Math.min(3, Math.max(1, Number(url.searchParams.get('year') ?? '1')));
   const manualLane = Number(url.searchParams.get('lane_index') ?? '0');
   const catalog = url.searchParams.get('catalog_version')?.trim() || 'qa_spine_v1';
+  const rawPst = Number(url.searchParams.get('program_start_term') ?? '1');
+  const programStartTerm = [1, 2, 3].includes(rawPst) ? rawPst : 1;
 
   const { data: cls, error: cErr } = await supabase
     .from('classes')
@@ -63,11 +65,11 @@ export async function GET(
   const pathOffset = typeof off === 'number' ? off : 0;
 
   // Try with specific program_id first; fall back to any available rows for this lane
-  let rows: { week_index: number; topic: string; subtopics: unknown }[] = [];
+  let rows: { week_index: number; topic: string; subtopics: unknown; program_id?: string | null }[] = [];
   if (effectiveProgram) {
     const { data: programRows, error: trErr } = await supabase
       .from('platform_syllabus_week_template')
-      .select('week_index, topic, subtopics')
+      .select('week_index, topic, subtopics, program_id')
       .eq('catalog_version', catalog)
       .eq('lane_index', lane)
       .eq('program_id', effectiveProgram)
@@ -78,7 +80,7 @@ export async function GET(
   if (rows.length === 0) {
     const { data: fallbackRows, error: fbErr } = await supabase
       .from('platform_syllabus_week_template')
-      .select('week_index, topic, subtopics')
+      .select('week_index, topic, subtopics, program_id')
       .eq('catalog_version', catalog)
       .eq('lane_index', lane)
       .order('week_index', { ascending: true })
@@ -99,7 +101,16 @@ export async function GET(
 
   const bySp = new Map(rows.map((r) => [r.week_index, r]));
 
-  const terms: Array<{ term: number; weeks: { week: number; calendar_index: number; spine_week: number; topic: string }[] }> = [];
+  // prog term t → national term: ((t + programStartTerm - 2) % 3) + 1
+  function progToNational(progTerm: number): number {
+    return ((progTerm + programStartTerm - 2) % 3) + 1;
+  }
+
+  const terms: Array<{
+    term: number;         // programme term (1/2/3)
+    national_term: number; // which national calendar term receives this content
+    weeks: { week: number; calendar_index: number; spine_week: number; topic: string }[];
+  }> = [];
   for (let t = 1; t <= 3; t++) {
     const weeks = [];
     for (let w = 1; w <= 12; w++) {
@@ -113,19 +124,28 @@ export async function GET(
         topic: r?.topic ?? '(missing row)',
       });
     }
-    terms.push({ term: t, weeks });
+    terms.push({ term: t, national_term: progToNational(t), weeks });
   }
+
+  // Detect whether we fell back to non-programme rows
+  const usedProgramId = rows.length > 0 && effectiveProgram
+    ? (rows as Array<{ program_id?: string | null }>)[0]?.program_id ?? null
+    : null;
+  const fallbackUsed = effectiveProgram && usedProgramId !== effectiveProgram;
 
   return NextResponse.json({
     data: {
       class_id: classId,
       class_name: cls.name,
       program_id: effectiveProgram,
+      used_program_id: usedProgramId,
+      fallback_used: !!fallbackUsed,
       year,
       catalog_version: catalog,
       lane_index: lane,
       lane_source: resolved.source,
       path_offset: pathOffset,
+      program_start_term: programStartTerm,
       terms,
     },
   });

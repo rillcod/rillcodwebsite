@@ -443,7 +443,10 @@ export default function CurriculumPage() {
     path_offset: number;
     lane_index: number;
     lane_source: string;
-    terms: { term: number; weeks: { week: number; topic: string; spine_week: number }[] }[];
+    program_start_term: number;
+    fallback_used: boolean;
+    used_program_id: string | null;
+    terms: { term: number; national_term: number; weeks: { week: number; topic: string; spine_week: number }[] }[];
   } | null>(null);
   const [qaApplyLoading, setQaApplyLoading] = useState(false);
   const [qaApplyErr, setQaApplyErr] = useState('');
@@ -905,6 +908,7 @@ export default function CurriculumPage() {
       const q = new URLSearchParams({ year: String(qaYear) });
       if (programIdForQa) q.set('program_id', programIdForQa);
       if (qaLaneOverride > 0) q.set('lane_index', String(qaLaneOverride));
+      q.set('program_start_term', String(effectiveProgramStartTerm));
       const res = await fetch(`/api/classes/${encodeURIComponent(qaClassId)}/qa-spine-preview?${q}`);
       const j = await res.json();
       if (!res.ok) {
@@ -920,7 +924,7 @@ export default function CurriculumPage() {
     } finally {
       setQaPreviewLoading(false);
     }
-  }, [qaClassId, programIdForQa, qaYear, qaLaneOverride, qaSelectionStamp, runLaneSuggest]);
+  }, [qaClassId, programIdForQa, qaYear, qaLaneOverride, qaSelectionStamp, runLaneSuggest, effectiveProgramStartTerm]);
 
   // Auto-load implementations when delivery OR implementations tab active, or course changes
   useEffect(() => {
@@ -1081,6 +1085,10 @@ export default function CurriculumPage() {
         const tRes = await fetch(`/api/curricula/${u.id}/track`);
         const tJson = await tRes.json();
         setTracking(tJson.data ?? []);
+        // Navigate to Prog.T1 (the national term where the school's programme begins)
+        setActiveTerm(effectiveProgramStartTerm);
+        setActiveTab('syllabus');
+        toast.success('Teaching template applied — showing your Programme Term 1');
       }
     } catch {
       setQaApplyErr('Network error');
@@ -1250,6 +1258,123 @@ export default function CurriculumPage() {
       setQaSpineRegenProgress(null);
     }
   }, [qaPreviewData, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion, tracking, curriculum, qaPreviewEdits]);
+
+  // Regenerate all 3 terms progressively: T1 first → T2 uses T1 last 3 → T3 uses T2 last 3
+  const regenAllTermsProgressive = useCallback(async () => {
+    if (!qaPreviewData) return;
+    setQaSpineRegenLoading(true);
+    setQaSpineRegenNote('');
+    const weakTopicNames = qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [];
+    const skippedTopics = tracking
+      .filter(t => t.status === 'skipped')
+      .map(t => {
+        const tm = curriculum?.content?.terms?.find(x => x.term === t.term_number);
+        return tm?.weeks?.find(w => w.week === t.week_number)?.topic ?? `Week ${t.week_number}`;
+      })
+      .slice(0, 5);
+
+    const allNewEdits: Record<string, string> = {};
+    let lastTermTopics: string[] = [];
+
+    for (let termN = 1; termN <= 3; termN++) {
+      const generatedTopics: string[] = [];
+      for (let w = 1; w <= 12; w++) {
+        setQaSpineRegenProgress(`Term ${termN}/3 · Week ${w}/12…`);
+        try {
+          const res = await fetch('/api/ai/spine-regen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lane_index: qaPreviewData.lane_index,
+              year_number: qaYear,
+              term_number: termN,
+              week_number: w,
+              class_name: selectedQaClass?.name,
+              course_name: selectedCourse?.title,
+              weak_topics: weakTopicNames,
+              skipped_topics: skippedTopics,
+              prev_term_topics: lastTermTopics,
+              prev_topics: generatedTopics.slice(-4),
+            }),
+          });
+          const j = await res.json();
+          if (res.ok && j.weeks?.[0]?.topic) {
+            const topic = j.weeks[0].topic as string;
+            generatedTopics.push(topic);
+            allNewEdits[`t${termN}-w${w}`] = topic;
+          }
+        } catch { /* continue */ }
+      }
+      lastTermTopics = generatedTopics.slice(-3);
+    }
+
+    if (Object.keys(allNewEdits).length > 0) {
+      setQaPreviewEdits(prev => ({ ...prev, ...allNewEdits }));
+      const count = Object.keys(allNewEdits).length;
+      setQaSpineRegenNote(`${count} weeks personalised across all 3 terms — progressively built.`);
+      toast.success(`All 3 terms personalised (${count}/36 weeks)`);
+    } else {
+      toast.error('AI could not generate topics — try again');
+    }
+    setQaSpineRegenLoading(false);
+    setQaSpineRegenProgress(null);
+  }, [qaPreviewData, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion, tracking, curriculum]);
+
+  // Adopt current content of termN and progressively regenerate all subsequent terms using it as context
+  const adoptAndContinueFrom = useCallback(async (fromTermN: number) => {
+    if (!qaPreviewData) return;
+    setQaSpineRegenLoading(true);
+    setQaSpineRegenNote('');
+    const weakTopicNames = qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [];
+
+    // Get the adopted term's topics (from edits if available, else from spine)
+    const adoptedTermWeeks = qaPreviewData.terms.find(t => t.term === fromTermN)?.weeks ?? [];
+    let lastTermTopics = adoptedTermWeeks.slice(-3).map(w => qaPreviewEdits[`t${fromTermN}-w${w.week}`] ?? w.topic);
+
+    const allNewEdits: Record<string, string> = {};
+
+    for (let termN = fromTermN + 1; termN <= 3; termN++) {
+      const generatedTopics: string[] = [];
+      for (let w = 1; w <= 12; w++) {
+        setQaSpineRegenProgress(`Continuing from T${fromTermN} · T${termN}/3 Week ${w}/12…`);
+        try {
+          const res = await fetch('/api/ai/spine-regen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lane_index: qaPreviewData.lane_index,
+              year_number: qaYear,
+              term_number: termN,
+              week_number: w,
+              class_name: selectedQaClass?.name,
+              course_name: selectedCourse?.title,
+              weak_topics: weakTopicNames,
+              prev_term_topics: lastTermTopics,
+              prev_topics: generatedTopics.slice(-4),
+            }),
+          });
+          const j = await res.json();
+          if (res.ok && j.weeks?.[0]?.topic) {
+            const topic = j.weeks[0].topic as string;
+            generatedTopics.push(topic);
+            allNewEdits[`t${termN}-w${w}`] = topic;
+          }
+        } catch { /* continue */ }
+      }
+      lastTermTopics = generatedTopics.slice(-3);
+    }
+
+    if (Object.keys(allNewEdits).length > 0) {
+      setQaPreviewEdits(prev => ({ ...prev, ...allNewEdits }));
+      const count = Object.keys(allNewEdits).length;
+      setQaSpineRegenNote(`Adopted T${fromTermN} content — ${count} weeks generated progressively from there.`);
+      toast.success(`Adopted T${fromTermN} + continued: ${count} weeks generated`);
+    } else {
+      toast.error('AI could not generate continuation — try again');
+    }
+    setQaSpineRegenLoading(false);
+    setQaSpineRegenProgress(null);
+  }, [qaPreviewData, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion, qaPreviewEdits]);
 
   const openGenerateModal = useCallback(() => {
     let scope: 'platform' | string = 'platform';
@@ -3780,65 +3905,138 @@ export default function CurriculumPage() {
                                   {qaPreviewErr && <p className="text-rose-400 text-[11px] font-bold">{qaPreviewErr}</p>}
                                   {qaApplyErr && <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>}
 
-                                  {qaPreviewData && (
-                                    <div className="border border-border rounded-lg overflow-hidden">
-                                      <div className="flex items-center justify-between px-3 py-2 bg-muted/20 border-b border-border">
-                                        <p className="text-[10px] font-black uppercase text-cyan-300">Week plan preview — edit or regenerate before applying</p>
-                                        {Object.keys(qaPreviewEdits).length > 0 && (
-                                          <button type="button" onClick={() => setQaPreviewEdits({})} className="text-[9px] text-muted-foreground hover:text-foreground transition-colors">Reset all edits</button>
-                                        )}
+                                  {qaPreviewData && (() => {
+                                    const editCount = Object.keys(qaPreviewEdits).length;
+                                    const diffCount = Object.keys(qaDifficultyFlags).length;
+                                    const progMap = qaPreviewData.terms.map(t => {
+                                      const nat = t.national_term === 1 ? 'T1' : t.national_term === 2 ? 'T2' : 'T3';
+                                      const natFull = t.national_term === 1 ? 'First' : t.national_term === 2 ? 'Second' : 'Third';
+                                      return `P${t.term}→${nat}`;
+                                    }).join(' · ');
+                                    return (
+                                    <div className="border border-border rounded-xl overflow-hidden shadow-sm">
+                                      {/* Header */}
+                                      <div className="px-3 py-2 bg-muted/30 border-b border-border flex items-center justify-between gap-2 flex-wrap">
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-[10px] font-black uppercase text-cyan-300 tracking-wide">Week Plan Preview</p>
+                                          <span className="text-[9px] text-muted-foreground/50 font-mono">{progMap}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {!qaSpineRegenLoading && (
+                                            <button
+                                              type="button"
+                                              onClick={() => void regenAllTermsProgressive()}
+                                              title="Personalise all 3 terms with AI — each term builds on the previous"
+                                              className="inline-flex items-center gap-1 text-[9px] font-black text-purple-300 hover:text-purple-100 border border-purple-500/30 hover:border-purple-400/50 bg-purple-500/5 hover:bg-purple-500/10 rounded-md px-2 py-1 transition-all"
+                                            >
+                                              <SparklesIcon className="w-3 h-3" />
+                                              All 3 terms progressive
+                                            </button>
+                                          )}
+                                          {editCount > 0 && (
+                                            <button type="button" onClick={() => setQaPreviewEdits({})} className="text-[9px] text-muted-foreground/60 hover:text-muted-foreground transition-colors">Reset {editCount} edit{editCount === 1 ? '' : 's'}</button>
+                                          )}
+                                        </div>
                                       </div>
-                                      <div className="p-3 space-y-4">
+
+                                      {/* Fallback warning */}
+                                      {qaPreviewData.fallback_used && (
+                                        <div className="px-3 py-2.5 bg-amber-500/8 border-b border-amber-500/20 flex items-start gap-2.5">
+                                          <div className="shrink-0 w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center mt-0.5">
+                                            <span className="text-amber-400 text-[10px] font-black">!</span>
+                                          </div>
+                                          <div>
+                                            <p className="text-[10px] font-bold text-amber-300">No programme-specific template found</p>
+                                            <p className="text-[9px] text-amber-300/70 mt-0.5">Topics below are generic spine defaults (not your programme). Click <strong className="text-amber-300">Personalise with AI</strong> on each term to generate correct content.</p>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Progress bar during generation */}
+                                      {qaSpineRegenLoading && qaSpineRegenProgress && (
+                                        <div className="px-3 py-2 bg-cyan-500/5 border-b border-cyan-500/10 flex items-center gap-2">
+                                          <ArrowPathIcon className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                                          <p className="text-[10px] text-cyan-300">{qaSpineRegenProgress}</p>
+                                        </div>
+                                      )}
+
+                                      {/* Terms */}
+                                      <div className="divide-y divide-border/40">
                                         {qaPreviewData.terms.map((t) => {
-                                          const termName = t.term === 1 ? 'First Term' : t.term === 2 ? 'Second Term' : 'Third Term';
+                                          const natFull = t.national_term === 1 ? 'First Term' : t.national_term === 2 ? 'Second Term' : 'Third Term';
                                           const termWeekTopics = t.weeks.map(w => qaPreviewEdits[`t${t.term}-w${w.week}`] ?? w.topic);
+                                          const aiEditCount = t.weeks.filter(w => qaPreviewEdits[`t${t.term}-w${w.week}`]).length;
+                                          const pillCls = t.term === 1 ? 'bg-primary/15 text-primary border-primary/30' : t.term === 2 ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' : 'bg-purple-500/15 text-purple-300 border-purple-500/30';
                                           return (
-                                            <div key={t.term}>
-                                              <div className="flex items-center justify-between mb-1.5">
-                                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{termName}</p>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => void regenFullTerm(t.term)}
-                                                  disabled={qaSpineRegenLoading}
-                                                  title={`Regenerate all ${termName} weeks with AI, personalised for this class`}
-                                                  className="inline-flex items-center gap-1 text-[9px] font-black text-cyan-400/70 hover:text-cyan-200 disabled:opacity-40 transition-colors"
-                                                >
-                                                  {qaSpineRegenLoading
-                                                    ? <ArrowPathIcon className="w-2.5 h-2.5 animate-spin" />
-                                                    : <SparklesIcon className="w-2.5 h-2.5" />}
-                                                  {qaSpineRegenLoading && qaSpineRegenProgress
-                                                    ? qaSpineRegenProgress
-                                                    : 'Personalise with AI'}
-                                                </button>
+                                            <div key={t.term} className="p-3">
+                                              {/* Term header */}
+                                              <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                  <span className={`shrink-0 text-[9px] font-black px-2 py-0.5 rounded-full border ${pillCls}`}>Prog.T{t.term}</span>
+                                                  <span className="text-[9px] text-muted-foreground">→</span>
+                                                  <span className="text-[9px] font-bold text-foreground/70 truncate">{natFull}</span>
+                                                  <span className="text-[9px] text-muted-foreground/40">(Nat.T{t.national_term})</span>
+                                                  {aiEditCount > 0 && (
+                                                    <span className="shrink-0 text-[8px] font-bold text-cyan-400/80 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-px rounded-full">
+                                                      ✓ {aiEditCount} AI
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                  {t.term < 3 && !qaSpineRegenLoading && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => void adoptAndContinueFrom(t.term)}
+                                                      title={`Keep T${t.term} as-is and AI-generate T${t.term + 1}${t.term < 2 ? '+T3' : ''} using T${t.term} as context`}
+                                                      className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400/70 hover:text-emerald-200 hover:bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 rounded px-1.5 py-0.5 transition-all"
+                                                    >
+                                                      Adopt &amp; continue ↓
+                                                    </button>
+                                                  )}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => void regenFullTerm(t.term)}
+                                                    disabled={qaSpineRegenLoading}
+                                                    title={`AI-personalise all 12 Prog.T${t.term} weeks for ${selectedQaClass?.name ?? 'this class'}`}
+                                                    className="inline-flex items-center gap-1 text-[9px] font-bold text-cyan-400/70 hover:text-cyan-200 hover:bg-cyan-500/10 border border-cyan-500/20 hover:border-cyan-500/40 rounded px-1.5 py-0.5 transition-all disabled:opacity-40"
+                                                  >
+                                                    <SparklesIcon className="w-2.5 h-2.5" />
+                                                    Personalise
+                                                  </button>
+                                                </div>
                                               </div>
-                                              <ul className="space-y-1">
+
+                                              {/* Week list */}
+                                              <ul className="space-y-0.5">
                                                 {t.weeks.map((w) => {
                                                   const key = `t${t.term}-w${w.week}`;
                                                   const edited = qaPreviewEdits[key];
                                                   const diffFlag = qaDifficultyFlags[key];
                                                   const weekRegenLoading = qaWeekRegenLoading === key;
                                                   return (
-                                                    <li key={w.week} className="flex items-center gap-1.5 min-w-0 group">
-                                                      <span className="shrink-0 text-[9px] text-foreground/30 font-bold w-5">W{w.week}</span>
-                                                      {diffFlag && (
-                                                        <span title={diffFlag} className="shrink-0 text-amber-400 text-[10px] cursor-help">⚠</span>
+                                                    <li key={w.week} className="flex items-center gap-1.5 min-w-0 group rounded hover:bg-muted/10 px-1 py-0.5 transition-colors">
+                                                      <span className="shrink-0 text-[8px] text-foreground/25 font-mono w-5 text-right">{w.week}</span>
+                                                      {diffFlag ? (
+                                                        <span title={diffFlag} className="shrink-0 text-amber-400 text-[9px] cursor-help">⚠</span>
+                                                      ) : (
+                                                        <span className={`shrink-0 w-1 h-1 rounded-full ${edited ? 'bg-cyan-400' : 'bg-border/40'}`} />
                                                       )}
                                                       <input
                                                         type="text"
                                                         value={edited ?? w.topic}
                                                         onChange={e => setQaPreviewEdits(prev => ({ ...prev, [key]: e.target.value }))}
-                                                        className={`flex-1 min-w-0 bg-transparent text-[10px] border-b outline-none pb-px transition-colors ${edited ? 'text-cyan-300 border-cyan-500/40' : 'text-muted-foreground border-transparent hover:border-border/40 focus:border-primary'}`}
+                                                        className={`flex-1 min-w-0 bg-transparent text-[10px] border-b outline-none pb-px transition-colors ${edited ? 'text-cyan-200 border-cyan-500/30 font-medium' : 'text-muted-foreground border-transparent hover:border-border/40 focus:border-primary/60'}`}
                                                       />
                                                       <button
                                                         type="button"
                                                         onClick={() => void regenWeek(t.term, w.week, termWeekTopics.slice(0, w.week - 1))}
                                                         disabled={weekRegenLoading || qaSpineRegenLoading}
-                                                        title="Regenerate this week topic with AI"
-                                                        className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-cyan-300 disabled:opacity-30 transition-all"
+                                                        title="Regenerate this week with AI"
+                                                        className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground/40 hover:text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-20 transition-all"
                                                       >
                                                         {weekRegenLoading
-                                                          ? <ArrowPathIcon className="w-3 h-3 animate-spin text-cyan-400" />
-                                                          : <SparklesIcon className="w-3 h-3" />}
+                                                          ? <ArrowPathIcon className="w-2.5 h-2.5 animate-spin text-cyan-400" />
+                                                          : <SparklesIcon className="w-2.5 h-2.5" />}
                                                       </button>
                                                     </li>
                                                   );
@@ -3847,20 +4045,19 @@ export default function CurriculumPage() {
                                             </div>
                                           );
                                         })}
-                                        {qaSpineRegenNote && (
-                                          <p className="text-[9px] text-cyan-400/60 italic">{qaSpineRegenNote}</p>
-                                        )}
-                                        {Object.keys(qaPreviewEdits).length > 0 && (
-                                          <p className="text-[9px] text-cyan-400/70">
-                                            {Object.keys(qaPreviewEdits).length} topic{Object.keys(qaPreviewEdits).length === 1 ? '' : 's'} edited — applied when you click &quot;Fill my week topics&quot;
-                                          </p>
-                                        )}
-                                        {Object.keys(qaDifficultyFlags).length > 0 && (
-                                          <p className="text-[9px] text-amber-400/60">⚠ = topic may be hard for this class based on past scores. Hover for details.</p>
-                                        )}
                                       </div>
+
+                                      {/* Footer summary */}
+                                      {(qaSpineRegenNote || editCount > 0 || diffCount > 0) && (
+                                        <div className="px-3 py-2 bg-muted/10 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1">
+                                          {qaSpineRegenNote && <p className="text-[9px] text-cyan-400/70 italic">{qaSpineRegenNote}</p>}
+                                          {editCount > 0 && <p className="text-[9px] text-cyan-400/60">{editCount} topic{editCount === 1 ? '' : 's'} edited — will apply when you fill week topics</p>}
+                                          {diffCount > 0 && <p className="text-[9px] text-amber-400/50">⚠ = may be challenging based on class performance</p>}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
+                                    );
+                                  })()}
 
                                   {/* ── Lane Intelligence ── */}
                                   {(qaLaneSuggestLoading || qaLaneSuggestion) && (
