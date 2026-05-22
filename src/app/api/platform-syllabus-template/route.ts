@@ -113,6 +113,47 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({ error: 'Provide either id OR (catalog_version AND program_id)' }, { status: 400 });
 }
 
+export async function PATCH(req: NextRequest) {
+  const supabase = await createServerClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users').select('role').eq('id', user.id).single();
+  if (!profile || profile.role !== 'admin') {
+    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  }
+
+  try {
+    const body = await req.json();
+    const { id, topic, subtopics } = body;
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json({ error: 'Row id is required' }, { status: 400 });
+    }
+    if (!topic || typeof topic !== 'string' || !topic.trim()) {
+      return NextResponse.json({ error: 'topic is required' }, { status: 400 });
+    }
+
+    const parsedSubs: string[] | undefined = subtopics !== undefined
+      ? (Array.isArray(subtopics)
+          ? (subtopics as unknown[]).map(String).filter(Boolean)
+          : String(subtopics).split('\n').map(s => s.trim()).filter(Boolean))
+      : undefined;
+
+    const { data, error } = await supabase
+      .from('platform_syllabus_week_template')
+      .update({ topic: topic.trim(), ...(parsedSubs !== undefined ? { subtopics: parsedSubs } : {}) } as any)
+      .eq('id', id)
+      .select('id, lane_index, year_number, term_number, week_number, topic, subtopics')
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient();
   const {
