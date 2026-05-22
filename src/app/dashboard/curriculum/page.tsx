@@ -1732,6 +1732,12 @@ export default function CurriculumPage() {
       });
       setTracking([]);
       setShowGenerate(false);
+      // Snap to Prog.T1 after generation — use PST from new doc metadata, fallback to form value
+      const newPst = Number((doc.content?.metadata as { program_start_term?: number } | undefined)?.program_start_term ?? programStartTerm);
+      if ([1, 2, 3].includes(newPst)) {
+        setActiveTerm(newPst);
+        setActiveYear(1);
+      }
     } catch {
       setGenError('Network error — please try again');
     } finally {
