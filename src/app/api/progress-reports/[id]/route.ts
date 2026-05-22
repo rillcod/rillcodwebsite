@@ -35,6 +35,33 @@ async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teach
   return Array.from(ids);
 }
 
+async function syncStudentProfile(
+  admin: ReturnType<typeof createClient>,
+  studentId: string,
+  fields: { sectionClass?: string | null; studentName?: string | null },
+) {
+  const portalUpdate: Record<string, unknown> = {};
+  const studentsUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (fields.sectionClass) {
+    portalUpdate.section_class = fields.sectionClass;
+    studentsUpdate.section_class = fields.sectionClass;
+    studentsUpdate.current_class = fields.sectionClass;
+    studentsUpdate.grade_level   = fields.sectionClass;
+  }
+  if (fields.studentName) {
+    portalUpdate.full_name   = fields.studentName;
+    studentsUpdate.full_name = fields.studentName;
+  }
+
+  if (Object.keys(portalUpdate).length > 0) {
+    await (admin as any).from('portal_users').update(portalUpdate).eq('id', studentId);
+  }
+  if (Object.keys(studentsUpdate).length > 1) {
+    await (admin as any).from('students').update(studentsUpdate).eq('user_id', studentId);
+  }
+}
+
 async function canModifyReport(caller: any, reportId: string) {
   if (caller.role === 'admin') return true;
   const admin = adminClient();
@@ -85,11 +112,14 @@ export async function PATCH(
     'school_section', 'course_id', 'course_duration',
     'key_strengths', 'areas_for_growth',
     'current_module', 'next_module',
+    // Student identity corrections — sync back to portal_users + students
+    'section_class', 'student_name',
   ];
   fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
   allowed.updated_at = new Date().toISOString();
 
-  const { data, error } = await adminClient()
+  const admin = adminClient();
+  const { data, error } = await admin
     .from('student_progress_reports')
     .update(allowed)
     .eq('id', id)
@@ -97,6 +127,14 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Sync name / class corrections back to the student profile
+  if ((allowed.section_class || allowed.student_name) && data?.student_id) {
+    await syncStudentProfile(admin, data.student_id, {
+      sectionClass: allowed.section_class ?? null,
+      studentName:  allowed.student_name  ?? null,
+    });
+  }
 
   // Email alert when report is published — notify student AND their parent(s)
   if (body.is_published && data?.student_id) {

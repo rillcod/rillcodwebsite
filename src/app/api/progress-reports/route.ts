@@ -132,9 +132,12 @@ export async function POST(request: NextRequest) {
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Sync section_class back to student profile (report builder is authoritative)
-    if (updatePayload.section_class && updatePayload.student_id) {
-      await syncStudentClass(admin, String(updatePayload.student_id), String(updatePayload.section_class));
+    // Sync corrected fields back to student profile (report builder is authoritative, second only to consent form data)
+    if ((updatePayload.section_class || updatePayload.student_name) && updatePayload.student_id) {
+      await syncStudentProfile(admin, String(updatePayload.student_id), {
+        sectionClass: updatePayload.section_class ? String(updatePayload.section_class) : null,
+        studentName:  updatePayload.student_name  ? String(updatePayload.student_name)  : null,
+      });
     }
 
     return NextResponse.json({ data });
@@ -149,29 +152,41 @@ export async function POST(request: NextRequest) {
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Sync section_class back to student profile (report builder is authoritative)
-    if (insertPayload.section_class && insertPayload.student_id) {
-      await syncStudentClass(admin, String(insertPayload.student_id), String(insertPayload.section_class));
+    // Sync corrected fields back to student profile
+    if ((insertPayload.section_class || insertPayload.student_name) && insertPayload.student_id) {
+      await syncStudentProfile(admin, String(insertPayload.student_id), {
+        sectionClass: insertPayload.section_class ? String(insertPayload.section_class) : null,
+        studentName:  insertPayload.student_name  ? String(insertPayload.student_name)  : null,
+      });
     }
 
     return NextResponse.json({ data });
   }
 }
 
-async function syncStudentClass(
+async function syncStudentProfile(
   admin: ReturnType<typeof adminClient>,
   studentId: string,
-  sectionClass: string,
+  fields: { sectionClass?: string | null; studentName?: string | null },
 ) {
-  // Update portal_users.section_class
-  await admin
-    .from('portal_users')
-    .update({ section_class: sectionClass } as any)
-    .eq('id', studentId);
+  const portalUpdate: Record<string, unknown> = {};
+  const studentsUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  // Update students table (pre-portal / legacy rows linked via user_id)
-  await admin
-    .from('students')
-    .update({ current_class: sectionClass, grade_level: sectionClass } as any)
-    .eq('user_id', studentId);
+  if (fields.sectionClass) {
+    portalUpdate.section_class = fields.sectionClass;
+    studentsUpdate.section_class = fields.sectionClass;
+    studentsUpdate.current_class = fields.sectionClass;
+    studentsUpdate.grade_level   = fields.sectionClass;
+  }
+  if (fields.studentName) {
+    portalUpdate.full_name     = fields.studentName;
+    studentsUpdate.full_name   = fields.studentName;
+  }
+
+  if (Object.keys(portalUpdate).length > 0) {
+    await admin.from('portal_users').update(portalUpdate as any).eq('id', studentId);
+  }
+  if (Object.keys(studentsUpdate).length > 1) {
+    await admin.from('students').update(studentsUpdate as any).eq('user_id', studentId);
+  }
 }
