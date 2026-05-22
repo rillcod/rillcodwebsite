@@ -104,6 +104,19 @@ function resolveTermDates(
   };
 }
 
+// When a programme starts mid-year (e.g. T3/May), national terms that come
+// before the start term in the calendar (T1, T2) actually fall in the NEXT
+// school year. This returns the correct academic year string for a national term.
+function effectiveAcademicYearForTerm(
+  nationalTerm: number,
+  programStartTerm: number,
+  academicYear: string,
+): string {
+  if (programStartTerm <= 1 || nationalTerm >= programStartTerm) return academicYear;
+  const [sy, ey] = academicYear.split('/').map(Number);
+  return `${sy + 1}/${ey + 1}`;
+}
+
 // Returns the Mon–Fri date range for a given week number within a term
 function weekDateRange(
   termNum: string | number,
@@ -3378,10 +3391,11 @@ export default function CurriculumPage() {
                             );
                           })()}
                           {(() => {
+                            const termAcYear = effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear);
                             const customStart = currentTermData.start_date;
                             const td = customStart
-                              ? { start: customStart, end: resolveTermDates(activeTerm, academicYear, termCalendar)?.end ?? '' }
-                              : resolveTermDates(activeTerm, academicYear, termCalendar);
+                              ? { start: customStart, end: resolveTermDates(activeTerm, termAcYear, termCalendar)?.end ?? '' }
+                              : resolveTermDates(activeTerm, termAcYear, termCalendar);
                             if (!td) return null;
                             return (
                               <div className="flex items-center gap-1.5 mt-0.5">
@@ -3389,7 +3403,7 @@ export default function CurriculumPage() {
                                   <div className="flex items-center gap-2">
                                     <input
                                       type="date"
-                                      defaultValue={currentTermData.start_date ?? resolveTermDates(activeTerm, academicYear, termCalendar)?.start ?? ''}
+                                      defaultValue={currentTermData.start_date ?? resolveTermDates(activeTerm, termAcYear, termCalendar)?.start ?? ''}
                                       onBlur={e => { if (e.target.value) saveTermDate(activeTerm, e.target.value); else setEditingTermDate(null); }}
                                       autoFocus
                                       className="text-xs bg-background border border-primary rounded px-2 py-1 text-foreground"
@@ -3408,7 +3422,7 @@ export default function CurriculumPage() {
                                       <button
                                         onClick={() => {
                                           setEditingTermDate(activeTerm);
-                                          setTermDateDraft(currentTermData.start_date ?? resolveTermDates(activeTerm, academicYear, termCalendar)?.start ?? '');
+                                          setTermDateDraft(currentTermData.start_date ?? resolveTermDates(activeTerm, effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear), termCalendar)?.start ?? '');
                                         }}
                                         className="p-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
                                         title="Edit term start date"
@@ -3460,7 +3474,8 @@ export default function CurriculumPage() {
                         const TrackIcon = trackMeta.icon;
                         const WeekIcon = meta.icon;
                         const isActive = activeWeek?.week === week.week;
-                        const dateRange = weekDateRange(activeTerm, week.week, academicYear, currentTermData?.start_date);
+                        const termAcYear = effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear);
+                        const dateRange = weekDateRange(activeTerm, week.week, termAcYear, currentTermData?.start_date);
 
                         return (
                           <div
@@ -4101,7 +4116,7 @@ export default function CurriculumPage() {
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{(activeWeek.subtopics ?? []).join(' · ')}</p>
                 )}
                 {(() => {
-                  const dr = weekDateRange(activeTerm, activeWeek.week, academicYear, curriculum?.content?.terms?.find(t => t.term === activeTerm)?.start_date);
+                  const dr = weekDateRange(activeTerm, activeWeek.week, effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear), curriculum?.content?.terms?.find(t => t.term === activeTerm)?.start_date);
                   return dr ? (
                     <p className="text-[10px] text-muted-foreground/60 font-bold mt-1">
                       {dr.start} – {dr.end}
@@ -4251,7 +4266,7 @@ export default function CurriculumPage() {
                         <button
                           onClick={async () => {
                             if (!curriculum) return;
-                            const dr = weekDateRange(activeTerm, activeWeek.week, academicYear, curriculum?.content?.terms?.find(t => t.term === activeTerm)?.start_date);
+                            const dr = weekDateRange(activeTerm, activeWeek.week, effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear), curriculum?.content?.terms?.find(t => t.term === activeTerm)?.start_date);
                             const dueDate = dr
                               ? new Date(new Date().getFullYear(), new Date().getMonth(), parseInt(dr.end.split(' ')[0]) + 2).toISOString().split('T')[0]
                               : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
