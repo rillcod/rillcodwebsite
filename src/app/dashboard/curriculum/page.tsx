@@ -1262,13 +1262,20 @@ export default function CurriculumPage() {
         subject_area: prev.subject_area || selectedCourse?.title || '',
       };
     });
-    // Pre-load program_start_term from this course's program policy
-    if (selectedCourse?.program_id) {
+    // Pre-load program_start_term: curriculum metadata first, then program policy, then 1
+    const contentPst = curriculum?.content?.metadata?.program_start_term;
+    if ([1, 2, 3].includes(Number(contentPst))) {
+      setProgramStartTerm(Number(contentPst) as 1 | 2 | 3);
+    } else if (selectedCourse?.program_id) {
       const prog = programs.find(p => p.id === selectedCourse.program_id);
       const savedStartTerm = prog?.progression_policy?.program_start_term;
       if ([1, 2, 3].includes(Number(savedStartTerm))) {
         setProgramStartTerm(Number(savedStartTerm) as 1 | 2 | 3);
+      } else {
+        setProgramStartTerm(1);
       }
+    } else {
+      setProgramStartTerm(1);
     }
     // Suggest next year to generate based on existing curriculum content
     if (curriculum?.content?.terms?.length) {
