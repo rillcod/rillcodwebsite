@@ -446,6 +446,10 @@ export default function CurriculumPage() {
   const [qaLaneSuggestLoading, setQaLaneSuggestLoading] = useState(false);
   // Inline topic edits made in preview before applying
   const [qaPreviewEdits, setQaPreviewEdits] = useState<Record<string, string>>({});
+  // Per-week and full-term AI regeneration
+  const [qaWeekRegenLoading, setQaWeekRegenLoading] = useState<string | null>(null);
+  const [qaSpineRegenLoading, setQaSpineRegenLoading] = useState(false);
+  const [qaSpineRegenNote, setQaSpineRegenNote] = useState('');
   // Missed-topic recovery
   const [qaRecoveryChecked, setQaRecoveryChecked] = useState<Set<string>>(new Set());
   const [qaRecoveryEditTopics, setQaRecoveryEditTopics] = useState<Record<string, string>>({});
@@ -704,6 +708,24 @@ export default function CurriculumPage() {
     [qaClassId, programIdForQa, qaYear, qaLaneOverride],
   );
   const qaNeedsFreshPreview = Boolean(qaClassId) && qaPreviewStamp !== qaSelectionStamp;
+
+  // Client-side difficulty flags: match upcoming preview week topics against known weak areas
+  const qaDifficultyFlags = useMemo(() => {
+    if (!qaPreviewData || !qaLaneSuggestion?.weak_topics?.length) return {} as Record<string, string>;
+    const weakEntries = qaLaneSuggestion.weak_topics.map(t => ({
+      words: t.title.toLowerCase().split(/\s+/).filter(w => w.length > 4),
+      label: `${t.title} (${t.avg_score}%)`,
+    }));
+    const flags: Record<string, string> = {};
+    for (const term of qaPreviewData.terms) {
+      for (const w of term.weeks) {
+        const topic = (qaPreviewEdits[`t${term.term}-w${w.week}`] ?? w.topic).toLowerCase();
+        const hit = weakEntries.find(e => e.words.some(word => topic.includes(word)));
+        if (hit) flags[`t${term.term}-w${w.week}`] = `May be hard — class previously scored low on "${hit.label}"`;
+      }
+    }
+    return flags;
+  }, [qaPreviewData, qaLaneSuggestion?.weak_topics, qaPreviewEdits]);
 
   const qaInlineSuggestions = useMemo(() => {
     const tips: string[] = [
@@ -1085,6 +1107,83 @@ export default function CurriculumPage() {
       setQaRecoveryInjecting(false);
     }
   }, [curriculum, tracking, qaRecoveryChecked, qaRecoveryEditTopics, qaRecoveryTargetTerm]);
+
+  // Regenerate a single week topic with AI
+  const regenWeek = useCallback(async (termN: number, weekN: number, prevTopics: string[]) => {
+    const key = `t${termN}-w${weekN}`;
+    setQaWeekRegenLoading(key);
+    try {
+      const res = await fetch('/api/ai/spine-regen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lane_index: qaPreviewData?.lane_index ?? qaLaneOverride ?? 1,
+          year_number: qaYear,
+          term_number: termN,
+          week_number: weekN,
+          class_name: selectedQaClass?.name,
+          course_name: selectedCourse?.title,
+          weak_topics: qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [],
+          prev_topics: prevTopics,
+        }),
+      });
+      const j = await res.json();
+      if (res.ok && j.weeks?.[0]?.topic) {
+        setQaPreviewEdits(prev => ({ ...prev, [key]: j.weeks[0].topic }));
+      } else {
+        toast.error(j.error || 'Regeneration failed');
+      }
+    } catch { toast.error('Network error'); }
+    finally { setQaWeekRegenLoading(null); }
+  }, [qaPreviewData, qaLaneOverride, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion]);
+
+  // Regenerate all 12 weeks for a specific term with AI
+  const regenFullTerm = useCallback(async (termN: number) => {
+    if (!qaPreviewData) return;
+    setQaSpineRegenLoading(true);
+    setQaSpineRegenNote('');
+    try {
+      const skippedTopics = tracking
+        .filter(t => t.status === 'skipped')
+        .map(t => {
+          const tm = curriculum?.content?.terms?.find(x => x.term === t.term_number);
+          return tm?.weeks?.find(w => w.week === t.week_number)?.topic ?? `Week ${t.week_number}`;
+        })
+        .slice(0, 5);
+      const prevTermWeeks = termN > 1 ? (qaPreviewData.terms.find(t => t.term === termN - 1)?.weeks ?? []) : [];
+      const prevTermTopics = prevTermWeeks.slice(-3).map(w => qaPreviewEdits[`t${termN - 1}-w${w.week}`] ?? w.topic);
+
+      const res = await fetch('/api/ai/spine-regen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lane_index: qaPreviewData.lane_index,
+          year_number: qaYear,
+          term_number: termN,
+          class_name: selectedQaClass?.name,
+          course_name: selectedCourse?.title,
+          weak_topics: qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [],
+          skipped_topics: skippedTopics,
+          prev_term_topics: prevTermTopics,
+        }),
+      });
+      const j = await res.json();
+      if (res.ok && j.weeks?.length > 0) {
+        setQaPreviewEdits(prev => {
+          const next = { ...prev };
+          for (const w of j.weeks as { week: number; topic: string }[]) {
+            next[`t${termN}-w${w.week}`] = w.topic;
+          }
+          return next;
+        });
+        if (j.note) setQaSpineRegenNote(j.note);
+        toast.success(`Term ${termN} personalised — ${j.weeks.length} weeks updated`);
+      } else {
+        toast.error(j.error || 'AI generation failed — try again');
+      }
+    } catch { toast.error('Network error during generation'); }
+    finally { setQaSpineRegenLoading(false); }
+  }, [qaPreviewData, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion, tracking, curriculum, qaPreviewEdits]);
 
   const openGenerateModal = useCallback(() => {
     let scope: 'platform' | string = 'platform';
@@ -3473,6 +3572,30 @@ export default function CurriculumPage() {
                                     </div>
                                   )}
 
+                                  {/* ── Class progress stats ── */}
+                                  {qaClassId && (() => {
+                                    const done = tracking.filter(t => t.status === 'completed').length;
+                                    const inProg = tracking.filter(t => t.status === 'in_progress').length;
+                                    const skipped = tracking.filter(t => t.status === 'skipped').length;
+                                    const avgScoreVal = qaLaneSuggestion?.avg_score ?? null;
+                                    const items = [
+                                      { label: 'Done', val: String(done), color: 'text-emerald-300' },
+                                      { label: 'Active', val: String(inProg), color: 'text-primary' },
+                                      { label: 'Skipped', val: String(skipped), color: skipped > 0 ? 'text-amber-300' : 'text-muted-foreground' },
+                                      { label: 'Avg', val: avgScoreVal !== null ? `${avgScoreVal}%` : '—', color: avgScoreVal !== null ? (avgScoreVal >= 75 ? 'text-emerald-300' : avgScoreVal >= 60 ? 'text-amber-300' : 'text-rose-300') : 'text-muted-foreground' },
+                                    ];
+                                    return (
+                                      <div className="grid grid-cols-4 gap-1.5">
+                                        {items.map(item => (
+                                          <div key={item.label} className="bg-muted/10 rounded-lg p-2 text-center border border-border/30">
+                                            <p className={`text-[14px] font-black leading-none mb-0.5 ${item.color}`}>{item.val}</p>
+                                            <p className="text-[8px] uppercase tracking-widest text-muted-foreground/70">{item.label}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
+
                                   <label className="flex items-start gap-2 cursor-pointer">
                                     <input type="checkbox" className="mt-0.5" checked={qaOverwrite} onChange={(e) => setQaOverwrite(e.target.checked)} />
                                     <span className="text-[11px] text-muted-foreground">Overwrite my existing week topics</span>
@@ -3506,36 +3629,78 @@ export default function CurriculumPage() {
                                   {qaPreviewData && (
                                     <div className="border border-border rounded-lg overflow-hidden">
                                       <div className="flex items-center justify-between px-3 py-2 bg-muted/20 border-b border-border">
-                                        <p className="text-[10px] font-black uppercase text-cyan-300">Week plan preview — edit topics before applying</p>
+                                        <p className="text-[10px] font-black uppercase text-cyan-300">Week plan preview — edit or regenerate before applying</p>
                                         {Object.keys(qaPreviewEdits).length > 0 && (
-                                          <button type="button" onClick={() => setQaPreviewEdits({})} className="text-[9px] text-muted-foreground hover:text-foreground transition-colors">Reset edits</button>
+                                          <button type="button" onClick={() => setQaPreviewEdits({})} className="text-[9px] text-muted-foreground hover:text-foreground transition-colors">Reset all edits</button>
                                         )}
                                       </div>
-                                      <div className="p-3 space-y-3">
-                                        {qaPreviewData.terms.map((t) => (
-                                          <div key={t.term}>
-                                            <p className="text-[9px] font-black text-muted-foreground mb-1.5">{t.term === 1 ? 'First Term' : t.term === 2 ? 'Second Term' : 'Third Term'}</p>
-                                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
-                                              {t.weeks.map((w) => {
-                                                const key = `t${t.term}-w${w.week}`;
-                                                const edited = qaPreviewEdits[key];
-                                                return (
-                                                  <li key={w.week} className="flex items-center gap-1.5 min-w-0">
-                                                    <span className="shrink-0 text-[9px] text-foreground/40 font-bold w-5">W{w.week}</span>
-                                                    <input
-                                                      type="text"
-                                                      value={edited ?? w.topic}
-                                                      onChange={e => setQaPreviewEdits(prev => ({ ...prev, [key]: e.target.value }))}
-                                                      className={`flex-1 min-w-0 bg-transparent text-[10px] border-b outline-none pb-px transition-colors ${edited ? 'text-cyan-300 border-cyan-500/40' : 'text-muted-foreground border-transparent hover:border-border/40 focus:border-primary'}`}
-                                                    />
-                                                  </li>
-                                                );
-                                              })}
-                                            </ul>
-                                          </div>
-                                        ))}
+                                      <div className="p-3 space-y-4">
+                                        {qaPreviewData.terms.map((t) => {
+                                          const termName = t.term === 1 ? 'First Term' : t.term === 2 ? 'Second Term' : 'Third Term';
+                                          const termWeekTopics = t.weeks.map(w => qaPreviewEdits[`t${t.term}-w${w.week}`] ?? w.topic);
+                                          return (
+                                            <div key={t.term}>
+                                              <div className="flex items-center justify-between mb-1.5">
+                                                <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{termName}</p>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => void regenFullTerm(t.term)}
+                                                  disabled={qaSpineRegenLoading}
+                                                  title={`Regenerate all ${termName} weeks with AI, personalised for this class`}
+                                                  className="inline-flex items-center gap-1 text-[9px] font-black text-cyan-400/70 hover:text-cyan-200 disabled:opacity-40 transition-colors"
+                                                >
+                                                  {qaSpineRegenLoading
+                                                    ? <ArrowPathIcon className="w-2.5 h-2.5 animate-spin" />
+                                                    : <SparklesIcon className="w-2.5 h-2.5" />}
+                                                  Personalise with AI
+                                                </button>
+                                              </div>
+                                              <ul className="space-y-1">
+                                                {t.weeks.map((w) => {
+                                                  const key = `t${t.term}-w${w.week}`;
+                                                  const edited = qaPreviewEdits[key];
+                                                  const diffFlag = qaDifficultyFlags[key];
+                                                  const weekRegenLoading = qaWeekRegenLoading === key;
+                                                  return (
+                                                    <li key={w.week} className="flex items-center gap-1.5 min-w-0 group">
+                                                      <span className="shrink-0 text-[9px] text-foreground/30 font-bold w-5">W{w.week}</span>
+                                                      {diffFlag && (
+                                                        <span title={diffFlag} className="shrink-0 text-amber-400 text-[10px] cursor-help">⚠</span>
+                                                      )}
+                                                      <input
+                                                        type="text"
+                                                        value={edited ?? w.topic}
+                                                        onChange={e => setQaPreviewEdits(prev => ({ ...prev, [key]: e.target.value }))}
+                                                        className={`flex-1 min-w-0 bg-transparent text-[10px] border-b outline-none pb-px transition-colors ${edited ? 'text-cyan-300 border-cyan-500/40' : 'text-muted-foreground border-transparent hover:border-border/40 focus:border-primary'}`}
+                                                      />
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => void regenWeek(t.term, w.week, termWeekTopics.slice(0, w.week - 1))}
+                                                        disabled={weekRegenLoading || qaSpineRegenLoading}
+                                                        title="Regenerate this week topic with AI"
+                                                        className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-cyan-300 disabled:opacity-30 transition-all"
+                                                      >
+                                                        {weekRegenLoading
+                                                          ? <ArrowPathIcon className="w-3 h-3 animate-spin text-cyan-400" />
+                                                          : <SparklesIcon className="w-3 h-3" />}
+                                                      </button>
+                                                    </li>
+                                                  );
+                                                })}
+                                              </ul>
+                                            </div>
+                                          );
+                                        })}
+                                        {qaSpineRegenNote && (
+                                          <p className="text-[9px] text-cyan-400/60 italic">{qaSpineRegenNote}</p>
+                                        )}
                                         {Object.keys(qaPreviewEdits).length > 0 && (
-                                          <p className="text-[9px] text-cyan-400/70">{Object.keys(qaPreviewEdits).length} topic{Object.keys(qaPreviewEdits).length === 1 ? '' : 's'} edited — changes will apply when you click "Fill my week topics"</p>
+                                          <p className="text-[9px] text-cyan-400/70">
+                                            {Object.keys(qaPreviewEdits).length} topic{Object.keys(qaPreviewEdits).length === 1 ? '' : 's'} edited — applied when you click &quot;Fill my week topics&quot;
+                                          </p>
+                                        )}
+                                        {Object.keys(qaDifficultyFlags).length > 0 && (
+                                          <p className="text-[9px] text-amber-400/60">⚠ = topic may be hard for this class based on past scores. Hover for details.</p>
                                         )}
                                       </div>
                                     </div>
