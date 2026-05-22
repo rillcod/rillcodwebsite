@@ -438,9 +438,14 @@ export default function CurriculumPage() {
     current_lane: number; current_label: string;
     suggested_lane: number; suggested_label: string;
     avg_score: number | null; submission_count: number;
-    direction: 'up' | 'down' | 'stay'; reason: string;
+    assignment_avg: number | null; cbt_avg: number | null;
+    direction: 'up' | 'down' | 'stay'; narrative: string;
+    weak_topics: Array<{ title: string; avg_score: number; count: number }>;
+    score_distribution: { excelling: number; developing: number; struggling: number };
   } | null>(null);
   const [qaLaneSuggestLoading, setQaLaneSuggestLoading] = useState(false);
+  // Inline topic edits made in preview before applying
+  const [qaPreviewEdits, setQaPreviewEdits] = useState<Record<string, string>>({});
   // Missed-topic recovery
   const [qaRecoveryChecked, setQaRecoveryChecked] = useState<Set<string>>(new Set());
   const [qaRecoveryEditTopics, setQaRecoveryEditTopics] = useState<Record<string, string>>({});
@@ -832,13 +837,19 @@ export default function CurriculumPage() {
       const res = await fetch('/api/ai/lane-suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ class_id: qaClassId, lane_index: laneIndex, course_id: selectedCourse?.id }),
+        body: JSON.stringify({
+          class_id: qaClassId,
+          lane_index: laneIndex,
+          course_id: selectedCourse?.id,
+          class_name: selectedQaClass?.name,
+          year_number: qaYear,
+        }),
       });
       const j = await res.json();
       if (res.ok) setQaLaneSuggestion(j);
     } catch { /* ignore */ }
     finally { setQaLaneSuggestLoading(false); }
-  }, [qaClassId, selectedCourse?.id]);
+  }, [qaClassId, selectedCourse?.id, selectedQaClass?.name, qaYear]);
 
   const runQaSpinePreview = useCallback(async () => {
     if (!qaClassId) {
@@ -1011,6 +1022,7 @@ export default function CurriculumPage() {
           catalog_version: 'qa_spine_v1',
           overwrite_existing: qaOverwrite,
           program_start_term: effectiveProgramStartTerm,
+          week_overrides: Object.keys(qaPreviewEdits).length > 0 ? qaPreviewEdits : undefined,
         }),
       });
       const j = await res.json();
@@ -1034,7 +1046,7 @@ export default function CurriculumPage() {
     } finally {
       setQaApplyLoading(false);
     }
-  }, [curriculum, selectedCourse, qaClassId, qaYear, qaLaneOverride, qaOverwrite, qaNeedsFreshPreview]);
+  }, [curriculum, selectedCourse, qaClassId, qaYear, qaLaneOverride, qaOverwrite, qaNeedsFreshPreview, qaPreviewEdits, effectiveProgramStartTerm]);
 
   const injectRecoveryWeeks = useCallback(async () => {
     if (!curriculum || qaRecoveryChecked.size === 0) return;
@@ -3408,7 +3420,7 @@ export default function CurriculumPage() {
                                       <select
                                         className={SELECT_CLS}
                                         value={qaClassId}
-                                        onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); }}
+                                        onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); setQaLaneSuggestion(null); setQaPreviewEdits({}); }}
                                       >
                                         <option value="">— Pick a class —</option>
                                         {[...qaClassOptions]
@@ -3431,7 +3443,7 @@ export default function CurriculumPage() {
                                       <select
                                         className={SELECT_CLS}
                                         value={qaYear}
-                                        onChange={(e) => { setQaYear(Number(e.target.value)); setQaPreviewStamp(''); }}
+                                        onChange={(e) => { setQaYear(Number(e.target.value)); setQaPreviewStamp(''); setQaPreviewData(null); setQaPreviewEdits({}); setQaLaneSuggestion(null); }}
                                       >
                                         <option value={1}>Beginners (Year 1)</option>
                                         <option value={2}>Intermediate (Year 2)</option>
@@ -3492,79 +3504,146 @@ export default function CurriculumPage() {
                                   {qaApplyErr && <p className="text-rose-400 text-[11px] font-bold">{qaApplyErr}</p>}
 
                                   {qaPreviewData && (
-                                    <div className="p-3 bg-muted/20 border border-border rounded-lg space-y-3">
-                                      <p className="text-[10px] font-black uppercase text-cyan-300">Suggested week plan — review before applying</p>
-                                      {qaPreviewData.terms.map((t) => (
-                                        <div key={t.term}>
-                                          <p className="text-[9px] font-black text-muted-foreground mb-1">{t.term === 1 ? 'First Term' : t.term === 2 ? 'Second Term' : 'Third Term'}</p>
-                                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 text-[10px] text-muted-foreground max-h-40 overflow-y-auto">
-                                            {t.weeks.map((w) => (
-                                              <li key={w.week} className="flex gap-1.5 truncate">
-                                                <span className="shrink-0 text-foreground/60 font-bold">Week {w.week}</span>
-                                                <span className="truncate">{w.topic}</span>
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                      ))}
+                                    <div className="border border-border rounded-lg overflow-hidden">
+                                      <div className="flex items-center justify-between px-3 py-2 bg-muted/20 border-b border-border">
+                                        <p className="text-[10px] font-black uppercase text-cyan-300">Week plan preview — edit topics before applying</p>
+                                        {Object.keys(qaPreviewEdits).length > 0 && (
+                                          <button type="button" onClick={() => setQaPreviewEdits({})} className="text-[9px] text-muted-foreground hover:text-foreground transition-colors">Reset edits</button>
+                                        )}
+                                      </div>
+                                      <div className="p-3 space-y-3">
+                                        {qaPreviewData.terms.map((t) => (
+                                          <div key={t.term}>
+                                            <p className="text-[9px] font-black text-muted-foreground mb-1.5">{t.term === 1 ? 'First Term' : t.term === 2 ? 'Second Term' : 'Third Term'}</p>
+                                            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
+                                              {t.weeks.map((w) => {
+                                                const key = `t${t.term}-w${w.week}`;
+                                                const edited = qaPreviewEdits[key];
+                                                return (
+                                                  <li key={w.week} className="flex items-center gap-1.5 min-w-0">
+                                                    <span className="shrink-0 text-[9px] text-foreground/40 font-bold w-5">W{w.week}</span>
+                                                    <input
+                                                      type="text"
+                                                      value={edited ?? w.topic}
+                                                      onChange={e => setQaPreviewEdits(prev => ({ ...prev, [key]: e.target.value }))}
+                                                      className={`flex-1 min-w-0 bg-transparent text-[10px] border-b outline-none pb-px transition-colors ${edited ? 'text-cyan-300 border-cyan-500/40' : 'text-muted-foreground border-transparent hover:border-border/40 focus:border-primary'}`}
+                                                    />
+                                                  </li>
+                                                );
+                                              })}
+                                            </ul>
+                                          </div>
+                                        ))}
+                                        {Object.keys(qaPreviewEdits).length > 0 && (
+                                          <p className="text-[9px] text-cyan-400/70">{Object.keys(qaPreviewEdits).length} topic{Object.keys(qaPreviewEdits).length === 1 ? '' : 's'} edited — changes will apply when you click "Fill my week topics"</p>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
 
                                   {/* ── Lane Intelligence ── */}
                                   {(qaLaneSuggestLoading || qaLaneSuggestion) && (
-                                    <div className="p-3 border border-cyan-500/20 rounded-lg space-y-2 bg-cyan-500/5">
-                                      <p className="text-[9px] font-black uppercase tracking-widest text-cyan-300">Lane Intelligence</p>
+                                    <div className="border border-cyan-500/20 rounded-lg overflow-hidden">
+                                      <p className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-cyan-300 bg-cyan-500/5 border-b border-cyan-500/10">Lane Intelligence</p>
+                                      <div className="p-3 space-y-3">
                                       {qaLaneSuggestLoading ? (
                                         <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                                           <ArrowPathIcon className="w-3 h-3 animate-spin" /> Analysing class performance…
                                         </p>
                                       ) : qaLaneSuggestion ? (
                                         <>
+                                          {/* Score badges */}
                                           <div className="flex items-center gap-2 flex-wrap">
-                                            {qaLaneSuggestion.avg_score !== null && (
+                                            {qaLaneSuggestion.avg_score !== null ? (
                                               <span className={`px-2 py-0.5 text-[10px] font-black rounded border ${
-                                                qaLaneSuggestion.avg_score >= 85 ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10' :
-                                                qaLaneSuggestion.avg_score >= 65 ? 'border-amber-500/40 text-amber-300 bg-amber-500/10' :
+                                                qaLaneSuggestion.avg_score >= 75 ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10' :
+                                                qaLaneSuggestion.avg_score >= 60 ? 'border-amber-500/40 text-amber-300 bg-amber-500/10' :
                                                 'border-rose-500/40 text-rose-300 bg-rose-500/10'
                                               }`}>
-                                                Avg {qaLaneSuggestion.avg_score}% · {qaLaneSuggestion.submission_count} submissions
+                                                {qaLaneSuggestion.avg_score}% avg · {qaLaneSuggestion.submission_count} assessments
                                               </span>
+                                            ) : (
+                                              <span className="px-2 py-0.5 text-[10px] font-black rounded border border-border text-muted-foreground">No data yet</span>
                                             )}
                                             {qaLaneSuggestion.direction !== 'stay' && (
-                                              <span className={`px-2 py-0.5 text-[10px] font-black rounded border ${qaLaneSuggestion.direction === 'up' ? 'border-emerald-500/40 text-emerald-200' : 'border-amber-500/40 text-amber-200'}`}>
+                                              <span className={`px-2 py-0.5 text-[10px] font-black rounded border ${qaLaneSuggestion.direction === 'up' ? 'border-emerald-500/40 text-emerald-200 bg-emerald-500/5' : 'border-amber-500/40 text-amber-200 bg-amber-500/5'}`}>
                                                 {qaLaneSuggestion.direction === 'up' ? '↑' : '↓'} Lane {qaLaneSuggestion.suggested_lane} suggested
                                               </span>
                                             )}
                                           </div>
-                                          <p className="text-[10px] text-muted-foreground leading-relaxed">{qaLaneSuggestion.reason}</p>
+
+                                          {/* AI narrative */}
+                                          <p className="text-[10px] text-foreground/80 leading-relaxed">{qaLaneSuggestion.narrative}</p>
+
+                                          {/* Score distribution */}
+                                          {qaLaneSuggestion.avg_score !== null && qaLaneSuggestion.submission_count >= 3 && (
+                                            <div className="grid grid-cols-3 gap-1.5">
+                                              {[
+                                                { label: 'Excelling', count: qaLaneSuggestion.score_distribution.excelling, cls: 'bg-emerald-500/10 text-emerald-300' },
+                                                { label: 'Developing', count: qaLaneSuggestion.score_distribution.developing, cls: 'bg-amber-500/10 text-amber-300' },
+                                                { label: 'Struggling', count: qaLaneSuggestion.score_distribution.struggling, cls: 'bg-rose-500/10 text-rose-300' },
+                                              ].map(d => (
+                                                <div key={d.label} className={`${d.cls} rounded p-1.5 text-center`}>
+                                                  <p className="text-[13px] font-black">{d.count}</p>
+                                                  <p className="text-[8px] uppercase tracking-widest opacity-70">{d.label}</p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+
+                                          {/* Weak topics */}
+                                          {qaLaneSuggestion.weak_topics.length > 0 && (
+                                            <div>
+                                              <p className="text-[9px] font-black uppercase text-rose-400 mb-1.5">Topics needing reinforcement</p>
+                                              <ul className="space-y-1">
+                                                {qaLaneSuggestion.weak_topics.map(t => (
+                                                  <li key={t.title} className="flex items-center gap-2 text-[10px]">
+                                                    <span className={`w-8 text-right font-black shrink-0 ${t.avg_score < 50 ? 'text-rose-400' : 'text-amber-400'}`}>{t.avg_score}%</span>
+                                                    <span className="text-muted-foreground truncate">{t.title}</span>
+                                                    <span className="text-muted-foreground/40 shrink-0 text-[9px]">{t.count} subs</span>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+
+                                          {/* Per-source breakdown */}
+                                          {(qaLaneSuggestion.assignment_avg !== null || qaLaneSuggestion.cbt_avg !== null) && (
+                                            <div className="flex gap-3 text-[9px] text-muted-foreground/60">
+                                              {qaLaneSuggestion.assignment_avg !== null && <span>Assignments: {qaLaneSuggestion.assignment_avg}%</span>}
+                                              {qaLaneSuggestion.cbt_avg !== null && <span>CBT: {qaLaneSuggestion.cbt_avg}%</span>}
+                                            </div>
+                                          )}
+
+                                          {/* Accept / dismiss */}
                                           {qaLaneSuggestion.direction !== 'stay' && (
-                                            <div className="flex gap-2 flex-wrap pt-0.5">
+                                            <div className="flex gap-2 flex-wrap">
                                               <button
                                                 type="button"
                                                 onClick={() => {
                                                   setQaLaneOverride(qaLaneSuggestion.suggested_lane);
                                                   setQaPreviewData(null);
                                                   setQaPreviewStamp('');
+                                                  setQaPreviewEdits({});
                                                   setQaLaneSuggestion(null);
                                                 }}
-                                                className="px-3 py-1 text-[10px] font-black rounded border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 transition-colors"
+                                                className="px-3 py-1.5 text-[10px] font-black rounded border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 transition-colors"
                                               >
                                                 Accept → Lane {qaLaneSuggestion.suggested_lane}
                                               </button>
                                               <button
                                                 type="button"
                                                 onClick={() => setQaLaneSuggestion(null)}
-                                                className="px-3 py-1 text-[10px] font-black rounded border border-border text-muted-foreground hover:bg-muted/20 transition-colors"
+                                                className="px-3 py-1.5 text-[10px] font-black rounded border border-border text-muted-foreground hover:bg-muted/20 transition-colors"
                                               >
                                                 Keep current
                                               </button>
                                             </div>
                                           )}
-                                          <p className="text-[9px] text-muted-foreground/60">
-                                            Current: Lane {qaLaneSuggestion.current_lane} — {qaLaneSuggestion.current_label}
-                                          </p>
+                                          <p className="text-[9px] text-muted-foreground/40">Lane {qaLaneSuggestion.current_lane} — {qaLaneSuggestion.current_label}</p>
                                         </>
                                       ) : null}
+                                      </div>
                                     </div>
                                   )}
 

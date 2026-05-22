@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
       ? body.catalog_version.trim()
       : 'qa_spine_v1';
   const overwriteExisting = body.overwrite_existing === true;
+  // Teacher edits made in the preview panel before applying
+  const weekOverrides: Record<string, string> =
+    body.week_overrides && typeof body.week_overrides === 'object' && !Array.isArray(body.week_overrides)
+      ? (body.week_overrides as Record<string, string>)
+      : {};
 
   if (!curriculumId) {
     return NextResponse.json({ error: 'curriculum_id is required' }, { status: 400 });
@@ -189,19 +194,21 @@ export async function POST(req: NextRequest) {
 
   const bySpine = new Map(rows.map((r) => [r.week_index, r]));
 
-  // buildTermWeeks uses the PROGRAMME term number (1/2/3) for spine index
-  function buildTermWeeks(progTermNo: number): SyllabusWeekDraft[] {
+  // buildTermWeeks uses the PROGRAMME term number (1/2/3) for spine index.
+  // nationalTermNo is passed so teacher edits (week_overrides) can be keyed by "t{N}-w{N}".
+  function buildTermWeeks(progTermNo: number, nationalTermNo: number): SyllabusWeekDraft[] {
     const out: SyllabusWeekDraft[] = [];
     for (let w = 1; w <= 12; w++) {
       const cal = calendarIndex(yearNumber, progTermNo, w);
       const src = sourceWeekIndexForCalendar(cal, pathOffset, chosenLane);
       const row = bySpine.get(src);
-      const topic = row?.topic ?? `Week ${w} (missing spine row ${src})`;
+      const overrideKey = `t${nationalTermNo}-w${w}`;
+      const topic = weekOverrides[overrideKey] || row?.topic || `Week ${w} (missing spine row ${src})`;
       out.push({
         week: w,
         type: 'lesson',
         topic,
-        subtopics: toSubtopics(row?.subtopics),
+        subtopics: weekOverrides[overrideKey] ? [] : toSubtopics(row?.subtopics),
         lesson_plan: null,
       });
     }
@@ -214,7 +221,7 @@ export async function POST(req: NextRequest) {
   // Build weeks for each national term using the correct programme-term position
   const nextTerms = [1, 2, 3].map((nationalTermNo) => {
     const progTermNo = nationalToProgTerm(nationalTermNo);
-    const incoming = buildTermWeeks(progTermNo);
+    const incoming = buildTermWeeks(progTermNo, nationalTermNo);
     const existing = baseTerms.find((t) => Number(t?.term ?? 0) === nationalTermNo) ?? { term: nationalTermNo };
     const existingWeeks = Array.isArray(existing.weeks) ? existing.weeks : [];
     return {
