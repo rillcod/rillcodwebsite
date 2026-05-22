@@ -573,11 +573,19 @@ export default function CurriculumPage() {
         // Open every programme by default so teachers can see all courses at a glance
         // (collapsing only programs is an easy way to scan a long list).
         setExpandedPrograms(new Set(progs.map((p) => p.id)));
+        // Helper: snap activeTerm from program policy so loadCurriculum doesn't override incorrectly
+        function snapPstFromProgram(p: Program) {
+          const pst = p.progression_policy?.program_start_term;
+          if ([1, 2, 3].includes(Number(pst)) && Number(pst) !== 1) {
+            setActiveTerm(Number(pst));
+          }
+        }
         if (deepProgramId) {
           const p = progs.find((x) => x.id === deepProgramId);
           if (p) {
             setExpandedPrograms(new Set([p.id]));
             setSelectedProgram(p);
+            snapPstFromProgram(p);
             if (deepCourseId) {
               const c = (p.courses ?? []).find((x) => x.id === deepCourseId);
               if (c) {
@@ -596,6 +604,7 @@ export default function CurriculumPage() {
               setExpandedPrograms(new Set([p.id]));
               setSelectedProgram(p);
               setSelectedCourse(c);
+              snapPstFromProgram(p);
               loadCurriculumRef.current?.(c.id);
               return;
             }
@@ -612,6 +621,7 @@ export default function CurriculumPage() {
                 setExpandedPrograms(new Set([p.id]));
                 setSelectedProgram(p);
                 setSelectedCourse(c);
+                snapPstFromProgram(p);
                 loadCurriculumRef.current?.(c.id);
                 return;
               }
@@ -626,6 +636,7 @@ export default function CurriculumPage() {
             setSelectedProgram(p);
             setSelectedCourse(c);
             setMobileSidebarOpen(false);
+            snapPstFromProgram(p);
             loadCurriculumRef.current?.(c.id);
             return;
           }
@@ -1530,14 +1541,17 @@ export default function CurriculumPage() {
           setActiveYear(firstLoadedYear);
           const termNumsForYear = loadedTerms.filter((t) => (t.year ?? 1) === firstLoadedYear).map((t) => t.term);
           if (termNumsForYear.length > 0) {
-            // If programme starts in a non-default term, land on Programme Term 1 (not national Term 1)
+            // Snap to Prog.T1 (national term = PST). Priority: content metadata > keep existing (set by selectCourse) > first available.
             const savedPst = (curr.content?.metadata as { program_start_term?: number } | undefined)?.program_start_term;
-            const pst = [1, 2, 3].includes(Number(savedPst)) ? Number(savedPst) : 1;
-            const progT1 = pst; // The national term number that is Programme Term 1
-            const desired = pst !== 1 && termNumsForYear.includes(progT1)
-              ? progT1
-              : termNumsForYear.includes(getCurrentTerm()) ? getCurrentTerm() : termNumsForYear[0];
-            setActiveTerm(desired);
+            const metaPst = [1, 2, 3].includes(Number(savedPst)) ? Number(savedPst) : null;
+            setActiveTerm((prev) => {
+              // Explicit PST in metadata → always snap to it
+              if (metaPst && metaPst !== 1 && termNumsForYear.includes(metaPst)) return metaPst;
+              // selectCourse already set a valid term (e.g. from program policy) → keep it
+              if (termNumsForYear.includes(prev)) return prev;
+              // Otherwise fall back to first available term
+              return termNumsForYear[0];
+            });
           }
 
           // Mark this course as having a curriculum (for sidebar badge)
