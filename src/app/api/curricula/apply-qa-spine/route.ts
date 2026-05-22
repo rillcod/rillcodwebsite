@@ -73,10 +73,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'You can only apply QA spine to your school curriculum.' }, { status: 403 });
   }
 
-  const programId = (curriculum as unknown as { courses?: { program_id?: string | null } | null }).courses?.program_id;
-  if (!programId) {
-    return NextResponse.json({ error: 'Curriculum course is missing program_id.' }, { status: 422 });
-  }
+  const programId = (curriculum as unknown as { courses?: { program_id?: string | null } | null }).courses?.program_id ?? null;
 
   let classRow: {
     id: string;
@@ -136,27 +133,35 @@ export async function POST(req: NextRequest) {
     pathOffset = typeof off === 'number' ? off : 0;
   }
 
-  const { data: templateRows, error: trErr } = await supabase
-    .from('platform_syllabus_week_template')
-    .select('week_index, year_number, term_number, week_number, topic, subtopics, program_id')
-    .eq('catalog_version', catalogVersion)
-    .eq('lane_index', chosenLane)
-    .eq('program_id', programId)
-    .order('week_index', { ascending: true });
-  if (trErr) return NextResponse.json({ error: trErr.message }, { status: 500 });
-
-  const rows = (templateRows ?? []) as Array<{
-    week_index: number;
-    topic: string;
-    subtopics: unknown;
-  }>;
-
+  // Try with specific program_id first; fall back to any rows for this lane
+  let rows: Array<{ week_index: number; topic: string; subtopics: unknown }> = [];
+  if (programId) {
+    const { data: programRows, error: trErr } = await supabase
+      .from('platform_syllabus_week_template')
+      .select('week_index, year_number, term_number, week_number, topic, subtopics, program_id')
+      .eq('catalog_version', catalogVersion)
+      .eq('lane_index', chosenLane)
+      .eq('program_id', programId)
+      .order('week_index', { ascending: true });
+    if (trErr) return NextResponse.json({ error: trErr.message }, { status: 500 });
+    rows = (programRows ?? []) as typeof rows;
+  }
+  if (rows.length === 0) {
+    const { data: fallbackRows, error: fbErr } = await supabase
+      .from('platform_syllabus_week_template')
+      .select('week_index, year_number, term_number, week_number, topic, subtopics, program_id')
+      .eq('catalog_version', catalogVersion)
+      .eq('lane_index', chosenLane)
+      .order('week_index', { ascending: true })
+      .limit(108);
+    if (fbErr) return NextResponse.json({ error: fbErr.message }, { status: 500 });
+    rows = (fallbackRows ?? []) as typeof rows;
+  }
   if (rows.length === 0) {
     return NextResponse.json(
       {
-        error: 'No QA template rows for this programme/lane.',
-        hint: 'Seed platform_syllabus_week_template for this program_id and lane, then retry.',
-        program_id: programId,
+        error: 'No QA template rows for this lane.',
+        hint: 'Run the QA spine migration to seed platform_syllabus_week_template.',
         lane_index: chosenLane,
       },
       { status: 422 },
@@ -165,7 +170,7 @@ export async function POST(req: NextRequest) {
 
   // Resolve program_start_term: body override → program policy → default 1
   let programStartTerm = bodyProgramStartTerm;
-  if (!programStartTerm) {
+  if (!programStartTerm && programId) {
     const { data: prog } = await supabase
       .from('programs')
       .select('progression_policy')
@@ -174,6 +179,7 @@ export async function POST(req: NextRequest) {
     const saved = (prog?.progression_policy as Record<string, unknown> | null)?.program_start_term;
     programStartTerm = [1, 2, 3].includes(Number(saved)) ? Number(saved) : 1;
   }
+  if (!programStartTerm) programStartTerm = 1;
 
   // Map national term number → programme-internal term number
   // e.g. programStartTerm=3: national Term3→Prog1, Term1→Prog2, Term2→Prog3

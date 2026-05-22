@@ -42,9 +42,6 @@ export async function GET(
   }
 
   const effectiveProgram = programId || cls.program_id;
-  if (!effectiveProgram || typeof effectiveProgram !== 'string') {
-    return NextResponse.json({ error: 'program_id query or class.program_id is required' }, { status: 400 });
-  }
 
   const resolved = manualLane > 0 && manualLane <= 11
     ? { lane: manualLane, source: 'query' as const }
@@ -65,21 +62,35 @@ export async function GET(
   if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 500 });
   const pathOffset = typeof off === 'number' ? off : 0;
 
-  const { data: templateRows, error: trErr } = await supabase
-    .from('platform_syllabus_week_template')
-    .select('week_index, topic, subtopics')
-    .eq('catalog_version', catalog)
-    .eq('lane_index', lane)
-    .eq('program_id', effectiveProgram)
-    .order('week_index', { ascending: true });
-  if (trErr) return NextResponse.json({ error: trErr.message }, { status: 500 });
-  const rows = templateRows ?? [];
+  // Try with specific program_id first; fall back to any available rows for this lane
+  let rows: { week_index: number; topic: string; subtopics: unknown }[] = [];
+  if (effectiveProgram) {
+    const { data: programRows, error: trErr } = await supabase
+      .from('platform_syllabus_week_template')
+      .select('week_index, topic, subtopics')
+      .eq('catalog_version', catalog)
+      .eq('lane_index', lane)
+      .eq('program_id', effectiveProgram)
+      .order('week_index', { ascending: true });
+    if (trErr) return NextResponse.json({ error: trErr.message }, { status: 500 });
+    rows = programRows ?? [];
+  }
+  if (rows.length === 0) {
+    const { data: fallbackRows, error: fbErr } = await supabase
+      .from('platform_syllabus_week_template')
+      .select('week_index, topic, subtopics')
+      .eq('catalog_version', catalog)
+      .eq('lane_index', lane)
+      .order('week_index', { ascending: true })
+      .limit(108);
+    if (fbErr) return NextResponse.json({ error: fbErr.message }, { status: 500 });
+    rows = fallbackRows ?? [];
+  }
   if (rows.length === 0) {
     return NextResponse.json(
       {
-        error: 'No spine rows for this programme/lane.',
-        hint: 'Seed platform_syllabus_week_template rows for this class programme and lane.',
-        program_id: effectiveProgram,
+        error: 'No spine rows found for this lane.',
+        hint: 'Run the QA spine migration to seed platform_syllabus_week_template.',
         lane_index: lane,
       },
       { status: 422 },

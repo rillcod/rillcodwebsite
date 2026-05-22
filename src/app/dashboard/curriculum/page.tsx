@@ -719,17 +719,13 @@ export default function CurriculumPage() {
   }, [selectedCourse?.id]);
 
   useEffect(() => {
-    if (!qaSpineOpen || !canGenerate || !programIdForQa) {
-      if (qaSpineOpen && canGenerate && !programIdForQa) {
-        setQaTmplErr('This course has no programme id — link it in the catalog first.');
-      }
-      return;
-    }
+    if (!qaSpineOpen || !canGenerate) return;
     setQaTmplLoading(true);
     setQaTmplErr('');
-    fetch(
-      `/api/platform-syllabus-template?program_id=${encodeURIComponent(programIdForQa)}&catalog_version=qa_spine_v1`,
-    )
+    const tmplUrl = programIdForQa
+      ? `/api/platform-syllabus-template?program_id=${encodeURIComponent(programIdForQa)}&catalog_version=qa_spine_v1`
+      : `/api/platform-syllabus-template?catalog_version=qa_spine_v1`;
+    fetch(tmplUrl)
       .then((r) => r.json())
       .then((j) => {
         if (j.error && !j.data) {
@@ -821,18 +817,12 @@ export default function CurriculumPage() {
       setQaPreviewData(null);
       return;
     }
-    if (!programIdForQa) {
-      setQaPreviewErr('Missing programme id on this course.');
-      return;
-    }
     setQaPreviewLoading(true);
     setQaPreviewErr('');
     setQaPreviewData(null);
     try {
-      const q = new URLSearchParams({
-        program_id: programIdForQa,
-        year: String(qaYear),
-      });
+      const q = new URLSearchParams({ year: String(qaYear) });
+      if (programIdForQa) q.set('program_id', programIdForQa);
       if (qaLaneOverride > 0) q.set('lane_index', String(qaLaneOverride));
       const res = await fetch(`/api/classes/${encodeURIComponent(qaClassId)}/qa-spine-preview?${q}`);
       const j = await res.json();
@@ -3338,10 +3328,7 @@ export default function CurriculumPage() {
                             className="overflow-hidden border-t border-border"
                           >
                             <div className="p-4 space-y-4">
-                              {!programIdForQa ? (
-                                <p className="text-[11px] text-amber-400">This course isn't linked to a programme yet — link it in the course catalog first.</p>
-                              ) : (
-                                <>
+                              <>
                                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                                     Pick your class and student level, preview the suggested weeks, then apply — your syllabus topics are filled in automatically.
                                   </p>
@@ -3454,7 +3441,6 @@ export default function CurriculumPage() {
                                     </div>
                                   )}
                                 </>
-                              )}
                             </div>
                           </motion.div>
                         )}
