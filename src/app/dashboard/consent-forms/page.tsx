@@ -287,21 +287,23 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orient
   const win = window.open('', '_blank', 'width=820,height=1000');
   if (!win) return;
   const publicUrl = `${appBase}/forms/${form.id}`;
-  const title = esc(form.title);
+  const title      = esc(form.title);
+  const schoolName = form.schools?.name ? esc(form.schools.name) : 'Rillcod Technologies';
 
   const isLandscape = orientation === 'landscape';
   // Portrait : 2 cols × 4 rows = 8 cards  (A4 portrait,  usable 194×281mm → card 65mm tall)
   // Landscape: 4 cols × 3 rows = 12 cards (A4 landscape, usable 281×194mm → card 60mm tall)
-  const count     = isLandscape ? 12 : 8;
-  const qrSize    = isLandscape ? 78 : 110;
-  const logoH     = isLandscape ? 26 : 34;
-  const schoolPt  = isLandscape ? 10 : 13;
-  const titlePt   = isLandscape ? 7.5 : 9.5;
-  const scanPt    = isLandscape ? 6.5 : 8;
-  const pageSize  = isLandscape ? 'A4 landscape' : 'A4 portrait';
-  const cardW     = isLandscape ? 'calc(25% - 5px)' : 'calc(50% - 4px)';
-  const cardH     = isLandscape ? '60mm' : '65mm';
-  const cardPad   = isLandscape ? '7px 5px' : '10px 8px';
+  const count        = isLandscape ? 12 : 8;
+  const qrSize       = isLandscape ? 78 : 110;
+  const logoH        = isLandscape ? 26 : 34;
+  const schoolPt     = isLandscape ? 10 : 13;
+  const titlePt      = isLandscape ? 7.5 : 9.5;
+  const scanPt       = isLandscape ? 6.5 : 8;
+  const footerPt     = isLandscape ? 5.5 : 6.5;
+  const pageSize     = isLandscape ? 'A4 landscape' : 'A4 portrait';
+  const cardW        = isLandscape ? 'calc(25% - 5px)' : 'calc(50% - 4px)';
+  const cardH        = isLandscape ? '60mm' : '65mm';
+  const cardPad      = isLandscape ? '7px 5px' : '10px 8px';
 
   const qrContent = qrSvg
     ? `<div class="qr">${qrSvg}</div>`
@@ -320,6 +322,7 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orient
         <div class="title">${title}</div>
         ${qrContent}
         <div class="scan-text">Scan to register</div>
+        <div class="card-footer">${schoolName}</div>
       </div>
     </div>
   `).join('');
@@ -363,6 +366,7 @@ function printQRCards(form: ConsentForm, appBase: string, qrSvg?: string, orient
   .qr { width: ${qrSize}px; height: ${qrSize}px; margin: auto; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .qr svg { width: ${qrSize}px; height: ${qrSize}px; }
   .scan-text { font-size: ${scanPt}pt; font-weight: bold; color: #444; }
+  .card-footer { font-size: ${footerPt}pt; font-weight: 900; color: #000; text-transform: uppercase; letter-spacing: 0.4px; border-top: 1px solid #ddd; width: 100%; padding-top: 3px; margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .print-btn { position: fixed; top: 20px; right: 20px; background: #000; color: #fff; border: none; padding: 12px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-family: Arial, sans-serif; }
   .print-btn:hover { background: #333; }
   @media print { body { padding: 0; } .card { border: 1px dashed #eee; } .print-btn { display: none !important; } }
@@ -992,8 +996,18 @@ export default function ConsentFormsPage() {
   const [strippingCopy, setStrippingCopy]   = useState(false);
   const [stripResult, setStripResult]       = useState('');
 
-  const isStaff = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
+  const isAdmin  = profile?.role === 'admin';
+  const isStaff  = ['teacher', 'admin', 'school'].includes(profile?.role ?? '');
   const isParent = profile?.role === 'parent';
+  const isEditor = isAdmin || profile?.role === 'teacher'; // can create / edit / delete
+
+  // ── Role guard — students have no business here ───────────────────────────
+  useEffect(() => {
+    if (!profile) return;
+    if (!['admin', 'teacher', 'school', 'parent'].includes(profile.role)) {
+      router.replace('/dashboard');
+    }
+  }, [profile, router]);
 
   const appBase = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -1323,7 +1337,7 @@ export default function ConsentFormsPage() {
             <button onClick={loadForms} className="p-2 rounded-xl hover:bg-muted transition-colors" title="Refresh">
               <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
             </button>
-            {isStaff && (
+            {isAdmin && (
               <button
                 onClick={stripCopySuffix}
                 disabled={strippingCopy}
@@ -1997,8 +2011,8 @@ export default function ConsentFormsPage() {
                           <EyeIcon className="w-3.5 h-3.5" /> Read Form
                         </button>
 
-                        {/* Staff: Edit */}
-                        {isStaff && (
+                        {/* Editor: Edit (admin + teacher) */}
+                        {isEditor && (
                           <button
                             onClick={() => setEditingForm(cf)}
                             className="flex items-center gap-1.5 px-3 py-2.5 hover:bg-muted text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
@@ -2046,8 +2060,8 @@ export default function ConsentFormsPage() {
                           </button>
                         )}
 
-                        {/* Staff: Delete */}
-                        {isStaff && (
+                        {/* Editor: Delete (admin + teacher) */}
+                        {isEditor && (
                           <button
                             onClick={() => setConfirmDeleteId(cf.id)}
                             className="flex items-center gap-1.5 px-3 py-2.5 text-rose-400 hover:bg-rose-500/10 text-[11px] font-bold transition-colors flex-shrink-0"
