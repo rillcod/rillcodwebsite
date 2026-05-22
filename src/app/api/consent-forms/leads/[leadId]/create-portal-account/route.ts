@@ -59,6 +59,7 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
   const parentName   = str('parent_name') || 'Parent/Guardian';
   const parentPhone  = str('parent_whatsapp') || str('parent_phone');
   const childName    = str('child_name');
+  const childClass   = str('child_class') || null;
   const childGender  = str('child_gender') || null;
 
   if (!parentEmail || !parentEmail.includes('@')) {
@@ -110,16 +111,30 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     is_active: true,
   });
 
-  // Link student if matched + update students.parent_email so parent appears in school-scoped list
+  // Link student if matched + override student record with parent-provided data
   if (lead.matched_student_id) {
     await syncExplicitParentStudentLink(sb as any, parentId, lead.matched_student_id);
-    await (sb as any).from('students').update({
-      parent_email:    parentEmail,
-      parent_name:     parentName,
-      parent_phone:    parentPhone || null,
-      ...(childGender ? { gender: childGender } : {}),
-      updated_at:      new Date().toISOString(),
-    }).eq('id', lead.matched_student_id);
+
+    const studentOverride: Record<string, unknown> = {
+      parent_email: parentEmail,
+      parent_name:  parentName,
+      parent_phone: parentPhone || null,
+      updated_at:   new Date().toISOString(),
+    };
+    if (childName)   studentOverride.full_name     = childName;
+    if (childClass)  studentOverride.section_class = childClass;
+    if (childGender) studentOverride.gender        = childGender;
+
+    await (sb as any).from('students').update(studentOverride).eq('id', lead.matched_student_id);
+
+    // Keep portal_users in sync for name / class / gender
+    const portalStudentOverride: Record<string, unknown> = {};
+    if (childName)   portalStudentOverride.full_name     = childName;
+    if (childClass)  portalStudentOverride.section_class = childClass;
+    if (childGender) portalStudentOverride.gender        = childGender;
+    if (Object.keys(portalStudentOverride).length > 0) {
+      await (sb as any).from('portal_users').update(portalStudentOverride).eq('id', lead.matched_student_id);
+    }
   }
 
   const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
