@@ -5170,6 +5170,76 @@ function LessonPlanView({ plan }: { plan: LessonPlan }) {
   );
 }
 
+// ── Assessment Plan View Component ───────────────────────────────────────────
+function AssessmentPlanView({ plan, type }: { plan: AssessmentPlan; type: WeekType }) {
+  const typeLabel = type === 'examination' ? 'End-of-Term Examination' : 'Assessment';
+  return (
+    <div className="space-y-6 text-sm min-w-0">
+      <div className="inline-flex items-center gap-3 px-4 py-2 bg-muted/30 border border-border max-w-full">
+        <ClipboardDocumentListIcon className="w-4 h-4 text-primary shrink-0" />
+        <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest truncate">{typeLabel} · {plan.duration_minutes} Min</span>
+      </div>
+
+      {plan.title && (
+        <Section label="Assessment Title" color="text-primary" icon={DocumentTextIcon}>
+          <p className="font-black uppercase tracking-tight text-foreground/90 italic">{plan.title}</p>
+        </Section>
+      )}
+
+      {plan.format && (
+        <Section label="Format" color="text-amber-400" icon={ClipboardDocumentListIcon}>
+          <p className="text-xs text-foreground/80 leading-relaxed">{plan.format}</p>
+        </Section>
+      )}
+
+      {plan.coverage?.length > 0 && (
+        <Section label="Topics Covered" color="text-primary" icon={BoltIcon}>
+          <ul className="space-y-2">
+            {plan.coverage.map((c, i) => (
+              <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
+                <span className="text-primary font-black shrink-0 w-4">{i + 1}.</span>
+                <span>{c}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {plan.scoring_guide && (
+        <Section label="Scoring Guide" color="text-emerald-400" icon={StarIcon}>
+          <p className="text-xs text-foreground/70 leading-relaxed border-l-2 border-emerald-500/20 pl-3 py-1">{plan.scoring_guide}</p>
+        </Section>
+      )}
+
+      {plan.teacher_prep?.length > 0 && (
+        <Section label="Teacher Preparation" color="text-cyan-400" icon={UserGroupIcon}>
+          <ol className="space-y-2">
+            {plan.teacher_prep.map((s, i) => (
+              <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
+                <span className="text-cyan-400 font-black shrink-0 w-4">{i + 1}.</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ol>
+        </Section>
+      )}
+
+      {plan.sample_questions && plan.sample_questions.length > 0 && (
+        <Section label="Sample Questions" color="text-rose-400" icon={AcademicCapIcon}>
+          <ol className="space-y-3">
+            {plan.sample_questions.map((q, i) => (
+              <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
+                <span className="text-rose-400 font-black shrink-0 w-5 flex items-center justify-center bg-rose-500/10 text-[10px] h-5 border border-rose-500/20">{i + 1}</span>
+                <span>{q}</span>
+              </li>
+            ))}
+          </ol>
+        </Section>
+      )}
+    </div>
+  );
+}
+
 // ── Editable Lesson Plan Component ───────────────────────────────────────────
 function EditableLessonPlan({ plan, onChange, onSave, onCancel, saving }: {
   plan: LessonPlan;
@@ -5308,3 +5378,6 @@ function EditableAssessmentPlan({ plan, onChange, onSave, onCancel, saving }: {
           {saving ? 'Saving…' : 'Save Assessment Content'}
         </button>
       </div>
+    </div>
+  );
+}
