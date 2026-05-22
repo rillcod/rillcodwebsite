@@ -1172,9 +1172,8 @@ export default function CurriculumPage() {
     termN: number,
     extraOverrides: Record<string, unknown> = {},
   ) => {
-    // National term this programme term maps to
     const natTermN = qaPreviewData?.terms.find(t => t.term === termN)?.national_term ?? termN;
-    // All topics already in the existing curriculum for OTHER programme terms (avoid repetition)
+    // Topics already in the curriculum for OTHER programme terms — AI must not repeat them
     const existingTopics: string[] = [];
     if (curriculum?.content?.terms) {
       for (const t of curriculum.content.terms) {
@@ -1184,6 +1183,16 @@ export default function CurriculumPage() {
         }
       }
     }
+    // Weeks that are completed in tracking — skip regenerating those
+    const lockedWeeks = tracking
+      .filter(tr => {
+        const termData = curriculum?.content?.terms?.find(t => t.term === tr.term_number);
+        if (!termData) return false;
+        const progT = ((termData.term - effectiveProgramStartTerm + 3) % 3) + 1;
+        return progT === termN && tr.status === 'completed';
+      })
+      .map(tr => tr.week_number);
+
     return {
       lane_index: qaPreviewData?.lane_index ?? qaLaneOverride ?? 1,
       year_number: qaYear,
@@ -1192,17 +1201,19 @@ export default function CurriculumPage() {
       class_name: selectedQaClass?.name,
       course_name: selectedCourse?.title,
       programme_name: selectedProgram?.name,
+      qa_track_hint: selectedQaClass?.qa_track_hint ?? '',
       grade_level: selectedQaClass?.qa_grade_key ?? '',
       academic_year: academicYear,
       program_start_term: effectiveProgramStartTerm,
       weak_topics: qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [],
       existing_curriculum_topics: existingTopics,
+      locked_weeks: lockedWeeks,
       ...extraOverrides,
     };
   }, [
     qaPreviewData, qaLaneOverride, qaYear,
     selectedQaClass, selectedCourse, selectedProgram,
-    academicYear, effectiveProgramStartTerm, qaLaneSuggestion, curriculum,
+    academicYear, effectiveProgramStartTerm, qaLaneSuggestion, curriculum, tracking,
   ]);
 
   // Regenerate a single week topic with AI
@@ -3978,10 +3989,19 @@ export default function CurriculumPage() {
                                                   const edited = qaPreviewEdits[key];
                                                   const diffFlag = qaDifficultyFlags[key];
                                                   const weekRegenLoading = qaWeekRegenLoading === key;
+                                                  // Is this week locked (completed in tracking)?
+                                                  const isLocked = tracking.some(tr => {
+                                                    const termData = curriculum?.content?.terms?.find(ct => ct.term === tr.term_number);
+                                                    if (!termData) return false;
+                                                    const progT = ((termData.term - effectiveProgramStartTerm + 3) % 3) + 1;
+                                                    return progT === t.term && tr.week_number === w.week && tr.status === 'completed';
+                                                  });
                                                   return (
-                                                    <li key={w.week} className="flex items-center gap-1.5 min-w-0 group rounded hover:bg-muted/10 px-1 py-0.5 transition-colors">
+                                                    <li key={w.week} className={`flex items-center gap-1.5 min-w-0 group rounded px-1 py-0.5 transition-colors ${isLocked ? 'opacity-50' : 'hover:bg-muted/10'}`}>
                                                       <span className="shrink-0 text-[8px] text-foreground/25 font-mono w-5 text-right">{w.week}</span>
-                                                      {diffFlag ? (
+                                                      {isLocked ? (
+                                                        <span title="Completed — will be skipped during AI regen" className="shrink-0 text-emerald-500/60 text-[9px]">✓</span>
+                                                      ) : diffFlag ? (
                                                         <span title={diffFlag} className="shrink-0 text-amber-400 text-[9px] cursor-help">⚠</span>
                                                       ) : (
                                                         <span className={`shrink-0 w-1 h-1 rounded-full ${edited ? 'bg-cyan-400' : 'bg-border/40'}`} />
@@ -3989,20 +4009,23 @@ export default function CurriculumPage() {
                                                       <input
                                                         type="text"
                                                         value={edited ?? w.topic}
-                                                        onChange={e => setQaPreviewEdits(prev => ({ ...prev, [key]: e.target.value }))}
-                                                        className={`flex-1 min-w-0 bg-transparent text-[10px] border-b outline-none pb-px transition-colors ${edited ? 'text-cyan-200 border-cyan-500/30 font-medium' : 'text-muted-foreground border-transparent hover:border-border/40 focus:border-primary/60'}`}
+                                                        onChange={e => !isLocked && setQaPreviewEdits(prev => ({ ...prev, [key]: e.target.value }))}
+                                                        readOnly={isLocked}
+                                                        className={`flex-1 min-w-0 bg-transparent text-[10px] border-b outline-none pb-px transition-colors ${isLocked ? 'text-foreground/30 border-transparent cursor-default' : edited ? 'text-cyan-200 border-cyan-500/30 font-medium' : 'text-muted-foreground border-transparent hover:border-border/40 focus:border-primary/60'}`}
                                                       />
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => void regenWeek(t.term, w.week, termWeekTopics.slice(0, w.week - 1))}
-                                                        disabled={weekRegenLoading || qaSpineRegenLoading}
-                                                        title="Regenerate this week with AI"
-                                                        className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground/40 hover:text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-20 transition-all"
-                                                      >
-                                                        {weekRegenLoading
-                                                          ? <ArrowPathIcon className="w-2.5 h-2.5 animate-spin text-cyan-400" />
-                                                          : <SparklesIcon className="w-2.5 h-2.5" />}
-                                                      </button>
+                                                      {!isLocked && (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => void regenWeek(t.term, w.week, termWeekTopics.slice(0, w.week - 1))}
+                                                          disabled={weekRegenLoading || qaSpineRegenLoading}
+                                                          title="Regenerate this week with AI"
+                                                          className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground/40 hover:text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-20 transition-all"
+                                                        >
+                                                          {weekRegenLoading
+                                                            ? <ArrowPathIcon className="w-2.5 h-2.5 animate-spin text-cyan-400" />
+                                                            : <SparklesIcon className="w-2.5 h-2.5" />}
+                                                        </button>
+                                                      )}
                                                     </li>
                                                   );
                                                 })}
