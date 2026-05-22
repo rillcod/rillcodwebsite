@@ -14,11 +14,11 @@ async function getCaller() {
 /**
  * POST /api/payments/manual
  * Records an offline/manual payment transaction (cash, POS, bank transfer, cheque).
- * Admin can post for any school. School role can only post for their own school.
+ * Admin: any school. School/teacher: scoped to their own school_id only.
  */
 export async function POST(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school'].includes(caller.role)) {
+  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

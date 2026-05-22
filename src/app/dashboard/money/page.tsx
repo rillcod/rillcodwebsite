@@ -267,13 +267,48 @@ export default function MoneyHubPage() {
   const isSchool = role === 'school';
   const isStaff = isAdmin || isSchool;
 
-  // Teachers: limited view — student fee tracking only (no financial management)
+  // Teachers: fee tracking + manual payment confirmation
   if (role === 'teacher') {
     const outstandingForTeacher = invoices.filter(i =>
       i.portal_user_id && !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase())
     );
     const overdueForTeacher = outstandingForTeacher.filter(i => i.due_date && new Date(i.due_date) < new Date());
     const paidForTeacher = invoices.filter(i => i.portal_user_id && (i.status || '').toLowerCase() === 'paid');
+
+    // Mark-as-paid modal state
+    const [markPaidInv, setMarkPaidInv] = useState<InvoiceRow | null>(null);
+    const [markMethod, setMarkMethod] = useState('cash');
+    const [markRef, setMarkRef] = useState('');
+    const [markingPaid, setMarkingPaid] = useState(false);
+    const [markError, setMarkError] = useState('');
+    const [localPaid, setLocalPaid] = useState<Set<string>>(new Set());
+
+    async function confirmPayment() {
+      if (!markPaidInv) return;
+      setMarkingPaid(true); setMarkError('');
+      try {
+        const res = await fetch('/api/payments/manual', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            invoice_id: markPaidInv.id,
+            portal_user_id: markPaidInv.portal_user_id,
+            amount: markPaidInv.amount,
+            currency: markPaidInv.currency || 'NGN',
+            payment_method: markMethod,
+            reference: markRef.trim() || undefined,
+            notes: `Confirmed by teacher`,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) { setMarkError(json.error || 'Failed to confirm payment'); return; }
+        setLocalPaid(prev => new Set([...prev, markPaidInv.id]));
+        setMarkPaidInv(null); setMarkRef(''); setMarkMethod('cash');
+      } catch { setMarkError('Network error'); }
+      finally { setMarkingPaid(false); }
+    }
+
+    const visibleOutstanding = outstandingForTeacher.filter(i => !localPaid.has(i.id));
 
     return (
       <div className="min-h-screen bg-background text-foreground">
@@ -295,22 +330,21 @@ export default function MoneyHubPage() {
           </header>
 
           <p className="text-sm text-muted-foreground">
-            Track which students in your school have outstanding fees. Share payment links with students or parents to help them pay.
-            Full financial management is handled by the Rillcod admin team.
+            Track students with outstanding fees. Use <strong className="text-foreground">Mark as Paid</strong> when you collect cash, POS, or bank transfer in person.
           </p>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center">
-              <p className="text-2xl font-black text-emerald-400">{paidForTeacher.length}</p>
+              <p className="text-2xl font-black text-emerald-400">{paidForTeacher.length + localPaid.size}</p>
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Paid</p>
             </div>
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center">
-              <p className="text-2xl font-black text-amber-400">{outstandingForTeacher.length - overdueForTeacher.length}</p>
+              <p className="text-2xl font-black text-amber-400">{visibleOutstanding.length - overdueForTeacher.filter(i => !localPaid.has(i.id)).length}</p>
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Pending</p>
             </div>
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 text-center">
-              <p className="text-2xl font-black text-rose-400">{overdueForTeacher.length}</p>
+              <p className="text-2xl font-black text-rose-400">{overdueForTeacher.filter(i => !localPaid.has(i.id)).length}</p>
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Overdue</p>
             </div>
           </div>
@@ -320,16 +354,16 @@ export default function MoneyHubPage() {
             <div className="px-4 py-3 border-b border-border flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-400" />
               <h2 className="text-[11px] font-black uppercase tracking-widest">Students with Outstanding Fees</h2>
-              <span className="ml-auto text-[10px] text-muted-foreground">{outstandingForTeacher.length} student{outstandingForTeacher.length !== 1 ? 's' : ''}</span>
+              <span className="ml-auto text-[10px] text-muted-foreground">{visibleOutstanding.length} student{visibleOutstanding.length !== 1 ? 's' : ''}</span>
             </div>
-            {outstandingForTeacher.length === 0 ? (
+            {visibleOutstanding.length === 0 ? (
               <div className="p-10 text-center">
                 <CheckCircle2 className="w-10 h-10 text-emerald-400/50 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">All students are up to date with fees.</p>
               </div>
             ) : (
               <ul className="divide-y divide-border">
-                {outstandingForTeacher.slice(0, 20).map(inv => {
+                {visibleOutstanding.slice(0, 50).map(inv => {
                   const isOv = inv.due_date && new Date(inv.due_date) < new Date();
                   return (
                     <li key={inv.id} className="flex items-center gap-3 p-4 hover:bg-muted/30">
@@ -345,15 +379,22 @@ export default function MoneyHubPage() {
                           {isOv && <span className="text-rose-400 font-black"> · OVERDUE</span>}
                         </p>
                       </div>
-                      {inv.payment_link && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        {inv.payment_link && (
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(inv.payment_link!); alert('Payment link copied!'); }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:bg-muted/80 shrink-0"
+                          >
+                            Copy Link
+                          </button>
+                        )}
                         <button
-                          onClick={() => { navigator.clipboard.writeText(inv.payment_link!); alert('Payment link copied!'); }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 shrink-0"
+                          onClick={() => { setMarkPaidInv(inv); setMarkError(''); setMarkRef(''); setMarkMethod('cash'); }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20"
                         >
-                          Copy Link
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Mark Paid
                         </button>
-                      )}
-                      <StatusPill status={inv.status} />
+                      </div>
                     </li>
                   );
                 })}
@@ -361,11 +402,98 @@ export default function MoneyHubPage() {
             )}
           </div>
 
+          {/* Paid students */}
+          {paidForTeacher.length > 0 && (
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 overflow-hidden">
+              <div className="px-4 py-3 border-b border-emerald-500/20 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Cleared — Paid Students</h2>
+                <span className="ml-auto text-[10px] text-emerald-400/60">{paidForTeacher.length}</span>
+              </div>
+              <ul className="divide-y divide-emerald-500/10">
+                {paidForTeacher.slice(0, 20).map(inv => (
+                  <li key={inv.id} className="flex items-center gap-3 px-4 py-3">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-foreground truncate">{(inv as any).portal_users?.full_name || 'Student'}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatMoney(inv.amount, inv.currency)}</p>
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">✓ Paid</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <p className="text-[11px] text-muted-foreground text-center">
-            Students with the <span className="text-emerald-400 font-bold">✓ Paid</span> badge on the Student Roster have cleared their fees.
-            Share the payment link with students or parents so they can pay online.
+            Use <strong className="text-foreground">Mark Paid</strong> to confirm cash, POS, or bank transfer payments collected in person.
+            Online payments via the payment link are confirmed automatically.
           </p>
         </div>
+
+        {/* ── Mark as Paid modal ─────────────────────────────────────── */}
+        {markPaidInv && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+              <div>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Confirm Payment</p>
+                <h2 className="text-lg font-black text-foreground">
+                  {(markPaidInv as any).portal_users?.full_name || 'Student'}
+                </h2>
+                <p className="text-sm text-muted-foreground">{formatMoney(markPaidInv.amount, markPaidInv.currency)} outstanding</p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Payment Method</label>
+                  <select
+                    value={markMethod}
+                    onChange={e => setMarkMethod(e.target.value)}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="pos">POS / Card</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="mobile_money">Mobile Money</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Reference / Receipt No. <span className="normal-case font-normal">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={markRef}
+                    onChange={e => setMarkRef(e.target.value)}
+                    placeholder="e.g. TRF-20240901"
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+              </div>
+
+              {markError && (
+                <p className="text-xs text-rose-400 font-bold bg-rose-500/10 border border-rose-500/20 rounded-xl px-3 py-2">{markError}</p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => { setMarkPaidInv(null); setMarkError(''); }}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmPayment}
+                  disabled={markingPaid}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {markingPaid ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  {markingPaid ? 'Confirming…' : 'Confirm Payment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

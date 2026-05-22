@@ -15,12 +15,15 @@ export async function POST(req: Request) {
 
         const { data: profile } = await admin
             .from('portal_users')
-            .select('role')
+            .select('role, school_id')
             .eq('id', user.id)
             .single();
 
-        if (profile?.role !== 'admin') {
-            return NextResponse.json({ error: 'Forbidden: Admin access only' }, { status: 403 });
+        const canApprove = profile?.role === 'admin' ||
+            profile?.role === 'school' ||
+            profile?.role === 'teacher';
+        if (!canApprove) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
         const { transactionId, status = 'success' } = await req.json();
@@ -35,6 +38,11 @@ export async function POST(req: Request) {
 
         if (txError || !transaction) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+        }
+
+        // Non-admin: only approve transactions belonging to their school
+        if (profile?.role !== 'admin' && profile?.school_id && transaction.school_id !== profile.school_id) {
+            return NextResponse.json({ error: 'Forbidden: transaction belongs to a different school' }, { status: 403 });
         }
 
         if (transaction.payment_status === 'completed') {
