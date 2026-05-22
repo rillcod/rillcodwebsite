@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+
+export const dynamic = 'force-dynamic';
 
 type WeekPerformanceInsert = Database['public']['Tables']['curriculum_week_performance']['Insert'];
 
@@ -22,6 +25,16 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  if (profile.role !== 'admin') {
+    const { data: planCheck } = await supabase.from('lesson_plans').select('school_id').eq('id', id).maybeSingle();
+    if (planCheck) {
+      const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
+      if (!allowedSchoolIds.includes(planCheck.school_id ?? '')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+  }
+
   const week = Number(new URL(req.url).searchParams.get('week_number') || 0);
 
   let query = supabase
@@ -30,7 +43,6 @@ export async function GET(
     .eq('lesson_plan_id', id);
 
   if (week > 0) query = query.eq('week_number', week);
-  if (profile.role === 'school' && profile.school_id) query = query.eq('school_id', profile.school_id);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -94,8 +106,11 @@ export async function POST(
     .single();
   if (!plan) return NextResponse.json({ error: 'Lesson plan not found.' }, { status: 404 });
   if (!plan.school_id) return NextResponse.json({ error: 'Lesson plan missing school scope.' }, { status: 422 });
-  if (profile.role === 'school' && profile.school_id !== plan.school_id) {
-    return NextResponse.json({ error: 'Forbidden for this school scope.' }, { status: 403 });
+  if (profile.role !== 'admin') {
+    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (!allowedSchoolIds.includes(plan.school_id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
   const payload: WeekPerformanceInsert = {

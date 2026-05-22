@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from './authz';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+
+export const dynamic = 'force-dynamic';
 import {
   inferTermNumberFromPlanTerm,
   mapSyllabusWeekToPlanRow,

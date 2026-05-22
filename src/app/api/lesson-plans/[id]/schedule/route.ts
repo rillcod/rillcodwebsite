@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,11 +19,20 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const { term_start, cadence_days } = await req.json();
   if (!term_start) return NextResponse.json({ error: 'term_start is required', field: 'term_start' }, { status: 400 });
 
+  const { data: plan } = await supabase.from('lesson_plans').select('id, school_id').eq('id', id).single();
+  if (!plan) return NextResponse.json({ error: 'Lesson plan not found' }, { status: 404 });
+  if (profile.role !== 'admin') {
+    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (!allowedSchoolIds.includes(plan.school_id ?? '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
   const { data, error } = await (supabase as any)
     .from('term_schedules')
     .upsert({
       lesson_plan_id: id,
-      school_id: profile.school_id,
+      school_id: plan.school_id,
       is_active: true,
       current_week: 1,
       term_start,

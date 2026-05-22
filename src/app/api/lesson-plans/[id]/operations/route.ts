@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { extractLessonPlanOperationWeeks, metadataMatchesWeek } from '@/lib/progression/lessonPlanOperation';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+
+export const dynamic = 'force-dynamic';
 
 type Dict = Record<string, unknown>;
 type LessonRow = {
@@ -77,8 +80,11 @@ export async function GET(
     .eq('id', id)
     .single();
   if (planErr || !plan) return NextResponse.json({ error: 'Lesson plan not found.' }, { status: 404 });
-  if (profile.role !== 'admin' && plan.school_id !== profile.school_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (profile.role !== 'admin') {
+    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (!allowedSchoolIds.includes(plan.school_id ?? '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
   const weeks = extractLessonPlanOperationWeeks(plan.plan_data);

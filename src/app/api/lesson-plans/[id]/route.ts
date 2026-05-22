@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessLessonScope } from '../authz';
+
+export const dynamic = 'force-dynamic';
 import { getProgressionTermStatus } from '@/lib/progression/termStatus';
 import { syncWeeksIntoProgression } from '@/lib/progression/lessonPlanOperation';
 import type { Database, Json } from '@/types/supabase';

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+
+export const dynamic = 'force-dynamic';
 import {
   resolveDefaultTrackFromPolicy,
   resolveGradeKeyFromClassName,
@@ -552,8 +555,11 @@ export async function POST(
     return NextResponse.json({ error: 'Lesson plan is missing course context.' }, { status: 422 });
   }
   const courseId = plan.course_id;
-  if (profile.role !== 'admin' && plan.school_id !== profile.school_id) {
-    return NextResponse.json({ error: 'You can only generate progression for your school plans.' }, { status: 403 });
+  if (profile.role !== 'admin') {
+    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (!allowedSchoolIds.includes(plan.school_id)) {
+      return NextResponse.json({ error: 'You can only generate progression for your school plans.' }, { status: 403 });
+    }
   }
 
   const program = plan.courses?.programs;

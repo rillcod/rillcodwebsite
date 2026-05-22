@@ -5,6 +5,9 @@ import {
   resolveGradeKeyFromClassName,
   resolveSyllabusPhaseFromClassName,
 } from '@/lib/progression/lessonPlanProgressionContext';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+
+export const dynamic = 'force-dynamic';
 
 function asObject(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
@@ -109,8 +112,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   if (!plan.school_id) {
     return NextResponse.json({ error: 'Lesson plan is missing school context.' }, { status: 422 });
   }
-  if (profile.role !== 'admin' && plan.school_id !== profile.school_id) {
-    return NextResponse.json({ error: 'You can only view guides for your school lesson plans.' }, { status: 403 });
+  if (profile.role !== 'admin') {
+    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (!allowedSchoolIds.includes(plan.school_id)) {
+      return NextResponse.json({ error: 'You can only view guides for your school lesson plans.' }, { status: 403 });
+    }
   }
 
   const program = plan.courses?.programs;

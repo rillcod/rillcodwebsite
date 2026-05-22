@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { buildLessonPlanSyllabusQa } from '@/lib/progression/syllabusQa';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   _req: Request,
@@ -42,8 +45,11 @@ export async function GET(
   if (planErr || !plan) {
     return NextResponse.json({ error: 'Lesson plan not found.' }, { status: 404 });
   }
-  if (profile.role !== 'admin' && plan.school_id !== profile.school_id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (profile.role !== 'admin') {
+    const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile.school_id);
+    if (!allowedSchoolIds.includes(plan.school_id ?? '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
   const report = buildLessonPlanSyllabusQa({
