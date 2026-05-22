@@ -29,6 +29,31 @@ import { CurriculumPrintDoc } from '@/components/curriculum/CurriculumPrintDoc';
 import { CurriculumOverviewPrintDoc, DEFAULT_PRINT_OPTIONS, type PrintSectionOptions } from '@/components/curriculum/CurriculumOverviewPrintDoc';
 import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
+import { resolveQaSpineLane, LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
+
+// QA track setup options
+const QA_GRADE_OPTIONS = [
+  { value: 'basic_1', label: 'Primary 1 (Basic 1)' },
+  { value: 'basic_2', label: 'Primary 2 (Basic 2)' },
+  { value: 'basic_3', label: 'Primary 3 (Basic 3)' },
+  { value: 'basic_4', label: 'Primary 4 (Basic 4)' },
+  { value: 'basic_5', label: 'Primary 5 (Basic 5)' },
+  { value: 'basic_6', label: 'Primary 6 (Basic 6)' },
+  { value: 'jss_1',   label: 'JSS 1' },
+  { value: 'jss_2',   label: 'JSS 2' },
+  { value: 'jss_3',   label: 'JSS 3' },
+  { value: 'ss_1',    label: 'SS 1' },
+  { value: 'ss_2',    label: 'SS 2' },
+  { value: 'ss_3',    label: 'SS 3' },
+];
+const QA_TRACK_OPTIONS = [
+  { value: 'young_innovator',   label: 'Young Innovator (ScratchJr / Scratch)' },
+  { value: 'python',            label: 'Python Programming' },
+  { value: 'html_css',          label: 'HTML / CSS / JavaScript' },
+  { value: 'jss_web_app',       label: 'Web App Development (Full-Stack)' },
+  { value: 'ui_ux_design',      label: 'UI/UX Design (Figma, Adobe XD)' },
+  { value: 'mobile_development', label: 'Mobile Development (Flutter, Dart)' },
+];
 
 // Nigerian term labels
 const TERM_LABEL: Record<number, string> = {
@@ -438,7 +463,7 @@ export default function CurriculumPage() {
   >([]);
   const [qaInspectLane, setQaInspectLane] = useState(1);
   const [qaClassOptions, setQaClassOptions] = useState<
-    { id: string; name: string; program_id: string | null; qa_grade_key?: string | null; qa_track_hint?: string | null }[]
+    { id: string; name: string; program_id: string | null; qa_grade_key?: string | null; qa_track_hint?: string | null; qa_spine_lane?: number | null }[]
   >([]);
   const [qaClassId, setQaClassId] = useState('');
   const [qaClassGradeMode, setQaClassGradeMode] = useState<'optional' | 'compulsory'>('optional');
@@ -484,6 +509,13 @@ export default function CurriculumPage() {
   const [qaRecoveryEditTopics, setQaRecoveryEditTopics] = useState<Record<string, string>>({});
   const [qaRecoveryTargetTerm, setQaRecoveryTargetTerm] = useState(1);
   const [qaRecoveryInjecting, setQaRecoveryInjecting] = useState(false);
+  // QA track inline editor
+  const [qaTrackEditing, setQaTrackEditing] = useState(false);
+  const [qaTrackGrade, setQaTrackGrade] = useState('');
+  const [qaTrackHint, setQaTrackHint] = useState('');
+  const [qaTrackLanePin, setQaTrackLanePin] = useState(0);
+  const [qaTrackSaving, setQaTrackSaving] = useState(false);
+  const [qaTrackErr, setQaTrackErr] = useState('');
   const [editingProgramStartTerm, setEditingProgramStartTerm] = useState(false);
   const [programStartTermDraft, setProgramStartTermDraft] = useState<number>(1);
   const [savingProgramStartTerm, setSavingProgramStartTerm] = useState(false);
@@ -799,6 +831,10 @@ export default function CurriculumPage() {
       setQaTmplMeta(null);
       setQaTmplRows([]);
       setQaTmplErr('');
+      setQaTrackEditing(false);
+      setQaTrackGrade('');
+      setQaTrackHint('');
+      setQaTrackLanePin(0);
     }
   }, [selectedCourse?.id]);
 
@@ -848,7 +884,7 @@ export default function CurriculumPage() {
     fetch('/api/classes', { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => {
-        const list = (j.data ?? []) as { id: string; name: string; program_id: string | null; qa_grade_key?: string | null; qa_track_hint?: string | null }[];
+        const list = (j.data ?? []) as { id: string; name: string; program_id: string | null; qa_grade_key?: string | null; qa_track_hint?: string | null; qa_spine_lane?: number | null }[];
         setQaClassOptions(list);
       })
       .catch(() => setQaClassOptions([]));
@@ -947,6 +983,45 @@ export default function CurriculumPage() {
       setQaClassModeSaving(false);
     }
   }, [qaClassId]);
+
+  const saveQaTrack = useCallback(async () => {
+    if (!qaClassId) return;
+    setQaTrackSaving(true);
+    setQaTrackErr('');
+    try {
+      const body: Record<string, unknown> = {};
+      if (qaTrackGrade) body.qa_grade_key = qaTrackGrade;
+      if (qaTrackHint)  body.qa_track_hint = qaTrackHint;
+      if (qaTrackLanePin > 0) body.qa_spine_lane = qaTrackLanePin;
+      else body.qa_spine_lane = null; // clear pin → auto-resolve
+      const res = await fetch(`/api/classes/${encodeURIComponent(qaClassId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setQaTrackErr(j.error || 'Failed to save track setup'); return; }
+      // Patch local class options so the rest of the panel reflects changes immediately
+      setQaClassOptions(prev => prev.map(c =>
+        c.id === qaClassId
+          ? {
+              ...c,
+              qa_grade_key: qaTrackGrade || c.qa_grade_key,
+              qa_track_hint: qaTrackHint || c.qa_track_hint,
+              qa_spine_lane: qaTrackLanePin > 0 ? qaTrackLanePin : null,
+            }
+          : c,
+      ));
+      setQaTrackEditing(false);
+      setQaPreviewData(null);
+      setQaPreviewStamp('');
+      setQaPreviewEdits({});
+    } catch {
+      setQaTrackErr('Network error');
+    } finally {
+      setQaTrackSaving(false);
+    }
+  }, [qaClassId, qaTrackGrade, qaTrackHint, qaTrackLanePin]);
 
   const runLaneSuggest = useCallback(async (laneIndex: number) => {
     if (!qaClassId) return;
@@ -3861,7 +3936,7 @@ export default function CurriculumPage() {
                                       <select
                                         className={SELECT_CLS}
                                         value={qaClassId}
-                                        onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); setQaLaneSuggestion(null); setQaPreviewEdits({}); }}
+                                        onChange={(e) => { setQaClassId(e.target.value); setQaPreviewData(null); setQaPreviewStamp(''); setQaLaneSuggestion(null); setQaPreviewEdits({}); setQaTrackEditing(false); setQaTrackGrade(''); setQaTrackHint(''); setQaTrackLanePin(0); setQaTrackErr(''); }}
                                       >
                                         <option value="">— Pick a class —</option>
                                         {[...qaClassOptions]
@@ -3892,6 +3967,124 @@ export default function CurriculumPage() {
                                       </select>
                                     </div>
                                   </div>
+
+                                  {/* ── QA Track Setup ── */}
+                                  {qaClassId && (() => {
+                                    const cls = selectedQaClass;
+                                    const resolved = resolveQaSpineLane({
+                                      qa_spine_lane: qaTrackLanePin > 0 ? qaTrackLanePin : (cls?.qa_spine_lane ?? undefined),
+                                      qa_grade_key: cls?.qa_grade_key,
+                                      qa_track_hint: cls?.qa_track_hint,
+                                    });
+                                    const laneLabel = LANE_LABELS[resolved.lane] ?? `Lane ${resolved.lane}`;
+                                    const hasTrack = !!(cls?.qa_grade_key && cls?.qa_track_hint);
+
+                                    return (
+                                      <div className={`rounded-lg border p-3 space-y-2.5 ${hasTrack ? 'border-border/40 bg-muted/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="min-w-0">
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Track &amp; Lane</p>
+                                            {hasTrack ? (
+                                              <p className="text-[10px] text-foreground/80 mt-0.5 leading-snug truncate">
+                                                <span className="font-bold text-cyan-300">{QA_GRADE_OPTIONS.find(g => g.value === cls?.qa_grade_key)?.label ?? cls?.qa_grade_key}</span>
+                                                <span className="text-muted-foreground/50 mx-1">·</span>
+                                                <span className="font-bold text-primary">{QA_TRACK_OPTIONS.find(t => t.value === cls?.qa_track_hint)?.label?.split(' (')[0] ?? cls?.qa_track_hint}</span>
+                                              </p>
+                                            ) : (
+                                              <p className="text-[10px] text-amber-300 mt-0.5">Track not set — defaults to Lane 1 (Beginner)</p>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            <span className="text-[8px] font-mono text-muted-foreground/50 border border-border/30 rounded px-1 py-0.5">
+                                              Lane {resolved.lane}{resolved.source === 'pinned' ? ' (pinned)' : resolved.source === 'grade_track' ? ' (auto)' : ' (default)'}
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setQaTrackGrade(cls?.qa_grade_key ?? '');
+                                                setQaTrackHint(cls?.qa_track_hint ?? '');
+                                                setQaTrackLanePin(0);
+                                                setQaTrackErr('');
+                                                setQaTrackEditing(e => !e);
+                                              }}
+                                              className="text-[9px] font-bold text-muted-foreground hover:text-foreground border border-border/40 hover:border-border rounded px-2 py-0.5 transition-colors"
+                                            >
+                                              {qaTrackEditing ? 'Cancel' : hasTrack ? 'Edit' : 'Set up'}
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {!qaTrackEditing && hasTrack && (
+                                          <p className="text-[9px] text-muted-foreground/60 leading-snug truncate">{laneLabel}</p>
+                                        )}
+
+                                        {qaTrackEditing && (
+                                          <div className="space-y-2.5 pt-1 border-t border-border/30">
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <div className="space-y-1">
+                                                <label className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Grade</label>
+                                                <select
+                                                  className="w-full text-[10px] rounded border border-border/50 bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                                  value={qaTrackGrade}
+                                                  onChange={e => setQaTrackGrade(e.target.value)}
+                                                >
+                                                  <option value="">— Select grade —</option>
+                                                  {QA_GRADE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                                </select>
+                                              </div>
+                                              <div className="space-y-1">
+                                                <label className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Technology Track</label>
+                                                <select
+                                                  className="w-full text-[10px] rounded border border-border/50 bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                                  value={qaTrackHint}
+                                                  onChange={e => setQaTrackHint(e.target.value)}
+                                                >
+                                                  <option value="">— Select track —</option>
+                                                  {QA_TRACK_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                                </select>
+                                              </div>
+                                            </div>
+
+                                            {/* Preview resolved lane */}
+                                            {qaTrackGrade && qaTrackHint && (() => {
+                                              const preview = resolveQaSpineLane({ qa_grade_key: qaTrackGrade, qa_track_hint: qaTrackHint });
+                                              return (
+                                                <p className="text-[9px] text-cyan-300/80">
+                                                  → Lane {preview.lane}: {LANE_LABELS[preview.lane] ?? `Lane ${preview.lane}`}
+                                                </p>
+                                              );
+                                            })()}
+
+                                            <div className="space-y-1">
+                                              <label className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">
+                                                Manual lane pin <span className="font-normal text-muted-foreground/50">(optional — overrides grade+track)</span>
+                                              </label>
+                                              <select
+                                                className="w-full text-[10px] rounded border border-border/50 bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                                value={qaTrackLanePin}
+                                                onChange={e => setQaTrackLanePin(Number(e.target.value))}
+                                              >
+                                                <option value={0}>Auto (use grade + track)</option>
+                                                {Object.entries(LANE_LABELS).map(([idx, label]) => (
+                                                  <option key={idx} value={Number(idx)}>Lane {idx}: {label}</option>
+                                                ))}
+                                              </select>
+                                            </div>
+
+                                            {qaTrackErr && <p className="text-[10px] text-rose-400 font-bold">{qaTrackErr}</p>}
+                                            <button
+                                              type="button"
+                                              disabled={qaTrackSaving || (!qaTrackGrade && !qaTrackHint && qaTrackLanePin === 0)}
+                                              onClick={() => void saveQaTrack()}
+                                              className="w-full py-1.5 text-[10px] font-black rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                                            >
+                                              {qaTrackSaving ? 'Saving…' : 'Save track setup'}
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
 
                                   {qaClassId && (
                                     <div className="space-y-1.5">
