@@ -269,7 +269,7 @@ export default function ModernReportCard({ report, orgSettings }: {
                                 { l: 'Class', v: report.section_class },
                                 { l: 'Gender', v: report.gender ? (report.gender.charAt(0).toUpperCase() + report.gender.slice(1)) : null },
                                 { l: 'School', v: report.school_name },
-                                { l: report.school_section ? 'Term' : 'Duration', v: report.school_section ? report.report_term : (report.course_duration || report.report_term) },
+                                { l: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? 'Term' : 'Duration', v: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? report.report_term : (report.course_duration || report.report_term) },
                                 { l: 'Status', v: 'CERTIFIED', green: true },
                             ].filter(f => f.v).map(f => (
                                 <div key={f.l}>

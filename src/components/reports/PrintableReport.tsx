@@ -203,7 +203,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(${report.gender ? 5 : 4}, 1fr)`, gap: '16px', paddingTop: '8px' }}>
                     {[
                         { label: 'Programme', value: report.course_name   || 'STEM Synthesis' },
-                        { label: report.school_section ? 'Term' : 'Duration', value: report.school_section ? (report.report_term || '—') : (report.course_duration || report.report_term || 'S1-2024') },
+                        { label: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? 'Term' : 'Duration', value: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? (report.report_term || '—') : (report.course_duration || report.report_term || 'S1-2024') },
                         { label: 'Class',     value: report.section_class || 'N/A'            },
                         ...(report.gender ? [{ label: 'Gender', value: report.gender.charAt(0).toUpperCase() + report.gender.slice(1) }] : []),
                         { label: 'School',    value: report.school_name   || 'Rillcod'        },

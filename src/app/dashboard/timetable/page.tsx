@@ -1115,9 +1115,9 @@ export default function TimetablePage() {
                   <select value={ttForm.section} onChange={e => setTTForm(s => ({ ...s, section: e.target.value }))}
                     className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary">
                     <option value="">All</option>
-                    <option value="Primary">Primary</option>
-                    <option value="Secondary">Secondary</option>
-                    <option value="Unified">Unified</option>
+                    <option value="basic">Basic</option>
+                    <option value="secondary">Secondary</option>
+                    <option value="unified">Unified</option>
                   </select>
                 </div>
                 <div className="space-y-1">

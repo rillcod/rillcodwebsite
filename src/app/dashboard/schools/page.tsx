@@ -950,7 +950,7 @@ export default function SchoolsPage() {
                       value={createForm.schoolType}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, schoolType: e.target.value }))}
                       className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
-                      placeholder="Primary / Secondary"
+                      placeholder="Basic / Secondary / Unified"
                     />
                   </div>
                   <div>
