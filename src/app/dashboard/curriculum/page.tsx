@@ -433,6 +433,19 @@ export default function CurriculumPage() {
   } | null>(null);
   const [qaApplyLoading, setQaApplyLoading] = useState(false);
   const [qaApplyErr, setQaApplyErr] = useState('');
+  // Lane Intelligence: performance-based lane suggestion
+  const [qaLaneSuggestion, setQaLaneSuggestion] = useState<{
+    current_lane: number; current_label: string;
+    suggested_lane: number; suggested_label: string;
+    avg_score: number | null; submission_count: number;
+    direction: 'up' | 'down' | 'stay'; reason: string;
+  } | null>(null);
+  const [qaLaneSuggestLoading, setQaLaneSuggestLoading] = useState(false);
+  // Missed-topic recovery
+  const [qaRecoveryChecked, setQaRecoveryChecked] = useState<Set<string>>(new Set());
+  const [qaRecoveryEditTopics, setQaRecoveryEditTopics] = useState<Record<string, string>>({});
+  const [qaRecoveryTargetTerm, setQaRecoveryTargetTerm] = useState(1);
+  const [qaRecoveryInjecting, setQaRecoveryInjecting] = useState(false);
   const [editingWeekKey, setEditingWeekKey] = useState<string | null>(null); // "termN-weekN"
   const [editWeekTopic, setEditWeekTopic] = useState('');
   const [editWeekSubtopics, setEditWeekSubtopics] = useState('');
@@ -811,6 +824,22 @@ export default function CurriculumPage() {
     }
   }, [qaClassId]);
 
+  const runLaneSuggest = useCallback(async (laneIndex: number) => {
+    if (!qaClassId) return;
+    setQaLaneSuggestLoading(true);
+    setQaLaneSuggestion(null);
+    try {
+      const res = await fetch('/api/ai/lane-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ class_id: qaClassId, lane_index: laneIndex, course_id: selectedCourse?.id }),
+      });
+      const j = await res.json();
+      if (res.ok) setQaLaneSuggestion(j);
+    } catch { /* ignore */ }
+    finally { setQaLaneSuggestLoading(false); }
+  }, [qaClassId, selectedCourse?.id]);
+
   const runQaSpinePreview = useCallback(async () => {
     if (!qaClassId) {
       setQaPreviewErr('Select a class to see how the spine rotates (school + class path).');
@@ -832,12 +861,14 @@ export default function CurriculumPage() {
       }
       setQaPreviewData(j.data);
       setQaPreviewStamp(qaSelectionStamp);
+      // Auto-analyse performance and suggest lane based on resolved lane
+      void runLaneSuggest(j.data.lane_index);
     } catch {
       setQaPreviewErr('Network error');
     } finally {
       setQaPreviewLoading(false);
     }
-  }, [qaClassId, programIdForQa, qaYear, qaLaneOverride, qaSelectionStamp]);
+  }, [qaClassId, programIdForQa, qaYear, qaLaneOverride, qaSelectionStamp, runLaneSuggest]);
 
   // Auto-load implementations when delivery OR implementations tab active, or course changes
   useEffect(() => {
@@ -1004,6 +1035,44 @@ export default function CurriculumPage() {
       setQaApplyLoading(false);
     }
   }, [curriculum, selectedCourse, qaClassId, qaYear, qaLaneOverride, qaOverwrite, qaNeedsFreshPreview]);
+
+  const injectRecoveryWeeks = useCallback(async () => {
+    if (!curriculum || qaRecoveryChecked.size === 0) return;
+    setQaRecoveryInjecting(true);
+    try {
+      const skipped = tracking.filter(t => t.status === 'skipped');
+      const selected = skipped.filter(t => qaRecoveryChecked.has(`${t.term_number}-${t.week_number}`));
+      const recoveryWeeks: CurriculumWeek[] = selected.map(t => {
+        const term = curriculum.content.terms.find(tm => tm.term === t.term_number);
+        const week = term?.weeks.find(w => w.week === t.week_number);
+        const key = `${t.term_number}-${t.week_number}`;
+        const topic = qaRecoveryEditTopics[key] ?? week?.topic ?? `Review: Week ${t.week_number}`;
+        return { week: 0, type: 'lesson' as WeekType, topic: `[Recovery] ${topic}`, subtopics: week?.subtopics };
+      });
+      const newContent: CurriculumContent = JSON.parse(JSON.stringify(curriculum.content));
+      const targetTerm = newContent.terms.find(tm => tm.term === qaRecoveryTargetTerm);
+      if (targetTerm) {
+        targetTerm.weeks = [...recoveryWeeks, ...targetTerm.weeks].map((w, i) => ({ ...w, week: i + 1 }));
+      }
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent }),
+      });
+      const j = await res.json();
+      if (res.ok) {
+        setCurriculum(prev => prev ? { ...prev, content: j.data?.content ?? newContent, version: j.data?.version ?? prev.version } : prev);
+        toast.success(`${recoveryWeeks.length} recovery week${recoveryWeeks.length === 1 ? '' : 's'} added to Term ${qaRecoveryTargetTerm}`);
+        setQaRecoveryChecked(new Set());
+      } else {
+        toast.error(j.error || 'Failed to inject recovery weeks');
+      }
+    } catch {
+      toast.error('Network error');
+    } finally {
+      setQaRecoveryInjecting(false);
+    }
+  }, [curriculum, tracking, qaRecoveryChecked, qaRecoveryEditTopics, qaRecoveryTargetTerm]);
 
   const openGenerateModal = useCallback(() => {
     let scope: 'platform' | string = 'platform';
@@ -3440,6 +3509,132 @@ export default function CurriculumPage() {
                                       ))}
                                     </div>
                                   )}
+
+                                  {/* ── Lane Intelligence ── */}
+                                  {(qaLaneSuggestLoading || qaLaneSuggestion) && (
+                                    <div className="p-3 border border-cyan-500/20 rounded-lg space-y-2 bg-cyan-500/5">
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-cyan-300">Lane Intelligence</p>
+                                      {qaLaneSuggestLoading ? (
+                                        <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                                          <ArrowPathIcon className="w-3 h-3 animate-spin" /> Analysing class performance…
+                                        </p>
+                                      ) : qaLaneSuggestion ? (
+                                        <>
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            {qaLaneSuggestion.avg_score !== null && (
+                                              <span className={`px-2 py-0.5 text-[10px] font-black rounded border ${
+                                                qaLaneSuggestion.avg_score >= 85 ? 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10' :
+                                                qaLaneSuggestion.avg_score >= 65 ? 'border-amber-500/40 text-amber-300 bg-amber-500/10' :
+                                                'border-rose-500/40 text-rose-300 bg-rose-500/10'
+                                              }`}>
+                                                Avg {qaLaneSuggestion.avg_score}% · {qaLaneSuggestion.submission_count} submissions
+                                              </span>
+                                            )}
+                                            {qaLaneSuggestion.direction !== 'stay' && (
+                                              <span className={`px-2 py-0.5 text-[10px] font-black rounded border ${qaLaneSuggestion.direction === 'up' ? 'border-emerald-500/40 text-emerald-200' : 'border-amber-500/40 text-amber-200'}`}>
+                                                {qaLaneSuggestion.direction === 'up' ? '↑' : '↓'} Lane {qaLaneSuggestion.suggested_lane} suggested
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-[10px] text-muted-foreground leading-relaxed">{qaLaneSuggestion.reason}</p>
+                                          {qaLaneSuggestion.direction !== 'stay' && (
+                                            <div className="flex gap-2 flex-wrap pt-0.5">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setQaLaneOverride(qaLaneSuggestion.suggested_lane);
+                                                  setQaPreviewData(null);
+                                                  setQaPreviewStamp('');
+                                                  setQaLaneSuggestion(null);
+                                                }}
+                                                className="px-3 py-1 text-[10px] font-black rounded border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10 transition-colors"
+                                              >
+                                                Accept → Lane {qaLaneSuggestion.suggested_lane}
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setQaLaneSuggestion(null)}
+                                                className="px-3 py-1 text-[10px] font-black rounded border border-border text-muted-foreground hover:bg-muted/20 transition-colors"
+                                              >
+                                                Keep current
+                                              </button>
+                                            </div>
+                                          )}
+                                          <p className="text-[9px] text-muted-foreground/60">
+                                            Current: Lane {qaLaneSuggestion.current_lane} — {qaLaneSuggestion.current_label}
+                                          </p>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  )}
+
+                                  {/* ── Missed Topics Recovery ── */}
+                                  {(() => {
+                                    const skipped = tracking.filter(t => t.status === 'skipped');
+                                    if (skipped.length === 0) return null;
+                                    return (
+                                      <div className="p-3 border border-amber-500/30 rounded-lg space-y-2 bg-amber-500/5">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-300">
+                                          {skipped.length} Missed Topic{skipped.length === 1 ? '' : 's'} — Recovery Plan
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground">Select topics to inject as recovery weeks into a future term. You can edit topic names first.</p>
+                                        <ul className="space-y-2">
+                                          {skipped.map(t => {
+                                            const key = `${t.term_number}-${t.week_number}`;
+                                            const termObj = curriculum?.content?.terms?.find(tm => tm.term === t.term_number);
+                                            const weekObj = termObj?.weeks?.find(w => w.week === t.week_number);
+                                            const displayTopic = qaRecoveryEditTopics[key] ?? weekObj?.topic ?? `Term ${t.term_number} Week ${t.week_number}`;
+                                            return (
+                                              <li key={key} className="flex items-start gap-2">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={qaRecoveryChecked.has(key)}
+                                                  onChange={e => setQaRecoveryChecked(prev => {
+                                                    const n = new Set(prev);
+                                                    e.target.checked ? n.add(key) : n.delete(key);
+                                                    return n;
+                                                  })}
+                                                  className="mt-0.5 shrink-0"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                  <p className="text-[9px] text-muted-foreground mb-0.5">Term {t.term_number} · Week {t.week_number}</p>
+                                                  <input
+                                                    type="text"
+                                                    value={displayTopic}
+                                                    onChange={e => setQaRecoveryEditTopics(prev => ({ ...prev, [key]: e.target.value }))}
+                                                    className="w-full bg-transparent text-[11px] text-foreground border-b border-border/60 focus:border-amber-400 outline-none pb-0.5"
+                                                  />
+                                                </div>
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                        {qaRecoveryChecked.size > 0 && (
+                                          <div className="flex items-center gap-2 pt-1 flex-wrap">
+                                            <span className="text-[10px] text-muted-foreground">Inject into</span>
+                                            <select
+                                              value={qaRecoveryTargetTerm}
+                                              onChange={e => setQaRecoveryTargetTerm(Number(e.target.value))}
+                                              className={SELECT_CLS}
+                                            >
+                                              <option value={1}>First Term</option>
+                                              <option value={2}>Second Term</option>
+                                              <option value={3}>Third Term</option>
+                                            </select>
+                                            <button
+                                              type="button"
+                                              onClick={() => void injectRecoveryWeeks()}
+                                              disabled={qaRecoveryInjecting}
+                                              className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-black rounded border border-amber-500/40 text-amber-200 hover:bg-amber-500/10 disabled:opacity-50 transition-colors"
+                                            >
+                                              {qaRecoveryInjecting && <ArrowPathIcon className="w-3 h-3 animate-spin" />}
+                                              Inject {qaRecoveryChecked.size} week{qaRecoveryChecked.size === 1 ? '' : 's'} →
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </>
                             </div>
                           </motion.div>
