@@ -1,4 +1,4 @@
-
+Connecting to aws-1-eu-west-1.pooler.supabase.com 5432
 export type Json =
   | string
   | number
@@ -8,11 +8,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -23,10 +18,10 @@ export type Database = {
     Functions: {
       graphql: {
         Args: {
-          extensions?: Json
           operationName?: string
           query?: string
           variables?: Json
+          extensions?: Json
         }
         Returns: Json
       }
@@ -547,7 +542,7 @@ export type Database = {
           actor_id: string | null
           created_at: string | null
           id: string
-          ip_address: unknown
+          ip_address: unknown | null
           new_value: string | null
           new_values: Json | null
           old_value: string | null
@@ -564,7 +559,7 @@ export type Database = {
           actor_id?: string | null
           created_at?: string | null
           id?: string
-          ip_address?: unknown
+          ip_address?: unknown | null
           new_value?: string | null
           new_values?: Json | null
           old_value?: string | null
@@ -581,7 +576,7 @@ export type Database = {
           actor_id?: string | null
           created_at?: string | null
           id?: string
-          ip_address?: unknown
+          ip_address?: unknown | null
           new_value?: string | null
           new_values?: Json | null
           old_value?: string | null
@@ -8334,6 +8329,7 @@ export type Database = {
           fee_amount: string | null
           fee_label: string | null
           fee_status: string | null
+          gender: string | null
           has_certificate: boolean | null
           homework_grade: string | null
           id: string
@@ -8381,6 +8377,7 @@ export type Database = {
           fee_amount?: string | null
           fee_label?: string | null
           fee_status?: string | null
+          gender?: string | null
           has_certificate?: boolean | null
           homework_grade?: string | null
           id?: string
@@ -8428,6 +8425,7 @@ export type Database = {
           fee_amount?: string | null
           fee_label?: string | null
           fee_status?: string | null
+          gender?: string | null
           has_certificate?: boolean | null
           homework_grade?: string | null
           id?: string
@@ -10288,46 +10286,48 @@ export type Database = {
     }
     Functions: {
       check_course_completion: {
-        Args: { p_course_id: string; p_user_id: string }
+        Args: { p_user_id: string; p_course_id: string }
         Returns: boolean
       }
-      check_timetable_conflicts: { Args: { p_slot: Json }; Returns: Json }
+      check_timetable_conflicts: {
+        Args: { p_slot: Json }
+        Returns: Json
+      }
       class_qa_path_offset: {
-        Args: { p_class_id: string; p_school_id: string }
+        Args: { p_school_id: string; p_class_id: string }
         Returns: number
       }
       create_parent_and_link: {
         Args: {
-          p_auth_user_id?: string
           p_email: string
           p_full_name: string
           p_phone: string
-          p_relationship?: string
           p_student_id: string
+          p_relationship?: string
+          p_auth_user_id?: string
         }
         Returns: Json
       }
-      current_user_email: { Args: never; Returns: string }
-      current_user_role: { Args: never; Returns: string }
-      get_at_risk_students:
-        | {
-            Args: { p_days_inactive?: number; p_school_id?: string }
-            Returns: {
-              avg_grade: number
-              full_name: string
-              last_login: string
-              risk_level: string
-              student_id: string
-            }[]
-          }
-        | {
-            Args: { p_class_id?: string; p_school_id: string }
-            Returns: {
-              full_name: string
-              portal_user_id: string
-              triggered_signals: Json
-            }[]
-          }
+      current_user_email: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_at_risk_students: {
+        Args:
+          | { p_school_id: string; p_class_id?: string }
+          | { p_school_id?: string; p_days_inactive?: number }
+        Returns: {
+          student_id: string
+          full_name: string
+          last_login: string
+          avg_grade: number
+          risk_level: string
+        }[]
+      }
       get_course_avg_assignment_grade: {
         Args: { p_course_id: string }
         Returns: number
@@ -10337,39 +10337,51 @@ export type Database = {
         Returns: number
       }
       get_dashboard_activity: {
-        Args: { activity_limit?: number; user_role: string; user_uuid: string }
+        Args: { user_role: string; user_uuid: string; activity_limit?: number }
         Returns: {
+          id: string
+          title: string
+          description: string
+          time_ago: string
+          icon_type: string
           color_class: string
           created_at: string
-          description: string
-          icon_type: string
-          id: string
-          time_ago: string
-          title: string
         }[]
       }
       get_due_flashcards: {
-        Args: { p_deck_id?: string; p_student_id: string }
+        Args: { p_student_id: string; p_deck_id?: string }
         Returns: {
-          back: string
-          back_image_url: string
           card_id: string
           deck_id: string
-          difficulty_level: string
-          ease_factor: number
           front: string
+          back: string
           front_image_url: string
-          next_review_at: string
-          repetitions: number
+          back_image_url: string
           template: string
+          difficulty_level: string
+          next_review_at: string
+          ease_factor: number
+          repetitions: number
         }[]
       }
-      get_my_role: { Args: never; Returns: string }
-      get_my_school_id: { Args: never; Returns: string }
-      get_parent_child_user_ids: { Args: never; Returns: string[] }
-      get_parent_student_ids: { Args: never; Returns: string[] }
+      get_my_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_my_school_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_parent_child_user_ids: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
+      }
+      get_parent_student_ids: {
+        Args: Record<PropertyKey, never>
+        Returns: string[]
+      }
       get_school_dashboard_stats: {
-        Args: { school_name_param?: string; school_uuid: string }
+        Args: { school_uuid: string; school_name_param?: string }
         Returns: Json
       }
       get_student_dashboard_stats: {
@@ -10392,19 +10404,34 @@ export type Database = {
         Args: { question_id: string }
         Returns: undefined
       }
-      is_admin: { Args: never; Returns: boolean }
-      is_admin_or_teacher: { Args: never; Returns: boolean }
-      is_parent: { Args: never; Returns: boolean }
-      is_staff: { Args: never; Returns: boolean }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_admin_or_teacher: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_parent: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_staff: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       process_payment_atomic: {
-        Args: { p_amount: number; p_invoice_id: string; p_reference: string }
+        Args: { p_reference: string; p_invoice_id: string; p_amount: number }
         Returns: Json
       }
       qa_build_explicit_topic: {
         Args: { p_lane: number; p_week: number }
         Returns: string
       }
-      refresh_dashboard_stats: { Args: never; Returns: undefined }
+      refresh_dashboard_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       unlink_parent_from_student: {
         Args: { target_student_id: string }
         Returns: undefined
@@ -10419,25 +10446,21 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
@@ -10455,16 +10478,14 @@ export type Tables<
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
@@ -10480,16 +10501,14 @@ export type TablesInsert<
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
@@ -10505,16 +10524,14 @@ export type TablesUpdate<
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
@@ -10522,16 +10539,14 @@ export type Enums<
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+    | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof Database
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
@@ -10544,3 +10559,6 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+A new version of Supabase CLI is available: v2.101.0 (currently installed v2.26.9)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
     // Identity (teacher_id intentionally excluded — set on insert only, never updated)
     'student_id', 'student_name', 'school_id', 'school_name', 'course_id', 'course_name',
-    'section_class',
+    'section_class', 'gender',
     // Session metadata
     'report_term', 'report_date', 'report_period', 'instructor_name',
     'current_module', 'next_module', 'course_duration', 'learning_milestones',
@@ -133,10 +133,12 @@ export async function POST(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Sync corrected fields back to student profile (report builder is authoritative, second only to consent form data)
-    if ((updatePayload.section_class || updatePayload.student_name) && updatePayload.student_id) {
+    const upGender = (updatePayload as any).gender;
+    if ((updatePayload.section_class || updatePayload.student_name || upGender) && updatePayload.student_id) {
       await syncStudentProfile(admin, String(updatePayload.student_id), {
         sectionClass: updatePayload.section_class ? String(updatePayload.section_class) : null,
         studentName:  updatePayload.student_name  ? String(updatePayload.student_name)  : null,
+        gender:       upGender                    ? String(upGender)                    : null,
       });
     }
 
@@ -153,10 +155,12 @@ export async function POST(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Sync corrected fields back to student profile
-    if ((insertPayload.section_class || insertPayload.student_name) && insertPayload.student_id) {
+    const insGender = (insertPayload as any).gender;
+    if ((insertPayload.section_class || insertPayload.student_name || insGender) && insertPayload.student_id) {
       await syncStudentProfile(admin, String(insertPayload.student_id), {
         sectionClass: insertPayload.section_class ? String(insertPayload.section_class) : null,
         studentName:  insertPayload.student_name  ? String(insertPayload.student_name)  : null,
+        gender:       insGender                   ? String(insGender)                   : null,
       });
     }
 
@@ -167,7 +171,7 @@ export async function POST(request: NextRequest) {
 async function syncStudentProfile(
   admin: ReturnType<typeof adminClient>,
   studentId: string,
-  fields: { sectionClass?: string | null; studentName?: string | null },
+  fields: { sectionClass?: string | null; studentName?: string | null; gender?: string | null },
 ) {
   const portalUpdate: Record<string, unknown> = {};
   const studentsUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -181,6 +185,10 @@ async function syncStudentProfile(
   if (fields.studentName) {
     portalUpdate.full_name     = fields.studentName;
     studentsUpdate.full_name   = fields.studentName;
+  }
+  if (fields.gender) {
+    portalUpdate.gender     = fields.gender;
+    studentsUpdate.gender   = fields.gender;
   }
 
   if (Object.keys(portalUpdate).length > 0) {
