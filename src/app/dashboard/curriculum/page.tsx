@@ -386,6 +386,17 @@ export default function CurriculumPage() {
     );
   }
 
+  // Content footprint: all existing content for this class/course — passed to AI to prevent repetition
+  const [qaContentFootprint, setQaContentFootprint] = useState<{
+    weekCoverage: {
+      progTerm: number; week: number; topic: string;
+      objectives: string[]; assignmentTitle?: string; projectTitle?: string;
+    }[];
+    assignmentTitles: string[];
+    flashcardDeckTitles: string[];
+    lessonTitles: string[];
+  } | null>(null);
+
   // Optional QA week spine: show DB template + class rotation preview before apply
   const [qaSpineOpen, setQaSpineOpen] = useState(false);
   const [showImplement, setShowImplement] = useState(false);
@@ -843,6 +854,59 @@ export default function CurriculumPage() {
       .catch(() => setQaClassOptions([]));
   }, [qaSpineOpen, canGenerate]);
 
+  // Build content footprint when spine opens — so AI knows everything already created
+  useEffect(() => {
+    if (!qaSpineOpen || !selectedCourse?.id) { setQaContentFootprint(null); return; }
+    const pst = effectiveProgramStartTerm;
+
+    Promise.all([
+      // Lesson plans already in implementationList — no extra fetch needed
+      Promise.resolve(implementationList.filter(p =>
+        !curriculum?.id || p.curriculum_version_id === curriculum.id
+      )),
+      fetch(`/api/flashcards/decks?course_id=${selectedCourse.id}`).then(r => r.json()).catch(() => ({ data: [] })),
+      fetch(`/api/lessons?course_id=${selectedCourse.id}`).then(r => r.json()).catch(() => ({ data: [] })),
+      fetch(`/api/assignments?limit=80`).then(r => r.json()).catch(() => ({ data: [] })),
+    ]).then(([plans, flashRes, lessonsRes, assignRes]) => {
+      // Extract per-week coverage from lesson plans
+      const weekCoverage: typeof qaContentFootprint extends null ? never : NonNullable<typeof qaContentFootprint>['weekCoverage'] = [];
+      for (const plan of plans as any[]) {
+        const natTerm = Number(plan.term ?? 0);
+        const progTerm = natTerm ? ((natTerm - pst + 3) % 3) + 1 : 0;
+        const weeks: any[] = plan.plan_data?.weeks ?? [];
+        for (const w of weeks) {
+          const wNum = Number(w.week_number ?? w.week ?? 0);
+          if (!wNum) continue;
+          weekCoverage.push({
+            progTerm,
+            week: wNum,
+            topic: String(w.topic ?? w.title ?? '').trim(),
+            objectives: Array.isArray(w.objectives) ? w.objectives.slice(0, 3) : [],
+            assignmentTitle: w.assignment?.title ?? undefined,
+            projectTitle: w.project?.title ?? undefined,
+          });
+        }
+      }
+
+      // Collect all assignment titles (from plan_data + from assignments API)
+      const planAssignTitles = weekCoverage
+        .map(w => w.assignmentTitle)
+        .filter((t): t is string => !!t);
+      const apiAssignTitles = (assignRes.data ?? [])
+        .map((a: any) => a.title)
+        .filter(Boolean)
+        .slice(0, 30) as string[];
+      const assignmentTitles = [...new Set([...planAssignTitles, ...apiAssignTitles])];
+
+      const flashcardDeckTitles = (flashRes.data ?? [])
+        .map((d: any) => d.title).filter(Boolean).slice(0, 20) as string[];
+      const lessonTitles = (lessonsRes.data ?? [])
+        .map((l: any) => l.title).filter(Boolean).slice(0, 30) as string[];
+
+      setQaContentFootprint({ weekCoverage, assignmentTitles, flashcardDeckTitles, lessonTitles });
+    });
+  }, [qaSpineOpen, selectedCourse?.id, curriculum?.id, implementationList, effectiveProgramStartTerm]);
+
   useEffect(() => {
     if (!qaClassId) {
       setQaClassGradeMode('optional');
@@ -1208,12 +1272,29 @@ export default function CurriculumPage() {
       weak_topics: qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [],
       existing_curriculum_topics: existingTopics,
       locked_weeks: lockedWeeks,
+      // Content pipeline footprint — AI uses this to avoid repeating anything already built
+      content_footprint: qaContentFootprint ? {
+        week_coverage: qaContentFootprint.weekCoverage
+          .filter(w => w.topic)
+          .map(w => ({
+            prog_term: w.progTerm,
+            week: w.week,
+            topic: w.topic,
+            objectives: w.objectives,
+            assignment_title: w.assignmentTitle,
+            project_title: w.projectTitle,
+          })),
+        assignment_titles: qaContentFootprint.assignmentTitles,
+        flashcard_deck_titles: qaContentFootprint.flashcardDeckTitles,
+        lesson_titles: qaContentFootprint.lessonTitles,
+      } : undefined,
       ...extraOverrides,
     };
   }, [
     qaPreviewData, qaLaneOverride, qaYear,
     selectedQaClass, selectedCourse, selectedProgram,
     academicYear, effectiveProgramStartTerm, qaLaneSuggestion, curriculum, tracking,
+    qaContentFootprint,
   ]);
 
   // Regenerate a single week topic with AI

@@ -93,12 +93,20 @@ function isTooSimilar(topic: string, existing: string[]): string | null {
   return null;
 }
 
+type ContentFootprint = {
+  week_coverage?: { prog_term: number; week: number; topic: string; objectives?: string[]; assignment_title?: string; project_title?: string }[];
+  assignment_titles?: string[];
+  flashcard_deck_titles?: string[];
+  lesson_titles?: string[];
+};
+
 function buildContext(p: {
   laneLabel: string; trackLabel: string; courseName: string; programmeName: string;
   gradeLevel: string; academicYear: string; className: string;
   yearNumber: number; progTermNumber: number; nationalTermNumber: number;
   programStartTerm: number; weakTopics: string[]; skippedTopics: string[];
   existingTopics: string[]; prevTermTopics: string[]; prevTopics: string[];
+  contentFootprint?: ContentFootprint;
 }): string {
   const nat = NAT_TERM_CONTEXT[p.nationalTermNumber] ?? NAT_TERM_CONTEXT[1];
   const gradeCtx = GRADE_CONTEXT[p.gradeLevel?.toLowerCase()] ?? (p.gradeLevel || '');
@@ -134,11 +142,49 @@ function buildContext(p: {
   if (p.skippedTopics.length > 0)
     lines.push(`Skipped topics to weave back in: ${p.skippedTopics.join(', ')}`);
   if (p.prevTermTopics.length > 0)
-    lines.push(`', '\nPrevious term ending topics (build from here): ${p.prevTermTopics.join(' → ')}`);
+    lines.push(`\nPrevious term ending topics (build from here): ${p.prevTermTopics.join(' → ')}`);
   if (p.prevTopics.length > 0)
     lines.push(`Recent weeks this term: ${p.prevTopics.join(' → ')}`);
+
+  // Content pipeline footprint — the most powerful anti-repetition context
+  const fp = p.contentFootprint;
+  if (fp) {
+    const hasCoverage = fp.week_coverage?.length;
+    const hasAssign   = fp.assignment_titles?.length;
+    const hasFlash    = fp.flashcard_deck_titles?.length;
+    const hasLessons  = fp.lesson_titles?.length;
+
+    if (hasCoverage || hasAssign || hasFlash || hasLessons) {
+      lines.push('', '=== CONTENT PIPELINE ALREADY BUILT (do NOT duplicate — build NEXT STEPS from these) ===');
+
+      if (hasCoverage) {
+        lines.push('Weeks with full lesson plans:');
+        for (const w of fp.week_coverage!.slice(0, 24)) {
+          let row = `  Prog.T${w.prog_term} W${w.week}: "${w.topic}"`;
+          if (w.assignment_title) row += ` → Assignment: "${w.assignment_title}"`;
+          if (w.project_title)    row += ` → Project: "${w.project_title}"`;
+          if (w.objectives?.length) row += ` | Objectives: ${w.objectives.slice(0, 2).join('; ')}`;
+          lines.push(row);
+        }
+      }
+      if (hasAssign) {
+        lines.push(`Assignments already in use (titles must NOT be reused or closely echoed):`);
+        lines.push(`  ${fp.assignment_titles!.slice(0, 20).map(t => `"${t}"`).join(', ')}`);
+      }
+      if (hasFlash) {
+        lines.push(`Flashcard decks already created (topics deeply covered):`);
+        lines.push(`  ${fp.flashcard_deck_titles!.map(t => `"${t}"`).join(', ')}`);
+      }
+      if (hasLessons) {
+        lines.push(`Lessons already taught:`);
+        lines.push(`  ${fp.lesson_titles!.slice(0, 20).map(t => `"${t}"`).join(', ')}`);
+      }
+      lines.push('→ Generate topics that are NATURAL NEXT STEPS beyond all of the above, not re-covers.');
+    }
+  }
+
   if (p.existingTopics.length > 0) {
-    lines.push('', '=== ALREADY COVERED IN THIS CURRICULUM (do NOT repeat or closely paraphrase) ===');
+    lines.push('', '=== CURRICULUM TOPICS FROM OTHER TERMS (do NOT repeat) ===');
     lines.push(p.existingTopics.map((t, i) => `${i + 1}. ${t}`).join('\n'));
   }
 
@@ -201,15 +247,23 @@ export async function POST(req: NextRequest) {
     ? body.existing_curriculum_topics.slice(0, 60) : [];
   const lockedWeeks: number[]    = Array.isArray(body.locked_weeks)
     ? body.locked_weeks.map(Number) : [];
+  const contentFootprint: ContentFootprint | undefined =
+    body.content_footprint && typeof body.content_footprint === 'object'
+      ? body.content_footprint as ContentFootprint : undefined;
 
   const laneLabel  = LANE_LABELS[laneIndex] ?? `Lane ${laneIndex}`;
   const trackLabel = TRACK_LABELS[qaTrackHint] || TRACK_LABELS[gradeLevel] || '';
   const nat        = NAT_TERM_CONTEXT[nationalTermNumber] ?? NAT_TERM_CONTEXT[1];
 
+  // Merge footprint's existing topics into the dedup check list
+  const footprintTopics = contentFootprint?.week_coverage?.map(w => w.topic).filter(Boolean) ?? [];
+  const allExistingForDedup = [...existingTopics, ...footprintTopics];
+
   const ctx = buildContext({
     laneLabel, trackLabel, courseName, programmeName, gradeLevel, academicYear,
     className, yearNumber, progTermNumber: termNumber, nationalTermNumber,
     programStartTerm, weakTopics, skippedTopics, existingTopics, prevTermTopics, prevTopics,
+    contentFootprint,
   });
 
   const subTopicInstruction = `Subtopics must be CONCRETE CLASSROOM ACTIVITIES students will DO, not abstract concepts.
@@ -222,7 +276,7 @@ export async function POST(req: NextRequest) {
 
   // ── Helper: single-week AI call with retry on semantic duplicate ─────────
   async function generateWeek(wNum: number, localPrevTopics: string[]): Promise<{ topic: string; subtopics: string[] } | null> {
-    const allExisting = [...existingTopics, ...localPrevTopics];
+    const allExisting = [...allExistingForDedup, ...localPrevTopics];
     const avoidStr = allExisting.length > 0
       ? `\nStrictly avoid topics similar to: ${allExisting.slice(-8).join(' | ')}`
       : '';
