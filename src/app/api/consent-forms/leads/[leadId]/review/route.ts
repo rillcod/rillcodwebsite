@@ -93,20 +93,22 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
   if (approveErr) return NextResponse.json({ error: approveErr.message }, { status: 500 });
 
-  // Override student record with parent-provided data (parent knows their child's correct details)
+  // Consent form is source of truth for name and gender — always override.
+  // Class is NOT overridden here: it changes as the child advances and the
+  // progress report (staff-corrected) is the live authority for class.
   const childName   = (rd.child_name   as string | undefined)?.trim() || null;
-  const childClass  = (rd.child_class  as string | undefined)?.trim() || null;
   const childGender = (rd.child_gender as string | undefined)?.trim() || null;
 
   const studentOverride: Record<string, unknown> = {};
-  if (childName)   studentOverride.full_name     = childName;
-  if (childClass)  studentOverride.section_class = childClass;
-  if (childGender) studentOverride.gender        = childGender;
+  if (childName)   studentOverride.full_name = childName;
+  if (childGender) studentOverride.gender    = childGender;
 
   if (Object.keys(studentOverride).length > 0) {
     // candidateId is portal_users.id (= students.id for enrolled students)
     await (sb as any).from('portal_users').update(studentOverride).eq('id', candidateId);
     await (sb as any).from('students').update({ ...studentOverride, updated_at: now }).eq('id', candidateId);
+    // Keep Supabase auth metadata in sync
+    await sb.auth.admin.updateUserById(candidateId, { user_metadata: studentOverride });
   }
 
   // Advance CRM pipeline + log interaction

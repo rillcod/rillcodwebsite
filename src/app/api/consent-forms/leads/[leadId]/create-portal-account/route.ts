@@ -111,9 +111,17 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     is_active: true,
   });
 
-  // Link student if matched + override student record with parent-provided data
+  // Link student if matched + override student record with parent-provided data.
+  // Name and gender: consent form is source of truth — always override.
+  // Class: only set if the student has no class yet (child advances, so never
+  // clobber a class that staff have already set on an active student).
   if (lead.matched_student_id) {
     await syncExplicitParentStudentLink(sb as any, parentId, lead.matched_student_id);
+
+    // Fetch existing student class so we don't overwrite it
+    const { data: existingStudent } = await (sb as any)
+      .from('portal_users').select('section_class').eq('id', lead.matched_student_id).maybeSingle();
+    const existingClass = existingStudent?.section_class ?? null;
 
     const studentOverride: Record<string, unknown> = {
       parent_email: parentEmail,
@@ -121,19 +129,21 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
       parent_phone: parentPhone || null,
       updated_at:   new Date().toISOString(),
     };
-    if (childName)   studentOverride.full_name     = childName;
-    if (childClass)  studentOverride.section_class = childClass;
-    if (childGender) studentOverride.gender        = childGender;
+    if (childName)                          studentOverride.full_name     = childName;
+    if (childClass && !existingClass)       studentOverride.section_class = childClass;
+    if (childGender)                        studentOverride.gender        = childGender;
 
     await (sb as any).from('students').update(studentOverride).eq('id', lead.matched_student_id);
 
-    // Keep portal_users in sync for name / class / gender
+    // Keep portal_users in sync for name / gender (class only if no existing class)
     const portalStudentOverride: Record<string, unknown> = {};
-    if (childName)   portalStudentOverride.full_name     = childName;
-    if (childClass)  portalStudentOverride.section_class = childClass;
-    if (childGender) portalStudentOverride.gender        = childGender;
+    if (childName)                    portalStudentOverride.full_name     = childName;
+    if (childClass && !existingClass) portalStudentOverride.section_class = childClass;
+    if (childGender)                  portalStudentOverride.gender        = childGender;
     if (Object.keys(portalStudentOverride).length > 0) {
       await (sb as any).from('portal_users').update(portalStudentOverride).eq('id', lead.matched_student_id);
+      // Keep Supabase auth metadata in sync
+      await sb.auth.admin.updateUserById(lead.matched_student_id as string, { user_metadata: portalStudentOverride });
     }
   }
 

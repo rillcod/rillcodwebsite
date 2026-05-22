@@ -56,6 +56,8 @@ async function syncStudentProfile(
 
   if (Object.keys(portalUpdate).length > 0) {
     await (admin as any).from('portal_users').update(portalUpdate).eq('id', studentId);
+    // Keep Supabase auth metadata in sync
+    await (admin as any).auth.admin.updateUserById(studentId, { user_metadata: portalUpdate });
   }
   if (Object.keys(studentsUpdate).length > 1) {
     await (admin as any).from('students').update(studentsUpdate).eq('user_id', studentId);
