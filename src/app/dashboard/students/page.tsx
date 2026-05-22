@@ -188,8 +188,20 @@ function LinkParentModal({ student, onClose, onSaved }: {
   );
 }
 
-const GRADE_LEVELS_LIST = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
-  'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'] as const;
+const GRADE_LEVELS_LIST = [
+  'BASIC 1','BASIC 2','BASIC 3','BASIC 4','BASIC 5','BASIC 6',
+  'JSS 1','JSS 2','JSS 3',
+  'SS 1','SS 2','SS 3',
+] as const;
+
+// Natural Nigerian school grade order for sorting
+const GRADE_ORDER: Record<string, number> = {};
+[...GRADE_LEVELS_LIST, 'JSS1','JSS2','JSS3','SS1','SS2','SS3'].forEach((g, i) => { GRADE_ORDER[g] = i; });
+function sortByGrade(a: string, b: string) {
+  const oa = GRADE_ORDER[a] ?? 99;
+  const ob = GRADE_ORDER[b] ?? 99;
+  return oa !== ob ? oa - ob : a.localeCompare(b);
+}
 
 // ─── Edit Enrolled Student Modal ──────────────────────────────
 function EditEnrolledModal({ student, schools, onClose, onSaved }: {
@@ -379,6 +391,7 @@ export default function StudentsPage() {
   const [filterSchoolReg, setFilterSchoolReg] = useState('');
   const [filterClassReg, setFilterClassReg] = useState('');
   const [filterGradeReg, setFilterGradeReg] = useState('');
+  const [filterGender, setFilterGender] = useState('');
 
   // Bulk enrol
   const [selectedForEnrol, setSelectedForEnrol] = useState<Set<string>>(new Set());
@@ -828,6 +841,9 @@ export default function StudentsPage() {
       return (cls?.program_id && progById[cls.program_id]) ? progById[cls.program_id] : '—';
     };
 
+    const maleCount   = filtered.filter(s => (s.gender ?? '').toLowerCase() === 'male').length;
+    const femaleCount = filtered.filter(s => (s.gender ?? '').toLowerCase() === 'female').length;
+
     const rows = filtered.map((s, i) => {
       const isEnrolled = s._source === 'enrolled';
       const cls = s.section_class || (s.class_id && classMap[s.class_id]) || '—';
@@ -841,6 +857,9 @@ export default function StudentsPage() {
           <td style="padding:7px 10px;color:#9ca3af;font-size:11px;text-align:center;">${i + 1}</td>
           <td style="padding:7px 10px;font-weight:700;font-size:11px;">${s.full_name ?? '—'}</td>
           <td style="padding:7px 10px;color:#0369a1;font-size:11px;font-weight:700;">${grade}</td>
+          <td style="padding:7px 10px;font-size:10px;text-align:center;">
+            ${s.gender === 'male' ? `<span style="background:#dbeafe;color:#1d4ed8;padding:2px 7px;border-radius:9999px;font-weight:700;font-size:9px;">M</span>` : s.gender === 'female' ? `<span style="background:#fce7f3;color:#be185d;padding:2px 7px;border-radius:9999px;font-weight:700;font-size:9px;">F</span>` : '<span style="color:#9ca3af;">—</span>'}
+          </td>
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${cls}</td>
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${school}</td>
           <td style="padding:7px 10px;color:#6b7280;font-size:11px;">${email}</td>
@@ -917,7 +936,9 @@ export default function StudentsPage() {
       </tr>
       <tr>
         <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Class</td>
-        <td colspan="3" style="padding:8px 14px;font-size:11px;">${filterClassReg || 'All Classes'}</td>
+        <td style="padding:8px 14px;font-size:11px;">${filterClassReg || 'All Classes'}</td>
+        <td style="padding:8px 14px;background:#f9fafb;border-right:1px solid #e5e7eb;border-left:1px solid #e5e7eb;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.8px;">Gender Split</td>
+        <td style="padding:8px 14px;font-size:11px;"><span style="color:#1d4ed8;font-weight:700;">${maleCount} Male</span> &nbsp;·&nbsp; <span style="color:#be185d;font-weight:700;">${femaleCount} Female</span></td>
       </tr>
     </table>
 
@@ -926,11 +947,12 @@ export default function StudentsPage() {
       <thead>
         <tr>
           <th style="width:4%;text-align:center;">#</th>
-          <th style="width:22%;">Student Full Name</th>
-          <th style="width:9%;color:#bae6fd;">Grade</th>
-          <th style="width:13%;">Class</th>
-          <th style="width:18%;">School</th>
-          <th style="width:16%;">Email Address</th>
+          <th style="width:20%;">Student Full Name</th>
+          <th style="width:7%;color:#bae6fd;">Grade</th>
+          <th style="width:8%;text-align:center;">Gender</th>
+          <th style="width:12%;">Class</th>
+          <th style="width:17%;">School</th>
+          <th style="width:14%;">Email Address</th>
           <th style="width:10%;">Programme</th>
           <th style="width:8%;text-align:center;">Type</th>
         </tr>
@@ -1038,6 +1060,7 @@ export default function StudentsPage() {
     const studentClass = s.section_class || (s.class_id && classMap[s.class_id]) || '';
     const matchClassReg = !filterClassReg || studentClass === filterClassReg;
     const matchGradeReg = !filterGradeReg || (s.grade_level ?? '') === filterGradeReg;
+    const matchGender = !filterGender || (s.gender ?? '').toLowerCase() === filterGender;
     const matchFee = feeFilter === 'all' || (() => {
       if (s._source !== 'enrolled') return true;
       const fe = feeMap[s.id];
@@ -1049,7 +1072,7 @@ export default function StudentsPage() {
       if (feeFilter === 'pending') return !isOv && ['pending', 'sent'].includes(fe.status.toLowerCase());
       return true;
     })();
-    return ms && matchSource && matchStatus && matchSchoolReg && matchClassReg && matchGradeReg && matchFee;
+    return ms && matchSource && matchStatus && matchSchoolReg && matchClassReg && matchGradeReg && matchFee && matchGender;
   });
 
   // Distinct values for registry filter dropdowns
@@ -1058,7 +1081,7 @@ export default function StudentsPage() {
     ...combined.map(s => s.section_class).filter(Boolean),
     ...combined.filter(s => s.class_id && classMap[s.class_id]).map(s => classMap[s.class_id]),
   ])].sort() as string[];
-  const distinctGradesReg = [...new Set(combined.map(s => s.grade_level).filter(Boolean))].sort() as string[];
+  const distinctGradesReg = [...new Set(combined.map(s => s.grade_level).filter(Boolean))].sort(sortByGrade) as string[];
 
   const pending = normalizedApplications.filter(s => s.status === 'pending').length;
 
@@ -1251,8 +1274,8 @@ export default function StudentsPage() {
                       className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer transition-colors"
                     >
                       <option value="">— Grade / Section (pick or type below) —</option>
-                      {['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
-                        'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3',
+                      {['BASIC 1', 'BASIC 2', 'BASIC 3', 'BASIC 4', 'BASIC 5', 'BASIC 6',
+                        'JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3',
                         'Cohort A', 'Cohort B', 'Cohort C'].map(g => (
                           <option key={g} value={g}>{g}</option>
                         ))}
@@ -1742,6 +1765,12 @@ export default function StudentsPage() {
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
+              </select>
+              <select title="Filter by gender" value={filterGender} onChange={e => setFilterGender(e.target.value)}
+                className="px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer">
+                <option value="">All Genders</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
               </select>
             </div>
             {/* Registry print filters */}

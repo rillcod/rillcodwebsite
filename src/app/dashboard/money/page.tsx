@@ -425,6 +425,22 @@ export default function MoneyHubPage() {
             </div>
           )}
 
+          {/* Evidence review banner */}
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-start gap-3">
+            <span className="text-lg leading-none mt-0.5">💡</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-black text-amber-400 uppercase tracking-widest mb-1">Payment Evidence Submissions</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Students and parents who paid through the school can submit their receipt number, grade level, and date of payment from their parent portal.
+                Review and approve these submissions from <strong className="text-foreground">Finance → Invoices</strong>.
+              </p>
+              <a href="/dashboard/finance?tab=invoices"
+                className="inline-flex items-center gap-1 mt-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors">
+                Go to Finance &amp; Review Evidence →
+              </a>
+            </div>
+          </div>
+
           <p className="text-[11px] text-muted-foreground text-center">
             Use <strong className="text-foreground">Mark Paid</strong> to confirm cash, POS, or bank transfer payments collected in person.
             Online payments via the payment link are confirmed automatically.

@@ -30,7 +30,31 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(20);
 
-  if (profile?.school_id) query = query.eq('school_id', profile.school_id);
+  // Admin sees all forms. School role and teachers are scoped to their school(s).
+  if (profile?.role !== 'admin') {
+    const schoolIds: string[] = [];
+    if (profile?.school_id) schoolIds.push(profile.school_id);
+
+    // Teachers may be linked to multiple schools via teacher_schools
+    if (profile?.role === 'teacher') {
+      const admin = adminClient();
+      const { data: ts } = await (admin as any)
+        .from('teacher_schools')
+        .select('school_id')
+        .eq('teacher_id', user.id);
+      for (const row of ts ?? []) {
+        if (row.school_id && !schoolIds.includes(row.school_id)) schoolIds.push(row.school_id);
+      }
+    }
+
+    if (schoolIds.length > 0) {
+      query = query.in('school_id', schoolIds);
+    } else {
+      // Non-admin with no schools linked — return empty
+      return NextResponse.json({ data: [], nextCursor: null });
+    }
+  }
+
   if (cursor) query = query.lt('created_at', cursor);
 
   const { data, error } = await query;

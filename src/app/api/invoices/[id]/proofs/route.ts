@@ -65,8 +65,10 @@ export async function GET(
   return NextResponse.json({ data: enriched });
 }
 
-// POST /api/invoices/[id]/proofs — parent uploads proof image
-// Expects multipart/form-data with field "file" (image) and optional "note"
+// POST /api/invoices/[id]/proofs — parent submits payment evidence
+// Accepts either:
+//   multipart/form-data  with field "file" (image/PDF) + optional "note"
+//   application/json     with { receipt_no (required), grade_level, payment_method, child_name, note }
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -104,11 +106,67 @@ export async function POST(
     }
   }
 
+  const contentType = req.headers.get('content-type') ?? '';
+
+  // ── JSON path (text-only submission) ──────────────────────────
+  if (contentType.includes('application/json')) {
+    const body = await req.json().catch(() => ({}));
+    const { receipt_no, grade_level, payment_method, child_name, note, payment_date } = body as {
+      receipt_no?: string;
+      grade_level?: string;
+      payment_method?: string;
+      child_name?: string;
+      note?: string;
+      payment_date?: string;
+    };
+
+    if (!receipt_no?.trim()) {
+      return NextResponse.json({ error: 'receipt_no is required' }, { status: 400 });
+    }
+
+    const validMethods = ['cash', 'bank_transfer', 'pos', 'mobile_money', 'other'];
+    if (payment_method && !validMethods.includes(payment_method)) {
+      return NextResponse.json({ error: 'Invalid payment_method' }, { status: 400 });
+    }
+
+    const payerNote = JSON.stringify({
+      receipt_no: receipt_no.trim(),
+      grade: grade_level ?? null,
+      method: payment_method ?? null,
+      child_name: child_name ?? null,
+      payment_date: payment_date ?? null,
+      note: note ?? null,
+    });
+
+    const { data, error } = await admin
+      .from('invoice_payment_proofs')
+      .insert({
+        invoice_id: invoiceId,
+        submitted_by: caller.id,
+        proof_image_url: null,
+        payer_note: payerNote,
+      })
+      .select('id, created_at')
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    void notifyStaffOfPayment({
+      schoolId: invoice.school_id,
+      title: 'Payment Evidence Submitted',
+      message: `A ${caller.role} submitted payment evidence (receipt: ${receipt_no.trim()}) for invoice ${invoiceId.slice(0, 8)}…. Please review and verify.`,
+      actionUrl: '/dashboard/finance?tab=invoices',
+    });
+
+    return NextResponse.json({ success: true, data: { ...data, signed_url: null } });
+  }
+
+  // ── Multipart/form-data path (file upload) ────────────────────
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
   const note = (formData.get('note') as string | null) ?? '';
 
-  if (!file) return NextResponse.json({ error: 'file is required' }, { status: 400 });
+  if (!file) return NextResponse.json({ error: 'A file or a receipt_no (JSON) is required' }, { status: 400 });
 
   const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
   if (!allowed.includes(file.type)) {

@@ -820,8 +820,8 @@ export default function ResponsesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
-      if (!res.ok) return;
       const json = await res.json();
+      if (!res.ok) { alert(json.error ?? 'Failed to update — please try again'); return; }
       setLeads(prev => prev.map(l => l.id === leadId ? {
         ...l,
         match_status:       json.status,

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+  const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
   if (!['teacher', 'admin', 'school'].includes(profile?.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
@@ -27,6 +27,22 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   // Use service-role for form_leads so RLS on that table never blocks staff reads.
   // Auth is already verified above (role check + school scope on the form itself).
   const admin = adminClient();
+
+  // Non-admin: verify the form belongs to one of their schools
+  if (profile?.role !== 'admin') {
+    const { data: formCheck } = await supabase.from('consent_forms').select('school_id').eq('id', id).single();
+    if (!formCheck) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    let allowedSchoolIds: string[] = [];
+    if (profile?.school_id) allowedSchoolIds.push(profile.school_id);
+    if (profile?.role === 'teacher') {
+      const { data: ts } = await (admin as any).from('teacher_schools').select('school_id').eq('teacher_id', user.id);
+      for (const row of ts ?? []) { if (row.school_id && !allowedSchoolIds.includes(row.school_id)) allowedSchoolIds.push(row.school_id); }
+    }
+    if (allowedSchoolIds.length > 0 && !allowedSchoolIds.includes(formCheck.school_id ?? '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
 
   const [formRes, { data: responses }, leadsResult] = await Promise.all([
     supabase.from('consent_forms').select('id, title, body, form_type, due_date, is_public, schools(name)').eq('id', id).single(),
@@ -42,12 +58,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .order('submitted_at', { ascending: false }),
   ]);
 
-  // If full query fails (CRM columns missing — run db migrations), fall back to basic columns.
+  // If full query fails (FK join not available), fall back retaining all non-join columns.
   let leads = leadsResult.data;
   if (leadsResult.error) {
     const fallback = await (admin as any)
       .from('form_leads')
-      .select('id, submitted_at, email, child_current_school, response_data, status')
+      .select('id, submitted_at, email, child_current_school, response_data, status, match_status, match_confidence, match_notes, match_candidate_id, matched_student_id, matched_parent_id, contact_id, prospect_id, school_id')
       .eq('form_id', id)
       .order('submitted_at', { ascending: false });
     leads = fallback.data ?? [];

@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'] & {
   template_id?: string | null;
+  gender?: string | null;
 };
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
 type OrgSettings = Database['public']['Tables']['report_settings']['Row'];
@@ -290,7 +291,7 @@ function ResultsPageInner() {
 
             // 2. Build student query — join classes + schools for proper display names
             let finalQuery = db.from('portal_users')
-                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, classes:class_id(id, name), schools:school_id(id, name)')
+                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, classes:class_id(id, name), schools:school_id(id, name)')
                 .neq('is_deleted', true);
 
             if (!isAdmin) {
@@ -537,6 +538,7 @@ function ResultsPageInner() {
             ...selectedReport,
             template_id: modernTemplateId,
             student_name: selectedReport.student_name || selectedStudent?.full_name || null,
+            gender: (selectedReport as any).gender || (selectedStudent as any)?.gender || null,
             school_name: selectedReport.school_name || (selectedStudent ? studentSchoolName(selectedStudent) : null) || null,
             section_class: selectedReport.section_class || (selectedStudent ? studentClassName(selectedStudent) : null) || null,
           }

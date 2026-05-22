@@ -104,6 +104,7 @@ interface GeneratedStudent {
   email: string;
   password: string;
   class_name?: string;
+  gender?: 'male' | 'female' | '';
 }
 
 interface RegisterResult extends GeneratedStudent {
@@ -1654,10 +1655,11 @@ Yusuf Ibrahim SS1A`}
                       <thead className="sticky top-0 bg-background z-10">
                         <tr className="text-muted-foreground uppercase tracking-wider text-[10px]">
                           <th className="text-left px-3 py-2.5 border-b border-border w-8">#</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[28%]">Full Name</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[12%]">Class</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[28%]">Email</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[22%]">Temp Password</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[25%]">Full Name</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[10%]">Class</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[10%]">Gender</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[26%]">Email</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[20%]">Temp Password</th>
                           <th className="px-2 py-2.5 border-b border-border w-8" />
                         </tr>
                       </thead>
@@ -1700,6 +1702,19 @@ Yusuf Ibrahim SS1A`}
                                   onBlur={(e) => onClassBlur(s.id, e.target.value)}
                                   placeholder="e.g. JSS2A"
                                 />
+                              </td>
+
+                              {/* Gender */}
+                              <td className="px-2 py-1.5 align-middle">
+                                <select
+                                  className={inp}
+                                  value={s.gender ?? ''}
+                                  onChange={(e) => updateField(s.id, 'gender', e.target.value)}
+                                >
+                                  <option value="">—</option>
+                                  <option value="male">Male</option>
+                                  <option value="female">Female</option>
+                                </select>
                               </td>
 
                               {/* Email */}
@@ -1754,6 +1769,11 @@ Yusuf Ibrahim SS1A`}
                               <input className={inp} value={s.full_name} onChange={(e) => updateField(s.id, 'full_name', e.target.value)} onBlur={(e) => onNameBlur(s.id, e.target.value)} placeholder="Full Name" />
                               <div className="flex gap-2">
                                 <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
+                                <select className={`${inp} w-28`} value={s.gender ?? ''} onChange={(e) => updateField(s.id, 'gender', e.target.value)}>
+                                  <option value="">Gender</option>
+                                  <option value="male">Male</option>
+                                  <option value="female">Female</option>
+                                </select>
                                 <div className="relative flex-1">
                                   <input className={`${inp} font-mono pr-6 ${emailDup ? 'border-rose-500/60 bg-rose-500/5 text-rose-300' : 'text-primary'}`} value={s.email} onChange={(e) => updateField(s.id, 'email', e.target.value)} placeholder="Email" />
                                   {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}

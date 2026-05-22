@@ -237,23 +237,28 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     .from('portal_users').select('email, full_name, phone').eq('id', lead.matched_parent_id).single();
 
   // Create explicit link
-  await syncExplicitParentStudentLink(sb as any, lead.matched_parent_id, studentRow.id);
+  try {
+    await syncExplicitParentStudentLink(sb as any, lead.matched_parent_id, studentRow.id);
+  } catch (e: any) {
+    return NextResponse.json({ error: `Failed to create parent-student link: ${e.message}` }, { status: 500 });
+  }
 
   // Update students row so parent shows in school-scoped lists
   if (parent) {
-    await (sb as any).from('students').update({
+    const { error: stuErr } = await (sb as any).from('students').update({
       parent_email: parent.email,
       parent_name:  parent.full_name,
       parent_phone: parent.phone ?? null,
       ...(leadGender ? { gender: leadGender } : {}),
       updated_at:   new Date().toISOString(),
     }).eq('id', studentRow.id);
+    if (stuErr) console.error('[link-child] students update error:', stuErr.message);
   }
 
   // Record the link on the lead — only overwrite matched_student_id for the primary child (index 0)
-  // Additional children are tracked only via parent_student_links
   if (effectiveIdx === 0 || !lead.matched_student_id) {
-    await (sb as any).from('form_leads').update({ matched_student_id: studentRow.id }).eq('id', leadId);
+    const { error: leadErr } = await (sb as any).from('form_leads').update({ matched_student_id: studentRow.id }).eq('id', leadId);
+    if (leadErr) return NextResponse.json({ error: `Linked student but failed to update lead record: ${leadErr.message}` }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, student_id: studentRow.id, student_portal_id, child_index: effectiveIdx });

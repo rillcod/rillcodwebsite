@@ -56,9 +56,10 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
   if (action === 'reject') {
     // Treat as a brand-new prospect — no student link
-    await sb.from('form_leads')
-      .update({ match_status: 'new_prospect', match_candidate_id: null, updated_at: now } as any)
+    const { error: rejectErr } = await sb.from('form_leads')
+      .update({ match_status: 'new_prospect', match_candidate_id: null } as any)
       .eq('id', leadId);
+    if (rejectErr) return NextResponse.json({ error: rejectErr.message }, { status: 500 });
     return NextResponse.json({ success: true, status: 'new_prospect' });
   }
 
@@ -83,13 +84,14 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   }
 
   // Link the lead and mark as contacted
-  await sb.from('form_leads').update({
+  const { error: approveErr } = await sb.from('form_leads').update({
     match_status:       'approved',
     status:             'contacted',
     matched_student_id: candidateId,
     matched_parent_id:  matchedParentId,
-    updated_at:         now,
   } as any).eq('id', leadId);
+
+  if (approveErr) return NextResponse.json({ error: approveErr.message }, { status: 500 });
 
   // Advance CRM pipeline + log interaction
   const contactId = (lead as any).contact_id as string | null;

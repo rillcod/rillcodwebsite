@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -6660,6 +6661,7 @@ export type Database = {
           email_verified: boolean | null
           enrollment_type: string | null
           full_name: string
+          gender: string | null
           id: string
           is_active: boolean | null
           is_deleted: boolean | null
@@ -6693,6 +6695,7 @@ export type Database = {
           email_verified?: boolean | null
           enrollment_type?: string | null
           full_name: string
+          gender?: string | null
           id?: string
           is_active?: boolean | null
           is_deleted?: boolean | null
@@ -6726,6 +6729,7 @@ export type Database = {
           email_verified?: boolean | null
           enrollment_type?: string | null
           full_name?: string
+          gender?: string | null
           id?: string
           is_active?: boolean | null
           is_deleted?: boolean | null

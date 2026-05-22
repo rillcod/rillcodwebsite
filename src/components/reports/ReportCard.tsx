@@ -82,6 +82,7 @@ function ReportField({ label, value, bold }: { label: string; value: string; bol
 export interface ReportCardData {
     id?: string | null;
     student_name?: string | null;
+    gender?: string | null;
     school_name?: string | null;
     course_name?: string | null;
     section_class?: string | null;
@@ -278,6 +279,12 @@ export default function ReportCard({ report, orgSettings }: {
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Class / Section</p>
                                     <p className="text-[13px] font-bold text-foreground/80">{report.section_class ?? '—'}</p>
                                 </div>
+                                {report.gender && (
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Gender</p>
+                                        <p className="text-[13px] font-bold text-foreground/80 capitalize">{report.gender}</p>
+                                    </div>
+                                )}
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
                                         {report.school_section === 'school' ? 'Academic Term' : 'Duration'}

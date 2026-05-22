@@ -13,6 +13,7 @@ interface StudentEntry {
   email: string;
   password: string;
   class_name?: string; // maps to portal_users.section_class
+  gender?: string | null;
 }
 
 export async function POST(request: Request) {
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
     const allowNameSwap: boolean = body.allow_name_swap === true;
 
     for (const student of students) {
-      const { full_name, email, password, class_name } = student;
+      const { full_name, email, password, class_name, gender } = student;
 
       if (!full_name?.trim() || !email?.trim() || !password) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: 'Missing fields' });
@@ -263,6 +264,7 @@ export async function POST(request: Request) {
             class_id: batchClassId || null,
             enrollment_type: 'in_person',
             is_active: true,
+            gender: gender || null,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'id' },
@@ -299,6 +301,7 @@ export async function POST(request: Request) {
           grade_level: class_name || batchClassName || null,
           enrollment_type: 'in_person',
           status: 'approved', // Bulk-registered students are pre-approved
+          gender: gender || null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' }); // Use user_id as conflict target
 

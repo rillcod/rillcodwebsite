@@ -55,62 +55,141 @@ function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: currency || 'NGN', minimumFractionDigits: 0 }).format(amount);
 }
 
-// ── Proof Upload Component ────────────────────────────────────
-function ProofUpload({ invoiceId }: { invoiceId: string }) {
-  const [uploading, setUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
-  const [note, setNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
+const GRADE_LEVELS = [
+  'BASIC 1','BASIC 2','BASIC 3','BASIC 4','BASIC 5','BASIC 6',
+  'JSS 1','JSS 2','JSS 3',
+  'SS 1','SS 2','SS 3',
+];
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError(null);
+// ── Payment Evidence Form ─────────────────────────────────────
+function PaymentEvidenceForm({ invoiceId, studentName }: { invoiceId: string; studentName?: string }) {
+  const [submitted, setSubmitted]     = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+  const [receiptNo, setReceiptNo]     = useState('');
+  const [gradeLevel, setGradeLevel]   = useState('');
+  const [method, setMethod]           = useState('bank_transfer');
+  const [childName, setChildName]     = useState(studentName ?? '');
+  const [paymentDate, setPaymentDate] = useState('');
+  const [note, setNote]               = useState('');
+  const [file, setFile]               = useState<File | null>(null);
+
+  const handleSubmit = async () => {
+    if (!receiptNo.trim()) { setError('Receipt / transaction number is required'); return; }
+    if (!gradeLevel) { setError('Grade level is required'); return; }
+    if (!paymentDate) { setError('Date of payment is required'); return; }
+    setSubmitting(true); setError(null);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      if (note) fd.append('note', note);
-      const res = await fetch(`/api/invoices/${invoiceId}/proofs`, { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Upload failed');
-      setUploaded(true);
-      toast.success('Proof uploaded! Admin will review and confirm your payment.');
+      // 1 — Submit text evidence (required)
+      const res = await fetch(`/api/invoices/${invoiceId}/proofs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receipt_no: receiptNo.trim(),
+          grade_level: gradeLevel,
+          payment_method: method,
+          child_name: childName.trim() || undefined,
+          payment_date: paymentDate,
+          note: note.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Submission failed');
+
+      // 2 — Optional file upload (separate request)
+      if (file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('note', `Receipt: ${receiptNo.trim()}`);
+        await fetch(`/api/invoices/${invoiceId}/proofs`, { method: 'POST', body: fd }).catch(() => null);
+      }
+
+      setSubmitted(true);
+      toast.success('Evidence submitted — admin/teacher will review and confirm your payment.');
     } catch (err: any) {
-      setError(err.message ?? 'Upload failed');
+      setError(err.message ?? 'Submission failed');
     } finally {
-      setUploading(false);
-      e.target.value = '';
+      setSubmitting(false);
     }
   };
 
-  if (uploaded) {
+  if (submitted) {
     return (
-      <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+      <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl mt-2">
         <DocumentCheckIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-        <p className="text-[11px] text-emerald-400 font-bold">Proof submitted — admin will review and confirm.</p>
+        <p className="text-[11px] text-emerald-400 font-bold">Evidence submitted — admin/teacher will review and confirm your payment.</p>
       </div>
     );
   }
 
+  const inp = 'w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors';
+  const lbl = 'block text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1';
+
   return (
-    <div className="space-y-2 mt-2">
-      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Upload Payment Proof</p>
-      <input
-        type="text"
-        placeholder="Optional note (e.g. paid on 12 Apr, used child's name as ref)"
-        value={note}
-        onChange={e => setNote(e.target.value)}
-        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
-      />
-      <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-primary/50'}`}>
-        {uploading
-          ? <><span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" /> Uploading…</>
-          : <><ArrowUpTrayIcon className="w-4 h-4" /> Upload Screenshot / PDF</>
-        }
-        <input type="file" accept="image/*,application/pdf" className="hidden" disabled={uploading} onChange={handleUpload} />
-      </label>
-      {error && <p className="text-[10px] text-rose-400">{error}</p>}
+    <div className="space-y-3 mt-2 p-4 bg-white/[0.03] border border-white/10 rounded-xl">
+      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Submit Payment Evidence</p>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={lbl}>Child&apos;s Name</label>
+          <input type="text" value={childName} onChange={e => setChildName(e.target.value)}
+            placeholder="Full name" className={inp} />
+        </div>
+        <div>
+          <label className={lbl}>Grade Level <span className="text-rose-400">*</span></label>
+          <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} className={inp}>
+            <option value="">— Select grade —</option>
+            {GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={lbl}>Receipt / Transaction No. <span className="text-rose-400">*</span></label>
+          <input type="text" value={receiptNo} onChange={e => setReceiptNo(e.target.value)}
+            placeholder="e.g. TRF-20240901" className={inp} />
+        </div>
+        <div>
+          <label className={lbl}>Date of Payment <span className="text-rose-400">*</span></label>
+          <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className={inp} />
+        </div>
+      </div>
+
+      <div>
+        <label className={lbl}>Payment Method</label>
+        <select value={method} onChange={e => setMethod(e.target.value)} className={inp}>
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="cash">Cash</option>
+          <option value="pos">POS / Card</option>
+          <option value="mobile_money">Mobile Money</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label className={lbl}>Additional Note <span className="font-normal normal-case">(optional)</span></label>
+        <input type="text" value={note} onChange={e => setNote(e.target.value)}
+          placeholder="e.g. paid via GTBank on behalf of child" className={inp} />
+      </div>
+
+      <div>
+        <label className={lbl}>Attach Receipt Screenshot / PDF <span className="font-normal normal-case">(optional)</span></label>
+        <label className="flex items-center justify-center gap-2 w-full py-2.5 border border-dashed border-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:border-primary/50 hover:bg-white/5 transition-all text-muted-foreground">
+          <ArrowUpTrayIcon className="w-4 h-4" />
+          {file ? file.name : 'Upload file (optional)'}
+          <input type="file" accept="image/*,application/pdf" className="hidden"
+            onChange={e => setFile(e.target.files?.[0] ?? null)} />
+        </label>
+      </div>
+
+      {error && <p className="text-[10px] text-rose-400 font-bold">{error}</p>}
+
+      <button onClick={handleSubmit} disabled={submitting}
+        className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
+        {submitting && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+        {submitting ? 'Submitting…' : 'Submit Payment Evidence'}
+      </button>
     </div>
   );
 }
@@ -268,12 +347,12 @@ function PayModal({
 
                     <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
                       <p className="text-[10px] text-amber-400 leading-relaxed">
-                        <span className="font-black">Important:</span> After making a bank transfer, upload your proof of payment below. Admin will confirm and your receipt will be issued automatically.
+                        <span className="font-black">Important:</span> After paying, submit your payment evidence below. Include your receipt number, grade level, and date of payment. Admin/teacher will confirm and your receipt will be issued automatically.
                       </p>
                     </div>
 
-                    {/* Proof Upload */}
-                    <ProofUpload invoiceId={invoice.id} />
+                    {/* Payment Evidence Form */}
+                    <PaymentEvidenceForm invoiceId={invoice.id} />
                   </div>
                 </div>
               )}

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 export interface ReportCardData {
     id?: string | null;
     student_name?: string | null;
+    gender?: string | null;
     school_name?: string | null;
     course_name?: string | null;
     section_class?: string | null;
@@ -266,10 +267,11 @@ export default function ModernReportCard({ report, orgSettings }: {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 10px' }}>
                             {[
                                 { l: 'Class', v: report.section_class },
+                                { l: 'Gender', v: report.gender ? (report.gender.charAt(0).toUpperCase() + report.gender.slice(1)) : null },
                                 { l: 'School', v: report.school_name },
                                 { l: report.school_section === 'school' ? 'Term' : 'Duration', v: report.report_term || report.course_duration },
                                 { l: 'Status', v: 'CERTIFIED', green: true },
-                            ].map(f => (
+                            ].filter(f => f.v).map(f => (
                                 <div key={f.l}>
                                     <p style={{ fontSize: 7, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 2 }}>{f.l}</p>
                                     <p style={{ fontSize: 11, fontWeight: 900, fontStyle: 'italic', textTransform: 'uppercase', color: f.green ? '#059669' : (isExecutive ? '#1A1A2E' : '#111827'), lineHeight: 1.2 }}>
