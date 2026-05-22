@@ -15,7 +15,7 @@ import {
   CommandLineIcon, XMarkIcon, CheckBadgeIcon,
   AcademicCapIcon, BookOpenIcon, BoltIcon, TrashIcon, PlusIcon,
   BeakerIcon, RectangleStackIcon, ChevronDownIcon, SparklesIcon,
-  ChevronRightIcon,
+  ChevronRightIcon, MagnifyingGlassIcon,
 } from '@/lib/icons';
 import { LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
 
@@ -246,6 +246,8 @@ function SettingsPageContent() {
   const [editRowTopic, setEditRowTopic] = useState('');
   const [editRowSubs, setEditRowSubs] = useState('');
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
+  const [spineSearch, setSpineSearch] = useState('');
+  const [spineYearFilter, setSpineYearFilter] = useState(0); // 0 = all
   const [templateForm, setTemplateForm] = useState({
     catalog_version: '', program_id: '', lane_index: 1,
     track: 'core', week_number: 1, topic: '', subtopics: '', year_number: 1, term_number: 1,
@@ -1202,13 +1204,13 @@ function SettingsPageContent() {
                       {/* ── Manage by Lane ── */}
                       {catalogSubTab === 'manage' && (
                         <div>
-                          {/* Version filter */}
-                          {(catalogData?.versions ?? []).length > 1 && (
-                            <div className="p-4 border-b border-border">
+                          {/* Toolbar: version + search + year filter */}
+                          <div className="p-3 border-b border-border bg-muted/10 space-y-2">
+                            {(catalogData?.versions ?? []).length > 1 && (
                               <select
                                 value={catalogVersion}
                                 onChange={e => setCatalogVersion(e.target.value)}
-                                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none"
+                                className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary"
                               >
                                 {(catalogData?.versions ?? []).map(v => (
                                   <option key={v.catalog_version} value={v.catalog_version}>
@@ -1216,154 +1218,226 @@ function SettingsPageContent() {
                                   </option>
                                 ))}
                               </select>
+                            )}
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                <input
+                                  type="search"
+                                  placeholder="Search topics…"
+                                  value={spineSearch}
+                                  onChange={e => { setSpineSearch(e.target.value); setManageExpandedLane(null); }}
+                                  className="w-full pl-9 pr-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                />
+                              </div>
+                              <select
+                                value={spineYearFilter}
+                                onChange={e => setSpineYearFilter(Number(e.target.value))}
+                                className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary shrink-0"
+                              >
+                                <option value={0}>All years</option>
+                                <option value={1}>Year 1</option>
+                                <option value={2}>Year 2</option>
+                                <option value={3}>Year 3</option>
+                              </select>
                             </div>
-                          )}
+                          </div>
 
                           {blueprintsLoading ? (
                             <div className="p-10 flex justify-center">
-                              <div className="w-7 h-7 border-4 border-border border-t-emerald-500 rounded-full animate-spin" />
+                              <div className="w-7 h-7 border-4 border-border border-t-primary rounded-full animate-spin" />
                             </div>
                           ) : catalogBlueprints.length === 0 ? (
-                            <div className="p-10 text-center text-sm text-muted-foreground">
-                              No templates for this version.
-                            </div>
-                          ) : (
-                            /* Group by lane_index */
-                            (() => {
-                              const byLane = new Map<number, typeof catalogBlueprints>();
-                              for (const row of catalogBlueprints) {
-                                const lane = row.lane_index ?? 0;
-                                if (!byLane.has(lane)) byLane.set(lane, []);
-                                byLane.get(lane)!.push(row);
-                              }
-                              return (
-                                <div className="divide-y divide-border/30">
-                                  {Array.from(byLane.entries()).sort((a, b) => a[0] - b[0]).map(([laneIdx, rows]) => {
-                                    const label = LANE_LABELS[laneIdx] ?? `Lane ${laneIdx}`;
-                                    const isExpanded = manageExpandedLane === laneIdx;
-                                    return (
-                                      <div key={laneIdx}>
-                                        {/* Lane header — clickable to expand */}
-                                        <button
-                                          onClick={() => setManageExpandedLane(isExpanded ? null : laneIdx)}
-                                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/10 transition-colors text-left"
-                                        >
-                                          <span className="text-[10px] font-black bg-primary/10 text-primary border border-primary/20 rounded px-2 py-0.5 shrink-0 w-10 text-center">
-                                            L{laneIdx}
-                                          </span>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-foreground truncate">{label}</p>
-                                          </div>
-                                          <span className="text-xs text-muted-foreground shrink-0">{rows.length} weeks</span>
-                                          <ChevronRightIcon className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                                        </button>
+                            <div className="p-10 text-center text-sm text-muted-foreground">No templates for this version.</div>
+                          ) : (() => {
+                            const q = spineSearch.toLowerCase().trim();
+                            // Filter + group
+                            const byLane = new Map<number, typeof catalogBlueprints>();
+                            for (const row of catalogBlueprints) {
+                              if (spineYearFilter && row.year_number !== spineYearFilter) continue;
+                              if (q && !row.topic?.toLowerCase().includes(q)) continue;
+                              const lane = row.lane_index ?? 0;
+                              if (!byLane.has(lane)) byLane.set(lane, []);
+                              byLane.get(lane)!.push(row);
+                            }
+                            const isSearching = !!(q || spineYearFilter);
+                            if (byLane.size === 0) return (
+                              <div className="p-10 text-center text-sm text-muted-foreground">No results matching your search.</div>
+                            );
 
-                                        {/* Expanded rows */}
-                                        {isExpanded && (
-                                          <div className="bg-muted/5 border-t border-border/30">
-                                            <table className="w-full text-left">
-                                              <thead>
-                                                <tr className="bg-muted/20 border-b border-border">
-                                                  <th className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-24">Yr · T · W</th>
-                                                  <th className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic</th>
-                                                  {isAdmin && <th className="px-4 py-2 w-20" />}
-                                                </tr>
-                                              </thead>
-                                              <tbody className="divide-y divide-border/20">
-                                                {rows.map(row => {
-                                                  const isEditing = editingRowId === row.id;
-                                                  return (
-                                                  <tr key={row.id} className={`transition-colors ${isEditing ? 'bg-muted/10' : 'hover:bg-muted/5'}`}>
-                                                    <td className="px-4 py-2.5 align-top">
-                                                      <span className="text-[11px] font-mono text-muted-foreground">
-                                                        Y{row.year_number ?? 1} T{row.term_number} W{row.week_number}
-                                                      </span>
-                                                    </td>
-                                                    <td className="px-4 py-2.5">
-                                                      {isEditing ? (
-                                                        <div className="space-y-2">
-                                                          <input
-                                                            autoFocus
-                                                            className="w-full text-sm rounded border border-primary/40 bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
-                                                            value={editRowTopic}
-                                                            onChange={e => setEditRowTopic(e.target.value)}
-                                                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void saveSpineRow(row.id); } if (e.key === 'Escape') setEditingRowId(null); }}
-                                                          />
-                                                          <textarea
-                                                            className="w-full text-[11px] rounded border border-border/40 bg-background px-2 py-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 resize-none"
-                                                            rows={3}
-                                                            placeholder="Subtopics — one per line"
-                                                            value={editRowSubs}
-                                                            onChange={e => setEditRowSubs(e.target.value)}
-                                                          />
-                                                          <div className="flex items-center gap-2">
-                                                            <button
-                                                              onClick={() => void saveSpineRow(row.id)}
-                                                              disabled={savingRowId === row.id || !editRowTopic.trim()}
-                                                              className="px-3 py-1 text-[10px] font-black rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
-                                                            >
-                                                              {savingRowId === row.id ? 'Saving…' : 'Save'}
-                                                            </button>
-                                                            <button
-                                                              onClick={() => setEditingRowId(null)}
-                                                              className="px-3 py-1 text-[10px] font-bold rounded border border-border text-muted-foreground hover:bg-muted/20 transition-colors"
-                                                            >
-                                                              Cancel
-                                                            </button>
-                                                          </div>
-                                                        </div>
-                                                      ) : (
-                                                        <>
-                                                          <p className="text-sm font-semibold text-foreground">{row.topic}</p>
-                                                          {Array.isArray(row.subtopics) && row.subtopics.length > 0 && (
-                                                            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
-                                                              {row.subtopics.slice(0, 3).join(' · ')}{row.subtopics.length > 3 ? ' …' : ''}
-                                                            </p>
-                                                          )}
-                                                        </>
-                                                      )}
-                                                    </td>
-                                                    {isAdmin && (
-                                                      <td className="px-4 py-2.5 text-right align-top">
-                                                        <div className="flex items-center justify-end gap-1">
-                                                          {!isEditing && (
-                                                            <button
-                                                              onClick={() => {
-                                                                setEditingRowId(row.id);
-                                                                setEditRowTopic(row.topic ?? '');
-                                                                setEditRowSubs(Array.isArray(row.subtopics) ? row.subtopics.join('\n') : '');
-                                                              }}
-                                                              className="p-1.5 rounded-lg bg-primary/5 text-primary/60 hover:bg-primary/15 hover:text-primary transition-all"
-                                                              title="Edit"
-                                                            >
-                                                              <PencilIcon className="w-3.5 h-3.5" />
-                                                            </button>
-                                                          )}
-                                                        <button
-                                                          onClick={() => purgeBlueprint(row.id)}
-                                                          disabled={purging === row.id}
-                                                          className="p-1.5 rounded-lg bg-rose-500/5 text-rose-400 hover:bg-rose-500 hover:text-white transition-all disabled:opacity-50"
-                                                          title="Delete"
+                            const TERM_NAMES = ['', 'First Term', 'Second Term', 'Third Term'];
+
+                            return (
+                              <div className="divide-y divide-border/30">
+                                {Array.from(byLane.entries()).sort((a, b) => a[0] - b[0]).map(([laneIdx, laneRows]) => {
+                                  const label = LANE_LABELS[laneIdx] ?? `Lane ${laneIdx}`;
+                                  const isExpanded = isSearching || manageExpandedLane === laneIdx;
+
+                                  // Sub-group by year then term
+                                  const byYear = new Map<number, Map<number, typeof laneRows>>();
+                                  for (const row of laneRows) {
+                                    const yr = row.year_number ?? 1;
+                                    const tm = row.term_number ?? 1;
+                                    if (!byYear.has(yr)) byYear.set(yr, new Map());
+                                    const ytMap = byYear.get(yr)!;
+                                    if (!ytMap.has(tm)) ytMap.set(tm, []);
+                                    ytMap.get(tm)!.push(row);
+                                  }
+
+                                  return (
+                                    <div key={laneIdx}>
+                                      {/* Lane accordion header */}
+                                      <button
+                                        onClick={() => { setManageExpandedLane(isExpanded && !isSearching ? null : laneIdx); setSpineSearch(''); setSpineYearFilter(0); }}
+                                        className="w-full flex items-center gap-3 px-4 py-4 active:bg-muted/20 hover:bg-muted/10 transition-colors text-left min-h-[56px]"
+                                      >
+                                        <span className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary text-[11px] font-black">
+                                          {laneIdx}
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-bold text-foreground leading-snug">{label}</p>
+                                          <p className="text-[11px] text-muted-foreground mt-0.5">{laneRows.length} week{laneRows.length !== 1 ? 's' : ''}</p>
+                                        </div>
+                                        <ChevronRightIcon className={`w-5 h-5 text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                                      </button>
+
+                                      {/* Expanded content — card list per year/term */}
+                                      {isExpanded && (
+                                        <div className="border-t border-border/30 bg-muted/5">
+                                          {Array.from(byYear.entries()).sort((a, b) => a[0] - b[0]).map(([yr, termMap]) => (
+                                            <div key={yr}>
+                                              {/* Year header */}
+                                              <div className="px-4 py-2 bg-muted/15 border-b border-border/20 flex items-center gap-2">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Year {yr}</span>
+                                                <span className="text-[10px] text-muted-foreground/50">·</span>
+                                                <span className="text-[10px] text-muted-foreground">
+                                                  {yr === 1 ? 'Foundations' : yr === 2 ? 'Application' : 'Mastery'}
+                                                </span>
+                                              </div>
+
+                                              {Array.from(termMap.entries()).sort((a, b) => a[0] - b[0]).map(([tm, termRows]) => (
+                                                <div key={tm}>
+                                                  {/* Term divider */}
+                                                  <div className="px-4 py-1.5 bg-muted/10 border-b border-border/15">
+                                                    <span className="text-[10px] font-bold text-muted-foreground">{TERM_NAMES[tm] ?? `Term ${tm}`}</span>
+                                                  </div>
+
+                                                  {/* Week cards */}
+                                                  <div className="divide-y divide-border/20">
+                                                    {termRows.sort((a, b) => (a.week_number ?? 0) - (b.week_number ?? 0)).map(row => {
+                                                      const isEditing = editingRowId === row.id;
+                                                      return (
+                                                        <div
+                                                          key={row.id}
+                                                          className={`px-4 py-3 transition-colors ${isEditing ? 'bg-primary/5 border-l-2 border-primary' : 'hover:bg-muted/10'}`}
                                                         >
-                                                          <TrashIcon className="w-3.5 h-3.5" />
-                                                        </button>
+                                                          {isEditing ? (
+                                                            /* ── Edit mode ── */
+                                                            <div className="space-y-3">
+                                                              <div className="flex items-center gap-2 mb-1">
+                                                                <span className="text-[10px] font-black text-primary/70 bg-primary/10 rounded px-2 py-0.5">W{row.week_number}</span>
+                                                                <span className="text-[10px] text-muted-foreground">Editing topic</span>
+                                                              </div>
+                                                              <div className="space-y-1">
+                                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Topic</label>
+                                                                <input
+                                                                  autoFocus
+                                                                  className="w-full text-sm rounded-xl border border-primary/40 bg-background px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                                                                  value={editRowTopic}
+                                                                  onChange={e => setEditRowTopic(e.target.value)}
+                                                                  onKeyDown={e => {
+                                                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void saveSpineRow(row.id); }
+                                                                    if (e.key === 'Escape') setEditingRowId(null);
+                                                                  }}
+                                                                  maxLength={100}
+                                                                />
+                                                                <p className="text-right text-[10px] text-muted-foreground/50">{editRowTopic.length}/100</p>
+                                                              </div>
+                                                              <div className="space-y-1">
+                                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                                                  Classroom activities <span className="font-normal">(one per line)</span>
+                                                                </label>
+                                                                <textarea
+                                                                  className="w-full text-sm rounded-xl border border-border/50 bg-background px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 resize-none leading-relaxed"
+                                                                  rows={4}
+                                                                  placeholder={"e.g. Write a Python function that calculates BMI\ne.g. Debug a loop that prints wrong values"}
+                                                                  value={editRowSubs}
+                                                                  onChange={e => setEditRowSubs(e.target.value)}
+                                                                />
+                                                              </div>
+                                                              <div className="flex gap-2 pt-1">
+                                                                <button
+                                                                  onClick={() => void saveSpineRow(row.id)}
+                                                                  disabled={savingRowId === row.id || !editRowTopic.trim()}
+                                                                  className="flex-1 py-2.5 text-sm font-black rounded-xl border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 disabled:opacity-50 transition-all"
+                                                                >
+                                                                  {savingRowId === row.id ? 'Saving…' : 'Save changes'}
+                                                                </button>
+                                                                <button
+                                                                  onClick={() => setEditingRowId(null)}
+                                                                  className="px-4 py-2.5 text-sm font-bold rounded-xl border border-border text-muted-foreground hover:bg-muted/20 active:scale-95 transition-all"
+                                                                >
+                                                                  Cancel
+                                                                </button>
+                                                              </div>
+                                                            </div>
+                                                          ) : (
+                                                            /* ── View mode ── */
+                                                            <div className="flex items-start gap-3">
+                                                              <span className="shrink-0 mt-0.5 w-7 h-7 flex items-center justify-center rounded-lg bg-muted/30 text-[11px] font-black text-muted-foreground">
+                                                                {row.week_number}
+                                                              </span>
+                                                              <div className="flex-1 min-w-0">
+                                                                <p className={`text-sm font-semibold leading-snug ${q && row.topic?.toLowerCase().includes(q) ? 'text-primary' : 'text-foreground'}`}>
+                                                                  {row.topic}
+                                                                </p>
+                                                                {Array.isArray(row.subtopics) && row.subtopics.length > 0 && (
+                                                                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+                                                                    {row.subtopics.join(' · ')}
+                                                                  </p>
+                                                                )}
+                                                              </div>
+                                                              {isAdmin && (
+                                                                <div className="flex items-center gap-1 shrink-0 ml-1">
+                                                                  <button
+                                                                    onClick={() => {
+                                                                      setEditingRowId(row.id);
+                                                                      setEditRowTopic(row.topic ?? '');
+                                                                      setEditRowSubs(Array.isArray(row.subtopics) ? row.subtopics.join('\n') : '');
+                                                                    }}
+                                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary/5 text-primary/60 hover:bg-primary/15 hover:text-primary active:scale-90 transition-all"
+                                                                    title="Edit topic"
+                                                                  >
+                                                                    <PencilIcon className="w-3.5 h-3.5" />
+                                                                  </button>
+                                                                  <button
+                                                                    onClick={() => purgeBlueprint(row.id)}
+                                                                    disabled={purging === row.id}
+                                                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/5 text-rose-400/70 hover:bg-rose-500 hover:text-white active:scale-90 disabled:opacity-40 transition-all"
+                                                                    title="Delete"
+                                                                  >
+                                                                    <TrashIcon className="w-3.5 h-3.5" />
+                                                                  </button>
+                                                                </div>
+                                                              )}
+                                                            </div>
+                                                          )}
                                                         </div>
-                                                      </td>
-                                                    )}
-                                                  </tr>
-                                                  );
-                                                })}
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })()
-                          )}
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </>
