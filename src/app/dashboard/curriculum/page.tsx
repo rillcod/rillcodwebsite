@@ -1221,10 +1221,17 @@ export default function CurriculumPage() {
     const key = `t${termN}-w${weekN}`;
     setQaWeekRegenLoading(key);
     try {
+      // Also pass prev_term_topics for cross-term continuity on single-week regen
+      const prevTermWeeks = termN > 1 ? (qaPreviewData?.terms.find(t => t.term === termN - 1)?.weeks ?? []) : [];
+      const prevTermTopics = prevTermWeeks.slice(-3).map(w => qaPreviewEdits[`t${termN - 1}-w${w.week}`] ?? w.topic);
       const res = await fetch('/api/ai/spine-regen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildAiContext(termN, { week_number: weekN, prev_topics: prevTopics })),
+        body: JSON.stringify(buildAiContext(termN, {
+          week_number: weekN,
+          prev_topics: prevTopics,
+          prev_term_topics: prevTermTopics,
+        })),
       });
       const j = await res.json();
       if (res.ok && j.weeks?.[0]?.topic) {
@@ -1234,7 +1241,7 @@ export default function CurriculumPage() {
       }
     } catch { toast.error('Network error'); }
     finally { setQaWeekRegenLoading(null); }
-  }, [buildAiContext]);
+  }, [buildAiContext, qaPreviewData, qaPreviewEdits]);
 
   // Regenerate all 12 weeks for a specific term sequentially (one week at a time with growing context)
   const regenFullTerm = useCallback(async (termN: number, hintPrevTermTopics?: string[]) => {
@@ -1308,24 +1315,38 @@ export default function CurriculumPage() {
   // Regenerate all 3 terms progressively — delegates to regenFullTerm, passing each term's output as next term's context
   const regenAllTermsProgressive = useCallback(async () => {
     if (!qaPreviewData) return;
+    setQaSpineRegenLoading(true); // hold loading ON across all 3 terms (regenFullTerm will toggle it too, but this prevents button flash)
+    setQaSpineRegenNote('');
     let lastTermTopics: string[] = [];
-    for (let termN = 1; termN <= 3; termN++) {
-      const generated = await regenFullTerm(termN, lastTermTopics.length ? lastTermTopics : undefined) ?? [];
-      lastTermTopics = (generated as string[]).slice(-3);
+    try {
+      for (let termN = 1; termN <= 3; termN++) {
+        const generated = await regenFullTerm(termN, lastTermTopics.length ? lastTermTopics : undefined) ?? [];
+        lastTermTopics = (generated as string[]).slice(-3);
+      }
+      setQaSpineRegenNote('All 3 terms progressively personalised.');
+    } finally {
+      setQaSpineRegenLoading(false);
+      setQaSpineRegenProgress(null);
     }
-    setQaSpineRegenNote('All 3 terms progressively personalised.');
   }, [qaPreviewData, regenFullTerm]);
 
   // Adopt current content of fromTermN as baseline; AI-generate subsequent terms progressively from it
   const adoptAndContinueFrom = useCallback(async (fromTermN: number) => {
     if (!qaPreviewData) return;
+    setQaSpineRegenLoading(true);
+    setQaSpineRegenNote('');
     const adoptedWeeks = qaPreviewData.terms.find(t => t.term === fromTermN)?.weeks ?? [];
     let lastTermTopics = adoptedWeeks.slice(-3).map(w => qaPreviewEdits[`t${fromTermN}-w${w.week}`] ?? w.topic);
-    for (let termN = fromTermN + 1; termN <= 3; termN++) {
-      const generated = await regenFullTerm(termN, lastTermTopics) ?? [];
-      lastTermTopics = (generated as string[]).slice(-3);
+    try {
+      for (let termN = fromTermN + 1; termN <= 3; termN++) {
+        const generated = await regenFullTerm(termN, lastTermTopics) ?? [];
+        lastTermTopics = (generated as string[]).slice(-3);
+      }
+      setQaSpineRegenNote(`Adopted Prog.T${fromTermN} — subsequent terms generated progressively.`);
+    } finally {
+      setQaSpineRegenLoading(false);
+      setQaSpineRegenProgress(null);
     }
-    setQaSpineRegenNote(`Adopted Prog.T${fromTermN} — subsequent terms generated progressively.`);
   }, [qaPreviewData, regenFullTerm, qaPreviewEdits]);
 
   const openGenerateModal = useCallback(() => {
