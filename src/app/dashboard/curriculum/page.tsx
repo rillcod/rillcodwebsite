@@ -528,7 +528,7 @@ export default function CurriculumPage() {
   const [weekAssessmentDraft, setWeekAssessmentDraft] = useState<AssessmentPlan | null>(null);
   const [savingWeekContent, setSavingWeekContent] = useState(false);
   // Stable ref so the programs useEffect can call loadCurriculum before it's declared.
-  const loadCurriculumRef = useRef<((courseId: string) => Promise<void>) | null>(null);
+  const loadCurriculumRef = useRef<((courseId: string, hintPst?: number) => Promise<void>) | null>(null);
 
   // Programme start term: saved in content.metadata (most reliable), then program policy, then 1
   const effectiveProgramStartTerm = useMemo(() => {
@@ -616,22 +616,24 @@ export default function CurriculumPage() {
         // Open every programme by default so teachers can see all courses at a glance
         // (collapsing only programs is an easy way to scan a long list).
         setExpandedPrograms(new Set(progs.map((p) => p.id)));
-        // Helper: snap activeTerm from program policy so loadCurriculum doesn't override incorrectly
-        function snapPstFromProgram(p: Program) {
+        // Helper: snap activeTerm from program policy; returns the resolved PST so callers can pass it as a hint to loadCurriculum
+        function snapPstFromProgram(p: Program): number {
           const pst = Number(p.progression_policy?.program_start_term ?? 1);
-          if ([1, 2, 3].includes(pst)) setActiveTerm(pst);
+          const resolved = [1, 2, 3].includes(pst) ? pst : 1;
+          setActiveTerm(resolved);
+          return resolved;
         }
         if (deepProgramId) {
           const p = progs.find((x) => x.id === deepProgramId);
           if (p) {
             setExpandedPrograms(new Set([p.id]));
             setSelectedProgram(p);
-            snapPstFromProgram(p);
+            const hintPst = snapPstFromProgram(p);
             if (deepCourseId) {
               const c = (p.courses ?? []).find((x) => x.id === deepCourseId);
               if (c) {
                 setSelectedCourse(c);
-                loadCurriculumRef.current?.(c.id);
+                loadCurriculumRef.current?.(c.id, hintPst);
               }
             }
             return;
@@ -645,8 +647,8 @@ export default function CurriculumPage() {
               setExpandedPrograms(new Set([p.id]));
               setSelectedProgram(p);
               setSelectedCourse(c);
-              snapPstFromProgram(p);
-              loadCurriculumRef.current?.(c.id);
+              const hintPst = snapPstFromProgram(p);
+              loadCurriculumRef.current?.(c.id, hintPst);
               return;
             }
           }
@@ -662,8 +664,8 @@ export default function CurriculumPage() {
                 setExpandedPrograms(new Set([p.id]));
                 setSelectedProgram(p);
                 setSelectedCourse(c);
-                snapPstFromProgram(p);
-                loadCurriculumRef.current?.(c.id);
+                const hintPst = snapPstFromProgram(p);
+                loadCurriculumRef.current?.(c.id, hintPst);
                 return;
               }
             }
@@ -677,8 +679,8 @@ export default function CurriculumPage() {
             setSelectedProgram(p);
             setSelectedCourse(c);
             setMobileSidebarOpen(false);
-            snapPstFromProgram(p);
-            loadCurriculumRef.current?.(c.id);
+            const hintPst = snapPstFromProgram(p);
+            loadCurriculumRef.current?.(c.id, hintPst);
             return;
           }
         }
@@ -1623,7 +1625,7 @@ export default function CurriculumPage() {
   );
 
   // ── Load curriculum for selected course ──────────────────────────────────
-  const loadCurriculum = useCallback(async (courseId: string) => {
+  const loadCurriculum = useCallback(async (courseId: string, hintPst?: number) => {
     // Only show loading if it takes longer than 150ms
     let timer: any;
     timer = setTimeout(() => setLoadingCurr(true), 150);
@@ -1663,7 +1665,9 @@ export default function CurriculumPage() {
             setActiveTerm((prev) => {
               // Explicit PST in metadata → always snap to it (including PST=1)
               if (metaPst && termNumsForYear.includes(metaPst)) return metaPst;
-              // selectCourse already set a valid term (e.g. from program policy) → keep it
+              // Programme policy PST passed as hint (handles old curricula without metadata PST)
+              if (hintPst && [1, 2, 3].includes(hintPst) && termNumsForYear.includes(hintPst)) return hintPst;
+              // selectCourse already set a valid term → keep it
               if (termNumsForYear.includes(prev)) return prev;
               // Otherwise fall back to first available term
               return termNumsForYear[0];
@@ -1768,16 +1772,17 @@ export default function CurriculumPage() {
     setLastVisited(visited);
     setSelectedProgram(prog);
     setSelectedCourse(course);
-    // Snap to programme start term (not always Term 1) while curriculum loads
+    // Snap to programme start term (not always Term 1) while curriculum loads.
+    // Default to 1 (not current calendar term) so programmes without a policy start at Prog.T1.
     const savedStart = prog.progression_policy?.program_start_term;
-    const snapTerm = [1, 2, 3].includes(Number(savedStart)) ? Number(savedStart) : getCurrentTerm();
+    const snapTerm = [1, 2, 3].includes(Number(savedStart)) ? Number(savedStart) : 1;
     setActiveTerm(snapTerm);
     setActiveYear(1);
     setActiveWeek(null);
     setLoadError('');
     setMobileSidebarOpen(false);
     try { window.history.pushState(null, '', `/dashboard/curriculum?program=${prog.id}&course=${course.id}`); } catch { /* ignore */ }
-    loadCurriculum(course.id);
+    loadCurriculum(course.id, snapTerm);
   }
 
   // ── Generate curriculum ──────────────────────────────────────────────────
