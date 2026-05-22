@@ -1,4 +1,3 @@
-Connecting to aws-1-eu-west-1.pooler.supabase.com 5432
 export type Json =
   | string
   | number
