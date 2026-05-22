@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/supabase';
+import type { Database, TablesUpdate } from '@/types/supabase';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildReportEmail, buildEmailTrackingPixelUrl, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
@@ -128,7 +128,7 @@ export async function PATCH(
   const admin = adminClient();
   const { data, error } = await admin
     .from('student_progress_reports')
-    .update(allowed)
+    .update(allowed as TablesUpdate<'student_progress_reports'>)
     .eq('id', id)
     .select('id, student_id, course_name, overall_score, overall_grade, is_published')
     .single();

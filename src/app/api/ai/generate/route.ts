@@ -141,6 +141,8 @@ interface GenerateRequest {
   avgScore?: number;
   nextLesson?: string;
   program?: string;
+  // Student identity
+  gender?: string | null;
   // For report feedback
   theoryScore?: number | string;
   practicalScore?: number | string;
@@ -244,9 +246,17 @@ Important: Be fair but encouraging. For 'essay' questions, look for key concepts
         req.homeworkGrade      ? `Assignments & homework (teacher's observation): "${req.homeworkGrade}"` : '',
       ].filter(Boolean).join('\n');
 
+      // Gender-based pronoun instruction — use student's name as fallback when gender is unknown
+      const pronounInstruction = req.gender === 'male'
+        ? `Pronouns: he/him/his — use these consistently instead of "the student"`
+        : req.gender === 'female'
+          ? `Pronouns: she/her — use these consistently instead of "the student"`
+          : `Refer to the student by name ("${req.studentName ?? 'the student'}") rather than using gendered pronouns`;
+
       return `You are an experienced Nigerian school administrator writing brief, professional student report card comments.
 
 Student: "${req.studentName ?? 'The student'}"
+${pronounInstruction}
 ${contextBlock}
 Current Topic/Module: "${req.topic}"
 Overall performance: ${overallBand}
@@ -764,6 +774,7 @@ Return a JSON object with this exact shape:
 
 Student Profile:
 - Name: ${req.studentName ?? 'Student'}
+${req.gender ? `- Gender: ${req.gender}` : ''}
 - XP Total: ${req.xp ?? 0}
 - Current Streak: ${req.streak ?? 0} days
 - Lessons Completed: ${req.lessonsDone ?? 0}
@@ -776,6 +787,7 @@ Generate 3 missions that are:
 2. Appropriately challenging for their level
 3. Rewarding with clear XP values
 4. Encouraging and motivating in tone
+5. ${req.gender === 'male' ? 'Use he/him/his pronouns when referring to the student' : req.gender === 'female' ? 'Use she/her pronouns when referring to the student' : `Refer to the student by name (${req.studentName ?? 'the student'}) — avoid gendered pronouns`}
 
 Return a JSON object with this exact shape:
 {
