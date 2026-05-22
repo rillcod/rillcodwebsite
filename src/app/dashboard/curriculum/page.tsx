@@ -1531,27 +1531,29 @@ export default function CurriculumPage() {
     });
     // Pre-load program_start_term: curriculum metadata first, then program policy, then 1
     const contentPst = curriculum?.content?.metadata?.program_start_term;
+    let resolvedPst = 1;
     if ([1, 2, 3].includes(Number(contentPst))) {
-      setProgramStartTerm(Number(contentPst) as 1 | 2 | 3);
+      resolvedPst = Number(contentPst);
     } else if (selectedCourse?.program_id) {
       const prog = programs.find(p => p.id === selectedCourse.program_id);
       const savedStartTerm = prog?.progression_policy?.program_start_term;
       if ([1, 2, 3].includes(Number(savedStartTerm))) {
-        setProgramStartTerm(Number(savedStartTerm) as 1 | 2 | 3);
-      } else {
-        setProgramStartTerm(1);
+        resolvedPst = Number(savedStartTerm);
       }
-    } else {
-      setProgramStartTerm(1);
     }
+    setProgramStartTerm(resolvedPst as 1 | 2 | 3);
     // Suggest next year to generate based on existing curriculum content
     if (curriculum?.content?.terms?.length) {
       const existingYears = Array.from(new Set((curriculum.content.terms as CurriculumTerm[]).map((t) => t.year ?? 1)));
       const maxYear = Math.max(...existingYears);
       const nextYear = Math.min(3, maxYear + 1) as 1 | 2 | 3;
       setProgrammeYear(nextYear);
+      // When adding a new year offer all terms
+      setSelectedTerms([1, 2, 3]);
     } else {
       setProgrammeYear(1);
+      // First generation: start at the national term that equals Prog.T1 Foundations for this school
+      setSelectedTerms([resolvedPst]);
     }
     setShowGenerate(true);
   }, [curriculum, assignedSchools, isAdmin, profile?.school_id, gradeByScope, selectedCourse?.title, selectedCourse?.program_id, programs]);
@@ -5003,7 +5005,12 @@ export default function CurriculumPage() {
                     <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">Programme starts in</label>
                     <select
                       value={programStartTerm}
-                      onChange={e => setProgramStartTerm(Number(e.target.value))}
+                      onChange={e => {
+                        const pst = Number(e.target.value);
+                        setProgramStartTerm(pst);
+                        // For first generation, auto-select the national term that equals Prog.T1 Foundations
+                        if (!curriculum?.content?.terms?.length) setSelectedTerms([pst]);
+                      }}
                       className={SELECT_CLS}
                     >
                       <option value={1}>Term 1 — Sept (default)</option>
@@ -5028,6 +5035,9 @@ export default function CurriculumPage() {
                       {([1, 2, 3] as const).map((t) => {
                         const isCurrentCalendarTerm = t === getCurrentTerm();
                         const isSelected = selectedTerms.includes(t);
+                        const progTerm = getProgrammeTerm(t, programStartTerm);
+                        const PROG_PHASE = ['Foundations', 'Application', 'Innovation'] as const;
+                        const isProgT1 = progTerm === 1;
                         return (
                           <button key={t} type="button" onClick={() => toggleTerm(t)}
                             className={`relative flex-1 px-2 py-2 border text-center transition-all ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/40'}`}
@@ -5039,6 +5049,9 @@ export default function CurriculumPage() {
                             )}
                             <div className="text-[10px] font-black mt-1">{TERM_LABEL[t]}</div>
                             <div className="text-[9px] opacity-70">{t === 1 ? 'Sept–Dec' : t === 2 ? 'Jan–Apr' : 'May–Aug'}</div>
+                            <div className={`text-[8px] font-black mt-0.5 ${isProgT1 ? (isSelected ? 'text-yellow-300' : 'text-primary') : 'opacity-50'}`}>
+                              P.T{progTerm} {PROG_PHASE[progTerm - 1]}
+                            </div>
                           </button>
                         );
                       })}
