@@ -287,10 +287,10 @@ export default function ReportCard({ report, orgSettings }: {
                                 )}
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">
-                                        {report.school_section === 'school' ? 'Academic Term' : 'Duration'}
+                                        {report.school_section ? 'Academic Term' : 'Duration'}
                                     </p>
                                     <p className="text-[13px] font-bold text-foreground/80">
-                                        {report.school_section === 'school'
+                                        {report.school_section
                                             ? `${report.report_term ?? '—'}${report.report_period ? ` · ${report.report_period}` : ''}`
                                             : (report.course_duration ?? report.report_term ?? '—')}
                                     </p>

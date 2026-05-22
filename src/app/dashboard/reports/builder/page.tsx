@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense, useDeferredValue } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -1500,6 +1500,8 @@ function ReportBuilderInner() {
         current_module: form.student_current_module || sessionConfig.current_module || undefined,
         next_module: form.student_next_module || sessionConfig.next_module || undefined,
     };
+    // Defer heavy card re-renders so typing/sliders don't freeze the UI
+    const deferredPreviewData = useDeferredValue(previewData);
 
     // ── Guards ────────────────────────────────────────────────────────────────
     if (authLoading || profileLoading || loading) return (
@@ -1560,7 +1562,7 @@ function ReportBuilderInner() {
                                 onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
                                 className={INPUT} />
                         </Field>
-                        {sessionConfig.school_section === 'school' ? (
+                        {sessionConfig.school_section ? (
                             <Field label="Term">
                                 <select value={sessionConfig.report_term}
                                     onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
@@ -1653,13 +1655,15 @@ function ReportBuilderInner() {
                                 {getModuleSuggestions(sessionConfig.course_name).next.map(m => <option key={m} value={m} />)}
                             </datalist>
                         </Field>
-                        <Field label="Duration">
-                            <select value={sessionConfig.course_duration}
-                                onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
-                                className={INPUT}>
-                                {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                        </Field>
+                        {sessionConfig.school_section && (
+                            <Field label="Duration">
+                                <select value={sessionConfig.course_duration}
+                                    onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
+                                    className={INPUT}>
+                                    {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </Field>
+                        )}
                     </div>
 
                     {/* Learning Milestones editor */}
@@ -1929,7 +1933,7 @@ function ReportBuilderInner() {
                                         onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
                                         className={INPUT} />
                                 </Field>
-                                {sessionConfig.school_section === 'school' ? (
+                                {sessionConfig.school_section ? (
                                     <>
                                         <Field label="Term *">
                                             <select value={sessionConfig.report_term}
@@ -2082,10 +2086,10 @@ function ReportBuilderInner() {
                                             .map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                                     </select>
                                 </Field>
-                                {sessionConfig.school_section === 'school' && (
+                                {sessionConfig.school_section && (
                                     <Field label="Duration">
                                         <select value={sessionConfig.course_duration}
-                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
                                             className={INPUT}>
                                             {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
@@ -3350,11 +3354,11 @@ function ReportBuilderInner() {
                             <div className="bg-card overflow-hidden shadow-2xl"
                                 style={{ width: '210mm', minHeight: '297mm', transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
                                 {reportStyle === 'modern' ? (
-                                    <ModernReportCard report={previewData} orgSettings={branding as any} />
+                                    <ModernReportCard report={deferredPreviewData} orgSettings={branding as any} />
                                 ) : reportStyle === 'printable' ? (
-                                    <PrintableReport report={previewData} orgSettings={branding as any} />
+                                    <PrintableReport report={deferredPreviewData} orgSettings={branding as any} />
                                 ) : (
-                                    <ReportCard report={previewData} orgSettings={branding as any} />
+                                    <ReportCard report={deferredPreviewData} orgSettings={branding as any} />
                                 )}
                             </div>
                         </div>
