@@ -1392,8 +1392,14 @@ export default function CurriculumPage() {
           setActiveYear(firstLoadedYear);
           const termNumsForYear = loadedTerms.filter((t) => (t.year ?? 1) === firstLoadedYear).map((t) => t.term);
           if (termNumsForYear.length > 0) {
-            const desired = getCurrentTerm();
-            setActiveTerm(termNumsForYear.includes(desired) ? desired : termNumsForYear[0]);
+            // If programme starts in a non-default term, land on Programme Term 1 (not national Term 1)
+            const savedPst = (curr.content?.metadata as { program_start_term?: number } | undefined)?.program_start_term;
+            const pst = [1, 2, 3].includes(Number(savedPst)) ? Number(savedPst) : 1;
+            const progT1 = pst; // The national term number that is Programme Term 1
+            const desired = pst !== 1 && termNumsForYear.includes(progT1)
+              ? progT1
+              : termNumsForYear.includes(getCurrentTerm()) ? getCurrentTerm() : termNumsForYear[0];
+            setActiveTerm(desired);
           }
 
           // Mark this course as having a curriculum (for sidebar badge)
@@ -3110,9 +3116,12 @@ export default function CurriculumPage() {
                                     const yr = Number(e.target.value);
                                     setActiveYear(yr);
                                     setActiveWeek(null);
-                                    // Snap term to first valid term in new year
+                                    // Snap term to Programme Term 1 in the new year
                                     const termsInYear = allTerms.filter((t) => (t.year ?? 1) === yr).map((t) => t.term);
-                                    if (termsInYear.length > 0) setActiveTerm(termsInYear[0]);
+                                    if (termsInYear.length > 0) {
+                                      const progT1 = effectiveProgramStartTerm;
+                                      setActiveTerm(termsInYear.includes(progT1) ? progT1 : termsInYear[0]);
+                                    }
                                   }}
                                   className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
                                 >
@@ -3138,18 +3147,24 @@ export default function CurriculumPage() {
                               onChange={e => { setActiveTerm(Number(e.target.value)); setActiveWeek(null); }}
                               className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
                             >
-                              {[...termsForActiveYear].sort((a, b) => a.term - b.term).map(term => {
+                              {[...termsForActiveYear].sort((a, b) => {
+                                // Sort by programme term order so Prog.T1 always appears first
+                                const pa = getProgrammeTerm(a.term, effectiveProgramStartTerm);
+                                const pb = getProgrammeTerm(b.term, effectiveProgramStartTerm);
+                                return pa - pb;
+                              }).map(term => {
                                 const tw = tracking.filter(t => t.term_number === term.term);
                                 const termWeeks = term.weeks?.length ?? 0;
                                 const termDone = tw.filter(t => t.status === 'completed').length;
                                 const isNow = term.term === getCurrentTerm();
-                                const baseLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
-                                const progTerm = effectiveProgramStartTerm !== 1
-                                  ? ` (Prog.T${getProgrammeTerm(term.term, effectiveProgramStartTerm)})`
-                                  : '';
+                                const progTermNum = getProgrammeTerm(term.term, effectiveProgramStartTerm);
+                                const PROG_THEME: Record<number, string> = { 1: 'Foundations', 2: 'Application', 3: 'Innovation' };
+                                const progLabel = effectiveProgramStartTerm !== 1
+                                  ? `Prog.T${progTermNum} ${PROG_THEME[progTermNum] ?? ''} — ${TERM_LABEL[term.term] ?? `Term ${term.term}`}`
+                                  : TERM_LABEL[term.term] ?? `Term ${term.term}`;
                                 return (
                                   <option key={term.term} value={term.term} className="bg-[#0a0a0a] text-foreground">
-                                    {isNow ? '▶ ' : ''}{baseLabel}{progTerm} ({termDone}/{termWeeks})
+                                    {isNow ? '▶ ' : ''}{progLabel} ({termDone}/{termWeeks})
                                   </option>
                                 );
                               })}
