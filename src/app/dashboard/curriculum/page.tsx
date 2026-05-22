@@ -450,6 +450,7 @@ export default function CurriculumPage() {
   const [qaWeekRegenLoading, setQaWeekRegenLoading] = useState<string | null>(null);
   const [qaSpineRegenLoading, setQaSpineRegenLoading] = useState(false);
   const [qaSpineRegenNote, setQaSpineRegenNote] = useState('');
+  const [qaSpineRegenProgress, setQaSpineRegenProgress] = useState<string | null>(null);
   // Missed-topic recovery
   const [qaRecoveryChecked, setQaRecoveryChecked] = useState<Set<string>>(new Set());
   const [qaRecoveryEditTopics, setQaRecoveryEditTopics] = useState<Record<string, string>>({});
@@ -1137,11 +1138,12 @@ export default function CurriculumPage() {
     finally { setQaWeekRegenLoading(null); }
   }, [qaPreviewData, qaLaneOverride, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion]);
 
-  // Regenerate all 12 weeks for a specific term with AI
+  // Regenerate all 12 weeks for a specific term sequentially (one week at a time with growing context)
   const regenFullTerm = useCallback(async (termN: number) => {
     if (!qaPreviewData) return;
     setQaSpineRegenLoading(true);
     setQaSpineRegenNote('');
+    setQaSpineRegenProgress(null);
     try {
       const skippedTopics = tracking
         .filter(t => t.status === 'skipped')
@@ -1152,37 +1154,62 @@ export default function CurriculumPage() {
         .slice(0, 5);
       const prevTermWeeks = termN > 1 ? (qaPreviewData.terms.find(t => t.term === termN - 1)?.weeks ?? []) : [];
       const prevTermTopics = prevTermWeeks.slice(-3).map(w => qaPreviewEdits[`t${termN - 1}-w${w.week}`] ?? w.topic);
+      const weakTopicNames = qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [];
 
-      const res = await fetch('/api/ai/spine-regen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lane_index: qaPreviewData.lane_index,
-          year_number: qaYear,
-          term_number: termN,
-          class_name: selectedQaClass?.name,
-          course_name: selectedCourse?.title,
-          weak_topics: qaLaneSuggestion?.weak_topics?.map(t => t.title) ?? [],
-          skipped_topics: skippedTopics,
-          prev_term_topics: prevTermTopics,
-        }),
-      });
-      const j = await res.json();
-      if (res.ok && j.weeks?.length > 0) {
-        setQaPreviewEdits(prev => {
-          const next = { ...prev };
-          for (const w of j.weeks as { week: number; topic: string }[]) {
-            next[`t${termN}-w${w.week}`] = w.topic;
+      const generatedTopics: string[] = [];
+      const newEdits: Record<string, string> = {};
+      let failCount = 0;
+
+      for (let w = 1; w <= 12; w++) {
+        setQaSpineRegenProgress(`Generating week ${w} of 12…`);
+        try {
+          const res = await fetch('/api/ai/spine-regen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              lane_index: qaPreviewData.lane_index,
+              year_number: qaYear,
+              term_number: termN,
+              week_number: w,
+              class_name: selectedQaClass?.name,
+              course_name: selectedCourse?.title,
+              weak_topics: weakTopicNames,
+              skipped_topics: skippedTopics,
+              prev_term_topics: prevTermTopics,
+              prev_topics: generatedTopics.slice(-4),
+            }),
+          });
+          const j = await res.json();
+          if (res.ok && j.weeks?.[0]?.topic) {
+            const topic = j.weeks[0].topic as string;
+            generatedTopics.push(topic);
+            newEdits[`t${termN}-w${w}`] = topic;
+          } else {
+            failCount++;
           }
-          return next;
-        });
-        if (j.note) setQaSpineRegenNote(j.note);
-        toast.success(`Term ${termN} personalised — ${j.weeks.length} weeks updated`);
+        } catch {
+          failCount++;
+        }
+      }
+
+      if (Object.keys(newEdits).length > 0) {
+        setQaPreviewEdits(prev => ({ ...prev, ...newEdits }));
+        const successCount = Object.keys(newEdits).length;
+        if (failCount > 0) {
+          setQaSpineRegenNote(`${successCount} weeks personalised (${failCount} used spine defaults).`);
+          toast.success(`Term ${termN}: ${successCount}/12 weeks personalised`);
+        } else {
+          setQaSpineRegenNote(`All 12 weeks personalised for ${selectedQaClass?.name ?? 'this class'}.`);
+          toast.success(`Term ${termN} fully personalised — 12 weeks updated`);
+        }
       } else {
-        toast.error(j.error || 'AI generation failed — try again');
+        toast.error('AI could not generate topics — try again');
       }
     } catch { toast.error('Network error during generation'); }
-    finally { setQaSpineRegenLoading(false); }
+    finally {
+      setQaSpineRegenLoading(false);
+      setQaSpineRegenProgress(null);
+    }
   }, [qaPreviewData, qaYear, selectedQaClass?.name, selectedCourse?.title, qaLaneSuggestion, tracking, curriculum, qaPreviewEdits]);
 
   const openGenerateModal = useCallback(() => {
@@ -3652,7 +3679,9 @@ export default function CurriculumPage() {
                                                   {qaSpineRegenLoading
                                                     ? <ArrowPathIcon className="w-2.5 h-2.5 animate-spin" />
                                                     : <SparklesIcon className="w-2.5 h-2.5" />}
-                                                  Personalise with AI
+                                                  {qaSpineRegenLoading && qaSpineRegenProgress
+                                                    ? qaSpineRegenProgress
+                                                    : 'Personalise with AI'}
                                                 </button>
                                               </div>
                                               <ul className="space-y-1">
