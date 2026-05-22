@@ -124,6 +124,30 @@ export async function POST(request: NextRequest) {
         resolvedSchoolId = caller.school_id ?? scopedIds[0] ?? null;
       }
     }
+
+    // Verify course_id belongs to the resolved school/caller's boundary
+    if (body.course_id) {
+      const { data: course } = await adminClient()
+        .from('courses')
+        .select('school_id')
+        .eq('id', body.course_id)
+        .maybeSingle();
+
+      if (!course) {
+        return NextResponse.json({ error: 'Selected course not found' }, { status: 400 });
+      }
+
+      if (course.school_id) {
+        if (caller.role === 'teacher') {
+          const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+          if (!scopedIds.includes(course.school_id)) {
+            return NextResponse.json({ error: 'You are not assigned to the school of this course.' }, { status: 403 });
+          }
+        }
+        resolvedSchoolId = course.school_id;
+      }
+    }
+
     payload.school_id = resolvedSchoolId;
     if (typeof payload.lesson_type === 'string') {
       payload.lesson_type = normalizeLessonType(payload.lesson_type, 'lesson');

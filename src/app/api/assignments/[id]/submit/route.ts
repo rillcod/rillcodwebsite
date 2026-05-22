@@ -89,6 +89,20 @@ export async function POST(
 
     if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
+    // Fetch existing submission to check if already graded (students only)
+    if (!isStaff) {
+      const { data: existingSub } = await admin
+        .from('assignment_submissions')
+        .select('status')
+        .eq('assignment_id', assignment_id)
+        .eq('portal_user_id', effectiveUserId)
+        .maybeSingle();
+
+      if (existingSub && existingSub.status === 'graded') {
+        return NextResponse.json({ error: 'This assignment has already been graded and cannot be resubmitted' }, { status: 403 });
+      }
+    }
+
     // Students: assignment must be active
     if (!isStaff && !assignment.is_active) {
       return NextResponse.json({ error: 'This assignment is no longer active' }, { status: 403 });

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { queueService } from '@/services/queue.service';
+import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+
+export const dynamic = 'force-dynamic';
 
 function adminClient() {
   return createClient(
@@ -9,69 +13,253 @@ function adminClient() {
   );
 }
 
-async function requireGrader() {
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function getCaller(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
-  const { data: caller } = await supabase
+  const { data: caller } = await adminClient()
     .from('portal_users')
-    .select('id, role')
+    .select('role, id, school_id')
     .eq('id', user.id)
     .single();
-  if (!caller || !['admin', 'teacher'].includes(caller.role)) return null;
-  return caller;
+  if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
+  return caller as Caller;
 }
 
-// PATCH /api/submissions/[id] — grade or update a submission (admin/teacher only)
+/**
+ * Returns true if the caller may manage (grade/delete) a submission.
+ * Resolved by checking the submission's assignment school vs the caller's school.
+ */
+async function callerCanManageSubmission(
+  caller: Caller,
+  assignmentSchoolId: string | null,
+  assignmentCreatedBy: string | null,
+): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  if (caller.role === 'school') {
+    return !assignmentSchoolId || assignmentSchoolId === caller.school_id;
+  }
+  if (caller.role === 'teacher') {
+    if (assignmentCreatedBy === caller.id) return true;
+    if (!assignmentSchoolId) return false;
+    if (caller.school_id === assignmentSchoolId) return true;
+    const { data: ts } = await adminClient()
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', caller.id)
+      .eq('school_id', assignmentSchoolId)
+      .maybeSingle();
+    return !!ts;
+  }
+  return false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/submissions/[id]
+// Update grade, feedback, status, submission_text on a submission.
+// When status becomes 'graded', optionally cleans up the uploaded image file.
+// ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireGrader();
-  if (!caller) return NextResponse.json({ error: 'Admin or Teacher access required' }, { status: 403 });
+  try {
+    const caller = await getCaller();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await context.params;
-  const body = await request.json();
+    const { id } = await context.params;
+    const admin = adminClient();
 
-  // Whitelist allowed update fields
-  const allowed: Record<string, any> = {};
-  const fields = ['grade', 'feedback', 'status', 'submission_text', 'graded_by', 'graded_at'];
-  fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
+    // Fetch submission + its assignment school for boundary check (single query)
+    const { data: sub } = await admin
+      .from('assignment_submissions')
+      .select('id, assignment_id, grade, file_url, assignments(title, school_id, created_by, weight, max_points)')
+      .eq('id', id)
+      .maybeSingle();
 
-  // Auto-set graded_at when status=graded and not explicitly provided
-  if (body.status === 'graded' && !('graded_at' in body)) {
-    allowed.graded_at = new Date().toISOString();
+    if (!sub) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+
+    const assignment = (sub as any).assignments;
+    const assignmentSchoolId: string | null  = assignment?.school_id   ?? null;
+    const assignmentCreatedBy: string | null = assignment?.created_by  ?? null;
+    const assignmentTitle: string            = assignment?.title       || 'Assignment';
+    const assignMax: number                  = assignment?.max_points  ?? 100;
+    const assignWeight: number               = assignment?.weight      ?? 0;
+
+    const canManage = await callerCanManageSubmission(caller, assignmentSchoolId, assignmentCreatedBy);
+    if (!canManage) {
+      return NextResponse.json(
+        { error: 'Access denied: this submission belongs to an assignment outside your school scope' },
+        { status: 403 },
+      );
+    }
+
+    const body = await request.json();
+
+    // ── Whitelisted update fields ──────────────────────────────────────────
+    // graded_by and graded_at are NOT client-settable — always set server-side
+    const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if ('grade'           in body) allowed.grade           = body.grade           ?? null;
+    if ('feedback'        in body) allowed.feedback        = body.feedback        ?? null;
+    if ('status'          in body) allowed.status          = body.status;
+    if ('submission_text' in body) allowed.submission_text = body.submission_text ?? null;
+    // Allow explicit weighted_score override
+    if ('weighted_score'  in body) allowed.weighted_score  = body.weighted_score  ?? null;
+
+    if (body.status === 'graded' || 'grade' in body) {
+      // Always use server-determined grader identity
+      allowed.graded_by = caller.id;
+      allowed.graded_at = new Date().toISOString();
+
+      // Auto-compute weighted_score only when not explicitly provided
+      if (body.grade != null && !('weighted_score' in body)) {
+        allowed.weighted_score = (assignWeight > 0 && assignMax > 0)
+          ? Math.round((Number(body.grade) / assignMax) * assignWeight)
+          : null;
+      }
+    }
+
+    // When marking as graded, delete image files from storage to free space
+    if (body.status === 'graded' && sub.file_url) {
+      if (/\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url)) {
+        const marker    = '/object/public/assignments/';
+        const markerIdx = sub.file_url.indexOf(marker);
+        if (markerIdx !== -1) {
+          const storagePath = decodeURIComponent(
+            sub.file_url.slice(markerIdx + marker.length).split('?')[0],
+          );
+          await admin.storage.from('assignments').remove([storagePath]);
+        }
+        allowed.file_url = null;
+      }
+    }
+
+    const { data, error } = await admin
+      .from('assignment_submissions')
+      .update(allowed)
+      .eq('id', id)
+      .select('id, grade, status, file_url, portal_user_id, weighted_score')
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Write audit log
+    await admin.from('audit_logs').insert({
+      actor_id: caller.id,
+      resource_type: 'assignment_submission',
+      resource_id: id,
+      action: 'grade_submission',
+      old_value: String(sub.grade ?? ''),
+      new_value: String(allowed.grade ?? ''),
+    }).then(({ error }) => { if (error) console.error('[audit_log]', error.message); });
+
+    // Send notifications (in-app and email) when graded
+    if ((body.status === 'graded' || body.grade != null) && data?.portal_user_id) {
+      (async () => {
+        const { data: student } = await admin
+          .from('portal_users').select('email, full_name').eq('id', data.portal_user_id!).single();
+        if (!student) return;
+
+        const gradeVal = (data.grade ?? allowed.grade) as number | null;
+        const scoreLabel = gradeVal != null ? `${gradeVal}/${assignMax}` : 'graded';
+
+        // 1. In-app notification
+        await admin.from('notifications').insert({
+          user_id: data.portal_user_id!,
+          title: 'Assignment Graded',
+          message: `"${assignmentTitle}" has been graded — score: ${scoreLabel}.${allowed.feedback ? ' Feedback left by your teacher.' : ''}`,
+          type: 'success',
+          is_read: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).then(({ error }) => { if (error) console.error('[in-app notification]', error.message); });
+
+        // 2. Email notification
+        if (!student.email) return;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
+        const html = buildRillcodTransactionalEmailHtml({
+          title: 'Assignment Graded',
+          bodyHtml: `<p>Hi ${escapeHtml(student.full_name?.split(' ')[0] || 'there')},</p>
+            <p>Your assignment <strong>${escapeHtml(assignmentTitle)}</strong> has been graded by your teacher.</p>
+            ${allowed.feedback ? `<p><strong>Feedback:</strong> ${escapeHtml(allowed.feedback as string)}</p>` : ''}`,
+          summaryRows: [
+            { label: 'Assignment', value: assignmentTitle },
+            { label: 'Score', value: gradeVal != null ? `${gradeVal} / ${assignMax}` : 'Graded' },
+            ...(data.weighted_score != null ? [{ label: 'Weighted Score', value: String(data.weighted_score) }] : []),
+          ],
+          cta: { href: `${appUrl}/dashboard/assignments`, label: 'View Results & Feedback' },
+          footerNote: 'This grade was submitted by your teacher.',
+        });
+        await queueService.queueNotification(data.portal_user_id!, 'email', {
+          to: student.email,
+          subject: `Graded: "${assignmentTitle}"`,
+          html,
+        });
+      })().catch(console.error);
+    }
+
+    return NextResponse.json({ data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
-  // Always stamp graded_by from caller
-  if (body.status === 'graded' || 'grade' in body) {
-    allowed.graded_by = caller.id;
-  }
-
-  const { data, error } = await adminClient()
-    .from('assignment_submissions')
-    .update(allowed)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
 }
 
-// DELETE /api/submissions/[id] — delete a submission (admin/teacher only)
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/submissions/[id]
+// Admin or teacher assigned to the assignment's school only.
+// ─────────────────────────────────────────────────────────────────────────────
 export async function DELETE(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireGrader();
-  if (!caller) return NextResponse.json({ error: 'Admin or Teacher access required' }, { status: 403 });
+  try {
+    const caller = await getCaller();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    if (caller.role === 'school') {
+      return NextResponse.json({ error: 'School accounts cannot delete submissions' }, { status: 403 });
+    }
 
-  const { id } = await context.params;
-  const { error } = await adminClient()
-    .from('assignment_submissions')
-    .delete()
-    .eq('id', id);
+    const { id } = await context.params;
+    const admin = adminClient();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+    const { data: sub } = await admin
+      .from('assignment_submissions')
+      .select('id, grade, assignments(school_id, created_by)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!sub) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+
+    const assignment = (sub as any).assignments;
+    const canManage = await callerCanManageSubmission(
+      caller,
+      assignment?.school_id  ?? null,
+      assignment?.created_by ?? null,
+    );
+    if (!canManage) {
+      return NextResponse.json(
+        { error: 'Access denied: this submission belongs to an assignment outside your school scope' },
+        { status: 403 },
+      );
+    }
+
+    const { error } = await admin.from('assignment_submissions').delete().eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Write audit log
+    await admin.from('audit_logs').insert({
+      actor_id: caller.id,
+      resource_type: 'assignment_submission',
+      resource_id: id,
+      action: 'delete_submission',
+      old_value: String(sub.grade ?? ''),
+      new_value: '',
+    }).then(({ error }) => { if (error) console.error('[audit_log delete]', error.message); });
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
 }

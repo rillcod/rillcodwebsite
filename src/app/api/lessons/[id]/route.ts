@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,17 +11,53 @@ function adminClient() {
   );
 }
 
-async function requireStaff() {
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function requireStaff(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const { data: caller } = await adminClient()
     .from('portal_users')
-    .select('role, id')
+    .select('role, id, school_id')
     .eq('id', user.id)
     .single();
   if (!caller || !['admin', 'teacher', 'school'].includes(caller.role)) return null;
-  return caller;
+  return caller as Caller;
+}
+
+async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null): Promise<string[]> {
+  const ids = new Set<string>();
+  if (fallbackSchoolId) ids.add(fallbackSchoolId);
+  const admin = adminClient();
+  const { data } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', teacherId);
+  for (const row of data ?? []) {
+    const sid = (row as { school_id: string | null }).school_id;
+    if (sid) ids.add(sid);
+  }
+  return Array.from(ids);
+}
+
+async function callerCanManageLesson(
+  caller: Caller,
+  lessonSchoolId: string | null,
+  lessonCreatedBy: string | null,
+): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  if (caller.role === 'school') {
+    return !lessonSchoolId || lessonSchoolId === caller.school_id;
+  }
+  if (caller.role === 'teacher') {
+    if (lessonCreatedBy === caller.id) return true;
+    if (!lessonSchoolId) return false;
+    if (caller.school_id === lessonSchoolId) return true;
+    const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+    return scopedIds.includes(lessonSchoolId);
+  }
+  return false;
 }
 
 // GET /api/lessons/[id]
@@ -27,19 +65,29 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireStaff();
-  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+  try {
+    const caller = await requireStaff();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-  const { id } = await context.params;
-  const { data, error } = await adminClient()
-    .from('lessons')
-    .select('*, courses ( id, title, programs ( name ) ), lesson_plans (*)')
-    .eq('id', id)
-    .maybeSingle();
+    const { id } = await context.params;
+    const { data, error } = await adminClient()
+      .from('lessons')
+      .select('*, courses ( id, title, programs ( name ) ), lesson_plans (*)')
+      .eq('id', id)
+      .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
-  return NextResponse.json({ data });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+
+    const canManage = await callerCanManageLesson(caller, data.school_id, data.created_by);
+    if (!canManage) {
+      return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
+    }
+
+    return NextResponse.json({ data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
 }
 
 // PATCH /api/lessons/[id] — update lesson
@@ -47,42 +95,69 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireStaff();
-  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
-  if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+  try {
+    const caller = await requireStaff();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
-  const { id } = await context.params;
+    const { id } = await context.params;
+    const admin = adminClient();
 
-  // Teachers can only edit their own lessons
-  if (caller.role === 'teacher') {
-    const { data: existing } = await adminClient().from('lessons').select('created_by').eq('id', id).single();
+    const { data: existing } = await admin.from('lessons').select('school_id, created_by').eq('id', id).maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
-    if (existing.created_by !== caller.id) return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+
+    const canManage = await callerCanManageLesson(caller, existing.school_id, existing.created_by);
+    if (!canManage) {
+      return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
+    }
+
+    const body = await request.json();
+
+    // Verify course_id if updated
+    if (body.course_id) {
+      const { data: course } = await admin
+        .from('courses')
+        .select('school_id')
+        .eq('id', body.course_id)
+        .maybeSingle();
+
+      if (!course) {
+        return NextResponse.json({ error: 'Selected course not found' }, { status: 400 });
+      }
+
+      if (course.school_id) {
+        if (caller.role === 'teacher') {
+          const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+          if (!scopedIds.includes(course.school_id)) {
+            return NextResponse.json({ error: 'You are not assigned to the school of this course.' }, { status: 403 });
+          }
+        }
+      }
+    }
+
+    const allowed: Record<string, unknown> = {};
+    const allowedFields = ['title', 'description', 'content', 'lesson_notes', 'lesson_type', 'status',
+      'duration_minutes', 'order_index', 'video_url', 'session_date', 'content_layout', 'course_id', 'metadata'];
+    for (const f of allowedFields) {
+      if (f in body) allowed[f] = body[f] ?? null;
+    }
+    allowed.updated_at = new Date().toISOString();
+
+    const { error } = await admin.from('lessons').update(allowed).eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Optionally upsert lesson_plan if included in body
+    if (body.lesson_plan && typeof body.lesson_plan === 'object') {
+      await admin.from('lesson_plans').upsert(
+        { ...body.lesson_plan, lesson_id: id, updated_at: new Date().toISOString() },
+        { onConflict: 'lesson_id' },
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
-
-  const body = await request.json();
-
-  const allowed: Record<string, unknown> = {};
-  const allowedFields = ['title', 'description', 'content', 'lesson_notes', 'lesson_type', 'status',
-    'duration_minutes', 'order_index', 'video_url', 'session_date', 'content_layout', 'course_id', 'metadata'];
-  for (const f of allowedFields) {
-    if (f in body) allowed[f] = body[f] ?? null;
-  }
-  allowed.updated_at = new Date().toISOString();
-
-  const admin = adminClient();
-  const { error } = await admin.from('lessons').update(allowed).eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Optionally upsert lesson_plan if included in body
-  if (body.lesson_plan && typeof body.lesson_plan === 'object') {
-    await admin.from('lesson_plans').upsert(
-      { ...body.lesson_plan, lesson_id: id, updated_at: new Date().toISOString() },
-      { onConflict: 'lesson_id' },
-    );
-  }
-
-  return NextResponse.json({ success: true });
 }
 
 // PUT /api/lessons/[id] — alias for PATCH
@@ -95,24 +170,30 @@ export async function DELETE(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
-  const caller = await requireStaff();
-  if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
-  if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+  try {
+    const caller = await requireStaff();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+    if (caller.role === 'school') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
-  const { id } = await context.params;
+    const { id } = await context.params;
+    const admin = adminClient();
 
-  // Teachers can only delete their own lessons
-  if (caller.role === 'teacher') {
-    const { data: existing } = await adminClient().from('lessons').select('created_by').eq('id', id).single();
+    const { data: existing } = await admin.from('lessons').select('school_id, created_by').eq('id', id).maybeSingle();
     if (!existing) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
-    if (existing.created_by !== caller.id) return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+
+    const canManage = await callerCanManageLesson(caller, existing.school_id, existing.created_by);
+    if (!canManage) {
+      return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
+    }
+
+    const { error } = await admin
+      .from('lessons')
+      .delete()
+      .eq('id', id);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
-
-  const { error } = await adminClient()
-    .from('lessons')
-    .delete()
-    .eq('id', id);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
 }

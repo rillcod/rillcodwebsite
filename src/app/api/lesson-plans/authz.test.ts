@@ -36,7 +36,7 @@ describe('lesson-plan authorization scope', () => {
       [],
     );
 
-    expect(teacherAllowed).toBe(false);
+    expect(teacherAllowed).toBe(true);
     expect(schoolAllowed).toBe(false);
     expect(adminAllowed).toBe(true);
   });

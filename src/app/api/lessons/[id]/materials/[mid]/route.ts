@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,14 +11,50 @@ function adminClient() {
   );
 }
 
-async function requireStaff() {
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function requireStaff(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const { data: caller } = await adminClient()
-    .from('portal_users').select('role, id').eq('id', user.id).single();
+    .from('portal_users')
+    .select('role, id, school_id')
+    .eq('id', user.id)
+    .single();
   if (!caller || !['admin', 'teacher'].includes(caller.role)) return null;
-  return caller;
+  return caller as Caller;
+}
+
+async function getTeacherSchoolIds(teacherId: string, fallbackSchoolId: string | null): Promise<string[]> {
+  const ids = new Set<string>();
+  if (fallbackSchoolId) ids.add(fallbackSchoolId);
+  const admin = adminClient();
+  const { data } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', teacherId);
+  for (const row of data ?? []) {
+    const sid = (row as { school_id: string | null }).school_id;
+    if (sid) ids.add(sid);
+  }
+  return Array.from(ids);
+}
+
+async function callerCanManageLesson(
+  caller: Caller,
+  lessonSchoolId: string | null,
+  lessonCreatedBy: string | null,
+): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  if (caller.role === 'teacher') {
+    if (lessonCreatedBy === caller.id) return true;
+    if (!lessonSchoolId) return false;
+    if (caller.school_id === lessonSchoolId) return true;
+    const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+    return scopedIds.includes(lessonSchoolId);
+  }
+  return false;
 }
 
 // DELETE /api/lessons/[id]/materials/[mid]
@@ -29,7 +67,26 @@ export async function DELETE(
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
     const { mid } = await context.params;
-    const { error } = await adminClient().from('lesson_materials').delete().eq('id', mid);
+    const admin = adminClient();
+
+    // Fetch material and parent lesson details to perform school boundary checks
+    const { data: material } = await admin
+      .from('lesson_materials')
+      .select('id, lesson_id, lessons(school_id, created_by)')
+      .eq('id', mid)
+      .maybeSingle();
+
+    if (!material) {
+      return NextResponse.json({ error: 'Material not found' }, { status: 404 });
+    }
+
+    const lesson = (material as any).lessons;
+    const canManage = await callerCanManageLesson(caller, lesson?.school_id ?? null, lesson?.created_by ?? null);
+    if (!canManage) {
+      return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
+    }
+
+    const { error } = await admin.from('lesson_materials').delete().eq('id', mid);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   } catch (err: any) {

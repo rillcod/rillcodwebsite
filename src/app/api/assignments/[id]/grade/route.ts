@@ -164,16 +164,27 @@ export async function POST(
       return Math.round((g / assignMax) * assignWeight);
     }
 
+    let existingSub: any = null;
     if (submission_id) {
-      // Verify the submission belongs to this assignment (prevent cross-assignment grading)
-      const { data: sub } = await admin
+      const { data } = await admin
         .from('assignment_submissions')
-        .select('id, assignment_id')
+        .select('id, assignment_id, file_url, grade')
         .eq('id', submission_id)
         .eq('assignment_id', assignment_id)
         .maybeSingle();
-      if (!sub) return NextResponse.json({ error: 'Submission not found on this assignment' }, { status: 404 });
+      existingSub = data;
+      if (!existingSub) return NextResponse.json({ error: 'Submission not found on this assignment' }, { status: 404 });
+    } else if (student_id) {
+      const { data } = await admin
+        .from('assignment_submissions')
+        .select('id, assignment_id, file_url, grade')
+        .eq('assignment_id', assignment_id)
+        .eq('portal_user_id', student_id)
+        .maybeSingle();
+      existingSub = data;
+    }
 
+    if (submission_id) {
       const updatePayload: TablesUpdate<'assignment_submissions'> = {
         updated_at: new Date().toISOString(),
       };
@@ -185,6 +196,19 @@ export async function POST(
         updatePayload.graded_by = caller.id;
         updatePayload.graded_at = new Date().toISOString();
         updatePayload.weighted_score = computeWeightedScore(normalizedGrade);
+
+        // Delete image file from storage if marking as graded
+        if (existingSub?.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(existingSub.file_url)) {
+          const marker = '/object/public/assignments/';
+          const markerIdx = existingSub.file_url.indexOf(marker);
+          if (markerIdx !== -1) {
+            const storagePath = decodeURIComponent(
+              existingSub.file_url.slice(markerIdx + marker.length).split('?')[0]
+            );
+            await admin.storage.from('assignments').remove([storagePath]);
+          }
+          updatePayload.file_url = null;
+        }
       }
 
       const { data, error } = await admin
@@ -196,6 +220,16 @@ export async function POST(
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       
+      // Write audit log
+      await admin.from('audit_logs').insert({
+        actor_id: caller.id,
+        resource_type: 'assignment_submission',
+        resource_id: data.id,
+        action: 'grade_submission',
+        old_value: String(existingSub?.grade ?? ''),
+        new_value: String(data.grade ?? ''),
+      }).then(({ error }) => { if (error) console.error('[audit_log]', error.message); });
+
       if (updatePayload.graded_by && data?.portal_user_id) {
         sendGradeNotifications(
           admin, data.portal_user_id, assignment.title || 'Assignment',
@@ -207,25 +241,52 @@ export async function POST(
     }
 
     if (student_id) {
+      const insertPayload: any = {
+        assignment_id,
+        portal_user_id:  student_id,
+        grade:           normalizedGrade ?? null,
+        feedback:        feedback ?? null,
+        status:          status ?? 'graded',
+        submission_text: submission_text ?? null,
+        graded_by:       caller.id,
+        graded_at:       new Date().toISOString(),
+        submitted_at:    new Date().toISOString(),
+        updated_at:      new Date().toISOString(),
+        weighted_score:  computeWeightedScore(normalizedGrade),
+      };
+
+      // Delete image file from storage if marking as graded
+      if (insertPayload.status === 'graded' && existingSub?.file_url) {
+        if (/\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(existingSub.file_url)) {
+          const marker = '/object/public/assignments/';
+          const markerIdx = existingSub.file_url.indexOf(marker);
+          if (markerIdx !== -1) {
+            const storagePath = decodeURIComponent(
+              existingSub.file_url.slice(markerIdx + marker.length).split('?')[0]
+            );
+            await admin.storage.from('assignments').remove([storagePath]);
+          }
+          insertPayload.file_url = null;
+        }
+      }
+
       const { data, error } = await admin
         .from('assignment_submissions')
-        .upsert({
-          assignment_id,
-          portal_user_id:  student_id,
-          grade:           normalizedGrade ?? null,
-          feedback:        feedback ?? null,
-          status:          status ?? 'graded',
-          submission_text: submission_text ?? null,
-          graded_by:       caller.id,
-          graded_at:       new Date().toISOString(),
-          submitted_at:    new Date().toISOString(),
-          updated_at:      new Date().toISOString(),
-          weighted_score:  computeWeightedScore(normalizedGrade),
-        }, { onConflict: 'assignment_id,portal_user_id' })
+        .upsert(insertPayload, { onConflict: 'assignment_id,portal_user_id' })
         .select('id, grade, status, weighted_score, portal_user_id')
         .single();
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      // Write audit log
+      await admin.from('audit_logs').insert({
+        actor_id: caller.id,
+        resource_type: 'assignment_submission',
+        resource_id: data.id,
+        action: 'grade_submission',
+        old_value: String(existingSub?.grade ?? ''),
+        new_value: String(data.grade ?? ''),
+      }).then(({ error }) => { if (error) console.error('[audit_log]', error.message); });
 
       if (data?.portal_user_id) {
         sendGradeNotifications(
