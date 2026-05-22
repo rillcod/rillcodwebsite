@@ -3159,12 +3159,14 @@ export default function CurriculumPage() {
                                 const isNow = term.term === getCurrentTerm();
                                 const progTermNum = getProgrammeTerm(term.term, effectiveProgramStartTerm);
                                 const PROG_THEME: Record<number, string> = { 1: 'Foundations', 2: 'Application', 3: 'Innovation' };
+                                const nationalLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
                                 const progLabel = effectiveProgramStartTerm !== 1
-                                  ? `Prog.T${progTermNum} ${PROG_THEME[progTermNum] ?? ''} — ${TERM_LABEL[term.term] ?? `Term ${term.term}`}`
-                                  : TERM_LABEL[term.term] ?? `Term ${term.term}`;
+                                  ? `T${progTermNum} ${PROG_THEME[progTermNum] ?? ''} (${nationalLabel})`
+                                  : nationalLabel;
+                                const doneLabel = termWeeks > 0 ? ` · ${termDone}/${termWeeks}` : '';
                                 return (
                                   <option key={term.term} value={term.term} className="bg-[#0a0a0a] text-foreground">
-                                    {isNow ? '▶ ' : ''}{progLabel} ({termDone}/{termWeeks})
+                                    {isNow ? '▶ ' : ''}{progLabel}{doneLabel}
                                   </option>
                                 );
                               })}
@@ -3202,37 +3204,40 @@ export default function CurriculumPage() {
                                 <select
                                   value={programStartTermDraft}
                                   onChange={e => setProgramStartTermDraft(Number(e.target.value))}
-                                  className="text-[10px] font-black bg-muted border border-border rounded px-1.5 py-0.5 text-foreground focus:outline-none focus:border-primary/50"
+                                  className="text-[10px] font-black bg-muted border border-border rounded px-2 py-0.5 text-foreground focus:outline-none focus:border-amber-500/50"
                                   autoFocus
                                 >
-                                  <option value={1}>Starts Term 1 (Sept)</option>
-                                  <option value={2}>Starts Term 2 (Jan)</option>
-                                  <option value={3}>Starts Term 3 (May)</option>
+                                  <option value={1}>Starts Term 1 — Sept</option>
+                                  <option value={2}>Starts Term 2 — Jan</option>
+                                  <option value={3}>Starts Term 3 — May</option>
                                 </select>
                                 <button
                                   onClick={() => void saveProgramStartTerm(programStartTermDraft)}
                                   disabled={savingProgramStartTerm}
-                                  className="text-[10px] font-black text-primary hover:text-primary/80 disabled:opacity-40"
+                                  className="px-2 py-0.5 text-[9px] font-black bg-primary text-white rounded-full disabled:opacity-40 transition-colors"
                                 >
                                   {savingProgramStartTerm ? '…' : 'Save'}
                                 </button>
                                 <button
                                   onClick={() => setEditingProgramStartTerm(false)}
-                                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                                 >
-                                  Cancel
+                                  ✕
                                 </button>
                               </span>
                             ) : (
                               <button
                                 onClick={() => { setProgramStartTermDraft(effectiveProgramStartTerm); setEditingProgramStartTerm(true); }}
-                                title="Edit programme start term — controls which national term is treated as the first term of the programme"
-                                className="flex items-center gap-1 text-[10px] font-black text-muted-foreground hover:text-foreground transition-colors group"
+                                title="Tap to change which national term is Programme Term 1 for this school"
+                                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group ${
+                                  effectiveProgramStartTerm !== 1
+                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
+                                    : 'bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                                }`}
                               >
-                                <span className={effectiveProgramStartTerm !== 1 ? 'text-amber-400' : ''}>
-                                  Prog. starts T{effectiveProgramStartTerm}
-                                </span>
-                                <PencilIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${effectiveProgramStartTerm !== 1 ? 'bg-amber-400' : 'bg-muted-foreground/40'}`} />
+                                Prog. T{effectiveProgramStartTerm} starts
+                                <PencilIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity" />
                               </button>
                             )}
                           </>
@@ -3343,20 +3348,35 @@ export default function CurriculumPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <h2 className="text-lg font-black">{currentTermData.title || (TERM_LABEL[currentTermData.term] ?? `Term ${currentTermData.term}`)}</h2>
-                          {effectiveProgramStartTerm !== 1 && (() => {
+                          {(() => {
                             const pt = getProgrammeTerm(currentTermData.term, effectiveProgramStartTerm);
+                            const PILL_COLOR: Record<number, string> = {
+                              1: 'bg-primary/10 border-primary/25 text-primary',
+                              2: 'bg-blue-500/10 border-blue-500/25 text-blue-400',
+                              3: 'bg-purple-500/10 border-purple-500/25 text-purple-400',
+                            };
+                            const DOT_COLOR: Record<number, string> = {
+                              1: 'bg-primary',
+                              2: 'bg-blue-400',
+                              3: 'bg-purple-400',
+                            };
+                            const theme = PROGRAMME_TERM_THEME[pt] ?? '';
+                            const pillCls = PILL_COLOR[pt] ?? PILL_COLOR[1];
+                            const dotCls = DOT_COLOR[pt] ?? DOT_COLOR[1];
                             return (
-                              <p className="text-[10px] font-black uppercase tracking-widest text-primary/70 mt-0.5">
-                                Programme Term {pt} — {PROGRAMME_TERM_THEME[pt] ?? ''}
-                                {activeYear > 1 ? ` · Year ${activeYear}` : ''}
-                              </p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${pillCls}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotCls}`} />
+                                  Prog. Term {pt} · {theme}
+                                </span>
+                                {activeYear > 1 && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full border border-border bg-muted/40 text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                                    Year {activeYear}
+                                  </span>
+                                )}
+                              </div>
                             );
                           })()}
-                          {effectiveProgramStartTerm === 1 && activeYear > 1 && (
-                            <p className="text-[10px] font-black uppercase tracking-widest text-primary/70 mt-0.5">
-                              Year {activeYear} · {PROGRAMME_TERM_THEME[getProgrammeTerm(currentTermData.term, 1)] ?? ''}
-                            </p>
-                          )}
                           {(() => {
                             const customStart = currentTermData.start_date;
                             const td = customStart
