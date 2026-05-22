@@ -612,6 +612,12 @@ export async function POST(req: NextRequest) {
     }));
   }
 
+  // Persist program_start_term in content.metadata so it survives page reloads
+  if (format === 'school') {
+    const existingMeta = existingCurriculumContent?.metadata ?? {};
+    aiContent.metadata = { ...existingMeta, ...(aiContent.metadata ?? {}), program_start_term: resolvedStartTerm };
+  }
+
   // Multi-year merge: when an existing curriculum has terms for other years, keep them.
   // Only replace terms that match the current resolvedYear.
   if (format === 'school' && existingCurriculumContent?.terms?.length && aiContent?.terms) {

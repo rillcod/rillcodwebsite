@@ -108,6 +108,19 @@ export async function PATCH(
       .single();
     const existingContent: any = currentRow?.content ?? {};
     updatePayload.content = { ...existingContent, notification_settings: body.notification_settings };
+  } else if (body.program_start_term !== undefined) {
+    const pst = Number(body.program_start_term);
+    if (![1, 2, 3].includes(pst)) {
+      return NextResponse.json({ error: 'program_start_term must be 1, 2, or 3' }, { status: 400 });
+    }
+    const { data: currentRow } = await admin
+      .from('course_curricula')
+      .select('content')
+      .eq('id', id)
+      .single();
+    const existingContent: any = currentRow?.content ?? {};
+    const existingMeta = existingContent.metadata ?? {};
+    updatePayload.content = { ...existingContent, metadata: { ...existingMeta, program_start_term: pst } };
   }
 
   if (Object.keys(updatePayload).length === 1) {

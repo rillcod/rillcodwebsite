@@ -193,6 +193,7 @@ interface CurriculumContent {
   recommended_tools: string[];
   notification_settings?: NotificationSettings;
   description?: string | null;
+  metadata?: { program_start_term?: number; [key: string]: unknown };
 }
 
 interface CurriculumDoc {
@@ -456,6 +457,9 @@ export default function CurriculumPage() {
   const [qaRecoveryEditTopics, setQaRecoveryEditTopics] = useState<Record<string, string>>({});
   const [qaRecoveryTargetTerm, setQaRecoveryTargetTerm] = useState(1);
   const [qaRecoveryInjecting, setQaRecoveryInjecting] = useState(false);
+  const [editingProgramStartTerm, setEditingProgramStartTerm] = useState(false);
+  const [programStartTermDraft, setProgramStartTermDraft] = useState<number>(1);
+  const [savingProgramStartTerm, setSavingProgramStartTerm] = useState(false);
   const [editingWeekKey, setEditingWeekKey] = useState<string | null>(null); // "termN-weekN"
   const [editWeekTopic, setEditWeekTopic] = useState('');
   const [editWeekSubtopics, setEditWeekSubtopics] = useState('');
@@ -467,14 +471,15 @@ export default function CurriculumPage() {
   // Stable ref so the programs useEffect can call loadCurriculum before it's declared.
   const loadCurriculumRef = useRef<((courseId: string) => Promise<void>) | null>(null);
 
-  // Programme start term from the selected course's program policy
-  // Used to show "Programme Term N" labels when the school didn't start coding in Term 1
+  // Programme start term: saved in content.metadata (most reliable), then program policy, then 1
   const effectiveProgramStartTerm = useMemo(() => {
-    if (!selectedCourse?.program_id) return 1;
+    const contentPst = curriculum?.content?.metadata?.program_start_term;
+    if ([1, 2, 3].includes(Number(contentPst))) return Number(contentPst) as 1 | 2 | 3;
+    if (!selectedCourse?.program_id) return 1 as const;
     const prog = programs.find(p => p.id === selectedCourse.program_id);
     const saved = prog?.progression_policy?.program_start_term;
-    return [1, 2, 3].includes(Number(saved)) ? Number(saved) : 1;
-  }, [selectedCourse?.program_id, programs]);
+    return ([1, 2, 3].includes(Number(saved)) ? Number(saved) : 1) as 1 | 2 | 3;
+  }, [curriculum?.content?.metadata?.program_start_term, selectedCourse?.program_id, programs]);
 
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -1108,6 +1113,27 @@ export default function CurriculumPage() {
       setQaRecoveryInjecting(false);
     }
   }, [curriculum, tracking, qaRecoveryChecked, qaRecoveryEditTopics, qaRecoveryTargetTerm]);
+
+  const saveProgramStartTerm = useCallback(async (pst: number) => {
+    if (!curriculum) return;
+    setSavingProgramStartTerm(true);
+    try {
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ program_start_term: pst }),
+      });
+      const j = await res.json();
+      if (res.ok) {
+        setCurriculum(prev => prev ? { ...prev, content: j.data?.content ?? prev.content } : prev);
+        setEditingProgramStartTerm(false);
+        toast.success('Programme start term updated');
+      } else {
+        toast.error(j.error || 'Failed to update');
+      }
+    } catch { toast.error('Network error'); }
+    finally { setSavingProgramStartTerm(false); }
+  }, [curriculum]);
 
   // Regenerate a single week topic with AI
   const regenWeek = useCallback(async (termN: number, weekN: number, prevTopics: string[]) => {
@@ -3143,6 +3169,50 @@ export default function CurriculumPage() {
                           <>
                             <span className="w-1 h-1 rounded-full bg-white/20" />
                             <span className="text-emerald-400 font-black">{completedCount}/{allWeeks.length} taught</span>
+                          </>
+                        )}
+                        {/* Programme start term — editable by staff */}
+                        {canModifyCurriculum && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                            {editingProgramStartTerm ? (
+                              <span className="flex items-center gap-1.5">
+                                <select
+                                  value={programStartTermDraft}
+                                  onChange={e => setProgramStartTermDraft(Number(e.target.value))}
+                                  className="text-[10px] font-black bg-muted border border-border rounded px-1.5 py-0.5 text-foreground focus:outline-none focus:border-primary/50"
+                                  autoFocus
+                                >
+                                  <option value={1}>Starts Term 1 (Sept)</option>
+                                  <option value={2}>Starts Term 2 (Jan)</option>
+                                  <option value={3}>Starts Term 3 (May)</option>
+                                </select>
+                                <button
+                                  onClick={() => void saveProgramStartTerm(programStartTermDraft)}
+                                  disabled={savingProgramStartTerm}
+                                  className="text-[10px] font-black text-primary hover:text-primary/80 disabled:opacity-40"
+                                >
+                                  {savingProgramStartTerm ? '…' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={() => setEditingProgramStartTerm(false)}
+                                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                                >
+                                  Cancel
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => { setProgramStartTermDraft(effectiveProgramStartTerm); setEditingProgramStartTerm(true); }}
+                                title="Edit programme start term — controls which national term is treated as the first term of the programme"
+                                className="flex items-center gap-1 text-[10px] font-black text-muted-foreground hover:text-foreground transition-colors group"
+                              >
+                                <span className={effectiveProgramStartTerm !== 1 ? 'text-amber-400' : ''}>
+                                  Prog. starts T{effectiveProgramStartTerm}
+                                </span>
+                                <PencilIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60 transition-opacity" />
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -5238,78 +5308,3 @@ function EditableAssessmentPlan({ plan, onChange, onSave, onCancel, saving }: {
           {saving ? 'Saving…' : 'Save Assessment Content'}
         </button>
       </div>
-    </div>
-  );
-}
-
-// ── Assessment Plan View Component ───────────────────────────────────────────
-function AssessmentPlanView({ plan, type }: { plan: AssessmentPlan; type: WeekType }) {
-  const isExam = type === 'examination';
-  const color = isExam ? 'text-rose-400' : 'text-amber-400';
-  const MainIcon = isExam ? DocumentTextIcon : ClipboardDocumentListIcon;
-
-  return (
-    <div className="space-y-6 text-sm min-w-0">
-      <div className={`inline-flex items-center gap-3 px-4 py-2 ${isExam ? 'bg-rose-500/10 border-rose-500/20' : 'bg-amber-500/10 border-amber-500/20'} border max-w-full overflow-hidden`}>
-        <MainIcon className={`w-4 h-4 ${color} shrink-0`} />
-        <span className={`text-[10px] ${color} font-black uppercase tracking-widest truncate`}>
-          {isExam ? 'Final Examination' : 'Term Assessment'} · {plan.duration_minutes} Minutes
-        </span>
-      </div>
-
-      {plan.coverage?.length > 0 && (
-        <Section label="Academic Coverage" color={color} icon={InformationCircleIcon}>
-          <ul className="space-y-2">
-            {plan.coverage.map((c, i) => (
-              <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
-                <span className={`${color} shrink-0 opacity-50`}>•</span>
-                <span>{c}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {plan.format && (
-          <Section label="Assessment Format" color={color} icon={ClipboardDocumentListIcon}>
-            <p className="text-xs text-foreground/80 leading-relaxed">{plan.format}</p>
-          </Section>
-        )}
-
-        {plan.scoring_guide && (
-          <Section label="Scoring Methodology" color={color} icon={ChartBarIcon}>
-            <p className="text-xs text-foreground/80 leading-relaxed">{plan.scoring_guide}</p>
-          </Section>
-        )}
-      </div>
-
-      {plan.teacher_prep?.length > 0 && (
-        <Section label="Invigilation Checklist" color={color} icon={CheckCircleIcon}>
-          <ol className="space-y-3">
-            {plan.teacher_prep.map((p, i) => (
-              <li key={i} className="flex gap-3 text-xs text-foreground/80 leading-relaxed">
-                <span className={`${color} font-black shrink-0 w-4`}>{i + 1}.</span>
-                <span>{p}</span>
-              </li>
-            ))}
-          </ol>
-        </Section>
-      )}
-
-      {(plan.sample_questions ?? []).length > 0 && (
-        <Section label="Reference Questions" color={color} icon={PencilIcon}>
-          <ul className="space-y-4">
-            {(plan.sample_questions ?? []).map((q, i) => (
-              <li key={i} className="text-xs text-foreground/80 p-5 bg-muted/30 border border-border/50 relative overflow-hidden group">
-                <div className={`absolute top-0 left-0 w-1 h-full ${color.replace('text-', 'bg-')} opacity-20`} />
-                <span className={`${color} font-black mr-3 text-[10px] uppercase tracking-tighter`}>Question {i + 1}</span>
-                <p className="mt-2 leading-relaxed">{q}</p>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-    </div>
-  );
-}
