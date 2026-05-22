@@ -618,10 +618,8 @@ export default function CurriculumPage() {
         setExpandedPrograms(new Set(progs.map((p) => p.id)));
         // Helper: snap activeTerm from program policy so loadCurriculum doesn't override incorrectly
         function snapPstFromProgram(p: Program) {
-          const pst = p.progression_policy?.program_start_term;
-          if ([1, 2, 3].includes(Number(pst)) && Number(pst) !== 1) {
-            setActiveTerm(Number(pst));
-          }
+          const pst = Number(p.progression_policy?.program_start_term ?? 1);
+          if ([1, 2, 3].includes(pst)) setActiveTerm(pst);
         }
         if (deepProgramId) {
           const p = progs.find((x) => x.id === deepProgramId);
@@ -1663,8 +1661,8 @@ export default function CurriculumPage() {
             const savedPst = (curr.content?.metadata as { program_start_term?: number } | undefined)?.program_start_term;
             const metaPst = [1, 2, 3].includes(Number(savedPst)) ? Number(savedPst) : null;
             setActiveTerm((prev) => {
-              // Explicit PST in metadata → always snap to it
-              if (metaPst && metaPst !== 1 && termNumsForYear.includes(metaPst)) return metaPst;
+              // Explicit PST in metadata → always snap to it (including PST=1)
+              if (metaPst && termNumsForYear.includes(metaPst)) return metaPst;
               // selectCourse already set a valid term (e.g. from program policy) → keep it
               if (termNumsForYear.includes(prev)) return prev;
               // Otherwise fall back to first available term
