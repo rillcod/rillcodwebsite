@@ -1656,14 +1656,15 @@ export default function CurriculumPage() {
             // Snap to Prog.T1 (national term = PST). Priority: content metadata > keep existing (set by selectCourse) > first available.
             const savedPst = (curr.content?.metadata as { program_start_term?: number } | undefined)?.program_start_term;
             const metaPst = [1, 2, 3].includes(Number(savedPst)) ? Number(savedPst) : null;
-            setActiveTerm((prev) => {
-              // Explicit PST in metadata → always snap to it (including PST=1)
+            setActiveTerm(() => {
+              const today = getCurrentTerm();
+              // Prefer today's national term — shows what the teacher is currently teaching
+              if (termNumsForYear.includes(today)) return today;
+              // Today's term not generated yet — fall back to Prog.T1 (PST from metadata)
               if (metaPst && termNumsForYear.includes(metaPst)) return metaPst;
-              // Programme policy PST passed as hint (handles old curricula without metadata PST)
+              // Hint from caller (old curricula without metadata PST)
               if (hintPst && [1, 2, 3].includes(hintPst) && termNumsForYear.includes(hintPst)) return hintPst;
-              // selectCourse already set a valid term → keep it
-              if (termNumsForYear.includes(prev)) return prev;
-              // Otherwise fall back to first available term
+              // Last resort: first available term in programme order
               return termNumsForYear[0];
             });
           }
@@ -3469,6 +3470,36 @@ export default function CurriculumPage() {
                         {/* Programme start term — editable by staff */}
                         {canModifyCurriculum && (
                           <>
+                            {/* Today indicator — shows current programme term and lets teacher jump to it */}
+                            {(() => {
+                              const todayNational = getCurrentTerm();
+                              const todayProg = getProgrammeTerm(todayNational, effectiveProgramStartTerm);
+                              const PROG_PHASE: Record<number, string> = { 1: 'Foundations', 2: 'Application', 3: 'Innovation' };
+                              const isViewingToday = activeTerm === todayNational;
+                              const todayInCurriculum = termsForActiveYear.some(t => t.term === todayNational);
+                              if (!todayInCurriculum) return null;
+                              return (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-white/20" />
+                                  {isViewingToday ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                      Now · Prog.T{todayProg} {PROG_PHASE[todayProg]}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => { setActiveTerm(todayNational); setActiveWeek(null); }}
+                                      title={`Jump to today's term — Prog.T${todayProg} ${PROG_PHASE[todayProg]}`}
+                                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide transition-all group bg-muted/50 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+                                      Today: Prog.T{todayProg} {PROG_PHASE[todayProg]}
+                                      <ChevronRightIcon className="w-2.5 h-2.5 opacity-0 group-hover:opacity-70 transition-opacity" />
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
                             <span className="w-1 h-1 rounded-full bg-white/20" />
                             {editingProgramStartTerm ? (
                               <span className="flex items-center gap-1.5">
