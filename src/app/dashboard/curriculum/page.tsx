@@ -373,6 +373,11 @@ export default function CurriculumPage() {
   const [editVersionDesc, setEditVersionDesc] = useState('');
   const [savingVersionDetails, setSavingVersionDetails] = useState(false);
 
+  // Term title edit states
+  const [editingTermTitle, setEditingTermTitle] = useState(false);
+  const [editTermTitleVal, setEditTermTitleVal] = useState('');
+  const [savingTermTitle, setSavingTermTitle] = useState(false);
+
   /** Filter sidebar programs / courses (builder mode). */
   const [catalogQuery, setCatalogQuery] = useState('');
   /** All syllabus rows for the selected course (global vs school-scoped, versions). */
@@ -2663,6 +2668,50 @@ export default function CurriculumPage() {
     }
   }
 
+  // ── Save curriculum term title ───────────────────────────────────────────
+  async function saveTermTitle(termNum: number, newTitle: string) {
+    if (!curriculum) return;
+    if (!newTitle.trim()) {
+      toast.error('Please enter a valid term title');
+      return;
+    }
+
+    setSavingTermTitle(true);
+    try {
+      const updatedTerms = (curriculum.content.terms ?? []).map(t => {
+        if (t.term === termNum) {
+          return { ...t, title: newTitle };
+        }
+        return t;
+      });
+
+      const nextContent = { ...curriculum.content, terms: updatedTerms };
+
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: nextContent }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to update term title');
+
+      const updated = json.data as CurriculumDoc;
+
+      // Update local states
+      const nextCurriculum = { ...curriculum, content: updated.content };
+      setCurriculum(nextCurriculum);
+      setCurriculumList(prev => prev.map(c => c.id === curriculum.id ? nextCurriculum : c));
+
+      toast.success('Term title updated successfully');
+      setEditingTermTitle(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update term title');
+    } finally {
+      setSavingTermTitle(false);
+    }
+  }
+
   // ── Clone curriculum ─────────────────────────────────────────────────────
   async function handleClone(curriculumId: string, schoolId?: string) {
     // If teacher has multiple schools and no target chosen yet, show the modal
@@ -3909,7 +3958,47 @@ export default function CurriculumPage() {
                       {/* Term title + date + actions */}
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <h2 className="text-lg font-black">{currentTermData.title || (TERM_LABEL[currentTermData.term] ?? `Term ${currentTermData.term}`)}</h2>
+                          {editingTermTitle ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editTermTitleVal}
+                                onChange={e => setEditTermTitleVal(e.target.value)}
+                                className="text-xs bg-background border border-primary rounded px-2 py-1 text-foreground focus:outline-none focus:ring-0 w-64 font-bold"
+                                placeholder="Rename Term Title"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => void saveTermTitle(activeTerm, editTermTitleVal)}
+                                disabled={savingTermTitle || !editTermTitleVal.trim()}
+                                className="px-2 py-1 text-[10px] font-black bg-primary text-white rounded transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
+                              >
+                                {savingTermTitle ? '…' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => setEditingTermTitle(false)}
+                                className="px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border rounded transition-colors shrink-0 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h2 className="text-lg font-black">{currentTermData.title || (TERM_LABEL[currentTermData.term] ?? `Term ${currentTermData.term}`)}</h2>
+                              {canModifyCurriculum && (
+                                <button
+                                  onClick={() => {
+                                    setEditTermTitleVal(currentTermData.title || TERM_LABEL[currentTermData.term] || `Term ${currentTermData.term}`);
+                                    setEditingTermTitle(true);
+                                  }}
+                                  className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-white/10 hover:border-primary/40 bg-white/5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
+                                  title="Edit term title"
+                                >
+                                  <PencilIcon className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          )}
                           {(() => {
                             const pt = getProgrammeTerm(currentTermData.term, effectiveProgramStartTerm);
                             const PILL_COLOR: Record<number, string> = {
