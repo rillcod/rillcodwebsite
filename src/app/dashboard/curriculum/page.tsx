@@ -1658,14 +1658,17 @@ export default function CurriculumPage() {
             const metaPst = [1, 2, 3].includes(Number(savedPst)) ? Number(savedPst) : null;
             setActiveTerm(() => {
               const today = getCurrentTerm();
-              // Prefer today's national term — shows what the teacher is currently teaching
+              const pstForSort = metaPst ?? 1;
+              // Prefer today's national term if it exists in the curriculum
               if (termNumsForYear.includes(today)) return today;
-              // Today's term not generated yet — fall back to Prog.T1 (PST from metadata)
+              // Today not generated — show Prog.T1 (the national term = PST) if available
               if (metaPst && termNumsForYear.includes(metaPst)) return metaPst;
-              // Hint from caller (old curricula without metadata PST)
-              if (hintPst && [1, 2, 3].includes(hintPst) && termNumsForYear.includes(hintPst)) return hintPst;
-              // Last resort: first available term in programme order
-              return termNumsForYear[0];
+              // Neither today nor Prog.T1 exists — pick the term with the lowest programme
+              // term number so we always land as close to Prog.T1 as possible
+              const sorted = [...termNumsForYear].sort(
+                (a, b) => getProgrammeTerm(a, pstForSort) - getProgrammeTerm(b, pstForSort)
+              );
+              return sorted[0];
             });
           }
 
@@ -3546,18 +3549,6 @@ export default function CurriculumPage() {
                         )}
                       </div>
                     </div>
-
-                    {/* Warning: platform curriculum with non-standard PST needs regeneration */}
-                    {canModifyCurriculum && !curriculum.school_id && effectiveProgramStartTerm !== 1 && (
-                      <div className="relative z-10 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] leading-snug">
-                        <span className="shrink-0 mt-px">⚠</span>
-                        <span>
-                          This platform template was generated with a non-standard start (Prog.T{effectiveProgramStartTerm} = Term {effectiveProgramStartTerm}), causing term labels to appear swapped for schools that start in Term 1.
-                          {' '}<button onClick={openGenerateModal} className="font-black underline underline-offset-2 hover:text-amber-200 transition-colors">Regenerate</button>
-                          {' '}with <strong>Programme starts in = Term 1</strong> and all 3 terms selected to restore standard order.
-                        </span>
-                      </div>
-                    )}
 
                     {/* Row 3: action buttons — primary then secondary, all wrap */}
                     <div className="flex flex-wrap gap-2 relative z-10">
