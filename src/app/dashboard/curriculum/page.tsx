@@ -281,7 +281,7 @@ const TRACK_META: Record<TrackStatus, { label: string; color: string; icon: any 
   skipped: { label: 'Skipped', color: 'text-muted-foreground', icon: ExclamationTriangleIcon },
 };
 
-const INPUT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-primary';
+const INPUT_CLS = 'w-full px-3 py-2.5 text-sm border border-border bg-background text-foreground rounded focus:outline-none focus:border-primary transition-colors placeholder:text-muted-foreground';
 const SELECT_CLS = 'select-premium w-full px-3 py-2.5 text-sm focus:border-primary';
 const GRADE_LEVEL_OPTIONS = [
   'Nursery',
