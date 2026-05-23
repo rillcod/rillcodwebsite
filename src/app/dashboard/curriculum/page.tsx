@@ -2426,6 +2426,140 @@ export default function CurriculumPage() {
     }
   }
 
+  // ── Delete active Year (and all its terms) from this syllabus version ─────
+  async function handleDeleteActiveYear() {
+    if (!curriculum) return;
+    const allTerms = curriculum.content?.terms ?? [];
+    const remainingTerms = allTerms.filter(t => (t.year ?? 1) !== activeYear);
+
+    if (remainingTerms.length === 0) {
+      toast.error('You cannot delete the only remaining year in this curriculum. If you want to delete the entire curriculum, use the main Delete button.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete Year ${activeYear} from this syllabus? This will permanently delete all its terms and weeks. This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const nextContent = {
+        ...curriculum.content,
+        terms: remainingTerms,
+      };
+
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: nextContent }),
+      });
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to delete year');
+      }
+
+      const { data: updated } = await res.json();
+      if (!updated) throw new Error('Failed to update curriculum');
+
+      // Update curriculum state
+      const nextCurriculum = { ...curriculum, content: updated.content, version: updated.version };
+      setCurriculum(nextCurriculum);
+
+      // Update curriculumList state
+      setCurriculumList(prev => prev.map(c => c.id === curriculum.id ? { ...c, content: updated.content, version: updated.version } : c));
+
+      // Reset activeYear to one of the remaining years
+      const remainingYears = Array.from(new Set(remainingTerms.map((t) => t.year ?? 1))).sort((a, b) => a - b);
+      const nextYear = remainingYears[0] ?? 1;
+      setActiveYear(nextYear);
+
+      // Snap activeTerm
+      const termsInNewYear = remainingTerms.filter(t => (t.year ?? 1) === nextYear).map(t => t.term);
+      if (termsInNewYear.length > 0) {
+        const progT1 = effectiveProgramStartTerm;
+        setActiveTerm(termsInNewYear.includes(progT1) ? progT1 : termsInNewYear[0]);
+      }
+      setActiveWeek(null);
+
+      toast.success(`Year ${activeYear} successfully deleted`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete year');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  // ── Delete active Term from this syllabus version ────────────────────────
+  async function handleDeleteActiveTerm() {
+    if (!curriculum) return;
+    const allTerms = curriculum.content?.terms ?? [];
+    const remainingTerms = allTerms.filter(t => (t.year ?? 1) !== activeYear || t.term !== activeTerm);
+
+    if (remainingTerms.length === 0) {
+      toast.error('You cannot delete the only remaining term in this curriculum. If you want to delete the entire curriculum, use the main Delete button.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete Term ${activeTerm} of Year ${activeYear} from this syllabus? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      // 1. Delete tracking rows for this term in the database
+      await fetch(`/api/curricula/${curriculum.id}/track?term=${activeTerm}`, { method: 'DELETE' }).catch(() => {});
+
+      // 2. PATCH the curriculum content
+      const nextContent = {
+        ...curriculum.content,
+        terms: remainingTerms,
+      };
+
+      const res = await fetch(`/api/curricula/${curriculum.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: nextContent }),
+      });
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to delete term');
+      }
+
+      const { data: updated } = await res.json();
+      if (!updated) throw new Error('Failed to update curriculum');
+
+      // Update curriculum state
+      const nextCurriculum = { ...curriculum, content: updated.content, version: updated.version };
+      setCurriculum(nextCurriculum);
+
+      // Update curriculumList state
+      setCurriculumList(prev => prev.map(c => c.id === curriculum.id ? { ...c, content: updated.content, version: updated.version } : c));
+
+      // Reset activeYear and activeTerm
+      const remainingYears = Array.from(new Set(remainingTerms.map((t) => t.year ?? 1))).sort((a, b) => a - b);
+      let nextYear = activeYear;
+      if (!remainingYears.includes(activeYear)) {
+        nextYear = remainingYears[0] ?? 1;
+        setActiveYear(nextYear);
+      }
+
+      const termsInYear = remainingTerms.filter(t => (t.year ?? 1) === nextYear).map(t => t.term);
+      if (termsInYear.length > 0) {
+        const progT1 = effectiveProgramStartTerm;
+        setActiveTerm(termsInYear.includes(progT1) ? progT1 : termsInYear[0]);
+      }
+      setActiveWeek(null);
+
+      toast.success(`Term ${activeTerm} of Year ${activeYear} successfully deleted`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete term');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // ── Delete this curriculum version ──────────────────────────────────────
   async function handleDeleteCurriculum() {
     if (!curriculum) return;
@@ -3333,24 +3467,30 @@ export default function CurriculumPage() {
                           <select
                             value={curriculum.id}
                             onChange={(e) => selectCurriculumVersion(e.target.value)}
-                            className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer"
+                            className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary focus:ring-0 px-2.5 h-full cursor-pointer max-w-[200px] truncate"
                           >
                             {curriculumList.filter(c => !c.school_id).length > 0 && (
                               <optgroup label="── Platform template">
-                                {curriculumList.filter(c => !c.school_id).map((c) => (
-                                  <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                    Platform{curriculumList.filter(cx => !cx.school_id).length > 1 ? ` v${c.version}` : ''}
-                                  </option>
-                                ))}
+                                {curriculumList.filter(c => !c.school_id).map((c) => {
+                                  const desc = c.content?.description ? ` (${c.content.description})` : '';
+                                  return (
+                                    <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                      Platform v{c.version}{desc}
+                                    </option>
+                                  );
+                                })}
                               </optgroup>
                             )}
                             {curriculumList.filter(c => !!c.school_id).length > 0 && (
                               <optgroup label="── School versions">
-                                {curriculumList.filter(c => !!c.school_id).map((c) => (
-                                  <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
-                                    {c.schools?.name ?? 'School'}{curriculumList.filter(cx => cx.school_id === c.school_id).length > 1 ? ` v${c.version}` : ''}
-                                  </option>
-                                ))}
+                                {curriculumList.filter(c => !!c.school_id).map((c) => {
+                                  const desc = c.content?.description ? ` (${c.content.description})` : '';
+                                  return (
+                                    <option key={c.id} value={c.id} className="bg-[#0a0a0a] text-foreground">
+                                      {c.schools?.name ?? 'School'} v{c.version}{desc}
+                                    </option>
+                                  );
+                                })}
                               </optgroup>
                             )}
                           </select>
@@ -3406,6 +3546,17 @@ export default function CurriculumPage() {
                                     </option>
                                   ))}
                                 </select>
+                                {canModifyCurriculum && (
+                                  <button
+                                    type="button"
+                                    onClick={handleDeleteActiveYear}
+                                    disabled={deleting}
+                                    className="flex items-center justify-center w-8 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                                    title={`Delete Year ${activeYear} and all its terms`}
+                                  >
+                                    <TrashIcon className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
                               <ChevronRightIcon className="w-3 h-3 text-muted-foreground/40 shrink-0" />
                             </>
@@ -3446,16 +3597,37 @@ export default function CurriculumPage() {
                                 );
                               })}
                             </select>
+                            {canModifyCurriculum && allTerms.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={handleDeleteActiveTerm}
+                                disabled={deleting}
+                                className="flex items-center justify-center w-8 h-full border-l border-border bg-rose-500/0 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                                title={`Delete Term ${activeTerm} of Year ${activeYear}`}
+                              >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </>
                       )}
                     </div>
 
-                    {/* Row 2: title + meta */}
-                    <div className="space-y-1 relative z-10">
-                      <h1 className="text-xl sm:text-3xl font-black leading-tight tracking-tighter text-foreground">
-                        {curriculum.content.course_title}
-                      </h1>
+                    {/* Row 2: title + version + meta */}
+                    <div className="space-y-2.5 relative z-10">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h1 className="text-xl sm:text-3xl font-black leading-tight tracking-tighter text-foreground">
+                          {curriculum.content.course_title}
+                        </h1>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 border border-primary/20 text-primary">
+                          v{curriculum.version}
+                        </span>
+                        {curriculum.content.description && (
+                          <span className="text-xs font-semibold text-muted-foreground bg-white/5 px-2.5 py-0.5 border border-white/5 rounded">
+                            {curriculum.content.description}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground font-medium">
                         {yearsAvailable.length > 1 ? (
                           <span className="flex items-center gap-1"><AcademicCapIcon className="w-3 h-3" /> {yearsAvailable.length} Years · {termCount} Terms</span>
