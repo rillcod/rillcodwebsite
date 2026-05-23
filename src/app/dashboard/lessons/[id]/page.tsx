@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
@@ -252,69 +252,203 @@ function isCBlock(text: string): boolean {
   return /^(forever|repeat|if\b|else\b)/.test(t);
 }
 
-function ScratchBlockPiece({ text, index, total }: { text: string; index: number; total: number }) {
-  const cat = categorizeScratchBlock(text);
-  const colors = SCRATCH_COLORS[cat];
-  const hat = isHatBlock(text);
-  const cBlock = isCBlock(text);
-  const isLast = index === total - 1;
+function isBooleanBlock(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return t.endsWith('?') || /\b(and|or|not)\b/.test(t) || /[=><]/.test(t);
+}
+
+function isReporterBlock(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  if (/^(x position|y position|direction|costume (number|name)|backdrop (number|name)|size|volume|username|answer|mouse (x|y)|timer|loudness|current (year|month|date|day of week|hour|minute|second)|days since 2000)$/i.test(t)) {
+    return true;
+  }
+  if (/^[a-zA-Z0-9_-]+$/i.test(t) && !/^(move|say|think|show|hide|wait|forever|repeat|stop|end)$/i.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+function isCapBlock(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return /^(stop all|stop this script|stop other scripts in sprite|delete this clone)/i.test(t);
+}
+
+interface ScratchBlockNode {
+  text: string;
+  category: ScratchBlockCategory;
+  children: ScratchBlockNode[];
+}
+
+function parseScratchBlocks(flatBlocks: string[]): ScratchBlockNode[] {
+  const root: ScratchBlockNode[] = [];
+  const stack: { node: ScratchBlockNode; indent: number }[] = [];
+
+  flatBlocks.forEach(line => {
+    const indent = line.match(/^\s*/)?.[0].length || 0;
+    const cleanText = line.trim();
+    if (!cleanText) return;
+
+    if (cleanText.toLowerCase() === 'end') return;
+
+    const cat = categorizeScratchBlock(cleanText);
+    const node: ScratchBlockNode = {
+      text: cleanText,
+      category: cat,
+      children: []
+    };
+
+    while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
+      stack.pop();
+    }
+
+    if (stack.length > 0) {
+      stack[stack.length - 1].node.children.push(node);
+    } else {
+      root.push(node);
+    }
+
+    if (isCBlock(cleanText)) {
+      stack.push({ node, indent: indent + 1 });
+    }
+  });
+
+  return root;
+}
+
+function ScratchBlockPiece({ node, index, total, isFirst = false, isLast = false }: { node: ScratchBlockNode; index: number; total: number; isFirst?: boolean; isLast?: boolean }) {
+  const colors = SCRATCH_COLORS[node.category];
+  const hat = isHatBlock(node.text);
+  const isLoop = node.children.length > 0;
+  const isCap = isCapBlock(node.text);
+  const isBool = isBooleanBlock(node.text);
+  const isReporter = isReporterBlock(node.text);
+
+  const hasTopSlot = !hat && !isBool && !isReporter && !isFirst;
+  const hasBottomTab = !isLoop && !isLast && !isCap && !isBool && !isReporter;
 
   return (
-    <div style={{ position: 'relative', display: 'inline-block', marginBottom: isLast ? 0 : -1 }}>
-      {/* Top notch connector (puzzle bump in) — skip on hat blocks */}
-      {!hat && index > 0 && (
+    <div className="flex flex-col items-start select-none" style={{ position: 'relative', width: '100%', marginBottom: isLast ? 0 : -1 }}>
+      
+      {/* Top notch connector indent cutout (Puzzle slot) — skip on event hats, booleans, reporters */}
+      {hasTopSlot && (
         <div style={{
-          position: 'absolute', top: 0, left: 20,
-          width: 20, height: 4,
+          position: 'absolute', top: 0, left: 16,
+          width: 14, height: 4,
           backgroundColor: '#0d0d1a',
-          borderRadius: '0 0 4px 4px',
-          zIndex: 2,
+          borderRadius: '0 0 3px 3px',
+          zIndex: 20,
         }} />
       )}
 
-      {/* Block body */}
+      {/* Main Block Bar */}
       <div style={{
         backgroundColor: colors.bg,
-        border: `2px solid ${colors.border}`,
-        borderRadius: hat ? '20px 20px 4px 4px' : '4px',
-        paddingTop: hat ? '10px' : '8px',
-        paddingBottom: isLast ? '8px' : '12px',
-        paddingLeft: cBlock ? '10px' : '14px',
-        paddingRight: '18px',
-        display: 'flex',
+        border: `1.5px solid ${colors.border}`,
+        borderRadius: isReporter
+          ? '9999px'
+          : hat 
+            ? '20px 20px 4px 4px' 
+            : isLoop 
+              ? '4px 4px 0px 4px' 
+              : '4px',
+        clipPath: isBool
+          ? 'polygon(8px 0%, calc(100% - 8px) 0%, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0% 50%)'
+          : 'none',
+        paddingTop: hat ? '9px' : '5px',
+        paddingBottom: hat ? '9px' : '7px',
+        paddingLeft: isBool ? '16px' : isReporter ? '14px' : '12px',
+        paddingRight: isBool ? '16px' : isReporter ? '14px' : '16px',
+        display: 'inline-flex',
         alignItems: 'center',
-        gap: '8px',
-        minWidth: '180px',
-        maxWidth: '100%',
-        boxShadow: `0 2px 0 ${colors.border}`,
+        gap: '6px',
+        minWidth: '150px',
+        boxShadow: `inset 0 1.5px 0 rgba(255,255,255,0.35), 0 2px 0 ${colors.border}`,
         position: 'relative',
-        cursor: 'default',
-        userSelect: 'none',
+        zIndex: 10 + index,
       }}>
-        <span style={{ fontSize: '14px', flexShrink: 0 }}>{SCRATCH_ICONS[cat]}</span>
+        <span style={{ fontSize: '11px', flexShrink: 0 }}>{SCRATCH_ICONS[node.category]}</span>
         <span style={{
           color: colors.text,
-          fontSize: '12px',
+          fontSize: '11px',
           fontWeight: 900,
           fontFamily: 'monospace',
-          letterSpacing: '0.02em',
-          textShadow: cat === 'event' ? 'none' : '0 1px 1px rgba(0,0,0,0.3)',
+          letterSpacing: '0.01em',
+          textShadow: node.category === 'event' ? 'none' : '0 1px 1px rgba(0,0,0,0.15)',
         }}>
-          {text}
+          {node.text}
         </span>
+
+        {/* Tab at bottom of the main block (puzzle connector) — skip on C-mouth, caps, booleans, reporters */}
+        {hasBottomTab && (
+          <div style={{
+            position: 'absolute', bottom: -4, left: 16,
+            width: 14, height: 4,
+            backgroundColor: colors.bg,
+            border: `1.5px solid ${colors.border}`,
+            borderTop: 'none',
+            borderRadius: '0 0 3px 3px',
+            zIndex: 30,
+          }} />
+        )}
       </div>
 
-      {/* Bottom notch connector (puzzle bump out) — skip on last block */}
-      {!isLast && (
-        <div style={{
-          position: 'absolute', bottom: 0, left: 20,
-          width: 20, height: 4,
-          backgroundColor: colors.bg,
-          border: `2px solid ${colors.border}`,
-          borderTop: 'none',
-          borderRadius: '0 0 4px 4px',
-          zIndex: 3,
-        }} />
+      {/* If this is a loop, render its indented mouth and nested blocks recursively */}
+      {isLoop && (
+        <div className="flex flex-col items-start w-full">
+          {/* C-Mouth nested container wrapper */}
+          <div className="flex w-full" style={{ position: 'relative' }}>
+            {/* The vertical connector spine on the left */}
+            <div style={{
+              width: '14px',
+              backgroundColor: colors.bg,
+              borderLeft: `1.5px solid ${colors.border}`,
+              borderRight: `1.5px solid ${colors.border}`,
+              flexShrink: 0,
+              boxShadow: `inset 1px 0 0 rgba(255,255,255,0.2)`,
+              zIndex: 5,
+            }} />
+            
+            {/* Indented mouth children */}
+            <div className="flex-1 py-1 pl-3 flex flex-col gap-0 items-start overflow-hidden">
+              {node.children.map((child, idx) => (
+                <ScratchBlockPiece 
+                  key={idx} 
+                  node={child} 
+                  index={idx} 
+                  total={node.children.length} 
+                  isFirst={idx === 0}
+                  isLast={idx === node.children.length - 1}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Loop C-Bottom closing cap */}
+          <div style={{
+            height: '14px',
+            width: '120px',
+            backgroundColor: colors.bg,
+            border: `1.5px solid ${colors.border}`,
+            borderRadius: '0px 4px 4px 4px',
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 0 ${colors.border}`,
+            position: 'relative',
+            zIndex: 10 + index + 1,
+            marginTop: -1,
+          }}>
+            {/* Bottom notch cutout in loop cap */}
+            {!isLast && (
+              <div style={{
+                position: 'absolute', bottom: -4, left: 16,
+                width: 14, height: 4,
+                backgroundColor: colors.bg,
+                border: `1.5px solid ${colors.border}`,
+                borderTop: 'none',
+                borderRadius: '0 0 3px 3px',
+                zIndex: 30,
+              }} />
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -330,6 +464,8 @@ function ScratchBlockRenderer({ blocks, instructions }: { blocks: string[]; inst
     'wait 1 seconds',
     'say "Great job!" for 2 seconds',
   ];
+
+  const parsedTree = useMemo(() => parseScratchBlocks(blockList), [blockList]);
 
   const copyAll = () => {
     navigator.clipboard.writeText(blockList.join('\n'));
@@ -361,9 +497,16 @@ function ScratchBlockRenderer({ blocks, instructions }: { blocks: string[]; inst
           pointerEvents: 'none',
         }} />
 
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {blockList.map((text, i) => (
-            <ScratchBlockPiece key={i} text={text} index={i} total={blockList.length} />
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 0, alignItems: 'start' }}>
+          {parsedTree.map((node, i) => (
+            <ScratchBlockPiece 
+              key={i} 
+              node={node} 
+              index={i} 
+              total={parsedTree.length} 
+              isFirst={i === 0}
+              isLast={i === parsedTree.length - 1}
+            />
           ))}
         </div>
       </div>
@@ -419,6 +562,55 @@ function MermaidRenderer({ code }: { code: string }) {
   const [error, setError] = useState<string | null>(null);
   const chartId = useMemo(() => `mermaid-${Math.random().toString(36).slice(2, 9)}`, []);
 
+  // Parse lines to build a robust structured card sequence in case Mermaid fails to load/render
+  const fallbackData = useMemo(() => {
+    if (!error) return null;
+    const nodesMap: Record<string, string> = {};
+    const connections: { from: string; to: string; label?: string }[] = [];
+    const lines = code.split('\n');
+
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('flowchart') || trimmed.startsWith('graph') || trimmed.startsWith('mindmap')) return;
+
+      // Capture node definitions: e.g. A["Label"] or A[Label]
+      const nodeMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*(?:\["([^"]+)"\]|\[([^\]]+)\]|\("([^"]+)"\)|\(([^)]+)\)|\(\("([^"]+)"\)\)|\(\(([^)]+)\)\)|\{\{"([^"]+)"\}\}|\{\{([^}]+)\}\}|\{"([^"]+)"\}|\{([^}]+)\})/);
+      if (nodeMatch) {
+        const id = nodeMatch[1];
+        const label = nodeMatch[2] || nodeMatch[3] || nodeMatch[4] || nodeMatch[5] || nodeMatch[6] || nodeMatch[7] || nodeMatch[8] || nodeMatch[9] || nodeMatch[10] || nodeMatch[11];
+        if (id && label) {
+          nodesMap[id] = label.replace(/<[^>]*>/g, '').trim();
+        }
+      }
+
+      // Capture connection structures: A --> B or A -->|label| B
+      const connMatch = trimmed.match(/([a-zA-Z0-9_-]+)\s*(-->|---)(?:\s*\|([^|]+)\|)?\s*([a-zA-Z0-9_-]+)/);
+      if (connMatch) {
+        const fromId = connMatch[1];
+        const linkLabel = connMatch[3];
+        const toId = connMatch[4];
+        connections.push({ from: fromId, to: toId, label: linkLabel });
+
+        // Grab inline node labels if defined, e.g. A["Start"] --> B["End"]
+        const inlineMatches = trimmed.matchAll(/([a-zA-Z0-9_-]+)\s*(?:\["([^"]+)"\]|\[([^\]]+)\]|\("([^"]+)"\)|\(([^)]+)\))/g);
+        for (const match of inlineMatches) {
+          const id = match[1];
+          const label = match[2] || match[3] || match[4] || match[5];
+          if (id && label) {
+            nodesMap[id] = label.replace(/<[^>]*>/g, '').trim();
+          }
+        }
+      }
+    });
+
+    connections.forEach(conn => {
+      if (!nodesMap[conn.from]) nodesMap[conn.from] = conn.from;
+      if (!nodesMap[conn.to]) nodesMap[conn.to] = conn.to;
+    });
+
+    return { nodes: nodesMap, connections };
+  }, [code, error]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -440,16 +632,34 @@ function MermaidRenderer({ code }: { code: string }) {
         // Normalise graph → flowchart
         if (/^graph\s+/i.test(processedCode)) processedCode = processedCode.replace(/^graph\s+/i, 'flowchart ');
 
-        // Strip unsupported node shapes AI likes to invent (keep only standard ones)
-        // Replace {{...}} with ([...]) and {{{...}}} with [...] which mermaid supports
+        // Auto-repair unquoted shape labels that contain parenthesis or colons that break Mermaid
+        processedCode = processedCode.replace(/([a-zA-Z0-9_-]+)\s*\[([^"\]\n]+)\]/g, (m, id, text) => {
+          if (text.startsWith('"') && text.endsWith('"')) return m;
+          return `${id}["${text.replace(/"/g, "'").replace(/<[^>]*>/g, '')}"]`;
+        });
+        processedCode = processedCode.replace(/([a-zA-Z0-9_-]+)\s*\(([^"\)\n]+)\)/g, (m, id, text) => {
+          if (text.startsWith('"') && text.endsWith('"')) return m;
+          return `${id}("${text.replace(/"/g, "'").replace(/<[^>]*>/g, '')}")`;
+        });
+        processedCode = processedCode.replace(/([a-zA-Z0-9_-]+)\s*\{\{([^"\}\n]+)\}\}/g, (m, id, text) => {
+          if (text.startsWith('"') && text.endsWith('"')) return m;
+          return `${id}{{"${text.replace(/"/g, "'").replace(/<[^>]*>/g, '')}"}}`;
+        });
+        processedCode = processedCode.replace(/([a-zA-Z0-9_-]+)\s*\{([^"\}\n]+)\}/g, (m, id, text) => {
+          if (text.startsWith('"') && text.endsWith('"')) return m;
+          return `${id}{"${text.replace(/"/g, "'").replace(/<[^>]*>/g, '')}"}`;
+        });
+
+        // Strip HTML tags like <br> which break Mermaid v10 parsing
+        processedCode = processedCode.replace(/<[^>]*>/g, '');
+
+        // Strip unsupported node shapes AI likes to invent
         processedCode = processedCode.replace(/\{\{\{([^}]+)\}\}\}/g, '[$1]');
         processedCode = processedCode.replace(/\{\{([^}]+)\}\}/g, '([$1])');
 
-        // Remove any lines with bare-word emoji that break parsing
+        // Remove comments
         processedCode = processedCode.split('\n').map(line => {
-          // Strip inline comments that AI sometimes adds
           return line.replace(/\/\/.*$/, '').replace(/#.*$/, (m, offset) => {
-            // Only strip # comments if not inside a string
             const before = line.slice(0, offset);
             const quoteCount = (before.match(/"/g) || []).length;
             return quoteCount % 2 === 0 ? '' : m;
@@ -459,7 +669,6 @@ function MermaidRenderer({ code }: { code: string }) {
         // Validate diagram type
         const VALID_START = /^(flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph|journey|quadrantChart|mindmap|timeline|xychart|block)/i;
         if (!VALID_START.test(processedCode)) {
-          // Try to auto-wrap as a flowchart if it looks like nodes+edges
           if (/-->|---/.test(processedCode)) {
             processedCode = `flowchart TD\n${processedCode}`;
           } else {
@@ -492,6 +701,54 @@ function MermaidRenderer({ code }: { code: string }) {
   }, [code, chartId]);
 
   if (error) {
+    if (fallbackData && Object.keys(fallbackData.nodes).length > 0) {
+      return (
+        <div className="my-12 space-y-4">
+          <div className="flex items-center gap-3 px-6 justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+              <p className="text-[10px] font-black text-cyan-500/60 uppercase tracking-[0.3em]">Learning Path Flowchart (Concept View)</p>
+            </div>
+            <span className="text-[8px] font-black bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded-full uppercase tracking-wider">Engine Fallback Mode</span>
+          </div>
+          <div className="bg-card p-6 sm:p-8 rounded-xl border border-border relative overflow-x-auto shadow-2xl flex flex-wrap items-center justify-center gap-3 py-6 min-h-[100px]">
+            {fallbackData.connections.length > 0 ? (
+              fallbackData.connections.map((conn, idx) => (
+                <Fragment key={idx}>
+                  {idx > 0 && (
+                    <div className="flex flex-col items-center justify-center text-cyan-500/40 font-bold px-1 select-none animate-pulse shrink-0">
+                      <span>→</span>
+                    </div>
+                  )}
+                  <div className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col items-center justify-center shadow-lg hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all duration-500 shrink-0 min-w-[120px]">
+                    <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-1.5">Step {conn.from}</span>
+                    <span className="text-xs font-black text-white text-center leading-tight">{fallbackData.nodes[conn.from]}</span>
+                    {conn.label && (
+                      <span className="text-[8px] font-bold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded mt-2 uppercase tracking-wider">{conn.label}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-center justify-center text-cyan-500/60 font-black px-1 select-none animate-pulse shrink-0">
+                    <span>→</span>
+                  </div>
+                  <div className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col items-center justify-center shadow-lg hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all duration-500 shrink-0 min-w-[120px]">
+                    <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-1.5">Step {conn.to}</span>
+                    <span className="text-xs font-black text-white text-center leading-tight">{fallbackData.nodes[conn.to]}</span>
+                  </div>
+                </Fragment>
+              ))
+            ) : (
+              Object.entries(fallbackData.nodes).map(([id, label]) => (
+                <div key={id} className="px-5 py-3.5 bg-zinc-900 border border-zinc-800 rounded-xl flex flex-col items-center justify-center shadow-lg hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all duration-500 shrink-0 min-w-[120px]">
+                  <span className="text-[8px] font-black text-cyan-400/60 uppercase tracking-widest mb-1.5">{id}</span>
+                  <span className="text-xs font-black text-white text-center leading-tight">{label}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="my-12 p-8 sm:p-12 bg-rose-500/5 border-2 border-rose-500/10 rounded-xl sm:rounded-xl text-center">
         <div className="flex flex-col items-center gap-4">
@@ -1250,10 +1507,20 @@ function ActivitySteps({ steps, isCoding }: { steps: string[]; isCoding?: boolea
           <div style={{ position: 'absolute', top: 8, right: 12, opacity: 0.1, fontSize: 10, fontWeight: 900, color: '#FFD500', letterSpacing: '0.1em' }}>
             SCRATCH BLOCKS
           </div>
-          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {steps.map((text, i) => (
-              <ScratchBlockPiece key={i} text={text} index={i} total={steps.length} />
-            ))}
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 0, alignItems: 'start' }}>
+            {(() => {
+              const tree = parseScratchBlocks(steps);
+              return tree.map((node, i) => (
+                <ScratchBlockPiece 
+                  key={i} 
+                  node={node} 
+                  index={i} 
+                  total={tree.length} 
+                  isFirst={i === 0}
+                  isLast={i === tree.length - 1}
+                />
+              ));
+            })()}
           </div>
         </div>
       ) : (
@@ -1476,6 +1743,47 @@ function ImageBlock({ url, caption }: { url?: string; caption?: string }) {
 }
 
 // ── BlockMarkdown: lightweight markdown for block content (text, callouts, etc) ─
+function renderScratchCodeBlock(children: React.ReactNode) {
+  const text = String(children).trim();
+
+  // Check if it is a manual Scratch block notation: "category: text" or a standard Scratch block
+  const scratchPrefixMatch = text.match(/^(event|motion|looks|sound|control|sensing|operator|variable|custom):\s*(.+)$/i);
+  const isAutoScratch = !scratchPrefixMatch && (
+    /^(when flag clicked|when green flag clicked|move \d+ steps|turn (right|left) \d+ degrees|say .+ for \d+ seconds|forever|repeat \d+|wait \d+ seconds|show|hide|pen down|pen up)/i.test(text)
+  );
+
+  if (scratchPrefixMatch || isAutoScratch) {
+    const cat = scratchPrefixMatch 
+      ? (scratchPrefixMatch[1].toLowerCase() as ScratchBlockCategory)
+      : categorizeScratchBlock(text);
+    const blockText = scratchPrefixMatch ? scratchPrefixMatch[2] : text;
+    const colors = SCRATCH_COLORS[cat];
+    const hat = isHatBlock(blockText);
+    
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 mx-0.5 text-[0.8em] font-black tracking-wide rounded-md font-mono select-none"
+        style={{
+          backgroundColor: colors.bg,
+          border: `1.2px solid ${colors.border}`,
+          color: colors.text,
+          boxShadow: `0 1.2px 0 ${colors.border}`,
+          borderRadius: hat ? '8px 8px 3px 3px' : '4px',
+          textShadow: cat === 'event' ? 'none' : '0 1px 1px rgba(0,0,0,0.15)',
+        }}
+      >
+        <span className="text-[1.1em]">{SCRATCH_ICONS[cat]}</span>
+        <span>{blockText}</span>
+      </span>
+    );
+  }
+
+  return (
+    <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">
+      {children}
+    </code>
+  );
+}
+
 function BlockMarkdown({ content, className }: { content: string; className?: string }) {
   if (!content) return null;
   return (
@@ -1500,11 +1808,7 @@ function BlockMarkdown({ content, className }: { content: string; className?: st
           del: ({ children }) => <del className="opacity-40">{children}</del>,
           code: ({ children, className }: any) => {
             if (className) return null; // handled by pre
-            return (
-              <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">
-                {children}
-              </code>
-            );
+            return renderScratchCodeBlock(children);
           },
           pre: ({ children }: any) => {
             const codeEl = (children as any)?.props;
@@ -2286,11 +2590,7 @@ function MarkdownNotes({ content }: { content: string }) {
         },
         code: ({ children, className }: any) => {
           if (className) return null; // handled by pre
-          return (
-            <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">
-              {children}
-            </code>
-          );
+          return renderScratchCodeBlock(children);
         },
         a: ({ href, children }) => (
           <a
@@ -2364,7 +2664,7 @@ export default function LessonDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const classId = searchParams?.get('class_id');
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, profileLoading } = useAuth();
 
   const [lesson, setLesson] = useState<any>(null);
   const [courseLessons, setCourseLessons] = useState<any[]>([]);
@@ -2452,9 +2752,23 @@ export default function LessonDetailPage() {
     }
   };
 
+  /** Profile is null only while auth/profile loads or when the session has no portal_users row. */
+  const requireProfile = () => {
+    if (profileLoading) {
+      alert('Your profile is still loading. Please wait a moment and try again.');
+      return null;
+    }
+    if (!profile) {
+      alert('Could not load your account profile. Please refresh the page or sign in again.');
+      return null;
+    }
+    return profile;
+  };
+
   const handleGenerateAssignment = async () => {
-    if (!lesson || generatingAssignment || !profile) return;
-    const user = profile;
+    if (!lesson || generatingAssignment) return;
+    const user = profile as any;
+    if (!user) return;
     setGeneratingAssignment(true);
     try {
       const res = await fetch('/api/ai/generate', {
@@ -2551,8 +2865,9 @@ export default function LessonDetailPage() {
   };
 
   const handleGenerateFlashcards = async () => {
-    if (!lesson || generatingFlashcards || !profile) return;
-    const user = profile;
+    if (!lesson || generatingFlashcards) return;
+    const user = profile as any;
+    if (!user) return;
     setGeneratingFlashcards(true);
     try {
       const res = await fetch('/api/ai/generate', {
@@ -2679,7 +2994,8 @@ export default function LessonDetailPage() {
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
   const fetchData = useCallback(async () => {
-    if (!profile || !id) return;
+    const user = profile as any;
+    if (!id || !user) return;
     const db = createClient();
     try {
       const { data: lessonData, error: lErr } = await db
@@ -2720,8 +3036,8 @@ export default function LessonDetailPage() {
         setFlashcardDecks(fDecks.data ?? []);
       }
 
-      if (profile.role === 'student') {
-        const { data: progress } = await db.from('lesson_progress').select('lesson_id, completed_at').eq('portal_user_id', profile.id);
+      if (user.role === 'student') {
+        const { data: progress } = await db.from('lesson_progress').select('lesson_id, completed_at').eq('portal_user_id', user.id);
         const cIds = new Set<string>();
         progress?.forEach((p: any) => { if (p.completed_at) cIds.add(p.lesson_id); });
         setCompletedIds(cIds);
@@ -2735,8 +3051,14 @@ export default function LessonDetailPage() {
   }, [id, profile]);
 
   useEffect(() => {
-    if (!authLoading && profile) fetchData();
-  }, [authLoading, profile, fetchData]);
+    if (authLoading || profileLoading) return;
+    if (!profile) {
+      setError('Could not load your account. Please sign in again.');
+      setLoading(false);
+      return;
+    }
+    fetchData();
+  }, [authLoading, profileLoading, profile, fetchData]);
 
   // Auto-fetch lesson hook once when lesson loads
   useEffect(() => {
@@ -2813,7 +3135,7 @@ export default function LessonDetailPage() {
     </>
   );
 
-  if (authLoading || loading) return (
+  if (authLoading || profileLoading || loading) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       {alwaysScripts}
       <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />

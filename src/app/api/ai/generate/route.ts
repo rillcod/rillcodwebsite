@@ -85,7 +85,10 @@ CODING & INTERACTIVE:
 - 'code': { content: string, language: 'python'|'javascript'|'html'|'robotics' } — Runnable code in Monaco editor
 - 'blockly': { title?: string, language: 'python'|'javascript' } — Google Blockly visual coding workspace (no xml needed)
 - 'scratch': { blocks: string[], instructions?: string } — Scratch-style blocks for KG–Basic 6
-- 'visualizer': { title?: string, visualType: 'sorting'|'loops'|'conditionals'|'variables'|'lists'|'functions'|'stateMachine'|'binaryTree'|'linkedList'|'recursion'|'neuralNetwork'|'dataFlow', visualData?: { totalSteps: number, nodes?: any[], edges?: any[], layers?: number[], variables?: Record<string, any> } } — Visualizes program execution, variables state, and data structures (visual loop counters, if/else decision trees, labeled variable "memory boxes", indexed list train-carriages, function input/output machine flows, event transitions, trees, list nodes, recursion stack frames)
+- 'visualizer': { title?: string, visualType: 'sorting'|'loops', visualData?: { totalSteps: number, variables?: Record<string, any>, visualizationState?: any } } — Visualizes program execution and data structures. ONLY include this block if the topic is a DATA STRUCTURE or ALGORITHM (like arrays, stacks, queues, lists, sorting, searching, recursion). E.g.
+  * 'loops': { variables: { i: number }, visualizationState: { iterations: (number|string)[] } } (visual circular loop counter sweeps)
+  * 'sorting': { visualizationState: { array: number[], comparing: number[] } } (visual comparison bars)
+  * Do NOT use for general software topics. Hide/omit it for databases, APIs, Git, web UI/UX, and use motion-graphics or code-maps instead!
 
 ASSESSMENTS:
 - 'quiz': { question: string, options: string[], correctAnswer: number } — Multiple choice question
@@ -100,19 +103,17 @@ MEDIA:
 RULES:
 - Use 'lottie' as an opening visual hook for topics matching its keywords (robot, code, science, idea, math).
 - Use 'key-terms' when introducing technical vocabulary (4+ terms).
-- Use 'table' for comparing 3+ items (e.g. languages, algorithms, materials).
-- Use 'columns' for side-by-side concept explanations (pros/cons, theory/practice).
+- Use 'table' for comparing 3+ items (e.g. languages, frameworks, databases).
+- Use 'columns' for side-by-side concept explanations (pros/cons, SQL database index vs raw scans).
 - Use 'quote' to open or close a lesson with inspiration.
-- Use 'steps-list' for procedures with 4+ numbered steps.
+- Use 'steps-list' for procedures with 4+ numbered steps (e.g. Git workflows, API deployment).
 - Use 'blockly' for JSS1–SS3 coding topics to provide a hands-on coding block workspace.
 - Use 'scratch' ONLY for KG–Basic 6 visual coding.
-- "Monaco & Blockly Sync": When generating 'code' (Monaco) and 'blockly' or 'scratch' blocks in the same lesson, their logic MUST be mathematically and functionally synchronized (Blockly logic does exactly what the Monaco script does). Explain their alignment clearly.
+- "Monaco & Blockly Sync": When generating 'code' (Monaco) and 'blockly' or 'scratch' blocks in the same lesson, their logic MUST be functionally synchronized.
 - "Abstraction-Bridging Visuals": For both beginners and advanced students, utilize the 'visualizer' and 'motion-graphics' blocks aggressively to make invisible code concepts visible:
-  * **Loops**: Show loop indexes incrementing step-by-step, condition checks, and exit triggers.
-  * **Conditionals**: Show a flow chart representing if/else decisions, highlighting which path executes when inputs change.
-  * **Variables & Lists**: Show variables as labeled "boxes" containing values, and lists as structured "train carriages" where items are indexed, appended, or popped.
-  * **Functions**: Show functions as a "machine" where parameters go in, instructions run, and a return value emerges.
-  Ensure these are fully populated with kid-friendly topic-specific data (e.g. tracking a robot's inventory list or sorting scoreboard values).
+  * **Visualizer Block (Data Structures & Loops Only)**: circular list iterations, stack item indexes, and array sorting swaps. Keep visualData fully populated (no empty arrays!).
+  * **Motion Graphics Block (General Software Concepts)**: network (for API requests/DB queries), orbit (for OOP class systems/packages), timeline (for Git branches/deployment streams), flow (for standard app request pipelines), wave (for signals).
+  Ensure all configurations are fully populated with premium, highly engaging software-themed labels and variables.
 - MINIMUM 8 blocks per lesson, MAXIMUM 18.
 - Lesson notes: detailed but scannable — ## headers, bullet points, British English.
 - Return ONLY valid JSON.`;
@@ -431,11 +432,11 @@ Return ONLY this JSON (nothing else):
 ⚠ YOUNG LEARNER OVERRIDE (${grade}) — These rules OVERRIDE conflicting mode rules:
 ${isEarlyYears ? `EARLY YEARS (KG–Basic 3):
 - 'scratch' block is MANDATORY and MUST appear FIRST in content_layout after the mermaid/intro block.
-- 'scratch.blocks' MUST contain at least 8 detailed Scratch block steps written as a story: e.g. "when flag clicked", "say 'Hello! I am a Robot!' for 2 seconds", "move 10 steps", "play sound [pop]".
+- 'scratch.blocks' MUST contain at least 8 detailed Scratch block steps written as a story: e.g. "when flag clicked", "say 'Hello! I am a Robot!' for 2 seconds", "move 10 steps", "play sound [pop]". Use leading indentation spaces (e.g. 2 spaces) to show blocks nested inside loops (\`forever\`, \`repeat\`) or conditionals (\`if\`, \`else\`). E.g. ["when flag clicked", "repeat 10", "  move 10 steps", "  say 'Hello!'"].
 - 'scratch.instructions' MUST be an extremely detailed, child-friendly guide — use numbered steps, emojis, and "Can you...?" prompts.
 - NEVER include 'code-map', 'visualizer', 'd3-chart', or any code block (unless is_coding activity is pure Scratch drag-and-drop).
 - 'illustration' blocks MUST use simple emoji labels, max 5 items each, with child-friendly one-sentence values.
-- lesson_notes MUST be written at a Grade 2 reading level: very short sentences, lots of white space, fun analogies (e.g. "Think of it like LEGO bricks!"). Max 600 words.
+- lesson_notes MUST be written at a Grade 2 reading level: very short sentences, lots of white space, fun analogies. Max 600 words. You MUST aggressively illustrate actions using inline Scratch block notations, e.g. \`event: when green flag clicked\` or \`motion: move 10 steps\` or \`looks: say 'Hello!'\` or \`control: repeat 10\` by wrapping them in backticks with category prefix so they render as gorgeous realistic puzzle blocks in the text!
 - 'activity' steps MUST be ≤ 8 words each and use "Try this:", "Now do:", "Can you?" prompts.
 - 'quiz' questions MUST be picture-based or concrete: "Which block makes Sprite move?" not abstract reasoning.` : `PRIMARY (Basic 4–Basic 6):
 - 'scratch' block is STRONGLY RECOMMENDED — include unless topic is clearly text-code focused.
@@ -490,20 +491,35 @@ ${youngLearnerOverride}
 ${modeConfig.blockRules}
 
 CRITICAL SYNC RULE — ALL visual blocks MUST directly relate to the topic "${req.topic}":
-- 'mermaid': Real mindmap or flowchart about "${req.topic}". Use mermaid v10 syntax. Start with: flowchart TD, mindmap, sequenceDiagram, or timeline. NEVER use "graph" keyword. Short labels (max 4 words), no special characters.
+- 'mermaid': Real mindmap or flowchart about "${req.topic}". Use mermaid v10 syntax. Start with: flowchart TD, mindmap, sequenceDiagram, or timeline. NEVER use "graph" keyword.
+  - STRICT SYNTAX RULES:
+    1. Node IDs MUST be simple alphanumeric words (e.g. A, B, node1, node2) — never contain spaces, brackets, or special characters.
+    2. Node labels MUST always be enclosed in double-quotes inside the shape brackets. For example, A["Concept Name"] or B["Step One (Action)"] or C["Robot CPU"]. NEVER use unquoted labels! This prevents parentheses or special characters from crashing the Mermaid parser!
+    3. Do NOT include HTML tags (like <br>, <b>, <i>) inside labels.
+    4. Keep connections simple (e.g. A --> B). Avoid complex styling or arrows.
 - 'lottie': Use keyword matching the topic theme: 'robot' (robotics, hardware), 'code' (programming, software), 'science' (physics, chemistry, biology), 'idea' (concepts, creativity), 'math' (mathematics, algorithms), 'star' (achievements, excellence). Always include "title" describing what it illustrates.
-- 'motion-graphics': Include "title", "animationType" (flow/network/orbit/particles), and "config" with "labels" (4-6 topic terms) and "nodes" count.
-- 'd3-chart' or 'chart': Include "title" and real representative "dataset" numbers + "labels" matching dataset length. Example: { "type": "chart", "title": "Comparison", "chartType": "bar", "data": [10, 45, 20, 80], "labels": ["A", "B", "C", "D"] }
-- 'illustration': Items MUST be topic-specific concepts — label is concept name, value is one-sentence explanation.
-- 'code-map': Components MUST be real topic components/concepts — NOT placeholders like "Module A".
-- 'code': Real, runnable, well-commented code about "${req.topic}". language: "python"|"javascript"|"html"|"robotics".
-- 'blockly': Include "title" and "language" ("python" or "javascript"). No xml needed — the Blockly workspace starts empty for the student.
+- 'motion-graphics': Include "title"- 'blockly': Include "title" and "language" ("python" or "javascript"). No xml needed — the Blockly workspace starts empty for the student.
+- 'visualizer': Renders algorithm/state animations on a canvas. Supports: 'sorting' and 'loops'.
+  - **SMART TRIGGER RULE**: ONLY include a 'visualizer' block if the topic is a DATA STRUCTURE or ALGORITHM (like arrays, stacks, queues, lists, sorting, searching, recursion). For general software topics (web apps, databases, APIs, UI/UX, Git), do NOT generate this block. Use 'motion-graphics' or 'code-map' instead!
+  - STRICT CONFIGURATION RULES (always provide detailed, topic-specific 'visualData' rather than empty arrays):
+    1. For 'loops': visualData must have:
+       - "variables": { "i": 0 } (0-indexed active loop counter integer)
+       - "totalSteps": number (total iterations in the loop)
+       - "visualizationState": {
+           "iterations": (number|string)[] (an array representing stack elements, array elements, or indices, e.g. ["push(A)", "push(B)", "pop()", "push(C)"])
+         }
+    2. For 'sorting': visualData must have:
+       - "totalSteps": number (total comparison operations)
+       - "visualizationState": {
+           "array": number[] (numbers to sort, e.g. [34, 12, 5, 88, 2]),
+           "comparing": number[] (indices being actively compared, e.g. [0, 1])
+         }
+  - Use visualizers aggressively for programming, loops, and data structures to keep coding lessons exciting and interactive!
 - 'key-terms': terms array with 4-8 terms directly from "${req.topic}" vocabulary.
 - 'table': headers and rows comparing real aspects of "${req.topic}".
 - 'columns': 2-3 columns comparing real aspects/approaches related to "${req.topic}".
 - 'quote': An inspiring quote from a scientist, engineer, or educator relevant to "${req.topic}".
 - 'steps-list': steps that are specific, actionable steps for a process within "${req.topic}".
-- 'quiz': Questions MUST test specific knowledge of "${req.topic}".
 
 Return a JSON object with this exact shape:
 {
@@ -514,7 +530,7 @@ Return a JSON object with this exact shape:
   "content_layout": [
     {
       "type": "mermaid",
-      "code": "flowchart TD\\n    A[${req.topic}] --> B[Concept 1]\\n    A --> C[Concept 2]\\n    B --> D[Detail]"
+      "code": "flowchart TD\n    A[\"${req.topic}\"] --> B[\"Concept 1\"]\n    A --> C[\"Concept 2\"]\n    B --> D[\"Detail\"]"
     },
     {
       "type": "motion-graphics",
@@ -540,9 +556,15 @@ Return a JSON object with this exact shape:
     },
     {
       "type": "visualizer",
-      "title": "Visualising ${req.topic}",
+      "title": "Visualizing execution steps of ${req.topic}",
       "visualType": "loops",
-      "visualData": { "variables": {}, "totalSteps": 10, "step": 0, "nodes": [], "edges": [], "layers": [] }
+      "visualData": {
+        "variables": { "i": 0 },
+        "totalSteps": 5,
+        "visualizationState": {
+          "iterations": ["Element A", "Element B", "Element C", "Element D", "Element E"]
+        }
+      }
     },
     {
       "type": "code",
