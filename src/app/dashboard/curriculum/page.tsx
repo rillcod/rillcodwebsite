@@ -3485,13 +3485,56 @@ export default function CurriculumPage() {
                                 className="w-full text-left p-5 space-y-4"
                               >
                                 <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
+                                  <div className="min-w-0 space-y-2">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">
                                       {schoolName}
                                     </p>
                                     <h3 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">
                                       {c.content?.description || `Version ${c.version}`}
                                     </h3>
+                                    
+                                    {/* Premium Badges */}
+                                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                      {/* Christian STEM Badge */}
+                                      {(c.content?.metadata?.christian_stem !== false) && (
+                                        <span className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                          <StarIcon className="w-2.5 h-2.5 shrink-0" />
+                                          Christian STEM
+                                        </span>
+                                      )}
+
+                                      {/* Format Badge */}
+                                      {(() => {
+                                        const fmt = c.content?.metadata?.format || 'school';
+                                        let config = { label: 'School Plan', style: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' };
+                                        if (fmt === 'bootcamp') {
+                                          config = { label: 'Bootcamp', style: 'bg-blue-500/10 border-blue-500/20 text-blue-400' };
+                                        } else if (fmt === 'online') {
+                                          config = { label: 'Online Course', style: 'bg-purple-500/10 border-purple-500/20 text-purple-400' };
+                                        } else if (fmt === 'selfpaced') {
+                                          config = { label: 'Self-Paced', style: 'bg-orange-500/10 border-orange-500/20 text-orange-400' };
+                                        }
+
+                                        return (
+                                          <span className={`inline-flex items-center gap-1 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${config.style}`}>
+                                            {config.label}
+                                          </span>
+                                        );
+                                      })()}
+
+                                      {/* Scope Badge */}
+                                      {c.school_id ? (
+                                        <span className="inline-flex items-center gap-1 bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                          <BuildingOfficeIcon className="w-2.5 h-2.5 shrink-0" />
+                                          School-Scoped
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                          <ShieldCheckIcon className="w-2.5 h-2.5 shrink-0" />
+                                          Platform Template
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                   <span className="bg-primary/10 border border-primary/20 text-primary text-[10px] font-black px-2 py-1">
                                     v{c.version}

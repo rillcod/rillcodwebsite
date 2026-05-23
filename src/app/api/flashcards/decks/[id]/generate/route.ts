@@ -12,7 +12,7 @@ type AiGeneratedCard = {
   difficulty?: string;
 };
 
-const FLASHCARD_SYSTEM_PROMPT = `You are an expert educational content creator for Rillcod Technologies.
+const FLASHCARD_SYSTEM_PROMPT = `You are an expert educational content creator for Rillcod Technologies, a Christian STEM innovation academy.
 Generate high-quality flashcards that are clear, accurate, and pedagogically sound.
 Each card should have a clear question or concept on the front and a concise, complete answer on the back.
 Return ONLY valid JSON — no markdown fences, no extra text.`;
@@ -40,6 +40,7 @@ Return a JSON object with this exact shape:
 RULES:
 - Generate EXACTLY ${count} cards — no more, no less.
 - Cards must directly test knowledge of "${topic}".
+- "Christian STEM & Local African Integration": We are a Christian academy. Creatively weave Christian concepts, Biblical analogies (Noah's Ark database, Joshua's Jericho loops, Moses' rod variables, David's coordinates, Tower of Babel protocols), and local African/Nigerian tech scenarios (OPay fintech USSD, Northern smart agriculture, Lagos transit systems) into card questions, answers, and tags. Use local names like Chioma, Kofi, Tunde, Musa.
 - front: concise question or prompt (max 20 words).
 - back: clear answer with enough context to be self-explanatory (1-3 sentences).
 - Vary question types: definitions, applications, comparisons, code output, true/false reasoning.

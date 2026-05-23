@@ -496,6 +496,11 @@ export default function LessonPlanDetailPage() {
     maxWeeksPerBatch: number;
   }>({ enabled: false, types: ['lessons', 'assignments'], maxWeeksPerBatch: 0 });
   const [savingLms, setSavingLms] = useState(false);
+  const [previewLesson, setPreviewLesson] = useState<any | null>(null);
+  const [previewAssignment, setPreviewAssignment] = useState<any | null>(null);
+  const [previewProject, setPreviewProject] = useState<any | null>(null);
+  const [fetchingPreview, setFetchingPreview] = useState(false);
+  const [activePreviewTab, setActivePreviewTab] = useState<'plan' | 'lesson' | 'assignment' | 'project'>('plan');
   const canGenerateProgression = ['teacher', 'admin'].includes(profile?.role ?? '');
 
   function printWeek() {
@@ -621,6 +626,41 @@ export default function LessonPlanDetailPage() {
   useEffect(() => {
     if (!authLoading && profile) load();
   }, [authLoading, profile, load]);
+
+  useEffect(() => {
+    if (!viewWeek) {
+      setPreviewLesson(null);
+      setPreviewAssignment(null);
+      setPreviewProject(null);
+      setActivePreviewTab('plan');
+      return;
+    }
+
+    const weekLesson = linkedLessons.find(l => metadataMatchesWeek(l.metadata, viewWeek));
+    const weekAssignment = linkedAssignments.find(a => metadataMatchesWeek(a.metadata, viewWeek));
+    const weekProject = linkedProjects.find(p => metadataMatchesWeek(p.metadata, viewWeek));
+
+    if (weekLesson || weekAssignment || weekProject) {
+      setFetchingPreview(true);
+      Promise.all([
+        weekLesson ? fetch(`/api/lessons/${weekLesson.id}`).then(res => res.json()).catch(() => null) : Promise.resolve(null),
+        weekAssignment ? fetch(`/api/assignments/${weekAssignment.id}`).then(res => res.json()).catch(() => null) : Promise.resolve(null),
+        weekProject ? fetch(`/api/assignments/${weekProject.id}`).then(res => res.json()).catch(() => null) : Promise.resolve(null),
+      ]).then(([lessonRes, assignmentRes, projectRes]) => {
+        if (lessonRes?.data) setPreviewLesson(lessonRes.data);
+        if (assignmentRes?.data) setPreviewAssignment(assignmentRes.data);
+        if (projectRes?.data) setPreviewProject(projectRes.data);
+      }).catch(err => {
+        console.error('Failed to fetch inline previews', err);
+      }).finally(() => {
+        setFetchingPreview(false);
+      });
+    } else {
+      setPreviewLesson(null);
+      setPreviewAssignment(null);
+      setPreviewProject(null);
+    }
+  }, [viewWeek, linkedLessons, linkedAssignments, linkedProjects]);
 
   useEffect(() => {
     if (!guidePanelOpen || !canGenerateProgression || !id) return;
@@ -1733,139 +1773,221 @@ export default function LessonPlanDetailPage() {
               <p className="text-card-foreground/40 text-sm">No weeks added yet. Click "Add Week" to start building your plan.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {weeks.map(w => (
-                <div key={w.week} className="bg-card border border-white/[0.08] rounded-2xl overflow-hidden hover:border-white/[0.14] transition-colors group">
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setViewWeek(w)}>
-                        <div className="flex items-center flex-wrap gap-1.5 mb-2">
-                          <span className="text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded-full">Week {w.week}</span>
-                          {(w.gating_state ?? 'unlocked') === 'locked' && (
-                            <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">Locked</span>
-                          )}
-                          {(w.gating_state ?? 'unlocked') === 'mastered' && (
-                            <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">Mastered</span>
-                          )}
-                          {w.completed && (
-                            <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">Completed</span>
-                          )}
-                          {w.progression_badge?.label && (
-                            <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">{w.progression_badge.label}</span>
+            <div className="space-y-4">
+              {weeks.map(w => {
+                const weekLesson = linkedLessons.find(l => metadataMatchesWeek(l.metadata, w));
+                const weekAssignment = linkedAssignments.find(a => metadataMatchesWeek(a.metadata, w));
+                const weekProject = linkedProjects.find(p => metadataMatchesWeek(p.metadata, w));
+                const addLessonHref = buildPlanWeekCreateLessonUrl({ plan: plan!, week: w, courseTitle });
+                const addAssignmentHref = `/dashboard/assignments/new?lesson_plan_id=${id}&week=${w.week}${plan?.course_id ? `&course_id=${plan.course_id}` : ''}`;
+                const addProjectHref = `/dashboard/assignments/new?lesson_plan_id=${id}&week=${w.week}&type=project${plan?.course_id ? `&course_id=${plan.course_id}` : ''}`;
+                const hasAllContent = weekLesson && weekAssignment && weekProject;
+
+                return (
+                  <div
+                    key={w.week}
+                    className={`bg-gradient-to-b from-white/[0.03] to-white/[0.01] hover:from-white/[0.06] hover:to-white/[0.02] border rounded-[24px] overflow-hidden hover:border-primary/30 transition-all duration-300 group shadow-xl hover:shadow-primary/5 ${
+                      w.completed ? 'border-emerald-500/25 bg-emerald-500/[0.01]' : 'border-white/[0.08]'
+                    }`}
+                  >
+                    <div className="p-5 space-y-4">
+                      {/* Card Header area: Title, progress indicator */}
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 cursor-pointer" onClick={() => setViewWeek(w)}>
+                        <div className="space-y-1">
+                          <div className="flex items-center flex-wrap gap-2">
+                            <span className="text-xs font-black text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
+                              Week {w.week}
+                            </span>
+                            {(w.gating_state ?? 'unlocked') === 'locked' && (
+                              <span className="text-[10px] font-black text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">Locked</span>
+                            )}
+                            {(w.gating_state ?? 'unlocked') === 'mastered' && (
+                              <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">Mastered</span>
+                            )}
+                            {w.completed && (
+                              <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">Completed</span>
+                            )}
+                            {w.progression_badge?.label && (
+                              <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">{w.progression_badge.label}</span>
+                            )}
+                          </div>
+                          <h3 className="font-black text-card-foreground text-base tracking-tight mt-1">
+                            {w.topic || <span className="text-card-foreground/30 italic font-medium">No topic assigned</span>}
+                          </h3>
+                          {w.objectives && (
+                            <p className="text-xs text-card-foreground/50 line-clamp-1 leading-normal">
+                              {w.objectives}
+                            </p>
                           )}
                         </div>
-                        <h3 className="font-bold text-card-foreground text-sm">{w.topic || <span className="text-card-foreground/30 italic">No topic</span>}</h3>
-                        {w.objectives && <p className="text-xs text-card-foreground/50 mt-1 line-clamp-2">{w.objectives}</p>}
 
-                        {/* Seed Data Preview */}
-                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {(w.project?.title || w.project?.description) && (
-                            <div className="bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-2.5">
-                              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Project Seed</p>
-                              <p className="text-xs font-bold text-emerald-100/90 line-clamp-1">{w.project.title || 'Untitled Project'}</p>
-                              {w.project.description && <p className="text-[10px] text-emerald-300/50 mt-1 line-clamp-2 leading-relaxed">{w.project.description}</p>}
-                            </div>
-                          )}
-                          {(w.assignment?.title || w.assignment?.brief) && (
-                            <div className="bg-primary/[0.03] border border-primary/10 rounded-xl p-2.5">
-                              <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Assignment Brief</p>
-                              <p className="text-xs font-bold text-blue-100/90 line-clamp-1">{w.assignment.title || 'Untitled Task'}</p>
-                              {w.assignment.brief && <p className="text-[10px] text-blue-300/50 mt-1 line-clamp-2 leading-relaxed">{w.assignment.brief}</p>}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-white/[0.04] pt-3">
-                          {w.practical_assessment && (
-                            <div className="flex items-center gap-2 bg-amber-500/5 border border-amber-500/10 px-2 py-1 rounded-lg">
-                              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider">Practical</span>
-                              <p className="text-xs text-amber-200/90 font-bold">
-                                {w.practical_assessment.practical_score ?? 0}/{w.practical_assessment.max_score ?? 100}
-                                <span className="ml-1 opacity-50 font-normal">(Pass: {w.practical_assessment.pass_score ?? 60}%)</span>
-                              </p>
-                            </div>
-                          )}
-                          {w.override_reason && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-black text-cyan-300/60 uppercase tracking-wider">Override</span>
-                              <p className="text-xs text-cyan-300/80 line-clamp-1">{w.override_reason}</p>
-                            </div>
-                          )}
+                        {/* Visual Progress Tag */}
+                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-muted-foreground bg-black/40 px-3 py-1.5 rounded-full border border-white/5 font-mono shrink-0 sm:self-start">
+                          <span>SYNC:</span>
+                          <span className={weekLesson ? "text-emerald-400 font-black" : "opacity-35"}>LESSON</span>
+                          <span className="opacity-25">•</span>
+                          <span className={weekAssignment ? "text-cyan-400 font-black" : "opacity-35"}>ASSIGN</span>
+                          <span className="opacity-25">•</span>
+                          <span className={weekProject ? "text-primary font-black" : "opacity-35"}>PROJECT</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 print:hidden">
-                        {/* ── AI Full Generator button ── */}
+
+                      {/* Interactive Curriculum Workflow cockpit */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                        {/* 1. Lesson Cockpit Column */}
+                        {weekLesson ? (
+                          <Link
+                            href={`/dashboard/lessons/${weekLesson.id}`}
+                            className="flex flex-col p-3 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.06] border border-emerald-500/25 rounded-2xl transition-all group/item text-left"
+                          >
+                            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest font-mono">1. Teaching Content</span>
+                            <span className="text-xs font-bold text-emerald-100/90 mt-1 truncate">✓ Lesson Notes Ready</span>
+                            <span className="text-[10px] text-emerald-300/40 mt-0.5 group-hover/item:text-emerald-300/70 transition-colors">Click to open workspace →</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={addLessonHref}
+                            className="flex flex-col p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-emerald-500/30 rounded-2xl transition-all group/item text-left text-muted-foreground hover:text-emerald-400"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-widest font-mono">1. Teaching Content</span>
+                            <span className="text-xs font-bold mt-1 text-card-foreground/50 group-hover/item:text-emerald-400">Missing Lesson</span>
+                            <span className="text-[10px] text-muted-foreground/40 mt-0.5 group-hover/item:text-emerald-400/50 transition-colors">+ Build standard notes</span>
+                          </Link>
+                        )}
+
+                        {/* 2. Assignment Cockpit Column */}
+                        {weekAssignment ? (
+                          <Link
+                            href={`/dashboard/assignments/${weekAssignment.id}`}
+                            className="flex flex-col p-3 bg-cyan-500/[0.02] hover:bg-cyan-500/[0.06] border border-cyan-500/25 rounded-2xl transition-all group/item text-left"
+                          >
+                            <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest font-mono">2. Task & Evaluation</span>
+                            <span className="text-xs font-bold text-cyan-100/90 mt-1 truncate">✓ Assignment Loaded</span>
+                            <span className="text-[10px] text-cyan-300/40 mt-0.5 group-hover/item:text-cyan-300/70 transition-colors">Click to grade submissions →</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={addAssignmentHref}
+                            className="flex flex-col p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-cyan-500/30 rounded-2xl transition-all group/item text-left text-muted-foreground hover:text-cyan-400"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-widest font-mono">2. Task & Evaluation</span>
+                            <span className="text-xs font-bold mt-1 text-card-foreground/50 group-hover/item:text-cyan-400">No Assignment</span>
+                            <span className="text-[10px] text-muted-foreground/40 mt-0.5 group-hover/item:text-cyan-400/50 transition-colors">+ Generate homework task</span>
+                          </Link>
+                        )}
+
+                        {/* 3. Project Cockpit Column */}
+                        {weekProject ? (
+                          <Link
+                            href={`/dashboard/assignments/${weekProject.id}`}
+                            className="flex flex-col p-3 bg-primary/[0.02] hover:bg-primary/[0.06] border border-primary/25 rounded-2xl transition-all group/item text-left"
+                          >
+                            <span className="text-[9px] font-black text-primary uppercase tracking-widest font-mono">3. Capstone Activity</span>
+                            <span className="text-xs font-bold text-blue-100/90 mt-1 truncate">✓ Project Active</span>
+                            <span className="text-[10px] text-primary/40 mt-0.5 group-hover/item:text-primary/70 transition-colors">Click to grade rubrics →</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            href={addProjectHref}
+                            className="flex flex-col p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-primary/30 rounded-2xl transition-all group/item text-left text-muted-foreground hover:text-primary"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-widest font-mono">3. Capstone Activity</span>
+                            <span className="text-xs font-bold mt-1 text-card-foreground/50 group-hover/item:text-primary">No Project</span>
+                            <span className="text-[10px] text-muted-foreground/40 mt-0.5 group-hover/item:text-primary/50 transition-colors">+ Create builder handbook</span>
+                          </Link>
+                        )}
+                      </div>
+
+                      {/* Interactive AI Synthesis or Status pack capsule */}
+                      {!hasAllContent ? (
                         <button
                           onClick={() => setAiWeek(w)}
-                          title="Generate lesson + flashcards + assignment with AI"
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-primary/20 to-fuchsia-600/20 border border-primary/40 hover:border-primary hover:from-primary/30 hover:to-fuchsia-600/30 transition-all shadow-sm shadow-primary/10 group"
+                          disabled={generating !== null}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-primary/10 via-fuchsia-600/10 to-primary/10 hover:from-primary/25 hover:via-fuchsia-600/25 hover:to-primary/25 border border-primary/25 hover:border-primary/50 text-[10px] font-black uppercase tracking-widest text-primary hover:text-foreground rounded-xl transition-all duration-300"
                         >
-                          <SparklesIcon className="w-3.5 h-3.5 text-primary group-hover:scale-110 transition-transform" />
-                          <span className="text-[10px] font-black text-primary uppercase tracking-widest hidden sm:inline">AI Generate</span>
+                          <SparklesIcon className="w-3.5 h-3.5" /> Auto-Synthesize AI Materials Pack (Lesson + Flashcards + Assignment)
                         </button>
-                        <Link
-                          href={buildPlanWeekCreateLessonUrl({
-                            plan,
-                            week: w,
-                            courseTitle,
-                          })}
-                          className="p-1.5 hover:bg-primary/10 rounded-lg transition-all"
-                          title="Open lesson builder for this week"
-                        >
-                          <BookOpenIcon className="w-3.5 h-3.5 text-primary/60" />
-                        </Link>
-                        <Link
-                          href={buildPlanWeekCreateCbtUrl({
-                            plan,
-                            week: w,
-                            courseTitle,
-                          })}
-                          className="p-1.5 hover:bg-amber-500/10 rounded-lg transition-all"
-                          title="Create CBT exam for this week"
-                        >
-                          <BoltIcon className="w-3.5 h-3.5 text-amber-400" />
-                        </Link>
-                        <Link
-                          href={buildPlanWeekFlashcardUrl({ plan, week: w })}
-                          className="p-1.5 hover:bg-yellow-500/10 rounded-lg transition-all"
-                          title="Create flashcards for this week"
-                        >
-                          <TrophyIcon className="w-3.5 h-3.5 text-yellow-400/80" />
-                        </Link>
-                        <button
-                          onClick={() => toggleWeekCompleted(w.week)}
-                          className={`p-1.5 rounded-lg transition-all ${w.completed ? 'hover:bg-emerald-500/15' : 'hover:bg-white/10'
-                            }`}
-                          title={w.completed ? 'Mark as not completed' : 'Mark as completed'}
-                        >
-                          <CheckCircleIcon className={`w-3.5 h-3.5 ${w.completed ? 'text-emerald-400' : 'text-card-foreground/40'}`} />
-                        </button>
-                        {(w.gating_state ?? 'unlocked') === 'locked' && canGenerateProgression && (
-                          <button
-                            onClick={() => unlockWeekWithOverride(w.week)}
-                            className="p-1.5 hover:bg-cyan-500/10 rounded-lg transition-all"
-                            title="Override unlock this locked week"
-                          >
-                            <LockOpenIcon className="w-3.5 h-3.5 text-cyan-400" />
-                          </button>
+                      ) : (
+                        <div className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-500/5 border border-emerald-500/10 text-[10px] font-black uppercase tracking-widest text-emerald-400 rounded-xl">
+                          <CheckCircleIcon className="w-3.5 h-3.5" /> Curriculum Pack Fully Generated & Synced
+                        </div>
+                      )}
+
+                      {/* Timeline Card Footer - Expandable seeds and secondary toolbar controls */}
+                      <div className="flex flex-col gap-3 pt-2.5 border-t border-white/[0.04]">
+                        {/* Seed Brief details inside collapsible / visual block */}
+                        {(w.project?.title || w.assignment?.title) && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] leading-relaxed">
+                            {w.project?.title && (
+                              <div className="text-muted-foreground/75">
+                                <span className="font-bold text-emerald-400/80">Project Mission Seed:</span> {w.project.title}
+                              </div>
+                            )}
+                            {w.assignment?.title && (
+                              <div className="text-muted-foreground/75">
+                                <span className="font-bold text-cyan-400/80">Assignment Concept:</span> {w.assignment.title}
+                              </div>
+                            )}
+                          </div>
                         )}
-                        <button onClick={() => startEdit(w)} className="p-1.5 hover:bg-white/10 rounded-lg transition-all">
-                          <PencilIcon className="w-3.5 h-3.5 text-card-foreground/40" />
-                        </button>
-                        <button onClick={() => deleteWeek(w.week)} className="p-1.5 hover:bg-rose-500/10 rounded-lg transition-all">
-                          <TrashIcon className="w-3.5 h-3.5 text-rose-400/60" />
-                        </button>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-card-foreground/50 group-hover:text-card-foreground/70 transition-colors">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                            <button
+                              onClick={() => setViewWeek(w)}
+                              className="flex items-center gap-1.5 hover:text-primary text-xs font-black uppercase tracking-wider transition-colors"
+                            >
+                              <BookOpenIcon className="w-3.5 h-3.5" /> View Notes & Inline Previews
+                            </button>
+                            {w.practical_assessment && (
+                              <div className="flex items-center gap-1.5 bg-amber-500/5 border border-amber-500/10 px-2 py-0.5 rounded-lg text-[10px] font-black text-amber-400 uppercase tracking-wider">
+                                Practical: {w.practical_assessment.practical_score ?? 0}/{w.practical_assessment.max_score ?? 100}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 print:hidden self-end sm:self-auto">
+                            <button
+                              onClick={() => toggleWeekCompleted(w.week)}
+                              className={`p-1.5 rounded-lg border transition-all ${
+                                w.completed 
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' 
+                                  : 'bg-white/5 border-white/5 hover:bg-white/10 hover:text-white'
+                              }`}
+                              title={w.completed ? 'Mark incomplete' : 'Mark complete'}
+                            >
+                              <CheckCircleIcon className="w-4 h-4" />
+                            </button>
+                            {(w.gating_state ?? 'unlocked') === 'locked' && canGenerateProgression && (
+                              <button
+                                onClick={() => unlockWeekWithOverride(w.week)}
+                                className="p-1.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 rounded-lg transition-all"
+                                title="Override unlock this locked week"
+                              >
+                                <LockOpenIcon className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => startEdit(w)}
+                              className="p-1.5 bg-white/5 border border-white/5 hover:bg-white/10 hover:text-white rounded-lg transition-all"
+                              title="Edit Week Settings"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteWeek(w.week)}
+                              className="p-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-all"
+                              title="Delete Week"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    {/* Print view: show all fields */}
-                    <div className="hidden print:block mt-2 space-y-1 text-xs text-card-foreground/70">
-                      {w.objectives && <p><strong>Objectives:</strong> {w.objectives}</p>}
-                      {w.activities && <p><strong>Activities:</strong> {w.activities}</p>}
-                      {w.notes && <p><strong>Notes:</strong> {w.notes}</p>}
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -1900,6 +2022,7 @@ export default function LessonPlanDetailPage() {
             if (res.assignmentId && !linkedAssignments.find(a => a.id === res.assignmentId)) {
               setLinkedAssignments(prev => [...prev, { id: res.assignmentId!, title: `Week ${aiWeek.week} Assignment`, assignment_type: 'homework', metadata: { week: aiWeek.week, week_number: aiWeek.week } }]);
             }
+            load(); // Reload the whole plan data to grab newly generated records
             toast.success('AI package complete — lesson, flashcards & assignment ready!');
           }}
           onClose={() => setAiWeek(null)}
@@ -3159,7 +3282,9 @@ export default function LessonPlanDetailPage() {
       {viewWeek && (
         <div className="fixed inset-0 z-[60] flex flex-col justify-end md:flex-row md:justify-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setViewWeek(null)} />
-          <div className="relative w-full md:max-w-md md:h-full flex flex-col max-h-[92vh] md:max-h-none bg-card md:border-l border-t md:border-t-0 border-white/10 shadow-2xl rounded-t-2xl md:rounded-none overflow-hidden">
+          <div className={`relative w-full md:h-full flex flex-col max-h-[92vh] md:max-h-none bg-card md:border-l border-t md:border-t-0 border-white/10 shadow-2xl rounded-t-2xl md:rounded-none overflow-hidden transition-all duration-300 ${
+            activePreviewTab === 'plan' ? 'md:max-w-md' : 'md:max-w-2xl'
+          }`}>
             {/* Mobile drag handle */}
             <div className="md:hidden flex justify-center pt-2.5 pb-1 shrink-0">
               <div className="w-10 h-1 rounded-full bg-white/20" />
@@ -3188,105 +3313,430 @@ export default function LessonPlanDetailPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              {/* Content Generation Actions */}
-              <div className="space-y-3">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Add content for this week</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Link
-                    href={buildPlanWeekCreateLessonUrl({ plan: plan!, week: viewWeek, courseTitle: plan?.courses?.title || '' })}
-                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors min-h-[52px] rounded-xl"
-                  >
-                    <span className="flex items-center gap-1.5 text-xs font-bold">
-                      <BookOpenIcon className="w-3.5 h-3.5" />
+            {/* Horizontal Preview Tabs */}
+            <div className="flex border-b border-white/5 bg-black/10 px-2 shrink-0">
+              <button
+                onClick={() => setActivePreviewTab('plan')}
+                className={`flex-1 py-2 text-center text-xs font-black transition-all border-b-2 ${
+                  activePreviewTab === 'plan'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Plan Brief
+              </button>
+              {(previewLesson || fetchingPreview) && (
+                <button
+                  onClick={() => setActivePreviewTab('lesson')}
+                  className={`flex-1 py-2 text-center text-xs font-black transition-all border-b-2 ${
+                    activePreviewTab === 'lesson'
+                      ? 'border-emerald-500 text-emerald-400'
+                      : 'border-transparent text-muted-foreground hover:text-emerald-400/80'
+                  }`}
+                >
+                  {fetchingPreview && !previewLesson ? (
+                    <span className="flex items-center justify-center gap-1">
+                      <div className="w-2.5 h-2.5 border border-emerald-400 border-t-transparent rounded-full animate-spin" />
                       Lesson
                     </span>
-                    <span className="text-[10px] text-muted-foreground leading-snug">Write & deliver teaching content</span>
-                  </Link>
-                  <button
-                    onClick={() => createAssignmentFromWeek(viewWeek)}
-                    disabled={creatingAssignment}
-                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[52px] rounded-xl"
-                  >
-                    <span className="flex items-center gap-1.5 text-xs font-bold">
-                      <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
-                      {creatingAssignment ? 'Creating…' : 'Assignment'}
+                  ) : (
+                    'Lesson Notes'
+                  )}
+                </button>
+              )}
+              {(previewAssignment || fetchingPreview) && (
+                <button
+                  onClick={() => setActivePreviewTab('assignment')}
+                  className={`flex-1 py-2 text-center text-xs font-black transition-all border-b-2 ${
+                    activePreviewTab === 'assignment'
+                      ? 'border-cyan-500 text-cyan-400'
+                      : 'border-transparent text-muted-foreground hover:text-cyan-400/80'
+                  }`}
+                >
+                  {fetchingPreview && !previewAssignment ? (
+                    <span className="flex items-center justify-center gap-1">
+                      <div className="w-2.5 h-2.5 border border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                      Assignment
                     </span>
-                    <span className="text-[10px] text-muted-foreground leading-snug">Set task for submission</span>
-                  </button>
-                  <button
-                    onClick={() => createProjectFromWeek(viewWeek)}
-                    disabled={creatingProject}
-                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[52px] rounded-xl"
-                  >
-                    <span className="flex items-center gap-1.5 text-xs font-bold">
-                      <RocketLaunchIcon className="w-3.5 h-3.5" />
-                      {creatingProject ? 'Creating…' : 'Project'}
+                  ) : (
+                    'Assignment'
+                  )}
+                </button>
+              )}
+              {(previewProject || fetchingPreview) && (
+                <button
+                  onClick={() => setActivePreviewTab('project')}
+                  className={`flex-1 py-2 text-center text-xs font-black transition-all border-b-2 ${
+                    activePreviewTab === 'project'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted-foreground hover:text-primary/80'
+                  }`}
+                >
+                  {fetchingPreview && !previewProject ? (
+                    <span className="flex items-center justify-center gap-1">
+                      <div className="w-2.5 h-2.5 border border-primary border-t-transparent rounded-full animate-spin" />
+                      Project
                     </span>
-                    <span className="text-[10px] text-muted-foreground leading-snug">Longer-form hands-on project</span>
-                  </button>
-                  <Link
-                    href={buildPlanWeekCreateCbtUrl({ plan: plan!, week: viewWeek, courseTitle: plan?.courses?.title || '' })}
-                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[52px] rounded-xl"
-                  >
-                    <span className="flex items-center gap-1.5 text-xs font-bold">
-                      <BoltIcon className="w-3.5 h-3.5" />
-                      CBT Quiz
-                    </span>
-                    <span className="text-[10px] text-muted-foreground leading-snug">Auto-marked multiple choice test</span>
-                  </Link>
-                  <Link
-                    href={buildPlanWeekFlashcardUrl({ plan: plan!, week: viewWeek })}
-                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors min-h-[52px] rounded-xl"
-                  >
-                    <span className="flex items-center gap-1.5 text-xs font-bold">
-                      <StarIcon className="w-3.5 h-3.5" />
-                      Flashcards
-                    </span>
-                    <span className="text-[10px] text-muted-foreground leading-snug">Quick revision cards</span>
-                  </Link>
-                  <button
-                    onClick={printWeek}
-                    className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[52px] rounded-xl"
-                  >
-                    <span className="flex items-center gap-1.5 text-xs font-bold">
-                      <PrinterIcon className="w-3.5 h-3.5" />
-                      Print Plan
-                    </span>
-                    <span className="text-[10px] text-muted-foreground leading-snug">Print plan as PDF</span>
-                  </button>
-                </div>
-              </div>
+                  ) : (
+                    'Project'
+                  )}
+                </button>
+              )}
+            </div>
 
-              {/* Seed Data Previews */}
-              <div className="space-y-3">
-                {(viewWeek.project?.title || viewWeek.project?.description) && (
-                  <div className="bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-3 space-y-2">
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Project Seed</p>
-                    <p className="text-sm font-bold text-emerald-100">{viewWeek.project.title || 'Untitled Project'}</p>
-                    {viewWeek.project.description && <p className="text-xs text-emerald-300/60 leading-relaxed">{viewWeek.project.description}</p>}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              {activePreviewTab === 'plan' && (
+                <>
+                  {/* Content Generation Actions */}
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Add content for this week</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link
+                        href={buildPlanWeekCreateLessonUrl({ plan: plan!, week: viewWeek, courseTitle: plan?.courses?.title || '' })}
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors min-h-[52px] rounded-xl"
+                      >
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <BookOpenIcon className="w-3.5 h-3.5" />
+                          Lesson
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Write & deliver teaching content</span>
+                      </Link>
+                      <button
+                        onClick={() => createAssignmentFromWeek(viewWeek)}
+                        disabled={creatingAssignment}
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-40 min-h-[52px] rounded-xl"
+                      >
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                          {creatingAssignment ? 'Creating…' : 'Assignment'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Set task for submission</span>
+                      </button>
+                      <button
+                        onClick={() => createProjectFromWeek(viewWeek)}
+                        disabled={creatingProject}
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-primary/30 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 min-h-[52px] rounded-xl"
+                      >
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <RocketLaunchIcon className="w-3.5 h-3.5" />
+                          {creatingProject ? 'Creating…' : 'Project'}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Longer-form hands-on project</span>
+                      </button>
+                      <Link
+                        href={buildPlanWeekCreateCbtUrl({ plan: plan!, week: viewWeek, courseTitle: plan?.courses?.title || '' })}
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 transition-colors min-h-[52px] rounded-xl"
+                      >
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <BoltIcon className="w-3.5 h-3.5" />
+                          CBT Quiz
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Auto-marked multiple choice test</span>
+                      </Link>
+                      <Link
+                        href={buildPlanWeekFlashcardUrl({ plan: plan!, week: viewWeek })}
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 transition-colors min-h-[52px] rounded-xl"
+                      >
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <StarIcon className="w-3.5 h-3.5" />
+                          Flashcards
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Quick revision cards</span>
+                      </Link>
+                      <button
+                        onClick={printWeek}
+                        className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors min-h-[52px] rounded-xl"
+                      >
+                        <span className="flex items-center gap-1.5 text-xs font-bold">
+                          <PrinterIcon className="w-3.5 h-3.5" />
+                          Print Plan
+                        </span>
+                        <span className="text-[10px] text-muted-foreground leading-snug">Print plan as PDF</span>
+                      </button>
+                    </div>
                   </div>
-                )}
-                {(viewWeek.assignment?.title || viewWeek.assignment?.brief) && (
-                  <div className="bg-primary/[0.03] border border-primary/10 rounded-xl p-3 space-y-2">
-                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Assignment Brief</p>
-                    <p className="text-sm font-bold text-blue-100">{viewWeek.assignment.title || 'Untitled Task'}</p>
-                    {viewWeek.assignment.brief && <p className="text-xs text-blue-300/60 leading-relaxed">{viewWeek.assignment.brief}</p>}
+
+                  {/* Seed Data Previews */}
+                  <div className="space-y-3">
+                    {(viewWeek.project?.title || viewWeek.project?.description) && (
+                      <div className="bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-3 space-y-2">
+                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Project Seed</p>
+                        <p className="text-sm font-bold text-emerald-100">{viewWeek.project.title || 'Untitled Project'}</p>
+                        {viewWeek.project.description && <p className="text-xs text-emerald-300/60 leading-relaxed">{viewWeek.project.description}</p>}
+                      </div>
+                    )}
+                    {(viewWeek.assignment?.title || viewWeek.assignment?.brief) && (
+                      <div className="bg-primary/[0.03] border border-primary/10 rounded-xl p-3 space-y-2">
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">Assignment Brief</p>
+                        <p className="text-sm font-bold text-blue-100">{viewWeek.assignment.title || 'Untitled Task'}</p>
+                        {viewWeek.assignment.brief && <p className="text-xs text-blue-300/60 leading-relaxed">{viewWeek.assignment.brief}</p>}
+                      </div>
+                    )}
+                    {viewWeek.objectives && (
+                      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 space-y-2">
+                        <p className="text-[10px] font-black text-card-foreground/40 uppercase tracking-widest">Objectives</p>
+                        <p className="text-xs text-card-foreground/70 leading-relaxed">{viewWeek.objectives}</p>
+                      </div>
+                    )}
+                    {viewWeek.activities && (
+                      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 space-y-2">
+                        <p className="text-[10px] font-black text-card-foreground/40 uppercase tracking-widest">Activities</p>
+                        <p className="text-xs text-card-foreground/70 leading-relaxed">{viewWeek.activities}</p>
+                      </div>
+                    )}
                   </div>
-                )}
-                {viewWeek.objectives && (
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 space-y-2">
-                    <p className="text-[10px] font-black text-card-foreground/40 uppercase tracking-widest">Objectives</p>
-                    <p className="text-xs text-card-foreground/70 leading-relaxed">{viewWeek.objectives}</p>
-                  </div>
-                )}
-                {viewWeek.activities && (
-                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3 space-y-2">
-                    <p className="text-[10px] font-black text-card-foreground/40 uppercase tracking-widest">Activities</p>
-                    <p className="text-xs text-card-foreground/70 leading-relaxed">{viewWeek.activities}</p>
-                  </div>
-                )}
-              </div>
+                </>
+              )}
+
+              {activePreviewTab === 'lesson' && (
+                <div className="space-y-5 animate-[fadeIn_0.3s_ease]">
+                  {fetchingPreview && !previewLesson ? (
+                    <div className="space-y-4">
+                      <div className="h-6 w-3/4 bg-white/5 rounded animate-pulse" />
+                      <div className="h-4 w-1/2 bg-white/5 rounded animate-pulse" />
+                      <div className="space-y-2 pt-4">
+                        <div className="h-4 w-full bg-white/5 rounded animate-pulse" />
+                        <div className="h-4 w-full bg-white/5 rounded animate-pulse" />
+                        <div className="h-4 w-5/6 bg-white/5 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  ) : previewLesson ? (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-500/[0.03] border border-emerald-500/10 rounded-xl p-3">
+                        <div>
+                          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Lesson Status</p>
+                          <p className="text-xs text-card-foreground/80 font-bold mt-0.5">
+                            {previewLesson.title || 'Untitled Lesson'} · {previewLesson.duration_minutes || 60} mins
+                          </p>
+                        </div>
+                        <Link
+                          href={`/dashboard/lessons/${previewLesson.id}`}
+                          className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded-lg transition-all text-[11px] font-black whitespace-nowrap"
+                        >
+                          <BookOpenIcon className="w-3.5 h-3.5" /> Workspace
+                        </Link>
+                      </div>
+
+                      {previewLesson.description && (
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5">
+                          <p className="text-[10px] font-black text-card-foreground/40 uppercase tracking-widest mb-1.5">Overview</p>
+                          <p className="text-xs text-card-foreground/75 leading-relaxed">{previewLesson.description}</p>
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Generated Lesson Notes</p>
+                        <div className="space-y-4 pt-2">
+                          {previewLesson.lesson_notes ? (
+                            renderInlineMarkdown(previewLesson.lesson_notes)
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">No lesson notes generated for this lesson yet.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {previewLesson.content && typeof previewLesson.content === 'string' && (
+                        <div className="space-y-2 mt-6">
+                          <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Monaco Code Script</p>
+                          <div className="bg-black/40 border border-white/5 rounded-xl overflow-hidden font-mono text-[11px] p-4 text-cyan-300 whitespace-pre overflow-x-auto">
+                            <code>{previewLesson.content}</code>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="py-8 text-center">
+                      <p className="text-xs text-muted-foreground">Could not load lesson preview.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activePreviewTab === 'assignment' && (
+                <div className="space-y-5 animate-[fadeIn_0.3s_ease]">
+                  {fetchingPreview && !previewAssignment ? (
+                    <div className="space-y-4">
+                      <div className="h-6 w-3/4 bg-white/5 rounded animate-pulse" />
+                      <div className="h-4 w-1/2 bg-white/5 rounded animate-pulse" />
+                      <div className="space-y-2 pt-4">
+                        <div className="h-4 w-full bg-white/5 rounded animate-pulse" />
+                        <div className="h-4 w-full bg-white/5 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  ) : previewAssignment ? (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-cyan-500/[0.03] border border-cyan-500/10 rounded-xl p-3">
+                        <div>
+                          <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Assignment Status</p>
+                          <p className="text-xs text-card-foreground/80 font-bold mt-0.5">
+                            {previewAssignment.title || 'Untitled Assignment'} · {previewAssignment.max_points ?? 100} pts
+                          </p>
+                        </div>
+                        <Link
+                          href={`/dashboard/assignments/${previewAssignment.id}`}
+                          className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 rounded-lg transition-all text-[11px] font-black whitespace-nowrap"
+                        >
+                          <ClipboardDocumentListIcon className="w-3.5 h-3.5" /> Workspace
+                        </Link>
+                      </div>
+
+                      {previewAssignment.instructions && (
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-1.5">
+                          <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest font-mono">Instructions</p>
+                          <div className="text-xs text-card-foreground/75 leading-relaxed whitespace-pre-wrap">{previewAssignment.instructions}</div>
+                        </div>
+                      )}
+
+                      {previewAssignment.questions && Array.isArray(previewAssignment.questions) && (
+                        <div className="space-y-4">
+                          <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest font-mono">Questions ({previewAssignment.questions.length})</p>
+                          <div className="space-y-3">
+                            {previewAssignment.questions.map((q: any, idx: number) => {
+                              const isMultipleChoice = ['multiple_choice', 'true_false'].includes(q.question_type);
+                              return (
+                                <div key={idx} className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-2.5 hover:border-cyan-500/20 transition-all">
+                                  <div className="flex justify-between items-start gap-3">
+                                    <span className="text-xs font-black text-cyan-400">Q{idx + 1}.</span>
+                                    <p className="flex-1 text-xs font-bold text-card-foreground leading-normal">{q.question_text}</p>
+                                    {q.points && (
+                                      <span className="text-[10px] bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded-full shrink-0 border border-cyan-500/20 font-bold font-mono">
+                                        {q.points} pts
+                                      </span>
+                                    )}
+                                  </div>
+                                  {isMultipleChoice && q.options && Array.isArray(q.options) && (
+                                    <div className="grid grid-cols-1 gap-1.5 pl-6 mt-2">
+                                      {q.options.map((opt: string, optIdx: number) => {
+                                        const isCorrect = String(opt).trim().toLowerCase() === String(q.correct_answer).trim().toLowerCase() ||
+                                          (String(optIdx) === String(q.correct_answer)) ||
+                                          (String(optIdx + 1) === String(q.correct_answer));
+                                        return (
+                                          <div
+                                            key={optIdx}
+                                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs leading-normal ${
+                                              isCorrect
+                                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-medium'
+                                                : 'bg-black/10 border-white/5 text-muted-foreground'
+                                            }`}
+                                          >
+                                            <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                                              isCorrect ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400' : 'border-white/20'
+                                            }`}>
+                                              {isCorrect && <span className="text-[8px] font-black">✓</span>}
+                                            </div>
+                                            <span>{opt}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                  {!isMultipleChoice && (
+                                    <div className="pl-6 mt-1 space-y-1.5">
+                                      <div className="bg-black/20 border border-white/5 rounded-lg p-2.5 font-mono text-[10px] text-muted-foreground">
+                                        <p className="font-sans font-bold text-white mb-1 uppercase tracking-wide text-[9px]">Expected Answer:</p>
+                                        <p className="text-cyan-300 whitespace-pre-wrap">{q.correct_answer || 'Essay / Student Response'}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="py-8 text-center">
+                      <p className="text-xs text-muted-foreground">Could not load assignment preview.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activePreviewTab === 'project' && (
+                <div className="space-y-5 animate-[fadeIn_0.3s_ease]">
+                  {fetchingPreview && !previewProject ? (
+                    <div className="space-y-4">
+                      <div className="h-6 w-3/4 bg-white/5 rounded animate-pulse" />
+                      <div className="h-4 w-1/2 bg-white/5 rounded animate-pulse" />
+                      <div className="space-y-2 pt-4">
+                        <div className="h-4 w-full bg-white/5 rounded animate-pulse" />
+                        <div className="h-4 w-full bg-white/5 rounded animate-pulse" />
+                      </div>
+                    </div>
+                  ) : previewProject ? (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-primary/[0.03] border border-primary/10 rounded-xl p-3">
+                        <div>
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest">Project Status</p>
+                          <p className="text-xs text-card-foreground/80 font-bold mt-0.5">
+                            {previewProject.title || 'Untitled Project'} · {previewProject.max_points ?? 100} pts
+                          </p>
+                        </div>
+                        <Link
+                          href={`/dashboard/assignments/${previewProject.id}`}
+                          className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-lg transition-all text-[11px] font-black whitespace-nowrap"
+                        >
+                          <RocketLaunchIcon className="w-3.5 h-3.5" /> Workspace
+                        </Link>
+                      </div>
+
+                      {previewProject.instructions && (
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-1.5">
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest font-mono">Project Mission & Brief</p>
+                          <div className="text-xs text-card-foreground/75 leading-relaxed whitespace-pre-wrap">{previewProject.instructions}</div>
+                        </div>
+                      )}
+
+                      {previewProject.metadata?.deliverables && Array.isArray(previewProject.metadata.deliverables) && (
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-2">
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest font-mono">Deliverables Checklist</p>
+                          <ul className="space-y-2 pl-0">
+                            {previewProject.metadata.deliverables.map((item: string, idx: number) => (
+                              <li key={idx} className="flex gap-2.5 items-start text-xs text-card-foreground/75 leading-relaxed">
+                                <span className="w-4 h-4 rounded border border-white/20 bg-white/5 text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5 text-primary">
+                                  ✓
+                                </span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {previewProject.metadata?.rubric && Array.isArray(previewProject.metadata.rubric) && (
+                        <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-3">
+                          <p className="text-[10px] font-black text-primary uppercase tracking-widest font-mono">Grading Rubric</p>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead>
+                                <tr className="border-b border-white/10 text-muted-foreground font-bold">
+                                  <th className="py-2 pr-4 font-black">Criterion</th>
+                                  <th className="py-2 px-2 font-black">Description</th>
+                                  <th className="py-2 pl-4 text-right font-black">Max Pts</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/5">
+                                {previewProject.metadata.rubric.map((item: any, idx: number) => (
+                                  <tr key={idx} className="text-card-foreground/80 hover:bg-white/[0.01]">
+                                    <td className="py-2.5 pr-4 font-bold text-white whitespace-nowrap">{item.criterion}</td>
+                                    <td className="py-2.5 px-2 text-muted-foreground leading-normal">{item.description}</td>
+                                    <td className="py-2.5 pl-4 text-right font-bold text-primary">{item.maxPoints ?? item.max_points}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="py-8 text-center">
+                      <p className="text-xs text-muted-foreground">Could not load project preview.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="p-5 border-t border-white/10 bg-white/[0.02] flex flex-col gap-3">
@@ -3567,4 +4017,142 @@ export default function LessonPlanDetailPage() {
       )}
     </div>
   );
+}
+
+function renderInlineMarkdown(md: string) {
+  if (!md) return null;
+
+  // Split by code blocks first
+  const parts = md.split(/(```[\s\S]*?```)/g);
+
+  return parts.map((part, index) => {
+    // If it's a code block
+    if (part.startsWith('```')) {
+      const match = part.match(/^```(\w*)\n([\s\S]*?)\n?```$/);
+      const lang = match ? match[1] : '';
+      const code = match ? match[2] : part.slice(3, -3);
+
+      const LANG_COLOR: Record<string, string> = {
+        python: 'text-emerald-400 bg-emerald-500/10',
+        javascript: 'text-yellow-400 bg-yellow-500/10',
+        js: 'text-yellow-400 bg-yellow-500/10',
+        html: 'text-primary bg-primary/10',
+        css: 'text-primary bg-primary/10',
+        robotics: 'text-primary bg-primary/10',
+        bash: 'text-muted-foreground bg-muted/50',
+        json: 'text-cyan-400 bg-cyan-500/10',
+      };
+      const langClass = LANG_COLOR[lang?.toLowerCase()] ?? 'text-cyan-400 bg-cyan-500/10';
+
+      return (
+        <div key={index} className="my-4 bg-black/40 border border-white/5 rounded-xl overflow-hidden shadow-xl shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/5">
+            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${langClass}`}>
+              {lang || 'code'}
+            </span>
+            <button
+              onClick={() => navigator.clipboard.writeText(code)}
+              className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+          <pre className="p-4 overflow-x-auto text-[11px] font-mono leading-relaxed text-cyan-300">
+            <code>{code}</code>
+          </pre>
+        </div>
+      );
+    }
+
+    // Otherwise, parse paragraphs, headings, lists, quotes, bold
+    const lines = part.split('\n');
+    let inList = false;
+    let listItems: string[] = [];
+    const renderedElements: React.ReactNode[] = [];
+
+    const flushList = (key: string) => {
+      if (listItems.length > 0) {
+        renderedElements.push(
+          <ul key={key} className="list-disc pl-5 my-2 space-y-1">
+            {listItems.map((item, idx) => (
+              <li key={idx} className="text-xs text-card-foreground/75 leading-relaxed">
+                {parseInlineFormatting(item)}
+              </li>
+            ))}
+          </ul>
+        );
+        listItems = [];
+        inList = false;
+      }
+    };
+
+    lines.forEach((line, lineIdx) => {
+      const trimmed = line.trim();
+      const key = `${index}-${lineIdx}`;
+
+      if (trimmed.startsWith('## ')) {
+        flushList(key);
+        renderedElements.push(
+          <h2 key={key} className="text-sm font-black text-foreground pt-4 pb-1 border-b border-white/5 uppercase tracking-widest mt-3">
+            {parseInlineFormatting(trimmed.slice(3))}
+          </h2>
+        );
+      } else if (trimmed.startsWith('### ')) {
+        flushList(key);
+        renderedElements.push(
+          <h3 key={key} className="text-xs font-black text-foreground/90 pt-3 pb-1 flex items-center gap-1.5 mt-2">
+            <span className="w-1 h-1 rounded-full bg-cyan-500 inline-block shrink-0" />
+            {parseInlineFormatting(trimmed.slice(4))}
+          </h3>
+        );
+      } else if (trimmed.startsWith('#### ')) {
+        flushList(key);
+        renderedElements.push(
+          <h4 key={key} className="text-[11px] font-black text-foreground/75 pt-2 pb-0.5 uppercase tracking-wider">
+            {parseInlineFormatting(trimmed.slice(5))}
+          </h4>
+        );
+      } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.match(/^\d+\.\s/)) {
+        inList = true;
+        const cleanItem = trimmed.startsWith('- ') || trimmed.startsWith('* ')
+          ? trimmed.slice(2)
+          : trimmed.replace(/^\d+\.\s/, '');
+        listItems.push(cleanItem);
+      } else if (trimmed.startsWith('>')) {
+        flushList(key);
+        const quoteContent = trimmed.replace(/^>\s*/, '');
+        renderedElements.push(
+          <blockquote key={key} className="my-3 pl-4 border-l-3 border-primary/50 bg-primary/5 py-2 pr-3 rounded-r-lg">
+            <div className="text-xs text-foreground/75 italic leading-relaxed">{parseInlineFormatting(quoteContent)}</div>
+          </blockquote>
+        );
+      } else if (trimmed === '') {
+        flushList(key);
+      } else {
+        flushList(key);
+        renderedElements.push(
+          <p key={key} className="text-xs text-card-foreground/75 leading-relaxed my-2">
+            {parseInlineFormatting(trimmed)}
+          </p>
+        );
+      }
+    });
+
+    flushList(`${index}-end`);
+    return <div key={index}>{renderedElements}</div>;
+  });
+}
+
+function parseInlineFormatting(text: string) {
+  // Simple regex to parse **bold** and `code` inline formatting
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={idx} className="font-bold text-white">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={idx} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-[10px] text-cyan-300">{part.slice(1, -1)}</code>;
+    }
+    return part;
+  });
 }

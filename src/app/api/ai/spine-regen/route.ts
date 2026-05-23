@@ -61,7 +61,7 @@ const YEAR_ARC: Record<number, string> = {
 async function callAI(prompt: string, temperature = 0.65): Promise<string> {
   // Direct Google Gemini API priority path — saves 100% of OpenRouter tokens
   if (process.env.GEMINI_API_KEY) {
-    const SYSTEM_PROMPT = "You are a Nigerian STEM/coding curriculum expert.";
+    const SYSTEM_PROMPT = "You are a Nigerian STEM/coding curriculum expert for Rillcod Technologies, a Christian STEM innovation academy. Ground technical topics and subtopics in Biblical story analogies (Noah's Ark, Joshua's Jericho, Moses' rod, David vs Goliath, Nehemiah's wall building) and African local tech context.";
     const geminiResult = await geminiGenerateText(SYSTEM_PROMPT, prompt, true).catch(() => null);
     if (geminiResult?.text) {
       return geminiResult.text.trim();
@@ -294,7 +294,7 @@ export async function POST(req: NextRequest) {
       ? `\nStrictly avoid topics similar to: ${allExisting.slice(-8).join(' | ')}`
       : '';
 
-    const prompt = `You are a Nigerian STEM/coding curriculum expert. Generate ONE topic for a specific curriculum week.
+    const prompt = `You are a Nigerian STEM/coding curriculum expert for Rillcod Technologies, a Christian STEM innovation academy. Generate ONE topic for a specific curriculum week.
 
 ${ctx}
 
@@ -302,10 +302,10 @@ Target: Programme Term ${termNumber} (${nat.name}), Week ${wNum} of 12, Year ${y
 ${avoidStr}
 
 RULES:
-- Topic: 3–7 words, student-friendly, specific to ${trackLabel || laneLabel}${courseName ? ` / ${courseName}` : ''}
+- Topic: 3–7 words, student-friendly, specific to ${trackLabel || laneLabel}${courseName ? ` / ${courseName}` : ''}. Blend technical goals with Christian/Biblical story analogies (e.g. "Looping: Marching Around Jericho", "Data Lists: Noah's Ark Inventory", "Variables: Changing States of Moses' Rod", "Functions: Rebuilding Nehemiah's Wall").
 - Must NOT duplicate or paraphrase any topic in "ALREADY COVERED" above or in the avoid list
 - Grade-appropriate for: ${GRADE_CONTEXT[gradeLevel] || gradeLevel || className}
-- ${subTopicInstruction}
+- ${subTopicInstruction}. Ground student activities in Biblical metaphors and local African/Nigerian tech scenarios (OPay USSD, Kano solar farming, Lagos BRT). Use local names like Chioma, Kofi, Tunde, Musa.
 
 Return ONLY valid JSON:
 {"topic": "3-7 word specific topic", "subtopics": ["activity 1", "activity 2", "activity 3"]}`;

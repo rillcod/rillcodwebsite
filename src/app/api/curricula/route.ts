@@ -123,6 +123,14 @@ function getSharedOutputShape(termNum: number = 1): string {
 
 const SHARED_OUTPUT_SHAPE = getSharedOutputShape(1);
 
+const CHRISTIAN_AFRICAN_CURRICULUM_GUIDELINE = `
+- Christian STEM & Local African/Nigerian Integration:
+  * We are a Christian STEM/Coding innovation academy. All generated courses, weekly topics, and learning activities MUST creatively combine Christian/Biblical narrative analogies with real-world African local technology innovation.
+  * Weave standard STEM concepts with Bible story metaphors: e.g. Joshua's Walls of Jericho (loops/iteration), Noah's Ark animal database (arrays/lists/indexes), Moses' rod (variables/states), Tower of Babel (communications/APIs/protocols), Nehemiah's Wall construction (modular/functions/reusability), David's coordinate sling (physics/vectors).
+  * Weave local African tech solutions (Kano solar irrigation smart systems, OPay USSD/ledgers, Lagos BRT ticket systems) alongside Biblical themes.
+  * Frame weekly objectives, classwork, assignments, and capstone projects around Biblical scenarios and local African/Nigerian community-building solutions. Use African/Nigerian student names (Kofi, Chioma, Tunde, Musa, Fatima, Amina).
+`;
+
 function buildSchoolPrompt(
   courseName: string, gradeLevel: string, subjectArea: string,
   selectedTerms: number[], weeksPerTerm: number, programStartTerm: number = 1, notes?: string,
@@ -171,6 +179,7 @@ Duration per lesson: 40 minutes. Use Nigerian real-world contexts (agritech, fin
   * **Smart City Systems**: Lagos BRT smart cards, solar grid controllers, automated traffic management.
   * **E-Commerce & Logistics**: Smart warehousing, pathfinding for delivery bikes.
 - Ensure lessons push conceptual intelligence: we don't just teach code syntax; we teach problem-solving and architectural thinking.
+${CHRISTIAN_AFRICAN_CURRICULUM_GUIDELINE}
 
 ${SHARED_LESSON_PLAN_SCHEMA}
 ${getSharedOutputShape(selectedTerms[0] ?? 1)}`;
@@ -206,6 +215,8 @@ STRUCTURE:
 - Final session of the LAST week: type "examination" (final project showcase).
 - Sessions are project-driven, fast-paced, and hands-on. No homework-style assignments — classwork is the work.
 - Engagement tips should reflect bootcamp intensity (pair programming, live builds, demos).
+${CHRISTIAN_AFRICAN_CURRICULUM_GUIDELINE}
+
 ${SHARED_LESSON_PLAN_SCHEMA}
 ${SHARED_OUTPUT_SHAPE}`;
 }
@@ -233,6 +244,8 @@ STRUCTURE:
 - Content must be async-friendly: self-contained sessions, clear written instructions, video/resource links in resources[].
 - Assignments due: "Before next session". Engagement tips should cover screen fatigue, remote collaboration, async tools.
 - Use Nigerian digital contexts (e-commerce, mobile apps, remote agri-monitoring).
+${CHRISTIAN_AFRICAN_CURRICULUM_GUIDELINE}
+
 ${SHARED_LESSON_PLAN_SCHEMA}
 ${SHARED_OUTPUT_SHAPE}`;
 }
@@ -258,6 +271,8 @@ STRUCTURE:
 - Include clear module prerequisites in objectives[0].
 - Resources[] must include at least 2 free online links or tools per lesson.
 - Engagement tips should focus on motivation, self-accountability, and community sharing.
+${CHRISTIAN_AFRICAN_CURRICULUM_GUIDELINE}
+
 ${SHARED_LESSON_PLAN_SCHEMA}
 ${SHARED_OUTPUT_SHAPE}`;
 }
@@ -651,11 +666,15 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Persist program_start_term in content.metadata so it survives page reloads
-  if (format === 'school') {
-    const existingMeta = existingCurriculumContent?.metadata ?? {};
-    aiContent.metadata = { ...existingMeta, ...(aiContent.metadata ?? {}), program_start_term: resolvedStartTerm };
-  }
+  // Persist program_start_term, format, and christian_stem in content.metadata so it survives page reloads
+  const existingMeta = existingCurriculumContent?.metadata ?? {};
+  aiContent.metadata = { 
+    ...existingMeta, 
+    ...(aiContent.metadata ?? {}), 
+    program_start_term: resolvedStartTerm,
+    format: format,
+    christian_stem: true
+  };
 
   // Multi-year and multi-term merge: keep terms from other years, and keep terms from the same
   // year that are NOT in the current regeneration batch (to prevent deletion).
