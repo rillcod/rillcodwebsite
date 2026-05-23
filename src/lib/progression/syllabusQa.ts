@@ -185,7 +185,7 @@ export function buildLessonPlanSyllabusQa(input: {
     const match = key.match(/^y(\d+)t(\d+)$/);
     const yearNumber = match ? Number(match[1]) : 1;
     const termNumber = match ? Number(match[2]) : 1;
-    const syllabusWeeks = getSyllabusTermWeeks(input.curriculum, termNumber);
+    const syllabusWeeks = getSyllabusTermWeeks(input.curriculum, termNumber, yearNumber);
     const termIssues: QaIssue[] = [];
     const coverageIssues = buildCoverageIssues(syllabusWeeks, weeks);
     termIssues.push(...coverageIssues);

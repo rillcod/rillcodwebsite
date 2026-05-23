@@ -344,7 +344,7 @@ CONTENT GUIDE (adapt freely to the topic — this is a suggestion, not a rigid t
 - Use ## and ### headings that naturally fit the topic (invent your own heading names, don't use generic ones like "Introduction" or "What Is X?")
 - Mix short punchy sentences with fuller explanations — vary the rhythm
 - Include 1-2 real Nigerian or African real-world use cases woven naturally into the text
-- For coding topics: include ONE code example in a \`\`\`language fence
+- For coding, database, and scripting topics (including Python, JS, HTML, Bash, SQL, C++): include complete, functional, and well-commented code snippets or scripts inside explicit triple-backtick language fences (e.g. \`\`\`python, \`\`\`javascript, \`\`\`sql, \`\`\`bash, \`\`\`html) showing real-world usages and build layouts, and explain every line clearly.
 - Optionally embed ONE relevant illustrative image inline using: ![description](https://image.pollinations.ai/prompt/DESCRIPTION_URL_ENCODED?nologo=true&width=900&height=500&model=flux) — encode spaces as %20
 - End with a brief "What to remember" summary (3-5 bullets) — give it a topic-specific heading
 ${req.courseName ? `- Connect at least one section specifically to "${req.courseName}"` : ''}
@@ -372,7 +372,7 @@ Return ONLY this JSON (nothing else):
         academic: {
           label: 'ACADEMIC DEPTH',
           lessonTypeHint: 'workshop',
-          notesInstruction: 'lesson_notes MUST be 2000+ words, structured like a highly engaging guide with ## headers (e.g. "## The Core Concept", "## Step-by-Step Breakdown", "## Real-World Applications"). Use simple British English, ZERO unexplained jargon, and highly relatable analogies. Explicitly bridge any conceptual gaps.',
+          notesInstruction: 'lesson_notes MUST be 2000+ words, structured like a highly engaging guide with ## headers (e.g. "## The Core Concept", "## Step-by-Step Breakdown", "## Real-World Applications"). Use simple British English, ZERO unexplained jargon, and highly relatable analogies. Explicitly bridge any conceptual gaps. For coding/scripting topics, include rich, well-commented script samples in explicit triple-backtick fences (e.g. \`\`\`python, \`\`\`bash, \`\`\`sql) representing real, functional examples.',
           blockRules: `ACADEMIC MODE — MANDATORY BLOCK RULES:
 1. Open with a 'lottie' animation matching the topic keyword, then a 'mermaid' mindmap of the topic landscape.
 2. Include a 'key-terms' block early with 5-8 vocabulary terms from the topic.
@@ -389,7 +389,7 @@ Return ONLY this JSON (nothing else):
         project: {
           label: 'PROJECT-BASED LEARNING',
           lessonTypeHint: 'hands-on',
-          notesInstruction: 'lesson_notes should be a concise "Builder\'s Blueprint" — practical, scannable, and step-focused with zero jargon. Use "## Mission Briefing", "## Your Toolkit", "## Plain-English Build Steps", "## Testing & Verification" as headers. Explain every single tool or step thoroughly to leave no conceptual gaps. 1000–1500 words.',
+          notesInstruction: 'lesson_notes should be a concise "Builder\'s Blueprint" — practical, scannable, and step-focused with zero jargon. Use "## Mission Briefing", "## Your Toolkit", "## Plain-English Build Steps", "## Testing & Verification" as headers. Explain every single tool or step thoroughly to leave no conceptual gaps. For coding/scripting topics, include comprehensive starter codes or scripts inside explicit language code fences (e.g. \`\`\`python, \`\`\`bash). 1000–1500 words.',
           blockRules: `PROJECT MODE — MANDATORY BLOCK RULES:
 1. Open with a 'lottie' animation matching the topic, then a 'mermaid' flowchart of the build process.
 2. Include ONE 'steps-list' as the "Build Sequence" — every step of the project as a numbered list.
@@ -406,7 +406,7 @@ Return ONLY this JSON (nothing else):
         interactive: {
           label: 'INTERACTIVE & GAMIFIED',
           lessonTypeHint: 'interactive',
-          notesInstruction: 'lesson_notes should be short, punchy, gamified, and completely jargon-free — broken into "## Level 1: The Basics", "## Level 2: Going Deeper", "## Level 3: Expert Mode" sections. 800–1200 words. Explain everything simply and leave no logic gaps. Every level ends with a "checkpoint" prompt.',
+          notesInstruction: 'lesson_notes should be short, punchy, gamified, and completely jargon-free — broken into "## Level 1: The Basics", "## Level 2: Going Deeper", "## Level 3: Expert Mode" sections. 800–1200 words. Explain everything simply and leave no logic gaps. Every level ends with a "checkpoint" prompt. For coding/scripting topics, embed brief but highly educational code blocks inside explicit language fences.',
           blockRules: `INTERACTIVE MODE — MANDATORY BLOCK RULES:
 1. Open with a 'lottie' animation for the topic, then a 'motion-graphics' block (animationType: "particles" or "orbit").
 2. Include THREE 'quiz' blocks at different points — each validating the concept just taught.
@@ -648,7 +648,10 @@ RULES:
 - For visual/Scratch/block coding topics (grade Basic 1-JSS1): include at least 1 block_sequence question.
 - For programming topics (JSS2-SS3): include at least 1 coding_blocks and 1 coding challenge question.
 - Include at least 5 questions total.
-- metadata.deliverables and metadata.rubric should be null/omitted for non-project assignments.`;
+- metadata.deliverables and metadata.rubric should be null/omitted for non-project assignments.
+- Format the assignment description and instructions using rich Markdown (bold accents, bullet points, numbered lists, blockquotes).
+- Include clear, well-commented sample code or template scripts inside standard language code fences (e.g. \`\`\`python, \`\`\`javascript, \`\`\`sql, \`\`\`bash, \`\`\`html, \`\`\`cpp) supporting all coding, database, and scripting topics.
+- Keep explanations zero-jargon, and provide step-by-step guidance on what to build, test, and submit.`;
     }
 
     case 'cbt': {
@@ -960,7 +963,8 @@ RULES:
 - Instructions must be clear enough for a student to follow independently — numbered steps, specific deliverables.
 - rubric must have 3-4 criteria with maxPts values summing to exactly 100.
 - submission_types must match the deliverable (code project → link + code; hardware → screenshot + text).
-- Make it engaging and achievable for Nigerian secondary school students.`; }
+- Make it engaging and achievable for Nigerian secondary school students.
+- Incorporate structured programming scripts, terminal commands, database setups, or HTML block outlines inside explicit language code fences (e.g. \`\`\`python, \`\`\`javascript, \`\`\`sql, \`\`\`bash, \`\`\`html, \`\`\`cpp) to ground the project's codebase.`; }
 
     default:
       throw new Error(`Unknown generate type: ${req.type}`);

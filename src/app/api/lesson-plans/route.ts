@@ -190,6 +190,9 @@ export async function POST(request: Request) {
 
     // Auto-import weeks from linked curriculum if no plan_data provided
     let autoPlanData = plan_data ?? {};
+    const targetYear = typeof body.curriculum_year === 'number' ? body.curriculum_year : 1;
+    autoPlanData.curriculum_year = targetYear; // Persist curriculum year in plan_data JSONB
+
     if (curriculum_version_id && (!plan_data || !plan_data.weeks?.length)) {
       const { data: curriculum } = await db
         .from('course_curricula')
@@ -200,13 +203,12 @@ export async function POST(request: Request) {
       const curriculumContent = curriculum?.content as any;
       if (curriculumContent?.terms) {
         const termNum = inferTermNumberFromPlanTerm(term);
-        const termData = curriculumContent.terms.find((t: any) => t.term === termNum)
+        const termData = curriculumContent.terms.find((t: any) => t.term === termNum && (t.year ?? 1) === targetYear)
+          ?? curriculumContent.terms.find((t: any) => t.term === termNum)
           ?? curriculumContent.terms[0];
 
         if (termData?.weeks?.length) {
-          autoPlanData = {
-            weeks: termData.weeks.map((w: SyllabusWeekImport) => mapSyllabusWeekToPlanRow(w)),
-          };
+          autoPlanData.weeks = termData.weeks.map((w: SyllabusWeekImport) => mapSyllabusWeekToPlanRow(w));
         }
       }
     }

@@ -73,6 +73,7 @@ export interface SyllabusWeek {
 export interface SyllabusTerm {
   term: number;
   title: string;
+  year?: number;
   objectives?: string[];
   weeks: SyllabusWeek[];
 }

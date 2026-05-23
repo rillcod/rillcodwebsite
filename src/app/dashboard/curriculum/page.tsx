@@ -1171,6 +1171,7 @@ export default function CurriculumPage() {
           school_id: implForm.school_id || null,
           class_id: implForm.class_id,
           term: `${termLabel} ${implForm.academic_year}`,
+          curriculum_year: activeYear, // Deploy correct year's terms
           term_start: implForm.term_start,
           term_end: implForm.term_end,
           sessions_per_week: Number(implForm.sessions_per_week) || 5,

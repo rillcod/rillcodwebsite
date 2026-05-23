@@ -107,7 +107,7 @@ export async function PATCH(
 
   const { data: existing } = await admin
     .from('assignments')
-    .select('created_by, school_id')
+    .select('created_by, school_id, is_active')
     .eq('id', id)
     .maybeSingle();
 
@@ -123,6 +123,7 @@ export async function PATCH(
   const allowedFields = [
     'title', 'description', 'instructions', 'course_id',
     'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
+    'class_id',
   ];
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
@@ -131,6 +132,12 @@ export async function PATCH(
 
   const { error } = await admin.from('assignments').update(allowed).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (allowed.is_active === true && existing.is_active !== true) {
+    const { triggerAssignmentReleaseNotifications } = await import('@/lib/assignments/notifications');
+    triggerAssignmentReleaseNotifications(id, caller.id).catch(console.error);
+  }
+
   return NextResponse.json({ success: true });
 }
 

@@ -130,8 +130,8 @@ export async function POST(
           }
 
           const siblingLessons = allCurriculumTopics.filter((t: string) => t !== week.topic);
-          const { yearNumber, effectiveTermNum } = parseWeekTermRefs(week, termNum);
-          const syllabusWeek = findSyllabusWeek(curriculumContent, effectiveTermNum, week.week);
+          const { yearNumber, effectiveTermNum } = parseWeekTermRefs(week, termNum, (plan!.plan_data as any)?.curriculum_year ?? 1);
+          const syllabusWeek = findSyllabusWeek(curriculumContent, effectiveTermNum, week.week, yearNumber);
           const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
           const durationFromSyllabus = syllabusWeek?.lesson_plan?.duration_minutes;
           const durationMinutes =

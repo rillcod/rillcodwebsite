@@ -16,6 +16,122 @@ import {
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import BlockSequencer from '@/components/assignments/BlockSequencer';
 import ShareToParentModal from '@/components/share/ShareToParentModal';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+function NoteCodeBlock({ lang, code }: { lang: string; code: string }) {
+    const [copied, setCopied] = useState(false);
+    const copy = () => {
+        navigator.clipboard.writeText(code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    const LANG_COLOR: Record<string, string> = {
+        python: 'text-emerald-400 bg-emerald-500/10',
+        javascript: 'text-yellow-400 bg-yellow-500/10',
+        js: 'text-yellow-400 bg-yellow-500/10',
+        html: 'text-primary bg-primary/10',
+        css: 'text-primary bg-primary/10',
+        robotics: 'text-primary bg-primary/10',
+        bash: 'text-muted-foreground bg-muted/50',
+        sh: 'text-muted-foreground bg-muted/50',
+        shell: 'text-muted-foreground bg-muted/50',
+        sql: 'text-cyan-400 bg-cyan-500/10',
+        json: 'text-cyan-400 bg-cyan-500/10',
+        cpp: 'text-rose-400 bg-rose-500/10',
+        c: 'text-rose-400 bg-rose-500/10',
+    };
+    const langClass = LANG_COLOR[lang?.toLowerCase()] ?? 'text-cyan-400 bg-cyan-500/10';
+    return (
+        <div className="my-4 bg-[#0d0d1a] border border-white/10 overflow-hidden shadow-xl rounded-xl">
+            <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                        <div className="w-2.5 h-2.5 rounded-full bg-rose-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50" />
+                    </div>
+                    {lang && <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${langClass}`}>{lang}</span>}
+                </div>
+                <button
+                    onClick={copy}
+                    className="text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white transition-colors flex items-center gap-1"
+                >
+                    {copied ? '✓ Copied' : '⧉ Copy'}
+                </button>
+            </div>
+            <pre className="p-4 overflow-x-auto text-[13px] font-mono leading-relaxed text-blue-300">
+                <code>{code}</code>
+            </pre>
+        </div>
+    );
+}
+
+function AssignmentMarkdown({ content, className = '' }: { content: string; className?: string }) {
+    return (
+        <div className={className}>
+            <Markdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    h1: ({ children }) => (
+                        <h1 className="text-lg font-black text-white pt-4 pb-1 border-b border-white/10 mt-3">{children}</h1>
+                    ),
+                    h2: ({ children }) => (
+                        <h2 className="text-base font-black text-white pt-5 pb-1 border-b border-white/5 uppercase tracking-wider mt-3">{children}</h2>
+                    ),
+                    h3: ({ children }) => (
+                        <h3 className="text-sm font-black text-white/90 pt-4 pb-0.5 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block shrink-0" />
+                            {children}
+                        </h3>
+                    ),
+                    p: ({ children }) => (
+                        <p className="text-sm text-white/70 leading-relaxed my-1.5">{children}</p>
+                    ),
+                    ul: ({ children }) => (
+                        <ul className="list-none space-y-1.5 pl-0 my-2.5">{children}</ul>
+                    ),
+                    ol: ({ children }) => (
+                        <ol className="list-none space-y-1.5 pl-0 my-2.5 [counter-reset:li]">{children}</ol>
+                    ),
+                    li: ({ children, ordered, index }: any) => (
+                        <li className="flex gap-2.5 items-start text-sm text-white/70 leading-relaxed">
+                            {ordered ? (
+                                <span className="w-4 h-4 rounded bg-primary/20 text-primary text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                                    {(index ?? 0) + 1}
+                                </span>
+                            ) : (
+                                <span className="text-primary mt-1.5 shrink-0 text-xs">▸</span>
+                            )}
+                            <span className="flex-1">{children}</span>
+                        </li>
+                    ),
+                    blockquote: ({ children }) => (
+                        <blockquote className="my-3 pl-4 border-l-4 border-primary/40 bg-primary/5 py-2.5 pr-3 rounded-r-lg">
+                            <div className="text-sm text-white/60 italic leading-relaxed [&>p]:my-0">{children}</div>
+                        </blockquote>
+                    ),
+                    pre: ({ children }: any) => {
+                        const codeEl = (children as any)?.props;
+                        const match = /language-(\w+)/.exec(codeEl?.className || '');
+                        const code = String(codeEl?.children || '').replace(/\n$/, '');
+                        return <NoteCodeBlock lang={match?.[1] || ''} code={code} />;
+                    },
+                    code: ({ children, className }: any) => {
+                        if (className) return null; // handled by pre
+                        return (
+                            <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[0.85em] font-mono border border-primary/20">
+                                {children}
+                            </code>
+                        );
+                    }
+                }}
+            >
+                {content}
+            </Markdown>
+        </div>
+    );
+}
 
 function pctInfo(grade: number, max: number) {
     const pct = Math.round((grade / max) * 100);
@@ -388,14 +504,14 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                     {assignment.description && (
                         <div className="p-5 border-b border-white/8">
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Description</p>
-                            <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">{assignment.description}</p>
+                            <AssignmentMarkdown content={assignment.description} />
                         </div>
                     )}
 
                     {assignment.instructions && (
                         <div className="p-5 border-b border-white/8">
                             <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Instructions</p>
-                            <p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{assignment.instructions}</p>
+                            <AssignmentMarkdown content={assignment.instructions} />
                         </div>
                     )}
 
@@ -466,13 +582,13 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                 {assignment.description && (
                                     <div>
                                         <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5">Description</p>
-                                        <p className="text-xs text-white/80 leading-relaxed whitespace-pre-wrap">{assignment.description}</p>
+                                        <AssignmentMarkdown content={assignment.description} />
                                     </div>
                                 )}
                                 {assignment.instructions && (
                                     <div>
                                         <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5">Instructions</p>
-                                        <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">{assignment.instructions}</p>
+                                        <AssignmentMarkdown content={assignment.instructions} />
                                     </div>
                                 )}
                                 {questions.length > 0 && (
@@ -1453,14 +1569,13 @@ export default function AssignmentDetailPage() {
                         )}
                     </div>
                 )}
-
                 {/* Description */}
                 {assignment.description && (
                     <div className="bg-card shadow-sm border border-border rounded-xl p-6">
                         <h2 className="font-bold text-foreground mb-2 flex items-center gap-2">
                             <DocumentTextIcon className="w-4 h-4 text-primary" /> Description
                         </h2>
-                        <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">{assignment.description}</p>
+                        <AssignmentMarkdown content={assignment.description} />
                     </div>
                 )}
 
@@ -1470,7 +1585,7 @@ export default function AssignmentDetailPage() {
                         <h2 className="font-bold text-amber-400 mb-2 flex items-center gap-2">
                             <AcademicCapIcon className="w-4 h-4" /> Instructions
                         </h2>
-                        <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">{assignment.instructions}</p>
+                        <AssignmentMarkdown content={assignment.instructions} />
                     </div>
                 )}
 

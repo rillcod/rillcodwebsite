@@ -74,7 +74,7 @@ interface LessonPlan {
   curriculum_version_id?: string | null;
   status?: string | null;
   version?: number | null;
-  plan_data?: { weeks?: WeekEntry[] } | null;
+  plan_data?: { weeks?: WeekEntry[]; curriculum_year?: number } | null;
   metadata?: Record<string, unknown> | null;
   objectives?: string | null;
   activities?: string | null;
@@ -109,7 +109,8 @@ function buildPlanWeekCreateLessonUrl(opts: {
 
   if (plan.curriculum_version_id && plan.course_id && hasTerms) {
     const tn = inferTermNumberFromPlanTerm(plan.term);
-    const syWeek = findSyllabusWeek(content, tn, w.week);
+    const cy = plan.plan_data?.curriculum_year ?? 1;
+    const syWeek = findSyllabusWeek(content, tn, w.week, cy);
     const lp = syWeek?.lesson_plan;
     let planSlice: CurriculumWeekPlanSlice | null = null;
     if (lp) {
@@ -708,9 +709,12 @@ export default function LessonPlanDetailPage() {
     const c = plan.curriculum.content as SyllabusContent;
     if (!c.terms?.length) return null;
     const tn = inferTermNumberFromPlanTerm(plan.term);
-    const term = c.terms.find((t) => t.term === tn) ?? c.terms[0];
+    const cy = plan.plan_data?.curriculum_year ?? 1;
+    const term = c.terms.find((t) => t.term === tn && (t.year ?? 1) === cy)
+      ?? c.terms.find((t) => t.term === tn)
+      ?? c.terms[0];
     return { ...c, terms: [term] };
-  }, [plan?.curriculum?.content, plan?.term]);
+  }, [plan?.curriculum?.content, plan?.term, plan?.plan_data?.curriculum_year]);
 
   async function saveWeeks(updatedWeeks: WeekEntry[]) {
     setSaving(true);

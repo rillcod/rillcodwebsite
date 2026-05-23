@@ -223,6 +223,7 @@ export async function POST(request: NextRequest) {
     const allowedFields = [
       'title', 'description', 'instructions', 'course_id', 'lesson_id',
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
+      'class_id',
     ];
     const payload: Record<string, unknown> = {
       created_by: caller.id,
@@ -241,6 +242,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    if (data.is_active) {
+      const { triggerAssignmentReleaseNotifications } = await import('@/lib/assignments/notifications');
+      triggerAssignmentReleaseNotifications(data.id, caller.id).catch(console.error);
+    }
+
     return NextResponse.json({ data }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

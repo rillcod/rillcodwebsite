@@ -127,8 +127,8 @@ export async function POST(
           const dueDate = new Date(termStart);
           dueDate.setDate(dueDate.getDate() + (week.week * cadenceDays) + 7);
 
-          const { yearNumber, effectiveTermNum } = parseWeekTermRefs(week, termNum);
-          const syllabusWeek = findSyllabusWeek(curriculumContent, effectiveTermNum, week.week);
+          const { yearNumber, effectiveTermNum } = parseWeekTermRefs(week, termNum, (plan.plan_data as any)?.curriculum_year ?? 1);
+          const syllabusWeek = findSyllabusWeek(curriculumContent, effectiveTermNum, week.week, yearNumber);
           const syllabusReference = buildSyllabusAnchorText(syllabusWeek);
 
           let aiData: { success: true; data: unknown };

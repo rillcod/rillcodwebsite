@@ -587,7 +587,7 @@ export async function POST(
       ? body.weekly_frequency
       : (program.session_frequency_per_week === 2 ? 2 : (plan.sessions_per_week === 2 ? 2 : 1));
   const curriculumContent = plan.curriculum?.content ?? null;
-  const currentTermWeeks = getSyllabusTermWeeks(curriculumContent, termNumber);
+  const currentTermWeeks = getSyllabusTermWeeks(curriculumContent, termNumber, yearNumber);
   const requestedWeeksCount = Number(body.weeks_count);
   const policyDefaultWeeks = Number(policy.standard_weeks_per_term ?? 8);
   const weeksCount =
@@ -793,7 +793,7 @@ export async function POST(
   const lockedTermWarnings: string[] = [];
   let generatedWeekCount = 0;
   const makeTerm = (yearNo: number, termNo: number, startWeekNumber = 1) => {
-    const termCurriculumWeeks = getSyllabusTermWeeks(curriculumContent, termNo);
+    const termCurriculumWeeks = getSyllabusTermWeeks(curriculumContent, termNo, yearNo);
     const termWeeksCount =
       requestedScope === 'week'
         ? 1

@@ -14,7 +14,7 @@ import {
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
   RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon, PlusIcon, TrashIcon, ArrowsPointingOutIcon,
-  SpeakerWaveIcon, SparklesIcon,
+  SpeakerWaveIcon, SparklesIcon, ArrowPathIcon,
 } from '@/lib/icons';
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1498,13 +1498,19 @@ function BlockMarkdown({ content, className }: { content: string; className?: st
           strong: ({ children }) => <strong className="font-black text-foreground">{children}</strong>,
           em: ({ children }) => <em className="italic text-foreground/70">{children}</em>,
           del: ({ children }) => <del className="opacity-40">{children}</del>,
-          code: ({ children, className: cls }: any) => {
-            if (cls) return <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">{children}</code>;
-            return <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">{children}</code>;
+          code: ({ children, className }: any) => {
+            if (className) return null; // handled by pre
+            return (
+              <code className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded text-[0.83em] font-mono border border-cyan-500/20">
+                {children}
+              </code>
+            );
           },
           pre: ({ children }: any) => {
-            const code = String((children as any)?.props?.children || '').replace(/\n$/, '');
-            return <pre className="my-2 p-3 bg-black/30 border border-border text-[12px] font-mono text-cyan-300 overflow-x-auto rounded-xl leading-relaxed">{code}</pre>;
+            const codeEl = (children as any)?.props;
+            const match = /language-(\w+)/.exec(codeEl?.className || '');
+            const code = String(codeEl?.children || '').replace(/\n$/, '');
+            return <NoteCodeBlock lang={match?.[1] || ''} code={code} />;
           },
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline decoration-primary/30 hover:decoration-primary underline-offset-2 transition-all">{children}</a>
@@ -1541,12 +1547,13 @@ function AnimatedBlock({ children, i }: { children: React.ReactNode; i: number }
   );
 }
 
-function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, lessonContext }: {
+function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, lessonContext, courseAssignments = [] }: {
   blocks: any[];
   lessonType?: string;
   onInteraction?: (idx: number) => void;
   onExplainRequest?: (text: string) => void;
   lessonContext?: { lessonTitle: string; courseTitle?: string; gradeLevel?: string };
+  courseAssignments?: any[];
 }) {
   if (!blocks || blocks.length === 0) return null;
 
@@ -1569,11 +1576,11 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
             return (
               <AnimatedBlock key={i} i={i}>
                 <div className="relative group pt-4">
-                  <div className="absolute -left-4 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-primary via-primary to-cyan-500 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-0 group-hover:scale-y-100 origin-top" />
-                  <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-snug break-words bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text">
+                  <div className="absolute -left-4 top-0 bottom-0 w-1.5 rounded-full bg-gradient-to-b from-primary via-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-100 transition-all duration-300 scale-y-0 group-hover:scale-y-100 origin-top shadow-[0_0_12px_rgba(6,182,212,0.6)]" />
+                  <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight leading-snug break-words bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent group-hover:text-cyan-400 transition-all duration-300">
                     {block.content}
                   </h2>
-                  <div className="mt-2 h-px w-0 group-hover:w-full bg-gradient-to-r from-primary/50 via-primary/30 to-transparent transition-all duration-500" />
+                  <div className="mt-3 h-[2px] w-0 group-hover:w-full bg-gradient-to-r from-primary via-indigo-500 to-transparent transition-all duration-500" />
                 </div>
               </AnimatedBlock>
             );
@@ -1609,19 +1616,19 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
             const isWarning = block.style === 'warning';
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className={`p-8 sm:p-12 border-2 shadow-2xl relative overflow-hidden group ${isWarning ? 'bg-rose-500/5 border-rose-500/10' : 'bg-cyan-500/5 border-cyan-500/10'}`}>
-                  <div className={`absolute -right-12 -top-12 w-48 sm:w-64 h-48 sm:h-64 opacity-[0.03] transition-transform group-hover:scale-110 ${isWarning ? 'text-rose-500' : 'text-cyan-500'}`}>
+                <div className={`p-8 sm:p-12 border border-white/10 rounded-2xl shadow-2xl relative overflow-hidden group backdrop-blur-md ${isWarning ? 'bg-rose-500/5 hover:border-rose-500/30' : 'bg-primary/5 hover:border-primary/30'} transition-all duration-300`}>
+                  <div className={`absolute -right-12 -top-12 w-48 sm:w-64 h-48 sm:h-64 opacity-[0.03] transition-transform group-hover:scale-110 group-hover:rotate-12 duration-500 ${isWarning ? 'text-rose-500' : 'text-primary'}`}>
                     {isWarning ? <ExclamationTriangleIcon /> : <InformationCircleIcon />}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-6 sm:gap-10 relative z-10">
-                    <div className={`shrink-0 p-4 sm:p-6 shadow-xl ${isWarning ? 'bg-rose-500/20 text-rose-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
+                    <div className={`shrink-0 p-4 sm:p-6 rounded-xl shadow-xl flex items-center justify-center ${isWarning ? 'bg-rose-500/20 text-rose-400' : 'bg-primary/20 text-primary'}`}>
                       {isWarning ? <ExclamationTriangleIcon className="w-8 h-8 sm:w-12 sm:h-12" /> : <InformationCircleIcon className="w-8 h-8 sm:w-12 sm:h-12" />}
                     </div>
-                    <div className="space-y-2">
-                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-400' : 'text-cyan-400'}`}>
+                    <div className="space-y-2 flex-1">
+                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isWarning ? 'text-rose-400' : 'text-primary'}`}>
                         {isWarning ? 'Important Note' : 'Key Insight'}
                       </p>
-                      <BlockMarkdown content={block.content || ''} className="text-sm sm:text-base font-bold text-foreground" />
+                      <BlockMarkdown content={block.content || ''} className="text-base sm:text-lg font-bold text-white/95 leading-relaxed" />
                     </div>
                   </div>
                 </div>
@@ -1807,11 +1814,20 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
             );
 
           /* ── ASSIGNMENT-BLOCK ──────────────────────────────────────── */
-          case 'assignment-block':
+          case 'assignment-block': {
+            const matchedAssignment = courseAssignments.find((a: any) =>
+              a.title.toLowerCase().trim() === (block.title || '').toLowerCase().trim()
+            ) || courseAssignments[0];
+
+            const displayTitle = matchedAssignment?.title || block.title || 'Mastery Synthesis';
+            const displayInstructions = matchedAssignment?.instructions || block.instructions || '';
+            const matchedMeta = matchedAssignment?.metadata as { deliverables?: string[] } | null | undefined;
+            const displayDeliverables = matchedMeta?.deliverables || block.deliverables || [];
+
             return (
               <AnimatedBlock key={i} i={i}>
-                <div className="relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-2 border-emerald-500/20" />
+                <div className="relative overflow-hidden group border border-white/5 rounded-2xl">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-2 border-emerald-500/20 rounded-2xl" />
                   <div className="relative p-8 sm:p-12 space-y-6">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/40 rotate-3 group-hover:rotate-0 transition-transform duration-500">
@@ -1819,22 +1835,37 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                       </div>
                       <div>
                         <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Capstone Challenge</p>
-                        <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">{block.title || 'Mastery Synthesis'}</h3>
+                        <h3 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">{displayTitle}</h3>
                       </div>
                     </div>
-                    <div className="p-6 bg-muted/50 border border-border shadow-lg">
-                      <BlockMarkdown content={block.instructions || ''} className="text-sm font-medium mb-6" />
-                      {block.deliverables && block.deliverables.length > 0 && (
+                    <div className="p-6 bg-[#161628]/40 border border-white/5 rounded-xl shadow-lg">
+                      <BlockMarkdown content={displayInstructions} className="text-sm font-medium mb-6" />
+                      {displayDeliverables && displayDeliverables.length > 0 && (
                         <div className="space-y-3 pt-4 border-t border-emerald-500/20">
                           <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Required Deliverables</p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {block.deliverables.map((del: string, idx: number) => (
-                              <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/10">
-                                <div className="w-5 h-5 bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-500">{idx + 1}</div>
+                            {displayDeliverables.map((del: string, idx: number) => (
+                              <div key={idx} className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
+                                <div className="w-5 h-5 bg-emerald-500/20 flex items-center justify-center text-[10px] font-black text-emerald-500 rounded">{idx + 1}</div>
                                 <span className="text-xs font-bold text-foreground/80">{del}</span>
                               </div>
                             ))}
                           </div>
+                        </div>
+                      )}
+
+                      {matchedAssignment && (
+                        <div className="mt-8 pt-6 border-t border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                          <div className="text-center sm:text-left">
+                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Active Assignment Synced</p>
+                            <p className="text-xs text-white/50 mt-0.5">{matchedAssignment.title}</p>
+                          </div>
+                          <Link
+                            href={`/dashboard/assignments/${matchedAssignment.id}`}
+                            className="w-full sm:w-auto text-center px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest transition-all rounded-xl shadow-lg hover:shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-2"
+                          >
+                            <RocketLaunchIcon className="w-4 h-4" /> Go to Submission Portal
+                          </Link>
                         </div>
                       )}
                     </div>
@@ -1842,6 +1873,7 @@ function CanvaRenderer({ blocks, lessonType, onInteraction, onExplainRequest, le
                 </div>
               </AnimatedBlock>
             );
+          }
 
           /* ── MATH ──────────────────────────────────────────────────── */
           case 'math':
@@ -2339,6 +2371,9 @@ export default function LessonDetailPage() {
   const [courseAssignments, setCourseAssignments] = useState<any[]>([]);
   const [programQuizzes, setProgramQuizzes] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
+  const [flashcardDecks, setFlashcardDecks] = useState<any[]>([]);
+  const [generatingAssignment, setGeneratingAssignment] = useState(false);
+  const [generatingFlashcards, setGeneratingFlashcards] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'content' | 'materials' | 'tasks'>('content');
@@ -2414,6 +2449,183 @@ export default function LessonDetailPage() {
       alert(e.message ?? 'Failed to generate notes. Please try again.');
     } finally {
       setGeneratingNotes(false);
+    }
+  };
+
+  const handleGenerateAssignment = async () => {
+    if (!lesson || generatingAssignment || !profile) return;
+    const user = profile;
+    setGeneratingAssignment(true);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'assignment',
+          topic: lesson.title,
+          gradeLevel: lesson.grade_level || 'JSS1–SS3',
+          subject: lesson.subject || lesson.courses?.title || 'Coding & Technology',
+          courseName: lesson.courses?.title || undefined,
+          programName: lesson.courses?.programs?.name || undefined,
+          assignmentType: 'project'
+        })
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
+      const data = payload.data;
+      if (data) {
+        const db = createClient();
+        let resolvedSchoolId: string | null = user.school_id ?? null;
+        if (!resolvedSchoolId && user.role === 'teacher') {
+          const { data: tsRows } = await db
+            .from('teacher_schools')
+            .select('school_id')
+            .eq('teacher_id', user.id)
+            .limit(1);
+          resolvedSchoolId = (tsRows?.[0] as any)?.school_id ?? null;
+        }
+
+        const assignmentPayload: any = {
+          title: data.title || `${lesson.title} Assignment`,
+          instructions: data.instructions || '',
+          course_id: lesson.course_id,
+          lesson_id: lesson.id,
+          assignment_type: data.assignment_type || 'project',
+          max_points: 100,
+          is_active: true,
+          created_by: user.id,
+          metadata: data.metadata || { deliverables: data.metadata?.deliverables || [], rubric: data.metadata?.rubric || [] }
+        };
+        if (resolvedSchoolId) {
+          assignmentPayload.school_id = resolvedSchoolId;
+        }
+
+        const { data: newAsgn, error: asgnErr } = await db
+          .from('assignments')
+          .insert(assignmentPayload)
+          .select()
+          .single();
+
+        if (asgnErr) throw asgnErr;
+
+        // Auto-add assignment-block in content_layout of the lesson if not already existing
+        const existingBlocks = lesson.content_layout || [];
+        const hasAsgnBlock = existingBlocks.some((b: any) => b.type === 'assignment-block');
+        if (!hasAsgnBlock) {
+          const asgnMeta = newAsgn.metadata as { deliverables?: string[] } | null;
+          const newBlock = {
+            type: 'assignment-block',
+            title: newAsgn.title,
+            instructions: newAsgn.instructions,
+            deliverables: asgnMeta?.deliverables || []
+          };
+          const updatedLayout = [...existingBlocks, newBlock];
+          await db.from('lessons').update({ content_layout: updatedLayout }).eq('id', id);
+          setLesson((prev: any) => ({ ...prev, content_layout: updatedLayout }));
+        }
+
+        // Trigger notification
+        try {
+          await fetch('/api/assignments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...assignmentPayload,
+              dry_run_notify_only: true
+            })
+          }).catch(() => {});
+        } catch (e) {}
+
+        const { data: cAsgns } = await db
+          .from('assignments')
+          .select('id, title, assignment_type, due_date, instructions, description, metadata, max_points')
+          .eq('lesson_id', lesson.id);
+        setCourseAssignments(cAsgns ?? []);
+        alert('AI assignment generated successfully and added to this lesson!');
+      }
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to generate assignment. Please try again.');
+    } finally {
+      setGeneratingAssignment(false);
+    }
+  };
+
+  const handleGenerateFlashcards = async () => {
+    if (!lesson || generatingFlashcards || !profile) return;
+    const user = profile;
+    setGeneratingFlashcards(true);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'flashcard',
+          topic: lesson.title,
+          gradeLevel: lesson.grade_level || 'JSS1–SS3',
+          subject: lesson.subject || lesson.courses?.title || 'Coding & Technology',
+          difficulty: 'medium',
+          questionCount: 10
+        })
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.error ?? 'Generation failed');
+      const data = payload.data;
+      if (data && data.cards && data.cards.length > 0) {
+        const db = createClient();
+        let resolvedSchoolId: string | null = user.school_id ?? null;
+        if (!resolvedSchoolId && user.role === 'teacher') {
+          const { data: tsRows } = await db
+            .from('teacher_schools')
+            .select('school_id')
+            .eq('teacher_id', user.id)
+            .limit(1);
+          resolvedSchoolId = (tsRows?.[0] as any)?.school_id ?? null;
+        }
+
+        const deckPayload: any = {
+          title: `${lesson.title} - Study Deck`,
+          lesson_id: lesson.id,
+          course_id: lesson.course_id,
+          created_by: user.id
+        };
+        if (resolvedSchoolId) {
+          deckPayload.school_id = resolvedSchoolId;
+        }
+
+        const deckRes = await fetch('/api/flashcards/decks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(deckPayload)
+        });
+        const deckData = await deckRes.json();
+        if (!deckRes.ok) throw new Error(deckData.error ?? 'Failed to create flashcard deck');
+
+        const deckId = deckData.data.id;
+
+        for (const card of data.cards) {
+          await fetch(`/api/flashcards/decks/${deckId}/cards`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              front: card.front,
+              back: card.back,
+              tags: card.tags || [],
+              difficulty_level: card.difficulty || 'medium'
+            })
+          });
+        }
+
+        const { data: fDecks } = await db
+          .from('flashcard_decks')
+          .select('id, title, flashcard_cards(count)')
+          .eq('lesson_id', id);
+        setFlashcardDecks(fDecks ?? []);
+        alert('AI study flashcards deck generated successfully!');
+      }
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to generate flashcards. Please try again.');
+    } finally {
+      setGeneratingFlashcards(false);
     }
   };
 
@@ -2496,14 +2708,16 @@ export default function LessonDetailPage() {
       setMaterials(materialsRes.data ?? []);
 
       if (lessonObj.course_id) {
-        const [cLessons, cAsgns, cQuizzes] = await Promise.all([
+        const [cLessons, cAsgns, cQuizzes, fDecks] = await Promise.all([
           db.from('lessons').select('id, title, order_index, lesson_type').eq('course_id', lessonObj.course_id).order('order_index', { ascending: true }),
-          db.from('assignments').select('id, title, assignment_type, due_date').eq('lesson_id', lessonObj.id),
-          db.from('cbt_exams').select('id, title, duration_minutes, total_points').eq('program_id', lessonObj.courses?.program_id || lessonObj.courses?.programs?.id || '')
+          db.from('assignments').select('id, title, assignment_type, due_date, instructions, description, metadata, max_points').eq('lesson_id', lessonObj.id),
+          db.from('cbt_exams').select('id, title, duration_minutes, total_points').eq('program_id', lessonObj.courses?.program_id || lessonObj.courses?.programs?.id || ''),
+          db.from('flashcard_decks').select('id, title, flashcard_cards(count)').eq('lesson_id', id)
         ]);
         setCourseLessons(cLessons.data ?? []);
         setCourseAssignments(cAsgns.data ?? []);
         setProgramQuizzes(cQuizzes.data ?? []);
+        setFlashcardDecks(fDecks.data ?? []);
       }
 
       if (profile.role === 'student') {
@@ -2921,6 +3135,7 @@ export default function LessonDetailPage() {
                           courseTitle: lesson.courses?.title ?? undefined,
                           gradeLevel: lesson.grade_level ?? undefined,
                         }}
+                        courseAssignments={courseAssignments}
                       />
                     </div>
                   )}
@@ -3197,14 +3412,37 @@ export default function LessonDetailPage() {
                       )}
                     </div>
                     {courseAssignments.length === 0 ? (
-                      <div className="flex flex-col items-center gap-3 py-12 text-center">
-                        <ClipboardDocumentListIcon className="w-10 h-10 text-muted-foreground/30" />
-                        <p className="text-muted-foreground text-sm">No assignments for this lesson yet.</p>
-                        {isStaff && (
-                          <Link href={`/dashboard/assignments/new?lesson_id=${lesson?.id}&course_id=${lesson?.course_id ?? ''}`}
-                            className="text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors">
-                            + Create the first assignment
-                          </Link>
+                      <div className="flex flex-col items-center gap-3 py-12 text-center bg-card/40 backdrop-blur-md border border-white/5 rounded-2xl shadow-2xl relative overflow-hidden p-8 sm:p-12">
+                        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent pointer-events-none" />
+                        <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500 mb-4 animate-pulse">
+                          <ClipboardDocumentListIcon className="w-8 h-8" />
+                        </div>
+                        <h4 className="text-xl font-black text-foreground uppercase tracking-wider">AI Assignment Suggester</h4>
+                        <p className="text-muted-foreground text-xs max-w-md mx-auto mb-6 leading-relaxed">
+                          No active assignment found for this lesson yet. Harness the AI Engine to instantly draft a fully tailored coding project complete with grading rubrics and requirements.
+                        </p>
+                        {isStaff ? (
+                          <div className="flex flex-wrap items-center justify-center gap-3">
+                            <button
+                              onClick={handleGenerateAssignment}
+                              disabled={generatingAssignment}
+                              className="px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-95 flex items-center gap-2"
+                            >
+                              {generatingAssignment ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                '✦ AI Generate Assignment'
+                              )}
+                            </button>
+                            <Link
+                              href={`/dashboard/assignments/new?lesson_id=${lesson?.id}&course_id=${lesson?.course_id ?? ''}`}
+                              className="px-5 py-3 border border-border bg-background/40 hover:bg-card text-muted-foreground hover:text-amber-400 font-black text-xs uppercase tracking-widest rounded-xl transition-all active:scale-95"
+                            >
+                              Manual Create
+                            </Link>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Your teacher hasn't released any assignment tasks yet.</span>
                         )}
                       </div>
                     ) : (
@@ -3233,6 +3471,91 @@ export default function LessonDetailPage() {
                             </div>
                           </Link>
                         ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-6 pt-12 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2 px-4 py-1.5 bg-emerald-500/5 border border-emerald-500/10 w-fit">
+                        <SparklesIcon className="w-4 h-4 text-emerald-500" /> Study Flashcard Decks
+                      </h3>
+                      {isStaff && (
+                        <button
+                          onClick={handleGenerateFlashcards}
+                          disabled={generatingFlashcards}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50"
+                        >
+                          {generatingFlashcards ? (
+                            <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <PlusIcon className="w-3.5 h-3.5" />
+                          )}
+                          {generatingFlashcards ? 'Generating...' : 'AI Generate Decks'}
+                        </button>
+                      )}
+                    </div>
+                    {flashcardDecks.length === 0 ? (
+                      <div className="flex flex-col items-center gap-3 py-12 text-center bg-card/40 backdrop-blur-md border border-white/5 rounded-2xl shadow-2xl relative overflow-hidden p-8 sm:p-12">
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
+                        <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-500 mb-4 animate-pulse">
+                          <SparklesIcon className="w-8 h-8" />
+                        </div>
+                        <h4 className="text-xl font-black text-foreground uppercase tracking-wider">AI Study Flashcards</h4>
+                        <p className="text-muted-foreground text-xs max-w-md mx-auto mb-6 leading-relaxed">
+                          No flashcard study decks linked to this lesson yet. Generate a customized set of spaced-repetition flashcards matching this topic for rapid recall.
+                        </p>
+                        {isStaff ? (
+                          <button
+                            onClick={handleGenerateFlashcards}
+                            disabled={generatingFlashcards}
+                            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center gap-2"
+                          >
+                            {generatingFlashcards ? (
+                              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              '✦ AI Generate Study Deck'
+                            )}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">Spaced-repetition study decks will appear here once your teacher generates them.</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {flashcardDecks.map((deck: any) => {
+                          const cardCount = deck.flashcard_cards?.[0]?.count ?? 0;
+                          return (
+                            <div key={deck.id} className="p-6 bg-background border border-border rounded-xl hover:border-emerald-500/30 transition-all group flex flex-col justify-between gap-4 shadow-2xl relative overflow-hidden">
+                              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/5 blur-3xl rounded-full" />
+                              <div className="flex items-start justify-between relative z-10">
+                                <div className="space-y-1">
+                                  <h4 className="font-black text-lg text-foreground group-hover:text-emerald-400 transition-colors tracking-tight">{deck.title}</h4>
+                                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{cardCount} card{cardCount !== 1 ? 's' : ''} in deck</p>
+                                </div>
+                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500">
+                                  <SparklesIcon className="w-5 h-5" />
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 w-full mt-2 relative z-10">
+                                <Link
+                                  href={`/dashboard/flashcards/${deck.id}/review`}
+                                  className="flex-1 text-center py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest transition-all rounded-xl shadow-lg active:scale-95 flex items-center justify-center gap-1.5"
+                                >
+                                  <ArrowPathIcon className="w-3.5 h-3.5" /> Study Deck
+                                </Link>
+                                {isStaff && (
+                                  <Link
+                                    href={`/dashboard/flashcards?deckId=${deck.id}&topic=${encodeURIComponent(lesson.title)}&autoGenerate=true`}
+                                    className="px-4 py-2.5 bg-card hover:bg-muted border border-border text-muted-foreground text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                                  >
+                                    Manage Cards
+                                  </Link>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

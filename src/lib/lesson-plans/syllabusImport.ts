@@ -55,10 +55,13 @@ export function inferTermNumberFromPlanTerm(term: string | null | undefined): nu
 export function getSyllabusTermWeeks(
   content: SyllabusContentImport | null | undefined,
   termNumber: number,
+  yearNumber?: number,
 ): SyllabusWeekImport[] {
   const terms = content?.terms;
   if (!terms?.length) return [];
-  const termData = terms.find((t) => t.term === termNumber) ?? terms[0];
+  const termData = terms.find((t: any) => t.term === termNumber && (!yearNumber || (t.year ?? 1) === yearNumber))
+    ?? terms.find((t) => t.term === termNumber)
+    ?? terms[0];
   return termData?.weeks ?? [];
 }
 
@@ -66,8 +69,9 @@ export function findSyllabusWeek(
   content: SyllabusContentImport | null | undefined,
   termNumber: number,
   weekNumber: number,
+  yearNumber?: number,
 ): SyllabusWeekImport | undefined {
-  return getSyllabusTermWeeks(content, termNumber).find((w) => w.week === weekNumber);
+  return getSyllabusTermWeeks(content, termNumber, yearNumber).find((w) => w.week === weekNumber);
 }
 
 /** Text block for AI prompts — syllabus-backed student + teacher lines. */

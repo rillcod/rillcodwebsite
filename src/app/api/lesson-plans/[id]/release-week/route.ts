@@ -110,6 +110,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       .update({ is_active: true, updated_at: new Date().toISOString() })
       .in('id', assignmentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const { triggerAssignmentReleaseNotifications } = await import('@/lib/assignments/notifications');
+    Promise.all(
+      assignmentIds.map(aid => triggerAssignmentReleaseNotifications(aid).catch(console.error))
+    ).catch(console.error);
   }
 
   return NextResponse.json({
