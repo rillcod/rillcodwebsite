@@ -1534,14 +1534,30 @@ export default function CurriculumPage() {
     const contentPst = curriculum?.content?.metadata?.program_start_term;
     const resolvedPst = [1, 2, 3].includes(Number(contentPst)) ? Number(contentPst) : 1;
     setProgramStartTerm(resolvedPst as 1 | 2 | 3);
-    // Suggest next year to generate based on existing curriculum content
+    // Suggest next year/terms to generate based on existing curriculum content based on what terms are already complete
     if (curriculum?.content?.terms?.length) {
-      const existingYears = Array.from(new Set((curriculum.content.terms as CurriculumTerm[]).map((t) => t.year ?? 1)));
+      const allTerms = curriculum.content.terms as CurriculumTerm[];
+      const existingYears = Array.from(new Set(allTerms.map((t) => t.year ?? 1)));
       const maxYear = Math.max(...existingYears);
-      const nextYear = Math.min(3, maxYear + 1) as 1 | 2 | 3;
-      setProgrammeYear(nextYear);
-      // When adding a new year offer all terms
-      setSelectedTerms([1, 2, 3]);
+      
+      // Check which terms exist in this maxYear
+      const termsInMaxYear = allTerms.filter(t => (t.year ?? 1) === maxYear).map(t => t.term);
+      
+      if (termsInMaxYear.length < 3) {
+        // Current year is not complete yet, stay on this year
+        setProgrammeYear(maxYear as 1 | 2 | 3);
+        // Pre-select only the terms that are NOT generated yet in this year
+        const ungeneratedTerms = [1, 2, 3].filter(t => !termsInMaxYear.includes(t));
+        setSelectedTerms(ungeneratedTerms);
+      } else {
+        // Current year has all 3 terms, suggest the next year
+        const nextYear = Math.min(3, maxYear + 1) as 1 | 2 | 3;
+        setProgrammeYear(nextYear);
+        // Find if any terms exist in the next year
+        const termsInNextYear = allTerms.filter(t => (t.year ?? 1) === nextYear).map(t => t.term);
+        const ungeneratedTerms = [1, 2, 3].filter(t => !termsInNextYear.includes(t));
+        setSelectedTerms(ungeneratedTerms.length > 0 ? ungeneratedTerms : [1, 2, 3]);
+      }
     } else {
       setProgrammeYear(1);
       // First generation: start at the national term that equals Prog.T1 Foundations for this school
