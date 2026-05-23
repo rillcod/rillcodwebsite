@@ -3685,30 +3685,30 @@ export default function CurriculumPage() {
 
                     {/* Row 2: title + version + meta */}
                     <div className="space-y-2 relative z-10">
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                        <h1 className="text-xl sm:text-2xl font-black leading-tight tracking-tighter text-foreground">
-                          {curriculum.content.course_title}
-                        </h1>
-                        <div className="flex items-center gap-1">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-primary/10 border border-primary/20 text-primary">
-                            v{curriculum.version}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <h1 className="text-lg sm:text-2xl font-black leading-tight tracking-tighter text-foreground inline-flex items-center gap-2 flex-wrap">
+                          <span>{curriculum.content.course_title}</span>
+                          <span className="inline-flex items-center gap-1.5 shrink-0 select-none">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-primary/10 border border-primary/20 text-primary h-6">
+                              v{curriculum.version}
+                            </span>
+                            {canModifyCurriculum && (
+                              <button
+                                onClick={() => {
+                                  setEditVersionNumber(curriculum.version);
+                                  setEditVersionDesc(curriculum.content.description ?? '');
+                                  setShowEditVersionModal(true);
+                                }}
+                                className="inline-flex items-center justify-center w-6 h-6 rounded-md border border-white/10 hover:border-primary/40 bg-white/5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
+                                title="Edit version details"
+                              >
+                                <PencilIcon className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </span>
-                          {canModifyCurriculum && (
-                            <button
-                              onClick={() => {
-                                setEditVersionNumber(curriculum.version);
-                                setEditVersionDesc(curriculum.content.description ?? '');
-                                setShowEditVersionModal(true);
-                              }}
-                              className="p-1 rounded-lg border border-white/10 hover:border-primary/40 bg-white/5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
-                              title="Edit version details"
-                            >
-                              <PencilIcon className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
+                        </h1>
                         {curriculum.content.description && (
-                          <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground bg-white/5 px-2.5 py-0.5 border border-white/5 rounded-lg max-w-[200px] sm:max-w-none truncate" title={curriculum.content.description}>
+                          <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground bg-white/5 px-2.5 py-0.5 border border-white/5 rounded-lg max-w-[200px] sm:max-w-none truncate h-6 inline-flex items-center select-none" title={curriculum.content.description}>
                             {curriculum.content.description}
                           </span>
                         )}
@@ -3812,7 +3812,7 @@ export default function CurriculumPage() {
                       {canModifyCurriculum && (
                         <button
                           onClick={openGenerateModal}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20"
+                          className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3.5 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all rounded-lg shadow-lg shadow-primary/20 shrink-0 cursor-pointer"
                         >
                           <SparklesIcon className="w-3.5 h-3.5" /> Generate
                         </button>
@@ -3822,7 +3822,7 @@ export default function CurriculumPage() {
                           <button
                             onClick={() => togglePublish(false)}
                             disabled={publishing}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg"
+                            className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all rounded-lg shrink-0 cursor-pointer"
                             title="Make private"
                           >
                             {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <PencilIcon className="w-3.5 h-3.5" />}
@@ -3833,7 +3833,7 @@ export default function CurriculumPage() {
                           <button
                             onClick={() => togglePublish(true)}
                             disabled={publishing}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white transition-all rounded-lg"
+                            className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white transition-all rounded-lg shrink-0 cursor-pointer"
                             title="Share with school"
                           >
                             {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckCircleIcon className="w-3.5 h-3.5" />}
@@ -3847,7 +3847,7 @@ export default function CurriculumPage() {
                         <button
                           onClick={() => handleClone(curriculum.id)}
                           disabled={cloning}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-500 text-white transition-all rounded-lg shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                          className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white transition-all rounded-lg shadow-lg shadow-emerald-600/20 disabled:opacity-50 shrink-0 cursor-pointer"
                           title="Copy this platform template to your school so you can customise it"
                         >
                           {cloning ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <DocumentDuplicateIcon className="w-3.5 h-3.5" />}
@@ -3857,7 +3857,7 @@ export default function CurriculumPage() {
                       )}
                       <button
                         onClick={openPrintOptions}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg"
+                        className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0 cursor-pointer"
                       >
                         <PrinterIcon className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Print / Export</span>
@@ -3869,14 +3869,14 @@ export default function CurriculumPage() {
                             setNotifSettingsDraft(curriculum.content.notification_settings ?? { mode: 'all', channels: ['whatsapp'] });
                             setShowNotifSettings(true);
                           }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg"
+                          className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] border border-border text-foreground hover:bg-muted/50 transition-colors rounded-lg shrink-0 cursor-pointer"
                         >
                           <BellIcon className="w-3.5 h-3.5" /> Notifications
                         </button>
                       )}
                       <Link
                         href="/dashboard/curriculum/progress"
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg"
+                        className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-muted-foreground hover:text-foreground border border-border hover:bg-muted/50 transition-colors rounded-lg shrink-0"
                       >
                         <ChartBarIcon className="w-3.5 h-3.5" /> Reports
                       </Link>
@@ -3884,7 +3884,7 @@ export default function CurriculumPage() {
                         <button
                           onClick={handleDeleteCurriculum}
                           disabled={deleting}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50"
+                          className="flex items-center justify-center gap-1.5 px-2.5 py-1 text-[9px] sm:px-3 sm:py-1.5 sm:text-[10px] text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-all rounded-lg disabled:opacity-50 shrink-0 cursor-pointer"
                         >
                           {deleting ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
                           Delete
