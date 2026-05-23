@@ -1563,7 +1563,7 @@ export default function LessonPlanDetailPage() {
                   <BookOpenIcon className="w-4 h-4 opacity-70" />
                 </summary>
                 <div className="border-t border-primary/20 px-2 py-3 max-h-[min(32rem,70vh)] overflow-y-auto bg-background/40">
-                  <SyllabusPreview content={syllabusTermContent} courseTitle={courseTitle} />
+                  <SyllabusPreview content={syllabusTermContent} courseTitle={courseTitle} hideCourseHeader={true} />
                 </div>
               </details>
             ) : (

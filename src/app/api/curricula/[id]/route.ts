@@ -83,10 +83,28 @@ export async function PATCH(
     updatePayload.is_visible_to_school = body.is_visible_to_school;
   }
   if (body.content !== undefined) {
-    // Full content update — bumps version
     updatePayload.content = body.content;
-    updatePayload.version = (row.version ?? 1) + 1;
-  } else if (body.term_start_dates && typeof body.term_start_dates === 'object') {
+    // Set version manually if passed, otherwise keep current version (no auto-bumping)
+    updatePayload.version = typeof body.version === 'number' ? body.version : (row.version ?? 1);
+  } else {
+    // Support isolated version and description metadata updates
+    let mergedContent: any = null;
+    if (typeof body.description === 'string') {
+      const { data: currentRow } = await admin
+        .from('course_curricula')
+        .select('content')
+        .eq('id', id)
+        .single();
+      const existingContent: any = currentRow?.content ?? {};
+      mergedContent = { ...existingContent, description: body.description };
+      updatePayload.content = mergedContent;
+    }
+    if (typeof body.version === 'number') {
+      updatePayload.version = body.version;
+    }
+  }
+
+  if (body.term_start_dates && typeof body.term_start_dates === 'object') {
     // Merge term start dates into existing content WITHOUT bumping version
     const { data: currentRow } = await admin
       .from('course_curricula')

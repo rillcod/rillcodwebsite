@@ -687,7 +687,7 @@ export async function POST(req: NextRequest) {
         .from('course_curricula')
         .update({
           content: { ...aiContent, description: body.description || null },
-          version: (existing as { version: number }).version + 1,
+          version: (existing as { version: number }).version,
           updated_at: new Date().toISOString(),
         })
         .eq('id', (existing as { id: string }).id)
