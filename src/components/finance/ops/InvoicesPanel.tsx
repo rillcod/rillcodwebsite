@@ -271,7 +271,6 @@ export function InvoicesPanel() {
       items,
       amount: inv.amount,
       currency: inv.currency,
-      stream,
       studentName: stream === 'school'
         ? (inv.schools?.name || 'Partner School')
         : (inv.portal_users?.full_name || 'Client'),

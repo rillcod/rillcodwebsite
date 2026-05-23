@@ -202,7 +202,6 @@ export function ReceiptsPanel() {
       amount: r.amount,
       currency: r.currency || 'NGN',
       notes: meta.notes,
-      stream,
       studentName: stream === 'school'
         ? (r.schools?.name || meta.payer_name || 'Partner School')
         : (meta.payer_name || r.portal_users?.full_name || 'Client'),

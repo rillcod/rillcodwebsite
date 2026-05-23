@@ -28,8 +28,6 @@ export interface DocPreviewData {
   studentName: string;
   studentEmail?: string;
   schoolName: string;
-  /** 'school' = B2B partner-school billing; 'individual' = direct learner. */
-  stream?: 'school' | 'individual';
   paymentMethod?: string;
   depositAccount?: { bank_name: string; account_number: string; account_name: string };
   receivedBy?: string;

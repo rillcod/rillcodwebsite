@@ -36,8 +36,6 @@ interface SmartDocumentProps {
     studentEmail?: string;
     schoolName: string;
     schoolAddress?: string;
-    /** 'school' = B2B partner-school billing; 'individual' = direct learner. */
-    stream?: 'school' | 'individual';
     instructorName?: string;
     transactionRef?: string;
     processingFee?: number;
