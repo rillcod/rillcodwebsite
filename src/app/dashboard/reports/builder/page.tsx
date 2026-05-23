@@ -273,7 +273,7 @@ export default function ReportBuilderPage() {
 
 function ReportBuilderInner() {
     const searchParams = useSearchParams();
-    const prefStudentId = searchParams.get('student');
+    const prefStudentId = searchParams.get('student') || searchParams.get('student_id');
 
     const { profile, loading: authLoading, profileLoading } = useAuth();
 
@@ -441,18 +441,22 @@ function ReportBuilderInner() {
                 };
                 const { _step, _sessionDone, _selectedStudentId, _currentStudentIdx, ...config } = parsed;
                 setSessionConfig(s => ({ ...s, ...config }));
-                if (_step && _step !== 'session') {
-                    setStep(_step as any);
-                    if (_sessionDone) setSessionDone(true);
-                }
-                if (_selectedStudentId) {
-                    pendingRestoreStudentId.current = _selectedStudentId;
-                    pendingRestoreStudentIdx.current = _currentStudentIdx ?? -1;
+                
+                // If a specific student was requested via URL, do not restore the stale session state
+                if (!prefStudentId) {
+                    if (_step && _step !== 'session') {
+                        setStep(_step as any);
+                        if (_sessionDone) setSessionDone(true);
+                    }
+                    if (_selectedStudentId) {
+                        pendingRestoreStudentId.current = _selectedStudentId;
+                        pendingRestoreStudentIdx.current = _currentStudentIdx ?? -1;
+                    }
                 }
             }
         } catch { /* ignore */ }
         setSessionConfig(s => ({ ...s, report_date: new Date().toISOString().split('T')[0] }));
-    }, [profile?.id]);
+    }, [profile?.id, prefStudentId]);
 
     // ── Dynamic preview scale based on container width ────────────────────────
     useEffect(() => {

@@ -602,14 +602,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Syllabus generation failed — all AI models unavailable. Please try again.' }, { status: 502 });
   }
 
-  // Stamp year onto every generated term (in case AI omits it) and inject term start dates
+  // Stamp year onto every generated term (in case AI omits it) and inject term start dates.
+  // Force term number to align with selected term in termNums to prevent AI schema drifts.
   const termStartDates: Record<string, string> = body.term_start_dates ?? {};
-  if (aiContent?.terms) {
-    aiContent.terms = aiContent.terms.map((term: any) => ({
-      ...term,
-      year: term.year ?? resolvedYear,
-      start_date: termStartDates[String(term.term)] || termStartDates[term.term] || term.start_date || null,
-    }));
+  if (aiContent?.terms && Array.isArray(aiContent.terms)) {
+    aiContent.terms = aiContent.terms.map((term: any, idx: number) => {
+      const resolvedTerm = (format === 'school' && termNums[idx]) ? termNums[idx] : (term.term || resolvedStartTerm);
+      return {
+        ...term,
+        term: resolvedTerm,
+        year: term.year ?? resolvedYear,
+        start_date: termStartDates[String(resolvedTerm)] || termStartDates[resolvedTerm] || term.start_date || null,
+      };
+    });
   }
 
   // Persist program_start_term in content.metadata so it survives page reloads
