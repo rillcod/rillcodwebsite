@@ -657,11 +657,12 @@ export async function POST(req: NextRequest) {
     aiContent.metadata = { ...existingMeta, ...(aiContent.metadata ?? {}), program_start_term: resolvedStartTerm };
   }
 
-  // Multi-year merge: when an existing curriculum has terms for other years, keep them.
-  // Only replace terms that match the current resolvedYear.
+  // Multi-year and multi-term merge: keep terms from other years, and keep terms from the same
+  // year that are NOT in the current regeneration batch (to prevent deletion).
   if (format === 'school' && existingCurriculumContent?.terms?.length && aiContent?.terms) {
+    const existingTermNums = new Set(termNums);
     const keptTerms = (existingCurriculumContent.terms as any[])
-      .filter((t: any) => (t.year ?? 1) !== resolvedYear);
+      .filter((t: any) => (t.year ?? 1) !== resolvedYear || !existingTermNums.has(t.term));
     const mergedTerms = [...keptTerms, ...aiContent.terms]
       .sort((a: any, b: any) => ((a.year ?? 1) - (b.year ?? 1)) || (a.term - b.term));
     aiContent.terms = mergedTerms;
