@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
 import OpenAI from 'openai';
+import { geminiGenerateText } from '@/lib/gemini/client';
 
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -9,8 +10,11 @@ const openai = new OpenAI({
 });
 
 const MODELS = [
+  'google/gemini-2.5-flash',
+  'google/gemini-2.5-pro',
+  'deepseek/deepseek-r1:free',
+  'deepseek/deepseek-chat',
   'google/gemini-2.0-flash-001',
-  'deepseek/deepseek-chat-v3-5',
   'meta-llama/llama-3.3-70b-instruct',
 ];
 
@@ -55,6 +59,15 @@ const YEAR_ARC: Record<number, string> = {
 };
 
 async function callAI(prompt: string, temperature = 0.65): Promise<string> {
+  // Direct Google Gemini API priority path — saves 100% of OpenRouter tokens
+  if (process.env.GEMINI_API_KEY) {
+    const SYSTEM_PROMPT = "You are a Nigerian STEM/coding curriculum expert.";
+    const geminiResult = await geminiGenerateText(SYSTEM_PROMPT, prompt, true).catch(() => null);
+    if (geminiResult?.text) {
+      return geminiResult.text.trim();
+    }
+  }
+
   for (const model of MODELS) {
     try {
       const res = await openai.chat.completions.create({

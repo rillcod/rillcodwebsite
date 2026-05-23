@@ -55,6 +55,7 @@ CORE PHILOSOPHY:
 - "The Deep Adventure Loop": Every lesson is a journey — Hook (exciting opener) → Big Picture (visual maps) → Clear Step-by-Step Breakdown → Level-Up Mission (project).
 - "Enthusiastic Guide": Warm, encouraging, visionary tone. Simple British English. Use short sentences and highly engaging formatting.
 - "No-Work Experiments": Include fun labs and projects that are guaranteed to work. Goal: 100% student engagement.
+- "High-IQ Local Integration": Ground lessons in cutting-edge real-world African/Nigerian engineering case studies. Connect concepts to OPay/PalmPay USSD/ledger systems (fintech), drip irrigation sensors in Northern farms (agritech), Lagos BRT lanes and Lekki tollgate priority automation (smart transit), and solar inverter smart meters (energy). Make examples rich and intellectually stimulating, not dry or superficial.
 
 ALL AVAILABLE BLOCK TYPES (use with variety and purpose):
 
@@ -78,13 +79,13 @@ VISUAL & DIAGRAMS:
 CHARTS & DATA:
 - 'd3-chart': { title?: string, chartType: 'bar'|'line'|'area'|'pie', dataset: number[], labels?: string[] } — D3 data chart
 - 'chart': { title?: string, chartType: 'bar'|'line'|'area'|'pie', data: number[], labels?: string[] } — Recharts data chart (simpler)
-- 'motion-graphics': { animationType: 'flow'|'orbit'|'particles'|'network'|'timeline'|'wave'|'pulse', config: { labels?: string[], nodes?: number }, title?: string } — Animated diagram. Use 'flow' for step-by-step processes, 'network' for concept maps, 'orbit' for solar-system-style hierarchy, 'timeline' for chronological sequences, 'wave' for frequency/signal topics, 'pulse' for generic emphasis
+- 'motion-graphics': { animationType: 'flow'|'orbit'|'particles'|'network'|'timeline'|'wave'|'pulse', config: { labels?: string[], nodes?: number }, title?: string } — Animated diagram. Use 'flow' for loops and execution paths, 'network' for APIs and server/client calls, 'orbit' for OOP class inheritance and modules, 'timeline' for Git branches/commits or step sequences, 'particles' for data packet flows, 'wave' for analog vs digital signals, 'pulse' for events and listeners
 
 CODING & INTERACTIVE:
 - 'code': { content: string, language: 'python'|'javascript'|'html'|'robotics' } — Runnable code in Monaco editor
 - 'blockly': { title?: string, language: 'python'|'javascript' } — Google Blockly visual coding workspace (no xml needed)
 - 'scratch': { blocks: string[], instructions?: string } — Scratch-style blocks for KG–Basic 6
-- 'visualizer': { title?: string, visualType: 'sorting'|'loops'|'stateMachine', visualData?: { totalSteps: number } } — Algorithm visualizer
+- 'visualizer': { title?: string, visualType: 'sorting'|'loops'|'conditionals'|'variables'|'lists'|'functions'|'stateMachine'|'binaryTree'|'linkedList'|'recursion'|'neuralNetwork'|'dataFlow', visualData?: { totalSteps: number, nodes?: any[], edges?: any[], layers?: number[], variables?: Record<string, any> } } — Visualizes program execution, variables state, and data structures (visual loop counters, if/else decision trees, labeled variable "memory boxes", indexed list train-carriages, function input/output machine flows, event transitions, trees, list nodes, recursion stack frames)
 
 ASSESSMENTS:
 - 'quiz': { question: string, options: string[], correctAnswer: number } — Multiple choice question
@@ -105,6 +106,13 @@ RULES:
 - Use 'steps-list' for procedures with 4+ numbered steps.
 - Use 'blockly' for JSS1–SS3 coding topics to provide a hands-on coding block workspace.
 - Use 'scratch' ONLY for KG–Basic 6 visual coding.
+- "Monaco & Blockly Sync": When generating 'code' (Monaco) and 'blockly' or 'scratch' blocks in the same lesson, their logic MUST be mathematically and functionally synchronized (Blockly logic does exactly what the Monaco script does). Explain their alignment clearly.
+- "Abstraction-Bridging Visuals": For both beginners and advanced students, utilize the 'visualizer' and 'motion-graphics' blocks aggressively to make invisible code concepts visible:
+  * **Loops**: Show loop indexes incrementing step-by-step, condition checks, and exit triggers.
+  * **Conditionals**: Show a flow chart representing if/else decisions, highlighting which path executes when inputs change.
+  * **Variables & Lists**: Show variables as labeled "boxes" containing values, and lists as structured "train carriages" where items are indexed, appended, or popped.
+  * **Functions**: Show functions as a "machine" where parameters go in, instructions run, and a return value emerges.
+  Ensure these are fully populated with kid-friendly topic-specific data (e.g. tracking a robot's inventory list or sorting scoreboard values).
 - MINIMUM 8 blocks per lesson, MAXIMUM 18.
 - Lesson notes: detailed but scannable — ## headers, bullet points, British English.
 - Return ONLY valid JSON.`;
@@ -440,6 +448,13 @@ ${isEarlyYears ? `EARLY YEARS (KG–Basic 3):
 - Tone MUST use "Let's...", "Great job!", "Try this!", "Can you...?" — no formal academic language.
 - ALL block content must be age-appropriate: no complex syntax, no technical abbreviations without simple explanation.` : '';
 
+      const standaloneModeBlock = !(req.courseName || req.programName || req.syllabusReference?.trim() || req.planWeekObjectives?.trim())
+        ? `\nSTANDALONE MODE: This lesson is generated as a completely independent, custom topic separate from any school syllabus.
+- Do NOT assume any prior lessons or concepts were taught in previous weeks.
+- Ensure all foundational prerequisites needed to understand "${req.topic}" are fully and clearly introduced within the lesson.
+- Make the lesson fully self-contained, explaining the topic completely from the ground up.`
+        : '';
+
       const curriculumContext = (req.courseName || req.programName || req.siblingLessons?.length)
         ? `\nCURRICULUM CONTEXT (use this to tailor all content and examples):
 ${req.programName ? `Programme: "${req.programName}"` : ''}
@@ -470,7 +485,7 @@ Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 Lesson type: ${req.contentType ?? modeConfig.lessonTypeHint}
 LESSON MODE: ${modeConfig.label}
-${curriculumContext}${syllabusAnchorBlock}${planWeekSection}${dedupLessonsBlock}
+${standaloneModeBlock}${curriculumContext}${syllabusAnchorBlock}${planWeekSection}${dedupLessonsBlock}
 ${youngLearnerOverride}
 ${modeConfig.blockRules}
 
@@ -527,7 +542,7 @@ Return a JSON object with this exact shape:
       "type": "visualizer",
       "title": "Visualising ${req.topic}",
       "visualType": "loops",
-      "visualData": { "variables": {}, "totalSteps": 10, "step": 0, "visualizationState": {} }
+      "visualData": { "variables": {}, "totalSteps": 10, "step": 0, "nodes": [], "edges": [], "layers": [] }
     },
     {
       "type": "code",
@@ -1196,10 +1211,10 @@ export async function POST(req: NextRequest) {
 
       case 'curriculum':
         modelQueue = [
-          "google/gemini-2.0-flash-001",       // 1M ctx — handles massive curriculum JSON
-          "moonshotai/kimi-k2.5",               // High intelligence, great at structured plans
+          "google/gemini-2.5-flash",           // Gemini 2.5 Flash (stable, cheaper)
+          "deepseek/deepseek-r1:free",         // Free reasoning model
           "qwen/qwen3-235b-a22b:free",          // 235B free — thorough but may truncate
-          "deepseek/deepseek-chat-v3-5",        // Strong structured output
+          "google/gemini-2.0-flash-001",       // 1M ctx fallback
           "meta-llama/llama-3.3-70b-instruct",  // Reliable fallback
           "google/gemini-2.0-flash-lite-001",   // Emergency fallback
         ];
@@ -1312,8 +1327,8 @@ export async function POST(req: NextRequest) {
 
     // ── Gemini Direct API fast path ────────────────────────────────────────────
     // Try free direct Gemini API before spending OpenRouter credits.
-    // Skipped for SSE streaming (handled above) and cbt-grading (needs precision).
-    if (process.env.GEMINI_API_KEY && !wantsStream && type !== 'cbt-grading') {
+    // Skipped ONLY for SSE streaming (handled above) — handles all else including cbt-grading.
+    if (process.env.GEMINI_API_KEY && !wantsStream) {
       const geminiResult = await geminiGenerateText(SYSTEM_PROMPT, prompt, useJsonFormat).catch(() => null);
       if (geminiResult?.text) {
         if (type === 'lesson-notes') {

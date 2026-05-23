@@ -171,6 +171,7 @@ export function ReceiptsPanel() {
       school_id: r.school_id ?? null,
       student_id: r.portal_user_id ?? null,
       metadata: r.metadata ?? null,
+      schools: r.schools ?? null,
     });
     const items =
       meta.items && meta.items.length > 0
@@ -190,14 +191,6 @@ export function ReceiptsPanel() {
               total: r.amount,
             },
           ];
-
-    const stream = classifyReceiptStream({
-      stream: r.stream,
-      school_id: r.school_id ?? null,
-      student_id: r.portal_user_id ?? null,
-      metadata: r.metadata ?? null,
-      schools: r.schools ?? null,
-    });
 
     setPreview({
       id: r.id,

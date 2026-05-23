@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import OpenAI from 'openai';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { geminiGenerateText } from '@/lib/gemini/client';
 
 function adminClient() {
   return createClient(
@@ -25,11 +26,12 @@ const openRouter = new OpenAI({
 });
 
 const CURRICULUM_MODELS = [
-  'google/gemini-2.0-flash-001',       // Primary: 1M ctx, fast, reliable JSON
-  'qwen/qwen3-235b-a22b:free',         // 235B free — thorough at structured syllabi
+  'google/gemini-2.5-flash',           // Cutting-edge premium stable
+  'google/gemini-2.5-pro',            // Cutting-edge premium reasoning
   'deepseek/deepseek-r1:free',         // Reasoning model — great for multi-week curriculum
-  'moonshotai/kimi-k2.5',              // High intelligence fallback
-  'deepseek/deepseek-chat-v3-5',       // Strong structured output
+  'qwen/qwen3-235b-a22b:free',         // 235B free — thorough at structured syllabi
+  'deepseek/deepseek-chat',            // Highly robust
+  'google/gemini-2.0-flash-001',       // 1M ctx, fast fallback
   'meta-llama/llama-3.3-70b-instruct', // Reliable fallback
   'google/gemini-2.0-flash-lite-001',  // Emergency fallback
 ];
@@ -85,7 +87,8 @@ ASSESSMENT_PLAN required for assessment/exam/checkpoint entries:
   sample_questions: [3 examples]
 }`;
 
-const SHARED_OUTPUT_SHAPE = `Return ONLY valid JSON — no preamble, no markdown fences:
+function getSharedOutputShape(termNum: number = 1): string {
+  return `Return ONLY valid JSON — no preamble, no markdown fences:
 {
   "course_title": "string",
   "overview": "string (2-3 paragraphs describing the full programme)",
@@ -95,7 +98,7 @@ const SHARED_OUTPUT_SHAPE = `Return ONLY valid JSON — no preamble, no markdown
   "recommended_tools": ["string"],
   "terms": [
     {
-      "term": 1,
+      "term": ${termNum},
       "title": "string (phase/module/week/term title)",
       "objectives": ["3-4 objectives for this phase"],
       "weeks": [
@@ -116,6 +119,9 @@ const SHARED_OUTPUT_SHAPE = `Return ONLY valid JSON — no preamble, no markdown
     }
   ]
 }`;
+}
+
+const SHARED_OUTPUT_SHAPE = getSharedOutputShape(1);
 
 function buildSchoolPrompt(
   courseName: string, gradeLevel: string, subjectArea: string,
@@ -158,8 +164,16 @@ IMPORTANT: Each term object in your JSON must include "year": ${yearNumber} alon
 ASSESSMENT placement per term: ~Week 3 → First Assessment · ~Week 6 → Second Assessment · Final week → End-of-Term Exam/Project
 Session types: "lesson" | "assessment" | "examination"
 Duration per lesson: 40 minutes. Use Nigerian real-world contexts (agritech, fintech, education tech, smart systems).
+
+- Ground the curriculum in cutting-edge African/Nigerian tech narratives:
+  * **Agritech Automation**: Irrigation, soil moisture sensors in Northern farms, automated poultry houses.
+  * **Fintech Systems**: API integrations, payment ledgers, fraud detection (inspired by Flutterwave, Paystack, Interswitch).
+  * **Smart City Systems**: Lagos BRT smart cards, solar grid controllers, automated traffic management.
+  * **E-Commerce & Logistics**: Smart warehousing, pathfinding for delivery bikes.
+- Ensure lessons push conceptual intelligence: we don't just teach code syntax; we teach problem-solving and architectural thinking.
+
 ${SHARED_LESSON_PLAN_SCHEMA}
-${SHARED_OUTPUT_SHAPE}`;
+${getSharedOutputShape(selectedTerms[0] ?? 1)}`;
 }
 
 function buildBootcampPrompt(
@@ -294,6 +308,20 @@ function safeParseJSON(raw: string): any {
 }
 
 async function generateCurriculum(prompt: string): Promise<any> {
+  // Direct Google Gemini API priority path — saves 100% of OpenRouter tokens
+  if (process.env.GEMINI_API_KEY) {
+    const SYSTEM_PROMPT = "You are an expert curriculum designer for Rillcod Technologies.";
+    const geminiResult = await geminiGenerateText(SYSTEM_PROMPT, prompt, true).catch(() => null);
+    if (geminiResult?.text) {
+      try {
+        const parsed = safeParseJSON(geminiResult.text);
+        if (parsed?.terms?.length) return parsed;
+      } catch (e) {
+        console.warn('Direct Google Gemini curriculum parse failed, falling back to OpenRouter...', e);
+      }
+    }
+  }
+
   for (const model of CURRICULUM_MODELS) {
     try {
       const response = await openRouter.chat.completions.create({

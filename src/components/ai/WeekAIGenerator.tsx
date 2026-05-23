@@ -55,6 +55,8 @@ interface Props {
   term?: string | null;
   curriculumId?: string | null;
   programId?: string | null;
+  gradeLevel?: string;
+  programName?: string;
   /** Pre-loaded linked content from parent state — used for dedup check. */
   existing?: ExistingContent;
   onDone?: (result: { lessonId?: string; deckId?: string; assignmentId?: string }) => void;
@@ -86,14 +88,14 @@ function StepRow({ icon: Icon, label, sub, state, color }: {
   state: StepState; color: string;
 }) {
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
-      state === 'done'    ? 'bg-emerald-500/10 border-emerald-500/30' :
-      state === 'active'  ? 'bg-primary/10 border-primary/40' :
-      state === 'error'   ? 'bg-rose-500/10 border-rose-500/30' :
-      state === 'skipped' ? 'bg-white/[0.02] border-white/[0.06] opacity-50' :
-                            'bg-white/[0.03] border-white/[0.08]'
+    <div className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all duration-300 ${
+      state === 'done'    ? 'bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' :
+      state === 'active'  ? 'bg-primary/10 border-primary/30 shadow-[0_0_20px_rgba(139,92,246,0.1)] animate-[pulse_2s_infinite]' :
+      state === 'error'   ? 'bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.05)]' :
+      state === 'skipped' ? 'bg-white/[0.01] border-white/[0.04] opacity-50' :
+                            'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]'
     }`}>
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-inner ${color}`}>
         <Icon className="w-4 h-4 text-white" />
       </div>
       <div className="flex-1 min-w-0">
@@ -140,7 +142,7 @@ async function checkExistingAssignment(planId: string, weekNum: number): Promise
 
 export default function WeekAIGenerator({
   week, planId, courseId, courseTitle = 'Course',
-  term, curriculumId, programId, existing, onDone, onClose,
+  term, curriculumId, programId, gradeLevel, programName, existing, onDone, onClose,
 }: Props) {
   const [status, setStatus] = useState<StepStatus>({ lesson: 'pending', flashcard: 'pending', assignment: 'pending' });
   const [running, setRunning] = useState(false);
@@ -187,13 +189,13 @@ export default function WeekAIGenerator({
         const aiBody = JSON.stringify({
           type: 'lesson',
           topic: week.topic,
-          gradeLevel: 'JSS1–SS3',
+          gradeLevel: gradeLevel || 'JSS1–SS3',
           subject: courseTitle,
           durationMinutes: 60,
           contentType: 'lesson',
           lessonMode: 'academic',
           courseName: courseTitle,
-          programName: undefined,
+          programName: programName,
           objectives: week.objectives,
           activities: week.activities,
           additionalContext: week.notes,
@@ -482,101 +484,110 @@ export default function WeekAIGenerator({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={!running ? onClose : undefined} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={!running ? onClose : undefined} />
 
-      <div className="relative w-full sm:max-w-md bg-[#0d1117] border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+      <div className="relative w-full sm:max-w-md bg-[#0B0D13]/90 border border-white/[0.08] backdrop-blur-2xl shadow-[0_0_80px_rgba(139,92,246,0.15)] rounded-t-[2.5rem] sm:rounded-3xl overflow-hidden transition-all duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-fuchsia-600 flex items-center justify-center shadow-lg shadow-primary/20">
-              <SparklesIcon className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 via-primary to-fuchsia-500 flex items-center justify-center shadow-lg shadow-primary/25">
+              <SparklesIcon className="w-5 h-5 text-white animate-pulse" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">AI Lesson Package</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">AI Lesson Package</p>
               <p className="text-sm font-black text-white truncate max-w-[220px]">Week {week.week}: {week.topic}</p>
             </div>
           </div>
           {!running && (
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all">
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all duration-200">
               <XMarkIcon className="w-5 h-5" />
             </button>
           )}
         </div>
 
-        <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
+        <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           {!running && !done && !error && (
             <p className="text-xs text-white/50 leading-relaxed">
-              Generates a <strong className="text-white/80">full lesson</strong> (same AI engine as the lesson builder), a <strong className="text-white/80">15-card flashcard deck</strong>, and an <strong className="text-white/80">assignment</strong> — all linked to this week. Existing content is skipped automatically.
+              Generates a <strong className="text-white/80 font-bold">full lesson</strong> (customized visualizer, Blockly logic & Monaco code sync), a <strong className="text-white/80 font-bold">15-card flashcard deck</strong>, and an <strong className="text-white/80 font-bold">assignment</strong>. Existing elements are skipped automatically.
             </p>
           )}
 
-          <div className="space-y-2">
-            <StepRow icon={BookOpenIcon} label="Full Lesson" sub="Streaming AI · Academic mode · 12+ blocks + notes" state={status.lesson} color="bg-primary" />
+          <div className="space-y-3">
+            <StepRow icon={BookOpenIcon} label="Full Lesson" sub="Streaming AI · CS visualizer · 12+ blocks + notes" state={status.lesson} color="bg-primary" />
             <StepRow icon={BoltIcon} label="Flashcard Deck" sub="15 AI cards · saved to Flashcards module" state={status.flashcard} color="bg-amber-500" />
             <StepRow icon={ClipboardDocumentListIcon} label="Assignment" sub="Auto-extracted from lesson block or AI-generated" state={status.assignment} color="bg-emerald-600" />
           </div>
 
           {log.length > 0 && (
-            <div className="bg-black/50 rounded-xl p-3 max-h-40 overflow-y-auto space-y-0.5">
+            <div className="bg-black/60 border border-white/[0.05] rounded-2xl p-4 max-h-36 overflow-y-auto space-y-1 font-mono text-[10px] text-violet-300/80 custom-scrollbar shadow-inner">
               {log.map((l, i) => (
-                <p key={i} className="text-[10px] text-white/50 font-mono leading-relaxed">{l}</p>
+                <p key={i} className="leading-relaxed border-l-2 border-primary/20 pl-2">{l}</p>
               ))}
             </div>
           )}
 
           {done && hasResult && (
-            <div className="space-y-2 pt-1">
+            <div className="space-y-2 pt-2 border-t border-white/[0.04]">
               {result.skipped.length > 0 && (
                 <p className="text-[10px] text-white/30 italic">Skipped (already existed): {result.skipped.join(', ')}</p>
               )}
               {result.lessonId && (
                 <a href={`/dashboard/lessons/${result.lessonId}`} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-bold hover:bg-primary/20 transition-all">
-                  <BookOpenIcon className="w-4 h-4 shrink-0" /> Open Lesson →
+                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-primary/10 border border-primary/20 hover:border-primary/40 text-xs text-primary font-black uppercase tracking-widest hover:bg-primary/20 transition-all duration-300 shadow-md">
+                  <span className="flex items-center gap-2">
+                    <BookOpenIcon className="w-4 h-4" /> Open Lesson
+                  </span>
+                  <span>→</span>
                 </a>
               )}
               {result.deckId && (
                 <a href={`/dashboard/flashcards?deckId=${result.deckId}`} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 font-bold hover:bg-amber-500/20 transition-all">
-                  <BoltIcon className="w-4 h-4 shrink-0" /> Open Flashcards →
+                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 text-xs text-amber-400 font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all duration-300 shadow-md">
+                  <span className="flex items-center gap-2">
+                    <BoltIcon className="w-4 h-4 animate-pulse" /> Open Flashcards
+                  </span>
+                  <span>→</span>
                 </a>
               )}
               {result.assignmentId && (
                 <a href={`/dashboard/assignments/${result.assignmentId}`} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-bold hover:bg-emerald-500/20 transition-all">
-                  <ClipboardDocumentListIcon className="w-4 h-4 shrink-0" /> Open Assignment →
+                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 text-xs text-emerald-400 font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all duration-300 shadow-md">
+                  <span className="flex items-center gap-2">
+                    <ClipboardDocumentListIcon className="w-4 h-4" /> Open Assignment
+                  </span>
+                  <span>→</span>
                 </a>
               )}
             </div>
           )}
 
           {error && (
-            <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
-              <p className="text-xs text-rose-400 font-bold">{error}</p>
+            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl px-4 py-3.5 shadow-[0_0_15px_rgba(244,63,94,0.05)]">
+              <p className="text-xs text-rose-400 font-black tracking-wide">{error}</p>
             </div>
           )}
         </div>
 
-        <div className="px-5 pb-5 pt-3 border-t border-white/[0.06] flex gap-3">
+        <div className="px-6 pb-6 pt-4 border-t border-white/[0.06] flex gap-3">
           {!running && !done && (
             <button onClick={run}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary to-fuchsia-600 hover:opacity-90 text-white text-sm font-black rounded-2xl shadow-lg shadow-primary/20 transition-all">
+              className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-violet-500 via-primary to-fuchsia-600 hover:opacity-95 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all duration-300 transform active:scale-95">
               <SparklesIcon className="w-4 h-4" /> Generate Lesson Package
             </button>
           )}
           {running && (
-            <div className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary/10 border border-primary/30 text-primary text-sm font-bold rounded-2xl cursor-not-allowed select-none">
-              <ArrowPathIcon className="w-4 h-4 animate-spin" /> AI working — please wait…
+            <div className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-widest rounded-2xl cursor-not-allowed select-none shadow-md">
+              <ArrowPathIcon className="w-4 h-4 animate-spin" /> AI packaging details…
             </div>
           )}
           {(done || error) && (
             <>
               {error && (
-                <button onClick={run} className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-sm font-bold rounded-2xl transition-all">
+                <button onClick={run} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200">
                   <ArrowPathIcon className="w-4 h-4" /> Retry
                 </button>
               )}
-              <button onClick={onClose} className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-sm font-bold rounded-2xl transition-all">
+              <button onClick={onClose} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200">
                 {done ? 'Done' : 'Close'}
               </button>
             </>

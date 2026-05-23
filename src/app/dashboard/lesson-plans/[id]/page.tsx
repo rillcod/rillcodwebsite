@@ -1883,6 +1883,8 @@ export default function LessonPlanDetailPage() {
           term={plan?.term}
           curriculumId={plan?.curriculum_version_id}
           programId={plan?.courses?.program_id}
+          gradeLevel={plan?.classes?.name}
+          programName={plan?.courses?.programs?.name ?? undefined}
           existing={{
             lessonId: linkedLessons.find(l => metadataMatchesWeek(l.metadata, aiWeek))?.id,
             assignmentId: linkedAssignments.find(a => metadataMatchesWeek(a.metadata, aiWeek))?.id,
