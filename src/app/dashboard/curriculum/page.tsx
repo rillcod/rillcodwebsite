@@ -3547,6 +3547,18 @@ export default function CurriculumPage() {
                       </div>
                     </div>
 
+                    {/* Warning: platform curriculum with non-standard PST needs regeneration */}
+                    {canModifyCurriculum && !curriculum.school_id && effectiveProgramStartTerm !== 1 && (
+                      <div className="relative z-10 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] leading-snug">
+                        <span className="shrink-0 mt-px">⚠</span>
+                        <span>
+                          This platform template was generated with a non-standard start (Prog.T{effectiveProgramStartTerm} = Term {effectiveProgramStartTerm}), causing term labels to appear swapped for schools that start in Term 1.
+                          {' '}<button onClick={openGenerateModal} className="font-black underline underline-offset-2 hover:text-amber-200 transition-colors">Regenerate</button>
+                          {' '}with <strong>Programme starts in = Term 1</strong> and all 3 terms selected to restore standard order.
+                        </span>
+                      </div>
+                    )}
+
                     {/* Row 3: action buttons — primary then secondary, all wrap */}
                     <div className="flex flex-wrap gap-2 relative z-10">
                       {canModifyCurriculum && (
