@@ -486,16 +486,23 @@ export async function POST(req: NextRequest) {
     ? (rawFormat as CurriculumFormat)
     : 'school';
 
+  const resolvedYear = [1, 2, 3].includes(Number(programme_year)) ? Number(programme_year) : 1;
+  const resolvedStartTerm = [1, 2, 3].includes(Number(program_start_term)) ? Number(program_start_term) : 1;
+
   // Resolve school terms (only used for format=school)
   let termNums: number[] = [1, 2, 3];
   if (format === 'school') {
     if (Array.isArray(selected_terms) && selected_terms.length > 0) {
-      termNums = (selected_terms as number[]).map(Number).filter((n) => [1, 2, 3].includes(n)).sort();
+      const getWeight = (t: number) => (t - resolvedStartTerm + 3) % 3;
+      termNums = (selected_terms as number[])
+        .map(Number)
+        .filter((n) => [1, 2, 3].includes(n))
+        .sort((a, b) => getWeight(a) - getWeight(b));
       if (!termNums.length) return NextResponse.json({ error: 'selected_terms must include at least one of 1, 2, 3' }, { status: 400 });
     } else {
       const tc = Number(term_count ?? 3);
       if (!Number.isInteger(tc) || tc < 1 || tc > 3) return NextResponse.json({ error: 'term_count must be 1–3' }, { status: 400 });
-      termNums = Array.from({ length: tc }, (_, i) => i + 1);
+      termNums = Array.from({ length: tc }, (_, i) => ((resolvedStartTerm - 1 + i) % 3) + 1);
     }
   }
   const wpt = Number(weeks_per_term ?? 8);
@@ -543,8 +550,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const resolvedYear = [1, 2, 3].includes(Number(programme_year)) ? Number(programme_year) : 1;
-  const resolvedStartTerm = [1, 2, 3].includes(Number(program_start_term)) ? Number(program_start_term) : 1;
+
 
   // For school format: fetch existing curriculum to build progressive context.
   // This covers both cross-year continuity (prior years) and same-year-other-terms.
