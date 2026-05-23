@@ -232,6 +232,51 @@ export async function POST(req: NextRequest) {
       console.error('[ActivateStudent] Card auto-issue failed:', cardErr);
     }
 
+    // --- Bridge Gap: Log to Registration History (Vault) ---
+    try {
+      const singleBatchName = 'Single Student Registrations';
+      // Check if a dedicated batch for single student registrations exists for this school and creator
+      let { data: existingBatch } = await supabaseAdmin
+        .from('registration_batches')
+        .select('id, student_count')
+        .eq('school_id', student.school_id)
+        .eq('created_by', user.id)
+        .eq('class_name', singleBatchName)
+        .maybeSingle();
+
+      let batchId = existingBatch?.id;
+
+      if (!existingBatch) {
+        batchId = crypto.randomUUID();
+        await supabaseAdmin.from('registration_batches').insert({
+          id: batchId,
+          created_by: user.id,
+          school_id: student.school_id,
+          school_name: student.school_name,
+          class_name: singleBatchName,
+          student_count: 1,
+        });
+      } else {
+        await supabaseAdmin
+          .from('registration_batches')
+          .update({ student_count: (existingBatch.student_count ?? 0) + 1 })
+          .eq('id', batchId);
+      }
+
+      // Record this single registration inside the results history table
+      await supabaseAdmin.from('registration_results').insert({
+        batch_id: batchId,
+        full_name: student.full_name || student.name || '',
+        email: loginEmail,
+        password: tempPassword,
+        class_name: resolvedClassName || student.grade_level || student.current_class || null,
+        status: 'created',
+      });
+    } catch (histErr) {
+      console.error('[ActivateStudent] Failed to archive credentials in history:', histErr);
+      // Non-blocking for the student activation process itself
+    }
+
     return NextResponse.json({
       success: true,
       alreadyActivated: false,

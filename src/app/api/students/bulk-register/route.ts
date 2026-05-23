@@ -580,7 +580,29 @@ export async function PATCH(request: Request) {
     const results: any[] = body.results;
     if (Array.isArray(results)) {
        for (const r of results) {
-          await supabaseAdmin.from('registration_results').update({ full_name: r.full_name, class_name: r.class_name || null, email: r.email }).eq('batch_id', r.batch_id).eq('email', r.email);
+          // 1. Update the registration_results history archive
+          await supabaseAdmin
+            .from('registration_results')
+            .update({ full_name: r.full_name, class_name: r.class_name || null, email: r.email })
+            .eq('batch_id', r.batch_id)
+            .eq('email', r.email);
+
+          // 2. Synchronize active account (portal_users) and shadow profile (students)
+          const { data: existingUser } = await supabaseAdmin
+            .from('portal_users')
+            .select('id')
+            .eq('email', r.email)
+            .single();
+
+          if (existingUser) {
+            await supabaseAdmin.from('portal_users')
+              .update({ full_name: r.full_name, section_class: r.class_name || null })
+              .eq('id', existingUser.id);
+            
+            await supabaseAdmin.from('students')
+              .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, grade_level: r.class_name || null })
+              .eq('user_id', existingUser.id);
+          }
        }
     }
     return NextResponse.json({ success: true });

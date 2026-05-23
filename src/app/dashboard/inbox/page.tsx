@@ -9,7 +9,7 @@ import {
   ChevronLeft, Info, Filter, UserCircle, UserPlus,
   BookUser, Mail, School, GraduationCap, ChevronRight,
   Pencil, AtSign, FileText, CheckCircle2, Clock, ExternalLink, Trash2, Smile, Paperclip,
-  Tag, BookOpen,
+  Tag, BookOpen, AlertCircle,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -33,6 +33,7 @@ interface Conversation {
   role?: string;
   portal_user_id?: string;
   assigned_staff_id?: string | null;
+  opted_out?: boolean;
 }
 
 interface Message {
@@ -1883,7 +1884,14 @@ export default function UnifiedInbox() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-0.5">
-                          <span className="font-bold text-white text-[15px] truncate">{conv.contact_name}</span>
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <span className="font-bold text-white text-[15px] truncate">{conv.contact_name}</span>
+                            {conv.opted_out && (
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/35 shrink-0">
+                                Opted Out
+                              </span>
+                            )}
+                          </div>
                           <span className={`text-[12px] shrink-0 ml-2 ${conv.unread_count > 0 ? 'text-[#00a884] font-medium' : 'text-[#8696a0]'}`}>{formatConvTime(conv.last_message_at)}</span>
                         </div>
 
@@ -2069,7 +2077,14 @@ export default function UnifiedInbox() {
                       {initials(activeConv.contact_name)}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-white text-[15px] truncate group-hover:text-primary transition-colors">{activeConv.contact_name}</h3>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h3 className="font-bold text-white text-[15px] truncate group-hover:text-primary transition-colors">{activeConv.contact_name}</h3>
+                        {activeConv.opted_out && (
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/35 shrink-0">
+                            Opted Out
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-white/40 truncate flex items-center gap-1.5">
                         {activeConv.type === 'students' && activeConv.phone_number ? `+${activeConv.phone_number}` :
                           activeConv.subject ? activeConv.subject :
@@ -2339,7 +2354,14 @@ export default function UnifiedInbox() {
                           {initials(activeConv.contact_name)}
                         </div>
                         <div className="text-center">
-                          <h3 className="font-black text-white text-[15px] leading-tight">{activeConv.contact_name}</h3>
+                          <div className="flex items-center justify-center gap-1.5 min-w-0">
+                            <h3 className="font-black text-white text-[15px] leading-tight">{activeConv.contact_name}</h3>
+                            {activeConv.opted_out && (
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/35 shrink-0">
+                                Opted Out
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap">
                             {activeConv.role && (
                               <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${ROLE_COLORS[activeConv.role] || 'bg-white/10 text-white/40'}`}>
@@ -2517,82 +2539,102 @@ export default function UnifiedInbox() {
                   </div>
                 </div>
               )}
-              <form onSubmit={handleSend} className="flex items-end gap-3 mt-1 pb-1">
-                <div className="flex items-center gap-1 shrink-0 mb-1 ml-1 relative" ref={emojiPickerRef}>
-                  {/* Emoji picker popup */}
-                  {showEmojiPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 w-[300px] sm:w-[340px] rounded-2xl shadow-2xl overflow-hidden z-[80]"
-                      style={{ background: '#233138', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      {/* Search bar */}
-                      <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-                        <input
-                          value={emojiSearch} onChange={e => setEmojiSearch(e.target.value)}
-                          placeholder="Search emoji…"
-                          className="w-full text-[#d1d7db] text-[13px] rounded-lg px-3 py-1.5 outline-none"
-                          style={{ background: '#2a3942', caretColor: '#00a884' }}
-                          autoFocus
-                        />
-                      </div>
-                      {/* Grid */}
-                      <div className="p-2 grid grid-cols-8 gap-0.5 max-h-[220px] overflow-y-auto">
-                        {EMOJI_LIST
-                          .filter(e => !emojiSearch || e.includes(emojiSearch))
-                          .map((emoji, i) => (
-                            <button key={i} type="button"
-                              onClick={() => { insertEmoji(emoji); setShowEmojiPicker(false); setEmojiSearch(''); }}
-                              className="w-9 h-9 flex items-center justify-center text-[20px] rounded-lg hover:bg-white/10 transition-colors leading-none">
-                              {emoji}
-                            </button>
-                          ))}
-                        {EMOJI_LIST.filter(e => !emojiSearch || e.includes(emojiSearch)).length === 0 && (
-                          <div className="col-span-8 py-4 text-center text-[12px]" style={{ color: '#8696a0' }}>No match</div>
-                        )}
-                      </div>
+              {activeConv?.opted_out ? (
+                <div className="px-5 py-4 bg-red-950/20 border-t border-red-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 select-none">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 shrink-0 animate-pulse" />
+                    <div>
+                      <p className="text-sm font-bold text-white leading-none">WhatsApp Outbound Blocked</p>
+                      <p className="text-[12px] text-[#8696a0] mt-1.5 leading-relaxed">
+                        This contact has opted out of WhatsApp messages by texting "STOP". They must text "START" or "SUBSCRIBE" to opt back in before you can reply.
+                      </p>
                     </div>
-                  )}
-                  <button type="button"
-                    onClick={() => { setShowEmojiPicker(v => !v); setEmojiSearch(''); }}
-                    className="p-2 transition-colors"
-                    style={{ color: showEmojiPicker ? '#00a884' : '#8696a0' }}
-                    title="Emoji">
-                    <Smile className="w-6 h-6" />
-                  </button>
-                  <button type="button" className="p-2 text-[#8696a0] hover:text-[#d1d7db] transition-colors" title="Attach (file sharing requires WhatsApp app)">
-                    <Paperclip className="w-5 h-5" />
-                  </button>
-                </div>
-                <div className="flex-1 relative">
-                  <textarea ref={textareaRef} value={newMessage} onChange={handleTextareaChange}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
-                    placeholder="Type a message" rows={1}
-                    className="w-full bg-[#2a3942] text-[#d1d7db] text-[15px] rounded-lg px-4 py-2.5 outline-none resize-none placeholder-[#8696a0] focus:ring-0 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
-                  {newMessage.length > 3500 && (
-                    <span className={`absolute bottom-1.5 right-2 text-[9px] font-black pointer-events-none ${newMessage.length > 4000 ? 'text-rose-400' : 'text-amber-400'}`}>
-                      {4096 - newMessage.length}
-                    </span>
+                  </div>
+                  {activeConv.phone_number && (
+                    <a href={`https://wa.me/${activeConv.phone_number}`} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-500/25 hover:bg-red-500/35 border border-red-500/30 text-white text-[12px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 shrink-0 self-start sm:self-center">
+                      <ExternalLink className="w-4 h-4" /> Direct WA Link
+                    </a>
                   )}
                 </div>
-                {/* WA direct-send: opens WhatsApp with message pre-filled — user just taps Send in WA */}
-                {activeConv?.type === 'students' && activeConv.phone_number && newMessage.trim() && (
-                  <a href={buildWaUrl(activeConv.phone_number, newMessage)}
-                    target="_blank" rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 mb-1"
-                    style={{ background: '#00a884' }}
-                    title="Open WhatsApp with message pre-filled — just press Send"
-                    onClick={() => setNewMessage('')}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                      <path d="M12 0C5.374 0 0 5.373 0 12c0 2.117.554 4.103 1.522 5.827L.057 23.882a.5.5 0 00.613.613l6.056-1.465A11.945 11.945 0 0012 24c6.626 0 12-5.373 12-12S18.626 0 12 0zm0 21.818a9.808 9.808 0 01-5.029-1.388l-.36-.215-3.733.903.921-3.626-.235-.372A9.8 9.8 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
-                    </svg>
-                  </a>
-                )}
-                <button type="submit" disabled={!newMessage.trim() || isSending || cooldownSeconds > 0}
-                  className="w-10 h-10 bg-transparent text-[#8696a0] hover:text-[#d1d7db] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0 mb-1">
-                  {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> :
-                    cooldownSeconds > 0 ? <span className="text-xs font-black">{cooldownSeconds}</span> :
-                      <Send className="w-6 h-6" />}
-                </button>
-              </form>
+              ) : (
+                <form onSubmit={handleSend} className="flex items-end gap-3 mt-1 pb-1">
+                  <div className="flex items-center gap-1 shrink-0 mb-1 ml-1 relative" ref={emojiPickerRef}>
+                    {/* Emoji picker popup */}
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-full left-0 mb-2 w-[300px] sm:w-[340px] rounded-2xl shadow-2xl overflow-hidden z-[80]"
+                        style={{ background: '#233138', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        {/* Search bar */}
+                        <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                          <input
+                            value={emojiSearch} onChange={e => setEmojiSearch(e.target.value)}
+                            placeholder="Search emoji…"
+                            className="w-full text-[#d1d7db] text-[13px] rounded-lg px-3 py-1.5 outline-none"
+                            style={{ background: '#2a3942', caretColor: '#00a884' }}
+                            autoFocus
+                          />
+                        </div>
+                        {/* Grid */}
+                        <div className="p-2 grid grid-cols-8 gap-0.5 max-h-[220px] overflow-y-auto">
+                          {EMOJI_LIST
+                            .filter(e => !emojiSearch || e.includes(emojiSearch))
+                            .map((emoji, i) => (
+                              <button key={i} type="button"
+                                onClick={() => { insertEmoji(emoji); setShowEmojiPicker(false); setEmojiSearch(''); }}
+                                className="w-9 h-9 flex items-center justify-center text-[20px] rounded-lg hover:bg-white/10 transition-colors leading-none">
+                                {emoji}
+                              </button>
+                            ))}
+                          {EMOJI_LIST.filter(e => !emojiSearch || e.includes(emojiSearch)).length === 0 && (
+                            <div className="col-span-8 py-4 text-center text-[12px]" style={{ color: '#8696a0' }}>No match</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <button type="button"
+                      onClick={() => { setShowEmojiPicker(v => !v); setEmojiSearch(''); }}
+                      className="p-2 transition-colors"
+                      style={{ color: showEmojiPicker ? '#00a884' : '#8696a0' }}
+                      title="Emoji">
+                      <Smile className="w-6 h-6" />
+                    </button>
+                    <button type="button" className="p-2 text-[#8696a0] hover:text-[#d1d7db] transition-colors" title="Attach (file sharing requires WhatsApp app)">
+                      <Paperclip className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="flex-1 relative">
+                    <textarea ref={textareaRef} value={newMessage} onChange={handleTextareaChange}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
+                      placeholder="Type a message" rows={1}
+                      className="w-full bg-[#2a3942] text-[#d1d7db] text-[15px] rounded-lg px-4 py-2.5 outline-none resize-none placeholder-[#8696a0] focus:ring-0 transition-all max-h-[120px] overflow-y-auto leading-relaxed" />
+                    {newMessage.length > 3500 && (
+                      <span className={`absolute bottom-1.5 right-2 text-[9px] font-black pointer-events-none ${newMessage.length > 4000 ? 'text-rose-400' : 'text-amber-400'}`}>
+                        {4096 - newMessage.length}
+                      </span>
+                    )}
+                  </div>
+                  {/* WA direct-send: opens WhatsApp with message pre-filled — user just taps Send in WA */}
+                  {activeConv?.type === 'students' && activeConv.phone_number && newMessage.trim() && (
+                    <a href={buildWaUrl(activeConv.phone_number, newMessage)}
+                      target="_blank" rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full flex items-center justify-center transition-colors shrink-0 mb-1"
+                      style={{ background: '#00a884' }}
+                      title="Open WhatsApp with message pre-filled — just press Send"
+                      onClick={() => setNewMessage('')}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                        <path d="M12 0C5.374 0 0 5.373 0 12c0 2.117.554 4.103 1.522 5.827L.057 23.882a.5.5 0 00.613.613l6.056-1.465A11.945 11.945 0 0012 24c6.626 0 12-5.373 12-12S18.626 0 12 0zm0 21.818a9.808 9.808 0 01-5.029-1.388l-.36-.215-3.733.903.921-3.626-.235-.372A9.8 9.8 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+                      </svg>
+                    </a>
+                  )}
+                  <button type="submit" disabled={!newMessage.trim() || isSending || cooldownSeconds > 0}
+                    className="w-10 h-10 bg-transparent text-[#8696a0] hover:text-[#d1d7db] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0 mb-1">
+                    {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> :
+                      cooldownSeconds > 0 ? <span className="text-xs font-black">{cooldownSeconds}</span> :
+                        <Send className="w-6 h-6" />}
+                  </button>
+                </form>
+              )}
             </div>
           </>
         ) : (

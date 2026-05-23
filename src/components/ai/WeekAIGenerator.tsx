@@ -27,6 +27,7 @@ import { useState } from 'react';
 import {
   SparklesIcon, XMarkIcon, CheckCircleIcon, ArrowPathIcon,
   BoltIcon, BookOpenIcon, ClipboardDocumentListIcon,
+  PresentationChartLineIcon,
 } from '@/lib/icons';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ interface ExistingContent {
   lessonId?: string;
   deckId?: string;
   assignmentId?: string;
+  projectId?: string;
 }
 
 interface Props {
@@ -59,7 +61,7 @@ interface Props {
   programName?: string;
   /** Pre-loaded linked content from parent state — used for dedup check. */
   existing?: ExistingContent;
-  onDone?: (result: { lessonId?: string; deckId?: string; assignmentId?: string }) => void;
+  onDone?: (result: { lessonId?: string; deckId?: string; assignmentId?: string; projectId?: string }) => void;
   onClose: () => void;
 }
 
@@ -69,6 +71,7 @@ interface StepStatus {
   lesson: StepState;
   flashcard: StepState;
   assignment: StepState;
+  project: StepState;
 }
 
 interface Result {
@@ -78,6 +81,8 @@ interface Result {
   deckTitle?: string;
   assignmentId?: string;
   assignmentTitle?: string;
+  projectId?: string;
+  projectTitle?: string;
   skipped: string[];
 }
 
@@ -133,7 +138,18 @@ async function checkExistingAssignment(planId: string, weekNum: number): Promise
     if (!res.ok) return null;
     const { data } = await res.json();
     return (data ?? []).find((a: any) =>
-      a.metadata?.week === weekNum
+      a.metadata?.week === weekNum && a.assignment_type !== 'project'
+    )?.id ?? null;
+  } catch { return null; }
+}
+
+async function checkExistingProject(planId: string, weekNum: number): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/assignments?lesson_plan_id=${planId}`);
+    if (!res.ok) return null;
+    const { data } = await res.json();
+    return (data ?? []).find((a: any) =>
+      a.metadata?.week === weekNum && a.assignment_type === 'project'
     )?.id ?? null;
   } catch { return null; }
 }
@@ -144,7 +160,7 @@ export default function WeekAIGenerator({
   week, planId, courseId, courseTitle = 'Course',
   term, curriculumId, programId, gradeLevel, programName, existing, onDone, onClose,
 }: Props) {
-  const [status, setStatus] = useState<StepStatus>({ lesson: 'pending', flashcard: 'pending', assignment: 'pending' });
+  const [status, setStatus] = useState<StepStatus>({ lesson: 'pending', flashcard: 'pending', assignment: 'pending', project: 'pending' });
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +176,7 @@ export default function WeekAIGenerator({
     setError(null);
     setLog([]);
     setResult({ skipped: [] });
-    setStatus({ lesson: 'pending', flashcard: 'pending', assignment: 'pending' });
+    setStatus({ lesson: 'pending', flashcard: 'pending', assignment: 'pending', project: 'pending' });
 
     const res: Result = { skipped: [] };
     // Content blocks from lesson generation — shared across steps
@@ -469,9 +485,84 @@ export default function WeekAIGenerator({
         }
       }
 
+      // ─────────────────────────────────────────────────────────────────────
+      // STEP 4 — CAPSTONE PROJECT (generate project via AI and save to database)
+      // ─────────────────────────────────────────────────────────────────────
+      setStep('project', 'active');
+      addLog('🔍 Checking for existing project…');
+
+      const existingProjId = existing?.projectId ?? await checkExistingProject(planId, week.week);
+
+      if (existingProjId) {
+        res.projectId = existingProjId;
+        setStep('project', 'skipped');
+        res.skipped.push('project');
+        addLog('⏭  Project already exists — skipped');
+      } else {
+        addLog('🤖 Generating Capstone Project via AI…');
+        try {
+          const aiRes = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'project',
+              topic: week.topic,
+              subject: courseTitle,
+              gradeLevel: gradeLevel || 'JSS1–SS3',
+              objectives: week.objectives,
+              courseName: courseTitle,
+              programName: programName,
+            }),
+          });
+          const aj = await aiRes.json();
+          if (!aiRes.ok) throw new Error(aj.error || 'AI project generation failed');
+          const projData = aj.data ?? {};
+
+          const dueDate = new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
+          const saveRes = await fetch('/api/assignments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: projData.title || `Week ${week.week}: ${week.topic} — Capstone Project`,
+              description: projData.description ?? null,
+              instructions: projData.instructions || projData.description || week.objectives || '',
+              assignment_type: 'project',
+              max_points: 100,
+              due_date: dueDate,
+              is_active: false,
+              course_id: courseId ?? null,
+              lesson_id: res.lessonId ?? null,
+              metadata: {
+                week: week.week,
+                lesson_plan_id: planId,
+                term,
+                source: 'week-ai-generator',
+                category: projData.category ?? 'coding',
+                difficulty: projData.difficulty ?? 'intermediate',
+                tags: projData.tags ?? [],
+                submission_types: projData.submission_types ?? ['link', 'code'],
+                rubric: projData.rubric ?? [],
+              },
+            }),
+          });
+          const sj = await saveRes.json();
+          if (saveRes.ok && sj.data?.id) {
+            res.projectId = sj.data.id;
+            res.projectTitle = sj.data.title;
+            addLog(`✅ Capstone Project saved: "${sj.data.title}"`);
+            setStep('project', 'done');
+          } else {
+            throw new Error(sj.error || 'Capstone Project save failed');
+          }
+        } catch (e: any) {
+          setStep('project', 'error');
+          addLog(`⚠️  Project: ${e.message}`);
+        }
+      }
+
       setResult(res);
       setDone(true);
-      onDone?.({ lessonId: res.lessonId, deckId: res.deckId, assignmentId: res.assignmentId });
+      onDone?.({ lessonId: res.lessonId, deckId: res.deckId, assignmentId: res.assignmentId, projectId: res.projectId });
     } catch (e: any) {
       setError(e.message);
       addLog(`❌ Fatal: ${e.message}`);
@@ -480,7 +571,7 @@ export default function WeekAIGenerator({
     }
   }
 
-  const hasResult = !!(result.lessonId || result.deckId || result.assignmentId);
+  const hasResult = !!(result.lessonId || result.deckId || result.assignmentId || result.projectId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -508,7 +599,7 @@ export default function WeekAIGenerator({
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           {!running && !done && !error && (
             <p className="text-xs text-white/50 leading-relaxed">
-              Generates a <strong className="text-white/80 font-bold">full lesson</strong> (customized visualizer, Blockly logic & Monaco code sync), a <strong className="text-white/80 font-bold">15-card flashcard deck</strong>, and an <strong className="text-white/80 font-bold">assignment</strong>. Existing elements are skipped automatically.
+              Generates a <strong className="text-white/80 font-bold">full lesson</strong> (customized visualizer, Blockly logic & Monaco code sync), a <strong className="text-white/80 font-bold">15-card flashcard deck</strong>, an <strong className="text-white/80 font-bold">assignment</strong>, and a <strong className="text-white/80 font-bold">capstone project</strong>. Existing elements are skipped automatically.
             </p>
           )}
 
@@ -516,6 +607,7 @@ export default function WeekAIGenerator({
             <StepRow icon={BookOpenIcon} label="Full Lesson" sub="Streaming AI · CS visualizer · 12+ blocks + notes" state={status.lesson} color="bg-primary" />
             <StepRow icon={BoltIcon} label="Flashcard Deck" sub="15 AI cards · saved to Flashcards module" state={status.flashcard} color="bg-amber-500" />
             <StepRow icon={ClipboardDocumentListIcon} label="Assignment" sub="Auto-extracted from lesson block or AI-generated" state={status.assignment} color="bg-emerald-600" />
+            <StepRow icon={PresentationChartLineIcon} label="Capstone Project" sub="Creative STEM project handbook & rubric" state={status.project} color="bg-purple-600" />
           </div>
 
           {log.length > 0 && (
@@ -554,6 +646,15 @@ export default function WeekAIGenerator({
                   className="flex items-center justify-between px-4 py-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 text-xs text-emerald-400 font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all duration-300 shadow-md">
                   <span className="flex items-center gap-2">
                     <ClipboardDocumentListIcon className="w-4 h-4" /> Open Assignment
+                  </span>
+                  <span>→</span>
+                </a>
+              )}
+              {result.projectId && (
+                <a href={`/dashboard/assignments/${result.projectId}`} target="_blank" rel="noreferrer"
+                  className="flex items-center justify-between px-4 py-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 hover:border-purple-500/40 text-xs text-purple-400 font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all duration-300 shadow-md">
+                  <span className="flex items-center gap-2">
+                    <PresentationChartLineIcon className="w-4 h-4" /> Open Project
                   </span>
                   <span>→</span>
                 </a>

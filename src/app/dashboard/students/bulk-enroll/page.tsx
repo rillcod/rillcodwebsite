@@ -286,92 +286,125 @@ export default function BulkEnrollPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 md:px-8 max-w-6xl mx-auto">
+    <div className="min-h-screen bg-background px-4 py-8 md:px-8 max-w-6xl mx-auto font-sans">
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6 gap-4">
+      <div className="flex items-center justify-between mb-8 gap-4 pb-6 border-b border-white/5">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
-            <AcademicCapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
+          <h1 className="text-xl sm:text-3xl font-black text-foreground flex items-center gap-3 tracking-tight">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <AcademicCapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+            </div>
             Bulk Enrol Students
           </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm mt-1">Select students → pick or create a class → enrol</p>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1.5 font-medium">
+            Select students → pick or create a class → enrol
+          </p>
         </div>
-        <Link href="/dashboard/students" className="text-muted-foreground hover:text-foreground text-xs sm:text-sm transition-colors flex-shrink-0">← Back</Link>
+        <Link 
+          href="/dashboard/students" 
+          className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-xl text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all duration-200"
+        >
+          ← Back
+        </Link>
       </div>
 
       {/* Result banner */}
       {result && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 mb-5 flex items-start gap-3">
-          <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+        <div className="bg-emerald-500/[0.03] border border-emerald-500/20 rounded-2xl p-4 mb-6 flex items-start gap-3.5 shadow-xl shadow-emerald-500/[0.02] animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+          </div>
           <div className="flex-1 min-w-0">
             <p className="text-foreground font-bold text-sm">
               {result.enrolled} student{result.enrolled !== 1 ? 's' : ''} enrolled into{' '}
-              <span className="text-cyan-300">{result.className}</span>
+              <span className="text-primary font-black">{result.className}</span>
             </p>
             {result.programName && (
-              <p className="text-emerald-300 text-xs mt-0.5 flex items-center gap-1">
-                <CheckCircleIcon className="w-3.5 h-3.5" />
-                Also enrolled in programme: <span className="font-bold">{result.programName}</span>
+              <p className="text-emerald-400 text-xs mt-1 flex items-center gap-1.5 font-medium">
+                <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" />
+                Also enrolled in programme: <span className="font-extrabold">{result.programName}</span>
               </p>
             )}
             {result.skipped > 0 && (
-              <p className="text-amber-400 text-xs mt-1">{result.skipped} skipped (outside school boundary).</p>
+              <p className="text-amber-400 text-xs mt-1.5 font-medium bg-amber-500/5 border border-amber-500/10 px-2 py-1 rounded inline-block">
+                ⚠️ {result.skipped} skipped (outside school boundary).
+              </p>
             )}
           </div>
-          <button onClick={() => setResult(null)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
+          <button 
+            onClick={() => setResult(null)} 
+            className="text-muted-foreground hover:text-foreground shrink-0 w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors"
+          >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
       )}
 
-      {/* Enrolment settings */}
-      <div className="bg-[#0d1526] border border-border rounded-xl mb-5 overflow-hidden">
+      {/* Enrolment settings Accordion */}
+      <div className="bg-[#080d19]/60 backdrop-blur-md border border-white/5 rounded-2xl mb-6 overflow-hidden shadow-xl">
         <button
           onClick={() => setShowSettings(v => !v)}
-          className="w-full flex items-center justify-between px-4 sm:px-5 py-4 hover:bg-white/[0.02] transition-colors"
+          className="w-full flex items-center justify-between px-5 sm:px-6 py-5 hover:bg-white/[0.02] transition-colors"
         >
-          <div className="flex items-center gap-2 flex-wrap">
-            <BookOpenIcon className="w-4 h-4 text-primary flex-shrink-0" />
-            <span className="text-foreground font-bold text-sm">Enrolment Settings</span>
-            {selectedClass && <span className="text-cyan-300 text-xs bg-cyan-500/15 px-2 py-0.5 rounded-full border border-cyan-500/20 font-bold">{selectedClass.name}</span>}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+              <BookOpenIcon className="w-4 h-4 text-primary" />
+            </div>
+            <span className="text-foreground font-bold text-sm uppercase tracking-wider">Enrolment Settings</span>
+            {selectedClass && (
+              <span className="text-primary text-[10px] bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20 font-black uppercase tracking-wider">
+                {selectedClass.name}
+              </span>
+            )}
             {classMode === 'create' && (newClass.grade_level || newClass.name) && (
-              <span className="text-emerald-300 text-xs bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold">
+              <span className="text-emerald-400 text-[10px] bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-black uppercase tracking-wider">
                 New: {newClass.grade_level || newClass.name}
               </span>
             )}
           </div>
-          <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${showSettings ? 'rotate-180' : ''}`} />
+          <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${showSettings ? 'rotate-180' : ''}`} />
         </button>
 
         {showSettings && (
-          <div className="border-t border-border">
+          <div className="border-t border-white/5 bg-white/[0.01]">
             {/* Class mode tabs */}
-            <div className="px-4 sm:px-5 pt-4 pb-3 flex gap-2">
+            <div className="px-5 sm:px-6 pt-5 pb-3 flex gap-3">
               <button
                 onClick={() => setClassMode('pick')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${classMode === 'pick' ? 'bg-primary text-foreground shadow-lg shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${
+                  classMode === 'pick' 
+                    ? 'bg-primary text-black shadow-lg shadow-primary/10' 
+                    : 'bg-white/5 border border-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground'
+                }`}
               >
                 Pick Existing Class
               </button>
               <button
                 onClick={() => setClassMode('create')}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${classMode === 'create' ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${
+                  classMode === 'create' 
+                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/10' 
+                    : 'bg-white/5 border border-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground'
+                }`}
               >
-                <PlusIcon className="w-3.5 h-3.5" /> Create New Class
+                <PlusIcon className="w-3.5 h-3.5 stroke-2" /> Create New Class
               </button>
             </div>
 
-            <div className="px-4 sm:px-5 pb-5 space-y-4">
+            <div className="px-5 sm:px-6 pb-6 space-y-5">
               {classMode === 'pick' ? (
                 <>
                   {/* Programme filter */}
                   <div>
-                    <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                      <BookOpenIcon className="w-3.5 h-3.5" />
+                    <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                      <BookOpenIcon className="w-3.5 h-3.5 text-primary" />
                       Filter by Programme
                       {programId && (
-                        <button onClick={() => { setProgramId(''); setClassId(''); }} className="ml-auto text-[10px] text-primary hover:text-primary font-bold normal-case tracking-normal flex items-center gap-0.5">
+                        <button 
+                          onClick={() => { setProgramId(''); setClassId(''); }} 
+                          className="ml-auto text-[9px] text-primary hover:underline font-black uppercase tracking-widest flex items-center gap-0.5"
+                        >
                           <XMarkIcon className="w-3 h-3" /> Clear
                         </button>
                       )}
@@ -379,14 +412,14 @@ export default function BulkEnrollPage() {
                     <select
                       value={programId}
                       onChange={e => { setProgramId(e.target.value); setClassId(''); }}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+                      className="w-full px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors font-medium appearance-none cursor-pointer"
                     >
                       <option value="">— All programmes (show all classes) —</option>
                       {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                     {programId && (
-                      <p className="text-[10px] text-primary/70 mt-1.5 flex items-center gap-1">
-                        <CheckCircleIcon className="w-3 h-3" />
+                      <p className="text-[10px] text-emerald-400 mt-2 flex items-center gap-1.5 font-semibold bg-emerald-500/5 border border-emerald-500/10 px-2 py-1 rounded inline-block">
+                        <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />
                         Showing only classes in this programme. Students will also be enrolled in it.
                       </p>
                     )}
@@ -394,81 +427,141 @@ export default function BulkEnrollPage() {
 
                   {/* Class picker — grouped by school */}
                   <div>
-                    <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                      <AcademicCapIcon className="w-3.5 h-3.5" />
-                      Select Class <span className="text-rose-400">*</span>
-                      <span className="ml-auto text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                      <AcademicCapIcon className="w-3.5 h-3.5 text-primary" />
+                      Select Class <span className="text-rose-500">*</span>
+                      <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
                         {scopedClasses.length} available
                       </span>
                     </label>
                     {scopedClasses.length === 0 ? (
-                      <div className="py-6 text-center bg-card shadow-sm border border-dashed border-border rounded-xl space-y-2">
-                        <AcademicCapIcon className="w-7 h-7 text-muted-foreground mx-auto" />
-                        <p className="text-sm text-muted-foreground">
+                      <div className="py-8 text-center bg-[#080d19] border border-dashed border-white/5 rounded-2xl space-y-3">
+                        <AcademicCapIcon className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                        <p className="text-sm text-muted-foreground font-medium">
                           {programId ? 'No classes found for this programme.' : 'No classes found for the selected students\' school.'}
                         </p>
-                        <div className="flex items-center justify-center gap-3">
+                        <div className="flex items-center justify-center gap-4">
                           {programId && (
-                            <button onClick={() => { setProgramId(''); setClassId(''); }} className="text-xs font-bold text-primary hover:text-primary transition-colors">
-                              Show all classes →
+                            <button onClick={() => { setProgramId(''); setClassId(''); }} className="text-xs font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors">
+                              Show all classes
                             </button>
                           )}
-                          <button onClick={() => setClassMode('create')} className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors">
-                            Create a new class →
+                          <button onClick={() => setClassMode('create')} className="text-xs font-black uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors">
+                            Create a new class
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                      <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
                         {classGroups.map(([schoolName, classes]) => (
-                          <div key={schoolName}>
-                            <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1.5 px-1 flex items-center gap-1.5">
+                          <div key={schoolName} className="space-y-2">
+                            <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest px-1.5 flex items-center gap-1.5">
                               <BuildingOfficeIcon className="w-3 h-3" /> {schoolName}
                             </p>
-                            <div className="space-y-1.5">
-                              {classes.map((c: any) => (
-                                <div
-                                  key={c.id}
-                                  onClick={() => setClassId(c.id)}
-                                  className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${classId === c.id ? 'bg-primary/15 border-primary/40' : 'bg-card shadow-sm border-border hover:border-primary/20 hover:bg-white/[0.07]'}`}
-                                >
-                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${classId === c.id ? 'border-primary bg-primary' : 'border-border'}`}>
-                                    {classId === c.id && <div className="w-1.5 h-1.5 rounded-full bg-card" />}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {classes.map((c: any) => {
+                                const enrolledCount = c.current_students ?? 0;
+                                const maxStudents = c.max_students ?? 0;
+                                const isFull = maxStudents > 0 && enrolledCount >= maxStudents;
+                                const isSelected = classId === c.id;
+
+                                return (
+                                  <div
+                                    key={c.id}
+                                    onClick={() => {
+                                      if (!isFull) {
+                                        setClassId(c.id);
+                                      }
+                                    }}
+                                    className={`flex items-center gap-3 p-3.5 border rounded-2xl transition-all duration-200 ${
+                                      isFull 
+                                        ? 'bg-rose-950/[0.02] border-rose-500/10 opacity-60 cursor-not-allowed' 
+                                        : isSelected 
+                                        ? 'bg-primary/10 border-primary/30 shadow-lg shadow-primary/5' 
+                                        : 'bg-[#080d19] border-white/5 hover:border-primary/20 hover:bg-white/[0.03] cursor-pointer'
+                                    }`}
+                                  >
+                                    {/* Selection dot */}
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                      isFull 
+                                        ? 'border-rose-500/20 bg-rose-500/5' 
+                                        : isSelected 
+                                        ? 'border-primary bg-primary' 
+                                        : 'border-white/10'
+                                    }`}>
+                                      {isSelected && !isFull && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
+                                      {isFull && <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />}
+                                    </div>
+
+                                    {/* Name and program info */}
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <p className={`text-sm font-bold truncate ${isFull ? 'text-rose-400 line-through decoration-rose-500/30' : isSelected ? 'text-primary font-black' : 'text-foreground'}`}>
+                                          {c.name}
+                                        </p>
+                                        {isFull && (
+                                          <span className="text-[8px] font-black uppercase tracking-wider bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded text-rose-400 shrink-0">
+                                            FULL
+                                          </span>
+                                        )}
+                                      </div>
+                                      {c.programs?.name ? (
+                                        <p className="text-[10px] text-muted-foreground/60 mt-0.5 flex items-center gap-1">
+                                          <BookOpenIcon className="w-3 h-3 text-primary/40 shrink-0" />
+                                          <span className="truncate">{c.programs.name}</span>
+                                        </p>
+                                      ) : (
+                                        <p className="text-[10px] text-muted-foreground/30 mt-0.5">No programme linked</p>
+                                      )}
+
+                                      {/* Capacity Bar helper */}
+                                      {maxStudents > 0 && (
+                                        <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden mt-2 border border-white/[0.02]">
+                                          <div 
+                                            className={`h-full rounded-full transition-all duration-300 ${
+                                              isFull 
+                                                ? 'bg-rose-500' 
+                                                : enrolledCount >= maxStudents * 0.8 
+                                                ? 'bg-amber-500' 
+                                                : 'bg-primary'
+                                            }`} 
+                                            style={{ width: `${Math.min(100, (enrolledCount / maxStudents) * 100)}%` }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Capacity Numbers */}
+                                    <div className="flex flex-col items-end gap-1 shrink-0 text-right">
+                                      <span className={`text-xs font-bold tabular-nums ${isFull ? 'text-rose-400' : 'text-muted-foreground'}`}>
+                                        {enrolledCount}
+                                        <span className="text-muted-foreground/30 font-normal">/</span>
+                                        {maxStudents || '∞'}
+                                      </span>
+                                      {c.program_id && !isFull && (
+                                        <span className="text-[8px] font-black text-emerald-400/60 uppercase tracking-widest bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20">
+                                          Active
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
-                                    {c.programs?.name ? (
-                                      <p className="text-[9px] text-primary/70 mt-0.5 flex items-center gap-0.5">
-                                        <BookOpenIcon className="w-2.5 h-2.5 flex-shrink-0" /> {c.programs.name}
-                                      </p>
-                                    ) : (
-                                      <p className="text-[9px] text-muted-foreground mt-0.5">No programme linked</p>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                                    <span className="text-[10px] font-bold text-muted-foreground tabular-nums">
-                                      {c.current_students ?? 0}{c.max_students ? `/${c.max_students}` : ''} <span className="text-white/20">stu</span>
-                                    </span>
-                                    {c.program_id && (
-                                      <span className="text-[8px] font-black text-emerald-400/60 uppercase tracking-widest">prog ✓</span>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-                    {/* Selected class programme confirmation */}
+
+                    {/* Selected class program indicator */}
                     {classId && (() => {
                       const cls = classesList.find((c: any) => c.id === classId);
                       if (!cls?.program_id) return null;
                       const progName = cls.programs?.name ?? programs.find((p: any) => p.id === cls.program_id)?.name;
                       return progName ? (
-                        <div className="mt-2 flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300">
-                          <CheckCircleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                          Students will be auto-enrolled in: <span className="font-bold">{progName}</span>
+                        <div className="mt-3 flex items-center gap-2 px-3 py-2.5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-xs text-emerald-300 font-medium">
+                          <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                          Students will be auto-enrolled in: <span className="font-extrabold text-white">{progName}</span>
                         </div>
                       ) : null;
                     })()}
@@ -476,68 +569,97 @@ export default function BulkEnrollPage() {
 
                   {/* School override */}
                   <div>
-                    <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1.5">
-                      Assign School <span className="text-muted-foreground normal-case font-normal text-[10px]">(optional)</span>
+                    <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2">
+                      Assign School <span className="text-muted-foreground/60 normal-case font-normal text-[10px]">(optional)</span>
                     </label>
-                    <select value={schoolId} onChange={e => setSchoolId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors">
-                      <option value="">— Keep current school —</option>
-                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+                    <div className="relative">
+                      <select 
+                        value={schoolId} 
+                        onChange={e => setSchoolId(e.target.value)}
+                        className="w-full px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors font-medium appearance-none cursor-pointer"
+                      >
+                        <option value="">— Keep current school —</option>
+                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                      <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground/60">
+                        <ChevronDownIcon className="w-4 h-4" />
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : (
                 /* Create new class form */
-                <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground">Create a new class and immediately enrol {selected.size > 0 ? `${selected.size} selected` : 'selected'} students into it.</p>
+                <div className="space-y-4">
+                  <p className="text-xs text-muted-foreground bg-white/5 border border-white/5 px-3 py-2 rounded-xl inline-block font-medium">
+                    💡 Create a new class and immediately enrol {selected.size > 0 ? `${selected.size} selected` : 'selected'} students into it.
+                  </p>
 
                   {/* Grade preset */}
                   <div>
-                    <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1.5">Grade / Section</label>
-                    <select
-                      value={newClass.grade_level}
-                      onChange={e => setNewClass(q => ({ ...q, grade_level: e.target.value, name: e.target.value ? '' : q.name }))}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors"
-                    >
-                      <option value="">— Pick grade level —</option>
-                      {GRADE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
-                    </select>
+                    <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2">Grade / Section</label>
+                    <div className="relative">
+                      <select
+                        value={newClass.grade_level}
+                        onChange={e => setNewClass(q => ({ ...q, grade_level: e.target.value, name: e.target.value ? '' : q.name }))}
+                        className="w-full px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors font-medium appearance-none"
+                      >
+                        <option value="">— Pick grade level —</option>
+                        {GRADE_PRESETS.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground/60">
+                        <ChevronDownIcon className="w-4 h-4" />
+                      </div>
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1.5">
+                    <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2">
                       Custom Name {!newClass.grade_level && <span className="text-rose-400">*</span>}
                     </label>
                     <input
                       value={newClass.name}
                       onChange={e => setNewClass(q => ({ ...q, name: e.target.value, grade_level: e.target.value ? '' : q.grade_level }))}
                       placeholder={newClass.grade_level ? `Leave blank to use "${newClass.grade_level}"` : 'e.g. JSS1A, Coding Club…'}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500/50 transition-colors"
+                      className="w-full px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald-500/50 transition-colors font-medium"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1.5">
+                    <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2">
                       Programme <span className="text-rose-400">*</span>
                     </label>
-                    <select value={programId} onChange={e => setProgramId(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors">
-                      <option value="">— Select a programme —</option>
-                      {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    <div className="relative">
+                      <select 
+                        value={programId} 
+                        onChange={e => setProgramId(e.target.value)}
+                        className="w-full px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors font-medium appearance-none"
+                      >
+                        <option value="">— Select a programme —</option>
+                        {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground/60">
+                        <ChevronDownIcon className="w-4 h-4" />
+                      </div>
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1.5">
-                      School <span className="text-muted-foreground normal-case font-normal text-[10px]">(optional)</span>
+                    <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-2">
+                      School <span className="text-muted-foreground/60 normal-case font-normal text-[10px]">(optional)</span>
                     </label>
-                    <select
-                      value={newClass.school_id || schoolId}
-                      onChange={e => { setNewClass(q => ({ ...q, school_id: e.target.value })); setSchoolId(e.target.value); }}
-                      className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors">
-                      <option value="">— Select school —</option>
-                      {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={newClass.school_id || schoolId}
+                        onChange={e => { setNewClass(q => ({ ...q, school_id: e.target.value })); setSchoolId(e.target.value); }}
+                        className="w-full px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500/50 cursor-pointer transition-colors font-medium appearance-none"
+                      >
+                        <option value="">— Select school —</option>
+                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                      <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground/60">
+                        <ChevronDownIcon className="w-4 h-4" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -546,49 +668,77 @@ export default function BulkEnrollPage() {
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, email or school…"
-            className="w-full pl-9 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
+            className="w-full pl-10 pr-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors font-medium"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {allClasses.length > 0 && (
-            <select value={classFilter} onChange={e => setClassFilter(e.target.value)}
-              className="flex-1 sm:flex-none px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors">
-              <option value="">All classes</option>
-              {allClasses.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <div className="relative flex-1 sm:flex-none">
+              <select 
+                value={classFilter} 
+                onChange={e => setClassFilter(e.target.value)}
+                className="w-full sm:w-auto px-4 py-3 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors font-medium appearance-none cursor-pointer pr-10"
+              >
+                <option value="">All classes</option>
+                {allClasses.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground/60">
+                <ChevronDownIcon className="w-4 h-4" />
+              </div>
+            </div>
           )}
-          <button onClick={load} disabled={loading}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <button 
+            onClick={load} 
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all duration-200"
+          >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
       {/* School filter chips */}
       {schools.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button onClick={() => setSchoolFilter('')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${!schoolFilter ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:text-foreground hover:bg-muted'}`}>
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button 
+            onClick={() => setSchoolFilter('')}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-200 ${
+              !schoolFilter 
+                ? 'bg-primary text-black border-primary shadow-lg shadow-primary/10' 
+                : 'bg-white/5 text-muted-foreground border-white/5 hover:text-foreground hover:bg-white/10'
+            }`}
+          >
             All Schools
           </button>
           {schools.map(sc => {
             const count = students.filter(s => s.school_name === sc.name).length;
             const active = schoolFilter === sc.name;
             return (
-              <button key={sc.id} onClick={() => setSchoolFilter(active ? '' : sc.name)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${active ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:text-foreground hover:bg-muted'}`}>
-                <BuildingOfficeIcon className="w-3 h-3 flex-shrink-0" />
-                {sc.name}
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${active ? 'bg-muted' : 'bg-muted'}`}>{count}</span>
+              <button 
+                key={sc.id} 
+                onClick={() => setSchoolFilter(active ? '' : sc.name)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all duration-200 ${
+                  active 
+                    ? 'bg-primary text-black border-primary shadow-lg shadow-primary/10' 
+                    : 'bg-white/5 text-muted-foreground border-white/5 hover:text-foreground hover:bg-white/10'
+                }`}
+              >
+                <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>{sc.name}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[9px] font-black font-mono tracking-normal leading-none ${
+                  active ? 'bg-black/20 text-black' : 'bg-white/5 text-muted-foreground'
+                }`}>
+                  {count}
+                </span>
               </button>
             );
           })}
@@ -597,34 +747,47 @@ export default function BulkEnrollPage() {
 
       {/* Selection action bar */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 mb-4 bg-primary/10 border border-primary/30 rounded-xl gap-3 flex-wrap">
-          <div className="flex items-center gap-2 text-sm">
-            <UserGroupIcon className="w-4 h-4 text-primary" />
-            <span className="text-primary font-bold">{selected.size} selected</span>
-            <button onClick={() => setSelected(new Set())} className="text-muted-foreground hover:text-foreground text-xs underline">Clear</button>
+        <div className="flex items-center justify-between p-4 mb-6 bg-primary/5 border border-primary/20 rounded-2xl gap-4 flex-wrap shadow-lg shadow-primary/[0.01] animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-3 text-sm">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <UserGroupIcon className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+              <span className="text-primary font-black uppercase tracking-wider text-xs">
+                {selected.size} Student{selected.size !== 1 ? 's' : ''} Selected
+              </span>
+              <button 
+                onClick={() => setSelected(new Set())} 
+                className="text-muted-foreground/60 hover:text-foreground text-xs underline font-semibold text-left"
+              >
+                Clear Selection
+              </button>
+            </div>
           </div>
+          
+          {/* Action validation warnings */}
           {classMode === 'pick' && !classId ? (
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-              <ExclamationTriangleIcon className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+              <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
               <span>Select a class above first</span>
             </div>
           ) : classMode === 'create' && (!newClass.grade_level && !newClass.name.trim()) ? (
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-              <ExclamationTriangleIcon className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+              <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
               <span>Set class name above first</span>
             </div>
           ) : classMode === 'create' && !programId ? (
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-              <ExclamationTriangleIcon className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+              <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
               <span>Select a programme above first</span>
             </div>
           ) : (
             <button
               onClick={handleEnroll}
               disabled={enrolling || creatingClass}
-              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-foreground font-bold rounded-xl text-sm transition-colors"
+              className="flex items-center gap-2 px-5 py-3 bg-primary hover:bg-primary/95 disabled:opacity-40 text-black font-black uppercase tracking-wider text-xs rounded-xl shadow-xl shadow-primary/10 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
             >
-              <AcademicCapIcon className="w-4 h-4" />
+              <AcademicCapIcon className="w-4 h-4 stroke-2" />
               <span>
                 {(enrolling || creatingClass)
                   ? classMode === 'create' ? 'Creating & Enrolling…' : 'Enrolling…'
@@ -638,95 +801,133 @@ export default function BulkEnrollPage() {
       )}
 
       {/* Student table */}
-      <div className="bg-[#0d1526] border border-border rounded-xl overflow-hidden">
+      <div className="bg-[#080d19]/40 border border-white/5 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="flex items-center justify-center py-24">
+            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <UserGroupIcon className="w-10 h-10 mb-3" />
-            <p className="font-bold">No students found</p>
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+            <UserGroupIcon className="w-12 h-12 mb-4 text-muted-foreground/30" />
+            <p className="font-extrabold text-sm uppercase tracking-widest text-muted-foreground/60">No students found</p>
+            <p className="text-xs text-muted-foreground/40 mt-1 font-medium">Try matching search terms or refreshing.</p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto pr-1">
               <table className="w-full text-xs min-w-[300px]">
-                <thead className="sticky top-0 bg-[#0b1020] z-10">
-                  <tr className="border-b border-border text-muted-foreground uppercase tracking-wider text-[10px]">
-                    <th className="px-2 sm:px-4 py-3 w-12">
-                      <label className="flex items-center justify-center w-10 h-10 cursor-pointer mx-auto">
-                        <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll}
-                          className="w-4 h-4 rounded border-border accent-primary cursor-pointer" />
+                <thead className="sticky top-0 bg-[#080d19] z-10 border-b border-white/5">
+                  <tr className="border-b border-white/5 text-muted-foreground uppercase tracking-widest text-[9px] font-black">
+                    <th className="px-3 py-4 w-12 text-center">
+                      <label className="flex items-center justify-center w-8 h-8 cursor-pointer mx-auto rounded-lg hover:bg-white/5 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={allFilteredSelected} 
+                          onChange={toggleAll}
+                          className="w-4 h-4 rounded border-white/10 accent-primary cursor-pointer bg-black/40" 
+                        />
                       </label>
                     </th>
-                    <th className="text-left px-3 py-3">Name</th>
-                    <th className="text-left px-3 py-3 hidden sm:table-cell">Email</th>
-                    <th className="text-left px-3 py-3">Class</th>
+                    <th className="text-left px-4 py-4">Name</th>
+                    <th className="text-left px-4 py-4 hidden sm:table-cell">Email</th>
+                    <th className="text-left px-4 py-4">Class</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-white/[0.02]">
                   {groupedBySchool.map(([schoolName, schoolStudents]) => {
                     const enrollable = schoolStudents.filter(s => !enrolledIds.has(s.id));
                     const allSchoolSelected = enrollable.length > 0 && enrollable.every(s => selected.has(s.id));
                     const someSchoolSelected = enrollable.some(s => selected.has(s.id));
                     return (
                       <React.Fragment key={schoolName}>
-                        <tr className="bg-[#0b1020] border-b border-border">
-                          <td className="px-2 sm:px-4 py-2 text-center">
-                            <label className="flex items-center justify-center w-10 h-8 cursor-pointer mx-auto">
-                            <input type="checkbox" checked={allSchoolSelected}
-                              ref={el => { if (el) el.indeterminate = someSchoolSelected && !allSchoolSelected; }}
-                              onChange={() => {
-                                const next = new Set(selected);
-                                if (allSchoolSelected) enrollable.forEach(s => next.delete(s.id));
-                                else enrollable.forEach(s => next.add(s.id));
-                                setSelected(next);
-                              }}
-                              className="w-4 h-4 rounded border-border accent-primary cursor-pointer" />
+                        {/* School Group Header Row */}
+                        <tr className="bg-white/[0.01] sticky top-12 z-[5] backdrop-blur-sm border-y border-white/5">
+                          <td className="px-3 py-2 text-center">
+                            <label className="flex items-center justify-center w-8 h-8 cursor-pointer mx-auto rounded-lg hover:bg-white/5 transition-colors">
+                              <input 
+                                type="checkbox" 
+                                checked={allSchoolSelected}
+                                ref={el => { if (el) el.indeterminate = someSchoolSelected && !allSchoolSelected; }}
+                                onChange={() => {
+                                  const next = new Set(selected);
+                                  if (allSchoolSelected) enrollable.forEach(s => next.delete(s.id));
+                                  else enrollable.forEach(s => next.add(s.id));
+                                  setSelected(next);
+                                }}
+                                className="w-4 h-4 rounded border-white/10 accent-primary cursor-pointer bg-black/40" 
+                              />
                             </label>
                           </td>
-                          <td colSpan={3} className="px-3 py-2">
-                            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                              <BuildingOfficeIcon className="w-3 h-3 flex-shrink-0" />
+                          <td colSpan={3} className="px-4 py-3">
+                            <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/70">
+                              <BuildingOfficeIcon className="w-3.5 h-3.5 shrink-0" />
                               {schoolName}
-                              <span className="text-muted-foreground font-normal normal-case tracking-normal">
+                              <span className="text-muted-foreground/50 font-bold normal-case tracking-normal text-[9px] bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
                                 {schoolStudents.length} student{schoolStudents.length !== 1 ? 's' : ''}
                               </span>
                             </span>
                           </td>
                         </tr>
+                        
+                        {/* Student Rows */}
                         {schoolStudents.map(s => {
                           const isSel = selected.has(s.id);
                           const isEnrolled = enrolledIds.has(s.id);
                           return (
-                            <tr key={s.id}
+                            <tr 
+                              key={s.id}
                               onClick={() => !isEnrolled && toggleOne(s.id)}
-                              className={`border-b border-border transition-colors ${isEnrolled ? 'opacity-60' : isSel ? 'bg-primary/10 hover:bg-primary/15 cursor-pointer' : 'hover:bg-white/[0.02] cursor-pointer'}`}>
-                              <td className="px-2 sm:px-4 py-2 text-center" onClick={e => e.stopPropagation()}>
-                                {isEnrolled
-                                  ? <CheckCircleIcon className="w-5 h-5 text-emerald-400 mx-auto" />
-                                  : <label className="flex items-center justify-center w-10 h-10 cursor-pointer mx-auto">
-                                      <input type="checkbox" checked={isSel} onChange={() => toggleOne(s.id)}
-                                        className="w-4 h-4 rounded border-border accent-primary cursor-pointer" />
-                                    </label>}
+                              className={`transition-all duration-150 ${
+                                isEnrolled 
+                                  ? 'opacity-40 cursor-not-allowed bg-black/10' 
+                                  : isSel 
+                                  ? 'bg-primary/[0.04] border-l-2 border-l-primary hover:bg-primary/[0.08] cursor-pointer' 
+                                  : 'hover:bg-white/[0.02] cursor-pointer'
+                              }`}
+                            >
+                              <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
+                                {isEnrolled ? (
+                                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
+                                    <CheckCircleIcon className="w-4 h-4 text-emerald-400" />
+                                  </div>
+                                ) : (
+                                  <label className="flex items-center justify-center w-8 h-8 cursor-pointer mx-auto rounded-lg hover:bg-white/5 transition-colors">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={isSel} 
+                                      onChange={() => toggleOne(s.id)}
+                                      className="w-4 h-4 rounded border-white/10 accent-primary cursor-pointer bg-black/40" 
+                                    />
+                                  </label>
+                                )}
                               </td>
-                              <td className="px-3 py-2.5">
+                              
+                              <td className="px-4 py-3.5">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`font-medium ${isEnrolled ? 'text-muted-foreground' : isSel ? 'text-primary' : 'text-foreground'}`}>{s.full_name}</span>
+                                  <span className={`font-semibold text-sm ${
+                                    isEnrolled ? 'text-muted-foreground/60 line-through' : isSel ? 'text-primary font-black' : 'text-foreground'
+                                  }`}>
+                                    {s.full_name}
+                                  </span>
                                   {isEnrolled && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/15 text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20 shadow-lg shadow-emerald-500/[0.02]">
                                       <CheckCircleIcon className="w-2.5 h-2.5" /> Enrolled
                                     </span>
                                   )}
                                 </div>
-                                <span className="block sm:hidden text-muted-foreground font-mono text-[10px] mt-0.5 truncate max-w-[160px]">{s.email}</span>
+                                <span className="block sm:hidden text-muted-foreground/50 font-mono text-[10px] mt-0.5 truncate max-w-[160px]">{s.email}</span>
                               </td>
-                              <td className="px-3 py-2.5 text-muted-foreground font-mono hidden sm:table-cell">{s.email}</td>
-                              <td className="px-3 py-2.5">
-                                {s.section_class
-                                  ? <span className="inline-block px-2 py-0.5 bg-cyan-500/15 text-cyan-300 text-[10px] font-bold rounded-full border border-cyan-500/20">{s.section_class}</span>
-                                  : <span className="text-muted-foreground">—</span>}
+                              
+                              <td className="px-4 py-3.5 text-muted-foreground font-mono hidden sm:table-cell text-xs">{s.email}</td>
+                              
+                              <td className="px-4 py-3.5">
+                                {s.section_class ? (
+                                  <span className="inline-block px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 text-[9px] font-black uppercase tracking-wider rounded-full border border-cyan-500/20">
+                                    {s.section_class}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground/30">—</span>
+                                )}
                               </td>
                             </tr>
                           );
@@ -737,9 +938,15 @@ export default function BulkEnrollPage() {
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+            
+            {/* Table Footer Stats */}
+            <div className="px-5 py-4 border-t border-white/5 bg-white/[0.01] flex items-center justify-between text-xs text-muted-foreground font-medium">
               <span>{filtered.length} shown · {students.length} total</span>
-              {selected.size > 0 && <span className="text-primary font-bold">{selected.size} selected</span>}
+              {selected.size > 0 && (
+                <span className="text-primary font-black uppercase tracking-widest text-[10px]">
+                  {selected.size} selected
+                </span>
+              )}
             </div>
           </>
         )}
@@ -747,3 +954,4 @@ export default function BulkEnrollPage() {
     </div>
   );
 }
+

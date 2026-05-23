@@ -732,20 +732,62 @@ export default function ClassDetailPage() {
         {/* Stats — always visible */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Enrolled', value: enrollments.length, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Capacity', value: cls.max_students ?? '∞', icon: ChartBarIcon, color: 'text-primary', bg: 'bg-primary/10' },
-            { label: 'Sessions', value: sessions.length, icon: CalendarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Level', value: cls.programs?.difficulty_level ?? 'N/A', icon: BoltIcon, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+            { 
+              label: 'Enrolled', 
+              value: enrollments.length, 
+              icon: UserGroupIcon, 
+              color: cls?.max_students > 0 && enrollments.length >= cls?.max_students ? 'text-rose-400' : 'text-primary', 
+              bg: cls?.max_students > 0 && enrollments.length >= cls?.max_students ? 'bg-rose-500/10' : 'bg-primary/10',
+              border: cls?.max_students > 0 && enrollments.length >= cls?.max_students ? 'border-rose-500/25' : 'border-border'
+            },
+            { 
+              label: 'Capacity', 
+              value: cls.max_students ?? '∞', 
+              icon: ChartBarIcon, 
+              color: 'text-primary', 
+              bg: 'bg-primary/10',
+              border: 'border-border'
+            },
+            { 
+              label: 'Sessions', 
+              value: sessions.length, 
+              icon: CalendarIcon, 
+              color: 'text-emerald-400', 
+              bg: 'bg-emerald-500/10',
+              border: 'border-border'
+            },
+            { 
+              label: 'Level', 
+              value: cls.programs?.difficulty_level ?? 'N/A', 
+              icon: BoltIcon, 
+              color: 'text-purple-400', 
+              bg: 'bg-purple-500/10',
+              border: 'border-border'
+            },
           ].map(s => (
-            <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
-              <div className={`w-10 h-10 ${s.bg} flex items-center justify-center mb-3`}>
+            <div key={s.label} className={`relative overflow-hidden bg-white/[0.01] backdrop-blur-md border ${s.border} rounded-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl`}>
+              <div className={`absolute top-0 right-0 w-16 h-16 ${s.bg} rounded-full blur-3xl opacity-20 -mr-6 -mt-6`} />
+              <div className={`w-10 h-10 ${s.bg} flex items-center justify-center mb-3 rounded-xl transition-transform duration-300 hover:scale-110`}>
                 <s.icon className={`w-5 h-5 ${s.color}`} />
               </div>
-              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+              <p className={`text-2xl font-black ${s.color} tracking-tight`}>{s.value}</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1.5">{s.label}</p>
             </div>
           ))}
         </div>
+
+        {/* Capacity Alert Banner */}
+        {cls?.max_students > 0 && enrollments.length >= cls?.max_students && (
+          <div className="flex items-center gap-3.5 p-4 sm:p-5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl shadow-xl shadow-rose-950/20 animate-pulse">
+            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black uppercase tracking-wide">Class Capacity Reached</p>
+              <p className="text-xs text-rose-400/80 mt-0.5 font-semibold">
+                "{cls.name}" has reached its maximum enrollment capacity of {cls.max_students} students. Further enrollments are blocked.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Tabs + Content | Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -754,7 +796,7 @@ export default function ClassDetailPage() {
           <div className="lg:col-span-2 space-y-4">
 
             {/* Tab Bar */}
-            <div className="flex items-center overflow-x-auto gap-1 p-1 bg-card shadow-sm border border-border rounded-xl no-scrollbar">
+            <div className="flex items-center overflow-x-auto gap-1.5 p-1.5 bg-white/[0.01] backdrop-blur-md border border-border rounded-2xl no-scrollbar">
               {[
                 { id: 'overview', label: 'Overview', icon: UserGroupIcon },
                 { id: 'lessons', label: 'Lessons', icon: BookOpenIcon },
@@ -765,13 +807,13 @@ export default function ClassDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab.id
-                      ? 'bg-primary text-white'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      ? 'bg-primary text-foreground shadow-lg shadow-primary/20 scale-[1.02]'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                   }`}
                 >
-                  <tab.icon className="w-4 h-4" />
+                  <tab.icon className="w-4 h-4 flex-shrink-0" />
                   {tab.label}
                 </button>
               ))}
@@ -1204,8 +1246,16 @@ export default function ClassDetailPage() {
                                         defaultValue={score ?? ''}
                                         onBlur={async (e) => {
                                           const val = e.target.value;
-                                          if (val !== '' && isNaN(Number(val))) return;
-                                          const numVal = val === '' ? null : Math.min(Number(val), maxPts);
+                                          if (val === '') {
+                                          } else {
+                                            const numVal = Number(val);
+                                            if (isNaN(numVal) || numVal < 0 || numVal > maxPts) {
+                                              alert(`Grade must be a valid number between 0 and ${maxPts}.`);
+                                              e.target.value = score !== null ? String(score) : '';
+                                              return;
+                                            }
+                                          }
+                                          const numVal = val === '' ? null : Number(val);
                                           const key = `asm-${a.id}-${enr.id}`;
                                           if (numVal === score) return;
 
@@ -1239,7 +1289,7 @@ export default function ClassDetailPage() {
                                         <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${waec.bgColor} ${waec.color}`}>{waec.code}</span>
                                       )}
                                       {matrixSaving[`asm-${a.id}-${enr.id}`] && (
-                                        <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                                        <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                                       )}
                                     </div>
                                   ) : sub ? (
@@ -1305,10 +1355,10 @@ export default function ClassDetailPage() {
 
             {/* Quick Actions */}
             {isStaff && (
-              <div className="bg-card shadow-sm border border-border p-5 space-y-3">
+              <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-border rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-2 mb-4">
-                  <BoltIcon className="w-4 h-4 text-primary" />
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Quick Actions</h3>
+                  <BoltIcon className="w-4 h-4 text-primary animate-pulse" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Quick Actions</h3>
                 </div>
                 {([
                   { label: 'Take Attendance', desc: 'Mark roll call', icon: CheckCircleIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
@@ -1317,23 +1367,23 @@ export default function ClassDetailPage() {
                   { label: 'Grade Submissions', desc: 'Review student work', icon: ChartBarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', action: () => setActiveTab('gradebook') },
                 ] as const).map(btn => (
                   <button key={btn.label} onClick={btn.action}
-                    className="flex items-center gap-3 w-full p-3 bg-card shadow-sm hover:bg-muted border border-border hover:border-primary/30 text-left transition-colors">
-                    <div className={`w-9 h-9 flex items-center justify-center flex-shrink-0 ${btn.bg}`}>
+                    className="flex items-center gap-3 w-full p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-primary/20 rounded-xl text-left transition-all duration-300">
+                    <div className={`w-9 h-9 flex items-center justify-center rounded-xl flex-shrink-0 ${btn.bg}`}>
                       <btn.icon className={`w-4 h-4 ${btn.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground">{btn.label}</p>
-                      <p className="text-xs text-muted-foreground">{btn.desc}</p>
+                      <p className="text-xs text-muted-foreground font-medium opacity-80">{btn.desc}</p>
                     </div>
-                    <ArrowRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <ArrowRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform hover:translate-x-0.5" />
                   </button>
                 ))}
               </div>
             )}
 
             {/* Students List */}
-            <div className="bg-card shadow-sm border border-border overflow-hidden">
-              <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
+            <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-border rounded-2xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between gap-3 bg-white/[0.02]">
                 <div className="flex items-center gap-3 min-w-0">
                   {canView && enrollments.length > 0 && (
                     <input
@@ -1342,12 +1392,12 @@ export default function ClassDetailPage() {
                       checked={checkedEnrollIds.size === enrollments.length}
                       ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && checkedEnrollIds.size < enrollments.length; }}
                       onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(enrollments.map((enr: any) => enr.id)) : new Set())}
-                      className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0"
+                      className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0 rounded border-border"
                     />
                   )}
                   <div>
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Enrolled Students</h3>
-                    <p className="text-xs text-primary mt-0.5">{enrollments.length} / {cls.max_students ?? '∞'} enrolled</p>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Enrolled Students</h3>
+                    <p className="text-xs text-primary font-bold mt-0.5">{enrollments.length} / {cls.max_students ?? '∞'} enrolled</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -1374,29 +1424,29 @@ export default function ClassDetailPage() {
                           setBulkRemoving(false);
                         }
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-400 text-xs font-bold transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-400 text-xs font-bold transition-all rounded-xl disabled:opacity-50"
                     >
                       {bulkRemoving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon className="w-3.5 h-3.5" />}
                       Unenrol {checkedEnrollIds.size}
                     </button>
                   )}
                   {isStaff && (
-                    <>
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
                         title="Enrol existing student"
-                        className="w-8 h-8 bg-card shadow-sm hover:bg-primary hover:text-white border border-border text-muted-foreground transition-colors flex items-center justify-center"
+                        className="w-8 h-8 bg-white/5 hover:bg-primary hover:text-white border border-white/5 text-muted-foreground transition-all flex items-center justify-center rounded-xl"
                       >
                         <PlusIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setShowRegisterModal(true)}
                         title="Register new student"
-                        className="w-8 h-8 bg-card shadow-sm hover:bg-primary hover:text-white border border-border text-muted-foreground transition-colors flex items-center justify-center"
+                        className="w-8 h-8 bg-white/5 hover:bg-primary hover:text-white border border-white/5 text-muted-foreground transition-all flex items-center justify-center rounded-xl"
                       >
                         <UserPlusIcon className="w-4 h-4" />
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1407,13 +1457,13 @@ export default function ClassDetailPage() {
                   {isStaff && <Link href={`/dashboard/classes/${id}/edit`} className="text-xs font-bold text-primary hover:text-primary transition-colors">Edit class to add students →</Link>}
                 </div>
               ) : (
-                <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
+                <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto custom-scrollbar">
                   {enrollments.map((enr: any) => {
                     const isChecked = checkedEnrollIds.has(enr.id);
                     return (
                       <div
                         key={enr.id}
-                        className={`px-4 py-3 flex items-center gap-3 transition-colors group ${isChecked ? 'bg-rose-500/5' : 'hover:bg-muted/50'}`}
+                        className={`px-4 py-3 flex items-center gap-3 transition-all group ${isChecked ? 'bg-rose-500/5' : 'hover:bg-white/5'}`}
                       >
                         {canView && (
                           <input
@@ -1426,10 +1476,10 @@ export default function ClassDetailPage() {
                                 return next;
                               });
                             }}
-                            className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0"
+                            className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0 rounded border-border"
                           />
                         )}
-                        <div className={`w-8 h-8 flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${isChecked ? 'bg-rose-500/20 text-rose-400' : 'bg-primary/10 text-primary'}`}>
+                        <div className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0 transition-colors ${isChecked ? 'bg-rose-500/20 text-rose-400' : 'bg-primary/10 text-primary'}`}>
                           {(enr.full_name ?? '?')[0].toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -1450,7 +1500,7 @@ export default function ClassDetailPage() {
                               setCheckedEnrollIds(prev => { const next = new Set(prev); next.delete(enr.id); return next; });
                             }}
                             title="Unenrol from class"
-                            className="w-7 h-7 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 text-rose-400 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                            className="w-7 h-7 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 text-rose-400 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 rounded-xl"
                           >
                             <TrashIcon className="w-3.5 h-3.5" />
                           </button>
@@ -1481,6 +1531,8 @@ export default function ClassDetailPage() {
       {showStudentModal && (() => {
         const unassigned = availableStudents.filter((s: any) => !s.class_id);
         const inOtherClass = availableStudents.filter((s: any) => s.class_id);
+        const seatsLeft = cls?.max_students ? Math.max(0, cls.max_students - enrollments.length) : Infinity;
+        const isFull = seatsLeft <= 0;
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowStudentModal(false)} />
@@ -1490,7 +1542,10 @@ export default function ClassDetailPage() {
               <div className="px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0">
                 <div>
                   <h3 className="font-bold text-foreground">Enrol Students</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{availableStudents.length} eligible · {selectedStudentIds.size} selected</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {availableStudents.length} eligible · {selectedStudentIds.size} selected
+                    {cls?.max_students ? ` (Capacity limit: ${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left)` : ''}
+                  </p>
                 </div>
                 <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setShowMoreStudents(false); }} className="w-8 h-8 flex items-center justify-center bg-card shadow-sm rounded-xl text-muted-foreground hover:text-foreground transition-colors text-lg">&times;</button>
               </div>
@@ -1530,14 +1585,21 @@ export default function ClassDetailPage() {
                   {availableStudents.length > 0 && (
                     <div className="px-6 pt-2 pb-2 flex items-center gap-2 flex-shrink-0">
                       <button
-                        onClick={() => setSelectedStudentIds(
-                          selectedStudentIds.size === availableStudents.length
-                            ? new Set()
-                            : new Set(availableStudents.map((s: any) => s.id))
-                        )}
+                        onClick={() => {
+                          if (selectedStudentIds.size === availableStudents.length) {
+                            setSelectedStudentIds(new Set());
+                          } else {
+                            if (availableStudents.length > seatsLeft) {
+                              alert(`This class only has ${seatsLeft} seat(s) remaining. Selecting the first ${seatsLeft} available students.`);
+                              setSelectedStudentIds(new Set(availableStudents.slice(0, seatsLeft).map((s: any) => s.id)));
+                            } else {
+                              setSelectedStudentIds(new Set(availableStudents.map((s: any) => s.id)));
+                            }
+                          }
+                        }}
                         className="px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground rounded-xl transition-all"
                       >
-                        {selectedStudentIds.size === availableStudents.length ? 'Deselect All' : 'Select All'}
+                        {selectedStudentIds.size === availableStudents.length ? 'Deselect All' : 'Select Available'}
                       </button>
                       <div className="flex-1" />
                       {selectedStudentIds.size > 0 && (
@@ -1594,14 +1656,40 @@ export default function ClassDetailPage() {
 
                       const renderStudent = (student: any, color: 'orange' | 'amber') => {
                         const isChecked = selectedStudentIds.has(student.id);
+                        const isBlocked = !isChecked && selectedStudentIds.size >= seatsLeft;
                         return (
-                          <div key={student.id} onClick={() => setSelectedStudentIds(prev => { const n = new Set(prev); if (n.has(student.id)) n.delete(student.id); else n.add(student.id); return n; })}
-                            className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all active:scale-[0.99] ${isChecked
-                              ? color === 'orange' ? 'bg-primary/15 border-primary/40' : 'bg-amber-500/10 border-amber-500/40'
-                              : color === 'orange' ? 'bg-card shadow-sm border-border hover:border-primary/20' : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20'}`}>
-                            <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked
-                              ? color === 'orange' ? 'bg-primary border-primary' : 'bg-amber-500 border-amber-400'
-                              : 'border-border'}`}>
+                          <div 
+                            key={student.id} 
+                            onClick={() => {
+                              if (isBlocked) {
+                                alert(`Cannot select more students. This class has reached its maximum enrollment capacity (${cls.max_students} students max).`);
+                                return;
+                              }
+                              setSelectedStudentIds(prev => { 
+                                const n = new Set(prev); 
+                                if (n.has(student.id)) n.delete(student.id); else n.add(student.id); 
+                                return n; 
+                              });
+                            }}
+                            className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all active:scale-[0.99] ${
+                              isBlocked 
+                                ? 'opacity-40 cursor-not-allowed bg-rose-500/[0.02] border-rose-500/10'
+                                : isChecked
+                                  ? color === 'orange' 
+                                    ? 'bg-primary/15 border-primary/40' 
+                                    : 'bg-amber-500/10 border-amber-500/40'
+                                  : color === 'orange' 
+                                    ? 'bg-card shadow-sm border-border hover:border-primary/20' 
+                                    : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20'
+                            }`}
+                          >
+                            <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                              isChecked
+                                ? color === 'orange' 
+                                  ? 'bg-primary border-primary' 
+                                  : 'bg-amber-500 border-amber-400'
+                                : 'border-border'
+                            }`}>
                               {isChecked && <CheckIconOutline className="w-3 h-3 text-foreground" />}
                             </div>
                             <div className="min-w-0 flex-1">
@@ -1613,6 +1701,9 @@ export default function ClassDetailPage() {
                               </div>
                               {student.class_id && <p className="text-[9px] text-amber-400/70 mt-0.5">Currently in: {(student.classes as any)?.name ?? 'another class'}</p>}
                             </div>
+                            {isBlocked && (
+                              <span className="text-[8px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full flex-shrink-0">Blocked</span>
+                            )}
                           </div>
                         );
                       };
@@ -1854,67 +1945,73 @@ export default function ClassDetailPage() {
       {/* WhatsApp Broadcast Modal */}
       {showBroadcastModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => {
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-fade-in" onClick={() => {
             if (!broadcasting) {
               setShowBroadcastModal(false);
               setReachableStudents([]);
               setBroadcastForm({ text: '', mediaUrl: '' });
             }
           }} />
-          <div className="relative w-full max-w-lg bg-card shadow-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-lg bg-card border border-[#25D366]/25 rounded-2xl shadow-2xl shadow-[#25D366]/5 overflow-hidden scale-in-center">
+            
+            {/* Header */}
             <div className="px-6 py-5 border-b border-[#25D366]/20 bg-[#25D366]/5">
-              <h3 className="text-base font-bold text-[#25D366] flex items-center gap-2">
-                WhatsApp Class Broadcast
+              <h3 className="text-base font-black text-[#25D366] uppercase tracking-wider flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#25D366] animate-ping" />
+                WhatsApp Broadcast System
               </h3>
               {loadingReachable ? (
-                <div className="flex items-center gap-2 mt-1">
-                  <ArrowPathIcon className="w-3 h-3 animate-spin text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Checking reachable students...</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground font-semibold">Scanning student directory...</p>
                 </div>
               ) : (
-                <div className="mt-1">
-                  <p className="text-xs text-muted-foreground">
-                    {reachableStudents.length} of {enrollments.length} students have phone numbers available
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    {reachableStudents.length} of {enrollments.length} students have valid parent or student phone numbers.
                   </p>
                   {reachableStudents.length === 0 && (
-                    <p className="text-xs text-rose-400 mt-1">
-                      ⚠️ No students have phone numbers. Add parent/student phone numbers to enable WhatsApp broadcast.
-                    </p>
+                    <div className="flex items-center gap-2 text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg mt-2 font-bold uppercase tracking-wide">
+                      ⚠️ No contact coordinates available for broadcast.
+                    </div>
                   )}
                   {reachableStudents.length < enrollments.length && reachableStudents.length > 0 && (
-                    <p className="text-xs text-amber-400 mt-1">
-                      ⚠️ {enrollments.length - reachableStudents.length} students will not receive the message (no phone numbers)
-                    </p>
+                    <div className="flex items-center gap-2 text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg mt-2 font-bold uppercase tracking-wide">
+                      ⚠️ {enrollments.length - reachableStudents.length} students will skip this broadcast (no phones).
+                    </div>
                   )}
                 </div>
               )}
             </div>
-            <div className="p-6 space-y-4">
+
+            {/* Form & List */}
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
               <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Message Content</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Broadcast Message</label>
                 <textarea 
                   value={broadcastForm.text}
                   onChange={(e) => setBroadcastForm({ ...broadcastForm, text: e.target.value })}
                   rows={5}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-[#25D366] transition-colors resize-none"
-                  placeholder="e.g. Hello class! Remember to submit your biology assignments by 5 PM tomorrow..."
+                  className="w-full bg-[#080d19] border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-[#25D366] transition-colors resize-none placeholder:text-muted-foreground/60 font-medium"
+                  placeholder="Type class broadcast message here (e.g. Remember to complete Assignment 3 by tomorrow!)..."
                 />
               </div>
               
               {!loadingReachable && reachableStudents.length > 0 && (
-                <div className="border border-border rounded-xl p-3 bg-muted/30">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                    Reachable Students ({reachableStudents.length})
+                <div className="border border-white/5 rounded-2xl p-4 bg-white/[0.01]">
+                  <p className="text-[10px] font-black text-[#25D366] uppercase tracking-widest mb-3 flex items-center justify-between">
+                    <span>Reachable Students ({reachableStudents.length})</span>
+                    <span className="text-[8px] bg-[#25D366]/10 text-[#25D366] px-2 py-0.5 rounded-full border border-[#25D366]/20">Active Channel</span>
                   </p>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                  <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
                     {reachableStudents.map((student: any) => {
                       const hasParentPhone = student.students?.parent_phone;
                       const hasStudentPhone = student.phone || student.students?.phone;
                       return (
-                        <div key={student.id} className="flex items-center justify-between text-xs">
-                          <span className="text-foreground">{student.full_name}</span>
-                          <span className="text-muted-foreground">
-                            {hasParentPhone ? '📱 Parent' : hasStudentPhone ? '📱 Student' : ''}
+                        <div key={student.id} className="flex items-center justify-between text-xs py-1.5 border-b border-white/5 last:border-b-0">
+                          <span className="font-semibold text-foreground">{student.full_name}</span>
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-muted-foreground flex items-center gap-1">
+                            {hasParentPhone ? '📱 Parent Phone' : hasStudentPhone ? '📱 Student Phone' : ''}
                           </span>
                         </div>
                       );
@@ -1924,27 +2021,27 @@ export default function ClassDetailPage() {
               )}
               
               {!loadingReachable && enrollments.length > reachableStudents.length && (
-                <div className="border border-amber-500/20 rounded-xl p-3 bg-amber-500/5">
-                  <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
-                    Unreachable Students ({enrollments.length - reachableStudents.length})
+                <div className="border border-amber-500/10 rounded-2xl p-4 bg-amber-500/[0.01]">
+                  <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                    <span>Unreachable Students ({enrollments.length - reachableStudents.length})</span>
+                    <span className="text-[8px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">Missing Data</span>
                   </p>
-                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                  <div className="space-y-2 max-h-28 overflow-y-auto pr-1">
                     {enrollments
                       .filter((enr: any) => !reachableStudents.some((r: any) => r.id === enr.id))
                       .map((student: any) => (
-                        <div key={student.id} className="flex items-center justify-between text-xs">
-                          <span className="text-foreground">{student.full_name}</span>
-                          <span className="text-amber-400">📵 No phone</span>
+                        <div key={student.id} className="flex items-center justify-between text-xs py-1.5 border-b border-white/5 last:border-b-0 opacity-60">
+                          <span className="font-semibold text-foreground">{student.full_name}</span>
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full text-rose-400">📵 No phone</span>
                         </div>
                       ))}
                   </div>
-                  <p className="text-xs text-amber-400 mt-2">
-                    💡 Add phone numbers in student profiles to include them
-                  </p>
                 </div>
               )}
             </div>
-            <div className="px-6 py-4 border-t border-border flex gap-3">
+
+            {/* Footer Buttons */}
+            <div className="px-6 py-4 border-t border-white/5 bg-white/[0.01] flex gap-3">
               <button 
                 onClick={() => {
                   setShowBroadcastModal(false);
@@ -1952,18 +2049,18 @@ export default function ClassDetailPage() {
                   setBroadcastForm({ text: '', mediaUrl: '' });
                 }} 
                 disabled={broadcasting}
-                className="flex-1 py-2.5 bg-card hover:bg-muted text-muted-foreground font-bold text-sm rounded-xl border border-border">
+                className="flex-1 py-3 bg-card hover:bg-white/5 text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-wider rounded-xl border border-white/5 transition-all">
                 Cancel
               </button>
               <button
                 onClick={handleBroadcast}
                 disabled={broadcasting || !broadcastForm.text.trim() || reachableStudents.length === 0}
-                className="flex-[2] py-2.5 bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg flex items-center justify-center gap-2"
+                className="flex-[2] py-3 bg-[#25D366] hover:bg-[#1fbc55] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-xl shadow-[#25D366]/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
               >
                 {broadcasting ? (
                   <>
                     <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                    Sending...
+                    Broadcasting...
                   </>
                 ) : loadingReachable ? (
                   <>
@@ -1973,7 +2070,7 @@ export default function ClassDetailPage() {
                 ) : reachableStudents.length === 0 ? (
                   'No Reachable Students'
                 ) : (
-                  `Send to ${reachableStudents.length} Student${reachableStudents.length !== 1 ? 's' : ''}`
+                  `Send to ${reachableStudents.length} Recipient${reachableStudents.length !== 1 ? 's' : ''}`
                 )}
               </button>
             </div>

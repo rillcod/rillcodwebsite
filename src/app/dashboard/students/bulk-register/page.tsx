@@ -1,7 +1,7 @@
 // @refresh reset
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { fetchClasses } from '@/services/dashboard.service';
@@ -255,7 +255,7 @@ export default function BulkRegisterPage() {
   const [checkingDups, setCheckingDups] = useState(false);
   const [nameSwapOverride, setNameSwapOverride] = useState(false); // user confirmed swapped names are different students
   const [dupOverride, setDupOverride] = useState(false); // user confirmed they want to proceed despite name matches
-  const [activeTab, setActiveTab] = useState<'register' | 'vault'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'vault' | 'unified'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
   // Vault/history batch actions
   const [batchAssignPanel, setBatchAssignPanel] = useState<string | null>(null);
@@ -263,6 +263,317 @@ export default function BulkRegisterPage() {
   const [batchAssignClass, setBatchAssignClass] = useState('');
   const [vaultSchools, setVaultSchools] = useState<{id: string; name: string}[]>([]);
   const [vaultClasses, setVaultClasses] = useState<{id: string; name: string; school_id: string}[]>([]);
+
+  // Unified Credentials Center State
+  const [unifiedResults, setUnifiedResults] = useState<any[]>([]);
+  const [loadingUnified, setLoadingUnified] = useState(false);
+  const [unifiedSchoolId, setUnifiedSchoolId] = useState('');
+  const [unifiedSchoolName, setUnifiedSchoolName] = useState('');
+  const [unifiedClass, setUnifiedClass] = useState('');
+  const [unifiedBatchFilter, setUnifiedBatchFilter] = useState<'all' | 'bulk' | 'single'>('all');
+  const [unifiedSearchQuery, setUnifiedSearchQuery] = useState('');
+
+  const fetchUnifiedCredentials = useCallback(async (schoolId: string) => {
+    if (!schoolId) {
+      setUnifiedResults([]);
+      return;
+    }
+    setLoadingUnified(true);
+    try {
+      const { data: batches, error: batchErr } = await supabase
+        .from('registration_batches')
+        .select('*')
+        .eq('school_id', schoolId)
+        .order('created_at', { ascending: false });
+
+      if (batchErr) throw batchErr;
+      if (!batches || batches.length === 0) {
+        setUnifiedResults([]);
+        setLoadingUnified(false);
+        return;
+      }
+
+      const batchMap = new Map<string, any>(batches.map(b => [b.id, b]));
+      const batchIds = batches.map(b => b.id);
+
+      const { data: results, error: resultsErr } = await supabase
+        .from('registration_results')
+        .select('*')
+        .in('batch_id', batchIds);
+
+      if (resultsErr) throw resultsErr;
+
+      const hydrated = (results ?? []).map((r: any) => {
+        const batch = batchMap.get(r.batch_id);
+        const isSingleReg = batch?.class_name === 'Single Student Registrations';
+        return {
+          ...r,
+          school_id: schoolId,
+          school_name: batch?.school_name || '',
+          batch_name: batch?.class_name || 'General Batch',
+          is_single_registration: isSingleReg,
+        };
+      });
+
+      setUnifiedResults(hydrated);
+    } catch (err: any) {
+      console.error('Error fetching unified credentials:', err);
+      toast.error('Failed to load unified credentials: ' + err.message);
+    } finally {
+      setLoadingUnified(false);
+    }
+  }, [supabase]);
+
+  const uniqueUnifiedClasses = useMemo(() => {
+    return [...new Set(unifiedResults.map((r: any) => r.class_name).filter(Boolean))].sort() as string[];
+  }, [unifiedResults]);
+
+  const filteredUnifiedResults = useMemo(() => {
+    return unifiedResults.filter((r: any) => {
+      // 1. Class filter
+      if (unifiedClass && r.class_name !== unifiedClass) return false;
+
+      // 2. Batch type filter
+      if (unifiedBatchFilter === 'bulk' && r.is_single_registration) return false;
+      if (unifiedBatchFilter === 'single' && !r.is_single_registration) return false;
+
+      // 3. Search query filter
+      if (unifiedSearchQuery) {
+        const query = unifiedSearchQuery.trim().toLowerCase();
+        const name = (r.full_name || '').toLowerCase();
+        const email = (r.email || '').toLowerCase();
+        if (!name.includes(query) && !email.includes(query)) return false;
+      }
+
+      return true;
+    });
+  }, [unifiedResults, unifiedClass, unifiedBatchFilter, unifiedSearchQuery]);
+
+  const handlePrintUnifiedRoster = (resultsToPrint: any[]) => {
+    const valid = resultsToPrint.filter(r => r.status !== 'failed');
+    if (valid.length === 0) {
+      toast.error('No valid student credentials found to print.');
+      return;
+    }
+
+    const grouped: Record<string, any[]> = {};
+    valid.forEach(r => {
+      const cls = r.class_name || 'Unassigned / General';
+      if (!grouped[cls]) grouped[cls] = [];
+      grouped[cls].push(r);
+    });
+
+    const sortedClasses = Object.keys(grouped).sort();
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const schoolNameStr = unifiedSchoolName || valid[0]?.school_name || 'Rillcod Academy';
+
+    const html = `
+      <html><head><title>Unified Student Credentials Roster - ${schoolNameStr}</title>
+      <style>
+        @page { margin: 15mm; size: A4; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #fff; margin: 0; padding: 0; color: #111; }
+        .header { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 2px solid #ea580c; padding-bottom: 12px; margin-bottom: 25px; }
+        .logo-area { display: flex; align-items: center; gap: 12px; }
+        .brand { font-weight: 900; font-size: 26px; letter-spacing: -0.02em; line-height: 1; }
+        .brand span { color: #ea580c; }
+        .title { text-transform: uppercase; font-weight: 800; font-size: 13px; color: #4b5563; margin-top: 4px; letter-spacing: 0.05em; }
+        .meta-box { background: #fafafa; border: 1px solid #e5e7eb; padding: 12px 18px; display: flex; gap: 40px; margin-bottom: 30px; font-size: 11px; font-weight: 700; color: #374151; text-transform: uppercase; }
+        .meta-box span { color: #ea580c; }
+        .class-section { margin-bottom: 35px; break-inside: avoid; }
+        .class-title { font-size: 14px; font-weight: 900; color: #ea580c; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; }
+        .class-count { font-size: 11px; color: #6b7280; font-weight: 700; }
+        table { border-collapse: collapse; font-size: 10.5px; text-transform: uppercase; width: 100%; border: 1px solid #e5e7eb; margin-bottom: 10px; }
+        th { background: #f9fafb; color: #111827; text-align: left; padding: 8px 10px; border: 1px solid #e5e7eb; font-weight: 800; font-size: 9.5px; }
+        td { padding: 7px 10px; border: 1px solid #e5e7eb; font-weight: 600; color: #374151; }
+        .email, .pwd { font-family: monospace; font-weight: 700; font-size: 10.5px; text-transform: none; color: #000; }
+        .footer { margin-top: 40px; padding-top: 15px; border-top: 1px dashed #e5e7eb; font-size: 9px; color: #9ca3af; text-align: center; font-weight: 700; letter-spacing: 0.02em; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+      </style>
+      </head><body>
+        <div class="header">
+           <div class="logo-area">
+             <img src="${window.location.origin}/logo.png" style="height:36px; display:block;" />
+             <div>
+               <div class="brand">RILLCOD<span>.</span></div>
+               <div class="title">Unified Credentials Roster</div>
+             </div>
+           </div>
+           <div style="text-align:right;">
+             <div style="font-weight:900; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #111827;">${schoolNameStr}</div>
+             <div style="font-size: 9.5px; color: #6b7280; font-weight: bold; margin-top: 4px;">DATED: ${dateStr}</div>
+           </div>
+        </div>
+        <div class="meta-box">
+           <div>TOTAL STUDENTS: <span>${valid.length}</span></div>
+           <div>SCHOOL NODES: <span>${schoolNameStr}</span></div>
+           <div>GENERATE SOURCE: <span>UNIFIED ARCHIVE VAULT</span></div>
+        </div>
+        
+        ${sortedClasses.map(cls => {
+          const classStudents = grouped[cls];
+          return `
+            <div class="class-section">
+              <div class="class-title">
+                <span>Class: ${cls}</span>
+                <span class="class-count">${classStudents.length} Student${classStudents.length !== 1 ? 's' : ''}</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:30px;">#</th>
+                    <th style="width:150px;">Student ID</th>
+                    <th>Full Name</th>
+                    <th>System Email (Login)</th>
+                    <th style="width:180px;">Access Cipher (Password)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${classStudents.map((r, idx) => {
+                    const sCode = r.portal_user_id ? 'RC-' + r.portal_user_id.slice(0, 8).toUpperCase() : 'RC-PENDING';
+                    return `
+                      <tr>
+                        <td>${idx + 1}</td>
+                        <td class="email" style="font-weight:900; color:#ea580c;">${sCode}</td>
+                        <td style="font-weight:800; color:#111827;">${r.full_name}</td>
+                        <td class="email">${r.email}</td>
+                        <td class="pwd" style="color:#b45309; font-weight:900;">${r.password || '—'}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }).join('')}
+        
+        <div class="footer">
+          CONFIDENTIAL ADMINISTRATIVE SPECIFICATION • PRINTED FROM RILLCOD ACADEMY VAULT ARCHIVE SYSTEM • PORTAL: https://rillcod.com/login
+        </div>
+      <script>window.onload = () => { window.print(); }</script>
+      </body></html>
+    `;
+
+    const win = window.open('', '_blank');
+    win?.document.write(html);
+    win?.document.close();
+  };
+
+  const handlePrintUnifiedSlips = async (resultsToPrint: any[]) => {
+    const valid = resultsToPrint.filter(r => r.status !== 'failed');
+    if (valid.length === 0) {
+      toast.error('No valid records found for printing.');
+      return;
+    }
+
+    const cardCfg = await getCardCfg();
+    const acc = cardCfg?.accentColor || '#ea580c';
+    const orgName = cardCfg?.orgName || 'RILLCOD TECHNOLOGIES';
+    const orgWeb = cardCfg?.orgWebsite || 'www.rillcod.com';
+    const footLeft = cardCfg?.footerLeft || 'rillcod.com/login';
+    const hStyle: string = cardCfg?.headerStyle || 'band';
+    const fieldVis = (key: string) => {
+      if (!cardCfg?.fields) return true;
+      return cardCfg.fields.find((f: any) => f.key === key)?.visible ?? true;
+    };
+
+    const logoUrl = window.location.origin + '/logo.png';
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const schoolNameStr = unifiedSchoolName || valid[0]?.school_name || 'RILLCOD ACADEMY';
+
+    const sorted = [...valid].sort((a, b) => {
+      const classA = a.class_name || '';
+      const classB = b.class_name || '';
+      if (classA !== classB) return classA.localeCompare(classB);
+      return a.full_name.localeCompare(b.full_name);
+    });
+
+    const html = `
+      <!DOCTYPE html><html><head><title>Unified Student Slips — ${schoolNameStr}</title>
+      <style>
+        @page { size: A4 portrait; margin: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter','Segoe UI',system-ui,sans-serif; background:#fff; color:#111827; padding:10mm; }
+        .grid { display:grid; grid-template-columns:80mm 80mm; grid-auto-rows:60mm; gap:8mm; justify-content:center; }
+        .card { width:80mm; height:60mm; border:.3mm solid #d1d5db; ${hStyle === 'border' ? `border-left:1.5mm solid ${acc};` : ''} display:flex; flex-direction:column; overflow:hidden; break-inside:avoid; background:#fff; }
+        .chdr { background:${acc}; min-height:9mm; padding:0 2.5mm; display:flex; align-items:center; gap:1.5mm; flex-shrink:0; }
+        .mhdr { border-bottom:1.5mm solid ${acc}; min-height:9mm; padding:0 2.5mm; display:flex; align-items:center; gap:1.5mm; flex-shrink:0; }
+        .shdr { min-height:9mm; padding:0 2.5mm; display:flex; align-items:center; gap:1.5mm; flex-shrink:0; border-bottom:.1mm solid #f0f0f0; }
+        .logo  { width:5mm; height:5mm; object-fit:contain; flex-shrink:0; }
+        .org-name { font-size:2.5mm; font-weight:900; color:${hStyle === 'band' ? '#fff' : '#111'}; text-transform:uppercase; line-height:1; }
+        .org-web  { font-size:1.6mm; color:${hStyle === 'band' ? 'rgba(255,255,255,.85)' : acc}; font-weight:700; margin-top:.4mm; }
+        .cbadge { margin-left:auto; background:${hStyle === 'band' ? 'rgba(0,0,0,.22)' : acc}; color:#fff; padding:.6mm 1.8mm; font-size:1.8mm; font-weight:900; text-transform:uppercase; flex-shrink:0; }
+        .cbody { display:flex; flex:1; min-height:0; }
+        .info  { flex:1; padding:1.5mm 2mm; display:flex; flex-direction:column; gap:.8mm; overflow:hidden; min-width:0; ${fieldVis('qr') ? 'border-right:.3mm solid #f0f0f0;' : ''} }
+        .school { font-size:1.9mm; font-weight:900; color:${acc}; text-transform:uppercase; letter-spacing:.1mm; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .sname  { font-size:3.8mm; font-weight:900; color:#111; text-transform:uppercase; line-height:1.15; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin:.5mm 0 1mm; }
+        .sep    { height:.3mm; background:#f0f0f0; margin:.5mm 0; }
+        .field  { display:flex; flex-direction:column; gap:.3mm; }
+        .lbl    { font-size:1.5mm; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.2mm; }
+        .val    { font-size:2.1mm; font-weight:700; font-family:monospace; color:#111; word-break:break-all; line-height:1.25; }
+        .val-a  { font-size:2.2mm; font-weight:800; font-family:monospace; color:${acc}; line-height:1.25; }
+        .qrp { width:22mm; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.8mm; padding:1.5mm; background:#fafafa; flex-shrink:0; }
+        .qr  { width:17mm; height:17mm; border:.3mm solid #e5e7eb; display:block; }
+        .qrl { font-size:1.4mm; color:#9ca3af; text-align:center; line-height:1.2; }
+        .qrc { font-size:1.7mm; font-weight:900; font-family:monospace; color:${acc}; text-align:center; }
+        .cftr    { display:flex; justify-content:space-between; align-items:center; padding:0 2mm; border-top:.3mm solid #f0f0f0; font-size:1.5mm; color:#9ca3af; font-weight:600; flex-shrink:0; background:#fafafa; height:5mm; }
+        .cftr-id { font-family:monospace; color:#374151; font-weight:900; font-size:1.7mm; }
+        @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+      </style>
+      </head><body>
+      <div class="grid">
+        ${sorted.map(r => {
+          const pId = r.portal_user_id || '';
+          const sCode = 'RC-' + (pId.slice(0, 8).toUpperCase() || '--------');
+          const qUrl = encodeURIComponent('https://rillcod.com/student/' + pId);
+
+          const headerHtml = hStyle === 'band' ? `
+            <div class="chdr">
+              <img src="${logoUrl}" class="logo" />
+              <div><div class="org-name">${orgName}</div><div class="org-web">${orgWeb}</div></div>
+              ${fieldVis('className') && r.class_name ? `<div class="cbadge">${r.class_name}</div>` : ''}
+            </div>` : hStyle === 'minimal' ? `
+            <div class="mhdr">
+              <img src="${logoUrl}" class="logo" />
+              <div><div class="org-name">${orgName}</div></div>
+              ${fieldVis('className') && r.class_name ? `<div class="cbadge">${r.class_name}</div>` : ''}
+            </div>` : `
+            <div class="shdr">
+              <img src="${logoUrl}" class="logo" />
+              <div><div class="org-name">${orgName}</div><div class="org-web" style="color:${acc}">${orgWeb}</div></div>
+              ${fieldVis('className') && r.class_name ? `<div class="cbadge">${r.class_name}</div>` : ''}
+            </div>`;
+
+          return `
+            <div class="card">
+              ${headerHtml}
+              <div class="cbody">
+                <div class="info">
+                  ${fieldVis('school') ? `<div class="school">${r.school_name || schoolNameStr}</div>` : ''}
+                  <div class="sname">${r.full_name || 'N/A'}</div>
+                  <div class="sep"></div>
+                  ${fieldVis('email') ? `<div class="field"><div class="lbl">Email</div><div class="val">${r.email || 'N/A'}</div></div>` : ''}
+                  ${fieldVis('password') ? `<div class="field"><div class="lbl">Temporary Password</div><div class="val-a">${r.password || 'Contact Admin'}</div></div>` : ''}
+                  ${fieldVis('studentId') ? `<div class="field"><div class="lbl">Student ID</div><div class="val-a">${sCode}</div></div>` : ''}
+                </div>
+                ${fieldVis('qr') ? `
+                <div class="qrp">
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qUrl}" class="qr" crossorigin="anonymous" />
+                  <div class="qrl">Scan to verify</div>
+                  <div class="qrc">${sCode}</div>
+                </div>` : ''}
+              </div>
+              <div class="cftr"><span>${footLeft}</span><span class="cftr-id">${sCode}</span></div>
+            </div>`;
+        }).join('')}
+      </div>
+      <script>window.onload = () => { window.print(); }</script>
+      </body></html>
+    `;
+
+    const win = window.open('', '_blank');
+    win?.document.write(html);
+    win?.document.close();
+  };
 
   const handleExportRosterPDF = (resultsToPrint: any[]) => {
     const validResults = resultsToPrint.filter(r => r.status !== 'failed');
@@ -2427,6 +2738,223 @@ Yusuf Ibrahim SS1A`}
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'unified' && (
+          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-500">
+            {/* Unified Credentials Header */}
+            <div className="bg-card border border-primary/20 p-4 sm:p-6 relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="w-2.5 h-2.5 bg-primary rounded-full animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
+                    <span className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-[0.4em]">Unified School Roster Center</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-foreground italic uppercase tracking-tighter mb-1">Credentials Center</h2>
+                  <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+                    Merge, search, filter and print credentials across ALL registration sessions.
+                  </p>
+                </div>
+                
+                {/* School Selector */}
+                <div className="min-w-[240px]">
+                  <label className="block text-muted-foreground text-[10px] font-black uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <BuildingOffice2Icon className="w-3.5 h-3.5" /> Target School Node
+                  </label>
+                  <select
+                    value={unifiedSchoolId}
+                    onChange={(e) => {
+                      const opt = e.target.options[e.target.selectedIndex];
+                      setUnifiedSchoolId(e.target.value);
+                      setUnifiedSchoolName(e.target.value ? opt.text : '');
+                      setUnifiedClass('');
+                      fetchUnifiedCredentials(e.target.value);
+                    }}
+                    className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                  >
+                    <option value="">— Select a school —</option>
+                    {schools.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Disclaimer & Info Box */}
+            <div className="bg-amber-500/5 border border-amber-500/20 p-4 flex items-start gap-3">
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider">Access Cipher & Security Protocol</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  The access ciphers shown below are the <strong>initial temporary passwords</strong> generated when student accounts were activated or batch-registered. If a student has already logged in and customized their password, their active password will not be displayed here for data confidentiality.
+                </p>
+              </div>
+            </div>
+
+            {unifiedSchoolId && (
+              <>
+                {/* Filter & Tool bar */}
+                <div className="bg-card border border-border p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+                  <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                    {/* Class Filter */}
+                    <div className="flex-1 md:flex-initial min-w-[140px]">
+                      <select
+                        value={unifiedClass}
+                        onChange={(e) => setUnifiedClass(e.target.value)}
+                        className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary cursor-pointer"
+                      >
+                        <option value="">All Classes</option>
+                        {uniqueUnifiedClasses.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Method Filter */}
+                    <div className="flex-1 md:flex-initial min-w-[140px]">
+                      <select
+                        value={unifiedBatchFilter}
+                        onChange={(e) => setUnifiedBatchFilter(e.target.value as any)}
+                        className="w-full bg-background border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary cursor-pointer"
+                      >
+                        <option value="all">All Registrations</option>
+                        <option value="bulk">Bulk Sessions Only</option>
+                        <option value="single">Single Activations Only</option>
+                      </select>
+                    </div>
+
+                    {/* Live Search */}
+                    <div className="w-full md:w-[220px]">
+                      <input
+                        type="text"
+                        placeholder="SEARCH BY NAME OR EMAIL..."
+                        value={unifiedSearchQuery}
+                        onChange={(e) => setUnifiedSearchQuery(e.target.value)}
+                        className="w-full bg-background border border-border px-3 py-2 text-xs font-bold tracking-widest text-foreground focus:outline-none focus:border-primary placeholder-muted-foreground/50"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mass Exports */}
+                  <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                    <button
+                      onClick={() => handlePrintUnifiedRoster(filteredUnifiedResults)}
+                      disabled={loadingUnified || filteredUnifiedResults.length === 0}
+                      className="px-4 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                    >
+                      Print Class Roster
+                    </button>
+                    <button
+                      onClick={() => handlePrintUnifiedSlips(filteredUnifiedResults)}
+                      disabled={loadingUnified || filteredUnifiedResults.length === 0}
+                      className="px-4 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                    >
+                      Print Login Slips
+                    </button>
+                    <button
+                      onClick={() => {
+                        const headers = ['Full Name', 'Email', 'Password', 'Class', 'Type'];
+                        const rows = filteredUnifiedResults.map(r => [
+                          `"${r.full_name.replace(/"/g, '""')}"`,
+                          `"${r.email}"`,
+                          `"${r.password}"`,
+                          `"${r.class_name || ''}"`,
+                          `"${r.is_single_registration ? 'Single' : 'Bulk'}"`
+                        ]);
+                        const csv = [headers, ...rows].map(e => e.join(',')).join('\n');
+                        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `unified-credentials-${unifiedSchoolName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        toast.success('Unified credentials CSV downloaded.');
+                      }}
+                      disabled={loadingUnified || filteredUnifiedResults.length === 0}
+                      className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                    >
+                      Export CSV
+                    </button>
+                  </div>
+                </div>
+
+                {/* Loading state */}
+                {loadingUnified ? (
+                  <div className="h-[250px] flex flex-col items-center justify-center gap-4 bg-card border border-border">
+                    <ArrowPathIcon className="w-8 h-8 text-primary animate-spin" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Retrieving school credentials...</p>
+                  </div>
+                ) : filteredUnifiedResults.length === 0 ? (
+                  <div className="h-[250px] flex flex-col items-center justify-center gap-3 bg-card border border-border border-dashed">
+                    <UserGroupIcon className="w-10 h-10 text-muted-foreground/30" />
+                    <p className="text-xs text-muted-foreground italic uppercase tracking-widest font-black">No student credentials match filters</p>
+                  </div>
+                ) : (
+                  /* unified roster table */
+                  <div className="bg-card border border-border overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-separate border-spacing-0">
+                        <thead>
+                          <tr className="border-b border-border bg-white/[0.02] text-muted-foreground uppercase tracking-widest text-[9px] font-black text-left">
+                            <th className="px-4 py-3">#</th>
+                            <th className="px-4 py-3">Student ID</th>
+                            <th className="px-4 py-3">Full Name</th>
+                            <th className="px-4 py-3">Academic Tier</th>
+                            <th className="px-4 py-3">System Email</th>
+                            <th className="px-4 py-3">Access Cipher</th>
+                            <th className="px-4 py-3">Reg Type</th>
+                            <th className="px-4 py-3 text-right">Session Origin</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {filteredUnifiedResults.map((r, i) => {
+                            const sCode = r.portal_user_id ? `RC-${r.portal_user_id.slice(0, 8).toUpperCase()}` : '—';
+                            return (
+                              <tr key={r.id} className="hover:bg-white/[0.02] transition-colors group">
+                                <td className="px-4 py-3 text-muted-foreground font-mono">{i + 1}</td>
+                                <td className="px-4 py-3 font-mono font-black text-primary text-[10px]">{sCode}</td>
+                                <td className="px-4 py-3 font-bold text-foreground">{r.full_name}</td>
+                                <td className="px-4 py-3">
+                                  <span className="px-2 py-0.5 bg-primary/10 text-primary font-mono text-[9px] uppercase tracking-wider font-bold">
+                                    {r.class_name || 'GENERAL'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 font-mono text-muted-foreground">{r.email}</td>
+                                <td className="px-4 py-3 font-mono font-bold text-amber-300">{r.password}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 text-[8px] font-black uppercase tracking-wider ${r.is_single_registration ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'bg-primary/10 text-primary border border-primary/20'}`}>
+                                    {r.is_single_registration ? 'Single' : 'Bulk'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right text-muted-foreground text-[10px] font-bold uppercase truncate max-w-[150px]" title={r.batch_name}>
+                                  {r.batch_name}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {!unifiedSchoolId && (
+              <div className="h-[300px] flex flex-col items-center justify-center gap-4 bg-card border border-border border-dashed text-center p-6">
+                <BuildingOffice2Icon className="w-12 h-12 text-primary/30" />
+                <div>
+                  <h3 className="text-foreground font-black text-sm uppercase tracking-widest mb-1.5">No School Node Selected</h3>
+                  <p className="text-muted-foreground text-xs max-w-sm leading-relaxed">
+                    Select a school node from the target selector above to query the credentials database.
+                  </p>
+                </div>
               </div>
             )}
           </div>

@@ -1905,7 +1905,7 @@ export default function LessonPlanDetailPage() {
                           disabled={generating !== null}
                           className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-primary/10 via-fuchsia-600/10 to-primary/10 hover:from-primary/25 hover:via-fuchsia-600/25 hover:to-primary/25 border border-primary/25 hover:border-primary/50 text-[10px] font-black uppercase tracking-widest text-primary hover:text-foreground rounded-xl transition-all duration-300"
                         >
-                          <SparklesIcon className="w-3.5 h-3.5" /> Auto-Synthesize AI Materials Pack (Lesson + Flashcards + Assignment)
+                          <SparklesIcon className="w-3.5 h-3.5" /> Auto-Synthesize AI Materials Pack (Lesson + Flashcards + Assignment + Capstone Project)
                         </button>
                       ) : (
                         <div className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-500/5 border border-emerald-500/10 text-[10px] font-black uppercase tracking-widest text-emerald-400 rounded-xl">
@@ -2014,6 +2014,7 @@ export default function LessonPlanDetailPage() {
           existing={{
             lessonId: linkedLessons.find(l => metadataMatchesWeek(l.metadata, aiWeek))?.id,
             assignmentId: linkedAssignments.find(a => metadataMatchesWeek(a.metadata, aiWeek))?.id,
+            projectId: linkedProjects.find(p => metadataMatchesWeek(p.metadata, aiWeek))?.id,
           }}
           onDone={(res) => {
             if (res.lessonId && !linkedLessons.find(l => l.id === res.lessonId)) {
@@ -2022,8 +2023,11 @@ export default function LessonPlanDetailPage() {
             if (res.assignmentId && !linkedAssignments.find(a => a.id === res.assignmentId)) {
               setLinkedAssignments(prev => [...prev, { id: res.assignmentId!, title: `Week ${aiWeek.week} Assignment`, assignment_type: 'homework', metadata: { week: aiWeek.week, week_number: aiWeek.week } }]);
             }
+            if (res.projectId && !linkedProjects.find(p => p.id === res.projectId)) {
+              setLinkedProjects(prev => [...prev, { id: res.projectId!, title: `Week ${aiWeek.week} Project`, metadata: { week: aiWeek.week, week_number: aiWeek.week } }]);
+            }
             load(); // Reload the whole plan data to grab newly generated records
-            toast.success('AI package complete — lesson, flashcards & assignment ready!');
+            toast.success('AI package complete — lesson, flashcards, assignment & project ready!');
           }}
           onClose={() => setAiWeek(null)}
         />

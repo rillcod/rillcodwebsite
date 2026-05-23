@@ -121,65 +121,73 @@ function LinkParentModal({ student, onClose, onSaved }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-card border border-border shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-md bg-[#0d1526]/95 border border-white/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.01]">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-widest text-foreground">
-              {hasParent ? 'Edit Parent' : 'Link Parent'}
+            <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              {hasParent ? 'Edit Parent Link' : 'Link Parent Profile'}
             </h2>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{student.full_name}</p>
+            <p className="text-[10px] text-muted-foreground font-semibold mt-1 uppercase tracking-wider">Student: {student.full_name}</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2">{error}</p>}
+          {error && (
+            <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl font-medium">
+              ⚠️ {error}
+            </p>
+          )}
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Parent Email *</label>
             <input type="email" required value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               placeholder="parent@example.com"
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+              className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-colors font-medium" />
           </div>
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Full Name *</label>
             <input required value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
               placeholder="Parent's full name"
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+              className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-colors font-medium" />
           </div>
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Phone</label>
             <input type="tel" value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
               placeholder="+234 …"
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors" />
+              className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-colors font-medium" />
           </div>
-          <div>
+          <div className="relative">
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Relationship</label>
             <select value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}
-              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors">
+              className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors font-medium appearance-none cursor-pointer">
               {['Guardian', 'Father', 'Mother', 'Sibling', 'Uncle', 'Aunt', 'Other'].map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
+            <div className="absolute right-4 bottom-3.5 pointer-events-none text-muted-foreground/60">
+              <ChevronDownIcon className="w-4 h-4" />
+            </div>
           </div>
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-3 border-t border-white/5 mt-4">
             {hasParent && (
               <button type="button" onClick={handleUnlink} disabled={saving}
-                className="px-4 py-2.5 border border-rose-500/30 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:border-rose-500 transition-all disabled:opacity-50">
+                className="px-4 py-2.5 border border-rose-500/20 text-[10px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/40 rounded-xl transition-all disabled:opacity-50">
                 Unlink
               </button>
             )}
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2.5 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+              className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-xl transition-all">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
-              {saving ? 'Saving…' : hasParent ? 'Update' : 'Link'}
+              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-50 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
+              {saving ? 'Saving…' : hasParent ? 'Update' : 'Link Profile'}
             </button>
           </div>
         </form>
@@ -250,23 +258,26 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
     }
   };
 
-  const fieldCls = 'w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors rounded-lg';
+  const fieldCls = 'w-full px-4 py-2.5 bg-[#080d19] border border-white/5 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors rounded-xl font-medium';
   const labelCls = 'text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-card border border-border border-t-4 border-t-primary shadow-2xl rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-md bg-[#0d1526]/95 border border-white/5 shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.01]">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Edit Student</h2>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{student.full_name} — Enrolled</p>
+            <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              Edit Student Details
+            </h2>
+            <p className="text-[10px] text-muted-foreground font-semibold mt-1 uppercase tracking-wider">{student.full_name} — Enrolled Profile</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
-        <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-          {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-lg">{error}</p>}
+        <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          {error && <p className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-xl font-medium">⚠️ {error}</p>}
 
           <div>
             <label className={labelCls}>Full Name <span className="text-primary">*</span></label>
@@ -276,13 +287,16 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="relative">
               <label className={labelCls}>Grade / Level</label>
               <select value={form.grade_level} onChange={e => setForm(f => ({ ...f, grade_level: e.target.value }))}
-                className={`${fieldCls} appearance-none cursor-pointer`}>
+                className={`${fieldCls} appearance-none cursor-pointer pr-10`}>
                 <option value="">Select…</option>
                 {GRADE_LEVELS_LIST.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
+              <div className="absolute right-4 bottom-3.5 pointer-events-none text-muted-foreground/60">
+                <ChevronDownIcon className="w-4 h-4" />
+              </div>
             </div>
             <div>
               <label className={labelCls}>Section / Class</label>
@@ -300,26 +314,32 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
           </div>
 
           {schools.length > 0 && (
-            <div>
+            <div className="relative">
               <label className={labelCls}>School</label>
               <select value={form.school_id} onChange={e => setForm(f => ({ ...f, school_id: e.target.value }))}
-                className={`${fieldCls} appearance-none cursor-pointer`}>
+                className={`${fieldCls} appearance-none cursor-pointer pr-10`}>
                 <option value="">— No School —</option>
                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              <div className="absolute right-4 bottom-3.5 pointer-events-none text-muted-foreground/60">
+                <ChevronDownIcon className="w-4 h-4" />
+              </div>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="relative">
               <label className={labelCls}>Gender</label>
               <select value={form.gender} onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                className={`${fieldCls} appearance-none cursor-pointer`}>
+                className={`${fieldCls} appearance-none cursor-pointer pr-10`}>
                 <option value="">Select…</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
+              <div className="absolute right-4 bottom-3.5 pointer-events-none text-muted-foreground/60">
+                <ChevronDownIcon className="w-4 h-4" />
+              </div>
             </div>
             <div>
               <label className={labelCls}>Date of Birth</label>
@@ -329,14 +349,14 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-3 border-t border-white/5 mt-4">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2.5 border border-border text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all rounded-lg">
+              className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-xl transition-all">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all rounded-lg">
-              {saving ? 'Saving…' : 'Save Changes'}
+              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-50 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
+              Save Changes
             </button>
           </div>
         </form>
@@ -1433,37 +1453,45 @@ export default function StudentsPage() {
 
       {/* ── Reset Password Modal ──────────────────────────── */}
       {resetPwTarget && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border w-full max-w-sm shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-[#0d1526]/95 border border-white/5 w-full max-w-sm shadow-2xl rounded-2xl overflow-hidden backdrop-blur-md shadow-primary/5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.01]">
               <div className="flex items-center gap-3">
-                <KeyIcon className="w-5 h-5 text-primary" />
+                <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <KeyIcon className="w-4 h-4 text-primary" />
+                </div>
                 <h3 className="font-black text-foreground text-sm uppercase tracking-widest">Reset Password</h3>
               </div>
-              <button onClick={() => { setResetPwTarget(null); setResetPwMsg(null); }} className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => { setResetPwTarget(null); setResetPwMsg(null); }} className="text-muted-foreground hover:text-foreground w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors">
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-muted-foreground">Set a new password for <span className="text-foreground font-bold">{resetPwTarget.name}</span>.</p>
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                Set a new temporary password for <span className="text-foreground font-extrabold">{resetPwTarget.name}</span>.
+              </p>
               {resetPwMsg && (
-                <p className={`text-xs px-3 py-2 border ${resetPwMsg.ok ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'}`}>{resetPwMsg.text}</p>
+                <p className={`text-xs px-3 py-2 border rounded-xl font-medium ${
+                  resetPwMsg.ok ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+                }`}>
+                  {resetPwMsg.text}
+                </p>
               )}
               <input
                 type="password"
                 placeholder="New password (min 8 chars)"
                 value={resetPwValue}
                 onChange={e => setResetPwValue(e.target.value)}
-                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full px-4 py-2.5 bg-[#080d19] border border-white/5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/50 transition-colors font-medium rounded-xl"
               />
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-3 border-t border-white/5 mt-4">
                 <button onClick={() => { setResetPwTarget(null); setResetPwMsg(null); }}
-                  className="flex-1 px-4 py-2.5 border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
+                  className="flex-1 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground rounded-xl transition-all">
                   Cancel
                 </button>
                 <button onClick={handleResetStudentPw} disabled={resettingPw || resetPwValue.length < 8}
-                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-foreground text-xs font-black uppercase tracking-widest transition-all">
-                  {resettingPw ? 'Saving…' : 'Reset Password'}
+                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/95 disabled:opacity-40 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-primary/10">
+                  {resettingPw ? 'Saving…' : 'Reset'}
                 </button>
               </div>
             </div>

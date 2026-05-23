@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   Search, Plus, Trash2, Send, Copy, Check, RefreshCw, X, Pencil,
   Users, MessageSquare, Layers, ChevronRight, Clock, Archive,
@@ -257,8 +257,22 @@ export default function WhatsAppGroupsPage() {
   const [toast, setToast] = useState<{ msg: string; type?: 'ok' | 'err' } | null>(null);
   const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Gaps state
+  const [classes, setClasses] = useState<any[]>([]);
+  const [showGapsAnalyzer, setShowGapsAnalyzer] = useState(false);
+
   // ── Init ──────────────────────────────────────────────────────────────────
-  useEffect(() => { loadGroups(); loadTemplates(); }, []);
+  useEffect(() => { loadGroups(); loadTemplates(); loadClasses(); }, []);
+
+  async function loadClasses() {
+    try {
+      const res = await fetch('/api/classes');
+      if (res.ok) {
+        const json = await res.json();
+        setClasses(json.data ?? []);
+      }
+    } catch {}
+  }
 
   function applyTpl(tpl: NewsletterTpl) {
     if (tpl.fields?.length) {
@@ -560,6 +574,120 @@ export default function WhatsAppGroupsPage() {
   const isAdmin   = callerRole === 'admin';
   const tplGroups = [...new Set(templates.map(t => t.category))];
 
+  // Gaps Memo
+  const gaps = useMemo(() => {
+    const list: {
+      type: 'class_gap' | 'link_gap' | 'communication_gap' | 'members_gap';
+      priority: 'high' | 'medium' | 'low';
+      title: string;
+      desc: string;
+      meta?: any;
+      actionLabel: string;
+      action: () => void;
+    }[] = [];
+
+    // 1. Class Group Gaps: Check if any active class lacks a WhatsApp group of type = 'class' matching its name
+    classes.forEach(c => {
+      const hasGroup = groups.some(g => g.group_type === 'class' && (g.class_name === c.name || g.name.toLowerCase().includes(c.name.toLowerCase())));
+      if (!hasGroup) {
+        list.push({
+          type: 'class_gap',
+          priority: 'high',
+          title: `Missing Group: ${c.name}`,
+          desc: `Active class in ${c.schools?.name || 'the school'} has no designated WhatsApp group channel.`,
+          meta: c,
+          actionLabel: '+ Create Group',
+          action: () => {
+            setForm({
+              name: `${c.name} - Class Group`,
+              group_type: 'class',
+              class_name: c.name,
+              school_id: c.school_id || '',
+              status: 'active',
+              link: 'https://chat.whatsapp.com/invite/'
+            });
+            setEditGroup(null);
+            setShowForm(true);
+            setShowGapsAnalyzer(false);
+          }
+        });
+      }
+    });
+
+    // 2. Missing/Malformed Link Gaps
+    groups.forEach(g => {
+      if (g.status === 'active') {
+        const hasValidLink = g.link && (g.link.startsWith('https://chat.whatsapp.com/') || g.link.startsWith('https://wa.me/'));
+        if (!hasValidLink) {
+          list.push({
+            type: 'link_gap',
+            priority: 'high',
+            title: `Broken Link: ${g.name}`,
+            desc: `Invite URL is either missing or is not a valid chat.whatsapp.com link.`,
+            meta: g,
+            actionLabel: '✏️ Fix Link',
+            action: () => {
+              openEdit(g);
+              setShowGapsAnalyzer(false);
+            }
+          });
+        }
+      }
+    });
+
+    // 3. Communication/Idle Gaps (no broadcast in 7+ days)
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    groups.forEach(g => {
+      if (g.status === 'active' && g.link) {
+        const lastBroadcast = g.last_broadcast_at ? new Date(g.last_broadcast_at).getTime() : 0;
+        const daysIdle = lastBroadcast ? Math.floor((Date.now() - lastBroadcast) / (24 * 60 * 60 * 1000)) : null;
+        if (!lastBroadcast || (Date.now() - lastBroadcast) > SEVEN_DAYS) {
+          list.push({
+            type: 'communication_gap',
+            priority: 'medium',
+            title: `Idle Channel: ${g.name}`,
+            desc: daysIdle !== null 
+              ? `No updates pushed to this group in the last ${daysIdle} days.`
+              : `No broadcasts have ever been pushed to this group.`,
+            meta: g,
+            actionLabel: '📣 Send Update',
+            action: () => {
+              setActiveGroup(g);
+              setView('detail');
+              setShowGapsAnalyzer(false);
+              showToast(`Preselected "${g.name}". Type a message below.`, 'ok');
+            }
+          });
+        }
+      }
+    });
+
+    // 4. Member Count Gaps (missing or low member count)
+    groups.forEach(g => {
+      if (g.status === 'active') {
+        const count = g.member_count ?? 0;
+        if (count < 5) {
+          list.push({
+            type: 'members_gap',
+            priority: 'low',
+            title: `Low Engagement: ${g.name}`,
+            desc: count === 0 
+              ? `Member count is missing or not registered for this group.`
+              : `Only ${count} members are registered in this active channel.`,
+            meta: g,
+            actionLabel: '✏️ Audit Count',
+            action: () => {
+              openEdit(g);
+              setShowGapsAnalyzer(false);
+            }
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [classes, groups]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: '#0b141a', color: '#e9edef' }}>
@@ -694,6 +822,20 @@ export default function WhatsAppGroupsPage() {
               <button onClick={() => loadGroups()}
                 className="p-2 rounded-full hover:bg-white/5 transition-colors" title="Refresh">
                 <RefreshCw className="w-4 h-4" style={{ color: '#8696a0' }} />
+              </button>
+
+              {/* Audit Gaps */}
+              <button onClick={() => setShowGapsAnalyzer(true)}
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all active:scale-95 relative"
+                style={{ background: '#fbbf24', color: '#0b141a' }}
+                title="Audit WhatsApp Group Gaps">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">Audit Gaps</span>
+                {gaps.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white font-black text-[9px] flex items-center justify-center animate-pulse">
+                    {gaps.length}
+                  </span>
+                )}
               </button>
 
               {/* Push Content — icon only on mobile */}
@@ -1711,6 +1853,94 @@ export default function WhatsAppGroupsPage() {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── GAPS ANALYZER MODAL ────────────────────────────────────────────── */}
+      {showGapsAnalyzer && (
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowGapsAnalyzer(false)}>
+          <div className="w-full max-w-2xl flex flex-col overflow-hidden shadow-2xl md:rounded-2xl rounded-t-3xl border pb-[64px] md:pb-0"
+            style={{ background: '#1f2c34', borderColor: 'rgba(255,255,255,0.08)', maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 shrink-0" style={{ background: '#2a3942' }}>
+              <button onClick={() => setShowGapsAnalyzer(false)} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5" style={{ color: '#8696a0' }} />
+              </button>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-black text-white text-[16px] flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-400" />
+                  Intelligent WhatsApp Group Gaps Audit
+                </h2>
+                <p className="text-[11px]" style={{ color: '#8696a0' }}>
+                  Auditing live academic classes vs active communication channels
+                </p>
+              </div>
+              <div className="px-3 py-1 rounded-full text-[11px] font-black text-white" style={{ background: gaps.length > 0 ? '#dc2626' : '#00a884' }}>
+                {gaps.length} Gap{gaps.length !== 1 ? 's' : ''} Detected
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {gaps.length === 0 ? (
+                <div className="p-8 text-center space-y-3">
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-white text-[15px]">Zero Gaps Found!</h3>
+                    <p className="text-[12px] leading-relaxed max-w-sm mx-auto mt-1" style={{ color: '#8696a0' }}>
+                      All live academic classes have active WhatsApp channels, invite links are properly configured, and communication flows are solid!
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Category Sections */}
+                  {['class_gap', 'link_gap', 'communication_gap', 'members_gap'].map(cat => {
+                    const filteredGaps = gaps.filter((g: any) => g.type === cat);
+                    if (filteredGaps.length === 0) return null;
+
+                    const catTitle = {
+                      class_gap: 'Academic Class Group Gaps (High Severity)',
+                      link_gap: 'Invite Link & Accessibility Gaps (High Severity)',
+                      communication_gap: 'Channel Broadcast & Activity Gaps (Medium Severity)',
+                      members_gap: 'Member Count & Engagement Gaps (Low Severity)',
+                    }[cat];
+
+                    const catColor = {
+                      class_gap: 'border-red-500/35 bg-red-500/5 text-red-400',
+                      link_gap: 'border-amber-500/35 bg-amber-500/5 text-amber-400',
+                      communication_gap: 'border-violet-500/35 bg-violet-500/5 text-violet-400',
+                      members_gap: 'border-blue-500/35 bg-blue-500/5 text-blue-400',
+                    }[cat];
+
+                    return (
+                      <div key={cat} className="space-y-2">
+                        <h4 className="text-[11px] font-black uppercase tracking-widest pl-1 mt-4 first:mt-0" style={{ color: '#8696a0' }}>
+                          {catTitle}
+                        </h4>
+                        <div className="space-y-2">
+                          {filteredGaps.map((gap: any, i: number) => (
+                            <div key={i} className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-all hover:translate-x-0.5 ${catColor}`}>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-black text-white text-[13.5px] leading-tight">{gap.title}</p>
+                                <p className="text-[11.5px] mt-1" style={{ color: '#8696a0' }}>{gap.desc}</p>
+                              </div>
+                              <button onClick={gap.action}
+                                className="px-4 py-2 rounded-xl text-[12px] font-black text-white bg-white/10 hover:bg-white/15 transition-all shrink-0 active:scale-95">
+                                {gap.actionLabel}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

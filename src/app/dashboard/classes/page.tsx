@@ -146,17 +146,18 @@ export default function ClassesPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-primary/10', color: 'text-primary' },
-          { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-primary/10',   color: 'text-primary'   },
-          { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10',color: 'text-emerald-400' },
-          { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', color: 'text-purple-400'  },
+          { label: 'Total Classes',   value: classes.length, icon: AcademicCapIcon, bg: 'bg-primary/10', border: 'border-primary/10 hover:border-primary/20', color: 'text-primary' },
+          { label: 'Total Students',  value: totalStudents,  icon: UserGroupIcon,   bg: 'bg-primary/10',   border: 'border-primary/10 hover:border-primary/20', color: 'text-primary'   },
+          { label: 'Active Classes',  value: activeCount,    icon: BookOpenIcon,    bg: 'bg-emerald-500/10', border: 'border-emerald-500/10 hover:border-emerald-500/20', color: 'text-emerald-400' },
+          { label: 'Programmes',      value: programCount,   icon: ChartBarIcon,    bg: 'bg-purple-500/10', border: 'border-purple-500/10 hover:border-purple-500/20', color: 'text-purple-400'  },
         ].map(s => (
-          <div key={s.label} className="bg-card shadow-sm border border-border rounded-xl p-5">
-            <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
+          <div key={s.label} className={`relative overflow-hidden bg-white/[0.01] backdrop-blur-md border ${s.border} rounded-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl`}>
+            <div className={`absolute top-0 right-0 w-20 h-20 ${s.bg} rounded-full blur-3xl opacity-30 -mr-8 -mt-8`} />
+            <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 hover:scale-110`}>
               <s.icon className={`w-5 h-5 ${s.color}`} />
             </div>
-            <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            <p className={`text-2xl font-black ${s.color} tracking-tight`}>{s.value}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1.5">{s.label}</p>
           </div>
         ))}
       </div>
@@ -167,27 +168,27 @@ export default function ClassesPage() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by class name or programme..."
+            placeholder="Search classes by name or programme..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 bg-white/[0.01] hover:bg-white/[0.02] border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all font-medium"
           />
         </div>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary cursor-pointer transition-colors"
+          className="px-4 py-2.5 bg-white/[0.01] hover:bg-white/[0.02] border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
         >
-          <option value="all">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="completed">Completed</option>
+          <option value="all" className="bg-[#0b0f19]">All Statuses</option>
+          <option value="active" className="bg-[#0b0f19]">Active</option>
+          <option value="scheduled" className="bg-[#0b0f19]">Scheduled</option>
+          <option value="completed" className="bg-[#0b0f19]">Completed</option>
         </select>
       </div>
 
       {/* Classes list */}
       {filtered.length === 0 ? (
-        <div className="bg-card shadow-sm border border-border rounded-xl p-16 flex flex-col items-center justify-center text-center">
+        <div className="bg-card/50 backdrop-blur-md shadow-sm border border-border rounded-2xl p-16 flex flex-col items-center justify-center text-center">
           <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
             <AcademicCapIcon className="w-6 h-6 text-primary" />
           </div>
@@ -208,111 +209,129 @@ export default function ClassesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(cls => (
-            <div key={cls.id} className="bg-card shadow-sm border border-border rounded-xl flex flex-col">
+          {filtered.map(cls => {
+            const isFull = cls.max_students > 0 && (cls.current_students ?? 0) >= cls.max_students;
+            const nearFull = !isFull && cls.max_students > 0 && (cls.current_students ?? 0) / cls.max_students >= 0.9;
+            return (
+              <div key={cls.id} className="relative overflow-hidden bg-white/[0.01] backdrop-blur-md shadow-sm border border-border rounded-2xl flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20">
 
-              {/* Card top accent by status */}
-              <div className={`h-1 w-full ${
-                cls.status === 'active' ? 'bg-emerald-500' : 'bg-primary'
-              }`} />
+                {/* Card top accent by status */}
+                <div className={`h-1 w-full ${
+                  cls.status === 'active' 
+                    ? isFull 
+                      ? 'bg-rose-500' 
+                      : 'bg-emerald-500' 
+                    : 'bg-primary'
+                }`} />
 
-              <div className="p-5 flex flex-col gap-4 flex-1">
+                <div className="p-5 flex flex-col gap-4 flex-1">
 
-                {/* Title row */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-base text-foreground truncate">{cls.name}</h3>
-                    {cls.programs?.name && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{cls.programs.name}</p>
+                  {/* Title row */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-base text-foreground truncate group-hover:text-primary transition-colors">{cls.name}</h3>
+                      {cls.programs?.name && (
+                        <p className="text-xs text-muted-foreground mt-0.5 font-medium">{cls.programs.name}</p>
+                      )}
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border capitalize flex-shrink-0 ${
+                      STATUS_BADGE[cls.status] ?? 'bg-white/5 text-muted-foreground border-border'
+                    }`}>
+                      {cls.status}
+                    </span>
+                  </div>
+
+                  {/* Meta row */}
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                      <ClockIcon className="w-3.5 h-3.5 flex-shrink-0 text-primary/70" />
+                      <span className="truncate">{cls.schedule || 'No schedule'}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                      <UserGroupIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isFull ? 'text-rose-400' : 'text-primary/70'}`} />
+                      <span className={isFull ? 'text-rose-400 font-bold' : ''}>
+                        {cls.current_students ?? 0} / {cls.max_students ?? '∞'} students
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* School & teacher */}
+                  <div className="space-y-1.5">
+                    {cls.schools?.name && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                        <BuildingOfficeIcon className="w-3.5 h-3.5 flex-shrink-0 text-primary/70" />
+                        <span className="truncate">{cls.schools.name}</span>
+                      </div>
+                    )}
+                    {cls.portal_users?.full_name && profile?.role !== 'school' && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                        <div className="w-4 h-4 bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary flex-shrink-0 rounded">
+                          {cls.portal_users.full_name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="truncate">{cls.portal_users.full_name}</span>
+                      </div>
                     )}
                   </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize flex-shrink-0 ${
-                    STATUS_BADGE[cls.status] ?? 'bg-white/5 text-muted-foreground border-border'
-                  }`}>
-                    {cls.status}
-                  </span>
-                </div>
 
-                {/* Meta row */}
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="truncate">{cls.schedule || 'No schedule'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <UserGroupIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>{cls.current_students ?? 0} / {cls.max_students ?? '∞'} students</span>
-                  </div>
-                </div>
-
-                {/* School & teacher */}
-                <div className="space-y-1.5">
-                  {cls.schools?.name && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <BuildingOfficeIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span className="truncate">{cls.schools.name}</span>
-                    </div>
-                  )}
-                  {cls.portal_users?.full_name && profile?.role !== 'school' && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <div className="w-4 h-4 bg-primary flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
-                        {cls.portal_users.full_name.charAt(0).toUpperCase()}
+                  {/* Enrolment progress bar */}
+                  {cls.max_students && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] text-muted-foreground font-bold">
+                        <span>Enrolment</span>
+                        <span className={isFull ? 'text-rose-400' : nearFull ? 'text-amber-400' : 'text-primary'}>
+                          {Math.round(((cls.current_students ?? 0) / cls.max_students) * 100)}%
+                        </span>
                       </div>
-                      <span className="truncate">{cls.portal_users.full_name}</span>
+                      <div className="h-1.5 bg-white/5 border border-white/5 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            isFull 
+                              ? 'bg-rose-500' 
+                              : nearFull 
+                                ? 'bg-amber-500' 
+                                : 'bg-primary'
+                          }`}
+                          style={{ width: `${Math.min(100, Math.round(((cls.current_students ?? 0) / cls.max_students) * 100))}%` }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
 
-                {/* Enrolment progress bar */}
-                {cls.max_students && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
-                      <span>Enrolment</span>
-                      <span>{Math.round(((cls.current_students ?? 0) / cls.max_students) * 100)}%</span>
-                    </div>
-                    <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${Math.min(100, Math.round(((cls.current_students ?? 0) / cls.max_students) * 100))}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+                {/* Card footer actions */}
+                <div className="border-t border-white/5 bg-white/[0.01] flex items-center">
+                  <Link
+                    href={`/dashboard/classes/${cls.id}`}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all border-r border-white/5"
+                  >
+                    <EyeIcon className="w-3.5 h-3.5" />
+                    View
+                  </Link>
+                  {profile?.role !== 'school' && (
+                    <>
+                      <Link
+                        href={`/dashboard/classes/${cls.id}/edit`}
+                        className="flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all border-r border-white/5"
+                      >
+                        <PencilIcon className="w-3.5 h-3.5" />
+                        Edit
+                      </Link>
+                      <button
+                        onClick={() => setDeleteTarget({ id: cls.id, name: cls.name })}
+                        disabled={deleting === cls.id}
+                        className="flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-rose-400 hover:bg-rose-500/5 transition-all disabled:opacity-40"
+                      >
+                        {deleting === cls.id
+                          ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                          : <TrashIcon className="w-3.5 h-3.5" />}
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-
-              {/* Card footer actions */}
-              <div className="border-t border-border flex items-center">
-                <Link
-                  href={`/dashboard/classes/${cls.id}`}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors border-r border-border"
-                >
-                  <EyeIcon className="w-3.5 h-3.5" />
-                  View
-                </Link>
-                {profile?.role !== 'school' && (
-                  <>
-                    <Link
-                      href={`/dashboard/classes/${cls.id}/edit`}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors border-r border-border"
-                    >
-                      <PencilIcon className="w-3.5 h-3.5" />
-                      Edit
-                    </Link>
-                    <button
-                      onClick={() => setDeleteTarget({ id: cls.id, name: cls.name })}
-                      disabled={deleting === cls.id}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 text-xs font-bold text-muted-foreground hover:text-rose-400 hover:bg-rose-500/5 transition-colors disabled:opacity-40"
-                    >
-                      {deleting === cls.id
-                        ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                        : <TrashIcon className="w-3.5 h-3.5" />}
-                      Delete
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

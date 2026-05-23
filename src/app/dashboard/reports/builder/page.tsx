@@ -2894,10 +2894,34 @@ function ReportBuilderInner() {
                                                     <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Grade</p>
                                                     <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
                                                 </div>
-                                                <div className="w-12 h-12 flex flex-col items-center justify-center font-black border-2 border-primary/40 bg-primary/10 text-primary">
+                                                <div className="w-12 h-12 flex flex-col items-center justify-center font-black border-2 border-primary/40 bg-primary/10 text-primary rounded-xl">
                                                     <span className="text-base leading-none">{waecCode}</span>
                                                     <span className="text-[7px] text-primary/60 font-bold">{overallGradeLetter}</span>
                                                 </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Dynamic Weighted Contribution Progress Bar */}
+                                        <div className="mt-2.5 space-y-1.5 bg-white/[0.01] border border-white/[0.04] p-3 rounded-2xl">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Weight Contributions</span>
+                                                <span className="text-[8px] text-muted-foreground font-bold">Sum: {overallScore}% / 100%</span>
+                                            </div>
+                                            <div className="w-full h-2 bg-white/[0.04] rounded-full overflow-hidden flex">
+                                                <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.theory_score)) || 0) * 0.20}%` }} title={`Theory: ${Math.round((parseInt(String(form.theory_score)) || 0) * 0.20)}%`} />
+                                                <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.classwork_score)) || 0) * 0.10}%` }} title={`Classwork: ${Math.round((parseInt(String(form.classwork_score)) || 0) * 0.10)}%`} />
+                                                <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.practical_score)) || 0) * 0.25}%` }} title={`Practical: ${Math.round((parseInt(String(form.practical_score)) || 0) * 0.25)}%`} />
+                                                <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.attendance_score)) || 0) * 0.20}%` }} title={`Assignments: ${Math.round((parseInt(String(form.attendance_score)) || 0) * 0.20)}%`} />
+                                                <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.participation_score)) || 0) * 0.10}%` }} title={`Attendance: ${Math.round((parseInt(String(form.participation_score)) || 0) * 0.10)}%`} />
+                                                <div className="h-full bg-rose-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.assessment_score)) || 0) * 0.15}%` }} title={`Assessment: ${Math.round((parseInt(String(form.assessment_score)) || 0) * 0.15)}%`} />
+                                            </div>
+                                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[8px] text-muted-foreground/60 leading-none">
+                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-indigo-500" /> Theory ({Math.round((parseInt(String(form.theory_score)) || 0) * 0.20)}%)</span>
+                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-cyan-500" /> Classwork ({Math.round((parseInt(String(form.classwork_score)) || 0) * 0.10)}%)</span>
+                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-violet-500" /> Practical ({Math.round((parseInt(String(form.practical_score)) || 0) * 0.25)}%)</span>
+                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-emerald-500" /> Asgns ({Math.round((parseInt(String(form.attendance_score)) || 0) * 0.20)}%)</span>
+                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-amber-500" /> Att ({Math.round((parseInt(String(form.participation_score)) || 0) * 0.10)}%)</span>
+                                                <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-rose-500" /> Mid ({Math.round((parseInt(String(form.assessment_score)) || 0) * 0.15)}%)</span>
                                             </div>
                                         </div>
                                     </div>
@@ -3008,6 +3032,94 @@ function ReportBuilderInner() {
                                                 </div>
                                             );
                                         })}
+                                    </div>
+
+                                    {/* Smart Comments Phrase Bank Quick-Picks */}
+                                    <div className="bg-card/50 border border-border p-4 rounded-xl mt-3 space-y-3">
+                                        <div>
+                                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                                                <SparklesIcon className="w-3.5 h-3.5 animate-pulse" /> Faith & STEM Analogies Phrase Bank
+                                            </p>
+                                            <p className="text-[9px] text-muted-foreground mt-0.5">Quick-insert rich faith-based computer science metaphors into Strengths:</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { text: "Exhibits a Nehemiah-builder spirit in constructing robust codebase frameworks.", label: "🧱 Nehemiah Builder" },
+                                                { text: "Shows Solomon's wisdom in drafting clean, modular, and optimized class structures.", label: "👑 Solomon's Clean Code" },
+                                                { text: "Demonstrated great Joshua-style courage and patience in walking through complex debugging cycles.", label: "🛡️ Joshua Debugger" },
+                                                { text: "Approaches logic design with the precision and focus of David defeating algorithmic challenges.", label: "🏹 David-like Precision" },
+                                                { text: "Understands protocol integration deeply, avoiding Babel-like coordination gaps.", label: "🔌 Tower Unified Protocol" }
+                                            ].map((item, i) => (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => setForm(f => {
+                                                        const current = f.key_strengths ? f.key_strengths.trim() : '';
+                                                        const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
+                                                        return { ...f, key_strengths: `${current}${divider}${item.text}` };
+                                                    })}
+                                                    className="px-2 py-1 text-[9px] font-bold bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl transition-all"
+                                                >
+                                                    + {item.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="w-full h-px bg-border/40" />
+                                        <div>
+                                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
+                                                <RocketLaunchIcon className="w-3.5 h-3.5" /> African Innovation Phrase Bank
+                                            </p>
+                                            <p className="text-[9px] text-muted-foreground mt-0.5">Quick-insert local agritech, energy, and fintech remarks:</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { text: "Built a highly creative agritech sensor script, showing deep community problem-solving mindset.", label: "🌾 Northern Agritech" },
+                                                { text: "Successfully simulated fintech ledger logic inspired by USSD payment models.", label: "💳 USSD Fintech" },
+                                                { text: "Designed a smart priority routing simulator based on Lagos BRT transit priorities.", label: "🚦 BRT Smart Transit" },
+                                                { text: "Highly proficient in applying coordinate matrices to localized graphic canvases.", label: "🎨 Naija Canvas" }
+                                            ].map((item, i) => (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => setForm(f => {
+                                                        const current = f.key_strengths ? f.key_strengths.trim() : '';
+                                                        const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
+                                                        return { ...f, key_strengths: `${current}${divider}${item.text}` };
+                                                    })}
+                                                    className="px-2 py-1 text-[9px] font-bold bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all"
+                                                >
+                                                    + {item.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="w-full h-px bg-border/40" />
+                                        <div>
+                                            <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1">
+                                                <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Actionable Recommendations Bank
+                                            </p>
+                                            <p className="text-[9px] text-muted-foreground mt-0.5">Quick-insert localized growth recommendations:</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[
+                                                { text: "Encouraged to develop greater debugging patience, treating errors as learning stepping stones.", label: "🐛 Debugging Patience" },
+                                                { text: "Focusing on completing assignments regularly will consolidate their core logical skills.", label: "📝 Submission Consistency" },
+                                                { text: "We recommend regular reviews of class visualizers at home to strengthen practical understanding.", label: "🏠 Home Practice" },
+                                                { text: "Encouraged to actively collaborate in review sessions and speak up during brainstorming.", label: "🤝 Active Reviews" }
+                                            ].map((item, i) => (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => setForm(f => {
+                                                        const current = f.areas_for_growth ? f.areas_for_growth.trim() : '';
+                                                        const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
+                                                        return { ...f, areas_for_growth: `${current}${divider}${item.text}` };
+                                                    })}
+                                                    className="px-2 py-1 text-[9px] font-bold bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl transition-all"
+                                                >
+                                                    + {item.label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </Section>
                             </div>
