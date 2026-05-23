@@ -530,15 +530,13 @@ export default function CurriculumPage() {
   // Stable ref so the programs useEffect can call loadCurriculum before it's declared.
   const loadCurriculumRef = useRef<((courseId: string, hintPst?: number) => Promise<void>) | null>(null);
 
-  // Programme start term: saved in content.metadata (most reliable), then program policy, then 1
+  // Programme start term: curriculum metadata ONLY — never read programme policy here.
+  // Programme policy PST is per-programme and breaks multi-school setups where each school
+  // has its own start term stored in their school-specific curriculum metadata.
   const effectiveProgramStartTerm = useMemo(() => {
     const contentPst = curriculum?.content?.metadata?.program_start_term;
-    if ([1, 2, 3].includes(Number(contentPst))) return Number(contentPst) as 1 | 2 | 3;
-    if (!selectedCourse?.program_id) return 1 as const;
-    const prog = programs.find(p => p.id === selectedCourse.program_id);
-    const saved = prog?.progression_policy?.program_start_term;
-    return ([1, 2, 3].includes(Number(saved)) ? Number(saved) : 1) as 1 | 2 | 3;
-  }, [curriculum?.content?.metadata?.program_start_term, selectedCourse?.program_id, programs]);
+    return ([1, 2, 3].includes(Number(contentPst)) ? Number(contentPst) : 1) as 1 | 2 | 3;
+  }, [curriculum?.content?.metadata?.program_start_term]);
 
   const isAdmin = profile?.role === 'admin';
   const isTeacher = profile?.role === 'teacher';
@@ -616,12 +614,11 @@ export default function CurriculumPage() {
         // Open every programme by default so teachers can see all courses at a glance
         // (collapsing only programs is an easy way to scan a long list).
         setExpandedPrograms(new Set(progs.map((p) => p.id)));
-        // Helper: snap activeTerm from program policy; returns the resolved PST so callers can pass it as a hint to loadCurriculum
-        function snapPstFromProgram(p: Program): number {
-          const pst = Number(p.progression_policy?.program_start_term ?? 1);
-          const resolved = [1, 2, 3].includes(pst) ? pst : 1;
-          setActiveTerm(resolved);
-          return resolved;
+        // Snap activeTerm to 1 while curriculum loads — loadCurriculum will correct it from
+        // curriculum metadata. Never read programme policy here: PST is per-school-curriculum.
+        function snapPstFromProgram(_p: Program): number {
+          setActiveTerm(1);
+          return 1;
         }
         if (deepProgramId) {
           const p = progs.find((x) => x.id === deepProgramId);
@@ -1298,6 +1295,8 @@ export default function CurriculumPage() {
       if (res.ok) {
         setCurriculum(prev => prev ? { ...prev, content: j.data?.content ?? prev.content } : prev);
         setEditingProgramStartTerm(false);
+        // Snap activeTerm to the new PST so the view immediately shows Prog.T1 Foundations
+        setActiveTerm(pst);
         toast.success('Programme start term updated');
       } else {
         toast.error(j.error || 'Failed to update');
@@ -1529,18 +1528,11 @@ export default function CurriculumPage() {
         subject_area: prev.subject_area || selectedCourse?.title || '',
       };
     });
-    // Pre-load program_start_term: curriculum metadata first, then program policy, then 1
+    // Pre-load program_start_term from curriculum metadata only — never from programme policy.
+    // PST is per-school-curriculum; reading programme policy here causes shared programmes
+    // (Basic 1-3, Beginner, etc.) with stale policy PST to corrupt the generate form default.
     const contentPst = curriculum?.content?.metadata?.program_start_term;
-    let resolvedPst = 1;
-    if ([1, 2, 3].includes(Number(contentPst))) {
-      resolvedPst = Number(contentPst);
-    } else if (selectedCourse?.program_id) {
-      const prog = programs.find(p => p.id === selectedCourse.program_id);
-      const savedStartTerm = prog?.progression_policy?.program_start_term;
-      if ([1, 2, 3].includes(Number(savedStartTerm))) {
-        resolvedPst = Number(savedStartTerm);
-      }
-    }
+    const resolvedPst = [1, 2, 3].includes(Number(contentPst)) ? Number(contentPst) : 1;
     setProgramStartTerm(resolvedPst as 1 | 2 | 3);
     // Suggest next year to generate based on existing curriculum content
     if (curriculum?.content?.terms?.length) {
@@ -1774,17 +1766,15 @@ export default function CurriculumPage() {
     setLastVisited(visited);
     setSelectedProgram(prog);
     setSelectedCourse(course);
-    // Snap to programme start term (not always Term 1) while curriculum loads.
-    // Default to 1 (not current calendar term) so programmes without a policy start at Prog.T1.
-    const savedStart = prog.progression_policy?.program_start_term;
-    const snapTerm = [1, 2, 3].includes(Number(savedStart)) ? Number(savedStart) : 1;
-    setActiveTerm(snapTerm);
+    // Always snap to 1 while curriculum loads — loadCurriculum will correct it from
+    // curriculum metadata. PST is per-school-curriculum, not per-programme-policy.
+    setActiveTerm(1);
     setActiveYear(1);
     setActiveWeek(null);
     setLoadError('');
     setMobileSidebarOpen(false);
     try { window.history.pushState(null, '', `/dashboard/curriculum?program=${prog.id}&course=${course.id}`); } catch { /* ignore */ }
-    loadCurriculum(course.id, snapTerm);
+    loadCurriculum(course.id);
   }
 
   // ── Generate curriculum ──────────────────────────────────────────────────
