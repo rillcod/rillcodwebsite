@@ -4971,7 +4971,7 @@ export default function CurriculumPage() {
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{(activeWeek.subtopics ?? []).join(' · ')}</p>
                 )}
                 {(() => {
-                  const dr = weekDateRange(activeTerm, activeWeek.week, effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear), curriculum?.content?.terms?.find(t => t.term === activeTerm)?.start_date);
+                  const dr = weekDateRange(activeTerm, activeWeek.week, effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear), currentTermData?.start_date);
                   return dr ? (
                     <p className="text-[10px] text-muted-foreground/60 font-bold mt-1">
                       {dr.start} – {dr.end}
@@ -5121,7 +5121,7 @@ export default function CurriculumPage() {
                         <button
                           onClick={async () => {
                             if (!curriculum) return;
-                            const dr = weekDateRange(activeTerm, activeWeek.week, effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear), curriculum?.content?.terms?.find(t => t.term === activeTerm)?.start_date);
+                            const dr = weekDateRange(activeTerm, activeWeek.week, effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear), currentTermData?.start_date);
                             const dueDate = dr
                               ? new Date(new Date().getFullYear(), new Date().getMonth(), parseInt(dr.end.split(' ')[0]) + 2).toISOString().split('T')[0]
                               : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
