@@ -79,6 +79,11 @@ export async function GET(req: Request) {
         teachersBySchool[t.school_name].push(t);
       });
 
+      // Pre-load WhatsApp groups for these schools to enable automated class chat onboarding
+      const { data: waGroups } = uniqueSchools.length > 0
+        ? await admin.from('whatsapp_groups').select('class_name, link, school_name, name').eq('status', 'active')
+        : { data: [] };
+
       const userIds = (children as any[]).map((c: any) => c.user_id).filter(Boolean) as string[];
 
       // Batch fetch stats
@@ -103,6 +108,11 @@ export async function GET(req: Request) {
             }) ?? null
           : null;
 
+        const matchedGroup = (waGroups ?? []).find((g: any) => {
+          const gc = (g.class_name || '').toLowerCase().replace(/\s+/g, '');
+          return gc && (gc === childClass || gc.startsWith(childClass) || childClass.startsWith(gc));
+        });
+
         const latestGrade = (gradeRes.data ?? []).find((g: any) => g.student_id === child.user_id)?.overall_grade ?? null;
 
         return {
@@ -114,6 +124,7 @@ export async function GET(req: Request) {
             certificates: (certRes.data ?? []).filter((c: any) => c.portal_user_id === child.user_id).length,
             teacherName: matchedTeacher?.full_name ?? null,
             teacherPhone: matchedTeacher?.phone ?? null,
+            whatsappGroupLink: matchedGroup?.link ?? null,
           }
         };
       });

@@ -69,7 +69,45 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     leads = fallback.data ?? [];
   }
 
-  return NextResponse.json({ form: formRes.data ?? null, data: responses ?? [], leads: leads ?? [] });
+  // Find parent links to support multi-child persistence on frontend reload
+  const parentIds = (leads ?? []).map((l: any) => l.matched_parent_id).filter(Boolean);
+  let parentLinks: any[] = [];
+  if (parentIds.length > 0) {
+    const { data: links } = await (admin as any)
+      .from('parent_student_links')
+      .select('parent_id, student_id')
+      .in('parent_id', parentIds);
+    if (links && links.length > 0) {
+      const studentIds = links.map((l: any) => l.student_id).filter(Boolean);
+      if (studentIds.length > 0) {
+        const { data: stus } = await (admin as any)
+          .from('students')
+          .select('id, full_name, user_id')
+          .in('id', studentIds);
+        if (stus) {
+          const stuMap = new Map<string, { id: string; full_name: string; user_id: string | null }>(
+            stus.map((s: any) => [s.id, s])
+          );
+          parentLinks = links.map((l: any) => {
+            const match = stuMap.get(l.student_id);
+            return {
+              parent_id: l.parent_id,
+              student_id: l.student_id,
+              studentName: match?.full_name || 'Student',
+              studentPortalId: match?.user_id || l.student_id,
+            };
+          });
+        }
+      }
+    }
+  }
+
+  return NextResponse.json({
+    form: formRes.data ?? null,
+    data: responses ?? [],
+    leads: leads ?? [],
+    parentLinks,
+  });
 }
 
 // PATCH /api/consent-forms/[id] — staff: toggle is_public / form_type

@@ -62,6 +62,11 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
   const childClass   = str('child_class') || null;
   const childGender  = str('child_gender') || null;
 
+  const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
+  const childMatches = Array.isArray(rd.child_matches)
+    ? (rd.child_matches as Array<{ childIndex: number; studentId: string; studentName: string; studentClass: string | null; confidence: string }>)
+    : [];
+
   if (!parentEmail || !parentEmail.includes('@')) {
     return NextResponse.json({ error: 'No valid email address on this lead' }, { status: 400 });
   }
@@ -77,7 +82,62 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     // Account exists — still link student if needed
     if (lead.matched_student_id && existing.id) {
       await syncExplicitParentStudentLink(sb as any, existing.id, lead.matched_student_id);
+
+      const studentOverride: Record<string, unknown> = {
+        parent_email: parentEmail,
+        parent_name:  parentName,
+        parent_phone: parentPhone || null,
+        updated_at:   new Date().toISOString(),
+      };
+      if (childName)   studentOverride.full_name     = childName;
+      if (childClass)  studentOverride.section_class = childClass;
+      if (childGender) studentOverride.gender        = childGender;
+
+      await (sb as any).from('students').update(studentOverride).eq('id', lead.matched_student_id);
+
+      // Keep portal_users in sync for name / class / gender
+      const portalStudentOverride: Record<string, unknown> = {};
+      if (childName)   portalStudentOverride.full_name     = childName;
+      if (childClass)  portalStudentOverride.section_class = childClass;
+      if (childGender) portalStudentOverride.gender        = childGender;
+      if (Object.keys(portalStudentOverride).length > 0) {
+        await (sb as any).from('portal_users').update(portalStudentOverride).eq('id', lead.matched_student_id);
+        await sb.auth.admin.updateUserById(lead.matched_student_id as string, { user_metadata: portalStudentOverride });
+      }
     }
+
+    // Link other matched children (multi-child) for existing parent
+    if (childMatches && childMatches.length > 0 && existing.id) {
+      for (const match of childMatches) {
+        const childIdx = match.childIndex;
+        const childData = childrenArr?.[childIdx];
+
+        await syncExplicitParentStudentLink(sb as any, existing.id, match.studentId);
+
+        const siblingOverride: Record<string, unknown> = {
+          parent_email: parentEmail,
+          parent_name:  parentName,
+          parent_phone: parentPhone || null,
+          updated_at:   new Date().toISOString(),
+        };
+        if (childData?.name)   siblingOverride.full_name     = childData.name;
+        if (childData?.class)  siblingOverride.section_class = childData.class;
+        if (childData?.gender) siblingOverride.gender        = childData.gender;
+
+        await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
+
+        const portalSiblingOverride: Record<string, unknown> = {};
+        if (childData?.name)   portalSiblingOverride.full_name     = childData.name;
+        if (childData?.class)  portalSiblingOverride.section_class = childData.class;
+        if (childData?.gender) portalSiblingOverride.gender        = childData.gender;
+
+        if (Object.keys(portalSiblingOverride).length > 0) {
+          await (sb as any).from('portal_users').update(portalSiblingOverride).eq('id', match.studentId);
+          await sb.auth.admin.updateUserById(match.studentId, { user_metadata: portalSiblingOverride });
+        }
+      }
+    }
+
     if (!lead.matched_parent_id) {
       await (sb as any).from('form_leads').update({ matched_parent_id: existing.id }).eq('id', leadId);
     }
@@ -112,9 +172,6 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
   });
 
   // Link student if matched + override student record with parent-provided data.
-  // Name and gender: consent form is source of truth — always override.
-  // Class: only set if the student has no class yet (child advances, so never
-  // clobber a class that staff have already set on an active student).
   if (lead.matched_student_id) {
     await syncExplicitParentStudentLink(sb as any, parentId, lead.matched_student_id);
 
@@ -139,6 +196,38 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
       await (sb as any).from('portal_users').update(portalStudentOverride).eq('id', lead.matched_student_id);
       // Keep Supabase auth metadata in sync
       await sb.auth.admin.updateUserById(lead.matched_student_id as string, { user_metadata: portalStudentOverride });
+    }
+  }
+
+  // Link other matched children (multi-child) for new parent
+  if (childMatches && childMatches.length > 0) {
+    for (const match of childMatches) {
+      const childIdx = match.childIndex;
+      const childData = childrenArr?.[childIdx];
+
+      await syncExplicitParentStudentLink(sb as any, parentId, match.studentId);
+
+      const siblingOverride: Record<string, unknown> = {
+        parent_email: parentEmail,
+        parent_name:  parentName,
+        parent_phone: parentPhone || null,
+        updated_at:   new Date().toISOString(),
+      };
+      if (childData?.name)   siblingOverride.full_name     = childData.name;
+      if (childData?.class)  siblingOverride.section_class = childData.class;
+      if (childData?.gender) siblingOverride.gender        = childData.gender;
+
+      await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
+
+      const portalSiblingOverride: Record<string, unknown> = {};
+      if (childData?.name)   portalSiblingOverride.full_name     = childData.name;
+      if (childData?.class)  portalSiblingOverride.section_class = childData.class;
+      if (childData?.gender) portalSiblingOverride.gender        = childData.gender;
+
+      if (Object.keys(portalSiblingOverride).length > 0) {
+        await (sb as any).from('portal_users').update(portalSiblingOverride).eq('id', match.studentId);
+        await sb.auth.admin.updateUserById(match.studentId, { user_metadata: portalSiblingOverride });
+      }
     }
   }
 
@@ -321,21 +410,34 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
   const { data: parentRow } = await (sb as any)
     .from('portal_users').select('email').eq('id', parentId).maybeSingle();
 
+  // Fetch all parent-student links to safely clean up parent denormalized metadata in students table
+  const { data: linkedStudents } = await (sb as any)
+    .from('parent_student_links')
+    .select('student_id')
+    .eq('parent_id', parentId);
+  const studentIdsToClear = (linkedStudents ?? []).map((row: any) => row.student_id).filter(Boolean);
+  if (lead.matched_student_id) {
+    studentIdsToClear.push(lead.matched_student_id);
+  }
+
   // Remove explicit parent-child link rows
   await (sb as any).from('parent_student_links').delete().eq('parent_id', parentId);
 
-  // Clear parent fields from ALL students linked to this parent by email
+  // Clear parent fields from ALL explicitly linked students
+  const uniqueStudentIds = [...new Set(studentIdsToClear)];
+  if (uniqueStudentIds.length > 0) {
+    await (sb as any).from('students').update({
+      parent_email: null, parent_name: null, parent_phone: null,
+      updated_at: new Date().toISOString(),
+    }).in('id', uniqueStudentIds);
+  }
+
+  // Also clear parent fields by email as safety fallback
   if (parentRow?.email) {
     await (sb as any).from('students').update({
       parent_email: null, parent_name: null, parent_phone: null,
       updated_at: new Date().toISOString(),
     }).eq('parent_email', parentRow.email);
-  } else if (lead.matched_student_id) {
-    // Fallback: clear by student id if email lookup failed
-    await (sb as any).from('students').update({
-      parent_email: null, parent_name: null, parent_phone: null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', lead.matched_student_id);
   }
 
   // Delete portal_users row

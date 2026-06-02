@@ -97,6 +97,11 @@ export async function POST(req: NextRequest) {
     const childName   = str('child_name');
     const childGender = str('child_gender') || null;
 
+    const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
+    const childMatches = Array.isArray(rd.child_matches)
+      ? (rd.child_matches as Array<{ childIndex: number; studentId: string; studentName: string; studentClass: string | null; confidence: string }>)
+      : [];
+
     if (!parentEmail || !parentEmail.includes('@')) {
       results.no_email++;
       continue;
@@ -112,7 +117,37 @@ export async function POST(req: NextRequest) {
       if (existing) {
         if (lead.matched_student_id && existing.id) {
           await syncExplicitParentStudentLink(sb as any, existing.id, lead.matched_student_id);
+          await (sb as any).from('students').update({
+            parent_email: parentEmail,
+            parent_name:  parentName,
+            parent_phone: parentPhone || null,
+            ...(childGender ? { gender: childGender } : {}),
+            updated_at:   new Date().toISOString(),
+          }).eq('id', lead.matched_student_id);
         }
+
+        // Link other matched children (siblings) for existing parent in bulk
+        if (childMatches && childMatches.length > 0 && existing.id) {
+          for (const match of childMatches) {
+            const childIdx = match.childIndex;
+            const childData = childrenArr?.[childIdx];
+
+            await syncExplicitParentStudentLink(sb as any, existing.id, match.studentId);
+
+            const siblingOverride: Record<string, unknown> = {
+              parent_email: parentEmail,
+              parent_name:  parentName,
+              parent_phone: parentPhone || null,
+              updated_at:   new Date().toISOString(),
+            };
+            if (childData?.name)   siblingOverride.full_name     = childData.name;
+            if (childData?.class)  siblingOverride.section_class = childData.class;
+            if (childData?.gender) siblingOverride.gender        = childData.gender;
+
+            await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
+          }
+        }
+
         await (sb as any).from('form_leads')
           .update({ matched_parent_id: existing.id })
           .eq('id', lead.id);
@@ -154,6 +189,28 @@ export async function POST(req: NextRequest) {
           ...(childGender ? { gender: childGender } : {}),
           updated_at:   new Date().toISOString(),
         }).eq('id', lead.matched_student_id);
+      }
+
+      // Link other matched children (siblings) for new parent in bulk
+      if (childMatches && childMatches.length > 0) {
+        for (const match of childMatches) {
+          const childIdx = match.childIndex;
+          const childData = childrenArr?.[childIdx];
+
+          await syncExplicitParentStudentLink(sb as any, parentId, match.studentId);
+
+          const siblingOverride: Record<string, unknown> = {
+            parent_email: parentEmail,
+            parent_name:  parentName,
+            parent_phone: parentPhone || null,
+            updated_at:   new Date().toISOString(),
+          };
+          if (childData?.name)   siblingOverride.full_name     = childData.name;
+          if (childData?.class)  siblingOverride.section_class = childData.class;
+          if (childData?.gender) siblingOverride.gender        = childData.gender;
+
+          await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
+        }
       }
 
       const loginUrl = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}&pw=${encodeURIComponent(tempPassword)}`;

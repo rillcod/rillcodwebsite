@@ -74,6 +74,18 @@ export default async function PublicFormPage({ params }: { params: Promise<{ id:
     return <FormUnavailable title={form.title} school={form.schools?.name ?? undefined} />;
   }
 
+  // Fetch active school names to support autocomplete school suggestions in client component
+  const sb = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+  const { data: schoolsData } = await sb
+    .from('schools')
+    .select('name')
+    .order('name');
+  const schoolsList = (schoolsData ?? []).map((s: any) => s.name).filter(Boolean);
+
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
   const publicUrl = `${appUrl}/forms/${id}`;
 
@@ -102,7 +114,7 @@ export default async function PublicFormPage({ params }: { params: Promise<{ id:
           )}
         </div>
 
-        <PublicConsentForm form={form} publicUrl={publicUrl} />
+        <PublicConsentForm form={form} publicUrl={publicUrl} schoolsList={schoolsList} />
       </div>
     </div>
   );

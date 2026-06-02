@@ -481,6 +481,30 @@ strong{font-size:8pt}
   win.document.close();
 }
 
+function isChildLinkedToParent(
+  childName: string,
+  parentLinksForThisParent: Array<{ student_id: string; studentName: string; studentPortalId: string }>
+) {
+  if (!childName) return null;
+  const nameParts = childName.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
+  if (nameParts.length === 0) return null;
+
+  for (const pl of parentLinksForThisParent) {
+    const plName = pl.studentName.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    // Exact or substring match first
+    if (plName === childName.toLowerCase() || plName.includes(childName.toLowerCase()) || childName.toLowerCase().includes(plName)) {
+      return pl;
+    }
+    // Token overlap match
+    const plParts = plName.split(/\s+/).filter(Boolean);
+    const overlap = nameParts.filter(part => plParts.includes(part)).length;
+    if (overlap >= 2 || (nameParts.length === 1 && overlap === 1)) {
+      return pl;
+    }
+  }
+  return null;
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ResponsesPage() {
@@ -558,6 +582,35 @@ export default function ResponsesPage() {
       setForm(json.form ?? null);
       setLeads(json.leads ?? []);
       setSigs(json.data  ?? []);
+
+      // Populate initial additionalLinks from database parentLinks to survive page reloads
+      if (json.parentLinks && json.leads) {
+        const initialLinks: Record<string, Array<{ childIndex: number; studentId: string; studentName: string }>> = {};
+        for (const lead of json.leads) {
+          if (!lead.matched_parent_id) continue;
+          const rd = lead.response_data as Record<string, unknown>;
+          const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
+          if (childrenArr && childrenArr.length > 1) {
+            const linksForParent = (json.parentLinks as any[]).filter(pl => pl.parent_id === lead.matched_parent_id);
+            const leadAddLinks: Array<{ childIndex: number; studentId: string; studentName: string }> = [];
+            for (let ci = 1; ci < childrenArr.length; ci++) {
+              const child = childrenArr[ci];
+              const match = isChildLinkedToParent(child.name, linksForParent);
+              if (match) {
+                leadAddLinks.push({
+                  childIndex: ci,
+                  studentId: match.student_id,
+                  studentName: match.studentName,
+                });
+              }
+            }
+            if (leadAddLinks.length > 0) {
+              initialLinks[lead.id] = leadAddLinks;
+            }
+          }
+        }
+        setAdditionalLinks(initialLinks);
+      }
     } finally {
       setLoading(false);
     }

@@ -102,7 +102,7 @@ type ChildEntry = {
 
 const emptyChild = (): ChildEntry => ({ name: '', gender: '', age: '', class_: '', program: '', school: '' });
 
-export default function PublicConsentForm({ form, publicUrl }: { form: FormData; publicUrl: string }) {
+export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }: { form: FormData; publicUrl: string; schoolsList?: string[] }) {
   const isAssessment = form.form_type === 'assessment';
   const LS_KEY       = `rillcod_form_${form.id}`;
 
@@ -128,6 +128,7 @@ export default function PublicConsentForm({ form, publicUrl }: { form: FormData;
 
   const [childCount, setChildCount] = useState(1);
   const [children,   setChildren]   = useState<ChildEntry[]>([emptyChild()]);
+  const [focusedSchoolIdx, setFocusedSchoolIdx] = useState<number | null>(null);
 
   const [data, setData] = useState({
     parent_name:      '',
@@ -390,6 +391,26 @@ export default function PublicConsentForm({ form, publicUrl }: { form: FormData;
           )}
         </div>
 
+        {isAssessment && (
+          <div className="bg-[#141618] border border-amber-500/30 rounded-2xl p-6 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto text-xl">📅</div>
+            <div>
+              <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Instant Booking Slot Available</p>
+              <h3 className="text-base font-black text-white mt-1">Book Your Child's Coding Consultation</h3>
+              <p className="text-xs text-[#a1a1aa] mt-1">Select a 15-minute slot below to speak with an instructor on WhatsApp/Google Meet.</p>
+            </div>
+            
+            {/* Cal.com embedded iframe */}
+            <div className="border border-[#2a2d33] rounded-xl overflow-hidden bg-black/40 h-[480px]">
+              <iframe
+                src="https://cal.com/rillcod/assessment-consultation?embed=true"
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="Schedule consultation"
+              />
+            </div>
+          </div>
+        )}
+
         <div className="bg-[#141618] border border-[#2a2d33] rounded-2xl p-6 space-y-4">
           <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">What Happens Next</p>
           <div className="space-y-3">
@@ -578,12 +599,45 @@ export default function PublicConsentForm({ form, publicUrl }: { form: FormData;
               </div>
             </div>
 
-            <input
-              value={child.school}
-              onChange={e => updateChild(idx, 'school', e.target.value)}
-              placeholder="Child's current school (optional)"
-              className={inputCls()}
-            />
+            <div className="relative">
+              <input
+                value={child.school}
+                onChange={e => {
+                  updateChild(idx, 'school', e.target.value);
+                  setFocusedSchoolIdx(idx);
+                }}
+                onFocus={() => setFocusedSchoolIdx(idx)}
+                onBlur={() => {
+                  // Slight delay so the onMouseDown click on suggestion triggers first
+                  setTimeout(() => setFocusedSchoolIdx(null), 250);
+                }}
+                placeholder="Child's current school (optional)"
+                className={inputCls()}
+              />
+              {focusedSchoolIdx === idx && schoolsList && schoolsList.length > 0 && (() => {
+                const filtered = schoolsList.filter(s =>
+                  s.toLowerCase().includes((child.school || '').toLowerCase())
+                ).slice(0, 5);
+                if (filtered.length === 0) return null;
+                return (
+                  <div className="absolute left-0 right-0 mt-1 bg-[#141618] border border-[#2a2d33] rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
+                    {filtered.map(schoolName => (
+                      <button
+                        key={schoolName}
+                        type="button"
+                        onMouseDown={() => {
+                          updateChild(idx, 'school', schoolName);
+                          setFocusedSchoolIdx(null);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs font-bold text-[#d4d4d8] hover:bg-amber-500 hover:text-black transition-colors"
+                      >
+                        🏫 {schoolName}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
           </section>
         );
       })}
@@ -732,7 +786,7 @@ export default function PublicConsentForm({ form, publicUrl }: { form: FormData;
             )}
           </div>
           {data.parent_whatsapp && !isValidWhatsApp(data.parent_whatsapp) && (
-            <p className="text-[10px] text-[#71717a] mt-1">Nigerian numbers: 0811... or +234811... · Tab/click away to auto-format</p>
+            <p className="text-[10px] text-rose-400 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
           )}
           {attempted && !data.parent_whatsapp.trim() && <p className="text-rose-400 text-xs mt-1">WhatsApp number is required</p>}
         </div>

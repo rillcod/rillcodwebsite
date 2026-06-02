@@ -18,6 +18,9 @@ interface ChildSummary {
   school_name: string | null;
   grade_level: string | null;
   status: string;
+  stats?: {
+    whatsappGroupLink?: string | null;
+  } | null;
 }
 
 interface ParentDashboardProps {
@@ -338,6 +341,12 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                     <p className="text-[11px] text-muted-foreground mt-0.5">{child.school_name ?? '—'}</p>
                     {child.grade_level && (
                       <p className="text-[10px] font-bold text-primary uppercase tracking-wider mt-0.5">{child.grade_level}</p>
+                    )}
+                    {child.stats?.whatsappGroupLink && (
+                      <a href={child.stats.whatsappGroupLink} target="_blank" rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-[9px] uppercase tracking-widest rounded-full transition-all w-fit relative z-30">
+                        💬 Join Class Chat
+                      </a>
                     )}
                   </div>
                 </div>
