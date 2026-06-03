@@ -263,15 +263,17 @@ export default function BulkRegisterPage() {
   const [batchAssignClass, setBatchAssignClass] = useState('');
   const [vaultSchools, setVaultSchools] = useState<{id: string; name: string}[]>([]);
   const [vaultClasses, setVaultClasses] = useState<{id: string; name: string; school_id: string}[]>([]);
+  const [historySchoolId, setHistorySchoolId] = useState('all');
 
   // Unified Credentials Center State
   const [unifiedResults, setUnifiedResults] = useState<any[]>([]);
   const [loadingUnified, setLoadingUnified] = useState(false);
-  const [unifiedSchoolId, setUnifiedSchoolId] = useState('');
-  const [unifiedSchoolName, setUnifiedSchoolName] = useState('');
+  const [unifiedSchoolId, setUnifiedSchoolId] = useState('all');
+  const [unifiedSchoolName, setUnifiedSchoolName] = useState('All Schools');
   const [unifiedClass, setUnifiedClass] = useState('');
   const [unifiedBatchFilter, setUnifiedBatchFilter] = useState<'all' | 'bulk' | 'single'>('all');
   const [unifiedSearchQuery, setUnifiedSearchQuery] = useState('');
+  const [dbEmailConflicts, setDbEmailConflicts] = useState<Map<string, { full_name: string; role: string }>>(new Map());
 
   const fetchUnifiedCredentials = useCallback(async (schoolId: string) => {
     if (!schoolId) {
@@ -280,11 +282,25 @@ export default function BulkRegisterPage() {
     }
     setLoadingUnified(true);
     try {
-      const { data: batches, error: batchErr } = await supabase
+      let query = supabase
         .from('registration_batches')
         .select('*')
-        .eq('school_id', schoolId)
         .order('created_at', { ascending: false });
+
+      if (schoolId === 'all') {
+        const allowedSchoolIds = schools.map(s => s.id);
+        if (allowedSchoolIds.length > 0) {
+          query = query.in('school_id', allowedSchoolIds);
+        } else {
+          setUnifiedResults([]);
+          setLoadingUnified(false);
+          return;
+        }
+      } else {
+        query = query.eq('school_id', schoolId);
+      }
+
+      const { data: batches, error: batchErr } = await query;
 
       if (batchErr) throw batchErr;
       if (!batches || batches.length === 0) {
@@ -308,7 +324,7 @@ export default function BulkRegisterPage() {
         const isSingleReg = batch?.class_name === 'Single Student Registrations';
         return {
           ...r,
-          school_id: schoolId,
+          school_id: batch?.school_id || schoolId,
           school_name: batch?.school_name || '',
           batch_name: batch?.class_name || 'General Batch',
           is_single_registration: isSingleReg,
@@ -322,7 +338,7 @@ export default function BulkRegisterPage() {
     } finally {
       setLoadingUnified(false);
     }
-  }, [supabase]);
+  }, [supabase, schools]);
 
   const uniqueUnifiedClasses = useMemo(() => {
     return [...new Set(unifiedResults.map((r: any) => r.class_name).filter(Boolean))].sort() as string[];
@@ -1243,6 +1259,103 @@ export default function BulkRegisterPage() {
     loadData().catch(console.error);
   }, [profile?.id, profile?.role, canAccess]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-fetch Unified Credentials on Tab active/Schools load ────────────────
+  useEffect(() => {
+    if (activeTab === 'unified' && schools.length > 0) {
+      fetchUnifiedCredentials(unifiedSchoolId || 'all');
+    }
+  }, [activeTab, schools, unifiedSchoolId, fetchUnifiedCredentials]);
+
+  // ── Debounced DB Duplicate Checking ──────────────────────────────────────
+  useEffect(() => {
+    if (step !== 'preview' || !selectedSchoolId || preview.length === 0) return;
+
+    const timer = setTimeout(async () => {
+      setCheckingDups(true);
+      try {
+        // Names check
+        const { data: nameData } = await supabase
+          .from('portal_users')
+          .select('full_name')
+          .eq('school_id', selectedSchoolId)
+          .eq('role', 'student')
+          .eq('is_deleted', false);
+
+        // Emails check
+        const previewEmails = preview.map(s => s.email.toLowerCase()).filter(Boolean);
+        const { data: emailData } = await supabase
+          .from('portal_users')
+          .select('email, full_name, role')
+          .in('email', previewEmails)
+          .eq('is_deleted', false);
+
+        const dupSet = new Set<string>();
+        const swapMap = new Map<string, string>();
+        if (nameData) {
+          const existingNames = new Map<string, string>(
+            nameData.map((s: any) => [s.full_name.trim().replace(/\s+/g, ' ').toLowerCase(), s.full_name.trim()])
+          );
+          for (const s of preview) {
+            const norm = s.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
+            if (!norm) continue;
+            if (existingNames.has(norm)) {
+              dupSet.add(norm);
+            } else {
+              const parts = norm.split(/\s+/);
+              if (parts.length >= 2) {
+                const reversed = [...parts].reverse().join(' ');
+                if (existingNames.has(reversed)) {
+                  swapMap.set(norm, existingNames.get(reversed)!);
+                }
+              }
+            }
+          }
+        }
+        setDbDupNames(dupSet);
+        setDbSwapNames(swapMap);
+
+        const emailConflicts = new Map<string, { full_name: string; role: string }>();
+        if (emailData) {
+          const takenEmailsMap = new Map<string, { full_name: string; role: string }>(
+            emailData.map((u: any) => [u.email.toLowerCase(), { full_name: u.full_name, role: u.role }])
+          );
+          for (const s of preview) {
+            const emailKey = s.email.toLowerCase();
+            const existingUser = takenEmailsMap.get(emailKey);
+            if (existingUser) {
+              const normExistingName = existingUser.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
+              const normIncomingName = s.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
+              
+              const isSameName = normExistingName === normIncomingName;
+              
+              let isReversedName = false;
+              const incomingParts = normIncomingName.split(/\s+/);
+              if (incomingParts.length >= 2) {
+                const reversedIncoming = [...incomingParts].reverse().join(' ');
+                if (normExistingName === reversedIncoming) {
+                  isReversedName = true;
+                }
+              }
+              
+              const nameMatches = isSameName || isReversedName;
+              if (existingUser.role !== 'student' || !nameMatches) {
+                emailConflicts.set(emailKey, { full_name: existingUser.full_name, role: existingUser.role });
+              }
+            }
+          }
+        }
+        setDbEmailConflicts(emailConflicts);
+
+      } catch (err) {
+        console.error('Error verifying duplicates:', err);
+      } finally {
+        setCheckingDups(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [preview, step, selectedSchoolId, supabase]);
+
   // ── Detect duplicate emails in the current preview ───────────────────────
   function dupEmails(rows: GeneratedStudent[]): Set<string> {
     const seen = new Map<string, number>();
@@ -1307,49 +1420,11 @@ export default function BulkRegisterPage() {
     setPreview(built);
     setDbDupNames(new Set());
     setDbSwapNames(new Map());
+    setDbEmailConflicts(new Map());
     setDupOverride(false);
     setNameSwapOverride(false);
     setStep('preview');
-
-    // ── Check DB for existing students at this school by name ────────────
-    if (selectedSchoolId) {
-      setCheckingDups(true);
-      try {
-        const { data } = await supabase
-          .from('portal_users')
-          .select('full_name')
-          .eq('school_id', selectedSchoolId)
-          .eq('role', 'student')
-          .eq('is_deleted', false);
-        if (data) {
-          const existingNames = new Map<string, string>( // normalised → original
-            data.map((s: any) => [s.full_name.trim().toLowerCase(), s.full_name.trim()])
-          );
-          const dupSet = new Set<string>();
-          const swapMap = new Map<string, string>(); // incoming normalised → existing original name
-          for (const s of built) {
-            const norm = s.full_name.trim().toLowerCase();
-            if (existingNames.has(norm)) {
-              dupSet.add(norm);
-            } else {
-              // Check reversed (swap first/last name)
-              const parts = norm.split(/\s+/);
-              if (parts.length >= 2) {
-                const reversed = [...parts].reverse().join(' ');
-                if (existingNames.has(reversed)) {
-                  swapMap.set(norm, existingNames.get(reversed)!);
-                }
-              }
-            }
-          }
-          setDbDupNames(dupSet);
-          setDbSwapNames(swapMap);
-        }
-      } catch { /* non-blocking */ } finally {
-        setCheckingDups(false);
-      }
-    }
-  }, [namesText, defaultClass, selectedSchoolId, supabase]);  
+  }, [namesText, defaultClass]);  
 
   // ── Register ─────────────────────────────────────────────────────────────
   const handleRegister = async () => {
@@ -1536,6 +1611,12 @@ export default function BulkRegisterPage() {
                 className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'vault' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 History
+              </button>
+              <button
+                onClick={() => { setActiveTab('unified'); }}
+                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'unified' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Credentials Center
               </button>
             </div>
           </div>
@@ -1885,6 +1966,22 @@ Yusuf Ibrahim SS1A`}
                       <span className="text-rose-400 font-bold">Duplicate emails — fix before registering</span>
                     </div>
                   )}
+                  {dbEmailConflicts.size > 0 && (
+                    <div className="flex flex-col gap-1.5 px-4 py-3 bg-rose-500/10 rounded-xl border border-rose-500/20 text-xs text-rose-400 w-full">
+                      <div className="flex items-center gap-2">
+                        <ExclamationTriangleIcon className="w-4 h-4" />
+                        <span className="font-bold">System Email Conflicts — the following emails are already in use by other users:</span>
+                      </div>
+                      <div className="pl-6 space-y-1 font-mono text-[10px]">
+                        {[...dbEmailConflicts.entries()].map(([email, user]) => (
+                          <div key={email}>
+                            • {email} is used by &quot;{user.full_name}&quot; ({user.role})
+                          </div>
+                        ))}
+                      </div>
+                      <span className="pl-6 text-[10px] text-rose-300/80">Please double-check or change the email address for these rows.</span>
+                    </div>
+                  )}
                   {checkingDups && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-border text-xs text-muted-foreground">
                       <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -2126,7 +2223,7 @@ Yusuf Ibrahim SS1A`}
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={handleRegister}
-                      disabled={registering || dups.size > 0 || (dbDupNames.size > 0 && !dupOverride) || (dbSwapNames.size > 0 && !nameSwapOverride) || checkingDups || validCount === 0}
+                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || (dbDupNames.size > 0 && !dupOverride) || (dbSwapNames.size > 0 && !nameSwapOverride) || checkingDups || validCount === 0}
                       className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                     >
                       {registering
@@ -2135,11 +2232,13 @@ Yusuf Ibrahim SS1A`}
                           ? 'Checking for duplicates…'
                           : dups.size > 0
                             ? 'Fix duplicate emails first'
-                            : dbDupNames.size > 0 && !dupOverride
-                              ? 'Tick the box above to confirm same-name students'
-                              : dbSwapNames.size > 0 && !nameSwapOverride
-                                ? 'Confirm the name-swap check above to continue'
-                                : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                            : dbEmailConflicts.size > 0
+                              ? 'Fix email conflicts first'
+                              : dbDupNames.size > 0 && !dupOverride
+                                ? 'Tick the box above to confirm same-name students'
+                                : dbSwapNames.size > 0 && !nameSwapOverride
+                                  ? 'Confirm the name-swap check above to continue'
+                                  : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
                     </button>
                     {registering && registerProgress && (
                       <div className="space-y-1">
@@ -2344,9 +2443,26 @@ Yusuf Ibrahim SS1A`}
                   <h2 className="text-base sm:text-xl lg:text-2xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-1 sm:mb-2">Registration History</h2>
                   <p className="text-muted-foreground text-[9px] sm:text-[10px] font-medium leading-relaxed uppercase tracking-widest hidden sm:block">A record of all student registration sessions.</p>
                 </div>
-                <div className="flex items-center gap-6 sm:gap-10 lg:pl-10">
+                <div className="flex items-center flex-wrap gap-4 sm:gap-10 lg:pl-10">
+                  <div className="min-w-[180px]">
+                    <label className="block text-muted-foreground text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <BuildingOffice2Icon className="w-3.5 h-3.5 text-primary" /> Filter by School
+                    </label>
+                    <select
+                      value={historySchoolId}
+                      onChange={(e) => setHistorySchoolId(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                    >
+                      <option value="all">🌍 All Schools</option>
+                      {schools.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="text-right">
-                    <p className="text-foreground font-black text-3xl sm:text-5xl leading-none italic">{history.length}</p>
+                    <p className="text-foreground font-black text-3xl sm:text-5xl leading-none italic">
+                      {history.filter((batch) => historySchoolId === 'all' || batch.school_id === historySchoolId).length}
+                    </p>
                     <p className="text-[7px] sm:text-[9px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-1.5 sm:mt-2">Total Sessions</p>
                   </div>
                   <button
@@ -2366,7 +2482,9 @@ Yusuf Ibrahim SS1A`}
               <div className="h-[400px] flex flex-col items-center justify-center gap-8 bg-white/[0.02] border border-border border-dashed italic text-muted-foreground uppercase tracking-[0.5em]">No registration history yet</div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-10">
-                {history.map((batch) => (
+                {history
+                  .filter((batch) => historySchoolId === 'all' || batch.school_id === historySchoolId)
+                  .map((batch) => (
                   <div key={batch.id} className="group bg-card border border-border p-3 sm:p-6 transition-all hover:bg-card/80 hover:border-primary/20 hover:shadow-latest relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-card rotate-45 translate-x-16 -translate-y-16 pointer-events-none" />
 
@@ -2777,6 +2895,7 @@ Yusuf Ibrahim SS1A`}
                     className="w-full px-3 py-2 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
                   >
                     <option value="">— Select a school —</option>
+                    <option value="all">🌍 All Schools</option>
                     {schools.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
@@ -2904,6 +3023,7 @@ Yusuf Ibrahim SS1A`}
                           <tr className="border-b border-border bg-white/[0.02] text-muted-foreground uppercase tracking-widest text-[9px] font-black text-left">
                             <th className="px-4 py-3">#</th>
                             <th className="px-4 py-3">Student ID</th>
+                            <th className="px-4 py-3">School Node</th>
                             <th className="px-4 py-3">Full Name</th>
                             <th className="px-4 py-3">Academic Tier</th>
                             <th className="px-4 py-3">System Email</th>
@@ -2919,14 +3039,45 @@ Yusuf Ibrahim SS1A`}
                               <tr key={r.id} className="hover:bg-white/[0.02] transition-colors group">
                                 <td className="px-4 py-3 text-muted-foreground font-mono">{i + 1}</td>
                                 <td className="px-4 py-3 font-mono font-black text-primary text-[10px]">{sCode}</td>
+                                <td className="px-4 py-3 font-bold text-muted-foreground truncate max-w-[150px]" title={r.school_name || '—'}>
+                                  {r.school_name || '—'}
+                                </td>
                                 <td className="px-4 py-3 font-bold text-foreground">{r.full_name}</td>
                                 <td className="px-4 py-3">
                                   <span className="px-2 py-0.5 bg-primary/10 text-primary font-mono text-[9px] uppercase tracking-wider font-bold">
                                     {r.class_name || 'GENERAL'}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 font-mono text-muted-foreground">{r.email}</td>
-                                <td className="px-4 py-3 font-mono font-bold text-amber-300">{r.password}</td>
+                                <td className="px-4 py-3 font-mono text-muted-foreground">
+                                  <div className="flex items-center gap-1.5 justify-between max-w-[200px]">
+                                    <span className="truncate">{r.email}</span>
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(r.email || '');
+                                        toast.success('Email copied!');
+                                      }}
+                                      className="p-1 opacity-0 group-hover:opacity-100 hover:bg-white/10 text-muted-foreground hover:text-foreground rounded transition-opacity"
+                                      title="Copy Email"
+                                    >
+                                      <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 font-mono font-bold text-amber-300">
+                                  <div className="flex items-center gap-1.5 justify-between max-w-[180px]">
+                                    <span>{r.password}</span>
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(r.password || '');
+                                        toast.success('Password copied!');
+                                      }}
+                                      className="p-1 opacity-0 group-hover:opacity-100 hover:bg-white/10 text-muted-foreground hover:text-foreground rounded transition-opacity"
+                                      title="Copy Password"
+                                    >
+                                      <ClipboardDocumentListIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
                                 <td className="px-4 py-3">
                                   <span className={`px-2 py-0.5 text-[8px] font-black uppercase tracking-wider ${r.is_single_registration ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'bg-primary/10 text-primary border border-primary/20'}`}>
                                     {r.is_single_registration ? 'Single' : 'Bulk'}

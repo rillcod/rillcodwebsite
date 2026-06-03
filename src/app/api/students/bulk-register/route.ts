@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     const existingByName = new Map<string, { id: string; email: string; full_name: string }>();
     const existingByReversedName = new Map<string, { id: string; email: string; full_name: string }>();
     for (const s of (existingStudents ?? [])) {
-      const norm = s.full_name.trim().toLowerCase();
+      const norm = s.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
       existingByName.set(norm, { id: s.id, email: s.email, full_name: s.full_name });
       // Build reversed version: "Ada Ngozi" → "Ngozi Ada"
       const parts = norm.split(/\s+/);
@@ -148,7 +148,45 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const nameKey = full_name.trim().toLowerCase();
+      const nameKey = full_name.trim().replace(/\s+/g, ' ').toLowerCase();
+
+      // 3. Email Check: Check if email is already in use by a different student or role
+      const emailKey = email.trim().toLowerCase();
+      const { data: userWithEmail } = await supabaseAdmin
+        .from('portal_users')
+        .select('id, full_name, role, is_deleted')
+        .eq('email', emailKey)
+        .maybeSingle();
+
+      if (userWithEmail && !userWithEmail.is_deleted) {
+        const normExistingName = userWithEmail.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
+        const normIncomingName = full_name.trim().replace(/\s+/g, ' ').toLowerCase();
+        
+        const isSameName = normExistingName === normIncomingName;
+        
+        let isReversedName = false;
+        const incomingParts = normIncomingName.split(/\s+/);
+        if (incomingParts.length >= 2) {
+          const reversedIncoming = [...incomingParts].reverse().join(' ');
+          if (normExistingName === reversedIncoming) {
+            isReversedName = true;
+          }
+        }
+
+        const nameMatches = isSameName || isReversedName;
+
+        if (userWithEmail.role !== 'student' || !nameMatches) {
+          results.push({
+            full_name,
+            email,
+            password,
+            class_name,
+            status: 'failed',
+            error: `Email ${emailKey} is already in use by another user "${userWithEmail.full_name}" (${userWithEmail.role}).`,
+          });
+          continue;
+        }
+      }
 
       // 1. Exact name match — block unless caller confirmed same name = different student
       const exactMatch = existingByName.get(nameKey);
