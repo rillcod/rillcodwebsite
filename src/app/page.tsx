@@ -72,6 +72,16 @@ export default function Home() {
     };
   }, [checked]);
 
+  useEffect(() => {
+    const isStickyVisible = showStickyBar && !isDismissed;
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent('rillcod-sticky-visible', { detail: isStickyVisible }));
+      if (isDismissed) {
+        sessionStorage.setItem("summer-school-sticky-dismissed", "true");
+      }
+    }
+  }, [showStickyBar, isDismissed]);
+
   // While checking auth, show nothing (avoids landing page flash)
   if (!checked) {
     return (
