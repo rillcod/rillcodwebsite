@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { X, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Hero, About, NigerianSTEMShowcase, Contact, Footer, ProgramExplorer } from '@/components/landing';
 import SummerSchoolPopup from '@/components/SummerSchoolPopup';
