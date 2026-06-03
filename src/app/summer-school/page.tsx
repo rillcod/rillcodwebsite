@@ -177,16 +177,17 @@ export default function SummerSchoolPage() {
           </p>
 
           {/* Quick meta grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto pt-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto pt-6">
             {[
               { label: "Start Date", val: "June 8 – 12, 2026" },
+              { label: "Deadline", val: "June 12, 2026", highlight: true },
               { label: "Ending Date", val: "August 8, 2026" },
               { label: "Duration", val: "6 Weeks Cohort" },
               { label: "Audience", val: "Ages 8 – 18" }
             ].map(m => (
-              <div key={m.label} className="bg-[#141618] border border-[#2a2d33] p-4 rounded-xl">
-                <p className="text-[9px] text-[#71717a] uppercase font-black tracking-widest">{m.label}</p>
-                <p className="text-sm font-black text-white mt-1">{m.val}</p>
+              <div key={m.label} className={`border p-4 rounded-xl transition-all ${m.highlight ? 'bg-rose-500/10 border-rose-500/30' : 'bg-[#141618] border-[#2a2d33]'}`}>
+                <p className={`text-[9px] uppercase font-black tracking-widest ${m.highlight ? 'text-rose-400' : 'text-[#71717a]'}`}>{m.label}</p>
+                <p className={`text-xs sm:text-sm font-black mt-1 ${m.highlight ? 'text-rose-400 animate-pulse' : 'text-white'}`}>{m.val}</p>
               </div>
             ))}
           </div>
@@ -318,6 +319,13 @@ export default function SummerSchoolPage() {
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-500" />
               <h3 className="text-lg font-black uppercase">Summer Registration Form</h3>
+            </div>
+            
+            <div className="bg-rose-500/10 border border-rose-500/20 px-4 py-3 rounded-xl flex items-center gap-2.5">
+              <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+              <p className="text-xs font-black text-rose-400 uppercase tracking-wider">
+                Registration Deadline: Friday, June 12, 2026. Secure your slot now.
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">

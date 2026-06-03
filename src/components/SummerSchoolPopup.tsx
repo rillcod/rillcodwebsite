@@ -105,9 +105,10 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
             An intensive programme covering coding, robotics, and AI — available online and onsite. Open to JSS1 – SS3 students.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-10">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-10">
             {[
               { icon: Calendar, text: "June 8th – 12th, 2026", sub: "Cohort Start Window" },
+              { icon: Calendar, text: "June 12th, 2026",       sub: "Registration Deadline" },
               { icon: Calendar, text: "August 8th, 2026",      sub: "Programme Ending Date" },
               { icon: MapPin,   text: "Online & Onsite",       sub: "Flexible Attendance" },
             ].map((item, i) => (
