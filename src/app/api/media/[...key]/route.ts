@@ -53,17 +53,22 @@ export async function GET(
     req: NextRequest,
     context: { params: Promise<{ key: string[] }> }
 ) {
-    const user = await resolveUser(req);
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { key } = await context.params;
     const r2Key = key.join('/');
 
     // Basic path validation — prevent directory traversal
     if (r2Key.includes('..') || r2Key.startsWith('/')) {
         return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+    }
+
+    // Determine if this is a public folder that bypasses the auth check
+    const isPublicPath = r2Key.startsWith('summer-school-receipts/');
+
+    if (!isPublicPath) {
+        const user = await resolveUser(req);
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
     }
 
     const { searchParams } = req.nextUrl;
