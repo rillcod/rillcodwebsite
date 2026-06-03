@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { X, Calendar, MapPin, Clock, Phone, Mail, Sparkles, ShieldCheck, ArrowRight, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import QRCode from "react-qr-code";
 
 interface SummerSchoolPopupProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
     additionalInfo: "",
   });
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'form' | 'qr'>('form');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -100,14 +102,14 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           </h1>
 
           <p className="max-w-xl text-muted-foreground font-medium text-sm sm:text-base leading-relaxed">
-            An intensive 6-week programme covering coding, robotics, and AI — available online and onsite. Open to JSS1 – SS3 students.
+            An intensive programme covering coding, robotics, and AI — available online and onsite. Open to JSS1 – SS3 students.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-10">
             {[
-              { icon: Calendar, text: "June 15, 2026",   sub: "JSS3 Start Date" },
-              { icon: MapPin,   text: "Online & Onsite", sub: "Flexible Attendance" },
-              { icon: Clock,    text: "6 Weeks",         sub: "Intensive Programme" },
+              { icon: Calendar, text: "June 8th – 12th, 2026", sub: "Cohort Start Window" },
+              { icon: Calendar, text: "August 8th, 2026",      sub: "Programme Ending Date" },
+              { icon: MapPin,   text: "Online & Onsite",       sub: "Flexible Attendance" },
             ].map((item, i) => (
               <div key={i} className="p-5 bg-muted/30 border border-border">
                 <item.icon className="w-4 h-4 text-primary mb-3" />
@@ -143,117 +145,157 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
             </div>
           </div>
 
-          {/* Registration Form */}
+          {/* Registration Mode Tabs */}
           <div className="bg-muted/20 border border-border p-7 sm:p-10">
-            <div className="flex items-center gap-3 mb-8">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Register Your Child</h3>
+            <div className="flex border border-border mb-8">
+              <button
+                type="button"
+                onClick={() => setActiveTab('form')}
+                className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all ${
+                  activeTab === 'form' ? 'bg-primary text-white' : 'hover:bg-muted text-muted-foreground'
+                }`}
+              >
+                ✍️ Register Online
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('qr')}
+                className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition-all ${
+                  activeTab === 'qr' ? 'bg-primary text-white' : 'hover:bg-muted text-muted-foreground'
+                }`}
+              >
+                📱 Scan QR Code
+              </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={labelCls}>Student Full Name *</label>
-                  <input type="text" name="studentName" required value={form.studentName} onChange={handleChange}
-                    className={inputCls} placeholder="Student's full name" />
+            {activeTab === 'form' ? (
+              <>
+                <div className="flex items-center gap-3 mb-8">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-black text-foreground uppercase tracking-tight">Register Your Child</h3>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className={labelCls}>Student Full Name *</label>
+                      <input type="text" name="studentName" required value={form.studentName} onChange={handleChange}
+                        className={inputCls} placeholder="Student's full name" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Parent / Guardian Name *</label>
+                      <input type="text" name="parentName" required value={form.parentName} onChange={handleChange}
+                        className={inputCls} placeholder="Parent's full name" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className={labelCls}>Parent Phone Number *</label>
+                      <input type="tel" name="phone" required value={form.phone} onChange={handleChange}
+                        className={inputCls} placeholder="+234..." />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Parent Email Address</label>
+                      <input type="email" name="email" value={form.email} onChange={handleChange}
+                        className={inputCls} placeholder="parent@example.com" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className={labelCls}>Current School (Optional)</label>
+                      <input type="text" name="school" value={form.school} onChange={handleChange}
+                        className={inputCls} placeholder="School name" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Current Grade *</label>
+                      <select name="currentClass" required value={form.currentClass} onChange={handleChange}
+                        className={inputCls + " appearance-none cursor-pointer"}>
+                        <option value="">Select Grade</option>
+                        {["JSS1","JSS2","JSS3","SS1","SS2","SS3"].map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className={labelCls}>Student Age *</label>
+                      <input type="number" name="age" required min={5} max={25} value={form.age} onChange={handleChange}
+                        className={inputCls} placeholder="Age in years" />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Gender *</label>
+                      <select name="gender" required value={form.gender} onChange={handleChange}
+                        className={inputCls + " appearance-none cursor-pointer"}>
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className={labelCls}>Preferred Attendance Mode *</label>
+                      <select name="preferredMode" required value={form.preferredMode} onChange={handleChange}
+                        className={inputCls + " appearance-none cursor-pointer"}>
+                        <option value="">Select Mode</option>
+                        <option value="Online">Online (Remote)</option>
+                        <option value="Onsite">Onsite (In-Person)</option>
+                        <option value="Hybrid">Hybrid</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>How Did You Hear About Us?</label>
+                      <select name="hearAboutUs" value={form.hearAboutUs} onChange={handleChange}
+                        className={inputCls + " appearance-none cursor-pointer"}>
+                        <option value="">Select Source</option>
+                        <option value="Social Media">Social Media</option>
+                        <option value="School / Teacher">School or Teacher</option>
+                        <option value="Friend / Family">Friend or Family</option>
+                        <option value="Website">Website</option>
+                        <option value="Flyer / Poster">Flyer or Poster</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelCls}>Additional Information (Optional)</label>
+                    <input name="additionalInfo" value={form.additionalInfo} onChange={handleChange}
+                      className={inputCls} placeholder="Any special requirements, questions, or comments" />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-3 py-5 bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                    ) : (
+                      <><CheckCircle className="w-4 h-4" /> Register for Summer School <ArrowRight className="w-4 h-4" /></>
+                    )}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-6 text-center space-y-6">
+                <div className="bg-white p-5 rounded-2xl border border-primary/20 shadow-2xl">
+                  <QRCode
+                    value={typeof window !== 'undefined' ? `${window.location.origin}/student-registration` : 'https://www.rillcod.com/student-registration'}
+                    size={200}
+                  />
                 </div>
                 <div>
-                  <label className={labelCls}>Parent / Guardian Name *</label>
-                  <input type="text" name="parentName" required value={form.parentName} onChange={handleChange}
-                    className={inputCls} placeholder="Parent's full name" />
+                  <p className="text-sm font-black text-foreground uppercase tracking-widest">Scan to Register on Mobile</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                    Open your phone's camera and point it at the code to load the Rillcod registration form instantly on your mobile device.
+                  </p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={labelCls}>Parent Phone Number *</label>
-                  <input type="tel" name="phone" required value={form.phone} onChange={handleChange}
-                    className={inputCls} placeholder="+234..." />
-                </div>
-                <div>
-                  <label className={labelCls}>Parent Email Address</label>
-                  <input type="email" name="email" value={form.email} onChange={handleChange}
-                    className={inputCls} placeholder="parent@example.com" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={labelCls}>Current School (Optional)</label>
-                  <input type="text" name="school" value={form.school} onChange={handleChange}
-                    className={inputCls} placeholder="School name" />
-                </div>
-                <div>
-                  <label className={labelCls}>Current Grade *</label>
-                  <select name="currentClass" required value={form.currentClass} onChange={handleChange}
-                    className={inputCls + " appearance-none cursor-pointer"}>
-                    <option value="">Select Grade</option>
-                    {["JSS1","JSS2","JSS3","SS1","SS2","SS3"].map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={labelCls}>Student Age *</label>
-                  <input type="number" name="age" required min={5} max={25} value={form.age} onChange={handleChange}
-                    className={inputCls} placeholder="Age in years" />
-                </div>
-                <div>
-                  <label className={labelCls}>Gender *</label>
-                  <select name="gender" required value={form.gender} onChange={handleChange}
-                    className={inputCls + " appearance-none cursor-pointer"}>
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className={labelCls}>Preferred Attendance Mode *</label>
-                  <select name="preferredMode" required value={form.preferredMode} onChange={handleChange}
-                    className={inputCls + " appearance-none cursor-pointer"}>
-                    <option value="">Select Mode</option>
-                    <option value="Online">Online (Remote)</option>
-                    <option value="Onsite">Onsite (In-Person)</option>
-                    <option value="Hybrid">Hybrid</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>How Did You Hear About Us?</label>
-                  <select name="hearAboutUs" value={form.hearAboutUs} onChange={handleChange}
-                    className={inputCls + " appearance-none cursor-pointer"}>
-                    <option value="">Select Source</option>
-                    <option value="Social Media">Social Media</option>
-                    <option value="School / Teacher">School or Teacher</option>
-                    <option value="Friend / Family">Friend or Family</option>
-                    <option value="Website">Website</option>
-                    <option value="Flyer / Poster">Flyer or Poster</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className={labelCls}>Additional Information (Optional)</label>
-                <input name="additionalInfo" value={form.additionalInfo} onChange={handleChange}
-                  className={inputCls} placeholder="Any special requirements, questions, or comments" />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-5 bg-primary text-primary-foreground font-black text-sm uppercase tracking-widest hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
-              >
-                {loading ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                ) : (
-                  <><CheckCircle className="w-4 h-4" /> Register for Summer School <ArrowRight className="w-4 h-4" /></>
-                )}
-              </button>
-            </form>
+            )}
           </div>
 
           {/* Contact */}

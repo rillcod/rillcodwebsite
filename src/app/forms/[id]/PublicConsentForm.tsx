@@ -402,11 +402,17 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
             
             {/* Cal.com embedded iframe */}
             <div className="border border-[#2a2d33] rounded-xl overflow-hidden bg-black/40 h-[480px]">
-              <iframe
-                src="https://cal.com/rillcod/assessment-consultation?embed=true"
-                style={{ width: '100%', height: '100%', border: 'none' }}
-                title="Schedule consultation"
-              />
+              {(() => {
+                const baseUrl = process.env.NEXT_PUBLIC_CAL_COM_URL || 'https://cal.com/rillcod/assessment-consultation';
+                const embedUrl = baseUrl.includes('?') ? `${baseUrl}&embed=true` : `${baseUrl}?embed=true`;
+                return (
+                  <iframe
+                    src={embedUrl}
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                    title="Schedule consultation"
+                  />
+                );
+              })()}
             </div>
           </div>
         )}

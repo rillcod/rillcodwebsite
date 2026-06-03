@@ -105,13 +105,12 @@ export default function Programs() {
                   Accelerate Your Tech Journey This Summer!
                 </h2>
                 <p className="text-sm sm:text-base mb-6 text-muted-foreground font-medium italic">
-                  Intensive programs for JSS3 students starting <strong>June 15th, 2026</strong> and other
-                  classes from <strong>July 25th, 2026</strong>. Both online and onsite options available.
+                  Intensive programs starting between <strong>June 8th – 12th, 2026</strong> and running through <strong>August 8th, 2026</strong>. Both online and onsite options available.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   {[
-                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "JSS3: June 15th 2026 - 6 weeks" },
-                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Others: July 25th 2026 - 4 weeks" },
+                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Start Window: June 8th – 12th, 2026" },
+                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Ending Date: August 8th, 2026" },
                     { icon: <MapPin className="w-4 h-4 text-yellow-500" />,   text: "Online & Onsite available" },
                     { icon: <Users className="w-4 h-4 text-yellow-500" />,    text: "Small class sizes (8–15 students)" },
                   ].map((item, i) => (
@@ -120,12 +119,12 @@ export default function Programs() {
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => setShowSummerSchoolPopup(true)}
-                  className="w-full sm:w-auto bg-yellow-500 text-white px-10 py-5 rounded-none font-black text-xs uppercase tracking-[0.4em] hover:bg-yellow-600 transition-all shadow-xl shadow-yellow-500/20"
+                <Link
+                  href="/summer-school"
+                  className="inline-flex items-center justify-center w-full sm:w-auto bg-yellow-500 text-white px-10 py-5 rounded-none font-black text-xs uppercase tracking-[0.4em] hover:bg-yellow-600 transition-all shadow-xl shadow-yellow-500/20 text-center"
                 >
                   Register Now
-                </button>
+                </Link>
               </div>
               <div className="flex-shrink-0 hidden lg:block">
                 <div className="w-32 h-32 bg-background border border-border rounded-none flex items-center justify-center shadow-sm">

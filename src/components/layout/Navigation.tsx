@@ -19,6 +19,7 @@ type NavIcon = React.ComponentType<{ className?: string }>;
 /* ─── Nav data ─────────────────────────────────────────────── */
 const mainLinks = [
   { href: '/', label: 'Home', icon: HomeIcon },
+  { href: '/summer-school', label: '☀️ Summer School', icon: BookOpenIcon },
   { href: '/programs', label: 'Programs', icon: BookOpenIcon },
   { href: '/curriculum', label: 'Curriculum', icon: AcademicCapIcon },
   { href: '/about', label: 'About', icon: InformationCircleIcon },

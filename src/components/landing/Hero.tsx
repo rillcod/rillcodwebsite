@@ -29,12 +29,15 @@ const Hero: React.FC = () => {
           
           {/* LEFT: Copy */}
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-card border border-border backdrop-blur-sm mb-6 rounded-xl">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-                STEM Excellence Nigeria
+            <Link
+              href="/summer-school"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500/10 to-emerald-500/10 hover:from-amber-500/20 hover:to-emerald-500/20 border border-amber-500/30 hover:border-amber-500/60 backdrop-blur-sm mb-6 rounded-2xl transition-all text-left"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                ☀️ Summer School 2026 is Active (June 8-12 to Aug 8) <span className="text-white font-bold ml-1 hover:underline">Register &amp; Scan →</span>
               </span>
-            </div>
+            </Link>
 
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-foreground leading-[1.1] tracking-tight mb-6 uppercase">
               Empowering <br className="hidden sm:block" />
