@@ -63,6 +63,22 @@ export class StorageService {
         if (error) throw error;
         return data.signedUrl;
     }
+
+    async deleteFile(bucket: string, key: string): Promise<void> {
+        if (this.s3 && env.R2_BUCKET_NAME) {
+            const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+            const fullKey = key.includes('/') ? key : `${bucket}/${key}`;
+            await this.s3.send(new DeleteObjectCommand({
+                Bucket: env.R2_BUCKET_NAME,
+                Key: fullKey,
+            }));
+            return;
+        }
+
+        // Fallback to Supabase Storage
+        const supabase = await createClient();
+        await supabase.storage.from(bucket).remove([key]);
+    }
 }
 
 export const storageService = new StorageService();

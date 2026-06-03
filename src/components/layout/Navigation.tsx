@@ -57,6 +57,16 @@ const Navigation = () => {
 
   useEffect(() => { setIsOpen(false); }, [pathname]);
 
+  useEffect(() => {
+    const handleCloseMenu = () => {
+      setIsOpen(false);
+    };
+    window.addEventListener('rillcod-open-summer-school-popup', handleCloseMenu);
+    return () => {
+      window.removeEventListener('rillcod-open-summer-school-popup', handleCloseMenu);
+    };
+  }, []);
+
   const isHiddenRoute =
     pathname?.startsWith('/dashboard') ||
     pathname?.startsWith('/login') ||

@@ -35,6 +35,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "File must be under 5MB" }, { status: 400 });
     }
 
+    const previousUrl = formData.get("previousUrl");
+    if (typeof previousUrl === "string" && previousUrl.startsWith("http")) {
+      const parts = previousUrl.split("/");
+      const lastPart = parts[parts.length - 1];
+      if (lastPart) {
+        try {
+          if (env.R2_BUCKET_NAME) {
+            await storageService.deleteFile("summer-school-receipts", lastPart);
+          } else {
+            const supabase = getSummerSchoolAdminClient();
+            await supabase.storage
+              .from("portfolio-images")
+              .remove([`summer-school-receipts/${lastPart}`]);
+          }
+        } catch (deleteErr) {
+          console.error("Failed to delete previous receipt:", deleteErr);
+        }
+      }
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "") || "jpg";
     const filename = `receipt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -64,6 +84,38 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Upload failed";
     console.error("Summer school receipt route error:", err);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const url = searchParams.get("url");
+
+    if (!url || !url.startsWith("http")) {
+      return NextResponse.json({ error: "Invalid URL provided" }, { status: 400 });
+    }
+
+    const parts = url.split("/");
+    const lastPart = parts[parts.length - 1];
+    if (!lastPart) {
+      return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
+    }
+
+    if (env.R2_BUCKET_NAME) {
+      await storageService.deleteFile("summer-school-receipts", lastPart);
+    } else {
+      const supabase = getSummerSchoolAdminClient();
+      await supabase.storage
+        .from("portfolio-images")
+        .remove([`summer-school-receipts/${lastPart}`]);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Delete failed";
+    console.error("Summer school receipt delete error:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

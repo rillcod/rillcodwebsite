@@ -21,7 +21,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
     form, setForm, loading, bankAccounts, isSuccess, setIsSuccess, successInfo,
     attempted, setAttempted, emailHint, setEmailHint, schoolsList, focusedSchoolIdx, setFocusedSchoolIdx,
     uploadingReceipt, restored, whatsappGroupLink, tuition, handleChange, handlePhoneBlur,
-    handleStudentPhoneBlur, handleEmailBlur, handleReceiptUpload, handleSubmit, resetForm, clearDraft,
+    handleStudentPhoneBlur, handleEmailBlur, handleReceiptUpload, handleReceiptRemove, handleSubmit, resetForm, clearDraft,
   } = reg;
 
   const [activeTab, setActiveTab] = useState<'form' | 'qr'>('form');
@@ -551,14 +551,33 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                   </label>
                                 </div>
                                 {form.paymentReference.startsWith('http') && (
-                                  <a
-                                    href={form.paymentReference}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[10px] font-black uppercase text-primary hover:underline"
-                                  >
-                                    View Receipt
-                                  </a>
+                                  <div className="mt-3 p-3 bg-background rounded-xl border border-border space-y-2 relative group overflow-hidden w-full text-xs">
+                                    <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest leading-none mb-1">Receipt Screenshot Preview</p>
+                                    <div className="relative aspect-video max-w-[240px] rounded-lg overflow-hidden border border-border/80 bg-muted/20">
+                                      <img
+                                        src={form.paymentReference}
+                                        alt="Receipt Screenshot"
+                                        className="w-full h-full object-contain"
+                                      />
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={handleReceiptRemove}
+                                        className="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[9px] font-black uppercase tracking-wider rounded-lg border border-rose-500/20 transition-colors cursor-pointer"
+                                      >
+                                        Remove Receipt
+                                      </button>
+                                      <a
+                                        href={form.paymentReference}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-2 py-1.5 bg-muted hover:bg-muted/80 text-foreground text-[9px] font-black uppercase tracking-wider rounded-lg border border-border transition-colors text-center"
+                                      >
+                                        View Full Size
+                                      </a>
+                                    </div>
+                                  </div>
                                 )}
                               </div>
                               {attempted && !form.paymentReference.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Reference name is required</p>}

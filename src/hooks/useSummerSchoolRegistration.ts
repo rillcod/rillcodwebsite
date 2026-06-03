@@ -185,6 +185,9 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
     try {
       const body = new FormData();
       body.append("file", file);
+      if (form.paymentReference && form.paymentReference.startsWith("http")) {
+        body.append("previousUrl", form.paymentReference);
+      }
       const res = await fetch("/api/summer-school/receipt", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
@@ -194,6 +197,26 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
       toast.error(err instanceof Error ? err.message : "Failed to upload receipt.", { id: toastId });
     } finally {
       setUploadingReceipt(false);
+    }
+  };
+
+  const handleReceiptRemove = async () => {
+    if (!form.paymentReference || !form.paymentReference.startsWith("http")) return;
+
+    const toastId = toast.loading("Removing receipt screenshot...");
+    try {
+      const res = await fetch(`/api/summer-school/receipt?url=${encodeURIComponent(form.paymentReference)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to remove file from storage");
+
+      setForm((prev) => ({ ...prev, paymentReference: "" }));
+      toast.success("Receipt screenshot removed successfully!", { id: toastId });
+    } catch (err: unknown) {
+      console.error("Receipt remove error:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to remove receipt from storage.", { id: toastId });
+      setForm((prev) => ({ ...prev, paymentReference: "" }));
     }
   };
 
@@ -293,6 +316,7 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
     handleStudentPhoneBlur,
     handleEmailBlur,
     handleReceiptUpload,
+    handleReceiptRemove,
     handleSubmit,
     resetForm,
     clearDraft,

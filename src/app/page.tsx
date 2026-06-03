@@ -44,6 +44,39 @@ export default function Home() {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (!checked) return;
+
+    const handleOpenPopup = () => {
+      setShowPopup(true);
+    };
+    window.addEventListener('rillcod-open-summer-school-popup', handleOpenPopup);
+
+    const handleGlobalClick = (e: MouseEvent) => {
+      // Ignore if not a left click or if modifier keys are pressed
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+        return;
+      }
+
+      let target = e.target as HTMLElement | null;
+      while (target && target !== document.body) {
+        if (target.tagName === 'A' && (target as HTMLAnchorElement).getAttribute('href') === '/summer-school') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('rillcod-open-summer-school-popup'));
+          break;
+        }
+        target = target.parentElement;
+      }
+    };
+
+    document.addEventListener('click', handleGlobalClick);
+
+    return () => {
+      window.removeEventListener('rillcod-open-summer-school-popup', handleOpenPopup);
+      document.removeEventListener('click', handleGlobalClick);
+    };
+  }, [checked]);
+
   // While checking auth, show nothing (avoids landing page flash)
   if (!checked) {
     return (
