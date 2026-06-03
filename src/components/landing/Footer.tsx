@@ -23,7 +23,7 @@ const quickLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-card text-foreground relative overflow-hidden border-t border-border mt-auto font-sans">
+    <footer className="bg-card text-foreground relative overflow-hidden border-t border-border mt-auto font-sans no-print">
       {/* Sharp Accent Line */}
       <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-red-600 via-primary to-transparent" />
 

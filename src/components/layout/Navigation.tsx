@@ -89,7 +89,7 @@ const Navigation = () => {
     <>
       <nav
         suppressHydrationWarning
-        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 border-b ${
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 border-b no-print ${
           isScrolled
             ? 'bg-background/95 backdrop-blur-md border-border shadow-2xl py-2'
             : 'bg-background/95 backdrop-blur-sm border-border py-4'

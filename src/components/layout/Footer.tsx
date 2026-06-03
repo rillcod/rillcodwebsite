@@ -73,7 +73,7 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-background text-foreground border-t border-border py-24 relative overflow-hidden">
+    <footer className="bg-background text-foreground border-t border-border py-24 relative overflow-hidden no-print">
       <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-primary/5 blur-[100px] pointer-events-none" />
 

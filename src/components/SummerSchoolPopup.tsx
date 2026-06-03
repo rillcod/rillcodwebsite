@@ -87,13 +87,13 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
         <button
           onClick={handleClose}
-          className="absolute top-5 right-5 p-2.5 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-all z-20 cursor-pointer"
+          className="absolute top-5 right-5 p-2.5 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-all z-20 cursor-pointer no-print"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Header */}
-        <div className="relative p-8 sm:p-12 border-b border-border">
+        <div className="relative p-8 sm:p-12 border-b border-border no-print">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] pointer-events-none" />
 
           <div className="flex items-center gap-3 mb-6">
@@ -134,7 +134,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
         <div className="p-8 sm:p-12 space-y-10">
           {/* Restored draft banner */}
           {restored && !isSuccess && (
-            <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-xs">
+            <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 text-xs no-print">
               <p className="text-primary font-bold">Your previous draft has been restored.</p>
               <button
                 type="button"
@@ -147,7 +147,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           )}
 
           {/* Programme Highlights */}
-          <div>
+          <div className="no-print">
             <h3 className="text-xs font-black text-muted-foreground uppercase tracking-widest mb-5 flex items-center gap-3">
               <div className="w-6 h-px bg-primary" />
               Programme Highlights
@@ -661,7 +661,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
           </div>
 
           {/* Contact */}
-          <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold">
+          <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold no-print">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-foreground">
                 <Phone className="w-3.5 h-3.5 text-primary" />

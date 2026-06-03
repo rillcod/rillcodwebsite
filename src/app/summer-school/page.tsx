@@ -171,14 +171,14 @@ export default function SummerSchoolPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground pt-24 pb-16 relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden no-print">
         <div className="absolute top-20 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px]" />
         <div className="absolute top-[800px] left-0 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px]" />
       </div>
 
       <div className="max-w-6xl mx-auto px-6 relative z-10 space-y-16">
         {/* Hero Section */}
-        <section className="text-center space-y-6 py-8">
+        <section className="text-center space-y-6 py-8 no-print">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 rounded-full text-[10px] font-black uppercase tracking-widest">
             ☀️ Active Season: Summer 2026
           </div>
@@ -210,7 +210,7 @@ export default function SummerSchoolPage() {
 
         {/* Restored draft banner */}
         {restored && !isSuccess && (
-          <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 max-w-4xl mx-auto">
+          <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 max-w-4xl mx-auto no-print">
             <p className="text-xs text-primary font-bold">Your previous summer school draft has been loaded.</p>
             <button
               type="button"
@@ -223,7 +223,7 @@ export default function SummerSchoolPage() {
         )}
 
         {/* Tracks Overview */}
-        <section className="space-y-8">
+        <section className="space-y-8 no-print">
           <div className="text-center space-y-2">
             <h2 className="text-2xl sm:text-4xl font-black uppercase">Unified All-In-One Curriculum</h2>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
@@ -262,7 +262,7 @@ export default function SummerSchoolPage() {
         </section>
 
         {/* Bonus Video Module */}
-        <section className="bg-gradient-to-r from-amber-500/5 to-emerald-500/5 border border-amber-500/20 rounded-3xl p-6 sm:p-10 space-y-6">
+        <section className="bg-gradient-to-r from-amber-500/5 to-emerald-500/5 border border-amber-500/20 rounded-3xl p-6 sm:p-10 space-y-6 no-print">
           <div className="flex items-center gap-3">
             <span className="text-3xl">🎬</span>
             <div>
@@ -288,7 +288,7 @@ export default function SummerSchoolPage() {
         </section>
 
         {/* Schedule */}
-        <section className="space-y-8">
+        <section className="space-y-8 no-print">
           <div className="text-center space-y-2">
             <h2 className="text-2xl sm:text-4xl font-black uppercase">Weekly Curriculum</h2>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
@@ -315,7 +315,7 @@ export default function SummerSchoolPage() {
         </section>
 
         {/* Outcomes */}
-        <section className="space-y-8">
+        <section className="space-y-8 no-print">
           <div className="text-center space-y-2">
             <h2 className="text-2xl sm:text-4xl font-black uppercase">Expected Outcomes</h2>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
@@ -779,7 +779,7 @@ export default function SummerSchoolPage() {
           )}
 
           {/* QR Code Scan Card */}
-          <div className="bg-card border border-border p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-6 shadow-2xl h-full lg:sticky lg:top-24 overflow-hidden relative">
+          <div className="bg-card border border-border p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-6 shadow-2xl h-full lg:sticky lg:top-24 overflow-hidden relative no-print">
             <style>{`
               @keyframes rillcodScan {
                 0% { transform: translateY(0); opacity: 0.3; }
