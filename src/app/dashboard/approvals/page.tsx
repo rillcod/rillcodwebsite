@@ -5,12 +5,42 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import {
     ClipboardDocumentCheckIcon, CheckCircleIcon, XCircleIcon,
     ClockIcon, BuildingOfficeIcon, AcademicCapIcon,
     EnvelopeIcon, PhoneIcon, UserGroupIcon, ExclamationTriangleIcon,
     SunIcon, UserPlusIcon, ShieldCheckIcon,
 } from '@/lib/icons';
+
+function parseProspectNotes(notes: string | null) {
+    if (!notes) {
+        return { studentPhone: null, plan: null, method: null, receiptUrl: null, trackChoice: null, cleanNotes: '' };
+    }
+    
+    const phoneMatch = notes.match(/\[Student Phone:\s*([^\]]+)\]/);
+    const planMatch = notes.match(/\[Plan:\s*([^\]]+)\]/);
+    const methodMatch = notes.match(/\[Method:\s*([^\]]+)\]/);
+    const refMatch = notes.match(/\[Ref:\s*([^\]]+)\]/);
+    const trackMatch = notes.match(/\[Track Choice:\s*([^\]]+)\]/);
+    
+    let cleanNotes = notes
+        .replace(/\[Student Phone:\s*([^\]]+)\]/g, '')
+        .replace(/\[Plan:\s*([^\]]+)\]/g, '')
+        .replace(/\[Method:\s*([^\]]+)\]/g, '')
+        .replace(/\[Ref:\s*([^\]]+)\]/g, '')
+        .replace(/\[Track Choice:[^\]]+\]/g, '')
+        .trim();
+        
+    return {
+        studentPhone: phoneMatch ? phoneMatch[1].trim() : null,
+        plan: planMatch ? planMatch[1].trim() : null,
+        method: methodMatch ? methodMatch[1].trim() : null,
+        receiptUrl: refMatch ? refMatch[1].trim() : null,
+        trackChoice: trackMatch ? trackMatch[1].trim() : null,
+        cleanNotes: cleanNotes
+    };
+}
 
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, string> = {
@@ -317,8 +347,21 @@ export default function ApprovalsPage() {
                                                 <EnrollTypeBadge type={s.enrollment_type} />
                                             </div>
                                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
-                                                {s.parent_email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.parent_email}</span>}
-                                                {s.parent_phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{s.parent_phone}</span>}
+                                                {s.parent_email && (
+                                                    <span className="flex items-center gap-1 bg-muted/40 px-2 py-0.5 rounded border border-border/50">
+                                                        <EnvelopeIcon className="w-3.5 h-3.5 text-primary" />
+                                                        <a href={`mailto:${s.parent_email}`} className="hover:text-primary hover:underline transition-colors block truncate max-w-[180px]">{s.parent_email}</a>
+                                                        <button onClick={() => { navigator.clipboard.writeText(s.parent_email); toast.success('Email copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1 rounded bg-background">Copy</button>
+                                                    </span>
+                                                )}
+                                                {s.parent_phone && (
+                                                    <span className="flex items-center gap-1 bg-muted/40 px-2 py-0.5 rounded border border-border/50">
+                                                        <PhoneIcon className="w-3.5 h-3.5 text-primary" />
+                                                        <a href={`tel:${s.parent_phone}`} className="hover:text-primary hover:underline transition-colors font-semibold">{s.parent_phone}</a>
+                                                        <a href={`https://wa.me/${s.parent_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-bold ml-1" title="WhatsApp Chat">WA</a>
+                                                        <button onClick={() => { navigator.clipboard.writeText(s.parent_phone); toast.success('Phone copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1 rounded bg-background">Copy</button>
+                                                    </span>
+                                                )}
                                                 {s.school_name && <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3.5 h-3.5" />{s.school_name}{s.school_id ? <span className="text-emerald-500/60 ml-0.5">✓</span> : <span className="text-amber-400/70 ml-0.5" title="No school ID resolved">!</span>}</span>}
                                                 {s.current_class && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />Class: {s.current_class}</span>}
                                             </div>
@@ -363,8 +406,21 @@ export default function ApprovalsPage() {
                                                 )}
                                             </div>
                                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
-                                                {s.email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.email}</span>}
-                                                {s.phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{s.phone}</span>}
+                                                {s.email && (
+                                                    <span className="flex items-center gap-1 bg-muted/40 px-2 py-0.5 rounded border border-border/50">
+                                                        <EnvelopeIcon className="w-3.5 h-3.5 text-primary" />
+                                                        <a href={`mailto:${s.email}`} className="hover:text-primary hover:underline transition-colors block truncate max-w-[180px]">{s.email}</a>
+                                                        <button onClick={() => { navigator.clipboard.writeText(s.email); toast.success('Email copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1 rounded bg-background">Copy</button>
+                                                    </span>
+                                                )}
+                                                {s.phone && (
+                                                    <span className="flex items-center gap-1 bg-muted/40 px-2 py-0.5 rounded border border-border/50">
+                                                        <PhoneIcon className="w-3.5 h-3.5 text-primary" />
+                                                        <a href={`tel:${s.phone}`} className="hover:text-primary hover:underline transition-colors font-semibold">{s.phone}</a>
+                                                        <a href={`https://wa.me/${s.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-bold ml-1" title="WhatsApp Chat">WA</a>
+                                                        <button onClick={() => { navigator.clipboard.writeText(s.phone); toast.success('Phone copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1 rounded bg-background">Copy</button>
+                                                    </span>
+                                                )}
                                                 {s.city && <span>{s.city}{s.state ? `, ${s.state}` : ''}</span>}
                                                 {s.principal_name && <span className="flex items-center gap-1"><UserGroupIcon className="w-3.5 h-3.5" />Principal: {s.principal_name}</span>}
                                                 {s.student_count && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />{Number(s.student_count).toLocaleString()} students</span>}
@@ -432,43 +488,159 @@ export default function ApprovalsPage() {
                             </div>
                         </div>
                         <div className="divide-y divide-border">
-                            {prospective.map(s => (
-                                <div key={s.id} className="p-5 hover:bg-card shadow-sm transition-colors">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary flex items-center justify-center text-sm font-black text-foreground flex-shrink-0">
-                                            {(s.full_name ?? '?')[0]}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                                                <p className="font-bold text-foreground">{s.full_name}</p>
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/20 text-amber-400 border-amber-500/30">
-                                                    Summer Applicant
-                                                </span>
-                                                {s.status && <StatusBadge status={s.status} />}
+                            {prospective.map(s => {
+                                const parsed = parseProspectNotes(s.notes);
+                                return (
+                                    <div key={s.id} className="p-6 hover:bg-muted/10 transition-colors">
+                                        <div className="flex flex-col lg:flex-row items-start gap-6">
+                                            {/* Left Column: Avatar & Core Information */}
+                                            <div className="flex-1 min-w-0 space-y-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-12 h-12 bg-gradient-to-br from-amber-500/20 to-amber-600/30 border border-amber-500/20 rounded-xl flex items-center justify-center text-base font-black text-amber-400 flex-shrink-0 shadow-inner">
+                                                        {(s.full_name ?? '?')[0].toUpperCase()}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <p className="font-bold text-base text-foreground truncate">{s.full_name}</p>
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                                                Summer Applicant
+                                                            </span>
+                                                            {s.status && <StatusBadge status={s.status} />}
+                                                        </div>
+                                                        {s.parent_name && (
+                                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                                Parent/Guardian: <span className="font-semibold text-foreground">{s.parent_name}</span>
+                                                            </p>
+                                                        )}
+                                                        <p className="text-[10px] text-muted-foreground mt-1">Applied {new Date(s.created_at).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Grid: Student Application Parameters */}
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 bg-muted/20 p-4 rounded-xl border border-border/50">
+                                                    <div>
+                                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-extrabold">Age / Gender</p>
+                                                        <p className="text-xs font-bold text-foreground mt-0.5">
+                                                            {s.age ? `${s.age} yrs` : 'Not specified'} / <span className="capitalize">{s.gender || 'Not specified'}</span>
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-extrabold">Class / Grade</p>
+                                                        <p className="text-xs font-bold text-foreground mt-0.5">{s.grade || 'Not specified'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-extrabold">Preferred Mode</p>
+                                                        <p className="text-xs font-bold text-foreground mt-0.5 capitalize">{s.preferred_schedule || 'Not specified'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-extrabold">School</p>
+                                                        <p className="text-xs font-bold text-foreground mt-0.5 truncate" title={s.school_name}>{s.school_name || 'Not specified'}</p>
+                                                    </div>
+                                                    {parsed.trackChoice && (
+                                                        <div className="col-span-2 sm:col-span-3 md:col-span-4 border-t border-border/40 pt-2 mt-1">
+                                                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-extrabold">Track Choice</p>
+                                                            <p className="text-xs font-bold text-primary mt-0.5">{parsed.trackChoice}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Actionable Contacts */}
+                                                <div className="flex flex-wrap gap-2.5">
+                                                    {s.parent_email && (
+                                                        <span className="inline-flex items-center gap-1.5 bg-muted/40 px-2.5 py-1 rounded-lg border border-border/50 text-xs text-muted-foreground">
+                                                            <EnvelopeIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                                            <span className="font-medium">Parent:</span>
+                                                            <a href={`mailto:${s.parent_email}`} className="hover:text-primary hover:underline transition-colors block truncate max-w-[160px] font-bold text-foreground">{s.parent_email}</a>
+                                                            <button onClick={() => { navigator.clipboard.writeText(s.parent_email); toast.success('Parent email copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1.5 py-0.5 rounded bg-background transition-colors">Copy</button>
+                                                        </span>
+                                                    )}
+                                                    {s.parent_phone && (
+                                                        <span className="inline-flex items-center gap-1.5 bg-muted/40 px-2.5 py-1 rounded-lg border border-border/50 text-xs text-muted-foreground">
+                                                            <PhoneIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                                            <span className="font-medium">Parent Phone:</span>
+                                                            <a href={`tel:${s.parent_phone}`} className="hover:text-primary hover:underline transition-colors font-bold text-foreground">{s.parent_phone}</a>
+                                                            <a href={`https://wa.me/${s.parent_phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-extrabold ml-1.5" title="WhatsApp Chat">WA</a>
+                                                            <button onClick={() => { navigator.clipboard.writeText(s.parent_phone); toast.success('Parent phone copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1.5 py-0.5 rounded bg-background transition-colors">Copy</button>
+                                                        </span>
+                                                    )}
+                                                    {parsed.studentPhone && (
+                                                        <span className="inline-flex items-center gap-1.5 bg-muted/40 px-2.5 py-1 rounded-lg border border-border/50 text-xs text-muted-foreground">
+                                                            <PhoneIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                                            <span className="font-medium">Student Phone:</span>
+                                                            <a href={`tel:${parsed.studentPhone}`} className="hover:text-primary hover:underline transition-colors font-bold text-foreground">{parsed.studentPhone}</a>
+                                                            <a href={`https://wa.me/${parsed.studentPhone!.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:text-emerald-400 font-extrabold ml-1.5" title="WhatsApp Chat">WA</a>
+                                                            <button onClick={() => { navigator.clipboard.writeText(parsed.studentPhone!); toast.success('Student phone copied!'); }} className="text-[9px] font-black text-muted-foreground hover:text-foreground uppercase tracking-widest ml-1 border border-border/60 px-1.5 py-0.5 rounded bg-background transition-colors">Copy</button>
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Structured Payment Info & Receipt Preview */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border/40 pt-4 mt-2">
+                                                    <div className="bg-card shadow-sm border border-border/50 rounded-xl p-3.5 space-y-1.5">
+                                                        <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest">Payment Meta</h4>
+                                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                                            <div>
+                                                                <span className="text-muted-foreground block text-[10px] uppercase">Plan</span>
+                                                                <span className="font-bold text-foreground capitalize">{parsed.plan || 'Not specified'}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-muted-foreground block text-[10px] uppercase">Method</span>
+                                                                <span className="font-bold text-foreground capitalize">{parsed.method || 'Not specified'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {parsed.receiptUrl && (
+                                                        <div className="space-y-1.5">
+                                                            <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest">Receipt Upload</h4>
+                                                            <div className="flex flex-wrap items-center gap-3">
+                                                                <a href={parsed.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-lg border border-amber-500/20 transition-all">
+                                                                    View Receipt Screenshot →
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Inline Receipt Preview Image */}
+                                                {parsed.receiptUrl && (
+                                                    <div className="mt-3 bg-muted/10 p-2.5 rounded-xl border border-border/40 max-w-sm">
+                                                        <p className="text-[10px] font-bold text-muted-foreground mb-1.5 uppercase tracking-wider">Receipt Thumbnail Preview</p>
+                                                        <div className="relative group max-w-full rounded-lg overflow-hidden border border-border bg-black/20 flex items-center justify-center">
+                                                            <img 
+                                                                src={parsed.receiptUrl} 
+                                                                alt="Payment Receipt" 
+                                                                className="max-h-48 w-auto object-contain rounded transition-transform group-hover:scale-105"
+                                                                onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Parent Notes / Message */}
+                                                {parsed.cleanNotes && (
+                                                    <div className="bg-card shadow-sm border border-border/50 rounded-xl p-3.5 space-y-1">
+                                                        <span className="text-[10px] font-extrabold text-primary uppercase tracking-widest block">Parent Note / Message</span>
+                                                        <p className="text-xs text-foreground italic">"{parsed.cleanNotes}"</p>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
-                                                {s.parent_email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.parent_email}</span>}
-                                                {s.parent_phone && <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5" />{s.parent_phone}</span>}
-                                                {s.school_name && <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3.5 h-3.5" />{s.school_name}</span>}
-                                                {s.grade && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />Grade: {s.grade}</span>}
+
+                                            {/* Right Column: Actions (Approve/Reject) */}
+                                            <div className="flex lg:flex-col gap-2 w-full lg:w-auto flex-shrink-0 self-stretch justify-end lg:justify-start pt-2">
+                                                <button onClick={() => handleProspective(s.id, 'approved')} disabled={acting === s.id || s.status === 'unpaid'}
+                                                    title={s.status === 'unpaid' ? 'Applicant has not completed Paystack checkout' : undefined}
+                                                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full lg:w-32 shadow-sm border border-emerald-500/20">
+                                                    <CheckCircleIcon className="w-4 h-4" /> Approve
+                                                </button>
+                                                <button onClick={() => handleProspective(s.id, 'rejected')} disabled={acting === s.id}
+                                                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-32 shadow-sm border border-rose-500/20">
+                                                    <XCircleIcon className="w-4 h-4" /> Reject
+                                                </button>
                                             </div>
-                                            {s.notes && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">Notes: {s.notes}</p>}
-                                            <p className="text-xs text-muted-foreground mt-1">Applied {new Date(s.created_at).toLocaleDateString()}</p>
-                                        </div>
-                                        <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
-                                            <button onClick={() => handleProspective(s.id, 'approved')} disabled={acting === s.id || s.status === 'unpaid'}
-                                                title={s.status === 'unpaid' ? 'Applicant has not completed Paystack checkout' : undefined}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                                                <CheckCircleIcon className="w-4 h-4" /> Approve
-                                            </button>
-                                            <button onClick={() => handleProspective(s.id, 'rejected')} disabled={acting === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
-                                                <XCircleIcon className="w-4 h-4" /> Reject
-                                            </button>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 )}
