@@ -223,6 +223,163 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                     .eq('id', transaction.id);
             }
         }
+    } else if (gatewayResponse?.payment_type === 'summer_school') {
+        const prospectId = gatewayResponse?.prospect_id;
+        if (prospectId) {
+            // Retrieve prospective student details to auto-provision
+            const { data: record } = await supabase
+                .from('prospective_students')
+                .select('*')
+                .eq('id', prospectId)
+                .maybeSingle();
+
+            if (record) {
+                const loginEmail = record.email || record.parent_email;
+                if (loginEmail) {
+                    const crypto = await import('crypto');
+                    const password = crypto.randomBytes(8).toString('base64url').slice(0, 10);
+                    const normalizedEmail = loginEmail.trim().toLowerCase();
+                    let authUserId: string | null = null;
+
+                    // Parse student phone if present in notes
+                    const notesStr = record.notes || '';
+                    const studentPhoneMatch = notesStr.match(/\[Student Phone:\s*([^\]]+)\]/i);
+                    const studentPhone = studentPhoneMatch ? studentPhoneMatch[1].trim() : null;
+                    const studentPhoneOrParentPhone = studentPhone || record.parent_phone || null;
+
+                    // Check portal_users by email first
+                    const { data: existingPortal } = await supabase
+                        .from('portal_users')
+                        .select('id')
+                        .eq('email', normalizedEmail)
+                        .maybeSingle();
+
+                    if (existingPortal) {
+                        await supabase.from('portal_users').update({
+                            role: 'student',
+                            full_name: record.full_name,
+                            school_name: record.school_name || 'Direct / Summer School',
+                            school_id: record.school_id || null,
+                            class_id: null,
+                            date_of_birth: record.age ? `${new Date().getFullYear() - record.age}-01-01` : null,
+                            section_class: record.grade || null,
+                            is_active: true,
+                            enrollment_type: 'summer_school',
+                            phone: studentPhoneOrParentPhone,
+                            updated_at: new Date().toISOString(),
+                        }).eq('id', existingPortal.id);
+
+                        await supabase.auth.admin.updateUserById(existingPortal.id, {
+                            password,
+                            user_metadata: { full_name: record.full_name, role: 'student' },
+                        });
+
+                        authUserId = existingPortal.id;
+                    } else {
+                        // Create auth user
+                        const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+                            email: loginEmail,
+                            password,
+                            email_confirm: true,
+                            user_metadata: {
+                                full_name: record.full_name,
+                                role: 'student',
+                            },
+                        });
+
+                        if (authErr) {
+                            const { data: listData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+                            const existing = listData?.users?.find(
+                                u => u.email?.trim().toLowerCase() === normalizedEmail
+                            );
+                            if (existing) {
+                                authUserId = existing.id;
+                                await supabase.auth.admin.updateUserById(authUserId, {
+                                    password,
+                                    user_metadata: { full_name: record.full_name, role: 'student' },
+                                });
+                            }
+                        } else {
+                            authUserId = authData?.user?.id ?? null;
+                        }
+
+                        if (authUserId) {
+                            await supabase.from('portal_users').upsert({
+                                id: authUserId,
+                                email: normalizedEmail,
+                                full_name: record.full_name,
+                                role: 'student',
+                                school_name: record.school_name || 'Direct / Summer School',
+                                school_id: record.school_id || null,
+                                class_id: null,
+                                date_of_birth: record.age ? `${new Date().getFullYear() - record.age}-01-01` : null,
+                                section_class: record.grade || null,
+                                is_active: true,
+                                enrollment_type: 'summer_school',
+                                phone: studentPhoneOrParentPhone,
+                                updated_at: new Date().toISOString(),
+                            }, { onConflict: 'id' });
+                        }
+                    }
+
+                    if (authUserId) {
+                        // Check student record in students table
+                        const { data: existingStudent } = await supabase
+                            .from('students')
+                            .select('id')
+                            .eq('user_id', authUserId)
+                            .maybeSingle();
+
+                        const studentPayload = {
+                            full_name: record.full_name,
+                            name: record.full_name,
+                            email: record.email || record.parent_email,
+                            student_email: record.email || null,
+                            parent_name: record.parent_name,
+                            parent_email: record.parent_email,
+                            parent_phone: record.parent_phone,
+                            phone: studentPhoneOrParentPhone,
+                            age: record.age,
+                            gender: record.gender,
+                            grade: record.grade,
+                            grade_level: record.grade,
+                            current_class: record.grade,
+                            school_id: record.school_id || null,
+                            school_name: record.school_name || 'Direct / Summer School',
+                            course_interest: record.course_interest || 'Summer School 2026',
+                            preferred_schedule: record.preferred_schedule,
+                            enrollment_type: 'summer_school',
+                            status: 'approved',
+                            is_active: true,
+                            is_deleted: false,
+                            user_id: authUserId,
+                            approved_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                        };
+
+                        if (existingStudent) {
+                            await supabase.from('students').update(studentPayload).eq('id', existingStudent.id);
+                        } else {
+                            await supabase.from('students').insert({
+                                ...studentPayload,
+                                created_at: new Date().toISOString(),
+                            });
+                        }
+                    }
+
+                    // Save temporary password to transmit to the parent
+                    gatewayResponse.generated_credentials = { email: loginEmail, password };
+                }
+            }
+
+            await supabase
+                .from('prospective_students')
+                .update({
+                    status: 'paid',
+                    is_active: true,
+                })
+                .eq('id', prospectId);
+        }
     } else if (gatewayResponse?.payment_type === 'billing_cycle' && gatewayResponse?.billing_cycle_id) {
         const billingCycleId = gatewayResponse.billing_cycle_id as string;
         const { data: cycle } = await (supabase as any)
@@ -310,7 +467,7 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                     subject: `New registration payment — ${studName}`,
                     fromName: 'Rillcod Technologies',
                     fromEmail: 'support@rillcod.com',
-                    html: opsHtml,
+                    html:      opsHtml,
                 });
             } catch (opsErr) {
                 console.error('Admin ops registration email failed:', opsErr);
@@ -339,6 +496,40 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 fromName:  'Rillcod Technologies',
                 fromEmail: 'support@rillcod.com',
                 html:      parentHtml,
+            });
+        } else if (gatewayResponse?.payment_type === 'summer_school' && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
+            const studName = String(gatewayResponse?.student_name || 'Student');
+            const creds = gatewayResponse?.generated_credentials;
+            const credsSection = creds
+              ? `<div style="margin:20px 0;padding:15px;background-color:#f4f4f5;border:1px solid #e4e4e7;border-radius:8px;">
+                   <h4 style="margin:0 0 10px;color:#18181b;">Your Portal Credentials</h4>
+                   <p style="margin:0 0 5px;font-size:13px;color:#71717a;">We have auto-created an academy account for your child. They can log in to Rillcod to begin their learning journey.</p>
+                   <p style="margin:8px 0;font-size:14px;color:#18181b;font-family:monospace;"><strong>Username (Email):</strong> ${creds.email}</p>
+                   <p style="margin:8px 0;font-size:14px;color:#18181b;font-family:monospace;"><strong>Temporary Password:</strong> ${creds.password}</p>
+                   <p style="margin:5px 0 0;font-size:12px;color:#a1a1aa;">Please log in at <a href="https://www.rillcod.com/login" style="color:#2563eb;">rillcod.com/login</a>. You can change this password at any time in the dashboard profile.</p>
+                 </div>`
+              : '';
+
+            const parentHtml = buildPaymentConfirmationEmail({
+                recipientName: studName,
+                amount:        Number(transaction.amount),
+                currency:      String(transaction.currency || 'NGN'),
+                reference:     String(transaction.transaction_reference),
+                description:   'AI Summer School 2026 Tuition',
+                date:          new Date().toISOString(),
+                portalUrl:     receiptUrl,
+            });
+
+            const finalHtml = credsSection
+              ? parentHtml.replace('</p></div></td></tr>', `</p>${credsSection}</div></td></tr>`)
+              : parentHtml;
+
+            await notificationsService.sendExternalEmail({
+                to:        parentEmail,
+                subject:   `AI Summer School Enrolment Confirmed — Rillcod (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
+                fromName:  'Rillcod Technologies',
+                fromEmail: 'support@rillcod.com',
+                html:      finalHtml,
             });
         } else if (transaction.portal_user_id) {
             const { data: portalUsers } = await supabase

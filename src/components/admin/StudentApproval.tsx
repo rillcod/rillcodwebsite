@@ -30,6 +30,8 @@ interface ProspectiveStudent {
   course_interest: string
   preferred_schedule: string
   hear_about_us: string
+  notes?: string | null
+  status?: string | null
   is_active: boolean
   is_deleted: boolean
   created_at: string
@@ -259,6 +261,26 @@ export default function StudentApproval() {
                         {student.full_name}
                       </h4>
                       {getStatusBadge(student.is_active, student.is_deleted)}
+                      
+                      {student.course_interest?.toLowerCase().includes('summer school') && (
+                        <span className="inline-flex items-center px-4 py-1 border-2 border-black text-xs font-black uppercase tracking-wider bg-amber-400 text-black shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                          ☀️ Summer School 2026
+                        </span>
+                      )}
+
+                      {student.status && (
+                        <span className={`inline-flex items-center px-4 py-1 border-2 border-black text-xs font-black uppercase tracking-wider shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${
+                          student.status === 'paid'
+                            ? 'bg-[#c8e6c9] text-black'
+                            : student.status === 'pending_verification'
+                              ? 'bg-[#fff9c4] text-black animate-pulse'
+                              : 'bg-[#ffcdd2] text-black'
+                        }`}>
+                          {student.status === 'paid' && '🟢 Paid / Confirmed'}
+                          {student.status === 'pending_verification' && '🟡 Transfer Awaiting Verify'}
+                          {student.status === 'unpaid' && '🔴 Unpaid / Pending gateway'}
+                        </span>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm font-bold text-black">
@@ -296,7 +318,13 @@ export default function StudentApproval() {
                     <div className="mt-6 text-sm text-black font-medium border-l-[6px] border-black pl-4 py-3 bg-[#f8f9fa] shadow-[4px_4px_0_0_rgba(0,0,0,1)] border-r-2 border-t-2 border-b-2">
                       <p className="mb-1"><strong className="font-black">Course Interest:</strong> {student.course_interest}</p>
                       <p className="mb-1"><strong className="font-black">Preferred Schedule:</strong> {student.preferred_schedule}</p>
-                      <p><strong className="font-black">How they heard about us:</strong> {student.hear_about_us}</p>
+                      <p className="mb-1"><strong className="font-black">How they heard about us:</strong> {student.hear_about_us}</p>
+                      {student.notes && (
+                        <p className="mt-2 pt-2 border-t border-dashed border-black/20">
+                          <strong className="font-black">Admissions Notes / Payment Details:</strong> <br />
+                          <span className="font-mono text-xs bg-white/60 px-2.5 py-1.5 rounded border border-black/10 inline-block mt-1 leading-relaxed whitespace-pre-wrap">{student.notes}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 

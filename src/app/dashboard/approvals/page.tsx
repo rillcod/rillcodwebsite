@@ -132,6 +132,7 @@ export default function ApprovalsPage() {
     const handleProspective = async (id: string, action: 'approved' | 'rejected') => {
         setActing(id); setActingError(null);
         try {
+            const prospect = prospective.find(s => s.id === id);
             const res = await fetch('/api/approvals/prospective', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -140,6 +141,13 @@ export default function ApprovalsPage() {
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Action failed');
             setProspective(prev => prev.filter(s => s.id !== id));
+            if (action === 'approved' && json.credentials) {
+                setCredentials({
+                    email: json.credentials.email,
+                    password: json.credentials.password,
+                    name: prospect?.full_name ?? 'Summer Student'
+                });
+            }
         } catch (e: any) {
             setActingError(e.message ?? 'Action failed. Please try again.');
         } finally {
