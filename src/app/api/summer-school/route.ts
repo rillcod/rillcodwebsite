@@ -66,9 +66,9 @@ export async function POST(req: NextRequest) {
       payment_reference,
     } = body;
 
-    if (!student_name || !parent_name || !parent_phone || !student_phone) {
+    if (!student_name || !parent_name || !parent_phone) {
       return NextResponse.json(
-        { error: 'Student name, parent name, parent phone, and student phone are required' },
+        { error: 'Student name, parent name, and parent phone are required' },
         { status: 400 }
       );
     }

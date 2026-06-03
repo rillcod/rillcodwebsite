@@ -86,8 +86,7 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
     form.parentName.trim() &&
     form.phone.trim() &&
     isValidWhatsApp(form.phone) &&
-    form.studentPhone.trim() &&
-    isValidWhatsApp(form.studentPhone) &&
+    (!form.studentPhone.trim() || isValidWhatsApp(form.studentPhone)) &&
     form.email.trim() &&
     form.currentClass &&
     form.age &&

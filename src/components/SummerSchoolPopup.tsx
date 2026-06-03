@@ -247,10 +247,10 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
                         {/* Student Phone */}
                         <div>
-                          <label className={labelCls(attempted && (!form.studentPhone.trim() || !isValidWhatsApp(form.studentPhone)))}>Student Phone Number *</label>
+                          <label className={labelCls(!!(attempted && form.studentPhone.trim() && !isValidWhatsApp(form.studentPhone)))}>Student Phone Number (Optional)</label>
                           <div className="relative">
-                            <input type="tel" name="studentPhone" required value={form.studentPhone} onChange={handleChange} onBlur={handleStudentPhoneBlur}
-                              className={inputCls(attempted && (!form.studentPhone.trim() || !isValidWhatsApp(form.studentPhone))) + " pr-10"} placeholder="+234..." />
+                            <input type="tel" name="studentPhone" value={form.studentPhone} onChange={handleChange} onBlur={handleStudentPhoneBlur}
+                              className={inputCls(!!(attempted && form.studentPhone.trim() && !isValidWhatsApp(form.studentPhone))) + " pr-10"} placeholder="+234..." />
                             {form.studentPhone && (
                               <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-base font-black ${isValidWhatsApp(form.studentPhone) ? 'text-emerald-500' : 'text-muted-foreground'}`}>
                                 {isValidWhatsApp(form.studentPhone) ? '✓' : '…'}
@@ -260,7 +260,6 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                           {form.studentPhone && !isValidWhatsApp(form.studentPhone) && (
                             <p className="text-[9px] text-rose-500 font-bold mt-1">⚠ Must be exactly 13 digits (including +234 prefix) or a valid 11-digit local format.</p>
                           )}
-                          {attempted && !form.studentPhone.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Student's phone is required</p>}
                         </div>
                       </div>
 

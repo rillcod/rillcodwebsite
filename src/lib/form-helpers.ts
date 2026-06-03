@@ -82,8 +82,8 @@ export function validateSummerSchoolPayload(body: SummerSchoolPayload): string |
   const studentPhone = body.student_phone?.trim();
   const parentEmail = body.parent_email?.trim();
 
-  if (!studentName || !parentName || !parentPhone || !studentPhone) {
-    return "Student name, parent name, parent phone, and student phone are required";
+  if (!studentName || !parentName || !parentPhone) {
+    return "Student name, parent name, and parent phone are required";
   }
   if (!parentEmail) {
     return "Parent email is required";
@@ -94,7 +94,7 @@ export function validateSummerSchoolPayload(body: SummerSchoolPayload): string |
   if (!isValidWhatsApp(parentPhone)) {
     return "Parent phone must be a valid Nigerian WhatsApp number";
   }
-  if (!isValidWhatsApp(studentPhone)) {
+  if (studentPhone && !isValidWhatsApp(studentPhone)) {
     return "Student phone must be a valid Nigerian WhatsApp number";
   }
 
