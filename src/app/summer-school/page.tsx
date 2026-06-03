@@ -43,7 +43,7 @@ const TRACKS = [
   {
     id: "web_app",
     icon: "🌐",
-    week: "Module 3 · Weeks 3–5",
+    week: "Module 3 · Weeks 4–5",
     title: "Web & App Creation with AI",
     desc: "Code and deploy real web applications integrated with live AI intelligence APIs like Gemini.",
     topics: [
@@ -57,7 +57,7 @@ const TRACKS = [
   {
     id: "game_design",
     icon: "🎮",
-    week: "Module 4 · Weeks 4–6",
+    week: "Module 4 · Weeks 5–6",
     title: "AI Game Design",
     desc: "Design and program video games containing intelligent AI opponents and procedural levels.",
     topics: [
@@ -73,10 +73,11 @@ const TRACKS = [
 const WEEKS = [
   { num: "Week 1", tag: "Foundations", title: "AI Basics & Prompts Kickoff", desc: "Understanding how models think, prompt mechanics, and starting image generation." },
   { num: "Week 2", tag: "Creative AI", title: "Storytelling & Digital Art", desc: "Creating consistent characters, layout planning, and assembling the art portfolio." },
-  { num: "Week 3", tag: "Coding", title: "Python & Your First Chatbot", desc: "Learning Python logic and writing scripts that connect to Google Gemini APIs." },
-  { num: "Week 4", tag: "Build", title: "AI Web Apps & Game Logic", desc: "Setting up a web server, rendering data, and designing intelligent game behaviors." },
-  { num: "Week 5", tag: "Media", title: "Bonus Track: Video Ads & Marketing", desc: "Scriptwriting, generating AI voiceovers, producing video ads, and packaging products." },
-  { num: "Week 6", tag: "Demo Day", title: "Final Projects & Graduation", desc: "Polishing code, presenting products, game showcases, and receiving Rillcod certificates." }
+  { num: "Week 3", tag: "Python Basics", title: "Python Programming Fundamentals", desc: "Variables, conditions, and loops. Setting up Python coding environments." },
+  { num: "Week 4", tag: "AI Coding", title: "Gemini AI Integrations", desc: "Learning to write Python scripts that connect to Google Gemini APIs." },
+  { num: "Week 5", tag: "Build Apps", title: "AI Web Apps & Game Logic", desc: "Setting up web servers and designing Pygame environments with pathfinding." },
+  { num: "Week 6", tag: "Media Module", title: "Bonus Module: Video Ads & Marketing", desc: "Scriptwriting, generating AI voiceovers, producing video ads, and packaging products." },
+  { num: "Week 7", tag: "Graduation", title: "Final Projects & Graduation", desc: "Polishing code, presenting products, game showcases, and receiving Rillcod certificates." }
 ];
 
 // ── WhatsApp formatting helpers ──
@@ -142,6 +143,13 @@ export default function SummerSchoolPage() {
   const [emailHint, setEmailHint] = useState<string | null>(null);
   const [schoolsList, setSchoolsList] = useState<string[]>([]);
   const [focusedSchoolIdx, setFocusedSchoolIdx] = useState<number | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+
+  const isOnsite = form.preferredMode === "Onsite";
+  const tuitionTotalLabel = isOnsite ? "₦100,000" : "₦70,000";
+  const tuitionDepositLabel = isOnsite ? "₦50,000" : "₦35,000";
+  const fullTuitionLabel = isOnsite ? "Full (₦100k)" : "Full (₦70k)";
+  const splitTuitionLabel = isOnsite ? "Split (₦50k)" : "Split (₦35k)";
   const [restored, setRestored] = useState(false);
 
   // Restore draft on mount
@@ -201,7 +209,7 @@ export default function SummerSchoolPage() {
       .from('payment_accounts')
       .select('bank_name, account_number, account_name, label')
       .eq('is_active', true)
-      .eq('owner_type', 'global')
+      .in('owner_type', ['rillcod', 'global'])
       .then(({ data }) => {
         if (data && data.length > 0) {
           setBankAccounts(data);
@@ -249,6 +257,44 @@ export default function SummerSchoolPage() {
       setEmailHint(suggestEmail(form.email));
     } else {
       setEmailHint(null);
+    }
+  };
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file (PNG, JPG, JPEG).");
+      return;
+    }
+
+    setUploadingReceipt(true);
+    const toastId = toast.loading("Uploading receipt...");
+
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop() || "png";
+      const filename = `receipt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+      const path = `summer-school-receipts/${filename}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("portfolio-images")
+        .upload(path, file, { contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from("portfolio-images")
+        .getPublicUrl(path);
+
+      setForm(prev => ({ ...prev, paymentReference: publicUrlData.publicUrl }));
+      toast.success("Receipt uploaded successfully!", { id: toastId });
+    } catch (err: any) {
+      console.error("Receipt upload error:", err);
+      toast.error(err.message || "Failed to upload receipt screenshot. Please try again.", { id: toastId });
+    } finally {
+      setUploadingReceipt(false);
     }
   };
 
@@ -402,7 +448,7 @@ export default function SummerSchoolPage() {
               { label: "Start Date", val: "June 8 – 12, 2026" },
               { label: "Deadline", val: "June 12, 2026", highlight: true },
               { label: "Ending Date", val: "August 8, 2026" },
-              { label: "Duration", val: "6 Weeks Cohort" },
+              { label: "Duration", val: "7 Weeks Cohort" },
               { label: "Audience", val: "Ages 8 – 18" }
             ].map(m => (
               <div key={m.label} className={`border p-4 rounded-xl transition-all ${m.highlight ? 'bg-rose-500/15 border-rose-500/30 text-rose-500 dark:text-rose-400' : 'bg-card border-border text-foreground'}`}>
@@ -440,7 +486,7 @@ export default function SummerSchoolPage() {
           <div className="text-center space-y-2">
             <h2 className="text-2xl sm:text-4xl font-black uppercase">Unified All-In-One Curriculum</h2>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
-              Our 6-week cohort is fully integrated. Students do not choose a single track — they go through all 4 modules sequentially to build complete AI engineering proficiency.
+              Our 7-week cohort is fully integrated. Students do not choose a single track — they go through all 4 modules sequentially to build complete AI engineering proficiency.
             </p>
           </div>
 
@@ -505,7 +551,7 @@ export default function SummerSchoolPage() {
           <div className="text-center space-y-2">
             <h2 className="text-2xl sm:text-4xl font-black uppercase">Weekly Curriculum</h2>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-xl mx-auto">
-              A detailed schedule showing our student learning progression over the 6 weeks.
+              A detailed schedule showing our student learning progression over the 7 weeks.
             </p>
           </div>
 
@@ -853,11 +899,16 @@ export default function SummerSchoolPage() {
                     <select name="preferredMode" required value={form.preferredMode} onChange={handleChange}
                       className={inputCls(attempted && !form.preferredMode) + " appearance-none cursor-pointer select-premium"}>
                       <option value="">Select Mode</option>
-                      <option value="Online">Online (Remote)</option>
+                      <option value="Online">Online (Remote - Recommended)</option>
                       <option value="Onsite">Onsite (In-Person)</option>
-                      <option value="Hybrid">Hybrid</option>
+                      <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                     </select>
                     {attempted && !form.preferredMode && <p className="text-rose-500 text-[10px] font-bold mt-1">Attendance mode is required</p>}
+                    {form.preferredMode === "Hybrid" && (
+                      <div className="bg-primary/5 border border-primary/20 p-2.5 rounded-lg text-[10px] text-muted-foreground mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
+                        💡 <strong>Hybrid Mode:</strong> Remote attendance with a mandatory physical check-up/project presentation at our center **once every 3 weeks** (Week 3 and Week 6) of the 7-week program.
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className={labelCls()}>How Did You Hear About Us?</label>
@@ -896,8 +947,8 @@ export default function SummerSchoolPage() {
                   <div>
                     <h4 className="text-sm font-black uppercase text-foreground mb-4">Payment Setup & Tuition</h4>
                     <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl mb-4">
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Summer School Tuition is <strong className="text-amber-500 dark:text-amber-400">₦70,000</strong>. You can choose to pay in full or pay a <strong className="text-amber-500 dark:text-amber-400">50% installment deposit (₦35,000)</strong> to secure your slot. The remaining balance will be due by the third week of the cohort.
+                      <p className="text-xs text-muted-foreground leading-relaxed font-medium">
+                        Summer School Tuition is <strong className="text-amber-500 dark:text-amber-400">{tuitionTotalLabel}</strong> for {isOnsite ? 'Onsite' : 'Online / Hybrid'} attendance. You can choose to pay in full or pay a <strong className="text-amber-500 dark:text-amber-400">50% installment deposit ({tuitionDepositLabel})</strong> to secure your slot. The remaining balance will be due by the third week of the cohort.
                       </p>
                     </div>
                   </div>
@@ -916,7 +967,7 @@ export default function SummerSchoolPage() {
                               : "bg-card text-foreground border-border hover:bg-muted"
                           }`}
                         >
-                          Full (₦70k)
+                          {fullTuitionLabel}
                         </button>
                         <button
                           type="button"
@@ -927,7 +978,7 @@ export default function SummerSchoolPage() {
                               : "bg-card text-foreground border-border hover:bg-muted"
                           }`}
                         >
-                          Split (₦35k)
+                          {splitTuitionLabel}
                         </button>
                       </div>
                     </div>
@@ -996,11 +1047,53 @@ export default function SummerSchoolPage() {
                           type="text"
                           name="paymentReference"
                           required
-                          value={form.paymentReference}
+                          value={form.paymentReference.startsWith('http') ? 'Receipt Screenshot Uploaded' : form.paymentReference}
+                          readOnly={form.paymentReference.startsWith('http')}
                           onChange={handleChange}
                           className={inputCls(attempted && !form.paymentReference.trim())}
                           placeholder="e.g. Zenith Ref or Sender's Name"
                         />
+                        
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="relative flex-1">
+                            <input
+                              type="file"
+                              id="page-receipt-upload"
+                              accept="image/*"
+                              onChange={handleReceiptUpload}
+                              disabled={uploadingReceipt}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="page-receipt-upload"
+                              className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                uploadingReceipt 
+                                  ? "bg-muted text-muted-foreground border-muted animate-pulse" 
+                                  : form.paymentReference.startsWith('http')
+                                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                                    : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                              }`}
+                            >
+                              {uploadingReceipt ? (
+                                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading Receipt...</>
+                              ) : form.paymentReference.startsWith('http') ? (
+                                <>✅ Change Receipt Screenshot</>
+                              ) : (
+                                <>📸 Upload Receipt Screenshot</>
+                              )}
+                            </label>
+                          </div>
+                          {form.paymentReference.startsWith('http') && (
+                            <a 
+                              href={form.paymentReference} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="text-[10px] font-black uppercase text-primary hover:underline"
+                            >
+                              View Receipt
+                            </a>
+                          )}
+                        </div>
                         {attempted && !form.paymentReference.trim() && <p className="text-rose-500 text-[10px] font-bold mt-1">Transfer reference is required for bank transfer</p>}
                       </div>
                     </div>

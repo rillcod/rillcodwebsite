@@ -40,8 +40,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Resolve pricing (₦70,000 for full, ₦35,000 for 50% installment deposit)
-    const amount = payment_plan === 'installment' ? 35000 : 70000;
+    // Resolve pricing (Onsite = ₦100,000 / ₦50,000 split; Online/Hybrid = ₦70,000 / ₦35,000 split)
+    const isOnsite = preferred_mode === 'Onsite';
+    const amount = isOnsite 
+      ? (payment_plan === 'installment' ? 50000 : 100000)
+      : (payment_plan === 'installment' ? 35000 : 70000);
     const courseInterest = `${current_class ? current_class + ' ' : ''}Summer School 2026`;
     const initialStatus = payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
 

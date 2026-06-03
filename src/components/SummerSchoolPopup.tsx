@@ -77,6 +77,13 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
   const [focusedSchoolIdx, setFocusedSchoolIdx] = useState<number | null>(null);
   const [restored, setRestored] = useState(false);
 
+  const isOnsite = form.preferredMode === "Onsite";
+  const tuitionTotalLabel = isOnsite ? "₦100,000" : "₦70,000";
+  const tuitionDepositLabel = isOnsite ? "₦50,000" : "₦35,000";
+  const fullTuitionLabel = isOnsite ? "Full (₦100k)" : "Full (₦70k)";
+  const splitTuitionLabel = isOnsite ? "Split (₦50k)" : "Split (₦35k)";
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+
   // Restore draft on mount
   useEffect(() => {
     try {
@@ -120,7 +127,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
       .from('payment_accounts')
       .select('bank_name, account_number, account_name, label')
       .eq('is_active', true)
-      .eq('owner_type', 'global')
+      .in('owner_type', ['rillcod', 'global'])
       .then(({ data }) => {
         if (data && data.length > 0) {
           setBankAccounts(data);
@@ -168,6 +175,44 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
       setEmailHint(suggestEmail(form.email));
     } else {
       setEmailHint(null);
+    }
+  };
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file (PNG, JPG, JPEG).");
+      return;
+    }
+
+    setUploadingReceipt(true);
+    const toastId = toast.loading("Uploading receipt...");
+
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop() || "png";
+      const filename = `receipt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+      const path = `summer-school-receipts/${filename}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("portfolio-images")
+        .upload(path, file, { contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from("portfolio-images")
+        .getPublicUrl(path);
+
+      setForm(prev => ({ ...prev, paymentReference: publicUrlData.publicUrl }));
+      toast.success("Receipt uploaded successfully!", { id: toastId });
+    } catch (err: any) {
+      console.error("Receipt upload error:", err);
+      toast.error(err.message || "Failed to upload receipt screenshot. Please try again.", { id: toastId });
+    } finally {
+      setUploadingReceipt(false);
     }
   };
 
@@ -708,11 +753,16 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                           <select name="preferredMode" required value={form.preferredMode} onChange={handleChange}
                             className={inputCls(attempted && !form.preferredMode) + " appearance-none cursor-pointer select-premium"}>
                             <option value="">Select Mode</option>
-                            <option value="Online">Online (Remote)</option>
+                            <option value="Online">Online (Remote - Recommended)</option>
                             <option value="Onsite">Onsite (In-Person)</option>
-                            <option value="Hybrid">Hybrid</option>
+                            <option value="Hybrid">Hybrid (Once in 3 weeks check-up)</option>
                           </select>
                           {attempted && !form.preferredMode && <p className="text-rose-500 text-[9px] font-bold mt-1">Mode is required</p>}
+                          {form.preferredMode === "Hybrid" && (
+                            <div className="bg-primary/5 border border-primary/20 p-2.5 rounded-lg text-[9px] text-muted-foreground mt-2 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200">
+                              💡 <strong>Hybrid Mode:</strong> Remote attendance with a mandatory physical check-up/project presentation at our center **once every 3 weeks** (Week 3 and Week 6) of the 7-week program.
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className={labelCls()}>How Did You Hear About Us?</label>
@@ -752,7 +802,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                         <div>
                           <h4 className="text-xs font-black uppercase text-foreground mb-4">Payment Setup & Tuition</h4>
                           <div className="bg-primary/5 border border-primary/10 p-4 rounded-xl mb-4 text-xs text-muted-foreground leading-relaxed">
-                            Summer School Tuition is <strong className="text-primary font-black">₦70,000</strong>. You can choose to pay in full or pay a <strong className="text-primary font-black">50% installment deposit (₦35,000)</strong> to secure your slot.
+                            Summer School Tuition is <strong className="text-primary font-black">{tuitionTotalLabel}</strong> for {isOnsite ? 'Onsite' : 'Online / Hybrid'} attendance. You can choose to pay in full or pay a <strong className="text-primary font-black">50% installment deposit ({tuitionDepositLabel})</strong> to secure your slot.
                           </div>
                         </div>
 
@@ -769,7 +819,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                     : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
                                 }`}
                               >
-                                Full (₦70k)
+                                {fullTuitionLabel}
                               </button>
                               <button
                                 type="button"
@@ -780,7 +830,7 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                     : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
                                 }`}
                               >
-                                Split (₦35k)
+                                {splitTuitionLabel}
                               </button>
                             </div>
                           </div>
@@ -847,11 +897,53 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                 type="text"
                                 name="paymentReference"
                                 required
-                                value={form.paymentReference}
+                                value={form.paymentReference.startsWith('http') ? 'Receipt Screenshot Uploaded' : form.paymentReference}
+                                readOnly={form.paymentReference.startsWith('http')}
                                 onChange={handleChange}
                                 className={inputCls(attempted && !form.paymentReference.trim())}
                                 placeholder="e.g. Zenith Ref or Sender Name"
                               />
+                              
+                              <div className="flex items-center gap-3 mt-2">
+                                <div className="relative flex-1">
+                                  <input
+                                    type="file"
+                                    id="popup-receipt-upload"
+                                    accept="image/*"
+                                    onChange={handleReceiptUpload}
+                                    disabled={uploadingReceipt}
+                                    className="hidden"
+                                  />
+                                  <label
+                                    htmlFor="popup-receipt-upload"
+                                    className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                      uploadingReceipt 
+                                        ? "bg-muted text-muted-foreground border-muted animate-pulse" 
+                                        : form.paymentReference.startsWith('http')
+                                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                                          : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                                    }`}
+                                  >
+                                    {uploadingReceipt ? (
+                                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading Receipt...</>
+                                    ) : form.paymentReference.startsWith('http') ? (
+                                      <>✅ Change Receipt Screenshot</>
+                                    ) : (
+                                      <>📸 Upload Receipt Screenshot</>
+                                    )}
+                                  </label>
+                                </div>
+                                {form.paymentReference.startsWith('http') && (
+                                  <a 
+                                    href={form.paymentReference} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-[10px] font-black uppercase text-primary hover:underline"
+                                  >
+                                    View Receipt
+                                  </a>
+                                )}
+                              </div>
                               {attempted && !form.paymentReference.trim() && <p className="text-rose-500 text-[9px] font-bold mt-1">Reference name is required</p>}
                             </div>
                           </div>
