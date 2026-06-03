@@ -1023,18 +1023,41 @@ export default function SummerSchoolPage() {
           )}
 
           {/* QR Code Scan Card */}
-          <div className="bg-card border border-border p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-6 shadow-2xl h-full lg:sticky lg:top-24">
+          <div className="bg-card border border-border p-6 rounded-2xl flex flex-col items-center justify-center text-center space-y-6 shadow-2xl h-full lg:sticky lg:top-24 overflow-hidden relative">
+            <style>{`
+              @keyframes rillcodScan {
+                0% { transform: translateY(0); opacity: 0.3; }
+                50% { transform: translateY(160px); opacity: 0.9; }
+                100% { transform: translateY(0); opacity: 0.3; }
+              }
+              .rillcod-scan-line {
+                animation: rillcodScan 3s infinite ease-in-out;
+              }
+            `}</style>
+            
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl text-primary">📱</div>
             
             <div className="space-y-2">
               <h3 className="text-sm font-black uppercase text-foreground">Scan to Share or Open</h3>
-              <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+              <p className="text-xs text-muted-foreground max-w-xs leading-relaxed font-medium">
                 Scan this barcode to instantly open this Summer School registration form on your phone or share it with others on WhatsApp.
               </p>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-inner border-4 border-primary/20">
-              <QRCode id="summer-school-page-qr-svg" value={appUrl} size={150} />
+            {/* Glowing scan target container */}
+            <div className="relative p-6 bg-white dark:bg-zinc-950 border-2 border-primary/30 rounded-2xl shadow-[0_0_30px_-5px_rgba(245,158,11,0.25)] flex items-center justify-center overflow-hidden w-48 h-48 select-none">
+              {/* Target bracket corners */}
+              <div className="absolute top-2.5 left-2.5 w-4.5 h-4.5 border-t-2 border-l-2 border-primary rounded-tl-md" />
+              <div className="absolute top-2.5 right-2.5 w-4.5 h-4.5 border-t-2 border-r-2 border-primary rounded-tr-md" />
+              <div className="absolute bottom-2.5 left-2.5 w-4.5 h-4.5 border-b-2 border-l-2 border-primary rounded-bl-md" />
+              <div className="absolute bottom-2.5 right-2.5 w-4.5 h-4.5 border-b-2 border-r-2 border-primary rounded-br-md" />
+
+              {/* Red/Amber Scanning laser */}
+              <div className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_10px_3px_rgba(245,158,11,0.6)] rillcod-scan-line z-20 pointer-events-none top-0" />
+
+              <div className="p-2 bg-white rounded-lg">
+                <QRCode id="summer-school-page-qr-svg" value={appUrl} size={130} />
+              </div>
             </div>
 
             <div className="flex gap-2 w-full">

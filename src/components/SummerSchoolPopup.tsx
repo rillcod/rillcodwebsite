@@ -872,13 +872,36 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                     </form>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-6">
-                    <div className="bg-white p-5 rounded-2xl border border-primary/20 shadow-2xl">
-                      <QRCode
-                        id="summer-school-popup-qr-svg"
-                        value={typeof window !== 'undefined' ? `${window.location.origin}/summer-school` : 'https://www.rillcod.com/summer-school'}
-                        size={200}
-                      />
+                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-6 relative overflow-hidden">
+                    <style>{`
+                      @keyframes rillcodScan {
+                        0% { transform: translateY(0); opacity: 0.3; }
+                        50% { transform: translateY(160px); opacity: 0.9; }
+                        100% { transform: translateY(0); opacity: 0.3; }
+                      }
+                      .rillcod-scan-line {
+                        animation: rillcodScan 3s infinite ease-in-out;
+                      }
+                    `}</style>
+
+                    {/* Glowing scan target container */}
+                    <div className="relative p-6 bg-white dark:bg-zinc-950 border-2 border-primary/30 rounded-2xl shadow-[0_0_30px_-5px_rgba(245,158,11,0.25)] flex items-center justify-center overflow-hidden w-48 h-48 select-none">
+                      {/* Target bracket corners */}
+                      <div className="absolute top-2.5 left-2.5 w-4.5 h-4.5 border-t-2 border-l-2 border-primary rounded-tl-md" />
+                      <div className="absolute top-2.5 right-2.5 w-4.5 h-4.5 border-t-2 border-r-2 border-primary rounded-tr-md" />
+                      <div className="absolute bottom-2.5 left-2.5 w-4.5 h-4.5 border-b-2 border-l-2 border-primary rounded-bl-md" />
+                      <div className="absolute bottom-2.5 right-2.5 w-4.5 h-4.5 border-b-2 border-r-2 border-primary rounded-br-md" />
+
+                      {/* Red/Amber Scanning laser */}
+                      <div className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_10px_3px_rgba(245,158,11,0.6)] rillcod-scan-line z-20 pointer-events-none top-0" />
+
+                      <div className="p-2 bg-white rounded-lg">
+                        <QRCode
+                          id="summer-school-popup-qr-svg"
+                          value={typeof window !== 'undefined' ? `${window.location.origin}/summer-school` : 'https://www.rillcod.com/summer-school'}
+                          size={130}
+                        />
+                      </div>
                     </div>
                     
                     <div className="flex gap-2 w-full max-w-[240px]">
