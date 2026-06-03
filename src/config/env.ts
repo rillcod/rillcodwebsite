@@ -48,6 +48,9 @@ const envSchema = z.object({
     ENABLE_PAYMENTS: z.string().optional().default('false'),
     ENABLE_VIDEO_CONFERENCING: z.string().optional().default('false'),
     ENABLE_GAMIFICATION: z.string().optional().default('false'),
+
+    /** Fallback WhatsApp group invite when none is configured in whatsapp_groups */
+    NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP: z.string().url().optional(),
 });
 
 const _env = envSchema.safeParse(process.env);

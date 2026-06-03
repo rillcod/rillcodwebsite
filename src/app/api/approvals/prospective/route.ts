@@ -67,6 +67,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Approval path ──
+    if (record.status === 'unpaid') {
+      return NextResponse.json(
+        { error: 'Cannot approve: applicant has not completed online payment. Reject the record or ask them to finish checkout.' },
+        { status: 400 },
+      );
+    }
+
     const loginEmail = record.email || record.parent_email;
     if (!loginEmail) {
       return NextResponse.json({ error: 'Applicant has no email to create an account' }, { status: 400 });
@@ -218,9 +225,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark prospective student active
+    const isInstallmentPlan = (record.notes || '').includes('[Plan: installment]');
     const { error: prospectiveErr } = await admin
       .from('prospective_students')
-      .update({ is_active: true, status: 'paid' })
+      .update({
+        is_active: true,
+        status: isInstallmentPlan ? 'partially_paid' : 'paid',
+      })
       .eq('id', id);
 
     if (prospectiveErr) {
@@ -237,6 +248,7 @@ export async function POST(request: NextRequest) {
         title: 'Summer School Enrolment Approved',
         bodyHtml: `<p style="margin:0 0 10px;">We have verified your bank transfer payment. We are happy to confirm your child's seat in the Rillcod AI Summer School 2026!</p>
                    <p style="margin:0 0 10px;">An academy portal student account has been successfully configured. They can log in to begin their learning journey.</p>
+                   ${isInstallmentPlan ? `<p style="margin:0 0 10px;color:#92400e;"><strong>Installment note:</strong> Your deposit has been verified. The remaining balance is due by week 3. <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com'}/summer-school/pay-balance?email=${encodeURIComponent(loginEmail)}" style="color:#2563eb;">Pay balance online →</a></p>` : ''}
                    <div style="margin:20px 0;padding:15px;background-color:#f4f4f5;border:1px solid #e4e4e7;border-radius:8px;">
                      <h4 style="margin:0 0 10px;color:#18181b;">Portal Access Credentials</h4>
                      <p style="margin:8px 0;font-size:14px;color:#18181b;font-family:monospace;"><strong>Email (Username):</strong> ${loginEmail}</p>

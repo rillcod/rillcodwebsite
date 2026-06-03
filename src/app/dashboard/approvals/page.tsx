@@ -16,11 +16,20 @@ function StatusBadge({ status }: { status: string }) {
     const map: Record<string, string> = {
         approved: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
         pending: 'bg-amber-500/20  text-amber-400  border-amber-500/30',
+        pending_verification: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        partially_paid: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+        unpaid: 'bg-muted text-muted-foreground border-border',
+        paid: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
         rejected: 'bg-rose-500/20   text-rose-400   border-rose-500/30',
+    };
+    const labels: Record<string, string> = {
+        pending_verification: 'awaiting verification',
+        partially_paid: 'deposit paid — balance due',
+        unpaid: 'awaiting payment',
     };
     return (
         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${map[status] ?? 'bg-muted text-muted-foreground'}`}>
-            {status}
+            {labels[status] ?? status.replace(/_/g, ' ')}
         </span>
     );
 }
@@ -68,7 +77,7 @@ export default function ApprovalsPage() {
                 const [studRes, schRes, prosRes] = await Promise.allSettled([
                     supabase.from('students').select('*').eq('status', 'pending').neq('is_deleted', true).order('created_at', { ascending: true }),
                     supabase.from('schools').select('*').eq('status', 'pending').neq('is_deleted', true).order('created_at', { ascending: true }),
-                    supabase.from('prospective_students').select('*').neq('is_deleted', true).eq('is_active', false).order('created_at', { ascending: true }),
+                    supabase.from('prospective_students').select('*').neq('is_deleted', true).eq('is_active', false).ilike('course_interest', '%Summer School%').order('created_at', { ascending: true }),
                 ]);
                 if (!cancelled) {
                     setStudents(studRes.status === 'fulfilled' ? (studRes.value.data ?? []) : []);
@@ -435,6 +444,7 @@ export default function ApprovalsPage() {
                                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/20 text-amber-400 border-amber-500/30">
                                                     Summer Applicant
                                                 </span>
+                                                {s.status && <StatusBadge status={s.status} />}
                                             </div>
                                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
                                                 {s.parent_email && <span className="flex items-center gap-1"><EnvelopeIcon className="w-3.5 h-3.5" />{s.parent_email}</span>}
@@ -442,12 +452,13 @@ export default function ApprovalsPage() {
                                                 {s.school_name && <span className="flex items-center gap-1"><BuildingOfficeIcon className="w-3.5 h-3.5" />{s.school_name}</span>}
                                                 {s.grade && <span className="flex items-center gap-1"><AcademicCapIcon className="w-3.5 h-3.5" />Grade: {s.grade}</span>}
                                             </div>
-                                            {s.course_interest && <p className="text-xs text-muted-foreground mt-2 line-clamp-1">Interest: {s.course_interest}</p>}
+                                            {s.notes && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">Notes: {s.notes}</p>}
                                             <p className="text-xs text-muted-foreground mt-1">Applied {new Date(s.created_at).toLocaleDateString()}</p>
                                         </div>
                                         <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
-                                            <button onClick={() => handleProspective(s.id, 'approved')} disabled={acting === s.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
+                                            <button onClick={() => handleProspective(s.id, 'approved')} disabled={acting === s.id || s.status === 'unpaid'}
+                                                title={s.status === 'unpaid' ? 'Applicant has not completed Paystack checkout' : undefined}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                                                 <CheckCircleIcon className="w-4 h-4" /> Approve
                                             </button>
                                             <button onClick={() => handleProspective(s.id, 'rejected')} disabled={acting === s.id}

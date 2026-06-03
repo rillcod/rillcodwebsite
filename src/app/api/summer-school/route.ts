@@ -1,17 +1,51 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { env } from '@/config/env';
+import { validateSummerSchoolPayload } from '@/lib/form-helpers';
+import { getSummerSchoolAdminClient } from '@/lib/summer-school/admin';
+import { getSummerTotalTuition, getSummerTuitionAmount } from '@/lib/summer-school/pricing';
+import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
 
-// Public-facing API — use service role to bypass RLS for inserts
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  );
+async function notifyAdminOps(payload: {
+  studentName: string;
+  parentEmail: string;
+  amount: number;
+  method: string;
+  reference: string;
+}) {
+  const adminTo = env.ADMIN_OPS_EMAIL?.trim();
+  if (!adminTo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminTo)) return;
+
+  try {
+    const { notificationsService } = await import('@/services/notifications.service');
+    const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
+    const html = buildRillcodTransactionalEmailHtml({
+      eyebrow: 'Operations',
+      title: 'New Summer School registration',
+      bodyHtml: `<p style="margin:0 0 10px;">A new Summer School 2026 registration was submitted and needs attention.</p>`,
+      summaryRows: [
+        { label: 'Student', value: payload.studentName },
+        { label: 'Parent email', value: payload.parentEmail },
+        { label: 'Amount', value: `₦${payload.amount.toLocaleString()}` },
+        { label: 'Method', value: payload.method },
+        { label: 'Reference', value: payload.reference },
+      ],
+      footerNote: 'Internal ops notice — review in Dashboard → Approvals.',
+    });
+    await notificationsService.sendExternalEmail({
+      to: adminTo,
+      subject: `Summer School registration — ${payload.studentName}`,
+      fromName: 'Rillcod Technologies',
+      fromEmail: 'support@rillcod.com',
+      html,
+    });
+  } catch (err) {
+    console.error('Summer school admin ops email failed:', err);
+  }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
@@ -19,7 +53,6 @@ export async function POST(req: Request) {
       parent_name,
       parent_phone,
       parent_email,
-      student_email,
       student_phone,
       school,
       current_class,
@@ -28,9 +61,9 @@ export async function POST(req: Request) {
       preferred_mode,
       hear_about_us,
       additional_info,
-      payment_method = 'paystack', // 'paystack' or 'bank_transfer'
-      payment_plan = 'full', // 'full' or 'installment'
-      payment_reference, // manual bank transfer reference
+      payment_method = 'paystack',
+      payment_plan = 'full',
+      payment_reference,
     } = body;
 
     if (!student_name || !parent_name || !parent_phone || !student_phone) {
@@ -40,29 +73,81 @@ export async function POST(req: Request) {
       );
     }
 
-    // Resolve pricing (Onsite = ₦100,000 / ₦50,000 split; Online/Hybrid = ₦70,000 / ₦35,000 split)
-    const isOnsite = preferred_mode === 'Onsite';
-    const amount = isOnsite 
-      ? (payment_plan === 'installment' ? 50000 : 100000)
-      : (payment_plan === 'installment' ? 35000 : 70000);
+    const validationError = validateSummerSchoolPayload({
+      student_name,
+      parent_name,
+      parent_phone,
+      parent_email,
+      student_phone,
+      age,
+      preferred_mode,
+      payment_method,
+      payment_plan,
+      payment_reference,
+    });
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const emailNorm = parent_email!.trim().toLowerCase();
+
+    try {
+      await checkCustomRateLimit({ key: emailNorm, max: 3, window: 300 });
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        return NextResponse.json(
+          { error: 'Too many registration attempts. Please wait before trying again.' },
+          { status: 429 }
+        );
+      }
+      throw err;
+    }
+
+    const ip = getClientIp(req);
+    if (ip !== '127.0.0.1') {
+      try {
+        await checkCustomRateLimit({ key: `ss-reg:${ip}`, max: 10, window: 600 });
+      } catch (err) {
+        if (err instanceof RateLimitError) {
+          return NextResponse.json({ error: 'Too many requests from this network.' }, { status: 429 });
+        }
+      }
+    }
+
+    const supabase = getSummerSchoolAdminClient();
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentDup } = await supabase
+      .from('prospective_students')
+      .select('id')
+      .eq('parent_email', emailNorm)
+      .ilike('course_interest', '%Summer School%')
+      .in('status', ['unpaid', 'pending_verification', 'partially_paid'])
+      .gte('created_at', twentyFourHoursAgo)
+      .maybeSingle();
+
+    if (recentDup) {
+      return NextResponse.json(
+        { error: 'A registration for this email is already in progress. Check your email or contact support.' },
+        { status: 409 }
+      );
+    }
+
+    const amount = getSummerTuitionAmount(preferred_mode, payment_plan);
+    const totalTuition = getSummerTotalTuition(preferred_mode);
     const courseInterest = `${current_class ? current_class + ' ' : ''}Summer School 2026`;
     const initialStatus = payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
 
-    const supabase = getAdminClient();
-
-    // Format notes to serialize the student's phone number prefix
     const studentPhoneStr = student_phone ? `[Student Phone: ${student_phone}]` : '';
     const notesStr = `${studentPhoneStr} ${additional_info || ''}`.trim();
 
-    // Create the prospective student record
     const { data: prospect, error: prospectErr } = await supabase
       .from('prospective_students')
       .insert({
         full_name: student_name,
-        email: student_email || parent_email || `summer-${Date.now()}@rillcod.com`,
+        email: emailNorm,
         parent_name,
         parent_phone,
-        parent_email: parent_email || null,
+        parent_email: emailNorm,
         grade: current_class || null,
         school_id: null,
         school_name: school || 'Direct / Summer School',
@@ -89,11 +174,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Handle bank transfer manual verification
+    const gatewayMeta = {
+      prospect_id: prospect.id,
+      student_name,
+      parent_email: emailNorm,
+      payment_type: 'summer_school',
+      payment_plan,
+      preferred_mode,
+      total_tuition: totalTuition,
+      amount_charged: amount,
+      balance_due: payment_plan === 'installment' ? totalTuition - amount : 0,
+    };
+
     if (payment_method === 'bank_transfer') {
-      const reference = payment_reference?.trim() || `MAN-SUM-${Date.now()}-${prospect.id.substring(0, 4).toUpperCase()}`;
-      
-      // Save pending transaction record
+      const reference = payment_reference!.trim();
+
       await supabase.from('payment_transactions').insert([{
         portal_user_id: null,
         school_id: null,
@@ -102,17 +197,23 @@ export async function POST(req: Request) {
         currency: 'NGN',
         payment_method: 'bank_transfer',
         payment_status: 'pending',
-        transaction_reference: reference,
+        transaction_reference: reference.startsWith('http') ? `RCPT-${Date.now()}` : reference,
         payment_gateway_response: {
-          prospect_id: prospect.id,
-          student_name,
-          parent_email,
-          payment_type: 'summer_school',
-          payment_plan,
-          notes: additional_info || null
+          ...gatewayMeta,
+          receipt_url: reference.startsWith('http') ? reference : null,
+          transfer_reference: reference.startsWith('http') ? null : reference,
+          notes: additional_info || null,
         },
         created_at: new Date().toISOString(),
       }]);
+
+      void notifyAdminOps({
+        studentName: student_name,
+        parentEmail: emailNorm,
+        amount,
+        method: 'Bank transfer (pending verification)',
+        reference: reference.slice(0, 80),
+      });
 
       return NextResponse.json({
         success: true,
@@ -122,7 +223,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // Handle Paystack payment integration
     if (!env.PAYSTACK_SECRET_KEY) {
       return NextResponse.json(
         { error: 'Payment gateway is not configured. Please contact support.' },
@@ -133,7 +233,6 @@ export async function POST(req: Request) {
     const reference = `SUM-REG-${Date.now()}-${prospect.id.substring(0, 6)}`;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com';
 
-    // Create pending payment transaction record
     const { data: tx } = await supabase
       .from('payment_transactions')
       .insert([{
@@ -145,19 +244,12 @@ export async function POST(req: Request) {
         payment_method: 'paystack',
         payment_status: 'pending',
         transaction_reference: reference,
-        payment_gateway_response: {
-          prospect_id: prospect.id,
-          student_name,
-          parent_email,
-          payment_type: 'summer_school',
-          payment_plan,
-        },
+        payment_gateway_response: gatewayMeta,
         created_at: new Date().toISOString(),
       }])
       .select('id')
       .single();
 
-    // Initialize Paystack transaction
     const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
@@ -165,15 +257,12 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email: parent_email || 'summer-school-billing@rillcod.com',
-        amount: amount * 100, // convert to kobo
+        email: emailNorm,
+        amount: amount * 100,
         reference,
         callback_url: `${baseUrl}/summer-school?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(student_name)}&plan=${payment_plan}&method=paystack`,
         metadata: {
-          prospect_id: prospect.id,
-          student_name,
-          payment_type: 'summer_school',
-          payment_plan,
+          ...gatewayMeta,
           transaction_id: tx?.id,
         },
       }),
@@ -183,8 +272,10 @@ export async function POST(req: Request) {
 
     if (!paystackData.status) {
       console.error('Paystack initialization failed:', paystackData);
-      // Clean up prospect record if Paystack initialisation fails
       await supabase.from('prospective_students').delete().eq('id', prospect.id);
+      if (tx?.id) {
+        await supabase.from('payment_transactions').delete().eq('id', tx.id);
+      }
       return NextResponse.json(
         { error: paystackData.message || 'Payment gateway failed to initialize' },
         { status: 500 }
@@ -198,10 +289,10 @@ export async function POST(req: Request) {
       paymentMethod: 'paystack',
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Summer school API error:', err);
     return NextResponse.json(
-      { error: err.message || 'Something went wrong' },
+      { error: err instanceof Error ? err.message : 'Something went wrong' },
       { status: 500 }
     );
   }

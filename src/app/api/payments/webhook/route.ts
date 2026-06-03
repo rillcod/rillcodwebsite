@@ -223,6 +223,14 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                     .eq('id', transaction.id);
             }
         }
+    } else if (gatewayResponse?.payment_type === 'summer_school_balance') {
+        const prospectId = gatewayResponse?.prospect_id;
+        if (prospectId) {
+            await supabase
+                .from('prospective_students')
+                .update({ status: 'paid', updated_at: new Date().toISOString() })
+                .eq('id', prospectId);
+        }
     } else if (gatewayResponse?.payment_type === 'summer_school') {
         const prospectId = gatewayResponse?.prospect_id;
         if (prospectId) {
@@ -375,7 +383,7 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
             await supabase
                 .from('prospective_students')
                 .update({
-                    status: 'paid',
+                    status: gatewayResponse?.payment_plan === 'installment' ? 'partially_paid' : 'paid',
                     is_active: true,
                 })
                 .eq('id', prospectId);
@@ -443,8 +451,11 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
         });
 
         const adminTo = env.ADMIN_OPS_EMAIL?.trim();
+        const isSummerPayment =
+            gatewayResponse?.payment_type === 'summer_school' ||
+            gatewayResponse?.payment_type === 'summer_school_balance';
         if (
-            isRegistrationPayment &&
+            (isRegistrationPayment || isSummerPayment) &&
             adminTo &&
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminTo)
         ) {
@@ -453,18 +464,19 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 const amt = `${transaction.currency || 'NGN'} ${Number(transaction.amount).toLocaleString()}`;
                 const opsHtml = buildRillcodTransactionalEmailHtml({
                     eyebrow: 'Operations',
-                    title: 'Registration fee received',
-                    bodyHtml: `<p style="margin:0 0 10px;">A new student registration payment has been confirmed via the payment gateway.</p>`,
+                    title: isSummerPayment ? 'Summer School payment received' : 'Registration fee received',
+                    bodyHtml: `<p style="margin:0 0 10px;">${isSummerPayment ? 'A Summer School tuition payment has been confirmed via the payment gateway.' : 'A new student registration payment has been confirmed via the payment gateway.'}</p>`,
                     summaryRows: [
                         { label: 'Student', value: studName },
                         { label: 'Amount', value: amt },
                         { label: 'Reference', value: String(transaction.transaction_reference) },
+                        ...(isSummerPayment ? [{ label: 'Type', value: String(gatewayResponse?.payment_type) }] : []),
                     ],
                     footerNote: '<span style="color:#a1a1aa;">Internal ops notice — not a receipt for the payer.</span>',
                 });
                 await notificationsService.sendExternalEmail({
                     to: adminTo,
-                    subject: `New registration payment — ${studName}`,
+                    subject: isSummerPayment ? `Summer School payment — ${studName}` : `New registration payment — ${studName}`,
                     fromName: 'Rillcod Technologies',
                     fromEmail: 'support@rillcod.com',
                     html:      opsHtml,
@@ -500,6 +512,17 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
         } else if (gatewayResponse?.payment_type === 'summer_school' && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
             const studName = String(gatewayResponse?.student_name || 'Student');
             const creds = gatewayResponse?.generated_credentials;
+            const isInstallment = gatewayResponse?.payment_plan === 'installment';
+            const balanceDue = Number(gatewayResponse?.balance_due || 0);
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com';
+            const balanceLink = `${baseUrl}/summer-school/pay-balance?email=${encodeURIComponent(parentEmail)}`;
+            const balanceSection = isInstallment && balanceDue > 0
+              ? `<div style="margin:20px 0;padding:15px;background-color:#fffbeb;border:1px solid #fcd34d;border-radius:8px;">
+                   <h4 style="margin:0 0 10px;color:#92400e;">Installment — Balance Due</h4>
+                   <p style="margin:0 0 8px;font-size:13px;color:#78350f;">Your deposit (50%) has been received. The remaining <strong>₦${balanceDue.toLocaleString()}</strong> is due by week 3 of the cohort.</p>
+                   <p style="margin:0;font-size:13px;"><a href="${balanceLink}" style="color:#2563eb;font-weight:bold;">Pay remaining balance online →</a></p>
+                 </div>`
+              : '';
             const credsSection = creds
               ? `<div style="margin:20px 0;padding:15px;background-color:#f4f4f5;border:1px solid #e4e4e7;border-radius:8px;">
                    <h4 style="margin:0 0 10px;color:#18181b;">Your Portal Credentials</h4>
@@ -520,8 +543,8 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 portalUrl:     receiptUrl,
             });
 
-            const finalHtml = credsSection
-              ? parentHtml.replace('</p></div></td></tr>', `</p>${credsSection}</div></td></tr>`)
+            const finalHtml = (credsSection || balanceSection)
+              ? parentHtml.replace('</p></div></td></tr>', `</p>${credsSection}${balanceSection}</div></td></tr>`)
               : parentHtml;
 
             await notificationsService.sendExternalEmail({
@@ -530,6 +553,24 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                 fromName:  'Rillcod Technologies',
                 fromEmail: 'support@rillcod.com',
                 html:      finalHtml,
+            });
+        } else if (gatewayResponse?.payment_type === 'summer_school_balance' && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
+            const studName = String(gatewayResponse?.student_name || 'Student');
+            const parentHtml = buildPaymentConfirmationEmail({
+                recipientName: studName,
+                amount:        Number(transaction.amount),
+                currency:      String(transaction.currency || 'NGN'),
+                reference:     String(transaction.transaction_reference),
+                description:   'AI Summer School 2026 — Remaining Tuition Balance',
+                date:          new Date().toISOString(),
+                portalUrl:     receiptUrl,
+            });
+            await notificationsService.sendExternalEmail({
+                to:        parentEmail,
+                subject:   `Summer School Balance Paid — Rillcod (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
+                fromName:  'Rillcod Technologies',
+                fromEmail: 'support@rillcod.com',
+                html:      parentHtml,
             });
         } else if (transaction.portal_user_id) {
             const { data: portalUsers } = await supabase

@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { 
-  Calendar, MapPin, Clock, Phone, Mail, Sparkles, 
-  ShieldCheck, ArrowRight, CheckCircle, Loader2, 
+import { useState, useEffect } from "react";
+import {
+  Calendar, MapPin, Clock, Phone, Mail, Sparkles,
+  ShieldCheck, ArrowRight, CheckCircle, Loader2,
   QrCode, BookOpen, Award, Terminal, Flame, Gamepad2, Laptop, X
 } from "lucide-react";
 import { toast } from "sonner";
 import QRCode from "react-qr-code";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/contexts/auth-context";
+import { isValidWhatsApp } from "@/lib/form-helpers";
+import { useSummerSchoolRegistration, summerFormStyles } from "@/hooks/useSummerSchoolRegistration";
+import { SummerSchoolSuccessTicket } from "@/components/summer-school/SummerSchoolSuccessTicket";
 
 const TRACKS = [
   {
@@ -80,298 +81,52 @@ const WEEKS = [
   { num: "Week 7", tag: "Graduation", title: "Final Projects & Graduation", desc: "Polishing code, presenting products, game showcases, and receiving Rillcod certificates." }
 ];
 
-// ── WhatsApp formatting helpers ──
-function formatWhatsApp(raw: string): string {
-  const digits = raw.replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('234') && digits.length >= 4) return '+' + digits;
-  if (digits.startsWith('0') && digits.length >= 2) return '+234' + digits.slice(1);
-  return '+234' + digits;
-}
-function isValidWhatsApp(v: string): boolean {
-  const digits = v.replace(/\D/g, '');
-  return digits.startsWith('234') && digits.length === 13;
-}
-
-// ── Email typo helpers ──
-const EMAIL_TYPOS: Record<string, string> = {
-  'gmail.con': 'gmail.com',  'gmail.cm': 'gmail.com',   'gmial.com': 'gmail.com',
-  'gmal.com':  'gmail.com',  'gmail.co': 'gmail.com',   'gmaill.com': 'gmail.com',
-  'yaoo.com':  'yahoo.com',  'yaho.com': 'yahoo.com',   'yahoo.con': 'yahoo.com',
-  'yhaoo.com': 'yahoo.com',  'yaho.co':  'yahoo.com',
-  'hotmial.com': 'hotmail.com', 'hotmal.com': 'hotmail.com', 'hotmail.con': 'hotmail.com',
-  'icolud.com':  'icloud.com',  'icoud.com':  'icloud.com',
-};
-function suggestEmail(email: string): string | null {
-  const at = email.lastIndexOf('@');
-  if (at < 1) return null;
-  const domain = email.slice(at + 1).toLowerCase();
-  const fix = EMAIL_TYPOS[domain];
-  if (!fix) return null;
-  return email.slice(0, at + 1) + fix;
-}
-
 const LS_KEY = "rillcod_summer_school_draft";
 
 export default function SummerSchoolPage() {
-  const { user, profile } = useAuth();
-  const [form, setForm] = useState({
-    studentName: "",
-    parentName: "",
-    phone: "",
-    email: "",
-    studentPhone: "",
-    school: "",
-    currentClass: "",
-    age: "",
-    gender: "",
-    preferredMode: "",
-    hearAboutUs: "",
-    trackInterest: "all", // "all" = Full AI Explorer
-    additionalInfo: "",
-    paymentMethod: "paystack", // "paystack" | "bank_transfer"
-    paymentPlan: "full", // "full" | "installment"
-    paymentReference: "",
-  });
+  const reg = useSummerSchoolRegistration({ lsKey: LS_KEY, receiptInputId: "page-receipt-upload" });
+  const {
+    form, setForm, loading, bankAccounts, isSuccess, setIsSuccess, successInfo, setSuccessInfo,
+    attempted, emailHint, setEmailHint, schoolsList, focusedSchoolIdx, setFocusedSchoolIdx,
+    uploadingReceipt, restored, whatsappGroupLink, tuition, handleChange, handlePhoneBlur,
+    handleStudentPhoneBlur, handleEmailBlur, handleReceiptUpload, handleSubmit, clearDraft,
+  } = reg;
 
-  const [loading, setLoading] = useState(false);
   const [appUrl, setAppUrl] = useState("https://www.rillcod.com/summer-school");
-  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [successInfo, setSuccessInfo] = useState<any>(null);
-  const [attempted, setAttempted] = useState(false);
-  const [emailHint, setEmailHint] = useState<string | null>(null);
-  const [schoolsList, setSchoolsList] = useState<string[]>([]);
-  const [focusedSchoolIdx, setFocusedSchoolIdx] = useState<number | null>(null);
-  const [uploadingReceipt, setUploadingReceipt] = useState(false);
-
-  const isOnsite = form.preferredMode === "Onsite";
-  const tuitionTotalLabel = isOnsite ? "₦100,000" : "₦70,000";
-  const tuitionDepositLabel = isOnsite ? "₦50,000" : "₦35,000";
-  const fullTuitionLabel = isOnsite ? "Full (₦100k)" : "Full (₦70k)";
-  const splitTuitionLabel = isOnsite ? "Split (₦50k)" : "Split (₦35k)";
-  const [restored, setRestored] = useState(false);
-
-  // Restore draft on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        setForm(prev => ({ ...prev, ...saved }));
-        setRestored(true);
-      }
-    } catch {}
-  }, []);
-
-  // Save draft on change
-  useEffect(() => {
-    if (isSuccess) return;
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem(LS_KEY, JSON.stringify(form));
-      } catch {}
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [form, isSuccess]);
-
-  // Load parent profiles & schools list
-  useEffect(() => {
-    if (profile) {
-      setForm(prev => ({
-        ...prev,
-        parentName: prev.parentName || profile.full_name || "",
-        email: prev.email || profile.email || user?.email || "",
-        phone: prev.phone || profile.phone || "",
-      }));
-    }
-  }, [profile, user]);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const { labelCls, inputCls } = summerFormStyles("page");
+  const { total: tuitionTotalLabel, deposit: tuitionDepositLabel, fullShort: fullTuitionLabel, splitShort: splitTuitionLabel, isOnsite } = tuition;
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setAppUrl(window.location.origin + "/summer-school");
-      
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("payment") === "success") {
-        setSuccessInfo({
-          studentName: params.get("name") || "Student",
-          parentPhone: "",
-          plan: params.get("plan") || "full",
-          method: params.get("method") || "paystack",
-          reference: params.get("reference") || "",
-        });
-        setIsSuccess(true);
-      }
+    if (typeof window === "undefined") return;
+    setAppUrl(window.location.origin + "/summer-school");
+
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get("reference")?.trim();
+    if (params.get("payment") === "success" && reference) {
+      setVerifyingPayment(true);
+      fetch(`/api/summer-school/verify?reference=${encodeURIComponent(reference)}`)
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || "Payment could not be verified.");
+          setSuccessInfo({
+            studentName: params.get("name") || data.studentName || "Student",
+            parentPhone: "",
+            plan: params.get("plan") || "full",
+            method: params.get("method") || "paystack",
+            reference,
+            paymentVerified: true,
+          });
+          setIsSuccess(true);
+          try { localStorage.removeItem(LS_KEY); } catch { }
+        })
+        .catch((err: Error) => {
+          toast.error(err.message || "Payment verification failed. Contact support if you were charged.");
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })
+        .finally(() => setVerifyingPayment(false));
     }
-
-    const supabase = createClient();
-    supabase
-      .from('payment_accounts')
-      .select('bank_name, account_number, account_name, label')
-      .eq('is_active', true)
-      .in('owner_type', ['rillcod', 'global'])
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          setBankAccounts(data);
-        } else {
-          setBankAccounts([
-            {
-              bank_name: "Zenith Bank",
-              account_number: "1228741369",
-              account_name: "Rillcod Technologies Limited",
-              label: "Corporate Operations"
-            }
-          ]);
-        }
-      });
-
-    supabase
-      .from('schools')
-      .select('name')
-      .order('name')
-      .then(({ data }) => {
-        if (data) {
-          setSchoolsList(data.map((s: any) => s.name).filter(Boolean));
-        }
-      });
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handlePhoneBlur = () => {
-    if (form.phone) {
-      setForm(prev => ({ ...prev, phone: formatWhatsApp(prev.phone) }));
-    }
-  };
-
-  const handleStudentPhoneBlur = () => {
-    if (form.studentPhone) {
-      setForm(prev => ({ ...prev, studentPhone: formatWhatsApp(prev.studentPhone) }));
-    }
-  };
-
-  const handleEmailBlur = () => {
-    if (form.email) {
-      setEmailHint(suggestEmail(form.email));
-    } else {
-      setEmailHint(null);
-    }
-  };
-
-  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file (PNG, JPG, JPEG).");
-      return;
-    }
-
-    setUploadingReceipt(true);
-    const toastId = toast.loading("Uploading receipt...");
-
-    try {
-      const supabase = createClient();
-      const ext = file.name.split(".").pop() || "png";
-      const filename = `receipt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
-      const path = `summer-school-receipts/${filename}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("portfolio-images")
-        .upload(path, file, { contentType: file.type });
-
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage
-        .from("portfolio-images")
-        .getPublicUrl(path);
-
-      setForm(prev => ({ ...prev, paymentReference: publicUrlData.publicUrl }));
-      toast.success("Receipt uploaded successfully!", { id: toastId });
-    } catch (err: any) {
-      console.error("Receipt upload error:", err);
-      toast.error(err.message || "Failed to upload receipt screenshot. Please try again.", { id: toastId });
-    } finally {
-      setUploadingReceipt(false);
-    }
-  };
-
-  const canSubmit =
-    form.studentName.trim() &&
-    form.parentName.trim() &&
-    form.phone.trim() &&
-    isValidWhatsApp(form.phone) &&
-    form.studentPhone.trim() &&
-    isValidWhatsApp(form.studentPhone) &&
-    form.email.trim() &&
-    form.currentClass &&
-    form.age &&
-    form.gender &&
-    form.preferredMode;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canSubmit) {
-      setAttempted(true);
-      toast.error("Please fill in all required fields correctly.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const selectedTrackLabel = form.trackInterest === "all" 
-        ? "Full AI Explorer (All Tracks)" 
-        : TRACKS.find(t => t.id === form.trackInterest)?.title || form.trackInterest;
-      
-      const fullNotes = `[Track Choice: ${selectedTrackLabel}] [Plan: ${form.paymentPlan}] [Method: ${form.paymentMethod}] ${form.paymentReference ? `[Ref: ${form.paymentReference}]` : ''} ${form.additionalInfo}`;
-
-      const res = await fetch('/api/summer-school', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_name:   form.studentName,
-          parent_name:    form.parentName,
-          parent_phone:   form.phone,
-          parent_email:   form.email     || undefined,
-          student_phone:  form.studentPhone,
-          school:         form.school    || undefined,
-          current_class:  form.currentClass || undefined,
-          age:            form.age ? parseInt(form.age, 10) : undefined,
-          gender:         form.gender    || undefined,
-          preferred_mode: form.preferredMode || undefined,
-          hear_about_us:  form.hearAboutUs || undefined,
-          additional_info: fullNotes,
-          payment_method: form.paymentMethod,
-          payment_plan: form.paymentPlan,
-          payment_reference: form.paymentReference || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
-      
-      // Clear saved session
-      try { localStorage.removeItem(LS_KEY); } catch {}
-
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
-      } else {
-        setSuccessInfo({
-          studentName: form.studentName,
-          parentPhone: form.phone,
-          plan: form.paymentPlan,
-          method: form.paymentMethod,
-          reference: data.reference,
-        });
-        setIsSuccess(true);
-        toast.success("Summer School registration submitted. Our team will verify your payment details shortly.");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Something went wrong. Please check your connection.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [setIsSuccess, setSuccessInfo]);
 
   const downloadQRCode = () => {
     const svg = document.getElementById("summer-school-page-qr-svg");
@@ -414,12 +169,6 @@ export default function SummerSchoolPage() {
     }
   };
 
-  const inputCls = (hasError = false) =>
-    `w-full bg-card border ${hasError ? 'border-rose-500 ring-1 ring-rose-500/30' : 'border-border'} px-5 py-4 text-foreground text-sm font-medium focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/40 rounded-xl`;
-
-  const labelCls = (hasError = false) =>
-    `block text-[10px] font-black ${hasError ? 'text-rose-500' : 'text-muted-foreground'} uppercase tracking-widest mb-2`;
-
   return (
     <div className="min-h-screen bg-background text-foreground pt-24 pb-16 relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -445,9 +194,9 @@ export default function SummerSchoolPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto pt-6">
             {[
-              { label: "Start Date", val: "June 8 – 12, 2026" },
+              { label: "Start Date", val: "June 8, 2026" },
               { label: "Deadline", val: "June 12, 2026", highlight: true },
-              { label: "Ending Date", val: "August 8, 2026" },
+              { label: "Ending Date", val: "August 28, 2026" },
               { label: "Duration", val: "7 Weeks Cohort" },
               { label: "Audience", val: "Ages 8 – 18" }
             ].map(m => (
@@ -465,15 +214,7 @@ export default function SummerSchoolPage() {
             <p className="text-xs text-primary font-bold">Your previous summer school draft has been loaded.</p>
             <button
               type="button"
-              onClick={() => {
-                try { localStorage.removeItem(LS_KEY); } catch {}
-                setForm({
-                  studentName: "", parentName: "", phone: "", email: "", studentPhone: "", school: "",
-                  currentClass: "", age: "", gender: "", preferredMode: "", hearAboutUs: "",
-                  trackInterest: "all", additionalInfo: "", paymentMethod: "paystack", paymentPlan: "full", paymentReference: ""
-                });
-                setRestored(false);
-              }}
+              onClick={clearDraft}
               className="text-[10px] font-black text-primary hover:opacity-80 transition-all uppercase"
             >
               Clear Draft
@@ -502,7 +243,7 @@ export default function SummerSchoolPage() {
                   </div>
                   <h3 className="text-lg font-black text-foreground uppercase">{t.title}</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
-                  
+
                   <div className="space-y-2 pt-2">
                     <p className="text-[9px] font-black text-muted-foreground uppercase tracking-wider">Core Topics Covered:</p>
                     <ul className="grid grid-cols-1 gap-1.5">
@@ -603,123 +344,32 @@ export default function SummerSchoolPage() {
         {/* Form + QR Code Grid */}
         <section id="register" className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pt-8">
           {/* Form / Success Ticket Column */}
-          {isSuccess ? (
-            <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-10 rounded-2xl space-y-8 shadow-2xl relative overflow-hidden border-t-8 border-t-emerald-500 animate-in fade-in zoom-in-95 duration-500">
+          {verifyingPayment ? (
+          <div className="lg:col-span-2 flex items-center justify-center gap-3 py-16 text-muted-foreground bg-card border border-border rounded-2xl">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <p className="text-sm font-bold uppercase tracking-widest">Verifying your payment…</p>
+          </div>
+        ) : isSuccess && successInfo ? (
+            <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-10 rounded-2xl shadow-2xl relative overflow-hidden border-t-8 border-t-emerald-500">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[80px] pointer-events-none" />
-              
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto text-emerald-500 text-3xl font-black">
-                  ✓
-                </div>
-                <div>
-                  <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full uppercase tracking-widest">
-                    Admission Ticket Issued
-                  </span>
-                  <h3 className="text-2xl sm:text-3xl font-black uppercase text-foreground mt-4">Registration Completed</h3>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                    Thank you for enrolling {successInfo?.studentName} in the Rillcod AI Summer School 2026.
-                  </p>
-                </div>
-              </div>
-
-              {/* Ticket Graphic */}
-              <div className="border border-dashed border-border bg-background p-6 rounded-xl space-y-4 font-sans relative">
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-8 bg-card rounded-r-full border-r border-border -ml-2" />
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-8 bg-card rounded-l-full border-l border-border -mr-2" />
-                
-                <div className="flex justify-between items-start border-b border-border pb-4">
-                  <div>
-                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Student</p>
-                    <p className="text-base font-black text-foreground">{successInfo?.studentName}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Cohort Window</p>
-                    <p className="text-xs font-black text-amber-500">June 8 – August 8</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-xs font-bold border-b border-border pb-4">
-                  <div>
-                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Plan Selected</p>
-                    <p className="text-foreground uppercase">{successInfo?.plan === 'installment' ? 'Installment Deposit' : 'Full Payment'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Payment Method</p>
-                    <p className="text-foreground uppercase">{successInfo?.method === 'bank_transfer' ? 'Manual Transfer' : 'Online checkout'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Reference</p>
-                    <p className="text-foreground font-mono text-[11px] truncate select-all">{successInfo?.reference}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-0.5">Payment Status</p>
-                    <p className={successInfo?.method === 'bank_transfer' ? 'text-amber-500 animate-pulse uppercase' : 'text-emerald-500 uppercase'}>
-                      {successInfo?.method === 'bank_transfer' ? 'Verification Pending' : 'Paid / Confirmed'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-2 text-center">
-                  <p className="text-[8px] font-mono text-muted-foreground uppercase tracking-widest">rillcod technologies limited • summer school admissions</p>
-                </div>
-              </div>
-
-              {/* Next Steps */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-black text-muted-foreground uppercase tracking-widest">Essential Action Steps</h4>
-                
-                <div className="grid grid-cols-1 gap-3">
-                  <a
-                    href="https://chat.whatsapp.com/G5l4M9x8Z8B7V6C5X4Z3Y2"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-4 bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/50 rounded-xl transition-all group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">📱</span>
-                      <div className="text-left">
-                        <p className="text-xs font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-wide">Join Student WhatsApp Group</p>
-                        <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Get real-time lessons, links, and schedule updates</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-black text-emerald-500 dark:text-emerald-400 group-hover:translate-x-1 transition-transform uppercase tracking-wider">Join →</span>
-                  </a>
-
-                  <div className="flex items-start gap-3 p-4 bg-muted/20 border border-border rounded-xl">
-                    <span className="text-xl">📧</span>
-                    <div className="text-left">
-                      <p className="text-xs font-black text-foreground uppercase tracking-wide">Check Your Inbox</p>
-                      <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">We have sent a detailed confirmation email with orientation information and access tokens.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-4 border-t border-border">
-                <button
-                  onClick={() => window.print()}
-                  className="flex-1 py-3.5 bg-muted hover:bg-muted/80 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-foreground transition-all cursor-pointer"
-                >
-                  🖨️ Print Ticket
-                </button>
-                <button
-                  onClick={() => {
-                    setIsSuccess(false);
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                  }}
-                  className="flex-1 py-3.5 bg-primary text-primary-foreground hover:opacity-90 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
-                >
-                  Register Another Student
-                </button>
-              </div>
+              <SummerSchoolSuccessTicket
+                successInfo={successInfo}
+                whatsappGroupLink={whatsappGroupLink}
+                variant="page"
+                onRegisterAnother={() => {
+                  setIsSuccess(false);
+                  clearDraft();
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                }}
+              />
             </div>
-          ) : (
+        ) : (
             <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-8 rounded-2xl space-y-6 shadow-2xl">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
                 <h3 className="text-lg font-black uppercase text-foreground">Summer Registration Form</h3>
               </div>
-              
+
               <div className="bg-rose-500/10 border border-rose-500/20 px-4 py-3 rounded-xl flex items-center gap-2.5">
                 <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
                 <p className="text-xs font-black text-rose-500 dark:text-rose-400 uppercase tracking-wider">
@@ -868,7 +518,7 @@ export default function SummerSchoolPage() {
                     <select name="currentClass" required value={form.currentClass} onChange={handleChange}
                       className={inputCls(attempted && !form.currentClass) + " appearance-none cursor-pointer select-premium"}>
                       <option value="">Select Grade</option>
-                      {["JSS1","JSS2","JSS3","SS1","SS2","SS3"].map(g => <option key={g} value={g}>{g}</option>)}
+                      {["JSS1", "JSS2", "JSS3", "SS1", "SS2", "SS3"].map(g => <option key={g} value={g}>{g}</option>)}
                     </select>
                     {attempted && !form.currentClass && <p className="text-rose-500 text-[10px] font-bold mt-1">Student's grade is required</p>}
                   </div>
@@ -877,7 +527,7 @@ export default function SummerSchoolPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className={labelCls(attempted && !form.age)}>Student Age *</label>
-                    <input type="number" name="age" required min={5} max={25} value={form.age} onChange={handleChange}
+                    <input type="number" name="age" required min={8} max={18} value={form.age} onChange={handleChange}
                       className={inputCls(attempted && !form.age)} placeholder="Age" />
                     {attempted && !form.age && <p className="text-rose-500 text-[10px] font-bold mt-1">Student's age is required</p>}
                   </div>
@@ -961,22 +611,20 @@ export default function SummerSchoolPage() {
                         <button
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, paymentPlan: "full" }))}
-                          className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${
-                            form.paymentPlan === "full"
+                          className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentPlan === "full"
                               ? "bg-primary text-primary-foreground border-primary shadow-md"
                               : "bg-card text-foreground border-border hover:bg-muted"
-                          }`}
+                            }`}
                         >
                           {fullTuitionLabel}
                         </button>
                         <button
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, paymentPlan: "installment" }))}
-                          className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${
-                            form.paymentPlan === "installment"
+                          className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentPlan === "installment"
                               ? "bg-primary text-primary-foreground border-primary shadow-md"
                               : "bg-card text-foreground border-border hover:bg-muted"
-                          }`}
+                            }`}
                         >
                           {splitTuitionLabel}
                         </button>
@@ -990,22 +638,20 @@ export default function SummerSchoolPage() {
                         <button
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, paymentMethod: "paystack" }))}
-                          className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${
-                            form.paymentMethod === "paystack"
+                          className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentMethod === "paystack"
                               ? "bg-primary text-primary-foreground border-primary shadow-md"
                               : "bg-card text-foreground border-border hover:bg-muted"
-                          }`}
+                            }`}
                         >
                           💳 Online
                         </button>
                         <button
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, paymentMethod: "bank_transfer" }))}
-                          className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${
-                            form.paymentMethod === "bank_transfer"
+                          className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentMethod === "bank_transfer"
                               ? "bg-primary text-primary-foreground border-primary shadow-md"
                               : "bg-card text-foreground border-border hover:bg-muted"
-                          }`}
+                            }`}
                         >
                           🏦 Transfer
                         </button>
@@ -1017,7 +663,7 @@ export default function SummerSchoolPage() {
                   {form.paymentMethod === "bank_transfer" && (
                     <div className="bg-card border border-border p-5 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                       <h5 className="text-xs font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest leading-none">Official Bank Details</h5>
-                      
+
                       {bankAccounts.map((account, index) => (
                         <div key={index} className="space-y-1.5 p-3.5 bg-background rounded-lg border border-border/50">
                           <div className="flex items-center justify-between">
@@ -1053,7 +699,7 @@ export default function SummerSchoolPage() {
                           className={inputCls(attempted && !form.paymentReference.trim())}
                           placeholder="e.g. Zenith Ref or Sender's Name"
                         />
-                        
+
                         <div className="flex items-center gap-3 mt-2">
                           <div className="relative flex-1">
                             <input
@@ -1066,13 +712,12 @@ export default function SummerSchoolPage() {
                             />
                             <label
                               htmlFor="page-receipt-upload"
-                              className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                uploadingReceipt 
-                                  ? "bg-muted text-muted-foreground border-muted animate-pulse" 
+                              className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${uploadingReceipt
+                                  ? "bg-muted text-muted-foreground border-muted animate-pulse"
                                   : form.paymentReference.startsWith('http')
                                     ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
                                     : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
-                              }`}
+                                }`}
                             >
                               {uploadingReceipt ? (
                                 <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading Receipt...</>
@@ -1084,10 +729,10 @@ export default function SummerSchoolPage() {
                             </label>
                           </div>
                           {form.paymentReference.startsWith('http') && (
-                            <a 
-                              href={form.paymentReference} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
+                            <a
+                              href={form.paymentReference}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="text-[10px] font-black uppercase text-primary hover:underline"
                             >
                               View Receipt
@@ -1127,9 +772,9 @@ export default function SummerSchoolPage() {
                 animation: rillcodScan 3s infinite ease-in-out;
               }
             `}</style>
-            
+
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl text-primary">📱</div>
-            
+
             <div className="space-y-2">
               <h3 className="text-sm font-black uppercase text-foreground">Scan to Share or Open</h3>
               <p className="text-xs text-muted-foreground max-w-xs leading-relaxed font-medium">
