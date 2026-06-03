@@ -146,6 +146,7 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
 
   // Generate temp password and create auth user
   const tempPassword = generateTempPassword();
+  let parentId: string | null = null;
 
   const { data: created, error: createErr } = await sb.auth.admin.createUser({
     email: parentEmail,
@@ -154,11 +155,30 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     user_metadata: { full_name: parentName, role: 'parent' },
   });
 
-  if (createErr || !created?.user) {
-    return NextResponse.json({ error: createErr?.message ?? 'Failed to create auth user' }, { status: 500 });
+  if (createErr) {
+    if (createErr.message.includes('already') || createErr.message.includes('exists')) {
+      const { data: listData } = await sb.auth.admin.listUsers({ perPage: 1000 });
+      const existingAuth = listData?.users?.find(
+        u => u.email?.trim().toLowerCase() === parentEmail
+      );
+      if (existingAuth) {
+        parentId = existingAuth.id;
+        await sb.auth.admin.updateUserById(parentId, {
+          password: tempPassword,
+          user_metadata: { full_name: parentName, role: 'parent' },
+        });
+      }
+    }
+    if (!parentId) {
+      return NextResponse.json({ error: createErr.message ?? 'Failed to create auth user' }, { status: 500 });
+    }
+  } else if (created?.user) {
+    parentId = created.user.id;
   }
 
-  const parentId = created.user.id;
+  if (!parentId) {
+    return NextResponse.json({ error: 'Failed to create or resolve auth user' }, { status: 500 });
+  }
 
   // Upsert portal_users row
   await (sb as any).from('portal_users').upsert({

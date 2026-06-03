@@ -5,6 +5,7 @@ import QRCode from 'react-qr-code';
 import { downloadQrCard } from '@/lib/qr-card';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { toast } from 'sonner';
 import {
   ArrowLeftIcon, ArrowPathIcon, PrinterIcon, UserGroupIcon,
   MagnifyingGlassIcon, CheckCircleIcon, FunnelIcon, ArrowDownTrayIcon,
@@ -706,14 +707,18 @@ export default function ResponsesPage() {
     setLinkingStudentId(studentPortalId);
     const thisChildIndex = linkChildIndex;
     const studentName = studentOptions.find(s => s.id === studentPortalId)?.full_name ?? '';
+    const toastId = toast.loading(`Linking ${studentName} to parent portal account...`);
     try {
       const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ student_portal_id: studentPortalId, child_index: thisChildIndex }),
       });
-      if (!res.ok) { const j = await res.json(); alert(j.error ?? 'Failed to link'); return; }
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json.error ?? 'Failed to link student', { id: toastId });
+        return;
+      }
       if (thisChildIndex === 0) {
         setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_student_id: json.student_id } : l));
       } else {
@@ -723,7 +728,10 @@ export default function ResponsesPage() {
                      { childIndex: thisChildIndex, studentId: json.student_id, studentName }],
         }));
       }
+      toast.success(`Linked ${studentName} to parent portal account!`, { id: toastId });
       setLinkChildLeadId(null);
+    } catch (err: any) {
+      toast.error(err.message ?? 'An error occurred while linking child', { id: toastId });
     } finally {
       setLinkingStudentId(null);
     }
@@ -1548,10 +1556,18 @@ export default function ResponsesPage() {
                                     <button
                                       disabled={deletingPortalId === lead.id}
                                       onClick={() => deletePortalAccount(lead.id, parentName)}
-                                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
                                       title="Delete portal account entirely — removes auth, login access and all links"
                                     >
-                                      {deletingPortalId === lead.id ? '…' : '✕ Remove'}
+                                      {deletingPortalId === lead.id ? (
+                                        <>
+                                          <svg className="animate-spin h-2.5 w-2.5 text-rose-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                          </svg>
+                                          <span>Removing…</span>
+                                        </>
+                                      ) : '✕ Remove'}
                                     </button>
                                   </div>
                                 );
@@ -1560,10 +1576,18 @@ export default function ResponsesPage() {
                                   <button
                                     disabled={creatingPortalId === lead.id}
                                     onClick={() => createPortalAccount(lead.id, parentName)}
-                                    className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                    className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
                                     title="Create parent portal account & send temp password"
                                   >
-                                    {creatingPortalId === lead.id ? '…Creating' : '+ Portal Account'}
+                                    {creatingPortalId === lead.id ? (
+                                      <>
+                                        <svg className="animate-spin h-2.5 w-2.5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Creating…</span>
+                                      </>
+                                    ) : '+ Portal Account'}
                                   </button>
                                 );
                               })()}
@@ -1939,8 +1963,16 @@ export default function ResponsesPage() {
                           <p className="text-sm font-bold text-foreground truncate">{s.full_name}</p>
                           {s.section_class && <p className="text-[10px] text-muted-foreground">{s.section_class}</p>}
                         </div>
-                        <span className="text-[9px] font-black text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                          {linkingStudentId === s.id ? '…' : 'Link →'}
+                        <span className={`text-[9px] font-black text-primary transition-opacity shrink-0 flex items-center gap-1 ${linkingStudentId === s.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                          {linkingStudentId === s.id ? (
+                            <>
+                              <svg className="animate-spin h-2.5 w-2.5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <span>…</span>
+                            </>
+                          ) : 'Link →'}
                         </span>
                       </button>
                     ))}

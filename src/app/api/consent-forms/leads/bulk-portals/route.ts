@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
       }
 
       const tempPassword = generateTempPassword();
+      let parentId: string | null = null;
       const { data: created, error: createErr } = await sb.auth.admin.createUser({
         email: parentEmail,
         password: tempPassword,
@@ -163,12 +164,32 @@ export async function POST(req: NextRequest) {
         user_metadata: { full_name: parentName, role: 'parent' },
       });
 
-      if (createErr || !created?.user) {
-        results.errors.push({ leadId: lead.id, error: createErr?.message ?? 'Failed to create auth user' });
-        continue;
+      if (createErr) {
+        if (createErr.message.includes('already') || createErr.message.includes('exists')) {
+          const { data: listData } = await sb.auth.admin.listUsers({ perPage: 1000 });
+          const existingAuth = listData?.users?.find(
+            u => u.email?.trim().toLowerCase() === parentEmail
+          );
+          if (existingAuth) {
+            parentId = existingAuth.id;
+            await sb.auth.admin.updateUserById(parentId, {
+              password: tempPassword,
+              user_metadata: { full_name: parentName, role: 'parent' },
+            });
+          }
+        }
+        if (!parentId) {
+          results.errors.push({ leadId: lead.id, error: createErr.message ?? 'Failed to create auth user' });
+          continue;
+        }
+      } else if (created?.user) {
+        parentId = created.user.id;
       }
 
-      const parentId = created.user.id;
+      if (!parentId) {
+        results.errors.push({ leadId: lead.id, error: 'Failed to create or resolve auth user' });
+        continue;
+      }
 
       await (sb as any).from('portal_users').upsert({
         id:        parentId,

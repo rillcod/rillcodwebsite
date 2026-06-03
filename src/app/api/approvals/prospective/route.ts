@@ -238,6 +238,14 @@ export async function POST(request: NextRequest) {
       console.error('Failed to update prospective_students row status:', prospectiveErr);
     }
 
+    // Sync to CRM Contact Book
+    try {
+      const { harnessProspectToContactBook } = await import('@/lib/crm/sync-prospect');
+      await harnessProspectToContactBook(id, authUserId);
+    } catch (syncErr) {
+      console.error('Failed to sync approved summer student to CRM contact book:', syncErr);
+    }
+
     // Send email to parent on manual approval
     try {
       const { notificationsService } = await import('@/services/notifications.service');

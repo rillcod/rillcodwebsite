@@ -234,6 +234,7 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
     } else if (gatewayResponse?.payment_type === 'summer_school') {
         const prospectId = gatewayResponse?.prospect_id;
         if (prospectId) {
+            let authUserId: string | null = null;
             // Retrieve prospective student details to auto-provision
             const { data: record } = await supabase
                 .from('prospective_students')
@@ -247,7 +248,6 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                     const crypto = await import('crypto');
                     const password = crypto.randomBytes(8).toString('base64url').slice(0, 10);
                     const normalizedEmail = loginEmail.trim().toLowerCase();
-                    let authUserId: string | null = null;
 
                     // Parse student phone if present in notes
                     const notesStr = record.notes || '';
@@ -387,6 +387,14 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                     is_active: true,
                 })
                 .eq('id', prospectId);
+
+            // Sync to CRM Contact Book
+            try {
+                const { harnessProspectToContactBook } = await import('@/lib/crm/sync-prospect');
+                await harnessProspectToContactBook(prospectId, authUserId);
+            } catch (syncErr) {
+                console.error('Failed to sync approved summer student to CRM contact book in webhook:', syncErr);
+            }
         }
     } else if (gatewayResponse?.payment_type === 'billing_cycle' && gatewayResponse?.billing_cycle_id) {
         const billingCycleId = gatewayResponse.billing_cycle_id as string;

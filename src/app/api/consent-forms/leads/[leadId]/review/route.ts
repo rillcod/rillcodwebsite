@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
+import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,6 +82,46 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     const { data } = await sb.from('portal_users').select('id').eq('role', 'parent')
       .ilike('phone', `%${parentPhone.slice(-9)}%`).maybeSingle();
     matchedParentId = (data as any)?.id ?? null;
+  }
+
+  // If we matched the student but still haven't found a parent portal account,
+  // check if the student candidate is already linked to a parent, or has a parent email.
+  if (!matchedParentId && candidateId) {
+    // 1. Try to find parent via parent_student_links for this student candidate
+    const { data: parentLink } = await sb
+      .from('parent_student_links')
+      .select('parent_id')
+      .eq('student_id', candidateId)
+      .maybeSingle();
+
+    if (parentLink) {
+      matchedParentId = parentLink.parent_id;
+    } else {
+      // 2. Try to find parent via parent_email on the student's own record
+      const { data: student } = await sb
+        .from('students')
+        .select('parent_email')
+        .eq('id', candidateId)
+        .maybeSingle();
+
+      if (student?.parent_email) {
+        const { data: parentByEmail } = await sb
+          .from('portal_users')
+          .select('id')
+          .eq('email', student.parent_email)
+          .eq('role', 'parent')
+          .maybeSingle();
+
+        if (parentByEmail) {
+          matchedParentId = parentByEmail.id;
+        }
+      }
+    }
+  }
+
+  // Sync the parent-student link if we resolved a parent and matched a student
+  if (matchedParentId && candidateId) {
+    await syncExplicitParentStudentLink(sb as any, matchedParentId, candidateId);
   }
 
   // Link the lead and mark as contacted
