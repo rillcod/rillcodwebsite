@@ -31,11 +31,11 @@ const Hero: React.FC = () => {
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
             <Link
               href="/summer-school"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500/10 to-emerald-500/10 hover:from-amber-500/20 hover:to-emerald-500/20 border border-amber-500/30 hover:border-amber-500/60 backdrop-blur-sm mb-6 rounded-2xl transition-all text-left"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500/10 via-orange-500/15 to-emerald-500/10 hover:from-amber-500/20 hover:via-orange-500/25 hover:to-emerald-500/20 border border-amber-500/40 hover:border-amber-500/70 backdrop-blur-sm mb-6 rounded-2xl transition-all text-left shadow-lg shadow-amber-500/5 group"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
-              <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
-                ☀️ Summer School 2026 is Active (June 8-12 to Aug 8) <span className="text-white font-bold ml-1 hover:underline">Register &amp; Scan →</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 animate-pulse ring-4 ring-emerald-400/20" />
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex flex-wrap items-center gap-1">
+                ☀️ Summer School 2026 is Active (June 8-12 to Aug 8) <span className="text-white font-bold ml-1 group-hover:underline flex items-center gap-0.5">Register &amp; Scan <ArrowRight className="w-3 h-3 inline-block group-hover:translate-x-0.5 transition-transform" /></span>
               </span>
             </Link>
 
@@ -52,17 +52,23 @@ const Hero: React.FC = () => {
               Empowering Nigerian students with hands-on coding, robotics, and future-forward STEM skills directly within your school.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-12">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto mb-12">
               <Link
-                href="/login"
-                className="group flex items-center justify-center gap-2.5 px-10 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:bg-primary transition-all shadow-lg border-b-2 border-b-brand-red-600/60"
+                href="/summer-school"
+                className="group w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:opacity-95 transition-all shadow-xl shadow-orange-500/20 border-b-2 border-b-orange-700/60 hover:scale-[1.02]"
               >
-                Student Login
+                ☀️ AI Summer School
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link
+                href="/login"
+                className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-primary text-white font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:bg-primary/90 transition-all shadow-lg border-b-2 border-b-brand-red-600/60"
+              >
+                Student Login
+              </Link>
+              <Link
                 href="/school-registration"
-                className="flex items-center justify-center gap-2.5 px-10 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border border-border hover:bg-muted transition-all"
+                className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-5 bg-card text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl border border-border hover:bg-muted transition-all"
               >
                 Register School
               </Link>
@@ -99,18 +105,18 @@ const Hero: React.FC = () => {
                    fill
                    className="object-cover"
                 />
-                {/* Student Registration CTA overlay */}
+                {/* Summer School Registration CTA overlay */}
                 <div className="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-6">
                   <Link
-                    href="/student-registration"
-                    className="group/cta flex items-center justify-between w-full bg-background/90 backdrop-blur-sm border border-primary/40 px-5 py-4 hover:bg-primary transition-all duration-300 shadow-2xl"
+                    href="/summer-school"
+                    className="group/cta flex items-center justify-between w-full bg-background/90 backdrop-blur-sm border border-amber-500/40 hover:border-amber-500 px-5 py-4 hover:bg-amber-600 transition-all duration-300 shadow-2xl rounded-xl"
                   >
                     <div>
-                      <p className="text-[9px] font-black text-primary group-hover/cta:text-white uppercase tracking-[0.25em] mb-0.5 transition-colors">New Student?</p>
-                      <p className="text-sm font-black text-foreground group-hover/cta:text-white uppercase tracking-tight transition-colors">Register Now</p>
+                      <p className="text-[9px] font-black text-amber-500 group-hover/cta:text-white uppercase tracking-[0.25em] mb-0.5 transition-colors">☀️ SUMMER SCHOOL 2026</p>
+                      <p className="text-sm font-black text-foreground group-hover/cta:text-white uppercase tracking-tight transition-colors">ENROLL CHILD NOW</p>
                     </div>
-                    <div className="w-9 h-9 bg-primary group-hover/cta:bg-card flex items-center justify-center flex-shrink-0 transition-colors">
-                      <ArrowRight className="w-4 h-4 text-white group-hover/cta:text-primary group-hover/cta:translate-x-0.5 transition-all" />
+                    <div className="w-9 h-9 bg-amber-500 group-hover/cta:bg-card flex items-center justify-center flex-shrink-0 transition-colors rounded-lg">
+                      <ArrowRight className="w-4 h-4 text-white group-hover/cta:text-amber-600 group-hover/cta:translate-x-0.5 transition-all" />
                     </div>
                   </Link>
                 </div>

@@ -105,11 +105,26 @@ const Navigation = () => {
 
             {/* ── Desktop Nav ── */}
             <div className="hidden lg:flex items-center gap-1">
-              {mainLinks.map(({ href, label, icon: Icon }) => (
-                <Link suppressHydrationWarning key={href} href={href} className={navLinkCls(href)}>
-                   {label}
-                </Link>
-              ))}
+              {mainLinks.map(({ href, label, icon: Icon }) => {
+                const isSummer = href === '/summer-school';
+                return (
+                  <Link
+                    suppressHydrationWarning
+                    key={href}
+                    href={href}
+                    className={`${navLinkCls(href)} ${
+                      isSummer && !isActive(href)
+                        ? 'border border-amber-500/20 text-amber-500 hover:text-amber-400 hover:border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10'
+                        : ''
+                    }`}
+                  >
+                    {isSummer && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-0.5" />
+                    )}
+                    {label}
+                  </Link>
+                );
+              })}
 
               {/* Secure Dropdown */}
               <div className="relative group ml-4">
@@ -172,13 +187,25 @@ const Navigation = () => {
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Command Center</p>
                    <ThemeToggle />
                 </div>
-                <div className="grid gap-2">
-                   {[...mainLinks, ...secondaryLinks].map(({ href, label }) => (
-                     <Link key={href} href={href} className="text-lg sm:text-xl font-black text-foreground uppercase tracking-tight hover:text-primary transition-colors py-2 italic">
-                        {label}
-                     </Link>
-                   ))}
-                </div>
+                 <div className="grid gap-2">
+                    {[...mainLinks, ...secondaryLinks].map(({ href, label }) => {
+                      const isSummer = href === '/summer-school';
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          className={`text-lg sm:text-xl font-black uppercase tracking-tight transition-colors py-2 italic flex items-center gap-2 ${
+                            isSummer
+                              ? 'text-amber-500 hover:text-amber-400 animate-pulse'
+                              : 'text-foreground hover:text-primary'
+                          }`}
+                        >
+                          {isSummer && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />}
+                          {label}
+                        </Link>
+                      );
+                    })}
+                 </div>
 
                 <div className="pt-10 border-t border-border space-y-6">
                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">System Uplink</p>
