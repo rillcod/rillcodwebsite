@@ -132,8 +132,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const amount = getSummerTuitionAmount(preferred_mode, payment_plan);
-    const totalTuition = getSummerTotalTuition(preferred_mode);
+    // Sibling detection on backend
+    let hasSibling = false;
+    const { count: studentCount } = await supabase
+      .from('students')
+      .select('id', { count: 'exact', head: true })
+      .eq('parent_email', emailNorm);
+    const { count: prospectiveCount } = await supabase
+      .from('prospective_students')
+      .select('id', { count: 'exact', head: true })
+      .eq('parent_email', emailNorm);
+    hasSibling = !!((studentCount || 0) + (prospectiveCount || 0) >= 1);
+
+    const amount = getSummerTuitionAmount(preferred_mode, payment_plan, hasSibling);
+    const totalTuition = getSummerTotalTuition(preferred_mode, hasSibling);
     const courseInterest = `${current_class ? current_class + ' ' : ''}Summer School 2026`;
     const initialStatus = payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
 

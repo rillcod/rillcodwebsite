@@ -58,8 +58,20 @@ export async function GET(req: NextRequest) {
 
   const preferredMode = prospect.preferred_schedule || "Online";
   const amountPaid = await getAmountPaid(prospect.id);
-  const total = getSummerTotalTuition(preferredMode);
-  const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
+  const supabase = getSummerSchoolAdminClient();
+  let hasSibling = false;
+  const { count: studentCount } = await supabase
+    .from('students')
+    .select('id', { count: 'exact', head: true })
+    .eq('parent_email', email);
+  const { count: prospectiveCount } = await supabase
+    .from('prospective_students')
+    .select('id', { count: 'exact', head: true })
+    .eq('parent_email', email);
+  hasSibling = !!((studentCount || 0) + (prospectiveCount || 0) > 1);
+
+  const total = getSummerTotalTuition(preferredMode, hasSibling);
+  const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
 
   if (balanceDue <= 0) {
     return NextResponse.json({
@@ -111,13 +123,24 @@ export async function POST(req: NextRequest) {
 
     const preferredMode = prospect.preferred_schedule || "Online";
     const amountPaid = await getAmountPaid(prospect.id);
-    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid);
+    const supabase = getSummerSchoolAdminClient();
+    let hasSibling = false;
+    const { count: studentCount } = await supabase
+      .from('students')
+      .select('id', { count: 'exact', head: true })
+      .eq('parent_email', email);
+    const { count: prospectiveCount } = await supabase
+      .from('prospective_students')
+      .select('id', { count: 'exact', head: true })
+      .eq('parent_email', email);
+    hasSibling = !!((studentCount || 0) + (prospectiveCount || 0) > 1);
+
+    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
 
     if (balanceDue <= 0) {
       return NextResponse.json({ error: "Tuition is already fully paid" }, { status: 400 });
     }
 
-    const supabase = getSummerSchoolAdminClient();
     const reference = `SUM-BAL-${Date.now()}-${prospect.id.substring(0, 6)}`;
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.rillcod.com";
 

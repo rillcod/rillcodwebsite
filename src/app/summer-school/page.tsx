@@ -179,7 +179,7 @@ export default function SummerSchoolPage() {
       <div className="max-w-6xl mx-auto px-6 relative z-10 space-y-16">
         {/* Hero Section */}
         <section className="text-center space-y-6 py-8 no-print">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 rounded-full text-[10px] font-black uppercase tracking-widest">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-500/15 border border-yellow-500/30 text-yellow-500 dark:text-yellow-400 rounded-full text-[10px] font-black uppercase tracking-widest">
             ☀️ Active Season: Summer 2026
           </div>
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tighter leading-none">
@@ -595,9 +595,15 @@ export default function SummerSchoolPage() {
                 <div className="border-t border-border pt-6 mt-6 space-y-6">
                   <div>
                     <h4 className="text-sm font-black uppercase text-foreground mb-4">Payment Setup & Tuition</h4>
-                    <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-xl mb-4">
+                    {reg.hasSibling && !isOnsite && (
+                      <div className="mb-4 bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 rounded-xl flex items-center gap-2.5 text-emerald-500 dark:text-emerald-400 text-xs font-black uppercase tracking-wider">
+                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                        Sibling Discount Applied (₦50k Rate)
+                      </div>
+                    )}
+                    <div className="bg-yellow-500/15 border border-yellow-500/40 p-4 rounded-xl mb-4">
                       <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-                        Summer School Tuition is <strong className="text-amber-500 dark:text-amber-400">{tuitionTotalLabel}</strong> for {isOnsite ? 'Onsite' : 'Online / Hybrid'} attendance. You can choose to pay in full or pay a <strong className="text-amber-500 dark:text-amber-400">50% installment deposit ({tuitionDepositLabel})</strong> to secure your slot. The remaining balance will be due by the third week of the cohort.
+                        Summer School Tuition is <strong className="text-yellow-500 dark:text-yellow-400 font-bold">{tuitionTotalLabel}</strong> for {isOnsite ? 'Onsite' : 'Online / Hybrid'} attendance. You can choose to pay in full or pay a <strong className="text-yellow-500 dark:text-yellow-400 font-bold">50% installment deposit ({tuitionDepositLabel})</strong> to secure your slot. The remaining balance will be due by the third week of the cohort.
                       </p>
                     </div>
                   </div>
@@ -661,7 +667,7 @@ export default function SummerSchoolPage() {
                   {/* Display instructions based on payment method */}
                   {form.paymentMethod === "bank_transfer" && (
                     <div className="bg-card border border-border p-5 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <h5 className="text-xs font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest leading-none">Official Bank Details</h5>
+                      <h5 className="text-xs font-black text-yellow-500 dark:text-yellow-400 uppercase tracking-widest leading-none">Official Bank Details</h5>
 
                       {bankAccounts.map((account, index) => (
                         <div key={index} className="space-y-1.5 p-3.5 bg-background rounded-lg border border-border/50">
@@ -670,7 +676,7 @@ export default function SummerSchoolPage() {
                             <span className="text-xs font-black text-foreground">{account.bank_name}</span>
                           </div>
                           <div className="flex items-center justify-between pt-1">
-                            <span className="text-sm font-mono font-bold text-amber-500 select-all">{account.account_number}</span>
+                            <span className="text-sm font-mono font-bold text-yellow-500 select-all">{account.account_number}</span>
                             <button
                               type="button"
                               onClick={() => {
