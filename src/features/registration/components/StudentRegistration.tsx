@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   User, Check, ArrowRight, ArrowLeft, Loader2, GraduationCap,
@@ -146,9 +146,9 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
 };
 
 const TYPE_FEES: Record<string, string> = {
-  school:    '₦10,000 – ₦25,000',
-  bootcamp:  '₦30,000 – ₦55,000',
-  online:    '₦25,000 – ₦40,000',
+  school:    '₦50,000 / term',
+  bootcamp:  '₦30,000 – ₦70,000',
+  online:    '₦50,000 / term',
   in_person: '₦50,000 / term',
   '':        '',
 };
@@ -179,6 +179,22 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
       setForm(p => ({ ...p, enrollmentType: nextType, preferredSchedule: '' }));
     }
   }, [defaultEnrollmentType, searchParams, form.enrollmentType]);
+
+  const [hasSibling, setHasSibling] = useState(false);
+
+  useEffect(() => {
+    if (form.parentEmail && form.parentEmail.trim()) {
+      createClient()
+        .from('students')
+        .select('id', { count: 'exact', head: true })
+        .eq('parent_email', form.parentEmail.trim().toLowerCase())
+        .then(({ count }) => {
+          setHasSibling(!!(count && count > 0));
+        });
+    } else {
+      setHasSibling(false);
+    }
+  }, [form.parentEmail]);
 
   const set = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -256,9 +272,36 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   }
 
   const et = form.enrollmentType;
-  const schedules = et === 'school'
-    ? getSchoolSchedules(form.courseInterest)
-    : (SCHEDULES[et] ?? SCHEDULES['']);
+  const schedules = useMemo(() => {
+    if (et === 'school') {
+      return [
+        { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',   fee: 50000, feeLabel: '₦50,000 / term' },
+        { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',       fee: 50000, feeLabel: '₦50,000 / term' },
+        { value: 'Termly Programme',    label: 'Full Termly Programme',            fee: 50000, feeLabel: '₦50,000 / term' },
+        { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',     fee: 50000, feeLabel: '₦50,000 / holiday' },
+      ];
+    }
+    if (et === 'online') {
+      return [
+        { value: 'Online Live Classes', label: 'Online Live Classes (scheduled sessions)', fee: 50000, feeLabel: '₦50,000 / term' },
+        { value: 'Online Self-Paced',   label: 'Online – Self-Paced (learn at your pace)', fee: 50000, feeLabel: '₦50,000 / term' },
+        { value: 'Online Weekend',      label: 'Online – Weekends Only',                   fee: 50000, feeLabel: '₦50,000 / term' },
+      ];
+    }
+    if (et === 'bootcamp') {
+      return [
+        { 
+          value: 'Summer School',    
+          label: 'Summer School (Mon–Fri, 9am–2pm)',  
+          fee: hasSibling ? 50000 : 70000, 
+          feeLabel: hasSibling ? '₦50,000 (Sibling Discount Applied)' : '₦70,000 (₦50,000 for siblings)' 
+        },
+        { value: 'Weekend Bootcamp', label: 'Weekend Bootcamp (Sat & Sun)',       fee: 35000, feeLabel: '₦35,000' },
+        { value: 'Holiday Programme',label: 'Holiday / Vacation Programme',       fee: 30000, feeLabel: '₦30,000' },
+      ];
+    }
+    return SCHEDULES[et] ?? SCHEDULES[''];
+  }, [et, hasSibling]);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
   const feeLabel = selectedSchedule?.feeLabel ?? TYPE_FEES[et] ?? '';
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';

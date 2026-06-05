@@ -7,48 +7,50 @@ import { RateLimitError } from '@/lib/errors';
 
 // ── Partner school pricing (Young Innovators & Teen Developers are subsidised) ──
 const SCHOOL_YOUNG_INNOVATORS_FEES: Record<string, number> = {
-    'Weekday Afternoons': 12000,
-    'Weekend In-Person':  10000,
-    'Termly Programme':   12000,
-    'Holiday Programme':  18000,
+    'Weekday Afternoons': 50000,
+    'Weekend In-Person':  50000,
+    'Termly Programme':   50000,
+    'Holiday Programme':  50000,
 };
 
 const SCHOOL_TEEN_DEVELOPERS_FEES: Record<string, number> = {
-    'Weekday Afternoons': 15000,
-    'Weekend In-Person':  12000,
-    'Termly Programme':   15000,
-    'Holiday Programme':  22000,
+    'Weekday Afternoons': 50000,
+    'Weekend In-Person':  50000,
+    'Termly Programme':   50000,
+    'Holiday Programme':  50000,
 };
 
 const SCHOOL_OTHER_FEES: Record<string, number> = {
-    'Weekday Afternoons': 20000,
-    'Weekend In-Person':  18000,
-    'Termly Programme':   20000,
-    'Holiday Programme':  25000,
+    'Weekday Afternoons': 50000,
+    'Weekend In-Person':  50000,
+    'Termly Programme':   50000,
+    'Holiday Programme':  50000,
 };
 
-// Bootcamp and online remain unchanged
+// Bootcamp and online
 const NON_SCHOOL_FEES: Record<string, number> = {
-    'Summer Intensive (Day)':       60000,
+    'Summer School':                70000,
+    'Summer Intensive (Day)':       70000,
     'Summer Intensive (Half Day)':  45000,
     'Summer Intensive (Afternoon)': 45000,
     'Weekend Bootcamp':             35000,
     'Holiday Programme':            30000,
-    'Online Self-Paced':            30000,
-    'Online Live Sessions':         40000,
-    'Online Weekend':               25000,
+    'Online Self-Paced':            50000,
+    'Online Live Sessions':         50000,
+    'Online Live Classes':          50000,
+    'Online Weekend':               50000,
 };
 
 const TYPE_FEES: Record<string, number> = {
-    school:   20000,
-    bootcamp: 60000,
-    online:   30000,
+    school:   50000,
+    bootcamp: 70000,
+    online:   50000,
     in_person: 50000,
 };
 
 const PARENT_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
-function getFee(enrollment_type: string, preferred_schedule: string, course_interest?: string): number {
+function getFee(enrollment_type: string, preferred_schedule: string, course_interest?: string, hasSibling?: boolean): number {
     if (enrollment_type === 'school') {
         const lower = (course_interest || '').toLowerCase();
         const schoolMap = lower.includes('young innovator')
@@ -60,6 +62,12 @@ function getFee(enrollment_type: string, preferred_schedule: string, course_inte
             return schoolMap[preferred_schedule];
         }
         return TYPE_FEES.school;
+    }
+    if (enrollment_type === 'online') {
+        return 50000;
+    }
+    if (preferred_schedule === 'Summer School' || preferred_schedule === 'Summer Intensive (Day)') {
+        return hasSibling ? 50000 : 70000;
     }
     if (preferred_schedule && NON_SCHOOL_FEES[preferred_schedule] != null) {
         return NON_SCHOOL_FEES[preferred_schedule];
@@ -74,6 +82,7 @@ async function resolveRegistrationPrice(
     enrollment_type: string,
     preferred_schedule: string,
     course_interest?: string,
+    parent_email?: string,
 ): Promise<{ amount: number; programName: string | null; resolvedProgramId: string | null }> {
     const tryProgram = async (id: string) => {
         const { data: prog } = await supabase
@@ -106,8 +115,18 @@ async function resolveRegistrationPrice(
         if (fromDefault) return fromDefault;
     }
 
+    // Perform database query to find if parent has registered child
+    let hasSibling = false;
+    if (parent_email?.trim()) {
+        const { count } = await supabase
+            .from('students')
+            .select('*', { count: 'exact', head: true })
+            .eq('parent_email', parent_email.trim().toLowerCase());
+        hasSibling = !!(count && count > 0);
+    }
+
     return {
-        amount: getFee(enrollment_type, preferred_schedule, course_interest),
+        amount: getFee(enrollment_type, preferred_schedule, course_interest, hasSibling),
         programName: null,
         resolvedProgramId: null,
     };
@@ -191,6 +210,7 @@ export async function POST(req: Request) {
             enrollment_type,
             preferred_schedule,
             course_interest,
+            parent_email,
         );
 
         if (payment_plan === 'instalment') {
