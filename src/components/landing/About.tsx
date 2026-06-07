@@ -66,29 +66,38 @@ const About: React.FC = () => {
           </div>
 
           {/* STATS / VISUAL */}
-          <div className="relative">
-             <div className="bg-card border border-border rounded-xl p-10 md:p-16 shadow-2xl relative overflow-hidden group">
+          <div className="space-y-8">
+             <div className="relative group overflow-hidden rounded-xl border border-border shadow-2xl aspect-video lg:aspect-[16/10]">
+                <img 
+                   src="/images/landing/about.png" 
+                   alt="Rillcod Team and Students" 
+                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+             </div>
+
+             <div className="bg-card border border-border rounded-xl p-8 md:p-12 shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-xl blur-[100px] pointer-events-none group-hover:bg-primary/10 transition-colors duration-1000" />
                 
-                <div className="space-y-12 relative z-10">
+                <div className="grid sm:grid-cols-3 gap-8 relative z-10">
                    <div>
-                      <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter mb-2">25+</p>
-                      <p className="text-[10px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Partner Schools</p>
-                      <div className="w-full h-1 bg-muted rounded-xl mt-4 overflow-hidden">
+                      <p className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter mb-2">25+</p>
+                      <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.3em]">Partner Schools</p>
+                      <div className="w-full h-1 bg-muted rounded-xl mt-3 overflow-hidden">
                          <div className="w-[85%] h-full bg-primary rounded-xl shadow-[0_0_10px_rgba(196,30,58,0.5)]" />
                       </div>
                    </div>
                    <div>
-                      <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter mb-2">500+</p>
-                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Active Students</p>
-                      <div className="w-full h-1 bg-muted rounded-xl mt-4 overflow-hidden">
+                      <p className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter mb-2">500+</p>
+                      <p className="text-[9px] font-black text-primary uppercase tracking-[0.3em]">Active Students</p>
+                      <div className="w-full h-1 bg-muted rounded-xl mt-3 overflow-hidden">
                          <div className="w-[92%] h-full bg-primary rounded-xl shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                       </div>
                    </div>
                    <div>
-                      <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tighter mb-2">1,200+</p>
-                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em]">Hours Taught</p>
-                      <div className="w-full h-1 bg-muted rounded-xl mt-4 overflow-hidden">
+                      <p className="text-3xl sm:text-4xl font-black text-foreground tracking-tighter mb-2">1,200+</p>
+                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.3em]">Hours Taught</p>
+                      <div className="w-full h-1 bg-muted rounded-xl mt-3 overflow-hidden">
                          <div className="w-[100%] h-full bg-emerald-500 rounded-xl shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                       </div>
                    </div>
