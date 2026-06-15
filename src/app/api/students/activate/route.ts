@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
     const staff = caller as StaffCaller;
 
     const body = await req.json();
-    const { studentId, classId } = body;
+    const { studentId, classId, forceResend } = body;
     if (!studentId) {
       return NextResponse.json({ error: 'studentId is required' }, { status: 400 });
     }
@@ -154,47 +154,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // If already has a portal account, return their info
-    if (student.user_id) {
-      const { data: existing } = await supabaseAdmin
-        .from('portal_users')
-        .select('id, email')
-        .eq('id', student.user_id)
-        .single();
-      let cardIssued = false;
-      let cardId: string | null = null;
-      try {
-        const card = await ensureStudentCardIssued(supabaseAdmin as any, {
-          holderId: student.user_id,
-          schoolId: student.school_id ?? null,
-          classId: (student as any).class_id ?? null,
-          actorId: user.id,
-          metadata: { source: 'student_activate_existing', student_id: studentId },
-        });
-        cardIssued = card.created;
-        cardId = card.id;
-      } catch (cardErr) {
-        console.error('[ActivateStudent] Card ensure failed:', cardErr);
+    // Resolve school — every student must belong to one
+    let resolvedSchoolId = student.school_id;
+    let resolvedSchoolName = student.school_name;
+
+    if (!resolvedSchoolId) {
+      const { data: onlineSchool } = await supabaseAdmin
+        .from('schools')
+        .select('id, name')
+        .ilike('name', '%online%')
+        .eq('status', 'approved')
+        .limit(1)
+        .maybeSingle();
+
+      if (onlineSchool) {
+        resolvedSchoolId = onlineSchool.id;
+        resolvedSchoolName = onlineSchool.name;
       }
-      return NextResponse.json({
-        success: true,
-        alreadyActivated: true,
-        email: existing?.email ?? null,
-        portalUserId: student.user_id,
-        cardIssued,
-        cardId,
-        message: 'Student already has a portal account.',
-      });
     }
 
-    // A student must be assigned to a school before activation
-    if (!student.school_id) {
+    if (!resolvedSchoolId) {
       return NextResponse.json({
         error: 'This student has no school assigned. Assign them to a school before activating their account.',
       }, { status: 400 });
     }
 
-    if (!(await callerCanAccessSchool(staff, student.school_id))) {
+    if (!(await callerCanAccessSchool(staff, resolvedSchoolId))) {
       return NextResponse.json({ error: 'Access denied: this student belongs to a different school' }, { status: 403 });
     }
 
@@ -223,36 +208,44 @@ export async function POST(req: NextRequest) {
       loginEmail = `${sanitizedName}.${shortId}@rillcod.com`;
     }
 
-    // Check if this generated email already has a portal account
-    const { data: existingPortal } = await supabaseAdmin
-      .from('portal_users')
-      .select('id')
-      .eq('email', loginEmail)
-      .maybeSingle();
-    if (existingPortal) {
+    // If already has a portal account, return their info (unless forceResend is true)
+    if (student.user_id && !forceResend) {
+      const { data: existing } = await supabaseAdmin
+        .from('portal_users')
+        .select('id, email')
+        .eq('id', student.user_id)
+        .single();
+      let cardIssued = false;
+      let cardId: string | null = null;
+      try {
+        const card = await ensureStudentCardIssued(supabaseAdmin as any, {
+          holderId: student.user_id,
+          schoolId: resolvedSchoolId,
+          classId: (student as any).class_id ?? null,
+          actorId: user.id,
+          metadata: { source: 'student_activate_existing', student_id: studentId },
+        });
+        cardIssued = card.created;
+        cardId = card.id;
+      } catch (cardErr) {
+        console.error('[ActivateStudent] Card ensure failed:', cardErr);
+      }
       return NextResponse.json({
-        error: `An account with email ${loginEmail} already exists. If this is the student, update their user_id link manually.`,
-      }, { status: 409 });
+        success: true,
+        alreadyActivated: true,
+        email: existing?.email ?? null,
+        portalUserId: student.user_id,
+        cardIssued,
+        cardId,
+        message: 'Student already has a portal account.',
+      });
     }
 
     const tempPassword = generateTempPassword();
-
-    // Create auth user (auto email-confirmed, no email sent)
-    const { data: authData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-      email: loginEmail,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: { full_name: student.full_name, role: 'student' },
-    });
-
-    if (createErr || !authData.user) {
-      return NextResponse.json({ error: createErr?.message ?? 'Failed to create auth account' }, { status: 400 });
-    }
-
-    const portalUserId = authData.user.id;
+    let portalUserId = student.user_id;
 
     const resolvedClass = await resolveClassForStudent(
-      student.school_id ?? null,
+      resolvedSchoolId,
       classId ?? (student as any).class_id ?? null,
       [student.current_class, student.section_class, student.grade_level],
     );
@@ -262,28 +255,76 @@ export async function POST(req: NextRequest) {
     const resolvedClassId = resolvedClass.id;
     const resolvedClassName = resolvedClass.name;
 
-    // Create portal_users profile
-    const { error: profileErr } = await supabaseAdmin.from('portal_users').insert({
-      id: portalUserId,
-      email: loginEmail,
-      full_name: student.full_name || student.name || '',
-      role: 'student',
-      is_active: true,
-      school_id: student.school_id ?? null,
-      school_name: student.school_name ?? null,
-      class_id: resolvedClassId,
-      enrollment_type: student.enrollment_type || 'in_person',
-      section_class: resolvedClassName,
-      created_at: new Date().toISOString(),
-    });
+    if (portalUserId) {
+      // Reset password of the existing auth user
+      const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(portalUserId, {
+        password: tempPassword,
+        user_metadata: { full_name: student.full_name, role: 'student' },
+      });
 
-    if (profileErr) {
-      // Rollback auth user
-      await supabaseAdmin.auth.admin.deleteUser(portalUserId);
-      return NextResponse.json({ error: profileErr.message }, { status: 400 });
+      if (resetErr) {
+        return NextResponse.json({ error: `Failed to reset password: ${resetErr.message}` }, { status: 500 });
+      }
+
+      // Update portal_users profile
+      await supabaseAdmin.from('portal_users').update({
+        is_active: true,
+        school_id: resolvedSchoolId,
+        school_name: resolvedSchoolName,
+        class_id: resolvedClassId,
+        section_class: resolvedClassName,
+        updated_at: new Date().toISOString(),
+      }).eq('id', portalUserId);
+    } else {
+      // Check if this generated email already has a portal account
+      const { data: existingPortal } = await supabaseAdmin
+        .from('portal_users')
+        .select('id')
+        .eq('email', loginEmail)
+        .maybeSingle();
+      if (existingPortal) {
+        return NextResponse.json({
+          error: `An account with email ${loginEmail} already exists. If this is the student, update their user_id link manually.`,
+        }, { status: 409 });
+      }
+
+      // Create auth user (auto email-confirmed, no email sent)
+      const { data: authData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email: loginEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { full_name: student.full_name, role: 'student' },
+      });
+
+      if (createErr || !authData.user) {
+        return NextResponse.json({ error: createErr?.message ?? 'Failed to create auth account' }, { status: 400 });
+      }
+
+      portalUserId = authData.user.id;
+
+      // Create portal_users profile
+      const { error: profileErr } = await supabaseAdmin.from('portal_users').insert({
+        id: portalUserId,
+        email: loginEmail,
+        full_name: student.full_name || student.name || '',
+        role: 'student',
+        is_active: true,
+        school_id: resolvedSchoolId,
+        school_name: resolvedSchoolName,
+        class_id: resolvedClassId,
+        enrollment_type: student.enrollment_type || 'in_person',
+        section_class: resolvedClassName,
+        created_at: new Date().toISOString(),
+      });
+
+      if (profileErr) {
+        // Rollback auth user
+        await supabaseAdmin.auth.admin.deleteUser(portalUserId);
+        return NextResponse.json({ error: profileErr.message }, { status: 400 });
+      }
     }
 
-    // Link student record to portal user + ensure status is approved, update student_email and parent_email
+    // Link student record to portal user + ensure status is approved, update student_email, parent_email, school_id and school_name
     await supabaseAdmin.from('students').update({
       user_id: portalUserId,
       status: 'approved',
@@ -291,6 +332,8 @@ export async function POST(req: NextRequest) {
       approved_by: user.id,
       student_email: loginEmail,
       parent_email: student.parent_email || originalStudentEmail || null,
+      school_id: resolvedSchoolId,
+      school_name: resolvedSchoolName,
     }).eq('id', studentId);
 
     let cardIssued = false;
@@ -298,7 +341,7 @@ export async function POST(req: NextRequest) {
     try {
       const card = await ensureStudentCardIssued(supabaseAdmin as any, {
         holderId: portalUserId,
-        schoolId: student.school_id ?? null,
+        schoolId: resolvedSchoolId,
         actorId: user.id,
         classId: resolvedClassId,
         metadata: { source: 'student_activate', student_id: studentId },
@@ -316,7 +359,7 @@ export async function POST(req: NextRequest) {
       let { data: existingBatch } = await supabaseAdmin
         .from('registration_batches')
         .select('id, student_count')
-        .eq('school_id', student.school_id)
+        .eq('school_id', resolvedSchoolId)
         .eq('created_by', user.id)
         .eq('class_name', singleBatchName)
         .maybeSingle();
@@ -328,8 +371,8 @@ export async function POST(req: NextRequest) {
         await supabaseAdmin.from('registration_batches').insert({
           id: batchId,
           created_by: user.id,
-          school_id: student.school_id,
-          school_name: student.school_name,
+          school_id: resolvedSchoolId,
+          school_name: resolvedSchoolName,
           class_name: singleBatchName,
           student_count: 1,
         });
@@ -359,18 +402,20 @@ export async function POST(req: NextRequest) {
       loginEmail,
       student.full_name || student.name || 'Student',
       tempPassword,
-      student.school_name
+      resolvedSchoolName
     );
 
     return NextResponse.json({
       success: true,
-      alreadyActivated: false,
+      alreadyActivated: student.user_id ? true : false,
       email: loginEmail,
       tempPassword,
       portalUserId,
       cardIssued,
       cardId,
-      message: `Portal account created for ${student.full_name}. Share the credentials with the student.`,
+      message: student.user_id
+        ? `Credentials successfully reset and resent to ${destinationEmail}.`
+        : `Portal account created for ${student.full_name}. Share the credentials with the student.`,
     });
 
   } catch (err: any) {
