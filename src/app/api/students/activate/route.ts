@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
+import crypto from 'crypto';
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,7 +58,7 @@ async function resolveClassForStudent(
   return { id: cls?.id ?? null, name: cls?.name ?? names[0] ?? null };
 }
 
-async function sendStudentCredentialsEmail(email: string, fullName: string, password: string, schoolName: string | null) {
+async function sendStudentCredentialsEmail(destinationEmail: string, loginEmail: string, fullName: string, password: string, schoolName: string | null) {
   try {
     const { notificationsService } = await import('@/services/notifications.service');
     const { buildWelcomeEmail } = await import('@/lib/email/rillcod-transactional-email');
@@ -83,7 +84,7 @@ async function sendStudentCredentialsEmail(email: string, fullName: string, pass
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
         <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Username / Email</td>
-        <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${email.trim().toLowerCase()}</td>
+        <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${loginEmail.trim().toLowerCase()}</td>
       </tr>
     </table>
   </td></tr>
@@ -103,7 +104,7 @@ async function sendStudentCredentialsEmail(email: string, fullName: string, pass
     const finalHtml = html.replace('</body>', `${credentialsBlock}</body>`);
 
     await notificationsService.sendExternalEmail({
-      to: email.trim().toLowerCase(),
+      to: destinationEmail.trim().toLowerCase(),
       subject: `Your Rillcod Academy Login Credentials`,
       html: finalHtml,
       fromName: 'Rillcod Technologies',
@@ -197,15 +198,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Access denied: this student belongs to a different school' }, { status: 403 });
     }
 
-    // Determine login email: prefer student_email, fall back to parent_email
-    const loginEmail = student.student_email?.trim() || student.parent_email?.trim();
-    if (!loginEmail) {
+    const originalStudentEmail = student.student_email?.trim();
+    const originalParentEmail = student.parent_email?.trim();
+
+    // Determine destination email for credentials notification:
+    const destinationEmail = originalParentEmail || originalStudentEmail;
+    if (!destinationEmail) {
       return NextResponse.json({
         error: 'No email address on file for this student. Please add student_email or parent_email first.',
       }, { status: 400 });
     }
 
-    // Check if this email already has a portal account
+    // Generate login email ending with @rillcod.com
+    let loginEmail = '';
+    if (originalStudentEmail && originalStudentEmail.toLowerCase().endsWith('@rillcod.com')) {
+      loginEmail = originalStudentEmail;
+    } else {
+      const sanitizedName = (student.full_name || student.name || 'student')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '.')
+        .replace(/[^a-z0-9.]/g, '');
+      const shortId = student.id.split('-')[0] || student.id.substring(0, 6);
+      loginEmail = `${sanitizedName}.${shortId}@rillcod.com`;
+    }
+
+    // Check if this generated email already has a portal account
     const { data: existingPortal } = await supabaseAdmin
       .from('portal_users')
       .select('id')
@@ -265,12 +283,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: profileErr.message }, { status: 400 });
     }
 
-    // Link student record to portal user + ensure status is approved
+    // Link student record to portal user + ensure status is approved, update student_email and parent_email
     await supabaseAdmin.from('students').update({
       user_id: portalUserId,
       status: 'approved',
       approved_at: new Date().toISOString(),
       approved_by: user.id,
+      student_email: loginEmail,
+      parent_email: student.parent_email || originalStudentEmail || null,
     }).eq('id', studentId);
 
     let cardIssued = false;
@@ -335,6 +355,7 @@ export async function POST(req: NextRequest) {
     }
 
     void sendStudentCredentialsEmail(
+      destinationEmail,
       loginEmail,
       student.full_name || student.name || 'Student',
       tempPassword,

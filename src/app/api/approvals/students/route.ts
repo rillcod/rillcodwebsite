@@ -59,7 +59,7 @@ async function requireStaff() {
   return caller as StaffCaller;
 }
 
-async function sendStudentCredentialsEmail(email: string, fullName: string, password: string, schoolName: string | null) {
+async function sendStudentCredentialsEmail(destinationEmail: string, loginEmail: string, fullName: string, password: string, schoolName: string | null) {
   try {
     const { notificationsService } = await import('@/services/notifications.service');
     const { buildWelcomeEmail } = await import('@/lib/email/rillcod-transactional-email');
@@ -85,7 +85,7 @@ async function sendStudentCredentialsEmail(email: string, fullName: string, pass
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
         <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Username / Email</td>
-        <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${email.trim().toLowerCase()}</td>
+        <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${loginEmail.trim().toLowerCase()}</td>
       </tr>
     </table>
   </td></tr>
@@ -105,7 +105,7 @@ async function sendStudentCredentialsEmail(email: string, fullName: string, pass
     const finalHtml = html.replace('</body>', `${credentialsBlock}</body>`);
 
     await notificationsService.sendExternalEmail({
-      to: email.trim().toLowerCase(),
+      to: destinationEmail.trim().toLowerCase(),
       subject: `Your Rillcod Academy Login Credentials`,
       html: finalHtml,
       fromName: 'Rillcod Technologies',
@@ -159,10 +159,27 @@ export async function POST(request: Request) {
   }
 
   // ── Approval path ────────────────────────────────────────────
-  // Pick the login email: prefer student email, fall back to parent email
-  const loginEmail = student.student_email || student.parent_email;
-  if (!loginEmail) {
-    return NextResponse.json({ error: 'Student has no email to create an account with' }, { status: 400 });
+  const originalStudentEmail = student.student_email?.trim();
+  const originalParentEmail = student.parent_email?.trim();
+
+  // Pick the contact email to receive credentials
+  const destinationEmail = originalParentEmail || originalStudentEmail;
+  if (!destinationEmail) {
+    return NextResponse.json({ error: 'Student has no email address on file' }, { status: 400 });
+  }
+
+  // Generate login email ending with @rillcod.com
+  let loginEmail = '';
+  if (originalStudentEmail && originalStudentEmail.toLowerCase().endsWith('@rillcod.com')) {
+    loginEmail = originalStudentEmail;
+  } else {
+    const sanitizedName = student.full_name
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '.')
+      .replace(/[^a-z0-9.]/g, '');
+    const shortId = student.id.split('-')[0] || student.id.substring(0, 6);
+    loginEmail = `${sanitizedName}.${shortId}@rillcod.com`;
   }
 
   // Generate a random 10-char password
@@ -225,15 +242,17 @@ export async function POST(request: Request) {
       user_metadata: { full_name: student.full_name, role: 'student' },
     });
 
-    // Link student row to the portal user
+    // Link student row to the portal user and update student_email + parent_email
     await admin.from('students').update({
       user_id: existingPortal.id,
       status: 'approved',
       approved_by: caller.id,
       approved_at: new Date().toISOString(),
+      student_email: loginEmail,
+      parent_email: student.parent_email || originalStudentEmail || null,
     }).eq('id', id);
 
-    void sendStudentCredentialsEmail(loginEmail, student.full_name, password, resolvedSchoolName);
+    void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name, password, resolvedSchoolName);
 
     return NextResponse.json({
       success: true,
@@ -299,15 +318,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Portal account synchronization failed: ${portalErr.message}` }, { status: 500 });
   }
 
-  // Link student row to the portal user
+  // Link student row to the portal user and update student_email + parent_email
   await admin.from('students').update({
     user_id: authUserId,
     status: 'approved',
     approved_by: caller.id,
     approved_at: new Date().toISOString(),
+    student_email: loginEmail,
+    parent_email: student.parent_email || originalStudentEmail || null,
   }).eq('id', id);
 
-  void sendStudentCredentialsEmail(loginEmail, student.full_name, password, resolvedSchoolName);
+  void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name, password, resolvedSchoolName);
 
   return NextResponse.json({
     success: true,
