@@ -57,6 +57,63 @@ async function resolveClassForStudent(
   return { id: cls?.id ?? null, name: cls?.name ?? names[0] ?? null };
 }
 
+async function sendStudentCredentialsEmail(email: string, fullName: string, password: string, schoolName: string | null) {
+  try {
+    const { notificationsService } = await import('@/services/notifications.service');
+    const { buildWelcomeEmail } = await import('@/lib/email/rillcod-transactional-email');
+    
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
+    const loginUrl = `${appUrl}/login`;
+
+    const html = buildWelcomeEmail({
+      recipientName: fullName,
+      role: 'student',
+      schoolName: schoolName ?? undefined,
+      loginUrl,
+      appUrl,
+    });
+
+    const credentialsBlock = `
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#141618;border:1px solid #2a2d33;border-radius:8px;overflow:hidden;margin:0 0 20px;">
+  <tr><td style="background:#1c1e22;border-bottom:1px solid #2a2d33;padding:10px 16px;">
+    <p style="margin:0;font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Student Login Credentials</p>
+  </td></tr>
+  <tr><td style="padding:14px 16px;border-bottom:1px solid #2a2d33;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Username / Email</td>
+        <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${email.trim().toLowerCase()}</td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td style="padding:14px 16px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Temporary Password</td>
+        <td style="font-size:13px;color:#f59e0b;font-weight:800;text-align:right;font-family:monospace,Arial;">${password}</td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+<p style="font-size:12px;color:#71717a;margin:0 0 20px;">
+  After logging in, please change your password in your profile settings. Do not share these credentials.
+</p>`;
+
+    const finalHtml = html.replace('</body>', `${credentialsBlock}</body>`);
+
+    await notificationsService.sendExternalEmail({
+      to: email.trim().toLowerCase(),
+      subject: `Your Rillcod Academy Login Credentials`,
+      html: finalHtml,
+      fromName: 'Rillcod Technologies',
+      fromEmail: 'support@rillcod.com',
+    });
+  } catch (err) {
+    console.error('Failed to send student credentials email:', err);
+  }
+}
+
 // POST /api/students/activate
 // Body: { studentId: string }
 // Admin/Teacher only — creates a portal_users account for an approved student
@@ -276,6 +333,13 @@ export async function POST(req: NextRequest) {
       console.error('[ActivateStudent] Failed to archive credentials in history:', histErr);
       // Non-blocking for the student activation process itself
     }
+
+    void sendStudentCredentialsEmail(
+      loginEmail,
+      student.full_name || student.name || 'Student',
+      tempPassword,
+      student.school_name
+    );
 
     return NextResponse.json({
       success: true,
