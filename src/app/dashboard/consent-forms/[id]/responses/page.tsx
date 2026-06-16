@@ -5,6 +5,7 @@ import QRCode from 'react-qr-code';
 import { downloadQrCard } from '@/lib/qr-card';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import {
   ArrowLeftIcon, ArrowPathIcon, PrinterIcon, UserGroupIcon,
@@ -531,6 +532,12 @@ export default function ResponsesPage() {
   const [portalStatus, setPortalStatus] = useState<Record<string, 'created' | 'exists'>>({});
   const [credsModal, setCredsModal] = useState<{ email: string; password: string; parentName: string } | null>(null);
 
+  // Class picker for portal creation — prefer existing classes as suggestions.
+  const [classModal, setClassModal] = useState<{ leadId: string; parentName: string } | null>(null);
+  const [classChoice, setClassChoice] = useState('');
+  const [schoolClasses, setSchoolClasses] = useState<{ id: string; name: string }[]>([]);
+  const [classesLoading, setClassesLoading] = useState(false);
+
   // Child link
   const [linkChildLeadId, setLinkChildLeadId]   = useState<string | null>(null);
   const [linkChildIndex, setLinkChildIndex]      = useState(0);
@@ -638,18 +645,43 @@ export default function ResponsesPage() {
 
   // ── Create portal account ────────────────────────────────────────────────
 
-  async function createPortalAccount(leadId: string, parentName: string) {
+  // Open the class picker (loads existing classes — preferred as suggestions).
+  async function openClassPicker(leadId: string, parentName: string) {
+    setClassModal({ leadId, parentName });
+    setClassChoice('');
+    setClassesLoading(true);
+    try {
+      const db = createClient();
+      const formSchoolId = (form as any)?.school_id as string | undefined;
+      let q = db.from('classes').select('id, name, school_id').order('name');
+      if (formSchoolId) q = q.eq('school_id', formSchoolId) as typeof q;
+      const { data } = await q;
+      setSchoolClasses((data ?? []).map((c: any) => ({ id: c.id, name: c.name })));
+    } catch {
+      setSchoolClasses([]);
+    } finally {
+      setClassesLoading(false);
+    }
+  }
+
+  async function createPortalAccount(leadId: string, parentName: string, classOpt?: { classId?: string; className?: string }) {
     setCreatingPortalId(leadId);
     try {
       const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(classOpt ?? {}),
       });
       const json = await res.json();
       if (!res.ok) {
         alert(json.error ?? 'Failed to create account');
         return;
       }
+      setClassModal(null);
       setPortalStatus(prev => ({ ...prev, [leadId]: json.alreadyExisted ? 'exists' : 'created' }));
+      if (json.studentsOnboarded) {
+        toast.success(`${json.studentsOnboarded} student account(s) created & linked${json.newStudents?.length ? `: ${json.newStudents.map((s: any) => s.name).join(', ')}` : ''}.`);
+      }
       if (!json.alreadyExisted) {
         setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_parent_id: json.parentId } : l));
         setCredsModal({ email: json.email, password: json.tempPassword, parentName });
@@ -1575,9 +1607,9 @@ export default function ResponsesPage() {
                                 return (
                                   <button
                                     disabled={creatingPortalId === lead.id}
-                                    onClick={() => createPortalAccount(lead.id, parentName)}
+                                    onClick={() => openClassPicker(lead.id, parentName)}
                                     className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
-                                    title="Create parent portal account & send temp password"
+                                    title="Create parent + student portal accounts (choose a class)"
                                   >
                                     {creatingPortalId === lead.id ? (
                                       <>
@@ -1829,6 +1861,70 @@ export default function ResponsesPage() {
         )}
 
       </div>
+
+      {/* ── Class picker (before creating portal accounts) ─────────────────── */}
+      {classModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => !creatingPortalId && setClassModal(null)}>
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div>
+              <h3 className="text-lg font-black text-foreground">Place {classModal.parentName.split(' ')[0]}'s child in a class</h3>
+              <p className="text-xs text-muted-foreground mt-1">Pick an existing class (preferred) or type a new one. Leave blank to auto-assign by programme.</p>
+            </div>
+
+            {classesLoading ? (
+              <div className="py-4 text-center text-xs text-muted-foreground">Loading classes…</div>
+            ) : schoolClasses.length > 0 ? (
+              <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Existing classes</p>
+                {schoolClasses.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => setClassChoice(c.name)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors ${classChoice === c.name ? 'bg-primary/15 border-primary/40 text-foreground' : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'}`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No classes yet for this school — type one below to create it.</p>
+            )}
+
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class name</label>
+              <input
+                value={classChoice}
+                onChange={e => setClassChoice(e.target.value)}
+                placeholder="e.g. Young Innovators or auto-assign"
+                className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setClassModal(null)}
+                disabled={!!creatingPortalId}
+                className="flex-1 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const m = classModal;
+                  if (!m) return;
+                  const name = classChoice.trim();
+                  const existing = schoolClasses.find(c => c.name === name);
+                  createPortalAccount(m.leadId, m.parentName, existing ? { classId: existing.id } : (name ? { className: name } : undefined));
+                }}
+                disabled={!!creatingPortalId}
+                className="flex-[2] px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-black rounded-xl transition-colors disabled:opacity-50"
+              >
+                {creatingPortalId ? 'Creating…' : classChoice.trim() ? 'Create & Assign Class' : 'Create & Auto-Assign'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Credentials modal ─────────────────────────────────────────────── */}
       {credsModal && (
