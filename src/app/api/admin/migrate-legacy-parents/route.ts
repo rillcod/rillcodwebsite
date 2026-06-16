@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
           user_metadata: { full_name: fullName, role: 'student' },
         });
         await admin.from('portal_users').update({ email: newStudentEmail, role: 'student', updated_at: new Date().toISOString() }).eq('id', s.user_id);
-        await admin.from('students').update({ student_email: newStudentEmail, updated_at: new Date().toISOString() }).eq('id', s.id);
+        await admin.from('students').update({ student_email: newStudentEmail, email: newStudentEmail, updated_at: new Date().toISOString() }).eq('id', s.id);
 
         // 2. Create the PARENT account on the now-free original email.
         let parentId: string | null = null;
