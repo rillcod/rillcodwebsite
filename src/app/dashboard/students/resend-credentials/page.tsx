@@ -229,7 +229,7 @@ export default function ResendCredentialsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <ExclamationTriangleIcon className="w-12 h-12 text-rose-400" />
-        <p className="text-white font-semibold text-lg">Admin or teacher access required</p>
+        <p className="text-foreground font-semibold text-lg">Admin or teacher access required</p>
         <Link href="/dashboard" className="text-violet-400 hover:underline text-sm">Back to dashboard</Link>
       </div>
     );
@@ -241,10 +241,10 @@ export default function ResendCredentialsPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link href="/dashboard/students" className="text-muted-foreground hover:text-white transition-colors">
+            <Link href="/dashboard/students" className="text-muted-foreground hover:text-foreground transition-colors">
               <ChevronLeftIcon className="w-5 h-5" />
             </Link>
-            <h1 className="text-2xl font-bold text-white">Resend Login Credentials</h1>
+            <h1 className="text-2xl font-bold text-foreground">Resend Login Credentials</h1>
           </div>
           <p className="text-muted-foreground text-sm">
             Activate unactivated students or resend login credentials to those who didn't receive them.
@@ -256,7 +256,7 @@ export default function ResendCredentialsPage() {
               onClick={handleRepair}
               disabled={repairing}
               title="Merge duplicate online schools, attach school-less students, and enrol students with no learning path"
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 border border-white/10 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 border border-border disabled:opacity-50 text-foreground rounded-xl text-sm font-semibold transition-colors"
             >
               {repairing ? (
                 <ArrowPathIcon className="w-4 h-4 animate-spin" />
@@ -283,8 +283,8 @@ export default function ResendCredentialsPage() {
 
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-          <div className="text-2xl font-black text-white">{students.length}</div>
+        <div className="bg-card border border-border rounded-2xl p-4 text-center">
+          <div className="text-2xl font-black text-foreground">{students.length}</div>
           <div className="text-xs text-muted-foreground mt-1">Total Approved</div>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-center">
@@ -298,7 +298,7 @@ export default function ResendCredentialsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap gap-3 items-center">
+      <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -306,7 +306,7 @@ export default function ResendCredentialsPage() {
             placeholder="Search name, email, school…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-violet-500"
+            className="w-full pl-9 pr-4 py-2 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-violet-500"
           />
         </div>
         <div className="flex items-center gap-1 flex-wrap">
@@ -317,7 +317,7 @@ export default function ResendCredentialsPage() {
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
                 filter === f
                   ? 'bg-violet-600 text-white'
-                  : 'bg-white/5 text-muted-foreground hover:text-white border border-white/10'
+                  : 'bg-muted/40 text-muted-foreground hover:text-foreground border border-border'
               }`}
             >
               {f === 'not_activated' ? 'Not Activated' : f === 'activated' ? 'Activated' : 'All'}
@@ -327,7 +327,7 @@ export default function ResendCredentialsPage() {
         <select
           value={enrollType}
           onChange={e => setEnrollType(e.target.value)}
-          className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-violet-500"
+          className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-violet-500"
         >
           <option value="all">All Types</option>
           <option value="in_person">In-Person</option>
@@ -347,13 +347,13 @@ export default function ResendCredentialsPage() {
           <p>No students match your filters.</p>
         </div>
       ) : (
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/10 bg-white/3">
+                <tr className="border-b border-border bg-muted/30">
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Student</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contact Email</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Parent Email (recipient)</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">School</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Portal</th>
@@ -361,7 +361,7 @@ export default function ResendCredentialsPage() {
                   <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-border">
                 {visibleStudents.map(s => {
                   const contactEmail = s.parent_email || s.student_email || '—';
                   const isActivated = !!s.user_id;
@@ -373,9 +373,9 @@ export default function ResendCredentialsPage() {
                     summer_school: 'Summer School',
                   };
                   return (
-                    <tr key={s.id} className="hover:bg-white/3 transition-colors">
+                    <tr key={s.id} className="hover:bg-muted/40 transition-colors">
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-white">{s.full_name}</div>
+                        <div className="font-semibold text-foreground">{s.full_name}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {s.created_at ? new Date(s.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </div>
@@ -387,7 +387,7 @@ export default function ResendCredentialsPage() {
                         </div>
                         {s.student_email && s.student_email.endsWith('@rillcod.com') && (
                           <div className="mt-0.5 text-xs text-violet-400 font-mono truncate max-w-[200px]">
-                            Login: {s.student_email}
+                            Student login: {s.student_email}
                           </div>
                         )}
                       </td>
@@ -446,7 +446,7 @@ export default function ResendCredentialsPage() {
                             onClick={() => handleSend(s.id, true)}
                             disabled={isSending}
                             title="Reset password and resend credentials email"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-violet-600/30 border border-white/10 hover:border-violet-500/40 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-violet-600/20 border border-border hover:border-violet-500/40 text-foreground rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                           >
                             {isSending ? (
                               <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -477,7 +477,7 @@ export default function ResendCredentialsPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-3 border-t border-white/10 text-xs text-muted-foreground">
+          <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
             Showing {visibleStudents.length} of {students.length} approved students
           </div>
         </div>
@@ -487,7 +487,7 @@ export default function ResendCredentialsPage() {
       <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 text-sm text-blue-300">
         <strong className="text-blue-200">How this works:</strong>{' '}
         <span className="text-muted-foreground">
-          "Activate" creates the student <span className="text-white font-mono">@rillcod.com</span> login + temp password and emails it to the parent's registration email.{' '}
+          "Activate" creates the student <span className="text-foreground font-mono">@rillcod.com</span> login + temp password and emails it to the parent's registration email.{' '}
           "Resend" resets the password and re-emails the credentials.{' '}
           When the student has a linked <strong className="text-blue-200">parent portal account</strong> (summer-school registrations), the email includes <strong className="text-blue-200">both the parent and student logins</strong>, and the parent password is reset so it's valid.{' '}
           Students are auto-assigned to <em>Rillcod Online School</em> (and their class) if none is on record.{' '}
