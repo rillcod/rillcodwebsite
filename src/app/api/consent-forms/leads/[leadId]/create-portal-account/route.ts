@@ -124,9 +124,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
           parent_email: parentEmail,
           parent_name: parentName,
           parent_phone: parentPhone || null,
-          // Assign to the school the family filled (matched current school first,
-          // then the form's school); falls back to the online school if neither.
-          school_id: lead.matched_school_id ?? lead.school_id ?? null,
+          // Assign to the school the consent form was CREATED FOR (the partner
+          // school that owns the form). The parent's free-text "current school" is
+          // only a last resort, then the online school as the final fallback.
+          school_id: lead.school_id ?? lead.matched_school_id ?? null,
         }, {
           parentId,
           enrollmentType: 'in_person',
