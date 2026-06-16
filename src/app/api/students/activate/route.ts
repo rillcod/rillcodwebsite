@@ -1,5 +1,6 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
@@ -8,8 +9,36 @@ import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enroll
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import crypto from 'crypto';
+import { Database as GenDatabase } from '@/types/supabase';
 
-const supabaseAdmin = createAdminClient(
+interface ParentStudentLinkTable {
+  Row: {
+    parent_id: string;
+    student_id: string;
+    updated_at: string | null;
+  };
+  Insert: {
+    parent_id: string;
+    student_id: string;
+    updated_at?: string | null;
+  };
+  Update: {
+    parent_id?: string;
+    student_id?: string;
+    updated_at?: string | null;
+  };
+  Relationships: [];
+}
+
+type Database = GenDatabase & {
+  public: GenDatabase['public'] & {
+    Tables: GenDatabase['public']['Tables'] & {
+      parent_student_links: ParentStudentLinkTable;
+    };
+  };
+};
+
+const supabaseAdmin = createAdminClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
@@ -154,6 +183,12 @@ async function sendStudentCredentialsEmail(
   }
 }
 
+const bodySchema = z.object({
+  studentId: z.string().uuid('Invalid student ID format'),
+  classId: z.string().uuid().nullable().optional(),
+  forceResend: z.boolean().optional(),
+});
+
 // POST /api/students/activate
 // Body: { studentId: string }
 // Admin/Teacher only — creates a portal_users account for an approved student
@@ -176,16 +211,23 @@ export async function POST(req: NextRequest) {
     }
     const staff = caller as StaffCaller;
 
-    const body = await req.json();
-    const { studentId, classId, forceResend } = body;
-    if (!studentId) {
-      return NextResponse.json({ error: 'studentId is required' }, { status: 400 });
+    let json: unknown;
+    try {
+      json = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
     }
+
+    const parsed = bodySchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid parameters' }, { status: 400 });
+    }
+    const { studentId, classId, forceResend } = parsed.data;
 
     // Fetch the student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, user_id, status, school_id, school_name, enrollment_type, class_id, current_class, section_class, grade_level')
+      .select('id, name, full_name, student_email, parent_email, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level')
       .eq('id', studentId)
       .single();
 
@@ -236,16 +278,16 @@ export async function POST(req: NextRequest) {
     if (student.user_id && !forceResend) {
       const { data: existing } = await supabaseAdmin
         .from('portal_users')
-        .select('id, email')
+        .select('id, email, class_id')
         .eq('id', student.user_id)
         .single();
       let cardIssued = false;
       let cardId: string | null = null;
       try {
-        const card = await ensureStudentCardIssued(supabaseAdmin as any, {
+        const card = await ensureStudentCardIssued(supabaseAdmin, {
           holderId: student.user_id,
           schoolId: resolvedSchoolId,
-          classId: (student as any).class_id ?? null,
+          classId: existing?.class_id ?? null,
           actorId: user.id,
           metadata: { source: 'student_activate_existing', student_id: studentId },
         });
@@ -268,10 +310,20 @@ export async function POST(req: NextRequest) {
     const tempPassword = generateTempPassword();
     let portalUserId = student.user_id;
 
+    let studentClassId: string | null = null;
+    if (portalUserId) {
+      const { data: pu } = await supabaseAdmin
+        .from('portal_users')
+        .select('class_id')
+        .eq('id', portalUserId)
+        .maybeSingle();
+      studentClassId = pu?.class_id ?? null;
+    }
+
     const resolvedClass = await resolveClassForStudent(
       resolvedSchoolId,
-      classId ?? (student as any).class_id ?? null,
-      [student.current_class, student.section_class, student.grade_level],
+      classId ?? studentClassId ?? null,
+      [student.current_class, student.section, student.grade_level],
     );
     if (resolvedClass.error) {
       return NextResponse.json({ error: resolvedClass.error }, { status: 400 });
@@ -291,7 +343,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Update portal_users profile
-      const portalUpdate: Record<string, any> = {
+      const portalUpdate: Database['public']['Tables']['portal_users']['Update'] = {
         is_active: true,
         school_id: resolvedSchoolId,
         school_name: resolvedSchoolName,
@@ -366,7 +418,7 @@ export async function POST(req: NextRequest) {
     let cardIssued = false;
     let cardId: string | null = null;
     try {
-      const card = await ensureStudentCardIssued(supabaseAdmin as any, {
+      const card = await ensureStudentCardIssued(supabaseAdmin, {
         holderId: portalUserId,
         schoolId: resolvedSchoolId,
         actorId: user.id,
@@ -399,7 +451,7 @@ export async function POST(req: NextRequest) {
         .eq('class_name', singleBatchName)
         .maybeSingle();
 
-      let batchId = existingBatch?.id;
+      let batchId: string;
 
       if (!existingBatch) {
         batchId = crypto.randomUUID();
@@ -412,6 +464,7 @@ export async function POST(req: NextRequest) {
           student_count: 1,
         });
       } else {
+        batchId = existingBatch.id;
         await supabaseAdmin
           .from('registration_batches')
           .update({ student_count: (existingBatch.student_count ?? 0) + 1 })
@@ -445,7 +498,7 @@ export async function POST(req: NextRequest) {
         .select('parent_id')
         .eq('student_id', studentId)
         .maybeSingle();
-      parentUserId = (link as any)?.parent_id ?? null;
+      parentUserId = link?.parent_id ?? null;
 
       if (!parentUserId && originalParentEmail) {
         const { data: pu } = await supabaseAdmin
@@ -454,7 +507,7 @@ export async function POST(req: NextRequest) {
           .eq('email', originalParentEmail.trim().toLowerCase())
           .eq('role', 'parent')
           .maybeSingle();
-        parentUserId = (pu as any)?.id ?? null;
+        parentUserId = pu?.id ?? null;
       }
 
       if (parentUserId) {
@@ -468,7 +521,7 @@ export async function POST(req: NextRequest) {
           const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(parentUserId, { password: parentPw });
           if (!resetErr) parentLogin = { email: parentUser.email, password: parentPw };
           // Self-heal: guarantee the parent↔student link exists (idempotent upsert).
-          try { await syncExplicitParentStudentLink(supabaseAdmin as any, parentUserId, studentId); } catch { /* non-fatal */ }
+          try { await syncExplicitParentStudentLink(supabaseAdmin, parentUserId, studentId); } catch { /* non-fatal */ }
         }
       }
     } catch (parentErr) {
@@ -498,7 +551,8 @@ export async function POST(req: NextRequest) {
         : `Portal account created for ${student.full_name}. Share the credentials with the student.`,
     });
 
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message ?? 'Internal error' }, { status: 500 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Internal error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

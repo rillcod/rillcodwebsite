@@ -456,8 +456,8 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, paymentPlan: "full" }))}
                                 className={`py-3 px-4 rounded-xl border text-[10px] font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentPlan === "full"
-                                    ? "bg-primary text-primary-foreground border-primary shadow-md"
-                                    : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                                  : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
                                   }`}
                               >
                                 {fullTuitionLabel}
@@ -466,8 +466,8 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, paymentPlan: "installment" }))}
                                 className={`py-3 px-4 rounded-xl border text-[10px] font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentPlan === "installment"
-                                    ? "bg-primary text-primary-foreground border-primary shadow-md"
-                                    : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                                  : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
                                   }`}
                               >
                                 {splitTuitionLabel}
@@ -482,8 +482,8 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, paymentMethod: "paystack" }))}
                                 className={`py-3 px-4 rounded-xl border text-[10px] font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentMethod === "paystack"
-                                    ? "bg-primary text-primary-foreground border-primary shadow-md"
-                                    : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                                  : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
                                   }`}
                               >
                                 💳 Online
@@ -492,8 +492,8 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                 type="button"
                                 onClick={() => setForm(prev => ({ ...prev, paymentMethod: "bank_transfer" }))}
                                 className={`py-3 px-4 rounded-xl border text-[10px] font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentMethod === "bank_transfer"
-                                    ? "bg-primary text-primary-foreground border-primary shadow-md"
-                                    : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                                  : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
                                   }`}
                               >
                                 🏦 Transfer
@@ -555,10 +555,10 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                                   <label
                                     htmlFor="popup-receipt-upload"
                                     className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${uploadingReceipt
-                                        ? "bg-muted text-muted-foreground border-muted animate-pulse"
-                                        : form.paymentReference.startsWith('http')
-                                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
-                                          : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                                      ? "bg-muted text-muted-foreground border-muted animate-pulse"
+                                      : form.paymentReference.startsWith('http')
+                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                                        : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
                                       }`}
                                   >
                                     {uploadingReceipt ? (
@@ -604,38 +604,6 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             </div>
                           </div>
                         )}
-                      </div>
-
-                      {/* Consent Checkboxes */}
-                      <div className="border-t border-border pt-5 mt-5 space-y-3">
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            id="popupParentConsent"
-                            checked={form.parentConsent}
-                            onChange={(e) => setForm(prev => ({ ...prev, parentConsent: e.target.checked }))}
-                            className="mt-0.5 w-4 h-4 accent-primary cursor-pointer shrink-0"
-                          />
-                          <label htmlFor="popupParentConsent" className={`text-[11px] leading-relaxed cursor-pointer ${attempted && !form.parentConsent ? 'text-rose-500 font-bold' : 'text-muted-foreground font-medium'}`}>
-                            I am the parent/guardian of this student and I consent to their participation in the Rillcod AI Summer School programme and the processing of their personal and academic data. <span className="text-rose-500">*</span>
-                          </label>
-                        </div>
-                        {attempted && !form.parentConsent && (
-                          <p className="text-rose-500 text-[9px] font-bold ml-7">Parental consent is required to proceed.</p>
-                        )}
-
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            id="popupWhatsappConsent"
-                            checked={form.whatsappConsent}
-                            onChange={(e) => setForm(prev => ({ ...prev, whatsappConsent: e.target.checked }))}
-                            className="mt-0.5 w-4 h-4 accent-primary cursor-pointer shrink-0"
-                          />
-                          <label htmlFor="popupWhatsappConsent" className="text-[11px] text-muted-foreground font-medium leading-relaxed cursor-pointer">
-                            I consent to receiving login credentials, payment receipts, and student progress updates via WhatsApp.
-                          </label>
-                        </div>
                       </div>
 
                       <button

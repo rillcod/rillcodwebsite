@@ -37,7 +37,8 @@ export async function getParentLinkScope(
     if (!isRelationMissing(linkErr)) throw linkErr;
     // Table not yet migrated — fall through to email-only path
   } else {
-    explicitStudentIds = unique((linkData ?? []).map((row: any) => row.student_id));
+    const rows = (linkData ?? []) as unknown as Array<{ student_id: string }>;
+    explicitStudentIds = unique(rows.map((row) => row.student_id));
   }
 
   let explicitRows: Array<{ id: string; user_id: string | null }> = [];

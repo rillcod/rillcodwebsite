@@ -9,7 +9,8 @@ import {
   EnvelopeIcon, KeyIcon, ArrowPathIcon, CheckCircleIcon,
   XCircleIcon, MagnifyingGlassIcon, UserGroupIcon, BoltIcon,
   ClockIcon, BuildingOfficeIcon, ExclamationTriangleIcon,
-  ChevronLeftIcon, FunnelIcon, ShieldCheckIcon,
+  ChevronLeftIcon, FunnelIcon, ShieldCheckIcon, BanknotesIcon,
+  DocumentTextIcon,
 } from '@/lib/icons';
 
 interface CredentialStatus {
@@ -42,6 +43,8 @@ export default function ResendCredentialsPage() {
   const [sending, setSending] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [bulkRunning, setBulkRunning] = useState(false);
+  const [sendingReceipt, setSendingReceipt] = useState<Record<string, boolean>>({});
+  const [sendingBalance, setSendingBalance] = useState<Record<string, boolean>>({});
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
@@ -133,6 +136,42 @@ export default function ResendCredentialsPage() {
       toast.error(err.message || 'Something went wrong');
     } finally {
       setSending(p => ({ ...p, [studentId]: false }));
+    }
+  }
+
+  async function handleSendReceipt(studentId: string) {
+    setSendingReceipt(p => ({ ...p, [studentId]: true }));
+    try {
+      const res = await fetch('/api/students/send-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send receipt');
+      toast.success(data.message || 'Payment receipt sent successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Something went wrong');
+    } finally {
+      setSendingReceipt(p => ({ ...p, [studentId]: false }));
+    }
+  }
+
+  async function handleSendBalance(studentId: string) {
+    setSendingBalance(p => ({ ...p, [studentId]: true }));
+    try {
+      const res = await fetch('/api/students/send-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send balance reminder');
+      toast.success(data.message || 'Outstanding balance reminder sent successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Something went wrong');
+    } finally {
+      setSendingBalance(p => ({ ...p, [studentId]: false }));
     }
   }
 
@@ -439,37 +478,72 @@ export default function ResendCredentialsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {isDone ? (
-                          <span className="text-xs text-emerald-400 font-semibold">Sent</span>
-                        ) : isActivated ? (
-                          <button
-                            onClick={() => handleSend(s.id, true)}
-                            disabled={isSending}
-                            title="Reset password and resend credentials email"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-violet-600/20 border border-border hover:border-violet-500/40 text-foreground rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-                          >
-                            {isSending ? (
-                              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <EnvelopeIcon className="w-3.5 h-3.5" />
-                            )}
-                            Resend
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleSend(s.id, false)}
-                            disabled={isSending}
-                            title="Create portal account and send login credentials"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-                          >
-                            {isSending ? (
-                              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <KeyIcon className="w-3.5 h-3.5" />
-                            )}
-                            Activate
-                          </button>
-                        )}
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Receipt Resend Button */}
+                          {s.enrollment_type === 'summer_school' && (
+                            <button
+                              onClick={() => handleSendReceipt(s.id)}
+                              disabled={sendingReceipt[s.id]}
+                              title="Resend payment receipt email"
+                              className="inline-flex items-center justify-center p-1.5 bg-muted hover:bg-emerald-600/20 border border-border hover:border-emerald-500/40 text-muted-foreground hover:text-emerald-400 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {sendingReceipt[s.id] ? (
+                                <ArrowPathIcon className="w-4.5 h-4.5 animate-spin" />
+                              ) : (
+                                <DocumentTextIcon className="w-4.5 h-4.5" />
+                              )}
+                            </button>
+                          )}
+
+                          {/* Outstanding Tuition Reminder Button */}
+                          {s.enrollment_type === 'summer_school' && (
+                            <button
+                              onClick={() => handleSendBalance(s.id)}
+                              disabled={sendingBalance[s.id]}
+                              title="Send outstanding tuition balance reminder email"
+                              className="inline-flex items-center justify-center p-1.5 bg-muted hover:bg-amber-600/20 border border-border hover:border-amber-500/40 text-muted-foreground hover:text-amber-400 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {sendingBalance[s.id] ? (
+                                <ArrowPathIcon className="w-4.5 h-4.5 animate-spin" />
+                              ) : (
+                                <BanknotesIcon className="w-4.5 h-4.5" />
+                              )}
+                            </button>
+                          )}
+
+                          {/* Credentials Resend / Activate Button */}
+                          {isDone ? (
+                            <span className="text-xs text-emerald-400 font-semibold px-2">Sent</span>
+                          ) : isActivated ? (
+                            <button
+                              onClick={() => handleSend(s.id, true)}
+                              disabled={isSending}
+                              title="Reset password and resend credentials email"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-violet-600/20 border border-border hover:border-violet-500/40 text-foreground rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            >
+                              {isSending ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <EnvelopeIcon className="w-3.5 h-3.5" />
+                              )}
+                              Credentials
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleSend(s.id, false)}
+                              disabled={isSending}
+                              title="Create portal account and send login credentials"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            >
+                              {isSending ? (
+                                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <KeyIcon className="w-3.5 h-3.5" />
+                              )}
+                              Activate
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

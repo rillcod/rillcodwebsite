@@ -298,7 +298,6 @@ export async function onboardSummerStudent(
     current_class: prospect.grade ?? null,
     school_id: school.id,
     school_name: school.name,
-    class_id: classId,
     course_interest: prospect.course_interest || 'Summer School 2026',
     preferred_schedule: prospect.preferred_schedule ?? null,
     enrollment_type: 'summer_school',
@@ -319,13 +318,21 @@ export async function onboardSummerStudent(
 
   let studentRowId: string | null = existingStudentRow?.id ?? null;
   if (existingStudentRow) {
-    await admin.from('students').update(studentPayload).eq('id', existingStudentRow.id);
+    const { error: updateErr } = await admin.from('students').update(studentPayload).eq('id', existingStudentRow.id);
+    if (updateErr) {
+      console.error('[onboardSummerStudent] Failed to update students row:', updateErr.message);
+      throw new Error(`Failed to update student record: ${updateErr.message}`);
+    }
   } else {
-    const { data: insertedStudent } = await admin
+    const { data: insertedStudent, error: insertErr } = await admin
       .from('students')
       .insert({ ...studentPayload, created_at: new Date().toISOString() })
       .select('id')
       .single();
+    if (insertErr) {
+      console.error('[onboardSummerStudent] Failed to insert students row:', insertErr.message);
+      throw new Error(`Failed to create student record: ${insertErr.message}`);
+    }
     studentRowId = insertedStudent?.id ?? null;
   }
 

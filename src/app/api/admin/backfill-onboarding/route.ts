@@ -15,15 +15,17 @@
  * Body: { dryRun?: boolean } — when true, reports what WOULD change without writing.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { resolveOnlineSchool, ONLINE_SCHOOL_NAME } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { ensureSummerClassWithTutor } from '@/lib/summer-school/onboard';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { Database } from '@/types/supabase';
 
 function adminClient() {
-  return createClient(
+  return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } },
@@ -47,7 +49,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const { dryRun = false } = await req.json().catch(() => ({}));
+    const backfillBodySchema = z.object({
+      dryRun: z.boolean().optional(),
+    });
+
+    let json: unknown;
+    try {
+      json = await req.json();
+    } catch {
+      json = {};
+    }
+
+    const parsed = backfillBodySchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid parameters' }, { status: 400 });
+    }
+    const { dryRun = false } = parsed.data;
 
     const report = {
       dryRun,
@@ -153,7 +170,7 @@ export async function POST(req: NextRequest) {
     // ── 5. Summer students: backfill class assignment + parent account/link ──
     const { data: summerStudents } = await admin
       .from('students')
-      .select('id, user_id, full_name, parent_email, parent_name, student_email, school_id, school_name, class_id, grade')
+      .select('id, user_id, full_name, parent_email, parent_name, student_email, school_id, school_name, grade')
       .eq('enrollment_type', 'summer_school')
       .eq('status', 'approved')
       .or('is_deleted.is.null,is_deleted.eq.false');
@@ -164,13 +181,25 @@ export async function POST(req: NextRequest) {
     for (const s of (summerStudents ?? []) as Array<{
       id: string; user_id: string | null; full_name: string | null; parent_email: string | null;
       parent_name: string | null; student_email: string | null; school_id: string | null;
-      school_name: string | null; class_id: string | null; grade: string | null;
+      school_name: string | null; grade: string | null;
     }>) {
       const schoolId = s.school_id || canonical.id;
       const schoolName = s.school_name || canonical.name;
 
       // 5a. Class assignment (only when missing).
-      if (!s.class_id) {
+      let hasClass = false;
+      if (s.user_id) {
+        const { data: pu } = await admin
+          .from('portal_users')
+          .select('class_id')
+          .eq('id', s.user_id)
+          .maybeSingle();
+        if (pu?.class_id) {
+          hasClass = true;
+        }
+      }
+
+      if (!hasClass) {
         if (dryRun) {
           report.summerClassesAssigned++;
         } else {
@@ -180,7 +209,7 @@ export async function POST(req: NextRequest) {
             classBySchool.set(schoolId, classId);
           }
           if (classId) {
-            await admin.from('students').update({ class_id: classId }).eq('id', s.id);
+            // Note: class_id is not a column on the students table (only on portal_users)
             if (s.user_id) await admin.from('portal_users').update({ class_id: classId }).eq('id', s.user_id);
             report.summerClassesAssigned++;
           }
@@ -245,7 +274,7 @@ export async function POST(req: NextRequest) {
 
         if (parentId) {
           try {
-            await syncExplicitParentStudentLink(admin as any, parentId, s.id);
+            await syncExplicitParentStudentLink(admin, parentId, s.id);
             report.parentLinksCreated++;
           } catch (linkErr) {
             console.error('[backfill] parent link failed:', linkErr);
@@ -262,8 +291,9 @@ export async function POST(req: NextRequest) {
       canonicalSchoolName: ONLINE_SCHOOL_NAME,
       report,
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error('[backfill-onboarding]', err);
-    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
+    const msg = err instanceof Error ? err.message : 'Internal error';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
