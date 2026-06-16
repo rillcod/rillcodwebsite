@@ -135,4 +135,43 @@ export async function harnessProspectToContactBook(prospectId: string, authUserI
       console.error('Error during parent contact book sync:', err);
     }
   }
+
+  // ── CRM pipeline + interaction (parity with the consent-form flow) ──────────
+  // Summer onboarding previously only wrote the contact book; now it also moves
+  // the parent into the CRM pipeline ('enrolled') and logs an interaction, so
+  // both onboarding sources produce a consistent CRM trail.
+  try {
+    const now = new Date().toISOString();
+    const normalizedParentEmail = record.parent_email?.trim().toLowerCase() || null;
+    let contactId: string | null = null;
+    if (normalizedParentEmail) {
+      const { data } = await admin.from('customer_contact_book').select('id').eq('email', normalizedParentEmail).maybeSingle();
+      contactId = (data as any)?.id ?? null;
+    }
+    if (!contactId && record.parent_phone) {
+      const { data } = await admin.from('customer_contact_book').select('id').eq('phone', record.parent_phone).maybeSingle();
+      contactId = (data as any)?.id ?? null;
+    }
+
+    if (contactId) {
+      const parentName = record.parent_name || 'Parent/Guardian';
+      const { data: pipe } = await admin.from('crm_pipeline').select('id, stage').eq('contact_id', contactId).maybeSingle();
+      if (pipe) {
+        await admin.from('crm_pipeline').update({ stage: 'enrolled', contact_name: parentName, contact_type: 'form_lead', updated_at: now }).eq('contact_id', contactId);
+      } else {
+        await admin.from('crm_pipeline').insert({ contact_id: contactId, contact_name: parentName, contact_type: 'form_lead', stage: 'enrolled', created_at: now, updated_at: now });
+      }
+      await admin.from('crm_interactions').insert({
+        contact_id: contactId,
+        contact_name: parentName,
+        contact_type: 'form_lead',
+        type: 'enrollment',
+        direction: 'internal',
+        content: `${record.full_name} onboarded as a student (${record.course_interest || 'programme'}). Account created and credentials sent.`,
+        created_at: now,
+      });
+    }
+  } catch (crmErr) {
+    console.error('Error during CRM pipeline/interaction sync:', crmErr);
+  }
 }
