@@ -62,7 +62,14 @@ async function requireStaff() {
   return caller as StaffCaller;
 }
 
-async function sendStudentCredentialsEmail(destinationEmail: string, loginEmail: string, fullName: string, password: string, schoolName: string | null) {
+async function sendStudentCredentialsEmail(
+  destinationEmail: string,
+  loginEmail: string,
+  fullName: string,
+  password: string,
+  schoolName: string | null,
+  portalUserId?: string,
+) {
   try {
     const { notificationsService } = await import('@/services/notifications.service');
     const { buildWelcomeEmail } = await import('@/lib/email/rillcod-transactional-email');
@@ -105,7 +112,45 @@ async function sendStudentCredentialsEmail(destinationEmail: string, loginEmail:
   After logging in, please change your password in your profile settings. Do not share these credentials.
 </p>`;
 
-    const finalHtml = html.replace('</body>', `${credentialsBlock}</body>`);
+    let attachments: Array<{ filename: string; content: string }> | undefined;
+    let receiptUrl = '';
+    if (portalUserId) {
+      try {
+        const admin = adminClient();
+        const { data: tx } = await admin
+          .from('payment_transactions')
+          .select('id')
+          .eq('portal_user_id', portalUserId)
+          .in('payment_status', ['completed', 'success', 'paid'])
+          .order('paid_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (tx?.id) {
+          const { paymentsService } = await import('@/services/payments.service');
+          const url = await paymentsService.generateReceipt(tx.id);
+          receiptUrl = url || '';
+          const r = await fetch(url);
+          if (r.ok) {
+            const buf = Buffer.from(await r.arrayBuffer());
+            const safeName = (fullName || 'Student').replace(/[^a-z0-9]+/gi, '_');
+            attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+          }
+        }
+      } catch (receiptErr) {
+        console.error('[sendStudentCredentialsEmail] receipt attachment failed:', receiptErr);
+      }
+    }
+
+    const receiptBlock = receiptUrl
+      ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
+           <p style="margin:0 0 8px;font-size:11px;color:#10b981;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Payment Receipt</p>
+           <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">${attachments ? 'Your receipt is attached as a PDF.' : 'Your payment receipt is ready.'} View or download any time:</p>
+           <a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a>
+         </div>`
+      : '';
+
+    const finalHtml = html.replace('</body>', `${credentialsBlock}${receiptBlock}</body>`);
 
     await notificationsService.sendExternalEmail({
       to: destinationEmail.trim().toLowerCase(),
@@ -113,10 +158,102 @@ async function sendStudentCredentialsEmail(destinationEmail: string, loginEmail:
       html: finalHtml,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
+      ...(attachments ? { attachments } : {}),
     });
   } catch (err) {
     console.error('Failed to send student credentials email:', err);
   }
+}
+
+async function findCompletedTransactionForStudent(
+  admin: ReturnType<typeof adminClient>,
+  studentId: string,
+  student: any,
+  portalUserId: string
+) {
+  // 1. Try by portal_user_id (already set or existing)
+  const { data: byUser } = await admin
+    .from('payment_transactions')
+    .select('id')
+    .eq('portal_user_id', portalUserId)
+    .in('payment_status', ['completed', 'success', 'paid'])
+    .maybeSingle();
+  if (byUser) return byUser;
+
+  // 2. Try by registration paystack reference
+  const ref = student.registration_paystack_reference?.trim();
+  if (ref) {
+    const { data: byRef } = await admin
+      .from('payment_transactions')
+      .select('id')
+      .eq('transaction_reference', ref)
+      .in('payment_status', ['completed', 'success', 'paid'])
+      .maybeSingle();
+    if (byRef) return byRef;
+  }
+
+  // 3. Try by prospect matching
+  const parentEmail = student.parent_email?.trim().toLowerCase();
+  const sName = student.full_name || student.name;
+  if (parentEmail && sName) {
+    const { data: prospect } = await admin
+      .from('prospective_students')
+      .select('id')
+      .eq('parent_email', parentEmail)
+      .eq('full_name', sName)
+      .maybeSingle();
+
+    if (prospect) {
+      const { data: txList } = await admin
+        .from('payment_transactions')
+        .select('id, payment_gateway_response')
+        .in('payment_status', ['completed', 'success', 'paid']);
+
+      if (txList) {
+        const found = txList.find((t: any) => {
+          const gw = (t.payment_gateway_response ?? {}) as any;
+          return gw.prospect_id === prospect.id;
+        });
+        if (found) return found;
+      }
+    }
+  }
+
+  // 4. Try by parent_email in payment_gateway_response
+  if (parentEmail) {
+    const { data: txList } = await admin
+      .from('payment_transactions')
+      .select('id, payment_gateway_response')
+      .in('payment_status', ['completed', 'success', 'paid']);
+
+    if (txList) {
+      const found = txList.find((t: any) => {
+        const gw = (t.payment_gateway_response ?? {}) as any;
+        const pEmail = (gw.parent_email ?? '').trim().toLowerCase();
+        return pEmail === parentEmail;
+      });
+      if (found) return found;
+    }
+  }
+
+  // 5. Try by student_name in payment_gateway_response
+  if (sName) {
+    const { data: txList } = await admin
+      .from('payment_transactions')
+      .select('id, payment_gateway_response')
+      .in('payment_status', ['completed', 'success', 'paid']);
+
+    if (txList) {
+      const found = txList.find((t: any) => {
+        const gw = (t.payment_gateway_response ?? {}) as any;
+        const studentNameStr = (gw.student_name ?? '').trim().toLowerCase();
+        return studentNameStr === sName.trim().toLowerCase();
+      });
+      if (found) return found;
+    }
+  }
+
+  return null;
 }
 
 // POST /api/approvals/students
@@ -136,7 +273,7 @@ export async function POST(request: Request) {
   // Fetch only needed fields — avoid select('*') for security hygiene
   const { data: student, error: fetchErr } = await admin
     .from('students')
-    .select('id, full_name, student_email, parent_email, school_id, school_name, date_of_birth, status, current_class, grade_level')
+    .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, registration_paystack_reference, date_of_birth')
     .eq('id', id)
     .maybeSingle();
 
@@ -177,7 +314,7 @@ export async function POST(request: Request) {
   if (originalStudentEmail && originalStudentEmail.toLowerCase().endsWith('@rillcod.com')) {
     loginEmail = originalStudentEmail;
   } else {
-    loginEmail = await generateUniqueStudentLoginEmail(admin, student.full_name);
+    loginEmail = await generateUniqueStudentLoginEmail(admin, student.full_name || student.name || '');
   }
 
   // Generate a random 10-char password
@@ -192,10 +329,10 @@ export async function POST(request: Request) {
   const resolvedSchoolId: string | null = resolvedSchool.id;
   const resolvedSchoolName: string | null = resolvedSchool.name;
 
-  const resolvedClassName = (student as any).current_class || (student as any).grade_level || null;
+  const resolvedClassName = student.current_class || student.grade_level || null;
   const resolvedClassId = await resolveStudentClassId(admin, resolvedSchoolId, [
-    (student as any).current_class,
-    (student as any).grade_level,
+    student.current_class,
+    student.grade_level,
   ]);
 
   // ── Step 1: Check portal_users by email FIRST ────────────────────────────
@@ -239,11 +376,24 @@ export async function POST(request: Request) {
       parent_email: student.parent_email || originalStudentEmail || null,
     }).eq('id', id);
 
+    // Resolve and link any completed payment transactions to this portal user
+    try {
+      const tx = await findCompletedTransactionForStudent(admin, id, student, existingPortal.id);
+      if (tx) {
+        await admin
+          .from('payment_transactions')
+          .update({ portal_user_id: existingPortal.id })
+          .eq('id', tx.id);
+      }
+    } catch (txErr) {
+      console.error('[ApproveStudent] Failed to link payment transaction:', txErr);
+    }
+
     void ensureDefaultEnrollment(admin, existingPortal.id, {
       grade: resolvedClassName,
-      enrollmentType: (student as any).enrollment_type,
+      enrollmentType: student.enrollment_type,
     });
-    void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name, password, resolvedSchoolName);
+    void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name || student.name || 'Student', password, resolvedSchoolName, existingPortal.id);
 
     return NextResponse.json({
       success: true,
@@ -319,11 +469,24 @@ export async function POST(request: Request) {
     parent_email: student.parent_email || originalStudentEmail || null,
   }).eq('id', id);
 
+  // Resolve and link any completed payment transactions to this portal user
+  try {
+    const tx = await findCompletedTransactionForStudent(admin, id, student, authUserId);
+    if (tx) {
+      await admin
+        .from('payment_transactions')
+        .update({ portal_user_id: authUserId })
+        .eq('id', tx.id);
+    }
+  } catch (txErr) {
+    console.error('[ApproveStudent] Failed to link payment transaction:', txErr);
+  }
+
   void ensureDefaultEnrollment(admin, authUserId, {
     grade: resolvedClassName,
-    enrollmentType: (student as any).enrollment_type,
+    enrollmentType: student.enrollment_type,
   });
-  void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name, password, resolvedSchoolName);
+  void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name || student.name || 'Student', password, resolvedSchoolName, authUserId);
 
   return NextResponse.json({
     success: true,
