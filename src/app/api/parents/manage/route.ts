@@ -147,7 +147,7 @@ export async function POST(req: Request) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH — Update parent info or re-link to a student
-// Body: { parent_id, full_name?, phone?, student_id?, relationship?, is_active?, reset_password? }
+// Body: { parent_id, email?, full_name?, phone?, student_id?, relationship?, is_active?, reset_password? }
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(req: Request) {
   try {
@@ -155,10 +155,22 @@ export async function PATCH(req: Request) {
     const guard = await requireStaff(supabase);
     if ('error' in guard) return NextResponse.json({ error: guard.error }, { status: guard.status });
 
-    const { parent_id, full_name, phone, student_id, relationship, is_active, reset_password } = await req.json();
+    const { parent_id, email, full_name, phone, student_id, relationship, is_active, reset_password } = await req.json();
     if (!parent_id) return NextResponse.json({ error: 'parent_id is required' }, { status: 400 });
 
     const admin = createAdminClient();
+
+    // 1. Fetch current parent details
+    const { data: parent, error: fetchErr } = await admin
+      .from('portal_users')
+      .select('email, full_name, phone')
+      .eq('id', parent_id)
+      .eq('role', 'parent')
+      .maybeSingle();
+
+    if (fetchErr || !parent) {
+      return NextResponse.json({ error: 'Parent profile not found' }, { status: 404 });
+    }
 
     // Password reset shortcut
     if (reset_password) {
@@ -172,7 +184,61 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: true, new_password: newPw });
     }
 
-    // Update portal_users record (admin bypasses RLS)
+    const cleanEmail = email?.trim().toLowerCase();
+    const oldEmail = parent.email?.trim().toLowerCase();
+
+    // 2. Handle email correction if changed
+    if (cleanEmail && cleanEmail !== oldEmail) {
+      const { data: existingEmailUser } = await admin
+        .from('portal_users')
+        .select('id')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+      if (existingEmailUser) {
+        return NextResponse.json({ error: `The email address ${cleanEmail} is already in use by another user.` }, { status: 409 });
+      }
+
+      // Update in Supabase Auth
+      const { error: authUpdateErr } = await admin.auth.admin.updateUserById(parent_id, {
+        email: cleanEmail,
+        email_confirm: true,
+      });
+      if (authUpdateErr) throw authUpdateErr;
+
+      // Update email in portal_users profile
+      const { error: portalUpdateErr } = await admin
+        .from('portal_users')
+        .update({ email: cleanEmail, updated_at: new Date().toISOString() })
+        .eq('id', parent_id);
+      if (portalUpdateErr) throw portalUpdateErr;
+
+      // Update in prospective_students table
+      if (oldEmail) {
+        await admin
+          .from('prospective_students')
+          .update({ parent_email: cleanEmail, email: cleanEmail, updated_at: new Date().toISOString() })
+          .eq('parent_email', oldEmail);
+      }
+    }
+
+    // 3. Cascade updates (email, full_name, phone) to linked children in students table
+    if (oldEmail) {
+      const studentUpdates: Database['public']['Tables']['students']['Update'] = {
+        updated_at: new Date().toISOString(),
+      };
+      if (cleanEmail && cleanEmail !== oldEmail) studentUpdates.parent_email = cleanEmail;
+      if (full_name !== undefined) studentUpdates.parent_name = full_name;
+      if (phone !== undefined) studentUpdates.parent_phone = phone;
+
+      if (Object.keys(studentUpdates).length > 1) {
+        await admin
+          .from('students')
+          .update(studentUpdates)
+          .eq('parent_email', oldEmail);
+      }
+    }
+
+    // 4. Update parent's portal_users record (full_name, phone, is_active)
     const updates: PortalUserUpdate = {
       updated_at: new Date().toISOString(),
     };
@@ -187,45 +253,36 @@ export async function PATCH(req: Request) {
       .eq('role', 'parent');
     if (updateErr) throw updateErr;
 
-    // Link / re-link to a student
+    // 5. Link / re-link to a student
     if (student_id) {
-      const { data: parent } = await admin
+      const { data: ps } = await admin
         .from('portal_users')
-        .select('email, full_name, phone')
-        .eq('id', parent_id)
-        .eq('role', 'parent')
+        .select('full_name, school_id, school_name, section_class, email')
+        .eq('id', student_id)
         .single();
 
-      if (parent) {
-        const { data: ps } = await admin
-          .from('portal_users')
-          .select('full_name, school_id, school_name, section_class, email')
-          .eq('id', student_id)
-          .single();
-
-        const { data: linkedStudent, error: linkErr } = await admin
-          .from('students')
-          .upsert({
-            user_id: student_id,
-            name: ps?.full_name || 'Student',
-            full_name: ps?.full_name || 'Student',
-            student_email: ps?.email || undefined,
-            school_id: ps?.school_id || undefined,
-            school_name: ps?.school_name || undefined,
-            current_class: ps?.section_class || undefined,
-            parent_email: parent.email,
-            parent_name: full_name ?? parent.full_name,
-            parent_phone: phone ?? parent.phone,
-            parent_relationship: relationship ?? 'Guardian',
-            enrollment_type: 'school',
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id' })
-          .select('id')
-          .single();
-        if (linkErr) throw linkErr;
-        if (linkedStudent?.id) {
-          await syncExplicitParentStudentLink(admin as any, parent_id, linkedStudent.id);
-        }
+      const { data: linkedStudent, error: linkErr } = await admin
+        .from('students')
+        .upsert({
+          user_id: student_id,
+          name: ps?.full_name || 'Student',
+          full_name: ps?.full_name || 'Student',
+          student_email: ps?.email || undefined,
+          school_id: ps?.school_id || undefined,
+          school_name: ps?.school_name || undefined,
+          current_class: ps?.section_class || undefined,
+          parent_email: cleanEmail || oldEmail,
+          parent_name: full_name ?? parent.full_name,
+          parent_phone: phone ?? parent.phone,
+          parent_relationship: relationship ?? 'Guardian',
+          enrollment_type: 'school',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' })
+        .select('id')
+        .single();
+      if (linkErr) throw linkErr;
+      if (linkedStudent?.id) {
+        await syncExplicitParentStudentLink(admin as any, parent_id, linkedStudent.id);
       }
     }
 
