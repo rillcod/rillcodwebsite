@@ -65,7 +65,12 @@ async function safeDeleteRefDeletes(admin: any, portalUserId: string | null, stu
     }
   }
 
-  if (studentId) {
+  // `student_id` is overloaded across the schema — some tables FK to students.id,
+  // others to the portal_users id. Engagement tables (xp/streaks/badges/etc.) key
+  // on the PORTAL-USER id, while academic tables key on students.id. So we attempt
+  // each delete against BOTH ids; a non-matching id simply deletes nothing.
+  const studentIdCandidates = Array.from(new Set([studentId, portalUserId].filter(Boolean))) as string[];
+  if (studentIdCandidates.length) {
     const studentRefs = [
       { table: 'student_xp_summary', col: 'student_id' },
       { table: 'student_streaks', col: 'student_id' },
@@ -82,10 +87,12 @@ async function safeDeleteRefDeletes(admin: any, portalUserId: string | null, stu
     ];
 
     for (const { table, col } of studentRefs) {
-      try {
-        await admin.from(table).delete().eq(col, studentId);
-      } catch (err) {
-        console.warn(`[safe-delete] Delete failed for ${table}.${col}:`, err);
+      for (const id of studentIdCandidates) {
+        try {
+          await admin.from(table).delete().eq(col, id);
+        } catch (err) {
+          console.warn(`[safe-delete] Delete failed for ${table}.${col}:`, err);
+        }
       }
     }
   }
@@ -252,6 +259,15 @@ export async function POST(req: NextRequest) {
     const { data: account } = await admin.from('portal_users').select('id, email, full_name, role, student_id').eq('id', portalUserId).maybeSingle();
     if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 });
 
+    // Authoritative student-record id: the students row is linked via students.user_id,
+    // not portal_users.student_id (which is legacy and usually null). Resolve it so the
+    // student-keyed cleanup actually targets the right rows.
+    let resolvedStudentId: string | null = (account as any).student_id ?? null;
+    {
+      const { data: stuRow } = await admin.from('students').select('id').eq('user_id', portalUserId).maybeSingle();
+      if (stuRow?.id) resolvedStudentId = stuRow.id;
+    }
+
     // Don't allow an admin to delete themselves.
     if ((action === 'safe-delete' || action === 'purge') && portalUserId === user.id) {
       return NextResponse.json({ error: 'You cannot delete your own account.' }, { status: 400 });
@@ -321,13 +337,26 @@ export async function POST(req: NextRequest) {
       const totalPaymentsCount = (paidCount ?? 0) + (directPaymentsCount ?? 0);
 
       if (dryRun) {
+        // For a parent purge, surface how many CHILD accounts will also be destroyed.
+        let childrenToDestroy = 0;
+        if (action === 'purge' && account.role === 'parent') {
+          const ids = new Set<string>();
+          if (account.email) {
+            const { data: stds } = await admin.from('students').select('id').eq('parent_email', account.email);
+            (stds ?? []).forEach((s: any) => ids.add(s.id));
+          }
+          const { data: links } = await admin.from('parent_student_links').select('student_id').eq('parent_id', portalUserId);
+          (links ?? []).forEach((l: any) => ids.add(l.student_id));
+          childrenToDestroy = ids.size;
+        }
         return NextResponse.json({
           success: true, dryRun: true, action,
           account: { id: account.id, email: account.email, role: account.role },
           completedPayments: totalPaymentsCount,
+          childrenToDestroy,
           note: action === 'safe-delete'
             ? 'Will delete the account + engagement rows; financial/audit history is preserved (unlinked).'
-            : 'Will PERMANENTLY delete the account AND all related rows incl. payments/receipts/certificates.',
+            : `Will PERMANENTLY delete the account AND all related rows incl. payments/receipts/certificates${childrenToDestroy ? ` — plus ${childrenToDestroy} linked child account(s).` : '.'}`,
         });
       }
 
@@ -343,12 +372,22 @@ export async function POST(req: NextRequest) {
         await nullifyRefs(admin, portalUserId);
 
         // Delete all engagement records
-        await safeDeleteRefDeletes(admin, portalUserId, account.student_id);
+        await safeDeleteRefDeletes(admin, portalUserId, resolvedStudentId);
 
         // Remove the portal_users row
         const { error: delErr } = await admin.from('portal_users').delete().eq('id', portalUserId);
         if (delErr) {
           return NextResponse.json({ error: `Delete blocked: ${delErr.message}. Some related rows still reference this account.` }, { status: 409 });
+        }
+
+        // Soft-delete the student record so it doesn't reappear as an "un-activated"
+        // student (the login FK was set null) while its history is preserved.
+        if (resolvedStudentId) {
+          try {
+            await admin.from('students')
+              .update({ is_active: false, is_deleted: true, updated_at: new Date().toISOString() })
+              .eq('id', resolvedStudentId);
+          } catch { /* non-fatal */ }
         }
 
         // Remove the auth user
@@ -379,10 +418,11 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // For each student, find their portal user
+          // For each student, find their login account via the authoritative
+          // students.user_id link (portal_users.student_id is legacy/usually null).
           for (const sId of childStudentIds) {
-            const { data: childPu } = await admin.from('portal_users').select('id').eq('student_id', sId).maybeSingle();
-            childrenToPurge.push({ studentId: sId, portalUserId: childPu?.id ?? null });
+            const { data: stuRow } = await admin.from('students').select('user_id').eq('id', sId).maybeSingle();
+            childrenToPurge.push({ studentId: sId, portalUserId: (stuRow as any)?.user_id ?? null });
           }
         }
 
@@ -392,7 +432,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Purge primary user
-        await purgeSingleUser(admin, portalUserId, account.student_id);
+        await purgeSingleUser(admin, portalUserId, resolvedStudentId);
 
         return NextResponse.json({ success: true, action, deleted: { id: portalUserId, email: account.email, purgedChildrenCount: childrenToPurge.length } });
       }
