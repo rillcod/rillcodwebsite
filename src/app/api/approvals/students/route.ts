@@ -69,6 +69,7 @@ async function sendStudentCredentialsEmail(
   password: string,
   schoolName: string | null,
   portalUserId?: string,
+  isSummerSchool?: boolean,
 ) {
   try {
     const { notificationsService } = await import('@/services/notifications.service');
@@ -142,6 +143,24 @@ async function sendStudentCredentialsEmail(
       }
     }
 
+    let waGroupLink = '';
+    if (isSummerSchool) {
+      try {
+        const { getSummerSchoolWhatsAppLink } = await import('@/lib/summer-school/whatsapp-group');
+        waGroupLink = (await getSummerSchoolWhatsAppLink()) || '';
+      } catch (waErr) {
+        console.error('[sendStudentCredentialsEmail] Failed to resolve WhatsApp group link:', waErr);
+      }
+    }
+
+    const whatsappBlock = waGroupLink
+      ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
+           <p style="margin:0 0 8px;font-size:11px;color:#25d366;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Class WhatsApp Group</p>
+           <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">Join the cohort WhatsApp group to receive class links, daily updates, and schedules:</p>
+           <a href="${waGroupLink}" style="display:inline-block;padding:9px 20px;background:#25d366;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">Join WhatsApp Group →</a>
+         </div>`
+      : '';
+
     const receiptBlock = receiptUrl
       ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
            <p style="margin:0 0 8px;font-size:11px;color:#10b981;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Payment Receipt</p>
@@ -150,7 +169,7 @@ async function sendStudentCredentialsEmail(
          </div>`
       : '';
 
-    const finalHtml = html.replace('</body>', `${credentialsBlock}${receiptBlock}</body>`);
+    const finalHtml = html.replace('</body>', `${credentialsBlock}${receiptBlock}${whatsappBlock}</body>`);
 
     await notificationsService.sendExternalEmail({
       to: destinationEmail.trim().toLowerCase(),
@@ -164,6 +183,7 @@ async function sendStudentCredentialsEmail(
     console.error('Failed to send student credentials email:', err);
   }
 }
+
 
 async function findCompletedTransactionForStudent(
   admin: ReturnType<typeof adminClient>,
@@ -393,7 +413,15 @@ export async function POST(request: Request) {
       grade: resolvedClassName,
       enrollmentType: student.enrollment_type,
     });
-    void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name || student.name || 'Student', password, resolvedSchoolName, existingPortal.id);
+    void sendStudentCredentialsEmail(
+      destinationEmail,
+      loginEmail,
+      student.full_name || student.name || 'Student',
+      password,
+      resolvedSchoolName,
+      existingPortal.id,
+      student.enrollment_type === 'summer_school',
+    );
 
     return NextResponse.json({
       success: true,
@@ -486,7 +514,15 @@ export async function POST(request: Request) {
     grade: resolvedClassName,
     enrollmentType: student.enrollment_type,
   });
-  void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name || student.name || 'Student', password, resolvedSchoolName, authUserId);
+  void sendStudentCredentialsEmail(
+    destinationEmail,
+    loginEmail,
+    student.full_name || student.name || 'Student',
+    password,
+    resolvedSchoolName,
+    authUserId,
+    student.enrollment_type === 'summer_school',
+  );
 
   return NextResponse.json({
     success: true,

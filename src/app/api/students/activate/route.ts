@@ -303,6 +303,7 @@ async function sendStudentCredentialsEmail(
   registrationResultId?: string,
   parentLogin?: { email: string; password: string } | null,
   portalUserId?: string,
+  isSummerSchool?: boolean,
 ): Promise<boolean> {
   try {
     const { notificationsService } = await import('@/services/notifications.service');
@@ -364,6 +365,24 @@ async function sendStudentCredentialsEmail(
       }
     }
 
+    let waGroupLink = '';
+    if (isSummerSchool) {
+      try {
+        const { getSummerSchoolWhatsAppLink } = await import('@/lib/summer-school/whatsapp-group');
+        waGroupLink = (await getSummerSchoolWhatsAppLink()) || '';
+      } catch (waErr) {
+        console.error('[sendStudentCredentialsEmail] Failed to resolve WhatsApp group link:', waErr);
+      }
+    }
+
+    const whatsappBlock = waGroupLink
+      ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
+           <p style="margin:0 0 8px;font-size:11px;color:#25d366;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Class WhatsApp Group</p>
+           <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">Join the cohort WhatsApp group to receive class links, daily updates, and schedules:</p>
+           <a href="${waGroupLink}" style="display:inline-block;padding:9px 20px;background:#25d366;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">Join WhatsApp Group →</a>
+         </div>`
+      : '';
+
     // Receipt link fallback — always available even if the PDF attach failed.
     const receiptBlock = receiptUrl
       ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
@@ -373,7 +392,7 @@ async function sendStudentCredentialsEmail(
          </div>`
       : '';
 
-    const finalHtml = html.replace('</body>', `${credentialsBlock}${receiptBlock}</body>`);
+    const finalHtml = html.replace('</body>', `${credentialsBlock}${receiptBlock}${whatsappBlock}</body>`);
 
     await notificationsService.sendExternalEmail({
       to: destinationEmail.trim().toLowerCase(),
@@ -898,6 +917,7 @@ export async function POST(req: NextRequest) {
       regResultId ?? undefined,
       parentLogin,
       portalUserId || student.user_id || undefined,
+      student.enrollment_type === 'summer_school',
     );
 
     return NextResponse.json({
