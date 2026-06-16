@@ -58,6 +58,16 @@ export default function ResendCredentialsPage() {
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
   const [repairing, setRepairing] = useState(false);
+  const [migratingParents, setMigratingParents] = useState(false);
+  const [health, setHealth] = useState<Record<string, number> | null>(null);
+
+  const loadHealth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/onboarding-health');
+      const data = await res.json();
+      if (res.ok) setHealth(data.health);
+    } catch { /* non-fatal */ }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,7 +122,8 @@ export default function ResendCredentialsPage() {
 
   useEffect(() => {
     if (!authLoading && isStaff) load();
-  }, [authLoading, isStaff, load]);
+    if (!authLoading && isAdmin) loadHealth();
+  }, [authLoading, isStaff, isAdmin, load, loadHealth]);
 
   const visibleStudents = students.filter(s => {
     const q = search.toLowerCase();
@@ -281,6 +292,36 @@ export default function ResendCredentialsPage() {
     }
   }
 
+  async function handleMigrateParents() {
+    setMigratingParents(true);
+    try {
+      const previewRes = await fetch('/api/admin/migrate-legacy-parents', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const preview = await previewRes.json();
+      if (!previewRes.ok) throw new Error(preview.error || 'Preview failed');
+      const n = preview.report?.candidates ?? 0;
+      if (n === 0) { toast.info('No legacy single-account parents found.'); setMigratingParents(false); return; }
+      if (!confirm(`Split ${n} legacy single-account record(s) into separate parent + student accounts?\n\nEach student keeps a new @rillcod.com login and a parent account is created on the original email, then linked. Proceed?`)) {
+        setMigratingParents(false); return;
+      }
+      const res = await fetch('/api/admin/migrate-legacy-parents', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Migration failed');
+      toast.success(`Migrated ${data.report?.migrated ?? 0} parent/student pair(s)${data.report?.skipped ? `, ${data.report.skipped} skipped` : ''}.`, { duration: 7000 });
+      await load();
+      await loadHealth();
+    } catch (err: any) {
+      toast.error(err.message || 'Migration failed');
+    } finally {
+      setMigratingParents(false);
+    }
+  }
+
   if (authLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -330,6 +371,17 @@ export default function ResendCredentialsPage() {
               Repair Onboarding
             </button>
           )}
+          {isAdmin && (
+            <button
+              onClick={handleMigrateParents}
+              disabled={migratingParents}
+              title="Split legacy single-account records (login was the parent's email) into separate parent + student accounts and link them"
+              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 border border-border disabled:opacity-50 text-foreground rounded-xl text-sm font-semibold transition-colors"
+            >
+              {migratingParents ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <UserGroupIcon className="w-4 h-4" />}
+              Fix Legacy Parents
+            </button>
+          )}
           <button
             onClick={handleBulkActivate}
             disabled={bulkRunning || notActivatedCount === 0}
@@ -344,6 +396,39 @@ export default function ResendCredentialsPage() {
           </button>
         </div>
       </div>
+
+      {/* Onboarding Health worklist (admin) */}
+      {isAdmin && health && (
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldCheckIcon className="w-4 h-4 text-emerald-400" />
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Onboarding Health</h2>
+            {Object.values(health).reduce((a, b) => a + b, 0) === 0 && (
+              <span className="inline-flex items-center gap-1 text-emerald-400 text-[11px] font-bold"><CheckCircleIcon className="w-3.5 h-3.5" /> All clear</span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            {([
+              ['awaitingVerification', 'Awaiting verify'],
+              ['unonboardedPaid', 'Paid, not onboarded'],
+              ['failedEmails', 'Failed emails'],
+              ['studentsNoClass', 'No class'],
+              ['parentsZeroChildren', 'Parents 0 kids'],
+              ['legacyCollisions', 'Legacy accounts'],
+              ['paymentsNoReceipt', 'No receipt'],
+            ] as [string, string][]).map(([key, label]) => {
+              const v = health[key] ?? 0;
+              return (
+                <div key={key} className={`rounded-xl border p-3 text-center ${v > 0 ? 'border-amber-500/30 bg-amber-500/10' : 'border-border bg-muted/20'}`}>
+                  <div className={`text-xl font-black ${v > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>{v}</div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{label}</div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">"Paid, not onboarded" clears automatically via the scheduled sweep. Use "Repair Onboarding" and "Fix Legacy Parents" above for the rest.</p>
+        </div>
+      )}
 
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-4">
