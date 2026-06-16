@@ -91,7 +91,13 @@ export default function ApprovalsPage() {
     const [error, setError] = useState<string | null>(null);
     const [acting, setActing] = useState<string | null>(null);
     const [actingError, setActingError] = useState<string | null>(null);
-    const [credentials, setCredentials] = useState<{ email: string; password: string; name: string } | null>(null);
+    const [credentials, setCredentials] = useState<{
+        email: string;
+        password: string;
+        name: string;
+        student?: { email: string; password?: string | null } | null;
+        parent?: { email: string; password?: string | null } | null;
+    } | null>(null);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -182,9 +188,11 @@ export default function ApprovalsPage() {
             setProspective(prev => prev.filter(s => s.id !== id));
             if (action === 'approved' && json.credentials) {
                 setCredentials({
-                    email: json.credentials.email,
-                    password: json.credentials.password,
-                    name: prospect?.full_name ?? 'Summer Student'
+                    email: json.credentials.student?.email || '',
+                    password: json.credentials.student?.password || '',
+                    name: prospect?.full_name ?? 'Summer Student',
+                    parent: json.credentials.parent,
+                    student: json.credentials.student,
                 });
             }
         } catch (e: any) {
@@ -445,37 +453,98 @@ export default function ApprovalsPage() {
                     </div>
                 )}
 
-                {/* ── Credentials modal — shown after approving a student/school ── */}
-                {credentials && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                        <div className="bg-background border border-border rounded-xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-                            <div className="flex items-center gap-3">
-                                <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
-                                <div>
-                                    <p className="font-extrabold text-foreground">Account Created</p>
-                                    <p className="text-xs text-muted-foreground">{credentials.name}</p>
-                                </div>
-                            </div>
-                            <p className="text-sm text-muted-foreground">Share these credentials with the user. They can change their password after signing in.</p>
-                            <div className="bg-card shadow-sm border border-border rounded-xl p-4 space-y-3 font-mono text-sm">
-                                <div>
-                                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Email</p>
-                                    <p className="text-foreground select-all">{credentials.email}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Password</p>
-                                    <p className="text-emerald-400 font-bold select-all">{credentials.password}</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setCredentials(null)}
-                                className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-xl text-sm transition-all"
-                            >
-                                Done — I've noted the credentials
-                            </button>
-                        </div>
-                    </div>
-                )}
+                 {/* ── Credentials modal — shown after approving a student/school ── */}
+                 {credentials && (
+                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                         <div className="bg-[#141618] border border-border rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
+                             <div className="flex items-center gap-3">
+                                 <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
+                                 <div>
+                                     <p className="font-extrabold text-foreground">Account Created Successfully</p>
+                                     <p className="text-xs text-muted-foreground">{credentials.name}</p>
+                                 </div>
+                             </div>
+                             <p className="text-xs text-muted-foreground">Share these credentials with the user. They can change their password after signing in.</p>
+                             
+                             <div className="space-y-3">
+                                 {credentials.student || credentials.parent ? (
+                                     <>
+                                         {/* Student Details */}
+                                         {credentials.student && (
+                                             <div className="bg-[#1c1e22] border border-border rounded-xl p-4 space-y-2">
+                                                 <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">🎓 Student Account</p>
+                                                 <div className="text-xs space-y-1">
+                                                     <p className="text-muted-foreground font-medium">Username / Email:</p>
+                                                     <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{credentials.student.email}</p>
+                                                     <p className="text-muted-foreground font-medium mt-1">Temporary Password:</p>
+                                                     <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{credentials.student.password || 'Existing Account'}</p>
+                                                 </div>
+                                             </div>
+                                         )}
+                                         {/* Parent Details */}
+                                         {credentials.parent && (
+                                             <div className="bg-[#1c1e22] border border-border rounded-xl p-4 space-y-2">
+                                                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">👨‍👩‍👧 Parent Account</p>
+                                                 <div className="text-xs space-y-1">
+                                                     <p className="text-muted-foreground font-medium">Username / Email:</p>
+                                                     <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{credentials.parent.email}</p>
+                                                     {credentials.parent.password && (
+                                                         <>
+                                                             <p className="text-muted-foreground font-medium mt-1">Temporary Password:</p>
+                                                             <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{credentials.parent.password}</p>
+                                                         </>
+                                                     )}
+                                                 </div>
+                                             </div>
+                                         )}
+                                     </>
+                                 ) : (
+                                     <div className="bg-card shadow-sm border border-border rounded-xl p-4 space-y-3 font-mono text-sm">
+                                         <div>
+                                             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Email</p>
+                                             <p className="text-foreground select-all">{credentials.email}</p>
+                                         </div>
+                                         <div>
+                                             <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Password</p>
+                                             <p className="text-emerald-400 font-bold select-all">{credentials.password}</p>
+                                         </div>
+                                     </div>
+                                 )}
+                             </div>
+
+                             <div className="flex gap-2 justify-end pt-2">
+                                 {(credentials.student || credentials.parent) && (
+                                     <button
+                                         onClick={() => {
+                                             let txt = `Rillcod Academy Credentials for ${credentials.name}\n\n`;
+                                             if (credentials.student) {
+                                                 txt += `🎓 Student Portal:\nEmail: ${credentials.student.email}\nPassword: ${credentials.student.password || 'Existing Account'}\n\n`;
+                                             }
+                                             if (credentials.parent) {
+                                                 txt += `👨‍👩‍👧 Parent Portal:\nEmail: ${credentials.parent.email}\n`;
+                                                 if (credentials.parent.password) {
+                                                     txt += `Password: ${credentials.parent.password}\n`;
+                                                 }
+                                             }
+                                             navigator.clipboard.writeText(txt);
+                                             toast.success('Credentials copied to clipboard');
+                                             setCredentials(null);
+                                         }}
+                                         className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-semibold transition-all"
+                                     >
+                                         Copy All & Close
+                                     </button>
+                                 )}
+                                 <button
+                                     onClick={() => setCredentials(null)}
+                                     className="px-4 py-2 bg-muted hover:bg-muted/80 border border-border text-foreground rounded-xl text-xs font-semibold transition-all"
+                                 >
+                                     Close
+                                 </button>
+                             </div>
+                         </div>
+                     </div>
+                 )}
 
                 {/* Prospective list */}
                 {tab === 'prospective' && prospective.length > 0 && (

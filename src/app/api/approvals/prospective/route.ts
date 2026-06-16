@@ -163,8 +163,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       credentials: {
-        parent: onboard.parent ? { email: onboard.parent.email } : null,
-        student: { email: onboard.student.email },
+        parent: onboard.parent ? { email: onboard.parent.email, password: onboard.parent.password } : null,
+        student: { email: onboard.student.email, password: onboard.student.password },
       },
     });
   } catch (err: any) {
