@@ -45,6 +45,60 @@ async function notifyAdminOps(payload: {
   }
 }
 
+/**
+ * Acknowledge the registration to the PARENT who registered. Previously only the
+ * admin ops inbox was notified, so the parent never heard that their child's
+ * application was received and is pending verification.
+ */
+async function notifyParentPending(payload: {
+  parentEmail: string;
+  parentName: string;
+  studentName: string;
+  amount: number;
+  method: 'bank_transfer' | 'paystack';
+  reference: string;
+}) {
+  const to = payload.parentEmail?.trim().toLowerCase();
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(to)) return;
+
+  try {
+    const { notificationsService } = await import('@/services/notifications.service');
+    const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
+
+    const methodLabel = payload.method === 'bank_transfer' ? 'Bank Transfer' : 'Online Payment';
+    const body = payload.method === 'bank_transfer'
+      ? `<p style="margin:0 0 10px;">Dear ${payload.parentName}, thank you for registering <strong>${payload.studentName}</strong> for the Rillcod AI Summer School 2026.</p>
+         <p style="margin:0 0 10px;">We have received your registration and your bank transfer reference. Our team is now <strong>verifying your payment</strong>. Once confirmed, we will activate your child's account and email you the <strong>parent and student login details</strong>.</p>
+         <p style="margin:0 0 10px;">No action is needed from you right now — please allow a short while for verification.</p>`
+      : `<p style="margin:0 0 10px;">Dear ${payload.parentName}, thank you for registering <strong>${payload.studentName}</strong> for the Rillcod AI Summer School 2026.</p>
+         <p style="margin:0 0 10px;">We have received your application. Once your payment is confirmed, your child's account is created automatically and we email you the parent and student login details.</p>`;
+
+    const html = buildRillcodTransactionalEmailHtml({
+      eyebrow: 'Admissions',
+      title: 'We received your registration',
+      bodyHtml: body,
+      summaryRows: [
+        { label: 'Student', value: payload.studentName },
+        { label: 'Programme', value: 'AI Summer School 2026' },
+        { label: 'Payment method', value: methodLabel },
+        { label: 'Status', value: 'Pending verification' },
+        { label: 'Reference', value: payload.reference },
+      ],
+      footerNote: 'rillcod technologies limited • summer school admissions',
+    });
+
+    await notificationsService.sendExternalEmail({
+      to,
+      subject: `Registration Received — Rillcod AI Summer School 2026`,
+      fromName: 'Rillcod Technologies',
+      fromEmail: 'support@rillcod.com',
+      html,
+    });
+  } catch (err) {
+    console.error('Summer school parent acknowledgement email failed:', err);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -239,6 +293,16 @@ export async function POST(req: NextRequest) {
         amount,
         method: 'Bank transfer (pending verification)',
         reference: reference.slice(0, 80),
+      });
+
+      // Acknowledge to the PARENT that their child's registration was received.
+      void notifyParentPending({
+        parentEmail: emailNorm,
+        parentName: parent_name,
+        studentName: student_name,
+        amount,
+        method: 'bank_transfer',
+        reference: reference.startsWith('http') ? 'Receipt uploaded' : reference.slice(0, 80),
       });
 
       return NextResponse.json({
