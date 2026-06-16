@@ -57,6 +57,8 @@ async function notifyParentPending(payload: {
   amount: number;
   method: 'bank_transfer' | 'paystack';
   reference: string;
+  bankAccount?: { bank_name: string; account_number: string; account_name: string } | null;
+  payUrl?: string;
 }) {
   const to = payload.parentEmail?.trim().toLowerCase();
   if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(to)) return;
@@ -65,23 +67,51 @@ async function notifyParentPending(payload: {
     const { notificationsService } = await import('@/services/notifications.service');
     const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
 
-    const methodLabel = payload.method === 'bank_transfer' ? 'Bank Transfer' : 'Online Payment';
-    const body = payload.method === 'bank_transfer'
-      ? `<p style="margin:0 0 10px;">Dear ${payload.parentName}, thank you for registering <strong>${payload.studentName}</strong> for the Rillcod AI Summer School 2026.</p>
-         <p style="margin:0 0 10px;">We have received your registration and your bank transfer reference. Our team is now <strong>verifying your payment</strong>. Once confirmed, we will activate your child's account and email you the <strong>parent and student login details</strong>.</p>
-         <p style="margin:0 0 10px;">No action is needed from you right now — please allow a short while for verification.</p>`
-      : `<p style="margin:0 0 10px;">Dear ${payload.parentName}, thank you for registering <strong>${payload.studentName}</strong> for the Rillcod AI Summer School 2026.</p>
-         <p style="margin:0 0 10px;">We have received your application. Once your payment is confirmed, your child's account is created automatically and we email you the parent and student login details.</p>`;
+    const amountStr = `₦${payload.amount.toLocaleString()}`;
+
+    // Prominent amount-due banner.
+    const amountBanner = `
+      <div style="margin:0 0 18px;padding:16px 18px;background:#1c1e22;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
+        <p style="margin:0 0 4px;font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Amount to Pay</p>
+        <p style="margin:0;font-size:26px;color:#10b981;font-weight:800;font-family:monospace,Arial;">${amountStr}</p>
+      </div>`;
+
+    // Bank-transfer details so the parent can complete payment.
+    const bankBlock = payload.bankAccount
+      ? `<div style="margin:0 0 18px;padding:15px 18px;background:#141618;border:1px solid #2a2d33;border-radius:8px;">
+           <p style="margin:0 0 10px;font-size:10px;color:#f59e0b;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Pay by Bank Transfer</p>
+           <p style="margin:6px 0;font-size:14px;color:#fff;"><strong>Bank:</strong> ${payload.bankAccount.bank_name}</p>
+           <p style="margin:6px 0;font-size:14px;color:#fff;font-family:monospace;"><strong>Account No:</strong> ${payload.bankAccount.account_number}</p>
+           <p style="margin:6px 0;font-size:14px;color:#fff;"><strong>Account Name:</strong> ${payload.bankAccount.account_name}</p>
+           <p style="margin:10px 0 0;font-size:11px;color:#71717a;">Use your child's name as the transfer narration. Reply to this email or send your receipt so we can verify quickly.</p>
+         </div>`
+      : '';
+
+    // Online payment option.
+    const payButton = payload.payUrl
+      ? `<div style="margin:0 0 18px;text-align:center;">
+           <a href="${payload.payUrl}" style="display:inline-block;padding:13px 28px;background:#7c3aed;color:#fff;font-size:14px;font-weight:800;text-decoration:none;border-radius:8px;">Pay Online Now →</a>
+           <p style="margin:8px 0 0;font-size:11px;color:#71717a;">Prefer card / transfer via Paystack? Pay online and your child's account is created automatically.</p>
+         </div>`
+      : '';
+
+    const body = `
+      <p style="margin:0 0 10px;">Dear ${payload.parentName}, thank you for registering <strong>${payload.studentName}</strong> for the Rillcod AI Summer School 2026.</p>
+      <p style="margin:0 0 16px;">To <strong>secure your child's seat</strong>, please complete payment using either option below. As soon as your payment is confirmed we activate the account and email you the <strong>parent and student login details</strong>.</p>
+      ${amountBanner}
+      ${payButton}
+      ${bankBlock}
+      <p style="margin:0;font-size:12px;color:#71717a;">If you have already paid, no action is needed — our team is verifying and will confirm shortly.</p>`;
 
     const html = buildRillcodTransactionalEmailHtml({
       eyebrow: 'Admissions',
-      title: 'We received your registration',
+      title: 'Complete your payment to secure the seat',
       bodyHtml: body,
       summaryRows: [
         { label: 'Student', value: payload.studentName },
         { label: 'Programme', value: 'AI Summer School 2026' },
-        { label: 'Payment method', value: methodLabel },
-        { label: 'Status', value: 'Pending verification' },
+        { label: 'Amount due', value: amountStr },
+        { label: 'Status', value: 'Awaiting payment confirmation' },
         { label: 'Reference', value: payload.reference },
       ],
       footerNote: 'rillcod technologies limited • summer school admissions',
@@ -89,7 +119,7 @@ async function notifyParentPending(payload: {
 
     await notificationsService.sendExternalEmail({
       to,
-      subject: `Registration Received — Rillcod AI Summer School 2026`,
+      subject: `Complete Your Payment — Rillcod AI Summer School 2026`,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
       html,
@@ -295,7 +325,18 @@ export async function POST(req: NextRequest) {
         reference: reference.slice(0, 80),
       });
 
-      // Acknowledge to the PARENT that their child's registration was received.
+      // Acknowledge to the PARENT and tell them exactly how to pay.
+      const { data: payAccts } = await supabase
+        .from('payment_accounts')
+        .select('bank_name, account_number, account_name')
+        .eq('is_active', true)
+        .in('owner_type', ['rillcod', 'global'])
+        .limit(1);
+      const bankAccount = payAccts?.[0]
+        ? { bank_name: payAccts[0].bank_name, account_number: payAccts[0].account_number, account_name: payAccts[0].account_name }
+        : { bank_name: 'Zenith Bank', account_number: '1215267233', account_name: 'Rillcod Ltd' };
+      const payUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com'}/summer-school`;
+
       void notifyParentPending({
         parentEmail: emailNorm,
         parentName: parent_name,
@@ -303,6 +344,8 @@ export async function POST(req: NextRequest) {
         amount,
         method: 'bank_transfer',
         reference: reference.startsWith('http') ? 'Receipt uploaded' : reference.slice(0, 80),
+        bankAccount,
+        payUrl,
       });
 
       return NextResponse.json({
