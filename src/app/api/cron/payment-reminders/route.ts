@@ -15,7 +15,10 @@ import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
-const REMIND_EVERY_DAYS = 5;
+// How often the SAME parent may be reminded. Configurable without a redeploy:
+//   • ?everyDays=N on the cron URL (highest priority), else
+//   • BALANCE_REMINDER_EVERY_DAYS env var, else 5.
+const DEFAULT_REMIND_EVERY_DAYS = Number(process.env.BALANCE_REMINDER_EVERY_DAYS) || 5;
 
 function adminClient() {
   return createClient(
@@ -41,9 +44,12 @@ async function handle(req: NextRequest) {
   }
 
   const admin = adminClient();
-  const report = { scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0 };
+  // Allow ?everyDays=N to override the cadence per scheduler call (clamped 1–60).
+  const everyDaysParam = Number(new URL(req.url).searchParams.get('everyDays'));
+  const everyDays = Math.min(60, Math.max(1, everyDaysParam || DEFAULT_REMIND_EVERY_DAYS));
+  const report = { scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, everyDays };
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
-  const cutoff = Date.now() - REMIND_EVERY_DAYS * 86400000;
+  const cutoff = Date.now() - everyDays * 86400000;
 
   const { data: prospects } = await admin
     .from('prospective_students')
