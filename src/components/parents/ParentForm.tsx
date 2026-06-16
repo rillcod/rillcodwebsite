@@ -295,6 +295,7 @@ export function ParentForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             parent_id: initialData!.id,
+            email: form.email,
             full_name: form.full_name,
             phone: form.phone || null,
             student_id: form.student_id || undefined,
@@ -437,17 +438,15 @@ export function ParentForm({
           <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Parent Account Info</p>
         </div>
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-          {!isEdit && (
-            <div>
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Email Address *</label>
-              <input
-                type="email" required value={form.email}
-                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="parent@example.com"
-                className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-          )}
+          <div>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Email Address *</label>
+            <input
+              type="email" required value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="parent@example.com"
+              className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+            />
+          </div>
 
           <div>
             <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-1.5">Full Name *</label>
