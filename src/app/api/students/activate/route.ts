@@ -203,6 +203,97 @@ function credentialsCard(label: string, accent: string, email: string, password:
 </table>`;
 }
 
+async function findCompletedTransactionForStudent(
+  admin: any,
+  studentId: string,
+  student: any,
+  portalUserId: string
+) {
+  // 1. Try by portal_user_id (already set or existing)
+  const { data: byUser } = await admin
+    .from('payment_transactions')
+    .select('id')
+    .eq('portal_user_id', portalUserId)
+    .in('payment_status', ['completed', 'success', 'paid'])
+    .maybeSingle();
+  if (byUser) return byUser;
+
+  // 2. Try by registration paystack reference
+  const ref = student.registration_paystack_reference?.trim();
+  if (ref) {
+    const { data: byRef } = await admin
+      .from('payment_transactions')
+      .select('id')
+      .eq('transaction_reference', ref)
+      .in('payment_status', ['completed', 'success', 'paid'])
+      .maybeSingle();
+    if (byRef) return byRef;
+  }
+
+  // 3. Try by prospect matching
+  const parentEmail = student.parent_email?.trim().toLowerCase();
+  const sName = student.full_name || student.name;
+  if (parentEmail && sName) {
+    const { data: prospect } = await admin
+      .from('prospective_students')
+      .select('id')
+      .eq('parent_email', parentEmail)
+      .eq('full_name', sName)
+      .maybeSingle();
+
+    if (prospect) {
+      const { data: txList } = await admin
+        .from('payment_transactions')
+        .select('id, payment_gateway_response')
+        .in('payment_status', ['completed', 'success', 'paid']);
+
+      if (txList) {
+        const found = txList.find((t: any) => {
+          const gw = (t.payment_gateway_response ?? {}) as any;
+          return gw.prospect_id === prospect.id;
+        });
+        if (found) return found;
+      }
+    }
+  }
+
+  // 4. Try by parent_email in payment_gateway_response
+  if (parentEmail) {
+    const { data: txList } = await admin
+      .from('payment_transactions')
+      .select('id, payment_gateway_response')
+      .in('payment_status', ['completed', 'success', 'paid']);
+
+    if (txList) {
+      const found = txList.find((t: any) => {
+        const gw = (t.payment_gateway_response ?? {}) as any;
+        const pEmail = (gw.parent_email ?? '').trim().toLowerCase();
+        return pEmail === parentEmail;
+      });
+      if (found) return found;
+    }
+  }
+
+  // 5. Try by student_name in payment_gateway_response
+  if (sName) {
+    const { data: txList } = await admin
+      .from('payment_transactions')
+      .select('id, payment_gateway_response')
+      .in('payment_status', ['completed', 'success', 'paid']);
+
+    if (txList) {
+      const found = txList.find((t: any) => {
+        const gw = (t.payment_gateway_response ?? {}) as any;
+        const studentNameStr = (gw.student_name ?? '').trim().toLowerCase();
+        return studentNameStr === sName.trim().toLowerCase();
+      });
+      if (found) return found;
+    }
+  }
+
+  return null;
+}
+
 async function sendStudentCredentialsEmail(
   destinationEmail: string,
   loginEmail: string,
@@ -253,7 +344,7 @@ async function sendStudentCredentialsEmail(
           .from('payment_transactions')
           .select('id')
           .eq('portal_user_id', portalUserId)
-          .in('payment_status', ['completed', 'success'])
+          .in('payment_status', ['completed', 'success', 'paid'])
           .order('paid_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -559,6 +650,21 @@ export async function POST(req: NextRequest) {
       school_id: resolvedSchoolId,
       school_name: resolvedSchoolName,
     }).eq('id', studentId);
+
+    // Resolve and link any completed payment transactions to this portal user
+    if (portalUserId) {
+      try {
+        const tx = await findCompletedTransactionForStudent(supabaseAdmin, studentId, student, portalUserId);
+        if (tx) {
+          await supabaseAdmin
+            .from('payment_transactions')
+            .update({ portal_user_id: portalUserId })
+            .eq('id', tx.id);
+        }
+      } catch (txErr) {
+        console.error('[ActivateStudent] Failed to link payment transaction:', txErr);
+      }
+    }
 
     let cardIssued = false;
     let cardId: string | null = null;
