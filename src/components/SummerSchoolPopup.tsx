@@ -286,6 +286,26 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                         )}
                       </div>
 
+                      {/* Consent — parental (required) + WhatsApp opt-in (optional) */}
+                      <div className="space-y-2.5">
+                        <label className={`flex items-start gap-2.5 cursor-pointer rounded-xl border p-3 transition-all ${attempted && !form.parentConsent ? 'border-rose-500 ring-1 ring-rose-500/30 bg-rose-500/5' : 'border-border bg-card hover:border-primary/40'}`}>
+                          <input type="checkbox" name="parentConsent" checked={form.parentConsent} onChange={handleChange} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
+                          <span className="text-[11px] text-foreground leading-relaxed">
+                            <span className="font-black uppercase tracking-wide text-[9px] text-primary">Parental Consent (Required)</span><br />
+                            I am the parent/guardian of this student and consent to their participation in the Rillcod Summer School and the processing of their academic records.
+                          </span>
+                        </label>
+                        {attempted && !form.parentConsent && <p className="text-rose-500 text-[9px] font-bold mt-1">Parental consent is required to register.</p>}
+
+                        <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-border bg-card p-3 hover:border-primary/40 transition-all">
+                          <input type="checkbox" name="whatsappConsent" checked={form.whatsappConsent} onChange={handleChange} className="mt-0.5 w-4 h-4 accent-primary shrink-0" />
+                          <span className="text-[11px] text-foreground leading-relaxed">
+                            <span className="font-black uppercase tracking-wide text-[9px] text-muted-foreground">WhatsApp Opt-in (Optional)</span><br />
+                            I consent to receiving login credentials, payment receipts, and student updates via WhatsApp.
+                          </span>
+                        </label>
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         {/* Current School with autocomplete */}
                         <div className="relative">
@@ -584,6 +604,38 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
                             </div>
                           </div>
                         )}
+                      </div>
+
+                      {/* Consent Checkboxes */}
+                      <div className="border-t border-border pt-5 mt-5 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            id="popupParentConsent"
+                            checked={form.parentConsent}
+                            onChange={(e) => setForm(prev => ({ ...prev, parentConsent: e.target.checked }))}
+                            className="mt-0.5 w-4 h-4 accent-primary cursor-pointer shrink-0"
+                          />
+                          <label htmlFor="popupParentConsent" className={`text-[11px] leading-relaxed cursor-pointer ${attempted && !form.parentConsent ? 'text-rose-500 font-bold' : 'text-muted-foreground font-medium'}`}>
+                            I am the parent/guardian of this student and I consent to their participation in the Rillcod AI Summer School programme and the processing of their personal and academic data. <span className="text-rose-500">*</span>
+                          </label>
+                        </div>
+                        {attempted && !form.parentConsent && (
+                          <p className="text-rose-500 text-[9px] font-bold ml-7">Parental consent is required to proceed.</p>
+                        )}
+
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            id="popupWhatsappConsent"
+                            checked={form.whatsappConsent}
+                            onChange={(e) => setForm(prev => ({ ...prev, whatsappConsent: e.target.checked }))}
+                            className="mt-0.5 w-4 h-4 accent-primary cursor-pointer shrink-0"
+                          />
+                          <label htmlFor="popupWhatsappConsent" className="text-[11px] text-muted-foreground font-medium leading-relaxed cursor-pointer">
+                            I consent to receiving login credentials, payment receipts, and student progress updates via WhatsApp.
+                          </label>
+                        </div>
                       </div>
 
                       <button

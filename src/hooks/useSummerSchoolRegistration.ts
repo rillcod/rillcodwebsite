@@ -29,6 +29,8 @@ export type SummerFormState = {
   paymentMethod: string;
   paymentPlan: string;
   paymentReference: string;
+  parentConsent: boolean;
+  whatsappConsent: boolean;
 };
 
 export const EMPTY_SUMMER_FORM: SummerFormState = {
@@ -48,6 +50,8 @@ export const EMPTY_SUMMER_FORM: SummerFormState = {
   paymentMethod: "paystack",
   paymentPlan: "full",
   paymentReference: "",
+  parentConsent: false,
+  whatsappConsent: false,
 };
 
 export type SummerSuccessInfo = {
@@ -118,6 +122,7 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
     parseInt(form.age, 10) <= 18 &&
     form.gender &&
     form.preferredMode &&
+    form.parentConsent === true &&
     (form.paymentMethod !== "bank_transfer" || form.paymentReference.trim());
 
   useEffect(() => {
@@ -179,7 +184,12 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target as HTMLInputElement;
+    if (type === "checkbox") {
+      const { checked } = e.target as HTMLInputElement;
+      setForm((prev) => ({ ...prev, [name]: checked }));
+      return;
+    }
     if (name === "email") setEmailHint(null);
     setForm((prev) => ({ ...prev, [name]: value }));
   };
@@ -265,7 +275,8 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
     }
     setLoading(true);
     try {
-      const fullNotes = `[Track Choice: Full AI Explorer (All Tracks)] [Plan: ${form.paymentPlan}] [Method: ${form.paymentMethod}] ${form.paymentReference ? `[Ref: ${form.paymentReference}]` : ""} ${form.additionalInfo}`;
+      const consentNotes = `[Parental Consent: Yes] [WhatsApp Opt-in: ${form.whatsappConsent ? "Yes" : "No"}]`;
+      const fullNotes = `[Track Choice: Full AI Explorer (All Tracks)] [Plan: ${form.paymentPlan}] [Method: ${form.paymentMethod}] ${form.paymentReference ? `[Ref: ${form.paymentReference}]` : ""} ${consentNotes} ${form.additionalInfo}`;
 
       const res = await fetch("/api/summer-school", {
         method: "POST",
@@ -286,6 +297,8 @@ export function useSummerSchoolRegistration({ lsKey, receiptInputId = "ss-receip
           payment_method: form.paymentMethod,
           payment_plan: form.paymentPlan,
           payment_reference: form.paymentReference || undefined,
+          parent_consent: form.parentConsent,
+          whatsapp_consent: form.whatsappConsent,
         }),
       });
       const data = await res.json();

@@ -134,6 +134,7 @@ export default function DashboardNavigation() {
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
           { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Resend Credentials', href: '/dashboard/students/resend-credentials', icon: EnvelopeIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Users', href: '/dashboard/users', icon: ShieldCheckIcon },
           { name: 'Approvals', href: '/dashboard/approvals', icon: ClipboardDocumentCheckIcon },
@@ -227,6 +228,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Students' },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
+          { name: 'Resend Credentials', href: '/dashboard/students/resend-credentials', icon: EnvelopeIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
           { name: 'Student Fees', href: '/dashboard/money', icon: BanknotesIcon },
           { name: 'Card Studio & ID Cards', href: '/dashboard/card-studio', icon: CreditCardIcon },

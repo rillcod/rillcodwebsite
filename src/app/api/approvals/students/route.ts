@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
+import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
+import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import crypto from 'crypto';
 
 function adminClient() {
@@ -168,42 +171,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Student has no email address on file' }, { status: 400 });
   }
 
-  // Generate login email ending with @rillcod.com
+  // Generate login email in the canonical mike123@rillcod.com style. Reuse the
+  // student's existing @rillcod.com login if one was already issued (idempotent).
   let loginEmail = '';
   if (originalStudentEmail && originalStudentEmail.toLowerCase().endsWith('@rillcod.com')) {
     loginEmail = originalStudentEmail;
   } else {
-    const sanitizedName = student.full_name
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '.')
-      .replace(/[^a-z0-9.]/g, '');
-    const shortId = student.id.split('-')[0] || student.id.substring(0, 6);
-    loginEmail = `${sanitizedName}.${shortId}@rillcod.com`;
+    loginEmail = await generateUniqueStudentLoginEmail(admin, student.full_name);
   }
 
   // Generate a random 10-char password
   const password = crypto.randomBytes(8).toString('base64url').slice(0, 10);
   const normalizedEmail = loginEmail.trim().toLowerCase();
 
-  // ── Resolve school — every student must belong to one ────────────────────
-  let resolvedSchoolId: string | null = student.school_id || null;
-  let resolvedSchoolName: string | null = student.school_name || null;
-
-  if (!resolvedSchoolId) {
-    const { data: onlineSchool } = await admin
-      .from('schools')
-      .select('id, name')
-      .ilike('name', '%online%')
-      .eq('status', 'approved')
-      .limit(1)
-      .maybeSingle();
-
-    if (onlineSchool) {
-      resolvedSchoolId = onlineSchool.id;
-      resolvedSchoolName = onlineSchool.name;
-    }
-  }
+  // ── Resolve school — every student must belong to one (shared resolver) ───
+  const resolvedSchool = await resolveOnlineSchool(admin, {
+    id: student.school_id,
+    name: student.school_name,
+  });
+  const resolvedSchoolId: string | null = resolvedSchool.id;
+  const resolvedSchoolName: string | null = resolvedSchool.name;
 
   const resolvedClassName = (student as any).current_class || (student as any).grade_level || null;
   const resolvedClassId = await resolveStudentClassId(admin, resolvedSchoolId, [
@@ -252,6 +239,10 @@ export async function POST(request: Request) {
       parent_email: student.parent_email || originalStudentEmail || null,
     }).eq('id', id);
 
+    void ensureDefaultEnrollment(admin, existingPortal.id, {
+      grade: resolvedClassName,
+      enrollmentType: (student as any).enrollment_type,
+    });
     void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name, password, resolvedSchoolName);
 
     return NextResponse.json({
@@ -328,6 +319,10 @@ export async function POST(request: Request) {
     parent_email: student.parent_email || originalStudentEmail || null,
   }).eq('id', id);
 
+  void ensureDefaultEnrollment(admin, authUserId, {
+    grade: resolvedClassName,
+    enrollmentType: (student as any).enrollment_type,
+  });
   void sendStudentCredentialsEmail(destinationEmail, loginEmail, student.full_name, password, resolvedSchoolName);
 
   return NextResponse.json({

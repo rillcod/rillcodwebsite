@@ -119,6 +119,13 @@ export default function SummerSchoolPage() {
           });
           setIsSuccess(true);
           try { localStorage.removeItem(LS_KEY); } catch { }
+          // Fire the fallback onboarding in the background in case the webhook hasn't run yet.
+          // Idempotent — safe to call even if the webhook already ran.
+          fetch("/api/summer-school/ensure-onboarded", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reference }),
+          }).catch(() => { /* non-critical */ });
         })
         .catch((err: Error) => {
           toast.error(err.message || "Payment verification failed. Contact support if you were charged.");
@@ -451,6 +458,38 @@ export default function SummerSchoolPage() {
                       </button>
                     </div>
                   )}
+                </div>
+
+                {/* Consent — parental (required) + WhatsApp opt-in (optional) */}
+                <div className="space-y-3">
+                  <label className={`flex items-start gap-3 cursor-pointer rounded-xl border p-4 transition-all ${attempted && !form.parentConsent ? 'border-rose-500 ring-1 ring-rose-500/30 bg-rose-500/5' : 'border-border bg-card hover:border-primary/40'}`}>
+                    <input
+                      type="checkbox"
+                      name="parentConsent"
+                      checked={form.parentConsent}
+                      onChange={handleChange}
+                      className="mt-0.5 w-4 h-4 accent-primary shrink-0"
+                    />
+                    <span className="text-xs text-foreground leading-relaxed">
+                      <span className="font-black uppercase tracking-wide text-[10px] text-primary">Parental Consent (Required)</span><br />
+                      I am the parent/guardian of this student and consent to their participation in the Rillcod Summer School and the processing of their academic records.
+                    </span>
+                  </label>
+                  {attempted && !form.parentConsent && <p className="text-rose-500 text-[10px] font-bold mt-1">Parental consent is required to register.</p>}
+
+                  <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-all">
+                    <input
+                      type="checkbox"
+                      name="whatsappConsent"
+                      checked={form.whatsappConsent}
+                      onChange={handleChange}
+                      className="mt-0.5 w-4 h-4 accent-primary shrink-0"
+                    />
+                    <span className="text-xs text-foreground leading-relaxed">
+                      <span className="font-black uppercase tracking-wide text-[10px] text-muted-foreground">WhatsApp Opt-in (Optional)</span><br />
+                      I consent to receiving login credentials, payment receipts, and student updates via WhatsApp.
+                    </span>
+                  </label>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

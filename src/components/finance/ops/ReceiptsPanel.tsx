@@ -13,6 +13,7 @@ import {
   UserIcon,
   TrashIcon,
   ShieldCheckIcon,
+  EnvelopeIcon,
 } from '@/lib/icons';
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import {
@@ -76,6 +77,7 @@ export function ReceiptsPanel() {
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [preview, setPreview] = useState<DocPreviewData | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [showAudit, setShowAudit] = useState(false);
 
@@ -213,6 +215,28 @@ export function ReceiptsPanel() {
       transactionRef: meta.reference || r.receipt_number,
       instructorName: meta.received_by || 'Accounts Department',
     });
+  };
+
+  const resendReceipt = async (r: ReceiptRow) => {
+    if (!r.portal_user_id) {
+      toast.error('No individual payer linked to this receipt — resend not applicable for school receipts');
+      return;
+    }
+    setResendingId(r.id);
+    try {
+      const res = await fetch('/api/payments/resend-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portalUserId: r.portal_user_id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend');
+      toast.success(`Receipt resent to ${r.portal_users?.email || 'payer'}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Resend failed');
+    } finally {
+      setResendingId(null);
+    }
   };
 
   return (
@@ -378,17 +402,32 @@ export function ReceiptsPanel() {
                       ? `via ${r.metadata.payment_method.replace('_', ' ')}`
                       : ''}
                   </span>
-                  {r.pdf_url && (
-                    <a
-                      href={r.pdf_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 text-primary hover:text-primary/80 font-black uppercase tracking-widest"
-                    >
-                      <DocumentArrowDownIcon className="w-3 h-3" /> PDF
-                    </a>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {r.pdf_url && (
+                      <a
+                        href={r.pdf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-primary hover:text-primary/80 font-black uppercase tracking-widest"
+                      >
+                        <DocumentArrowDownIcon className="w-3 h-3" /> PDF
+                      </a>
+                    )}
+                    {canManage && r.portal_user_id && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); resendReceipt(r); }}
+                        disabled={resendingId === r.id}
+                        title={`Resend receipt to ${r.portal_users?.email || 'payer'}`}
+                        className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-black uppercase tracking-widest disabled:opacity-40"
+                      >
+                        {resendingId === r.id
+                          ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                          : <EnvelopeIcon className="w-3 h-3" />}
+                        {resendingId === r.id ? '…' : 'Resend'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">

@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { generateTempPassword } from '@/lib/utils/password';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
+import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
+import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
+import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
+import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import crypto from 'crypto';
 
 const supabaseAdmin = createAdminClient(
@@ -58,60 +62,95 @@ async function resolveClassForStudent(
   return { id: cls?.id ?? null, name: cls?.name ?? names[0] ?? null };
 }
 
-async function sendStudentCredentialsEmail(destinationEmail: string, loginEmail: string, fullName: string, password: string, schoolName: string | null) {
+/** One branded credentials card (label + email + temp password). */
+function credentialsCard(label: string, accent: string, email: string, password: string): string {
+  return `
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#141618;border:1px solid #2a2d33;border-radius:8px;overflow:hidden;margin:0 0 16px;">
+  <tr><td style="background:#1c1e22;border-bottom:1px solid #2a2d33;padding:10px 16px;">
+    <p style="margin:0;font-size:10px;color:${accent};text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">${label}</p>
+  </td></tr>
+  <tr><td style="padding:14px 16px;border-bottom:1px solid #2a2d33;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Username / Email</td>
+      <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${email.trim().toLowerCase()}</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:14px 16px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Temporary Password</td>
+      <td style="font-size:13px;color:#f59e0b;font-weight:800;text-align:right;font-family:monospace,Arial;">${password}</td>
+    </tr></table>
+  </td></tr>
+</table>`;
+}
+
+async function sendStudentCredentialsEmail(
+  destinationEmail: string,
+  loginEmail: string,
+  fullName: string,
+  password: string,
+  schoolName: string | null,
+  registrationResultId?: string,
+  parentLogin?: { email: string; password: string } | null,
+): Promise<boolean> {
   try {
     const { notificationsService } = await import('@/services/notifications.service');
     const { buildWelcomeEmail } = await import('@/lib/email/rillcod-transactional-email');
-    
+
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
     const loginUrl = `${appUrl}/login`;
 
     const html = buildWelcomeEmail({
-      recipientName: fullName,
+      recipientName: parentLogin ? `${fullName}'s Parent/Guardian` : fullName,
       role: 'student',
       schoolName: schoolName ?? undefined,
       loginUrl,
       appUrl,
     });
 
-    const credentialsBlock = `
-<table width="100%" cellpadding="0" cellspacing="0" border="0"
-       style="background:#141618;border:1px solid #2a2d33;border-radius:8px;overflow:hidden;margin:0 0 20px;">
-  <tr><td style="background:#1c1e22;border-bottom:1px solid #2a2d33;padding:10px 16px;">
-    <p style="margin:0;font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;">Student Login Credentials</p>
-  </td></tr>
-  <tr><td style="padding:14px 16px;border-bottom:1px solid #2a2d33;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Username / Email</td>
-        <td style="font-size:13px;color:#ffffff;font-weight:800;text-align:right;font-family:monospace,Arial;">${loginEmail.trim().toLowerCase()}</td>
-      </tr>
-    </table>
-  </td></tr>
-  <tr><td style="padding:14px 16px;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr>
-        <td style="font-size:12px;color:#71717a;font-weight:700;width:35%;">Temporary Password</td>
-        <td style="font-size:13px;color:#f59e0b;font-weight:800;text-align:right;font-family:monospace,Arial;">${password}</td>
-      </tr>
-    </table>
-  </td></tr>
-</table>
+    const parentBlock = parentLogin
+      ? credentialsCard('Parent / Guardian Portal Login', '#10b981', parentLogin.email, parentLogin.password)
+      : '';
+    const studentBlock = credentialsCard('Student Portal Login', '#7c3aed', loginEmail, password);
+
+    const intro = parentLogin
+      ? `<p style="font-size:13px;color:#d4d4d8;margin:0 0 14px;">Below are the login details for <strong style="color:#fff;">${fullName}</strong>. The <strong>Parent Portal</strong> lets you track progress, reports and payments; the <strong>Student Portal</strong> is for your child's lessons and activities.</p>`
+      : '';
+
+    const credentialsBlock = `${intro}${parentBlock}${studentBlock}
 <p style="font-size:12px;color:#71717a;margin:0 0 20px;">
-  After logging in, please change your password in your profile settings. Do not share these credentials.
+  Please change ${parentLogin ? 'these passwords' : 'this password'} after first login in profile settings. Keep these credentials private.
 </p>`;
 
     const finalHtml = html.replace('</body>', `${credentialsBlock}</body>`);
 
     await notificationsService.sendExternalEmail({
       to: destinationEmail.trim().toLowerCase(),
-      subject: `Your Rillcod Academy Login Credentials`,
+      subject: parentLogin
+        ? `Your Rillcod Academy Parent & Student Login Details`
+        : `Your Rillcod Academy Login Credentials`,
       html: finalHtml,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
     });
+
+    // Mark delivery as sent in registration_results
+    if (registrationResultId) {
+      await supabaseAdmin.from('registration_results')
+        .update({ status: 'sent' })
+        .eq('id', registrationResultId);
+    }
+    return true;
   } catch (err) {
     console.error('Failed to send student credentials email:', err);
+    // Mark delivery as failed
+    if (registrationResultId) {
+      await supabaseAdmin.from('registration_results')
+        .update({ status: 'failed' })
+        .eq('id', registrationResultId);
+    }
+    return false;
   }
 }
 
@@ -154,24 +193,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // Resolve school — every student must belong to one
-    let resolvedSchoolId = student.school_id;
-    let resolvedSchoolName = student.school_name;
-
-    if (!resolvedSchoolId) {
-      const { data: onlineSchool } = await supabaseAdmin
-        .from('schools')
-        .select('id, name')
-        .ilike('name', '%online%')
-        .eq('status', 'approved')
-        .limit(1)
-        .maybeSingle();
-
-      if (onlineSchool) {
-        resolvedSchoolId = onlineSchool.id;
-        resolvedSchoolName = onlineSchool.name;
-      }
-    }
+    // Resolve school — every student must belong to one (shared resolver
+    // avoids the duplicate-"Online School" bug and self-heals an un-approved match).
+    const resolvedSchool = await resolveOnlineSchool(supabaseAdmin, {
+      id: student.school_id,
+      name: student.school_name,
+    });
+    let resolvedSchoolId: string | null = resolvedSchool.id;
+    let resolvedSchoolName: string | null = resolvedSchool.name;
 
     if (!resolvedSchoolId) {
       return NextResponse.json({
@@ -194,18 +223,13 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate login email ending with @rillcod.com
+    // Generate login email in the canonical mike123@rillcod.com style. Reuse the
+    // student's existing @rillcod.com login if one was already issued (idempotent).
     let loginEmail = '';
     if (originalStudentEmail && originalStudentEmail.toLowerCase().endsWith('@rillcod.com')) {
       loginEmail = originalStudentEmail;
     } else {
-      const sanitizedName = (student.full_name || student.name || 'student')
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '.')
-        .replace(/[^a-z0-9.]/g, '');
-      const shortId = student.id.split('-')[0] || student.id.substring(0, 6);
-      loginEmail = `${sanitizedName}.${shortId}@rillcod.com`;
+      loginEmail = await generateUniqueStudentLoginEmail(supabaseAdmin, student.full_name || student.name);
     }
 
     // If already has a portal account, return their info (unless forceResend is true)
@@ -267,14 +291,17 @@ export async function POST(req: NextRequest) {
       }
 
       // Update portal_users profile
-      await supabaseAdmin.from('portal_users').update({
+      const portalUpdate: Record<string, any> = {
         is_active: true,
         school_id: resolvedSchoolId,
         school_name: resolvedSchoolName,
-        class_id: resolvedClassId,
         section_class: resolvedClassName,
         updated_at: new Date().toISOString(),
-      }).eq('id', portalUserId);
+      };
+      // Only set class_id when we actually resolved one — never wipe an existing
+      // assignment (e.g. a summer student's "Summer School 2026" class) on resend.
+      if (resolvedClassId) portalUpdate.class_id = resolvedClassId;
+      await supabaseAdmin.from('portal_users').update(portalUpdate).eq('id', portalUserId);
     } else {
       // Check if this generated email already has a portal account
       const { data: existingPortal } = await supabaseAdmin
@@ -352,7 +379,15 @@ export async function POST(req: NextRequest) {
       console.error('[ActivateStudent] Card auto-issue failed:', cardErr);
     }
 
+    // Give the student a real learning path — enrol into a flagship programme
+    // if they have none yet (non-blocking; the dashboard is empty without this).
+    void ensureDefaultEnrollment(supabaseAdmin, portalUserId, {
+      grade: student.grade_level || student.current_class,
+      enrollmentType: student.enrollment_type,
+    });
+
     // --- Bridge Gap: Log to Registration History (Vault) ---
+    let regResultId: string | null = null;
     try {
       const singleBatchName = 'Single Student Registrations';
       // Check if a dedicated batch for single student registrations exists for this school and creator
@@ -384,17 +419,60 @@ export async function POST(req: NextRequest) {
       }
 
       // Record this single registration inside the results history table
-      await supabaseAdmin.from('registration_results').insert({
+      const { data: insertedResult } = await supabaseAdmin.from('registration_results').insert({
         batch_id: batchId,
         full_name: student.full_name || student.name || '',
         email: loginEmail,
         password: tempPassword,
         class_name: resolvedClassName || student.grade_level || student.current_class || null,
         status: 'created',
-      });
+      }).select('id').single();
+      regResultId = insertedResult?.id ?? null;
     } catch (histErr) {
       console.error('[ActivateStudent] Failed to archive credentials in history:', histErr);
       // Non-blocking for the student activation process itself
+    }
+
+    // If this student has a linked PARENT portal account (summer-school flow),
+    // reset and include the parent login too, so the registration email carries
+    // BOTH the parent and student credentials. We reset because temp passwords
+    // are never stored in plaintext.
+    let parentLogin: { email: string; password: string } | null = null;
+    try {
+      let parentUserId: string | null = null;
+      const { data: link } = await supabaseAdmin
+        .from('parent_student_links')
+        .select('parent_id')
+        .eq('student_id', studentId)
+        .maybeSingle();
+      parentUserId = (link as any)?.parent_id ?? null;
+
+      if (!parentUserId && originalParentEmail) {
+        const { data: pu } = await supabaseAdmin
+          .from('portal_users')
+          .select('id')
+          .eq('email', originalParentEmail.trim().toLowerCase())
+          .eq('role', 'parent')
+          .maybeSingle();
+        parentUserId = (pu as any)?.id ?? null;
+      }
+
+      if (parentUserId) {
+        const { data: parentUser } = await supabaseAdmin
+          .from('portal_users')
+          .select('email, role')
+          .eq('id', parentUserId)
+          .maybeSingle();
+        if (parentUser?.email && parentUser.role === 'parent') {
+          const parentPw = generateTempPassword();
+          const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(parentUserId, { password: parentPw });
+          if (!resetErr) parentLogin = { email: parentUser.email, password: parentPw };
+          // Self-heal: guarantee the parent↔student link exists (idempotent upsert).
+          try { await syncExplicitParentStudentLink(supabaseAdmin as any, parentUserId, studentId); } catch { /* non-fatal */ }
+        }
+      }
+    } catch (parentErr) {
+      console.error('[ActivateStudent] Parent credential resend failed:', parentErr);
     }
 
     void sendStudentCredentialsEmail(
@@ -402,7 +480,9 @@ export async function POST(req: NextRequest) {
       loginEmail,
       student.full_name || student.name || 'Student',
       tempPassword,
-      resolvedSchoolName
+      resolvedSchoolName,
+      regResultId ?? undefined,
+      parentLogin,
     );
 
     return NextResponse.json({

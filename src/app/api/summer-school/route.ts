@@ -64,11 +64,21 @@ export async function POST(req: NextRequest) {
       payment_method = 'paystack',
       payment_plan = 'full',
       payment_reference,
+      parent_consent,
+      whatsapp_consent,
     } = body;
 
     if (!student_name || !parent_name || !parent_phone) {
       return NextResponse.json(
         { error: 'Student name, parent name, and parent phone are required' },
+        { status: 400 }
+      );
+    }
+
+    // Compliance: parental consent is mandatory before we create any account.
+    if (parent_consent !== true) {
+      return NextResponse.json(
+        { error: 'Parental consent is required to register a student.' },
         { status: 400 }
       );
     }
@@ -150,7 +160,11 @@ export async function POST(req: NextRequest) {
     const initialStatus = payment_method === 'paystack' ? 'unpaid' : 'pending_verification';
 
     const studentPhoneStr = student_phone ? `[Student Phone: ${student_phone}]` : '';
-    const notesStr = `${studentPhoneStr} ${additional_info || ''}`.trim();
+    let notesStr = `${studentPhoneStr} ${additional_info || ''}`.trim();
+    // Guarantee consent tokens are persisted server-side even if a client omits them.
+    if (!/\[Parental Consent:/i.test(notesStr)) {
+      notesStr = `${notesStr} [Parental Consent: Yes] [WhatsApp Opt-in: ${whatsapp_consent === true ? 'Yes' : 'No'}]`.trim();
+    }
 
     const { data: prospect, error: prospectErr } = await supabase
       .from('prospective_students')

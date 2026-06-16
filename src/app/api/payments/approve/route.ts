@@ -110,17 +110,65 @@ export async function POST(req: Request) {
             }
         }
 
-        // 5. Generate Receipt
+        // 5. Generate Receipt + email it to the payer
         if (status === 'success') {
             try {
                 await paymentsService.generateReceipt(transactionId);
-                
-                // Payment Success Email
+
                 if (transaction.portal_user_id) {
-                    await queueService.queueNotification(transaction.portal_user_id, 'email', {
-                        subject: 'Payment Successful',
-                        body: `Hi there! We've received your payment of ${transaction.amount} ${transaction.currency}. Your receipt has been successfully generated inside your Rillcod dashboard. Thank you!`
-                    });
+                    const { data: payer } = await admin
+                        .from('portal_users')
+                        .select('full_name, email')
+                        .eq('id', transaction.portal_user_id)
+                        .single();
+
+                    if (payer?.email) {
+                        void (async () => {
+                            try {
+                                const { notificationsService } = await import('@/services/notifications.service');
+                                const { buildReceiptHTML } = await import('@/lib/finance/templates/html/receipt-html');
+                                const docRef = (transaction as any).transaction_reference || transactionId.slice(0, 8).toUpperCase();
+                                const now = new Date();
+                                const dateStr = now.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+                                const paidStr = (transaction as any).paid_at
+                                    ? new Date((transaction as any).paid_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
+                                    : dateStr;
+                                const amt = Number((transaction as any).amount) || 0;
+                                const methodLabels: Record<string, string> = {
+                                    bank_transfer: 'Bank Transfer', cash: 'Cash', pos: 'POS Terminal',
+                                    cheque: 'Cheque', online: 'Online Payment', paystack: 'Online Payment (Paystack)',
+                                };
+                                const html = buildReceiptHTML({
+                                    docRef,
+                                    dateStr,
+                                    payDateStr: paidStr,
+                                    payerLabel: payer.full_name || payer.email,
+                                    payerType: 'student',
+                                    paymentMethod: (transaction as any).payment_method || 'online',
+                                    receivedBy: 'Rillcod Technologies',
+                                    items: [{ description: 'Academic Enrolment / Tuition Fee', quantity: 1, unit_price: amt }],
+                                    totalAmount: amt,
+                                    payToAcc: null,
+                                    notes: `Reference: ${docRef}. Thank you for your payment. Keep this receipt for your records.`,
+                                });
+                                await notificationsService.sendExternalEmail({
+                                    to: payer.email,
+                                    subject: `Payment Receipt — ₦${amt.toLocaleString('en-NG')} | Rillcod Technologies`,
+                                    html,
+                                    fromName: 'Rillcod Technologies',
+                                    fromEmail: 'support@rillcod.com',
+                                });
+                            } catch (emailErr) {
+                                console.error('Receipt email failed:', emailErr);
+                            }
+                        })();
+                    } else {
+                        // Fallback: in-app notification if no email
+                        await queueService.queueNotification(transaction.portal_user_id, 'email', {
+                            subject: 'Payment Successful',
+                            body: `Your payment of ${(transaction as any).amount} ${(transaction as any).currency} has been received. Your receipt is available in your Rillcod dashboard.`,
+                        });
+                    }
                 }
             } catch (err) {
                 console.error('Manual approval receipt failed:', err);
