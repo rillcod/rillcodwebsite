@@ -88,7 +88,72 @@ async function resolveClassForStudent(
     .in('name', names)
     .limit(1)
     .maybeSingle();
-  return { id: cls?.id ?? null, name: cls?.name ?? names[0] ?? null };
+
+  if (cls) {
+    return { id: cls.id, name: cls.name };
+  }
+
+  // Auto-create class since it doesn't exist yet
+  const className = names[0];
+  
+  // Resolve an existing tutor/teacher for this school to assign
+  let tutorId: string | null = null;
+  const { data: ts } = await supabaseAdmin
+    .from('teacher_schools')
+    .select('teacher_id')
+    .eq('school_id', schoolId)
+    .limit(1)
+    .maybeSingle();
+  
+  tutorId = (ts as any)?.teacher_id ?? null;
+  if (!tutorId) {
+    const { data: t } = await supabaseAdmin
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'teacher')
+      .eq('school_id', schoolId)
+      .limit(1)
+      .maybeSingle();
+    tutorId = (t as any)?.id ?? null;
+  }
+
+  // Fallback: assign any existing tutor/teacher from the database
+  if (!tutorId) {
+    const { data: tGlobal } = await supabaseAdmin
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'teacher')
+      .limit(1)
+      .maybeSingle();
+    tutorId = (tGlobal as any)?.id ?? null;
+
+    if (tutorId && schoolId) {
+      // Auto-assign/link the tutor to this school in teacher_schools
+      await supabaseAdmin.from('teacher_schools').insert({
+        teacher_id: tutorId,
+        school_id: schoolId,
+      });
+    }
+  }
+
+  const { data: newCls, error: createErr } = await supabaseAdmin
+    .from('classes')
+    .insert({
+      name: className,
+      school_id: schoolId,
+      teacher_id: tutorId,
+      status: 'active',
+      description: `Automatically created class for ${className}`,
+    })
+    .select('id, name')
+    .single();
+
+  if (createErr) {
+    console.error(`[resolveClassForStudent] Auto-creation of class "${className}" failed:`, createErr.message);
+    return { id: null, name: className };
+  }
+
+  return { id: newCls.id, name: newCls.name };
 }
 
 /** One branded credentials card (label + email + temp password). */
@@ -122,6 +187,7 @@ async function sendStudentCredentialsEmail(
   schoolName: string | null,
   registrationResultId?: string,
   parentLogin?: { email: string; password: string } | null,
+  portalUserId?: string,
 ): Promise<boolean> {
   try {
     const { notificationsService } = await import('@/services/notifications.service');
@@ -227,7 +293,7 @@ export async function POST(req: NextRequest) {
     // Fetch the student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level')
+      .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level')
       .eq('id', studentId)
       .single();
 
@@ -320,10 +386,24 @@ export async function POST(req: NextRequest) {
       studentClassId = pu?.class_id ?? null;
     }
 
+    if (student.enrollment_type === 'summer_school') {
+      try {
+        const { ensureSummerClassWithTutor } = await import('@/lib/summer-school/onboard');
+        await ensureSummerClassWithTutor(supabaseAdmin, resolvedSchoolId, resolvedSchoolName || 'Online School');
+      } catch (err) {
+        console.error('[ActivateStudent] ensureSummerClassWithTutor failed:', err);
+      }
+    }
+
     const resolvedClass = await resolveClassForStudent(
       resolvedSchoolId,
       classId ?? studentClassId ?? null,
-      [student.current_class, student.section, student.grade_level],
+      [
+        ...(student.enrollment_type === 'summer_school' ? ['Summer School 2026'] : []),
+        student.current_class,
+        student.section,
+        student.grade_level,
+      ],
     );
     if (resolvedClass.error) {
       return NextResponse.json({ error: resolvedClass.error }, { status: 400 });
@@ -486,10 +566,6 @@ export async function POST(req: NextRequest) {
       // Non-blocking for the student activation process itself
     }
 
-    // If this student has a linked PARENT portal account (summer-school flow),
-    // reset and include the parent login too, so the registration email carries
-    // BOTH the parent and student credentials. We reset because temp passwords
-    // are never stored in plaintext.
     let parentLogin: { email: string; password: string } | null = null;
     try {
       let parentUserId: string | null = null;
@@ -510,7 +586,84 @@ export async function POST(req: NextRequest) {
         parentUserId = pu?.id ?? null;
       }
 
-      if (parentUserId) {
+      const normParentEmail = originalParentEmail?.trim().toLowerCase();
+
+      // If we STILL don't have a parent portal user ID, but we have a parent email, create it!
+      if (!parentUserId && normParentEmail) {
+        // Look up by email in auth
+        const { data: list } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+        const existingAuthParent = list?.users?.find((u) => u.email?.trim().toLowerCase() === normParentEmail);
+        
+        let parentId = existingAuthParent?.id ?? null;
+        const parentPw = generateTempPassword();
+        
+        if (!parentId) {
+          // Create parent user in auth
+          const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+            email: normParentEmail,
+            password: parentPw,
+            email_confirm: true,
+            user_metadata: { full_name: student.parent_name || 'Parent/Guardian', role: 'parent' },
+          });
+          if (!createErr && created?.user) {
+            parentId = created.user.id;
+          } else {
+            console.error('[ActivateParent] Auth user creation failed:', createErr?.message);
+          }
+        } else {
+          // Reset password for the existing auth user
+          await supabaseAdmin.auth.admin.updateUserById(parentId, { password: parentPw });
+        }
+
+        if (parentId) {
+          // Upsert portal_users profile
+          await supabaseAdmin.from('portal_users').upsert({
+            id: parentId,
+            email: normParentEmail,
+            full_name: student.parent_name || 'Parent/Guardian',
+            role: 'parent',
+            school_id: resolvedSchoolId,
+            school_name: resolvedSchoolName,
+            is_active: true,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+
+          parentUserId = parentId;
+          parentLogin = { email: normParentEmail, password: parentPw };
+
+          // Also archive parent credentials in registration_results!
+          try {
+            const batchName = 'Single Student Parent Account';
+            let { data: existingBatch } = await supabaseAdmin
+              .from('registration_batches')
+              .select('id')
+              .eq('school_id', resolvedSchoolId)
+              .eq('class_name', batchName)
+              .maybeSingle();
+            let batchId = existingBatch?.id;
+            if (!batchId) {
+              batchId = crypto.randomUUID();
+              await supabaseAdmin.from('registration_batches').insert({
+                id: batchId,
+                school_id: resolvedSchoolId,
+                school_name: resolvedSchoolName,
+                class_name: batchName,
+                student_count: 1,
+              });
+            }
+            await supabaseAdmin.from('registration_results').insert({
+              batch_id: batchId,
+              full_name: student.parent_name || 'Parent/Guardian',
+              email: normParentEmail,
+              password: parentPw,
+              class_name: 'Parent Account',
+              status: 'created',
+            });
+          } catch (archiveErr) {
+            console.error('[ActivateParent] credential archive failed:', archiveErr);
+          }
+        }
+      } else if (parentUserId) {
         const { data: parentUser } = await supabaseAdmin
           .from('portal_users')
           .select('email, role')
@@ -519,16 +672,53 @@ export async function POST(req: NextRequest) {
         if (parentUser?.email && parentUser.role === 'parent') {
           const parentPw = generateTempPassword();
           const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(parentUserId, { password: parentPw });
-          if (!resetErr) parentLogin = { email: parentUser.email, password: parentPw };
-          // Self-heal: guarantee the parent↔student link exists (idempotent upsert).
-          try { await syncExplicitParentStudentLink(supabaseAdmin, parentUserId, studentId); } catch { /* non-fatal */ }
+          if (!resetErr) {
+            parentLogin = { email: parentUser.email.trim().toLowerCase(), password: parentPw };
+            
+            // Update/insert into registration_results for the parent too!
+            try {
+              const batchName = 'Single Student Parent Account';
+              let { data: existingBatch } = await supabaseAdmin
+                .from('registration_batches')
+                .select('id')
+                .eq('school_id', resolvedSchoolId)
+                .eq('class_name', batchName)
+                .maybeSingle();
+              let batchId = existingBatch?.id;
+              if (!batchId) {
+                batchId = crypto.randomUUID();
+                await supabaseAdmin.from('registration_batches').insert({
+                  id: batchId,
+                  school_id: resolvedSchoolId,
+                  school_name: resolvedSchoolName,
+                  class_name: batchName,
+                  student_count: 1,
+                });
+              }
+              await supabaseAdmin.from('registration_results').insert({
+                batch_id: batchId,
+                full_name: student.parent_name || 'Parent/Guardian',
+                email: parentUser.email.trim().toLowerCase(),
+                password: parentPw,
+                class_name: 'Parent Account',
+                status: 'created',
+              });
+            } catch (archiveErr) {
+              console.error('[ActivateParent] credential archive failed:', archiveErr);
+            }
+          }
         }
       }
+
+      if (parentUserId) {
+        // Self-heal: guarantee the parent↔student link exists (idempotent upsert).
+        try { await syncExplicitParentStudentLink(supabaseAdmin, parentUserId, studentId); } catch { /* non-fatal */ }
+      }
     } catch (parentErr) {
-      console.error('[ActivateStudent] Parent credential resend failed:', parentErr);
+      console.error('[ActivateStudent] Parent credential creation/resend failed:', parentErr);
     }
 
-    void sendStudentCredentialsEmail(
+    await sendStudentCredentialsEmail(
       destinationEmail,
       loginEmail,
       student.full_name || student.name || 'Student',
@@ -536,6 +726,7 @@ export async function POST(req: NextRequest) {
       resolvedSchoolName,
       regResultId ?? undefined,
       parentLogin,
+      portalUserId || student.user_id || undefined,
     );
 
     return NextResponse.json({
@@ -543,6 +734,7 @@ export async function POST(req: NextRequest) {
       alreadyActivated: student.user_id ? true : false,
       email: loginEmail,
       tempPassword,
+      parentLogin: parentLogin ? { email: parentLogin.email, password: parentLogin.password } : null,
       portalUserId,
       cardIssued,
       cardId,

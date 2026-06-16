@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/USER/.claude/**)",
+      "PowerShell(npx tsc --noEmit 2>&1)",
+      "Bash(sed -E 's/=\\(.{3}\\).*/=\\\\1***/')",
+      "Bash(echo \"exit=$?\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\USER\\.claude"
+    ]
+  }
+}

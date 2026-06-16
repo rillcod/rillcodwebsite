@@ -16,6 +16,7 @@ import {
 interface CredentialStatus {
   status: string | null; // 'created' | 'sent' | 'failed'
   created_at: string | null;
+  password?: string | null;
 }
 
 interface StudentRow {
@@ -29,6 +30,7 @@ interface StudentRow {
   user_id: string | null;
   created_at: string | null;
   credEmail?: CredentialStatus | null;
+  parentCred?: CredentialStatus | null;
 }
 
 type FilterType = 'all' | 'not_activated' | 'activated';
@@ -45,6 +47,13 @@ export default function ResendCredentialsPage() {
   const [bulkRunning, setBulkRunning] = useState(false);
   const [sendingReceipt, setSendingReceipt] = useState<Record<string, boolean>>({});
   const [sendingBalance, setSendingBalance] = useState<Record<string, boolean>>({});
+  const [lastCreatedCredentials, setLastCreatedCredentials] = useState<{
+    studentName: string;
+    studentEmail: string;
+    studentPassword?: string;
+    parentEmail?: string;
+    parentPassword?: string;
+  } | null>(null);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const isAdmin = profile?.role === 'admin';
@@ -56,7 +65,7 @@ export default function ResendCredentialsPage() {
     const { data, error } = await db
       .from('students')
       .select('id, full_name, student_email, parent_email, school_name, status, enrollment_type, user_id, created_at')
-      .eq('status', 'approved')
+      .in('status', ['approved', 'paid', 'partially_paid'])
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -67,25 +76,31 @@ export default function ResendCredentialsPage() {
 
     const rows: StudentRow[] = data ?? [];
 
-    // Enrich with latest credential email status from registration_results
-    const emails = rows.map(s => s.student_email).filter(Boolean) as string[];
-    if (emails.length > 0) {
+    // Enrich with latest credential status and passwords from registration_results
+    const studentEmails = rows.map(s => s.student_email).filter(Boolean) as string[];
+    const parentEmails = rows.map(s => s.parent_email).filter(Boolean) as string[];
+    const allEmails = Array.from(new Set([...studentEmails, ...parentEmails]));
+    
+    if (allEmails.length > 0) {
       const { data: results } = await db
         .from('registration_results')
-        .select('email, status, created_at')
-        .in('email', emails)
+        .select('email, status, password, created_at')
+        .in('email', allEmails)
         .order('created_at', { ascending: false });
 
       if (results) {
         const latestByEmail: Record<string, CredentialStatus> = {};
         for (const r of results) {
           if (r.email && !latestByEmail[r.email]) {
-            latestByEmail[r.email] = { status: r.status, created_at: r.created_at };
+            latestByEmail[r.email] = { status: r.status, created_at: r.created_at, password: r.password };
           }
         }
         for (const row of rows) {
           if (row.student_email && latestByEmail[row.student_email]) {
             row.credEmail = latestByEmail[row.student_email];
+          }
+          if (row.parent_email && latestByEmail[row.parent_email]) {
+            row.parentCred = latestByEmail[row.parent_email];
           }
         }
       }
@@ -122,6 +137,7 @@ export default function ResendCredentialsPage() {
   async function handleSend(studentId: string, forceResend: boolean) {
     setSending(p => ({ ...p, [studentId]: true }));
     try {
+      const sObj = students.find(s => s.id === studentId);
       const res = await fetch('/api/students/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -129,6 +145,15 @@ export default function ResendCredentialsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
+      
+      setLastCreatedCredentials({
+        studentName: sObj?.full_name || 'Student',
+        studentEmail: data.email,
+        studentPassword: data.tempPassword,
+        parentEmail: data.parentLogin?.email,
+        parentPassword: data.parentLogin?.password,
+      });
+
       toast.success(data.message || (forceResend ? 'Credentials resent' : 'Account activated and credentials sent'));
       setDone(p => ({ ...p, [studentId]: true }));
       await load();
@@ -414,21 +439,47 @@ export default function ResendCredentialsPage() {
                   return (
                     <tr key={s.id} className="hover:bg-muted/40 transition-colors">
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-foreground">{s.full_name}</div>
+                        <div className="font-semibold text-foreground flex items-center gap-1.5 flex-wrap">
+                          <span>{s.full_name}</span>
+                          {s.status === 'paid' && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">
+                              Full Paid
+                            </span>
+                          )}
+                          {s.status === 'partially_paid' && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">
+                              Installment
+                            </span>
+                          )}
+                          {s.status === 'approved' && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-sky-500/10 text-sky-400 border border-sky-500/20 rounded">
+                              Approved
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {s.created_at ? new Date(s.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <EnvelopeIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span className="text-xs truncate max-w-[180px]">{contactEmail}</span>
-                        </div>
-                        {s.student_email && s.student_email.endsWith('@rillcod.com') && (
-                          <div className="mt-0.5 text-xs text-violet-400 font-mono truncate max-w-[200px]">
-                            Student login: {s.student_email}
+                        <div className="space-y-2">
+                          <div>
+                            <div className="text-[9px] uppercase font-bold text-muted-foreground/60 tracking-wider">Student Login</div>
+                            <div className="text-xs font-semibold text-foreground truncate max-w-[200px]">{s.student_email || '—'}</div>
+                            {s.credEmail?.password && (
+                              <div className="text-[11px] text-violet-400 font-mono select-all mt-0.5">Password: {s.credEmail.password}</div>
+                            )}
                           </div>
-                        )}
+                          {(s.parent_email || (s as any).parentCred?.password) && (
+                            <div>
+                              <div className="text-[9px] uppercase font-bold text-muted-foreground/60 tracking-wider">Parent Login</div>
+                              <div className="text-xs font-semibold text-foreground truncate max-w-[200px]">{s.parent_email || '—'}</div>
+                              {(s as any).parentCred?.password && (
+                                <div className="text-[11px] text-emerald-400 font-mono select-all mt-0.5">Password: {(s as any).parentCred.password}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
@@ -568,6 +619,76 @@ export default function ResendCredentialsPage() {
           "Activate All Unactivated" processes every visible unactivated student in sequence.
         </span>
       </div>
+
+      {/* Copyable Credentials Modal */}
+      {lastCreatedCredentials && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-[#141618] border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-lg font-black text-foreground">Credentials Logged Successfully</h3>
+              <button
+                onClick={() => setLastCreatedCredentials(null)}
+                className="text-muted-foreground hover:text-foreground text-sm font-semibold transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <p className="text-xs text-muted-foreground">
+              These credentials have been emailed to the parent's email. You can copy them here for reference or manual sharing:
+            </p>
+
+            <div className="space-y-3">
+              <div className="bg-[#1c1e22] border border-border rounded-xl p-4 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">🎓 Student Account Details</p>
+                <div className="text-xs space-y-1">
+                  <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
+                  <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.studentEmail}</p>
+                  <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
+                  <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.studentPassword}</p>
+                </div>
+              </div>
+
+              {lastCreatedCredentials.parentEmail && (
+                <div className="bg-[#1c1e22] border border-border rounded-xl p-4 space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">👨‍👩‍👧 Parent Account Details</p>
+                  <div className="text-xs space-y-1">
+                    <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
+                    <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.parentEmail}</p>
+                    {lastCreatedCredentials.parentPassword && (
+                      <>
+                        <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
+                        <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.parentPassword}</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => {
+                  let txt = `Rillcod Academy Credentials for ${lastCreatedCredentials.studentName}\n\n`;
+                  txt += `🎓 Student Portal:\nEmail: ${lastCreatedCredentials.studentEmail}\nPassword: ${lastCreatedCredentials.studentPassword}\n\n`;
+                  if (lastCreatedCredentials.parentEmail) {
+                    txt += `👨‍👩‍👧 Parent Portal:\nEmail: ${lastCreatedCredentials.parentEmail}\n`;
+                    if (lastCreatedCredentials.parentPassword) {
+                      txt += `Password: ${lastCreatedCredentials.parentPassword}\n`;
+                    }
+                  }
+                  navigator.clipboard.writeText(txt);
+                  toast.success('Credentials copied to clipboard');
+                  setLastCreatedCredentials(null);
+                }}
+                className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-semibold transition-colors"
+              >
+                Copy All & Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

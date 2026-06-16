@@ -212,7 +212,7 @@ export default function MyChildrenPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-base font-black text-foreground">{child.full_name}</h2>
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border ${
-                        child.status === 'approved'
+                        ['approved', 'paid', 'partially_paid'].includes(child.status)
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                           : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                       }`}>

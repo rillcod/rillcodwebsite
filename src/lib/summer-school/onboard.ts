@@ -112,6 +112,25 @@ export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: s
     tutorId = (t as any)?.id ?? null;
   }
 
+  // Fallback: assign any existing tutor/teacher from the database
+  if (!tutorId) {
+    const { data: tGlobal } = await admin
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'teacher')
+      .limit(1)
+      .maybeSingle();
+    tutorId = (tGlobal as any)?.id ?? null;
+
+    if (tutorId && schoolId) {
+      // Auto-assign/link the tutor to this school in teacher_schools
+      await admin.from('teacher_schools').insert({
+        teacher_id: tutorId,
+        school_id: schoolId,
+      });
+    }
+  }
+
   const { data: existing } = await admin
     .from('classes')
     .select('id, teacher_id')

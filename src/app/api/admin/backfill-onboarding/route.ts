@@ -7,10 +7,11 @@
  * It fixes three historical gaps:
  *   1. Duplicate "online" schools — repoints students & portal_users from any
  *      extra online-school rows onto a single canonical one.
- *   2. School-less students — attaches approved students with no school to the
+ *   2. School-less students — attaches approved/paid students with no school to the
  *      canonical online school.
- *   3. Missing learning path — enrols approved students who have no enrollment
+ *   3. Missing learning path — enrols approved/paid students who have no enrollment
  *      into a flagship programme so their dashboard isn't empty.
+ *   4. Reconciles summer school payments against student status ('paid' vs 'partially_paid').
  *
  * Body: { dryRun?: boolean } — when true, reports what WOULD change without writing.
  */
@@ -22,6 +23,7 @@ import { resolveOnlineSchool, ONLINE_SCHOOL_NAME } from '@/lib/schools/resolve-o
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { ensureSummerClassWithTutor } from '@/lib/summer-school/onboard';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { getSummerTotalTuition, getSummerBalanceDue } from '@/lib/summer-school/pricing';
 import { Database } from '@/types/supabase';
 
 function adminClient() {
@@ -77,6 +79,9 @@ export async function POST(req: NextRequest) {
       parentLinksCreated: 0,
       parentAccountsCreated: 0,
       legacyCollisionsSkipped: 0,
+      reconciledPayments: 0,
+      statusUpdatedPaid: 0,
+      statusUpdatedPartiallyPaid: 0,
     };
 
     // ── 1. Canonical online school ──
@@ -122,7 +127,7 @@ export async function POST(req: NextRequest) {
     const { data: schoolless } = await admin
       .from('students')
       .select('id, user_id')
-      .eq('status', 'approved')
+      .in('status', ['approved', 'paid', 'partially_paid'])
       .is('school_id', null);
 
     for (const s of (schoolless ?? []) as Array<{ id: string; user_id: string | null }>) {
@@ -143,7 +148,7 @@ export async function POST(req: NextRequest) {
     const { data: approved } = await admin
       .from('students')
       .select('user_id, grade_level, current_class, enrollment_type')
-      .eq('status', 'approved')
+      .in('status', ['approved', 'paid', 'partially_paid'])
       .not('user_id', 'is', null);
 
     for (const s of (approved ?? []) as Array<{
@@ -167,12 +172,12 @@ export async function POST(req: NextRequest) {
       else report.enrollmentsSkipped++;
     }
 
-    // ── 5. Summer students: backfill class assignment + parent account/link ──
+    // ── 5. Summer students: backfill class assignment + parent account/link + payment reconciliation ──
     const { data: summerStudents } = await admin
       .from('students')
-      .select('id, user_id, full_name, parent_email, parent_name, student_email, school_id, school_name, grade')
+      .select('id, user_id, full_name, parent_email, parent_name, student_email, school_id, school_name, grade, status')
       .eq('enrollment_type', 'summer_school')
-      .eq('status', 'approved')
+      .in('status', ['approved', 'paid', 'partially_paid'])
       .or('is_deleted.is.null,is_deleted.eq.false');
 
     // Cache class id per school so we don't re-create/query repeatedly.
@@ -181,7 +186,7 @@ export async function POST(req: NextRequest) {
     for (const s of (summerStudents ?? []) as Array<{
       id: string; user_id: string | null; full_name: string | null; parent_email: string | null;
       parent_name: string | null; student_email: string | null; school_id: string | null;
-      school_name: string | null; grade: string | null;
+      school_name: string | null; grade: string | null; status: string | null;
     }>) {
       const schoolId = s.school_id || canonical.id;
       const schoolName = s.school_name || canonical.name;
@@ -237,47 +242,114 @@ export async function POST(req: NextRequest) {
         if (dryRun) {
           if (!existingParent) report.parentAccountsCreated++;
           report.parentLinksCreated++;
-          continue;
-        }
-
-        let parentId: string | null = existingParent?.id ?? null;
-        if (!parentId) {
-          // Create a parent portal account (no email sent here — admin uses
-          // Resend Credentials to deliver a fresh password to both parties).
-          const cryptoMod = await import('crypto');
-          const pw = cryptoMod.randomBytes(8).toString('base64url').slice(0, 10);
-          const { data: created, error: createErr } = await admin.auth.admin.createUser({
-            email: parentEmail,
-            password: pw,
-            email_confirm: true,
-            user_metadata: { full_name: s.parent_name || 'Parent/Guardian', role: 'parent' },
-          });
-          parentId = created?.user?.id ?? null;
-          if (createErr && !parentId) {
-            const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-            parentId = list?.users?.find((u) => u.email?.trim().toLowerCase() === parentEmail)?.id ?? null;
-          }
-          if (parentId) {
-            await admin.from('portal_users').upsert({
-              id: parentId,
+        } else {
+          let parentId: string | null = existingParent?.id ?? null;
+          if (!parentId) {
+            // Create a parent portal account (no email sent here — admin uses
+            // Resend Credentials to deliver a fresh password to both parties).
+            const cryptoMod = await import('crypto');
+            const pw = cryptoMod.randomBytes(8).toString('base64url').slice(0, 10);
+            const { data: created, error: createErr } = await admin.auth.admin.createUser({
               email: parentEmail,
-              full_name: s.parent_name || 'Parent/Guardian',
-              role: 'parent',
-              school_id: schoolId,
-              school_name: schoolName,
-              is_active: true,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'id' });
-            report.parentAccountsCreated++;
+              password: pw,
+              email_confirm: true,
+              user_metadata: { full_name: s.parent_name || 'Parent/Guardian', role: 'parent' },
+            });
+            parentId = created?.user?.id ?? null;
+            if (createErr && !parentId) {
+              const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+              parentId = list?.users?.find((u) => u.email?.trim().toLowerCase() === parentEmail)?.id ?? null;
+            }
+            if (parentId) {
+              await admin.from('portal_users').upsert({
+                id: parentId,
+                email: parentEmail,
+                full_name: s.parent_name || 'Parent/Guardian',
+                role: 'parent',
+                school_id: schoolId,
+                school_name: schoolName,
+                is_active: true,
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'id' });
+              report.parentAccountsCreated++;
+            }
+          }
+
+          if (parentId) {
+            try {
+              await syncExplicitParentStudentLink(admin, parentId, s.id);
+              report.parentLinksCreated++;
+            } catch (linkErr) {
+              console.error('[backfill] parent link failed:', linkErr);
+            }
           }
         }
+      }
 
-        if (parentId) {
-          try {
-            await syncExplicitParentStudentLink(admin, parentId, s.id);
-            report.parentLinksCreated++;
-          } catch (linkErr) {
-            console.error('[backfill] parent link failed:', linkErr);
+      // 5c. Automated Financial Record & Reconciliation Backfill
+      if (parentEmail && s.full_name) {
+        // Resolve prospective student row
+        const { data: prospect } = await admin
+          .from('prospective_students')
+          .select('id, preferred_schedule')
+          .eq('parent_email', parentEmail)
+          .eq('full_name', s.full_name)
+          .eq('is_deleted', false)
+          .ilike('course_interest', '%Summer School%')
+          .maybeSingle();
+
+        if (prospect) {
+          // Get total completed payments
+          const { data: txs } = await admin
+            .from('payment_transactions')
+            .select('amount, payment_gateway_response')
+            .in('payment_status', ['completed', 'success', 'paid']);
+
+          let amountPaid = 0;
+          if (txs) {
+            for (const tx of txs) {
+              const gw = (tx.payment_gateway_response ?? {}) as any;
+              if (gw.prospect_id === prospect.id) {
+                amountPaid += Number(tx.amount) || 0;
+              }
+            }
+          }
+
+          // Resolve total tuition and balance due
+          const preferredMode = prospect.preferred_schedule || 'Online';
+          
+          // Sibling check
+          const { count: studentCount } = await admin
+            .from('students')
+            .select('id', { count: 'exact', head: true })
+            .eq('parent_email', parentEmail);
+          const { count: prospectiveCount } = await admin
+            .from('prospective_students')
+            .select('id', { count: 'exact', head: true })
+            .eq('parent_email', parentEmail);
+          const hasSibling = !!((studentCount || 0) + (prospectiveCount || 0) > 1);
+
+          const totalTuition = getSummerTotalTuition(preferredMode, hasSibling);
+          const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
+
+          report.reconciledPayments++;
+
+          let newStatus = s.status;
+          if (balanceDue <= 0 && amountPaid > 0) {
+            newStatus = 'paid';
+          } else if (amountPaid > 0 && balanceDue > 0) {
+            newStatus = 'partially_paid';
+          }
+
+          if (newStatus !== s.status) {
+            if (newStatus === 'paid') report.statusUpdatedPaid++;
+            if (newStatus === 'partially_paid') report.statusUpdatedPartiallyPaid++;
+
+            if (!dryRun) {
+              await admin.from('students')
+                .update({ status: newStatus })
+                .eq('id', s.id);
+            }
           }
         }
       }
