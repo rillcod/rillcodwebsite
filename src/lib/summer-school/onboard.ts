@@ -91,22 +91,25 @@ const SUMMER_CLASS_NAME = 'Summer School 2026';
  * school_id + class name); back-fills a tutor onto an existing class if one is found.
  * Returns the class id (or null if creation failed).
  */
-export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: string, schoolName: string): Promise<string | null> {
-  // Resolve a tutor: a teacher linked to this school.
+export async function ensureClassWithTutor(
+  admin: AnySupabase,
+  schoolId: string,
+  schoolName: string,
+  className: string,
+  description?: string,
+): Promise<string | null> {
+  // Resolve a tutor: an existing teacher for this class name globally, then for
+  // the school, then any teacher in the system.
   let tutorId: string | null = null;
 
-  // 1. Check if any "Summer School 2026" class already has an assigned teacher globally
-  const { data: globalSummerClass } = await admin
+  const { data: globalClass } = await admin
     .from('classes')
     .select('teacher_id')
-    .eq('name', SUMMER_CLASS_NAME)
+    .eq('name', className)
     .not('teacher_id', 'is', null)
     .limit(1)
     .maybeSingle();
-
-  if (globalSummerClass?.teacher_id) {
-    tutorId = globalSummerClass.teacher_id;
-  }
+  if (globalClass?.teacher_id) tutorId = globalClass.teacher_id;
 
   if (!tutorId) {
     const { data: ts } = await admin
@@ -129,7 +132,6 @@ export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: s
     tutorId = (t as any)?.id ?? null;
   }
 
-  // Fallback: assign any existing tutor/teacher from the database
   if (!tutorId) {
     const { data: tGlobal } = await admin
       .from('portal_users')
@@ -140,7 +142,7 @@ export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: s
     tutorId = (tGlobal as any)?.id ?? null;
   }
 
-  // Ensure teacher is linked to the school in teacher_schools (preventing unique constraint errors)
+  // Link the teacher to the school so class membership is consistent.
   if (tutorId && schoolId) {
     const { data: hasLink } = await admin
       .from('teacher_schools')
@@ -149,10 +151,7 @@ export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: s
       .eq('school_id', schoolId)
       .maybeSingle();
     if (!hasLink) {
-      await admin.from('teacher_schools').insert({
-        teacher_id: tutorId,
-        school_id: schoolId,
-      });
+      await admin.from('teacher_schools').insert({ teacher_id: tutorId, school_id: schoolId });
     }
   }
 
@@ -160,7 +159,7 @@ export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: s
     .from('classes')
     .select('id, teacher_id')
     .eq('school_id', schoolId)
-    .eq('name', SUMMER_CLASS_NAME)
+    .eq('name', className)
     .maybeSingle();
 
   if (existing?.id) {
@@ -173,19 +172,24 @@ export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: s
   const { data: created, error } = await admin
     .from('classes')
     .insert({
-      name: SUMMER_CLASS_NAME,
+      name: className,
       school_id: schoolId,
       teacher_id: tutorId,
       status: 'active',
-      description: `${schoolName} — AI Summer School 2026 cohort`,
+      description: description ?? `${schoolName} — ${className}`,
     })
     .select('id')
     .single();
   if (error) {
-    console.error('[onboardSummerStudent] ensure class failed:', error.message);
+    console.error('[ensureClassWithTutor] ensure class failed:', error.message);
     return null;
   }
   return created?.id ?? null;
+}
+
+/** Summer-school cohort class wrapper. */
+export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: string, schoolName: string): Promise<string | null> {
+  return ensureClassWithTutor(admin, schoolId, schoolName, SUMMER_CLASS_NAME, `${schoolName} — AI Summer School 2026 cohort`);
 }
 
 export async function onboardSummerStudent(

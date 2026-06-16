@@ -78,6 +78,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Applicant has no email to create an account' }, { status: 400 });
     }
 
+    // Guard against cross-contamination: this route summer-onboards (stamps
+    // enrollment_type='summer_school' + "Summer School 2026"). Refuse non-summer
+    // prospects (e.g. consent-form enquiries) so they aren't mislabeled — they are
+    // onboarded through the Consent Forms flow instead.
+    if (!/summer/i.test(record.course_interest || '')) {
+      return NextResponse.json(
+        { error: 'This applicant is not a Summer School prospect. Onboard them from Dashboard → Consent Forms (their flow assigns the correct programme).' },
+        { status: 400 },
+      );
+    }
+
     const isInstallmentPlan = (record.notes || '').includes('[Plan: installment]');
 
     // Approving IS the payment confirmation (admin verified the bank transfer), so

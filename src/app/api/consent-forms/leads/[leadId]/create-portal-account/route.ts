@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { onboardStudentFromProspect } from '@/lib/students/onboard-from-prospect';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
@@ -70,6 +71,54 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
   if (!parentEmail || !parentEmail.includes('@')) {
     return NextResponse.json({ error: 'No valid email address on this lead' }, { status: 400 });
   }
+
+  const programLabel = (p?: string | null): string | null =>
+    p === 'young_innovators' ? 'Young Innovators'
+      : p === 'teen_developers' ? 'Teen Developers'
+        : (p || null);
+
+  // Onboard children that have NO existing student match into real student
+  // accounts (login + class + enrolment) and link them to the parent — this is
+  // what makes a brand-new consent child show up on the parent dashboard.
+  // Returns the new student logins so they can be delivered.
+  const onboardUnmatchedChildren = async (parentId: string): Promise<Array<{ name: string; email: string; password: string }>> => {
+    const created: Array<{ name: string; email: string; password: string }> = [];
+    const tasks: Array<{ name: string; klass: string | null; age: string | null; gender: string | null; program: string | null }> = [];
+
+    // Primary child — unmatched when the lead has no matched_student_id.
+    if (!lead.matched_student_id && childName) {
+      tasks.push({ name: childName, klass: childClass, age: str('child_age') || null, gender: childGender, program: str('program_category') || null });
+    }
+    // Additional children (index ≥ 1) not present in child_matches.
+    if (childrenArr && childrenArr.length > 1) {
+      const matchedIdx = new Set(childMatches.map((m) => m.childIndex));
+      for (let ci = 1; ci < childrenArr.length; ci++) {
+        const c = childrenArr[ci];
+        if (!c?.name?.trim() || matchedIdx.has(ci)) continue;
+        tasks.push({ name: c.name, klass: c.class || null, age: c.age || null, gender: c.gender || null, program: c.program || null });
+      }
+    }
+
+    for (const t of tasks) {
+      try {
+        const res = await onboardStudentFromProspect(sb as any, {
+          full_name: t.name,
+          grade: t.klass,
+          age: t.age ? parseInt(t.age, 10) : null,
+          gender: t.gender,
+          course_interest: programLabel(t.program),
+          parent_email: parentEmail,
+          parent_name: parentName,
+          parent_phone: parentPhone || null,
+          school_id: lead.school_id ?? null,
+        }, { parentId, enrollmentType: 'in_person', approvedBy: user.id });
+        if (res.created) created.push({ name: t.name, email: res.studentEmail, password: res.studentPassword });
+      } catch (e) {
+        console.error('[create-portal-account] onboard new child failed:', e);
+      }
+    }
+    return created;
+  };
 
   // Check if portal account already exists
   const { data: existing } = await (sb as any)
@@ -141,7 +190,14 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     if (!lead.matched_parent_id) {
       await (sb as any).from('form_leads').update({ matched_parent_id: existing.id }).eq('id', leadId);
     }
-    return NextResponse.json({ success: true, alreadyExisted: true, parentId: existing.id });
+
+    // Onboard any brand-new children into real student accounts + link to this parent.
+    const newStudents = await onboardUnmatchedChildren(existing.id);
+    return NextResponse.json({
+      success: true, alreadyExisted: true, parentId: existing.id,
+      newStudents: newStudents.map(s => ({ name: s.name, email: s.email })),
+      studentsOnboarded: newStudents.length,
+    });
   }
 
   // Generate temp password and create auth user
@@ -251,9 +307,21 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     }
   }
 
+  // Onboard any brand-new children (no existing match) into real student accounts
+  // and link them to this parent — so they appear on the parent dashboard.
+  const newStudents = await onboardUnmatchedChildren(parentId);
+
   const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
   const loginUrl  = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}&pw=${encodeURIComponent(tempPassword)}`;
   const channelsSent: string[] = [];
+
+  const studentCredsBlock = newStudents.length > 0
+    ? `<div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;">
+         <p style="margin:0 0 10px;font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Student Portal Login${newStudents.length > 1 ? 's' : ''}</p>
+         ${newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('')}
+         <p style="margin:0;font-size:12px;color:#a1a1aa;">Your child logs in at ${portalUrl}/login for lessons & activities.</p>
+       </div>`
+    : '';
 
   // Send credentials via WhatsApp
   if (parentPhone) {
@@ -287,12 +355,13 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
         Click the button below to log in — your email and password are already filled in for you.
       </p>
       <div style="background:#1c1e22;border-left:4px solid #10b981;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;">
-        <p style="margin:0 0 8px;font-size:10px;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Your Login Details</p>
+        <p style="margin:0 0 8px;font-size:10px;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Parent Login Details</p>
         <p style="margin:0 0 6px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">Email:</strong> ${parentEmail}</p>
         <p style="margin:0;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">Temporary Password:</strong> <span style="font-family:monospace;color:#f59e0b;font-size:15px;">${tempPassword}</span></p>
       </div>
+      ${studentCredsBlock}
       <p style="margin:0 0 16px;font-size:14px;color:#a1a1aa;">
-        Please change your password after your first login. Keep these details safe and do not share them.
+        Please change your password${newStudents.length ? 's' : ''} after first login. Keep these details safe and do not share them.
       </p>
     `;
     const html = buildRillcodTransactionalEmailHtml({
@@ -320,7 +389,11 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
     },
   }).eq('id', leadId);
 
-  return NextResponse.json({ success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail });
+  return NextResponse.json({
+    success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail,
+    newStudents: newStudents.map(s => ({ name: s.name, email: s.email })),
+    studentsOnboarded: newStudents.length,
+  });
 }
 
 // PATCH /api/consent-forms/leads/[leadId]/create-portal-account
