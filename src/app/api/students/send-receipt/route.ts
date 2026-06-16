@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     // 3. Fetch student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, parent_name, school_id, school_name, registration_paystack_reference')
+      .select('id, name, full_name, student_email, parent_email, parent_name, school_id, school_name, registration_paystack_reference, user_id')
       .eq('id', studentId)
       .single();
 
@@ -77,9 +77,24 @@ export async function POST(req: NextRequest) {
 
     // 4. Try to find completed payment transaction
     let tx: PaymentTransactionRow | null = null;
+
+    // Primary: by the student's linked portal user (transactions are linked to the
+    // student during onboarding — most reliable, matches the finance records).
+    if (student.user_id) {
+      const { data } = await supabaseAdmin
+        .from('payment_transactions')
+        .select('*')
+        .eq('portal_user_id', student.user_id)
+        .in('payment_status', ['completed', 'success', 'paid'])
+        .order('paid_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      tx = data;
+    }
+
     const ref = student.registration_paystack_reference?.trim();
 
-    if (ref) {
+    if (!tx && ref) {
       const { data } = await supabaseAdmin
         .from('payment_transactions')
         .select('*')
@@ -182,12 +197,35 @@ export async function POST(req: NextRequest) {
       notes: `Reference: ${docRef}. Student: ${student.full_name || student.name}. School: ${student.school_name || 'Rillcod Online School'}.`,
     });
 
+    // Attach the canonical receipt PDF (same generator the finance hub uses) + a
+    // link fallback, so the customer always gets a downloadable receipt.
+    let attachments: Array<{ filename: string; content: string }> | undefined;
+    let receiptUrl = '';
+    try {
+      const { paymentsService } = await import('@/services/payments.service');
+      const url = await paymentsService.generateReceipt(tx.id);
+      receiptUrl = url || '';
+      const r = await fetch(url);
+      if (r.ok) {
+        const buf = Buffer.from(await r.arrayBuffer());
+        const safeName = (student.full_name || student.name || 'Student').replace(/[^a-z0-9]+/gi, '_');
+        attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+      }
+    } catch (pdfErr) {
+      console.error('[send-receipt] PDF generation failed:', pdfErr);
+    }
+
+    const htmlWithLink = receiptUrl
+      ? receiptHtml.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
+      : receiptHtml;
+
     await notificationsService.sendExternalEmail({
       to: emailNorm,
       subject: `Payment Receipt — Summer School 2026 | Rillcod Technologies`,
-      html: receiptHtml,
+      html: htmlWithLink,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
+      ...(attachments ? { attachments } : {}),
     });
 
     return NextResponse.json({

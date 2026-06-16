@@ -242,12 +242,11 @@ async function sendStudentCredentialsEmail(
   Please change ${parentLogin ? 'these passwords' : 'this password'} after first login in profile settings. Keep these credentials private.
 </p>`;
 
-    const finalHtml = html.replace('</body>', `${credentialsBlock}</body>`);
-
     // Attach the receipt PDF when the student has a completed payment — reuse the
     // canonical receipt generator + the same attachments:[{filename,content:base64}]
     // shape used elsewhere, so one email carries credentials AND the receipt.
     let attachments: Array<{ filename: string; content: string }> | undefined;
+    let receiptUrl = '';
     if (portalUserId) {
       try {
         const { data: tx } = await supabaseAdmin
@@ -261,6 +260,7 @@ async function sendStudentCredentialsEmail(
         if (tx?.id) {
           const { paymentsService } = await import('@/services/payments.service');
           const url = await paymentsService.generateReceipt(tx.id);
+          receiptUrl = url || '';
           const r = await fetch(url);
           if (r.ok) {
             const buf = Buffer.from(await r.arrayBuffer());
@@ -272,6 +272,17 @@ async function sendStudentCredentialsEmail(
         console.error('[sendStudentCredentialsEmail] receipt attachment failed:', receiptErr);
       }
     }
+
+    // Receipt link fallback — always available even if the PDF attach failed.
+    const receiptBlock = receiptUrl
+      ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
+           <p style="margin:0 0 8px;font-size:11px;color:#10b981;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Payment Receipt</p>
+           <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">${attachments ? 'Your receipt is attached as a PDF.' : 'Your payment receipt is ready.'} View or download any time:</p>
+           <a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a>
+         </div>`
+      : '';
+
+    const finalHtml = html.replace('</body>', `${credentialsBlock}${receiptBlock}</body>`);
 
     await notificationsService.sendExternalEmail({
       to: destinationEmail.trim().toLowerCase(),

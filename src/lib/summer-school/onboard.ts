@@ -593,6 +593,7 @@ export async function sendSummerCredentials(
   // already uses (SendPulse attachments_binary). Attaching the PDF (vs a link)
   // keeps it to a single, non-spammy email. Only when a completed payment exists.
   let attachments: Array<{ filename: string; content: string }> | undefined;
+  let receiptUrl = '';
   try {
     const { createAdminClient } = await import('@/lib/supabase/admin');
     const sb: any = createAdminClient();
@@ -607,6 +608,7 @@ export async function sendSummerCredentials(
     if (tx?.id) {
       const { paymentsService } = await import('@/services/payments.service');
       const url = await paymentsService.generateReceipt(tx.id);
+      receiptUrl = url || '';
       const r = await fetch(url);
       if (r.ok) {
         const buf = Buffer.from(await r.arrayBuffer());
@@ -617,6 +619,16 @@ export async function sendSummerCredentials(
   } catch (receiptErr) {
     console.error('[sendSummerCredentials] receipt attachment failed:', receiptErr);
   }
+
+  // Always give the parent a way to get the receipt — link works even if the
+  // PDF attachment step failed (storage URL not server-fetchable, etc.).
+  const receiptBlock = receiptUrl
+    ? `<div style="margin:16px 0;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
+         <p style="margin:0 0 8px;font-size:11px;color:#10b981;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Payment Receipt</p>
+         <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">${attachments ? 'Your receipt is attached as a PDF.' : 'Your payment receipt is ready.'} You can also view or download it any time:</p>
+         <a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a>
+       </div>`
+    : '';
 
   // ── Email ──
   if (to) {
@@ -629,6 +641,7 @@ export async function sendSummerCredentials(
         bodyHtml: `<p style="margin:0 0 12px;font-size:15px;color:#fff;">Dear ${parentName}, we're thrilled to have <strong>${prospect.full_name}</strong> join the Rillcod AI Summer School 2026! 🎉</p>
           <p style="margin:0 0 6px;">Your payment is confirmed and your child's seat is secured. Here are your portal logins — please change the temporary passwords after first login and keep them private.</p>
           ${parentBlock}${studentBlock}
+          ${receiptBlock}
           ${nextSteps}
           <p style="margin:18px 0 0;font-size:13px;color:#a1a1aa;">We can't wait to see what ${firstName} builds this summer. Questions? Just reply to this email or call <a href="tel:+2348116600091" style="color:#7c3aed;">+234 811 660 0091</a>.</p>`,
         summaryRows: [
