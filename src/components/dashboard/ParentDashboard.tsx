@@ -14,6 +14,8 @@ import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 
 interface ChildSummary {
   id: string;
+  /** Portal-user id (students.user_id) — the key used by stats/invoice/enrollment tables. */
+  user_id?: string | null;
   full_name: string;
   school_name: string | null;
   grade_level: string | null;
@@ -81,10 +83,21 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
   const selectedChild = children.find(c => c.id === selectedChildId);
   const selectedCockpit = selectedChildId ? childCockpits[selectedChildId] : null;
 
+  // Always have a child selected when any exist — so the cockpit section renders
+  // (with live stats, or a clear "not activated yet" state) instead of vanishing.
+  useEffect(() => {
+    if (children.length > 0 && !selectedChildId) setSelectedChildId(children[0].id);
+  }, [children, selectedChildId]);
+
   useEffect(() => {
     if (!profile?.id || children.length === 0) return;
     const supabase = createClient();
-    const childUserIds = children.map(c => c.id).filter(Boolean);
+    // Stats / invoices / enrolments all key on the PORTAL-USER id (students.user_id),
+    // not the students-table id. Use portal ids for queries, but keep a map back to
+    // the child's selection id so the cockpit UI (keyed by child.id) still resolves.
+    const childUserIds = children.map(c => c.user_id).filter(Boolean) as string[];
+    const studentIdByPortal: Record<string, string> = {};
+    children.forEach(c => { if (c.user_id) studentIdByPortal[c.user_id] = c.id; });
 
     // ── Invoice + notification stats ──────────────────────────────────────────
     Promise.all([
@@ -152,7 +165,9 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
             levelColor = 'text-slate-400';
           }
 
-          cockpitsMap[childId] = {
+          // Key by the child's selection id (students.id) so the render resolves it.
+          const selectionId = studentIdByPortal[childId] ?? childId;
+          cockpitsMap[selectionId] = {
             avgScore,
             lessonsDone: childProgress.length,
             totalLessons: totalLessonsCount,
@@ -166,7 +181,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
         }
 
         setChildCockpits(cockpitsMap);
-        setSelectedChildId(childUserIds[0]);
+        setSelectedChildId(prev => prev ?? children[0]?.id ?? null);
       }).catch(err => console.error('Failed to load child stats:', err));
     }
 
@@ -181,7 +196,7 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
         if (!data) return;
         const ms: CurriculumMilestone[] = [];
         for (const enr of data) {
-          const child = children.find(c => c.id === enr.user_id);
+          const child = children.find(c => c.user_id === enr.user_id);
           if (!child) continue;
           const courses = (enr as any).programs?.courses ?? [];
           for (const course of courses) {
@@ -601,6 +616,15 @@ export default function ParentDashboard({ profile, kids: children, dataLoading, 
                 </div>
 
               </div>
+            </div>
+          ) : selectedChild && !selectedChild.user_id ? (
+            <div className="bg-card border border-border rounded-[24px] p-10 text-center flex flex-col items-center justify-center gap-3">
+              <AcademicCapIcon className="w-10 h-10 text-muted-foreground/40" />
+              <p className="text-sm font-black text-foreground">{selectedChild.full_name.split(' ')[0]}'s student account isn't active yet</p>
+              <p className="text-xs text-muted-foreground max-w-md">
+                Growth stats (XP, lessons, attendance) appear once the student portal account is activated and they start learning.
+                Ask your school admin to activate the account, or check your email for the login details.
+              </p>
             </div>
           ) : (
             <div className="bg-card border border-border rounded-[24px] p-12 text-center flex flex-col items-center justify-center gap-3">
