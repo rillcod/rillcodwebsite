@@ -193,6 +193,25 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
 
     // Onboard any brand-new children into real student accounts + link to this parent.
     const newStudents = await onboardUnmatchedChildren(existing.id);
+
+    // Email the new student login(s) to the (already-registered) parent so the
+    // credentials are actually delivered, not just created.
+    if (newStudents.length > 0 && existing.email) {
+      try {
+        const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
+        const block = newStudents.map(s =>
+          `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`
+        ).join('');
+        const html = buildRillcodTransactionalEmailHtml({
+          title: `New Student Login${newStudents.length > 1 ? 's' : ''} Ready`,
+          bodyHtml: `<p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">Dear ${parentName}, ${newStudents.length > 1 ? 'your children now have their own student logins' : 'your child now has their own student login'} on your Rillcod parent account.</p>
+            <div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;margin:0 0 18px;border-radius:0 6px 6px 0;">${block}<p style="margin:6px 0 0;font-size:12px;color:#a1a1aa;">Log in at ${portalUrl}/login. Please change the password${newStudents.length > 1 ? 's' : ''} after first login.</p></div>`,
+          footerNote: 'Rillcod Technologies · +234 811 660 0091',
+        });
+        await notificationsService.sendEmail('system', { to: existing.email, subject: `Your Child's Rillcod Student Login`, html });
+      } catch { /* non-fatal */ }
+    }
+
     return NextResponse.json({
       success: true, alreadyExisted: true, parentId: existing.id,
       newStudents: newStudents.map(s => ({ name: s.name, email: s.email })),
