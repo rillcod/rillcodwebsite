@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         .from('payment_transactions')
         .select('*')
         .eq('transaction_reference', ref)
-        .eq('payment_status', 'completed')
+        .in('payment_status', ['completed', 'success', 'paid'])
         .maybeSingle();
       tx = data;
     }
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         const { data: txList } = await supabaseAdmin
           .from('payment_transactions')
           .select('*')
-          .eq('payment_status', 'completed')
+          .in('payment_status', ['completed', 'success', 'paid'])
           .order('created_at', { ascending: false });
 
         if (txList) {
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
       const { data: txList } = await supabaseAdmin
         .from('payment_transactions')
         .select('*')
-        .eq('payment_status', 'completed')
+        .in('payment_status', ['completed', 'success', 'paid'])
         .order('created_at', { ascending: false });
 
       if (txList) {
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       const { data: txList } = await supabaseAdmin
         .from('payment_transactions')
         .select('*')
-        .eq('payment_status', 'completed')
+        .in('payment_status', ['completed', 'success', 'paid'])
         .order('created_at', { ascending: false });
 
       if (txList) {

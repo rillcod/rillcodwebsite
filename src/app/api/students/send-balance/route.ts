@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     const { data: txs } = await supabaseAdmin
       .from('payment_transactions')
       .select('amount, payment_status, payment_gateway_response')
-      .eq('payment_status', 'completed');
+      .in('payment_status', ['completed', 'success', 'paid']);
 
     let amountPaid = 0;
     if (txs) {
