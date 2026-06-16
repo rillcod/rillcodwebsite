@@ -100,21 +100,32 @@ export async function onboardStudentFromProspect(
     classId = await ensureClassWithTutor(admin, school.id, school.name, className);
   }
 
-  // Student account — reuse existing (parent email + name) for idempotency.
+  // Student account — reuse the existing student row for this parent + child name
+  // so we never create a duplicate. Robust against: multiple matches (limit 1,
+  // no maybeSingle which errors on >1 row), case/space differences (ilike on a
+  // trimmed name), and rows that exist WITHOUT a portal account yet (we attach to
+  // them rather than inserting a new student).
   let studentPortalId: string | null = null;
   let studentEmail = '';
   let studentCreated = false;
+  let priorRowId: string | null = null;
+  const fullNameTrimmed = (prospect.full_name || '').trim().replace(/\s+/g, ' ');
 
-  if (normalizedParentEmail) {
-    const { data: prior } = await admin
+  if (normalizedParentEmail && fullNameTrimmed) {
+    const { data } = await admin
       .from('students')
       .select('id, user_id, student_email')
       .ilike('parent_email', normalizedParentEmail)
-      .eq('full_name', prospect.full_name)
-      .maybeSingle();
-    if (prior?.user_id) {
-      studentPortalId = prior.user_id;
-      studentEmail = (prior.student_email || '').trim().toLowerCase();
+      .ilike('full_name', fullNameTrimmed)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const prior = (data ?? [])[0];
+    if (prior) {
+      priorRowId = prior.id;
+      if (prior.user_id) {
+        studentPortalId = prior.user_id;
+        studentEmail = (prior.student_email || '').trim().toLowerCase();
+      }
     }
   }
 
@@ -192,10 +203,15 @@ export async function onboardStudentFromProspect(
     ...(opts.approvedBy ? { approved_by: opts.approvedBy } : {}),
   };
 
-  const { data: existingRow } = await admin.from('students').select('id').eq('user_id', studentPortalId).maybeSingle();
-  let studentRowId: string | null = existingRow?.id ?? null;
-  if (existingRow) {
-    await admin.from('students').update(studentPayload).eq('id', existingRow.id);
+  // Prefer the prior matched row (parent + name); else the row already linked to
+  // this account; else insert. This guarantees one student row per child.
+  let studentRowId: string | null = priorRowId;
+  if (!studentRowId) {
+    const { data: byUser } = await admin.from('students').select('id').eq('user_id', studentPortalId).limit(1);
+    studentRowId = (byUser ?? [])[0]?.id ?? null;
+  }
+  if (studentRowId) {
+    await admin.from('students').update(studentPayload).eq('id', studentRowId);
   } else {
     const { data: inserted } = await admin.from('students').insert({ ...studentPayload, created_at: new Date().toISOString() }).select('id').single();
     studentRowId = inserted?.id ?? null;

@@ -267,18 +267,26 @@ export async function onboardSummerStudent(
   let studentPortalId: string | null = null;
   let studentEmail = '';
   let studentCreated = false;
+  let priorRowId: string | null = null;
+  const fullNameTrimmed = (prospect.full_name || '').trim().replace(/\s+/g, ' ');
 
-  if (normalizedParentEmail) {
-    const { data: priorStudent } = await admin
+  if (normalizedParentEmail && fullNameTrimmed) {
+    // Robust match: limit 1 (no maybeSingle which errors on >1 row), case/space-
+    // insensitive name, and reuse a prior row even if it has no portal account yet.
+    const { data } = await admin
       .from('students')
       .select('id, user_id, student_email')
       .ilike('parent_email', normalizedParentEmail)
-      .eq('full_name', prospect.full_name)
-      .eq('enrollment_type', 'summer_school')
-      .maybeSingle();
-    if (priorStudent?.user_id) {
-      studentPortalId = priorStudent.user_id;
-      studentEmail = (priorStudent.student_email || '').trim().toLowerCase();
+      .ilike('full_name', fullNameTrimmed)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const priorStudent = (data ?? [])[0];
+    if (priorStudent) {
+      priorRowId = priorStudent.id;
+      if (priorStudent.user_id) {
+        studentPortalId = priorStudent.user_id;
+        studentEmail = (priorStudent.student_email || '').trim().toLowerCase();
+      }
     }
   }
 
@@ -358,15 +366,15 @@ export async function onboardSummerStudent(
     ...(opts.approvedBy ? { approved_by: opts.approvedBy } : {}),
   };
 
-  const { data: existingStudentRow } = await admin
-    .from('students')
-    .select('id')
-    .eq('user_id', studentPortalId)
-    .maybeSingle();
-
-  let studentRowId: string | null = existingStudentRow?.id ?? null;
-  if (existingStudentRow) {
-    const { error: updateErr } = await admin.from('students').update(studentPayload).eq('id', existingStudentRow.id);
+  // Prefer the prior matched row (parent + name); else the row already linked to
+  // this account; else insert — one student row per child, no duplicates.
+  let studentRowId: string | null = priorRowId;
+  if (!studentRowId) {
+    const { data: byUser } = await admin.from('students').select('id').eq('user_id', studentPortalId).limit(1);
+    studentRowId = (byUser ?? [])[0]?.id ?? null;
+  }
+  if (studentRowId) {
+    const { error: updateErr } = await admin.from('students').update(studentPayload).eq('id', studentRowId);
     if (updateErr) {
       console.error('[onboardSummerStudent] Failed to update students row:', updateErr.message);
       throw new Error(`Failed to update student record: ${updateErr.message}`);
