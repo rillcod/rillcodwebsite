@@ -17,7 +17,7 @@ export function SummerSchoolSuccessTicket({
   onRegisterAnother,
 }: Props) {
   const compact = variant === "popup";
-  const waLink = whatsappGroupLink || "https://chat.whatsapp.com/G5l4M9x8Z8B7V6C5X4Z3Y2";
+  const waLink = whatsappGroupLink || "https://chat.whatsapp.com/ChzAUa0MYPD9pbmknSVTuP";
   const isBank = successInfo.method === "bank_transfer";
   const isInstallment = successInfo.plan === "installment";
 

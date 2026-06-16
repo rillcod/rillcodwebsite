@@ -2,7 +2,7 @@ import { getSummerSchoolAdminClient } from "@/lib/summer-school/admin";
 
 const FALLBACK_LINK =
   process.env.NEXT_PUBLIC_SUMMER_SCHOOL_WHATSAPP_GROUP?.trim() ||
-  "https://chat.whatsapp.com/G5l4M9x8Z8B7V6C5X4Z3Y2";
+  "https://chat.whatsapp.com/ChzAUa0MYPD9pbmknSVTuP";
 
 /** Resolve the active Summer School WhatsApp invite link from DB or env fallback. */
 export async function getSummerSchoolWhatsAppLink(): Promise<string> {
