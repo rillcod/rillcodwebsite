@@ -80,6 +80,20 @@ export async function POST(request: NextRequest) {
 
     const isInstallmentPlan = (record.notes || '').includes('[Plan: installment]');
 
+    // Approving IS the payment confirmation (admin verified the bank transfer), so
+    // mark the pending tuition transaction(s) completed BEFORE onboarding. This lets
+    // the finance sync create the paid invoice and the welcome email attach the
+    // receipt PDF — keeping transaction ↔ invoice ↔ receipt in sync.
+    try {
+      await admin
+        .from('payment_transactions')
+        .update({ payment_status: 'completed', paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .contains('payment_gateway_response', { prospect_id: id })
+        .neq('payment_status', 'completed');
+    } catch (txErr) {
+      console.error('[approve-prospective] failed to mark transaction completed:', txErr);
+    }
+
     // Shared onboarding — parent + student accounts, linking, enrolment, archive.
     const onboard = await onboardSummerStudent(admin, record as any, { approvedBy: caller.id });
     const authUserId = onboard.student.id;
