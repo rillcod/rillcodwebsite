@@ -69,16 +69,36 @@ async function findAuthUserId(admin: AnySupabase, email: string): Promise<string
 export async function onboardStudentFromProspect(
   admin: AnySupabase,
   prospect: ProspectChild,
-  opts: { parentId?: string | null; enrollmentType?: string; approvedBy?: string | null } = {},
+  opts: {
+    parentId?: string | null;
+    enrollmentType?: string;
+    approvedBy?: string | null;
+    /** Explicit class to place the student in (staff choice). */
+    classId?: string | null;
+    /** Class name to find-or-create for the student's school (staff choice). */
+    className?: string | null;
+  } = {},
 ): Promise<OnboardFromProspectResult> {
   const normalizedParentEmail = (prospect.parent_email || prospect.email || '').trim().toLowerCase();
   const parentName = prospect.parent_name || 'Parent/Guardian';
   const enrollmentType = opts.enrollmentType || 'in_person';
 
-  // School + class.
+  // School — use the school the family filled (prospect.school_id); only fall back
+  // to the online school when none was provided.
   const school = await resolveOnlineSchool(admin, { id: prospect.school_id, name: prospect.school_name });
-  const className = classNameFromProgram(prospect.course_interest, prospect.grade);
-  const classId = await ensureClassWithTutor(admin, school.id, school.name, className);
+
+  // Class — staff may pass an explicit class (existing id or a name to create);
+  // otherwise derive one from the programme/grade and find-or-create it.
+  let classId: string | null = null;
+  if (opts.classId) {
+    const { data: cls } = await admin.from('classes').select('id, school_id').eq('id', opts.classId).maybeSingle();
+    // Only honour the class if it belongs to this school (or has none set).
+    if (cls?.id && (!cls.school_id || cls.school_id === school.id)) classId = cls.id;
+  }
+  if (!classId) {
+    const className = (opts.className?.trim()) || classNameFromProgram(prospect.course_interest, prospect.grade);
+    classId = await ensureClassWithTutor(admin, school.id, school.name, className);
+  }
 
   // Student account — reuse existing (parent email + name) for idempotency.
   let studentPortalId: string | null = null;

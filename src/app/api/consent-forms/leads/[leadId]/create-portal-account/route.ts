@@ -26,8 +26,14 @@ function generateTempPassword(): string {
 
 // POST /api/consent-forms/leads/[leadId]/create-portal-account
 // Creates a parent portal account from a form lead, sends credentials via WhatsApp/email.
-export async function POST(_req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
   const { leadId } = await context.params;
+
+  // Optional staff choices: place the new student(s) in a specific class (existing
+  // id) or a class name to find-or-create for the school.
+  const reqBody = await req.json().catch(() => ({} as Record<string, unknown>));
+  const overrideClassId = (reqBody.classId as string) || null;
+  const overrideClassName = (reqBody.className as string) || null;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -45,7 +51,7 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
   // Fetch lead
   const { data: lead, error: leadErr } = await (sb as any)
     .from('form_leads')
-    .select('id, school_id, email, response_data, matched_student_id, matched_parent_id')
+    .select('id, school_id, matched_school_id, email, response_data, matched_student_id, matched_parent_id')
     .eq('id', leadId)
     .single();
 
@@ -70,6 +76,14 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
 
   if (!parentEmail || !parentEmail.includes('@')) {
     return NextResponse.json({ error: 'No valid email address on this lead' }, { status: 400 });
+  }
+
+  // School name for warm, school-branded "welcome home" messaging — these are
+  // existing families from a partner school being brought onto the platform.
+  let schoolLabel = 'Rillcod Technologies';
+  if (lead.school_id) {
+    const { data: sch } = await (sb as any).from('schools').select('name').eq('id', lead.school_id).maybeSingle();
+    if (sch?.name) schoolLabel = sch.name;
   }
 
   const programLabel = (p?: string | null): string | null =>
@@ -110,8 +124,16 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
           parent_email: parentEmail,
           parent_name: parentName,
           parent_phone: parentPhone || null,
-          school_id: lead.school_id ?? null,
-        }, { parentId, enrollmentType: 'in_person', approvedBy: user.id });
+          // Assign to the school the family filled (matched current school first,
+          // then the form's school); falls back to the online school if neither.
+          school_id: lead.matched_school_id ?? lead.school_id ?? null,
+        }, {
+          parentId,
+          enrollmentType: 'in_person',
+          approvedBy: user.id,
+          classId: overrideClassId,
+          className: overrideClassName,
+        });
         if (res.created) created.push({ name: t.name, email: res.studentEmail, password: res.studentPassword });
       } catch (e) {
         console.error('[create-portal-account] onboard new child failed:', e);
@@ -370,21 +392,29 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ leadI
         Dear <strong style="color:#fff;">${parentName}</strong>,
       </p>
       <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;line-height:1.65;">
-        Your Rillcod Parent Portal account has been created${childName ? ` for ${childName}` : ''}.
-        Click the button below to log in — your email and password are already filled in for you.
+        Welcome to <strong style="color:#fff;">${schoolLabel}</strong> on Rillcod! 🎉 We're delighted to have
+        ${childName ? `<strong style="color:#fff;">${childName}</strong>` : 'your family'} with us. Your accounts are set up and ready —
+        ${newStudents.length ? 'a <strong style="color:#fff;">Parent</strong> account for you and a <strong style="color:#fff;">Student</strong> account for your child.' : 'your Parent account is ready.'}
       </p>
-      <div style="background:#1c1e22;border-left:4px solid #10b981;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;">
-        <p style="margin:0 0 8px;font-size:10px;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Parent Login Details</p>
+      <div style="background:#1c1e22;border-left:4px solid #10b981;padding:16px 20px;margin:0 0 16px;border-radius:0 6px 6px 0;">
+        <p style="margin:0 0 8px;font-size:10px;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Parent Portal — track progress, reports & payments</p>
         <p style="margin:0 0 6px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">Email:</strong> ${parentEmail}</p>
         <p style="margin:0;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">Temporary Password:</strong> <span style="font-family:monospace;color:#f59e0b;font-size:15px;">${tempPassword}</span></p>
       </div>
       ${studentCredsBlock}
+      <p style="margin:0 0 8px;font-size:13px;color:#10b981;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Getting started</p>
+      <p style="margin:0 0 16px;font-size:14px;color:#d4d4d8;line-height:1.7;">
+        1. Log in with the button below.<br/>
+        2. ${newStudents.length ? "Help your child sign in to explore their lessons, projects and playground." : 'Explore your dashboard.'}<br/>
+        3. Change the temporary password${newStudents.length ? 's' : ''} in profile settings.
+      </p>
       <p style="margin:0 0 16px;font-size:14px;color:#a1a1aa;">
-        Please change your password${newStudents.length ? 's' : ''} after first login. Keep these details safe and do not share them.
+        Questions or need a hand getting set up? Just reply to this email — we're here to help you feel right at home.
       </p>
     `;
     const html = buildRillcodTransactionalEmailHtml({
-      title:      'Your Rillcod Portal Account is Ready',
+      eyebrow:    'Welcome home 🏠',
+      title:      `Welcome to ${schoolLabel} on Rillcod`,
       bodyHtml,
       cta:        { href: loginUrl, label: 'Log In — Email & Password Pre-Filled', color: '#10b981' },
       footerNote: 'Rillcod Technologies · 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria · +234 811 660 0091',
