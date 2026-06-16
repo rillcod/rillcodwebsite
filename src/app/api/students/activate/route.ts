@@ -244,6 +244,35 @@ async function sendStudentCredentialsEmail(
 
     const finalHtml = html.replace('</body>', `${credentialsBlock}</body>`);
 
+    // Attach the receipt PDF when the student has a completed payment — reuse the
+    // canonical receipt generator + the same attachments:[{filename,content:base64}]
+    // shape used elsewhere, so one email carries credentials AND the receipt.
+    let attachments: Array<{ filename: string; content: string }> | undefined;
+    if (portalUserId) {
+      try {
+        const { data: tx } = await supabaseAdmin
+          .from('payment_transactions')
+          .select('id')
+          .eq('portal_user_id', portalUserId)
+          .in('payment_status', ['completed', 'success'])
+          .order('paid_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (tx?.id) {
+          const { paymentsService } = await import('@/services/payments.service');
+          const url = await paymentsService.generateReceipt(tx.id);
+          const r = await fetch(url);
+          if (r.ok) {
+            const buf = Buffer.from(await r.arrayBuffer());
+            const safeName = (fullName || 'Student').replace(/[^a-z0-9]+/gi, '_');
+            attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+          }
+        }
+      } catch (receiptErr) {
+        console.error('[sendStudentCredentialsEmail] receipt attachment failed:', receiptErr);
+      }
+    }
+
     await notificationsService.sendExternalEmail({
       to: destinationEmail.trim().toLowerCase(),
       subject: parentLogin
@@ -252,6 +281,7 @@ async function sendStudentCredentialsEmail(
       html: finalHtml,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
+      ...(attachments ? { attachments } : {}),
     });
 
     // Mark delivery as sent in registration_results
