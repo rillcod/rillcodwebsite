@@ -59,6 +59,7 @@ export default function ResendCredentialsPage() {
   const isAdmin = profile?.role === 'admin';
   const [repairing, setRepairing] = useState(false);
   const [migratingParents, setMigratingParents] = useState(false);
+  const [mergingDupes, setMergingDupes] = useState(false);
   const [health, setHealth] = useState<Record<string, number> | null>(null);
 
   const loadHealth = useCallback(async () => {
@@ -322,6 +323,34 @@ export default function ResendCredentialsPage() {
     }
   }
 
+  async function handleMergeDuplicates() {
+    setMergingDupes(true);
+    try {
+      const previewRes = await fetch('/api/admin/merge-duplicate-students', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const preview = await previewRes.json();
+      if (!previewRes.ok) throw new Error(preview.error || 'Preview failed');
+      if ((preview.duplicateGroups ?? 0) === 0) { toast.info('No duplicate students found — all clean.'); setMergingDupes(false); return; }
+      if (!confirm(`Merge ${preview.duplicateRows} duplicate student record(s) across ${preview.duplicateGroups} child(ren)?\n\nThe oldest account is kept; submissions, attendance, grades and parent links are repointed onto it; extra logins are deactivated; duplicate rows are removed. Proceed?`)) {
+        setMergingDupes(false); return;
+      }
+      const res = await fetch('/api/admin/merge-duplicate-students', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Merge failed');
+      toast.success(`Merged ${data.merged} duplicate(s) across ${data.duplicateGroups} child(ren); ${data.loginsDeactivated} extra login(s) deactivated.`, { duration: 7000 });
+      await load();
+    } catch (err: any) {
+      toast.error(err.message || 'Merge failed');
+    } finally {
+      setMergingDupes(false);
+    }
+  }
+
   if (authLoading || !profile) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -380,6 +409,17 @@ export default function ResendCredentialsPage() {
             >
               {migratingParents ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <UserGroupIcon className="w-4 h-4" />}
               Fix Legacy Parents
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleMergeDuplicates}
+              disabled={mergingDupes}
+              title="Merge duplicate student records (same child appearing twice) into one, repointing all their data"
+              className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 border border-border disabled:opacity-50 text-foreground rounded-xl text-sm font-semibold transition-colors"
+            >
+              {mergingDupes ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <UserGroupIcon className="w-4 h-4" />}
+              Merge Duplicates
             </button>
           )}
           <button
