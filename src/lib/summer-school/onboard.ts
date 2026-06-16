@@ -430,6 +430,68 @@ export async function onboardSummerStudent(
     console.error('[onboardSummerStudent] credential archive failed:', archiveErr);
   }
 
+  // ── 8. Finance sync: link the tuition payment(s) to the student and ensure a
+  // paid invoice exists, so transaction ↔ invoice ↔ receipt are all consistent
+  // (previously summer payments had portal_user_id null and no invoice). ──
+  try {
+    const { data: txns } = await admin
+      .from('payment_transactions')
+      .select('id, amount, currency, invoice_id, payment_status, transaction_reference')
+      .contains('payment_gateway_response', { prospect_id: prospect.id })
+      .order('created_at', { ascending: false });
+
+    for (const t of (txns ?? []) as Array<{
+      id: string; amount: number; currency: string | null; invoice_id: string | null;
+      payment_status: string | null; transaction_reference: string | null;
+    }>) {
+      // Associate payer + school on the transaction.
+      await admin.from('payment_transactions')
+        .update({ portal_user_id: studentPortalId, school_id: school.id })
+        .eq('id', t.id);
+
+      // Create a paid invoice for completed tuition if one isn't linked yet.
+      const isCompleted = ['completed', 'success'].includes(t.payment_status || '');
+      if (isCompleted && !t.invoice_id) {
+        const { data: existingInv } = await admin
+          .from('invoices')
+          .select('id')
+          .eq('payment_transaction_id', t.id)
+          .maybeSingle();
+        if (!existingInv) {
+          const amt = Number(t.amount) || 0;
+          const rawRef = String(t.transaction_reference || t.id);
+          const invoiceNumber = `INV-SUM-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40)}`;
+          const { data: inv } = await admin
+            .from('invoices')
+            .insert({
+              invoice_number: invoiceNumber,
+              amount: amt,
+              currency: t.currency || 'NGN',
+              status: 'paid',
+              due_date: null,
+              portal_user_id: studentPortalId,
+              school_id: school.id,
+              payment_transaction_id: t.id,
+              items: [{
+                description: `AI Summer School 2026 Tuition — ${prospect.full_name}`,
+                quantity: 1,
+                unit_price: amt,
+                total: amt,
+              }],
+              metadata: { source: 'summer_school_onboard', student_name: prospect.full_name, prospect_id: prospect.id },
+            })
+            .select('id')
+            .single();
+          if (inv?.id) {
+            await admin.from('payment_transactions').update({ invoice_id: inv.id }).eq('id', t.id);
+          }
+        }
+      }
+    }
+  } catch (finErr) {
+    console.error('[onboardSummerStudent] finance sync failed:', finErr);
+  }
+
   return {
     parent,
     student: { id: studentPortalId, studentRowId, email: studentEmail, password: studentPw, created: studentCreated },
@@ -471,30 +533,119 @@ export async function sendSummerCredentials(
        <p style="margin:8px 0 0;font-size:11px;color:#71717a;">Your child logs in to lessons, assignments and the playground at <a href="${appUrl}/login" style="color:#7c3aed;">${appUrl}/login</a>.</p>
      </div>`;
 
+  // Resolve the cohort WhatsApp group link (best-effort).
+  let waGroupLink = '';
+  try {
+    const { getSummerSchoolWhatsAppLink } = await import('@/lib/summer-school/whatsapp-group');
+    waGroupLink = (await getSummerSchoolWhatsAppLink()) || '';
+  } catch { /* non-fatal */ }
+
+  const firstName = (prospect.full_name || 'your child').trim().split(/\s+/)[0];
+
+  const whatsappStep = waGroupLink
+    ? `<a href="${waGroupLink}" style="display:inline-block;margin-top:6px;padding:10px 22px;background:#25D366;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">Join the Class WhatsApp Group →</a>`
+    : `<span style="font-size:12px;color:#71717a;">We'll share the class WhatsApp group link with you shortly.</span>`;
+
+  const nextSteps = `
+    <div style="margin:22px 0 6px;">
+      <p style="margin:0 0 12px;font-size:13px;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Your Next Steps</p>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px;">
+        <tr>
+          <td valign="top" style="width:34px;font-size:20px;">1️⃣</td>
+          <td style="font-size:14px;color:#d4d4d8;line-height:1.6;">
+            <strong style="color:#fff;">Join the class WhatsApp group</strong> — this is where we share the daily class link, schedule, reminders and announcements.<br/>${whatsappStep}
+          </td>
+        </tr>
+      </table>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px;">
+        <tr>
+          <td valign="top" style="width:34px;font-size:20px;">2️⃣</td>
+          <td style="font-size:14px;color:#d4d4d8;line-height:1.6;">
+            <strong style="color:#fff;">Log ${firstName} in to the Student Portal</strong> using the student details above at
+            <a href="${appUrl}/login" style="color:#7c3aed;font-weight:700;">${appUrl}/login</a> — lessons, assignments, the playground and class materials live there.
+          </td>
+        </tr>
+      </table>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px;">
+        <tr>
+          <td valign="top" style="width:34px;font-size:20px;">3️⃣</td>
+          <td style="font-size:14px;color:#d4d4d8;line-height:1.6;">
+            <strong style="color:#fff;">Attend classes</strong> — the cohort starts <strong>8 June 2026</strong>. Online classes are joined from the WhatsApp group link at class time; onsite learners attend at the campus. Your child just logs in and shows up ready to build! 🚀
+          </td>
+        </tr>
+      </table>
+
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td valign="top" style="width:34px;font-size:20px;">4️⃣</td>
+          <td style="font-size:14px;color:#d4d4d8;line-height:1.6;">
+            <strong style="color:#fff;">Track progress as a parent</strong> — use your Parent Portal login to follow ${firstName}'s lessons, reports and certificates.
+          </td>
+        </tr>
+      </table>
+    </div>`;
+
+  // Receipt PDF attachment — reuse the canonical server receipt generator and the
+  // same `attachments: [{ filename, content: base64 }]` shape the report-card email
+  // already uses (SendPulse attachments_binary). Attaching the PDF (vs a link)
+  // keeps it to a single, non-spammy email. Only when a completed payment exists.
+  let attachments: Array<{ filename: string; content: string }> | undefined;
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const sb: any = createAdminClient();
+    const { data: tx } = await sb
+      .from('payment_transactions')
+      .select('id')
+      .contains('payment_gateway_response', { prospect_id: prospect.id })
+      .in('payment_status', ['completed', 'success'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (tx?.id) {
+      const { paymentsService } = await import('@/services/payments.service');
+      const url = await paymentsService.generateReceipt(tx.id);
+      const r = await fetch(url);
+      if (r.ok) {
+        const buf = Buffer.from(await r.arrayBuffer());
+        const safeName = (prospect.full_name || 'Student').replace(/[^a-z0-9]+/gi, '_');
+        attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+      }
+    }
+  } catch (receiptErr) {
+    console.error('[sendSummerCredentials] receipt attachment failed:', receiptErr);
+  }
+
   // ── Email ──
   if (to) {
     try {
       const { notificationsService } = await import('@/services/notifications.service');
       const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
       const html = buildRillcodTransactionalEmailHtml({
-        eyebrow: 'Admissions',
-        title: 'Your Summer School Accounts Are Ready',
-        bodyHtml: `<p style="margin:0 0 10px;">Dear ${parentName}, your child's enrolment in the Rillcod AI Summer School 2026 is confirmed.</p>
-          <p style="margin:0 0 6px;">We have set up the portal accounts below. Please change the temporary passwords after first login and keep these details private.</p>
-          ${parentBlock}${studentBlock}`,
+        eyebrow: 'Welcome aboard 🎉',
+        title: `Welcome to Rillcod Summer School, ${firstName}!`,
+        bodyHtml: `<p style="margin:0 0 12px;font-size:15px;color:#fff;">Dear ${parentName}, we're thrilled to have <strong>${prospect.full_name}</strong> join the Rillcod AI Summer School 2026! 🎉</p>
+          <p style="margin:0 0 6px;">Your payment is confirmed and your child's seat is secured. Here are your portal logins — please change the temporary passwords after first login and keep them private.</p>
+          ${parentBlock}${studentBlock}
+          ${nextSteps}
+          <p style="margin:18px 0 0;font-size:13px;color:#a1a1aa;">We can't wait to see what ${firstName} builds this summer. Questions? Just reply to this email or call <a href="tel:+2348116600091" style="color:#7c3aed;">+234 811 660 0091</a>.</p>`,
         summaryRows: [
           { label: 'Student', value: prospect.full_name },
           { label: 'School', value: result.schoolName },
           { label: 'Programme', value: 'AI Summer School 2026' },
+          { label: 'Cohort starts', value: '8 June 2026' },
         ],
         footerNote: 'rillcod technologies limited • summer school admissions',
       });
       await notificationsService.sendExternalEmail({
         to,
-        subject: 'Your Rillcod Summer School Accounts & Login Details',
+        subject: `🎉 Welcome to Rillcod Summer School — ${firstName}'s account & next steps`,
         html,
         fromName: 'Rillcod Technologies',
         fromEmail: 'support@rillcod.com',
+        ...(attachments ? { attachments } : {}),
       });
       sent.email = true;
     } catch (err) {
@@ -507,14 +658,17 @@ export async function sendSummerCredentials(
     try {
       const { sendWhatsApp } = await import('@/lib/whatsapp/send');
       const lines = [
-        `Hello ${parentName}! 👋`,
-        `${prospect.full_name}'s Rillcod Summer School accounts are ready.`,
+        `Hello ${parentName}! 👋 Welcome to Rillcod AI Summer School 2026! 🎉`,
+        `${prospect.full_name}'s seat is confirmed and the accounts are ready.`,
         '',
       ];
       if (result.parent?.created && result.parent.password) {
         lines.push('👨‍👩‍👧 Parent Portal', `Email: ${result.parent.email}`, `Password: ${result.parent.password}`, '');
       }
-      lines.push('🎓 Student Portal', `Email: ${result.student.email}`, `Password: ${result.student.password}`, '', `Log in: ${appUrl}/login`, 'Please change the passwords after first login.');
+      lines.push('🎓 Student Portal', `Email: ${result.student.email}`, `Password: ${result.student.password}`, `Log in: ${appUrl}/login`, '');
+      lines.push('Next steps:', '1. Change the passwords after first login.');
+      if (waGroupLink) lines.push(`2. Join the class WhatsApp group: ${waGroupLink}`);
+      lines.push(`${waGroupLink ? '3' : '2'}. Classes start 8 June 2026 — your child logs in and joins from the group at class time.`, '', 'Questions? Call +234 811 660 0091');
       const ok = await sendWhatsApp(result.parentPhone, lines.join('\n'));
       sent.whatsapp = ok;
     } catch (err) {

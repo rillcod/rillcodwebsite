@@ -129,41 +129,9 @@ export async function POST(req: NextRequest) {
       console.error('[ensure-onboarded] CRM contact-book sync failed:', syncErr);
     }
 
-    // Deliver parent + student credentials (email always; WhatsApp if opted in).
+    // Deliver the single welcome email — it carries both logins, next steps, AND
+    // the receipt PDF as an attachment (no separate receipt email → avoids spam).
     await sendSummerCredentials(onboard, prospect as any);
-
-    // Payment receipt email — transaction context lives in this endpoint.
-    void (async () => {
-      try {
-        const { notificationsService } = await import('@/services/notifications.service');
-        const { buildReceiptHTML } = await import('@/lib/finance/templates/html/receipt-html');
-        const to = (prospect.parent_email || prospect.email || '').trim().toLowerCase();
-        if (!to) return;
-        const amt = Number(tx.amount) || 0;
-        const docRef = tx.transaction_reference || reference.slice(0, 12).toUpperCase();
-        const fmt = (d: string | null) => d
-          ? new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
-          : new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
-        const receiptHtml = buildReceiptHTML({
-          docRef, dateStr: fmt(null), payDateStr: fmt(tx.paid_at || null),
-          payerLabel: prospect.parent_name || prospect.full_name,
-          payerType: 'student', paymentMethod: tx.payment_method || 'online',
-          receivedBy: 'Rillcod Technologies',
-          items: [{ description: `Summer School 2026 Tuition — ${prospect.full_name}`, quantity: 1, unit_price: amt }],
-          totalAmount: amt, payToAcc: null,
-          notes: `Reference: ${docRef}. Student: ${prospect.full_name}. School: ${onboard.schoolName}.`,
-        });
-        await notificationsService.sendExternalEmail({
-          to,
-          subject: `Payment Receipt — Summer School 2026 | Rillcod Technologies`,
-          html: receiptHtml,
-          fromName: 'Rillcod Technologies',
-          fromEmail: 'support@rillcod.com',
-        });
-      } catch (emailErr) {
-        console.error('[ensure-onboarded] receipt email failed:', emailErr);
-      }
-    })();
 
     return NextResponse.json({
       onboarded: true,

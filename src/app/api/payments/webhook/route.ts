@@ -408,33 +408,29 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
                    <p style="margin:0;font-size:13px;"><a href="${balanceLink}" style="color:#2563eb;font-weight:bold;">Pay remaining balance online →</a></p>
                  </div>`
               : '';
-            // Credentials are delivered separately by sendSummerCredentials() (parent +
-            // student logins, email + WhatsApp), so this confirmation only carries the
-            // payment/receipt + any installment balance — no duplicated credentials.
             void creds;
-            const credsSection = '';
-
-            const parentHtml = buildPaymentConfirmationEmail({
-                recipientName: studName,
-                amount:        Number(transaction.amount),
-                currency:      String(transaction.currency || 'NGN'),
-                reference:     String(transaction.transaction_reference),
-                description:   'AI Summer School 2026 Tuition',
-                date:          new Date().toISOString(),
-                portalUrl:     receiptUrl,
-            });
-
-            const finalHtml = (credsSection || balanceSection)
-              ? parentHtml.replace('</p></div></td></tr>', `</p>${credsSection}${balanceSection}</div></td></tr>`)
-              : parentHtml;
-
-            await notificationsService.sendExternalEmail({
-                to:        parentEmail,
-                subject:   `AI Summer School Enrolment Confirmed — Rillcod (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
-                fromName:  'Rillcod Technologies',
-                fromEmail: 'support@rillcod.com',
-                html:      finalHtml,
-            });
+            // The welcome email (sendSummerCredentials) already carries both logins,
+            // next steps AND the receipt PDF. To avoid spam, only send a SEPARATE email
+            // here when there's an installment balance to chase — otherwise skip entirely.
+            if (isInstallment && balanceDue > 0) {
+                const parentHtml = buildPaymentConfirmationEmail({
+                    recipientName: studName,
+                    amount:        Number(transaction.amount),
+                    currency:      String(transaction.currency || 'NGN'),
+                    reference:     String(transaction.transaction_reference),
+                    description:   'AI Summer School 2026 — Deposit Received',
+                    date:          new Date().toISOString(),
+                    portalUrl:     receiptUrl,
+                });
+                const finalHtml = parentHtml.replace('</p></div></td></tr>', `</p>${balanceSection}</div></td></tr>`);
+                await notificationsService.sendExternalEmail({
+                    to:        parentEmail,
+                    subject:   `Summer School Deposit Received — Balance Due (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
+                    fromName:  'Rillcod Technologies',
+                    fromEmail: 'support@rillcod.com',
+                    html:      finalHtml,
+                });
+            }
         } else if (gatewayResponse?.payment_type === 'summer_school_balance' && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
             const studName = String(gatewayResponse?.student_name || 'Student');
             const parentHtml = buildPaymentConfirmationEmail({

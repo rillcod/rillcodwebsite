@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
     // Shared onboarding — parent + student accounts, linking, enrolment, archive.
     const onboard = await onboardSummerStudent(admin, record as any, { approvedBy: caller.id });
     const authUserId = onboard.student.id;
-    const resolvedSchoolName = onboard.schoolName;
 
     // Mark prospective student active
     const { error: prospectiveErr } = await admin
@@ -106,54 +105,8 @@ export async function POST(request: NextRequest) {
       console.error('Failed to sync approved summer student to CRM contact book:', syncErr);
     }
 
-    // Send receipt email for the tuition payment
-    try {
-      const { data: txRecord } = await admin
-        .from('payment_transactions')
-        .select('amount, transaction_reference, payment_method, paid_at, created_at')
-        .contains('payment_gateway_response', { prospect_id: id })
-        .in('payment_status', ['completed', 'success'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (txRecord) {
-        const { notificationsService } = await import('@/services/notifications.service');
-        const { buildReceiptHTML } = await import('@/lib/finance/templates/html/receipt-html');
-        const amt = Number(txRecord.amount) || 0;
-        const docRef = txRecord.transaction_reference || `SUM-${id.slice(0, 8).toUpperCase()}`;
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
-        const paidStr = txRecord.paid_at || txRecord.created_at
-          ? new Date(txRecord.paid_at || txRecord.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
-          : dateStr;
-        const receiptHtml = buildReceiptHTML({
-          docRef,
-          dateStr,
-          payDateStr: paidStr,
-          payerLabel: record.parent_name || record.full_name,
-          payerType: 'student',
-          paymentMethod: txRecord.payment_method || 'online',
-          receivedBy: 'Rillcod Technologies',
-          items: [{ description: `Summer School 2026 Tuition — ${record.full_name}`, quantity: 1, unit_price: amt }],
-          totalAmount: amt,
-          payToAcc: null,
-          notes: `Applicant: ${record.full_name}. School: ${resolvedSchoolName}. Reference: ${docRef}`,
-        });
-        await notificationsService.sendExternalEmail({
-          to: (record.parent_email || record.email)!.trim().toLowerCase(),
-          subject: `Payment Receipt — Summer School 2026 | Rillcod Technologies`,
-          html: receiptHtml,
-          fromName: 'Rillcod Technologies',
-          fromEmail: 'support@rillcod.com',
-        });
-      }
-    } catch (receiptMailErr) {
-      console.error('Failed to send receipt email on prospective approval:', receiptMailErr);
-    }
-
-    // Send parent + student login credentials to the parent (email always;
-    // WhatsApp if opted in). The parent receives BOTH logins so they can sign in.
+    // Single welcome email: both logins, next steps, and the receipt PDF attached
+    // (no separate receipt email → avoids spam). WhatsApp too when opted in.
     try {
       await sendSummerCredentials(onboard, record as any);
     } catch (mailErr) {
