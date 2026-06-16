@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
-import { onboardStudentFromProspect } from '@/lib/students/onboard-from-prospect';
+import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
@@ -86,62 +86,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     if (sch?.name) schoolLabel = sch.name;
   }
 
-  const programLabel = (p?: string | null): string | null =>
-    p === 'young_innovators' ? 'Young Innovators'
-      : p === 'teen_developers' ? 'Teen Developers'
-        : (p || null);
-
-  // Onboard children that have NO existing student match into real student
-  // accounts (login + class + enrolment) and link them to the parent — this is
-  // what makes a brand-new consent child show up on the parent dashboard.
-  // Returns the new student logins so they can be delivered.
-  const onboardUnmatchedChildren = async (parentId: string): Promise<Array<{ name: string; email: string; password: string }>> => {
-    const created: Array<{ name: string; email: string; password: string }> = [];
-    const tasks: Array<{ name: string; klass: string | null; age: string | null; gender: string | null; program: string | null }> = [];
-
-    // Primary child — unmatched when the lead has no matched_student_id.
-    if (!lead.matched_student_id && childName) {
-      tasks.push({ name: childName, klass: childClass, age: str('child_age') || null, gender: childGender, program: str('program_category') || null });
-    }
-    // Additional children (index ≥ 1) not present in child_matches.
-    if (childrenArr && childrenArr.length > 1) {
-      const matchedIdx = new Set(childMatches.map((m) => m.childIndex));
-      for (let ci = 1; ci < childrenArr.length; ci++) {
-        const c = childrenArr[ci];
-        if (!c?.name?.trim() || matchedIdx.has(ci)) continue;
-        tasks.push({ name: c.name, klass: c.class || null, age: c.age || null, gender: c.gender || null, program: c.program || null });
-      }
-    }
-
-    for (const t of tasks) {
-      try {
-        const res = await onboardStudentFromProspect(sb as any, {
-          full_name: t.name,
-          grade: t.klass,
-          age: t.age ? parseInt(t.age, 10) : null,
-          gender: t.gender,
-          course_interest: programLabel(t.program),
-          parent_email: parentEmail,
-          parent_name: parentName,
-          parent_phone: parentPhone || null,
-          // Assign to the school the consent form was CREATED FOR (the partner
-          // school that owns the form). The parent's free-text "current school" is
-          // only a last resort, then the online school as the final fallback.
-          school_id: lead.school_id ?? lead.matched_school_id ?? null,
-        }, {
-          parentId,
-          enrollmentType: 'in_person',
-          approvedBy: user.id,
-          classId: overrideClassId,
-          className: overrideClassName,
-        });
-        if (res.created) created.push({ name: t.name, email: res.studentEmail, password: res.studentPassword });
-      } catch (e) {
-        console.error('[create-portal-account] onboard new child failed:', e);
-      }
-    }
-    return created;
-  };
+  // Onboard children with NO existing student match into real student accounts
+  // (shared with the bulk flow) and link them to the parent.
+  const onboardUnmatchedChildren = (parentId: string) =>
+    onboardLeadChildren(sb as any, {
+      lead, parentId, parentEmail, parentName, parentPhone: parentPhone || null,
+      approvedBy: user.id, classId: overrideClassId, className: overrideClassName,
+    });
 
   // Check if portal account already exists
   const { data: existing } = await (sb as any)

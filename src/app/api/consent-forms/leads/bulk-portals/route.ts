@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
   const results = {
     created: 0,
     skipped: 0,
+    students_onboarded: 0,
     no_email: 0,
     errors: [] as Array<{ leadId: string; error: string }>,
     total: (leads ?? []).length,
@@ -146,6 +148,23 @@ export async function POST(req: NextRequest) {
 
             await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
           }
+        }
+
+        // Onboard any brand-new children into real student accounts + link them.
+        const newStudents = await onboardLeadChildren(sb as any, {
+          lead, parentId: existing.id, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
+        });
+        results.students_onboarded += newStudents.length;
+        if (newStudents.length > 0 && existing.email) {
+          try {
+            const block = newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('');
+            const html = buildRillcodTransactionalEmailHtml({
+              title: `New Student Login${newStudents.length > 1 ? 's' : ''} Ready`,
+              bodyHtml: `<p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">Dear ${parentName}, your child now has their own student login on your Rillcod account.</p><div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;border-radius:0 6px 6px 0;">${block}<p style="margin:6px 0 0;font-size:12px;color:#a1a1aa;">Log in at ${portalUrl}/login.</p></div>`,
+              footerNote: 'Rillcod Technologies · +234 811 660 0091',
+            });
+            await notificationsService.sendEmail('system', { to: existing.email, subject: `Your Child's Rillcod Student Login`, html });
+          } catch { /* non-fatal */ }
         }
 
         await (sb as any).from('form_leads')
@@ -234,6 +253,15 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Onboard any brand-new children into real student accounts + link them.
+      const newStudents = await onboardLeadChildren(sb as any, {
+        lead, parentId, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
+      });
+      results.students_onboarded += newStudents.length;
+      const studentCredsBlock = newStudents.length > 0
+        ? `<div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;"><p style="margin:0 0 10px;font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Student Portal Login${newStudents.length > 1 ? 's' : ''}</p>${newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('')}</div>`
+        : '';
+
       const loginUrl = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}&pw=${encodeURIComponent(tempPassword)}`;
       const channelsSent: string[] = [];
       const createdAt = new Date().toISOString();
@@ -274,8 +302,9 @@ export async function POST(req: NextRequest) {
             <p style="margin:0 0 6px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">Email:</strong> ${parentEmail}</p>
             <p style="margin:0;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">Temporary Password:</strong> <span style="font-family:monospace;color:#f59e0b;font-size:15px;">${tempPassword}</span></p>
           </div>
+          ${studentCredsBlock}
           <p style="margin:0 0 16px;font-size:14px;color:#a1a1aa;">
-            Please change your password after your first login. Keep these details safe and do not share them.
+            Please change your password${newStudents.length ? 's' : ''} after first login. Keep these details safe and do not share them.
           </p>
         `;
         const html = buildRillcodTransactionalEmailHtml({
