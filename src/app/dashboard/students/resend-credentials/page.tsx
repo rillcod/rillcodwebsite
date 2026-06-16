@@ -10,7 +10,7 @@ import {
   XCircleIcon, MagnifyingGlassIcon, UserGroupIcon, BoltIcon,
   ClockIcon, BuildingOfficeIcon, ExclamationTriangleIcon,
   ChevronLeftIcon, FunnelIcon, ShieldCheckIcon, BanknotesIcon,
-  DocumentTextIcon,
+  DocumentTextIcon, EyeIcon,
 } from '@/lib/icons';
 
 interface CredentialStatus {
@@ -48,6 +48,7 @@ export default function ResendCredentialsPage() {
   const [sendingReceipt, setSendingReceipt] = useState<Record<string, boolean>>({});
   const [sendingBalance, setSendingBalance] = useState<Record<string, boolean>>({});
   const [lastCreatedCredentials, setLastCreatedCredentials] = useState<{
+    studentId?: string;
     studentName: string;
     studentEmail: string;
     studentPassword?: string;
@@ -159,6 +160,7 @@ export default function ResendCredentialsPage() {
       if (!res.ok) throw new Error(data.error || 'Failed');
       
       setLastCreatedCredentials({
+        studentId,
         studentName: sObj?.full_name || 'Student',
         studentEmail: data.email,
         studentPassword: data.tempPassword,
@@ -688,6 +690,22 @@ export default function ResendCredentialsPage() {
                           )}
 
                           {/* Credentials Resend / Activate Button */}
+                          {isActivated && (
+                            <button
+                              onClick={() => setLastCreatedCredentials({
+                                studentId: s.id,
+                                studentName: s.full_name || 'Student',
+                                studentEmail: s.student_email || '',
+                                studentPassword: s.credEmail?.password || undefined,
+                                parentEmail: s.parent_email || undefined,
+                                parentPassword: (s as any).parentCred?.password || undefined,
+                              })}
+                              title="View parent + student login details"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 border border-border text-foreground rounded-lg text-xs font-semibold transition-colors"
+                            >
+                              <EyeIcon className="w-3.5 h-3.5" /> View
+                            </button>
+                          )}
                           {isDone ? (
                             <span className="text-xs text-emerald-400 font-semibold px-2">Sent</span>
                           ) : isActivated ? (
@@ -702,7 +720,7 @@ export default function ResendCredentialsPage() {
                               ) : (
                                 <EnvelopeIcon className="w-3.5 h-3.5" />
                               )}
-                              Credentials
+                              Resend
                             </button>
                           ) : (
                             <button
@@ -750,7 +768,7 @@ export default function ResendCredentialsPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-[#141618] border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-lg font-black text-foreground">Credentials Logged Successfully</h3>
+              <h3 className="text-lg font-black text-foreground">Login Details — {lastCreatedCredentials.studentName}</h3>
               <button
                 onClick={() => setLastCreatedCredentials(null)}
                 className="text-muted-foreground hover:text-foreground text-sm font-semibold transition-colors"
@@ -758,9 +776,9 @@ export default function ResendCredentialsPage() {
                 ✕
               </button>
             </div>
-            
+
             <p className="text-xs text-muted-foreground">
-              These credentials have been emailed to the parent's email. You can copy them here for reference or manual sharing:
+              Parent & student logins. Copy or share below, or use "Resend" to email a fresh password to the parent.
             </p>
 
             <div className="space-y-3">
@@ -770,7 +788,11 @@ export default function ResendCredentialsPage() {
                   <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
                   <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.studentEmail}</p>
                   <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
-                  <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.studentPassword}</p>
+                  {lastCreatedCredentials.studentPassword ? (
+                    <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.studentPassword}</p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground italic">Not stored — click "Resend" to reset &amp; reveal a fresh password.</p>
+                  )}
                 </div>
               </div>
 
@@ -791,26 +813,42 @@ export default function ResendCredentialsPage() {
               )}
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => {
-                  let txt = `Rillcod Academy Credentials for ${lastCreatedCredentials.studentName}\n\n`;
-                  txt += `🎓 Student Portal:\nEmail: ${lastCreatedCredentials.studentEmail}\nPassword: ${lastCreatedCredentials.studentPassword}\n\n`;
-                  if (lastCreatedCredentials.parentEmail) {
-                    txt += `👨‍👩‍👧 Parent Portal:\nEmail: ${lastCreatedCredentials.parentEmail}\n`;
-                    if (lastCreatedCredentials.parentPassword) {
-                      txt += `Password: ${lastCreatedCredentials.parentPassword}\n`;
-                    }
-                  }
-                  navigator.clipboard.writeText(txt);
-                  toast.success('Credentials copied to clipboard');
-                  setLastCreatedCredentials(null);
-                }}
-                className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-semibold transition-colors"
-              >
-                Copy All & Close
-              </button>
-            </div>
+            {(() => {
+              const lc = lastCreatedCredentials;
+              const buildText = () => {
+                let txt = `Rillcod Academy login details for ${lc.studentName}\n\n`;
+                txt += `🎓 Student Portal:\nEmail: ${lc.studentEmail}${lc.studentPassword ? `\nPassword: ${lc.studentPassword}` : ''}\n\n`;
+                if (lc.parentEmail) {
+                  txt += `👨‍👩‍👧 Parent Portal:\nEmail: ${lc.parentEmail}${lc.parentPassword ? `\nPassword: ${lc.parentPassword}` : ''}\n`;
+                }
+                txt += `\nLog in: ${typeof window !== 'undefined' ? window.location.origin : 'https://www.rillcod.com'}/login`;
+                return txt;
+              };
+              return (
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(buildText())}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="px-4 py-2 bg-[#25D366] hover:brightness-110 text-white rounded-xl text-xs font-semibold transition-all"
+                  >
+                    Share on WhatsApp
+                  </a>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(buildText()); toast.success('Login details copied'); }}
+                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-xl text-xs font-semibold transition-colors"
+                  >
+                    Copy All
+                  </button>
+                  <button
+                    onClick={() => { setLastCreatedCredentials(null); handleSend(lc.studentId ?? '', true); }}
+                    disabled={!lc.studentId}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    Resend (reset & email)
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
