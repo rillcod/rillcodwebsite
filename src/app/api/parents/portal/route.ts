@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getParentLinkScope } from '@/lib/parents/links';
+import { getParentLinkScope, syncExplicitParentStudentLink } from '@/lib/parents/links';
 
 // ── Auth guard: must be an active parent ─────────────────────────────────────
 async function requireParent(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -42,6 +42,27 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const section = url.searchParams.get('section') ?? 'children';
     const childId = url.searchParams.get('child_id') ?? '';
+
+    // ── Self-heal links ──────────────────────────────────────────────────────
+    // Harmonise every onboarding source (summer school, online school, consent
+    // forms): any student carrying THIS parent's email should have an explicit
+    // parent_student_link. We reconcile on every open so the dashboard, CRM and
+    // the link model stay in sync automatically — even for legacy/denormalised
+    // records and parents with multiple children registered at different times.
+    try {
+      const email = profile.email?.trim().toLowerCase();
+      if (email) {
+        const { data: byEmail } = await admin
+          .from('students')
+          .select('id')
+          .ilike('parent_email', email);
+        for (const s of (byEmail ?? []) as Array<{ id: string }>) {
+          await syncExplicitParentStudentLink(admin as any, profile.id, s.id);
+        }
+      }
+    } catch (healErr) {
+      console.error('[parents/portal] link self-heal failed:', healErr);
+    }
 
     const linkScope = await getParentLinkScope(admin as any, {
       id: profile.id,
