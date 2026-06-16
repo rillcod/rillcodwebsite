@@ -59,7 +59,11 @@ export function buildIndividualReceiptDocDef(input: ReceiptTemplateInput) {
               { text: 'PAYMENT DETAILS', style: 'label', alignment: 'right' },
               { text: (input.paymentMethod || 'online').replace('_', ' ').toUpperCase(), alignment: 'right', style: 'payerMeta' },
               input.meta?.invoiceNumber ? { text: `Invoice ${input.meta.invoiceNumber}`, alignment: 'right', style: 'payerMeta' } : {},
-              { text: 'STATUS: PAID', alignment: 'right', color: '#047857', bold: true, fontSize: 10, margin: [0, 4, 0, 0] },
+              input.meta?.isPartPayment
+                ? { text: 'STATUS: PART PAYMENT', alignment: 'right', color: '#b45309', bold: true, fontSize: 10, margin: [0, 4, 0, 0] }
+                : input.meta?.isBalancePayment
+                  ? { text: 'STATUS: BALANCE PAID', alignment: 'right', color: '#047857', bold: true, fontSize: 10, margin: [0, 4, 0, 0] }
+                  : { text: 'STATUS: PAID', alignment: 'right', color: '#047857', bold: true, fontSize: 10, margin: [0, 4, 0, 0] },
             ],
           },
         ],
@@ -103,10 +107,29 @@ export function buildIndividualReceiptDocDef(input: ReceiptTemplateInput) {
             stack: [
               {
                 columns: [
-                  { text: 'TOTAL PAID', bold: true, fontSize: 13, color: '#0f172a' },
-                  { text: money(input.amount), alignment: 'right', bold: true, fontSize: 14, color: '#047857' },
+                  { text: input.meta?.isPartPayment ? 'AMOUNT PAID (DEPOSIT)' : input.meta?.isBalancePayment ? 'BALANCE PAID' : 'TOTAL PAID', bold: true, fontSize: 11, color: '#0f172a' },
+                  { text: money(input.amount), alignment: 'right', bold: true, fontSize: 13, color: input.meta?.isPartPayment ? '#b45309' : '#047857' },
                 ],
               },
+              input.meta?.isPartPayment
+                ? {
+                    text: 'This is a 50% deposit payment. The remaining balance is due by week 3.',
+                    color: '#b45309',
+                    italics: true,
+                    fontSize: 8.5,
+                    margin: [0, 6, 0, 0],
+                    alignment: 'right',
+                  }
+                : input.meta?.isBalancePayment
+                  ? {
+                      text: 'Remaining tuition balance is now fully settled.',
+                      color: '#047857',
+                      italics: true,
+                      fontSize: 8.5,
+                      margin: [0, 6, 0, 0],
+                      alignment: 'right',
+                    }
+                  : {}
             ],
           },
         ],

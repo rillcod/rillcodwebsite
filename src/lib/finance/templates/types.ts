@@ -42,6 +42,8 @@ export interface ReceiptTemplateInput {
     rillcodRetain?: number;  // schools only — money
     schoolSettlement?: number; // schools only — money
     settlementReference?: string; // schools only
+    isPartPayment?: boolean;
+    isBalancePayment?: boolean;
   };
 
   /** Optional notes block (free-form). */

@@ -97,6 +97,10 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
   const amount = Number(txn.amount);
   const currency = txn.currency || 'NGN';
 
+  const gw = (txn.payment_gateway_response ?? {}) as any;
+  const isPartPayment = gw.payment_plan === 'installment' || gw.payment_plan === 'instalment';
+  const isBalancePayment = gw.payment_type === 'summer_school_balance' || gw.balance_payment === true;
+
   // ── Build template input ──
   let items: ReceiptTemplateInput['items'];
   if (Array.isArray(invoice?.items) && invoice.items.length > 0) {
@@ -117,6 +121,17 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
         total: amount,
       },
     ];
+  }
+
+  // Suffix the description for installment / balance payments
+  if (isPartPayment && items.length === 1 && items[0]) {
+    if (!items[0].description.includes('Part Payment')) {
+      items[0].description += ' (Part Payment / Deposit)';
+    }
+  } else if (isBalancePayment && items.length === 1 && items[0]) {
+    if (!items[0].description.includes('Balance')) {
+      items[0].description += ' (Remaining Balance Payment)';
+    }
   }
 
   // Commission / settlement metadata for schools
@@ -147,6 +162,12 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
       extraMeta.invoiceNumber = (cycle as any).term_label;
     }
   }
+
+  extraMeta = {
+    ...extraMeta,
+    isPartPayment,
+    isBalancePayment,
+  };
 
   const templateInput: ReceiptTemplateInput = {
     receiptNumber: 'PENDING', // real number is assigned by DB trigger on insert
