@@ -94,13 +94,30 @@ const SUMMER_CLASS_NAME = 'Summer School 2026';
 export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: string, schoolName: string): Promise<string | null> {
   // Resolve a tutor: a teacher linked to this school.
   let tutorId: string | null = null;
-  const { data: ts } = await admin
-    .from('teacher_schools')
+
+  // 1. Check if any "Summer School 2026" class already has an assigned teacher globally
+  const { data: globalSummerClass } = await admin
+    .from('classes')
     .select('teacher_id')
-    .eq('school_id', schoolId)
+    .eq('name', SUMMER_CLASS_NAME)
+    .not('teacher_id', 'is', null)
     .limit(1)
     .maybeSingle();
-  tutorId = (ts as any)?.teacher_id ?? null;
+
+  if (globalSummerClass?.teacher_id) {
+    tutorId = globalSummerClass.teacher_id;
+  }
+
+  if (!tutorId) {
+    const { data: ts } = await admin
+      .from('teacher_schools')
+      .select('teacher_id')
+      .eq('school_id', schoolId)
+      .limit(1)
+      .maybeSingle();
+    tutorId = (ts as any)?.teacher_id ?? null;
+  }
+
   if (!tutorId) {
     const { data: t } = await admin
       .from('portal_users')
@@ -121,9 +138,17 @@ export async function ensureSummerClassWithTutor(admin: AnySupabase, schoolId: s
       .limit(1)
       .maybeSingle();
     tutorId = (tGlobal as any)?.id ?? null;
+  }
 
-    if (tutorId && schoolId) {
-      // Auto-assign/link the tutor to this school in teacher_schools
+  // Ensure teacher is linked to the school in teacher_schools (preventing unique constraint errors)
+  if (tutorId && schoolId) {
+    const { data: hasLink } = await admin
+      .from('teacher_schools')
+      .select('teacher_id')
+      .eq('teacher_id', tutorId)
+      .eq('school_id', schoolId)
+      .maybeSingle();
+    if (!hasLink) {
       await admin.from('teacher_schools').insert({
         teacher_id: tutorId,
         school_id: schoolId,

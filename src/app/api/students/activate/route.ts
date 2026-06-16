@@ -98,14 +98,30 @@ async function resolveClassForStudent(
   
   // Resolve an existing tutor/teacher for this school to assign
   let tutorId: string | null = null;
-  const { data: ts } = await supabaseAdmin
-    .from('teacher_schools')
+
+  // 1. Check if any class with this name (e.g. "Summer School 2026") already has a teacher globally
+  const { data: globalClass } = await supabaseAdmin
+    .from('classes')
     .select('teacher_id')
-    .eq('school_id', schoolId)
+    .eq('name', className)
+    .not('teacher_id', 'is', null)
     .limit(1)
     .maybeSingle();
+
+  if (globalClass?.teacher_id) {
+    tutorId = globalClass.teacher_id;
+  }
+
+  if (!tutorId) {
+    const { data: ts } = await supabaseAdmin
+      .from('teacher_schools')
+      .select('teacher_id')
+      .eq('school_id', schoolId)
+      .limit(1)
+      .maybeSingle();
+    tutorId = (ts as any)?.teacher_id ?? null;
+  }
   
-  tutorId = (ts as any)?.teacher_id ?? null;
   if (!tutorId) {
     const { data: t } = await supabaseAdmin
       .from('portal_users')
@@ -126,9 +142,17 @@ async function resolveClassForStudent(
       .limit(1)
       .maybeSingle();
     tutorId = (tGlobal as any)?.id ?? null;
+  }
 
-    if (tutorId && schoolId) {
-      // Auto-assign/link the tutor to this school in teacher_schools
+  // Ensure teacher is linked to the school in teacher_schools (preventing unique constraint errors)
+  if (tutorId && schoolId) {
+    const { data: hasLink } = await supabaseAdmin
+      .from('teacher_schools')
+      .select('teacher_id')
+      .eq('teacher_id', tutorId)
+      .eq('school_id', schoolId)
+      .maybeSingle();
+    if (!hasLink) {
       await supabaseAdmin.from('teacher_schools').insert({
         teacher_id: tutorId,
         school_id: schoolId,
