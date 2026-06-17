@@ -13,33 +13,67 @@ import { formatMoney, formatLongDate } from '../formatters';
 export function buildIndividualReceiptDocDef(input: ReceiptTemplateInput) {
   const money = (n: number) => formatMoney(n, input.currency);
 
+  const statusText = input.meta?.isPartPayment ? 'PART PAYMENT' : input.meta?.isBalancePayment ? 'BALANCE PAID' : 'PAID';
+  const statusFill = input.meta?.isPartPayment ? '#f59e0b' : '#10b981';
+
   return {
-    pageMargins: [40, 50, 40, 50] as [number, number, number, number],
+    pageMargins: [40, 40, 40, 50] as [number, number, number, number],
     content: [
+      // ── Branded header band (sits within page margins) ──
+      {
+        table: {
+          widths: ['*', 'auto'],
+          body: [[
+            {
+              stack: [
+                { text: 'RILLCOD ACADEMY', style: 'brand' },
+                { text: 'STEM & Coding Education', style: 'tagline' },
+              ],
+              fillColor: '#064e3b',
+              margin: [16, 18, 0, 18],
+            },
+            {
+              stack: [
+                { text: 'OFFICIAL RECEIPT', style: 'docType' },
+                { text: 'LEARNER PAYMENT', style: 'streamTag' },
+              ],
+              fillColor: '#064e3b',
+              alignment: 'right',
+              margin: [0, 20, 16, 18],
+            },
+          ]],
+        },
+        layout: 'noBorders',
+      },
+      // Accent strip under the band
+      { canvas: [{ type: 'rect', x: 0, y: 0, w: 515, h: 4, color: '#10b981' }] },
+      { text: '\n' },
+
+      // ── Meta row: address + PAID badge / receipt no / ref / date ──
       {
         columns: [
           {
+            width: '*',
             stack: [
-              { text: 'RILLCOD ACADEMY', style: 'brand' },
-              { text: 'STEM & Coding Education', style: 'tagline' },
               { text: '12 Digital Learning Hub, Benin City, Edo State, Nigeria', style: 'address' },
               { text: 'www.rillcod.com · support@rillcod.com', style: 'address' },
             ],
           },
           {
-            alignment: 'right',
+            width: 'auto',
             stack: [
-              { text: 'OFFICIAL RECEIPT', style: 'docType' },
-              { text: 'LEARNER PAYMENT', style: 'streamTag' },
-              { text: ' ', margin: [0, 4] },
-              { text: input.receiptNumber, style: 'docNumber' },
-              { text: `Ref: ${input.transactionReference}`, style: 'ref' },
-              { text: formatLongDate(input.paidAt), style: 'date' },
+              {
+                table: { body: [[{ text: statusText, color: '#ffffff', bold: true, fontSize: 10, fillColor: statusFill, margin: [10, 4, 10, 4] }]] },
+                layout: 'noBorders',
+                alignment: 'right',
+              },
+              { text: input.receiptNumber, style: 'docNumber', alignment: 'right', margin: [0, 6, 0, 0] },
+              { text: `Ref: ${input.transactionReference}`, style: 'ref', alignment: 'right' },
+              { text: formatLongDate(input.paidAt), style: 'date', alignment: 'right' },
             ],
           },
         ],
       },
-      { canvas: [{ type: 'line', x1: 0, y1: 8, x2: 515, y2: 8, lineWidth: 1.4, lineColor: '#10b981' }] },
       { text: '\n' },
 
       {
@@ -103,13 +137,20 @@ export function buildIndividualReceiptDocDef(input: ReceiptTemplateInput) {
         columns: [
           { text: '', width: '*' },
           {
-            width: 220,
+            width: 240,
             stack: [
               {
-                columns: [
-                  { text: input.meta?.isPartPayment ? 'AMOUNT PAID (DEPOSIT)' : input.meta?.isBalancePayment ? 'BALANCE PAID' : 'TOTAL PAID', bold: true, fontSize: 11, color: '#0f172a' },
-                  { text: money(input.amount), alignment: 'right', bold: true, fontSize: 13, color: input.meta?.isPartPayment ? '#b45309' : '#047857' },
-                ],
+                table: {
+                  widths: ['*', 'auto'],
+                  body: [[
+                    { text: input.meta?.isPartPayment ? 'AMOUNT PAID (DEPOSIT)' : input.meta?.isBalancePayment ? 'BALANCE PAID' : 'TOTAL PAID', bold: true, fontSize: 11, color: '#064e3b', margin: [10, 8, 0, 8], fillColor: '#ecfdf5' },
+                    { text: money(input.amount), alignment: 'right', bold: true, fontSize: 14, color: input.meta?.isPartPayment ? '#b45309' : '#047857', margin: [0, 8, 10, 8], fillColor: '#ecfdf5' },
+                  ]],
+                },
+                layout: {
+                  hLineWidth: () => 1, vLineWidth: () => 0,
+                  hLineColor: () => (input.meta?.isPartPayment ? '#f59e0b' : '#10b981'),
+                },
               },
               input.meta?.isPartPayment
                 ? {
@@ -148,11 +189,11 @@ export function buildIndividualReceiptDocDef(input: ReceiptTemplateInput) {
       { text: `${input.receiptNumber} · system-generated`, style: 'footerMeta', alignment: 'center' },
     ],
     styles: {
-      brand: { fontSize: 18, bold: true, color: '#047857' },
-      tagline: { fontSize: 8, bold: true, color: '#94a3b8', margin: [0, 2, 0, 8] },
+      brand: { fontSize: 18, bold: true, color: '#ffffff' },
+      tagline: { fontSize: 8, bold: true, color: '#6ee7b7', margin: [0, 3, 0, 0] },
       address: { fontSize: 9, color: '#64748b' },
-      docType: { fontSize: 20, bold: true, color: '#0f172a' },
-      streamTag: { fontSize: 8, bold: true, color: '#047857', margin: [0, 2, 0, 0] },
+      docType: { fontSize: 18, bold: true, color: '#ffffff' },
+      streamTag: { fontSize: 8, bold: true, color: '#6ee7b7', margin: [0, 3, 0, 0] },
       docNumber: { fontSize: 11, bold: true, color: '#334155' },
       ref: { fontSize: 9, color: '#64748b' },
       date: { fontSize: 9, color: '#64748b' },
