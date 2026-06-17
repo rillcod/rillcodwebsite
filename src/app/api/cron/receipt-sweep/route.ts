@@ -37,11 +37,13 @@ async function handle(req: NextRequest) {
   const report = { scanned: 0, regenerated: 0, failed: 0, errors: [] as string[] };
 
   // Completed payments missing a receipt URL (last 30 days, bounded).
+  // NOTE: the receipt generator only issues for status === 'completed', so we
+  // target exactly that (querying 'success' here would fail every run).
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const { data: txns, error } = await admin
     .from('payment_transactions')
     .select('id')
-    .in('payment_status', ['completed', 'success'])
+    .eq('payment_status', 'completed')
     .is('receipt_url', null)
     .gte('created_at', since)
     .order('created_at', { ascending: true })

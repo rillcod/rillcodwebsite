@@ -73,7 +73,8 @@ export async function POST(req: NextRequest) {
     // Ensure a payment_transactions record exists.
     let transactionId = invoice.payment_transaction_id as string | null;
     if (!transactionId) {
-      const ref = `MAN-INV-${String(invoice.invoice_number || invoice.id).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40)}`;
+      // Unique-suffixed so a partial-failure retry can't collide on transaction_reference.
+      const ref = `MAN-INV-${String(invoice.invoice_number || invoice.id).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 32)}-${Date.now().toString().slice(-6)}`;
       const { data: tx, error: txErr } = await admin
         .from('payment_transactions')
         .insert({
