@@ -445,11 +445,20 @@ function OverviewTab({ profile }: { profile: any }) {
   }
 
   async function markInvoicePaid(invId: string) {
-    if (!confirm('Mark this invoice as paid?')) return;
-    const db = createClient();
-    const { error } = await db.from('invoices').update({ status: 'paid' }).eq('id', invId);
-    if (error) toast.error(error.message);
-    else { toast.success('Invoice marked paid'); load(); }
+    if (!confirm('Mark this invoice as paid? This records a payment + receipt.')) return;
+    try {
+      const res = await fetch('/api/invoices/mark-paid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: invId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to mark paid');
+      toast.success(data.alreadyPaid ? 'Invoice already paid' : 'Invoice marked paid · payment + receipt recorded');
+      load();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to mark invoice paid');
+    }
   }
 
   function exportInvoicesCsv() {
