@@ -108,13 +108,63 @@ export async function POST(req: NextRequest) {
       .update({ status: 'paid', payment_transaction_id: transactionId, updated_at: new Date().toISOString() })
       .eq('id', invoice.id);
 
-    // Generate the receipt (idempotent) + audit.
+    // Generate the receipt (idempotent → shows on-platform in the Receipts panel)
+    // AND email it (PDF attachment + link) to the payer.
     if (transactionId) {
       try {
         const { paymentsService } = await import('@/services/payments.service');
-        await paymentsService.generateReceipt(transactionId);
+        const receiptUrl = await paymentsService.generateReceipt(transactionId);
+
+        if (invoice.portal_user_id) {
+          const { data: payer } = await admin
+            .from('portal_users')
+            .select('full_name, email')
+            .eq('id', invoice.portal_user_id)
+            .maybeSingle();
+          if (payer?.email) {
+            const { notificationsService } = await import('@/services/notifications.service');
+            const { buildReceiptHTML } = await import('@/lib/finance/templates/html/receipt-html');
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+            const html = buildReceiptHTML({
+              docRef: invoice.invoice_number || transactionId.slice(0, 8).toUpperCase(),
+              dateStr,
+              payDateStr: dateStr,
+              payerLabel: payer.full_name || payer.email,
+              payerType: 'student',
+              paymentMethod: 'manual',
+              receivedBy: 'Rillcod Technologies',
+              items: [{ description: `Invoice ${invoice.invoice_number || ''} — Academic Fee`, quantity: 1, unit_price: invoiceAmount }],
+              totalAmount: invoiceAmount,
+              payToAcc: null,
+              notes: `Invoice ${invoice.invoice_number || ''} settled. Keep this receipt for your records.`,
+            });
+            let attachments: Array<{ filename: string; content: string }> | undefined;
+            if (receiptUrl) {
+              try {
+                const r = await fetch(receiptUrl);
+                if (r.ok) {
+                  const buf = Buffer.from(await r.arrayBuffer());
+                  const safeName = (payer.full_name || 'Payer').replace(/[^a-z0-9]+/gi, '_');
+                  attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+                }
+              } catch { /* attachment optional */ }
+            }
+            const htmlWithLink = receiptUrl
+              ? html.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
+              : html;
+            await notificationsService.sendExternalEmail({
+              to: payer.email,
+              subject: `Payment Receipt — ₦${invoiceAmount.toLocaleString('en-NG')} | Rillcod Technologies`,
+              html: htmlWithLink,
+              fromName: 'Rillcod Technologies',
+              fromEmail: 'support@rillcod.com',
+              ...(attachments ? { attachments } : {}),
+            } as any);
+          }
+        }
       } catch (rErr) {
-        console.error('[mark-paid] receipt generation failed:', rErr);
+        console.error('[mark-paid] receipt generation/email failed:', rErr);
       }
     }
     await logAudit(admin as any, {
