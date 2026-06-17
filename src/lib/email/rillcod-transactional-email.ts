@@ -112,7 +112,11 @@ export function buildEmailTrackingPixelUrl(opts: {
 
 export function buildRillcodTransactionalEmailHtml(args: RillcodTransactionalEmailArgs): string {
   const appUrl     = (args.appUrl || process.env.NEXT_PUBLIC_APP_URL || BRAND.siteUrl).replace(/\/$/, '');
-  const logoUrl    = `${appUrl}/images/logo.png`;
+  // Email image proxies (Gmail/Outlook) do NOT follow redirects, and the bare
+  // domain (rillcod.com) 307-redirects to www — which silently breaks the logo.
+  // Serve email images from a canonical, non-redirecting host.
+  const assetBase  = (process.env.NEXT_PUBLIC_ASSET_URL || 'https://www.rillcod.com').replace(/\/$/, '');
+  const logoUrl    = `${assetBase}/images/logo.png`;
   const eyebrow    = escapeHtml(args.eyebrow ?? BRAND.name);
   const accent     = args.accentColor ?? BRAND.primary;
 

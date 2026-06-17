@@ -172,16 +172,14 @@ export async function POST(request: Request) {
           totalAmount: amt,
           payToAcc: null,
           notes: `Reference: ${docRef}. Recorded manually by staff.`,
+          mode: 'email',
+          actionUrl: receiptUrl,
         });
-
-        const htmlWithLink = receiptUrl
-          ? html.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
-          : html;
 
         await notificationsService.sendExternalEmail({
           to: payerEmail,
           subject: `Payment Receipt — ₦${amt.toLocaleString('en-NG')} | Rillcod Technologies`,
-          html: htmlWithLink,
+          html,
           fromName: 'Rillcod Technologies',
           fromEmail: 'support@rillcod.com',
           ...(attachments ? { attachments } : {}),

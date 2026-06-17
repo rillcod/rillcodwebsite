@@ -139,6 +139,8 @@ export async function POST(req: NextRequest) {
               totalAmount: invoiceAmount,
               payToAcc: null,
               notes: `Invoice ${invoice.invoice_number || ''} settled. Keep this receipt for your records.`,
+              mode: 'email',
+              actionUrl: receiptUrl,
             });
             let attachments: Array<{ filename: string; content: string }> | undefined;
             if (receiptUrl) {
@@ -151,13 +153,10 @@ export async function POST(req: NextRequest) {
                 }
               } catch { /* attachment optional */ }
             }
-            const htmlWithLink = receiptUrl
-              ? html.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
-              : html;
             await notificationsService.sendExternalEmail({
               to: payer.email,
               subject: `Payment Receipt — ₦${invoiceAmount.toLocaleString('en-NG')} | Rillcod Technologies`,
-              html: htmlWithLink,
+              html,
               fromName: 'Rillcod Technologies',
               fromEmail: 'support@rillcod.com',
               ...(attachments ? { attachments } : {}),

@@ -157,22 +157,9 @@ export async function POST(req: NextRequest) {
       ? new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
       : new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    const receiptHtml = buildReceiptHTML({
-      docRef,
-      dateStr: fmt(null),
-      payDateStr: fmt(tx.paid_at || null),
-      payerLabel: student.parent_name || student.full_name || student.name,
-      payerType: 'student',
-      paymentMethod: tx.payment_method || 'online',
-      receivedBy: 'Rillcod Technologies',
-      items: [{ description: `Summer School 2026 Tuition — ${student.full_name || student.name}`, quantity: 1, unit_price: amt }],
-      totalAmount: amt,
-      payToAcc: null,
-      notes: `Reference: ${docRef}. Student: ${student.full_name || student.name}. School: ${student.school_name || 'Rillcod Online School'}.`,
-    });
-
-    // Attach the canonical receipt PDF (same generator the finance hub uses) + a
-    // link fallback, so the customer always gets a downloadable receipt.
+    // Generate the canonical receipt PDF FIRST (same generator the finance hub
+    // uses) so the email body can embed a real "View / Print Receipt" link —
+    // the in-template print button is JS-only and email clients strip JS.
     let attachments: Array<{ filename: string; content: string }> | undefined;
     let receiptUrl = '';
     try {
@@ -189,14 +176,26 @@ export async function POST(req: NextRequest) {
       console.error('[send-receipt] PDF generation failed:', pdfErr);
     }
 
-    const htmlWithLink = receiptUrl
-      ? receiptHtml.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
-      : receiptHtml;
+    const receiptHtml = buildReceiptHTML({
+      docRef,
+      dateStr: fmt(null),
+      payDateStr: fmt(tx.paid_at || null),
+      payerLabel: student.parent_name || student.full_name || student.name,
+      payerType: 'student',
+      paymentMethod: tx.payment_method || 'online',
+      receivedBy: 'Rillcod Technologies',
+      items: [{ description: `Summer School 2026 Tuition — ${student.full_name || student.name}`, quantity: 1, unit_price: amt }],
+      totalAmount: amt,
+      payToAcc: null,
+      notes: `Reference: ${docRef}. Student: ${student.full_name || student.name}. School: ${student.school_name || 'Rillcod Online School'}.`,
+      mode: 'email',
+      actionUrl: receiptUrl || null,
+    });
 
     await notificationsService.sendExternalEmail({
       to: emailNorm,
       subject: `Payment Receipt — Summer School 2026 | Rillcod Technologies`,
-      html: htmlWithLink,
+      html: receiptHtml,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
       ...(attachments ? { attachments } : {}),

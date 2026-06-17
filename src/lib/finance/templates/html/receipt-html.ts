@@ -20,6 +20,18 @@ export interface ReceiptHTMLInput {
   totalAmount: number;
   payToAcc?: { bank_name: string; account_number: string; account_name: string } | null;
   notes: string;
+  /**
+   * 'print' (default) — for the in-app Receipt Builder iframe/popup; renders a
+   *   JavaScript window.print() button (works in a real browser context).
+   * 'email' — for receipt emails; email clients STRIP JavaScript, so the
+   *   window.print() button is dead. In this mode we render a real anchor link
+   *   to the hosted receipt (actionUrl) instead, or nothing if none is given.
+   */
+  mode?: 'print' | 'email';
+  /** Absolute URL to the hosted/printable receipt PDF (used in email mode). */
+  actionUrl?: string | null;
+  /** Override the logo URL. Must be ABSOLUTE + non-redirecting for emails. */
+  logoUrl?: string;
 }
 
 export function buildReceiptHTML(p: ReceiptHTMLInput): string {
@@ -27,6 +39,11 @@ export function buildReceiptHTML(p: ReceiptHTMLInput): string {
     docRef, dateStr, payDateStr, payerLabel, payerType, paymentMethod,
     receivedBy, items, totalAmount, payToAcc, notes,
   } = p;
+  const mode = p.mode ?? 'print';
+  const actionUrl = p.actionUrl ?? null;
+  // Email image proxies (Gmail/Outlook) don't follow redirects and can't resolve
+  // root-relative paths — the logo MUST be an absolute, non-redirecting URL.
+  const logoUrl = p.logoUrl || 'https://www.rillcod.com/logo.png';
   const fmt = (n: number) => `\u20a6${n.toLocaleString('en-NG')}`;
   const methodLabels: Record<string, string> = {
     bank_transfer: 'Bank Transfer', cash: 'Cash', pos: 'POS Terminal',
@@ -86,7 +103,7 @@ hr{border:none;border-top:1px solid #05966922;margin:8px 0}
 </style></head><body>
 <div class="header">
   <div class="logo-block">
-    <img src="/logo.png" class="logo-img" onerror="this.style.display='none'" />
+    <img src="${logoUrl}" class="logo-img" alt="Rillcod" onerror="this.style.display='none'" />
     <div>
       <div class="org-name">RILLCOD TECHNOLOGIES</div>
       <div class="org-sub">STEM, Robotics &amp; AI Education Partner</div>
@@ -159,7 +176,11 @@ ${notes ? `<div class="notes-box"><b>Notes:</b> ${notes}</div>` : ''}
 </div>
 <div class="watermark">Official payment receipt from Rillcod Technologies \u00b7 Reference: ${docRef} \u00b7 ${dateStr}</div>
 <div style="text-align:center;margin-top:10px">
-  <button class="no-print" onclick="window.print()" style="padding:10px 28px;background:#059669;color:#fff;border:none;border-radius:8px;font-weight:900;font-size:13px;cursor:pointer;letter-spacing:1px">\ud83d\uddb6 Print Receipt</button>
+  ${mode === 'email'
+    ? (actionUrl
+        ? `<a href="${actionUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:11px 30px;background:#059669;color:#fff;text-decoration:none;border-radius:8px;font-weight:900;font-size:13px;letter-spacing:1px">\u2b07\ufe0f View / Print Receipt</a>`
+        : '')
+    : `<button class="no-print" onclick="window.print()" style="padding:10px 28px;background:#059669;color:#fff;border:none;border-radius:8px;font-weight:900;font-size:13px;cursor:pointer;letter-spacing:1px">\ud83d\uddb6 Print Receipt</button>`}
 </div>
 </body></html>`;
 }

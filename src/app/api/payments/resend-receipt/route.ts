@@ -115,17 +115,15 @@ export async function POST(req: NextRequest) {
       totalAmount: amt,
       payToAcc: null,
       notes: `Reference: ${docRef}. Resent on request — original payment date: ${fmt(tx.paid_at || tx.created_at)}.${attachments ? ' Your receipt PDF is attached.' : ''}`,
+      mode: 'email',
+      actionUrl: receiptUrl,
     });
-
-    const htmlWithLink = receiptUrl
-      ? html.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
-      : html;
 
     const { notificationsService } = await import('@/services/notifications.service');
     await notificationsService.sendExternalEmail({
       to: payer.email,
       subject: `Payment Receipt (Resent) — ₦${amt.toLocaleString('en-NG')} | Rillcod Technologies`,
-      html: htmlWithLink,
+      html,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
       ...(attachments ? { attachments } : {}),

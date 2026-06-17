@@ -168,6 +168,8 @@ export async function POST(req: Request) {
                                     totalAmount: amt,
                                     payToAcc: null,
                                     notes: `Reference: ${docRef}. Thank you for your payment. Keep this receipt for your records.`,
+                                    mode: 'email',
+                                    actionUrl: receiptUrl,
                                 });
 
                                 // Fetch and attach the canonical PDF receipt
@@ -183,15 +185,10 @@ export async function POST(req: Request) {
                                     } catch { /* non-fatal — email still goes out without attachment */ }
                                 }
 
-                                // Add download link to HTML
-                                const htmlWithLink = receiptUrl
-                                    ? html.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
-                                    : html;
-
                                 await notificationsService.sendExternalEmail({
                                     to: payer.email,
                                     subject: `Payment Receipt — ₦${amt.toLocaleString('en-NG')} | Rillcod Technologies`,
-                                    html: htmlWithLink,
+                                    html,
                                     fromName: 'Rillcod Technologies',
                                     fromEmail: 'support@rillcod.com',
                                     ...(attachments ? { attachments } : {}),
