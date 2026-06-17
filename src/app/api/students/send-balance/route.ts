@@ -98,19 +98,17 @@ export async function POST(req: NextRequest) {
       }, { status: 404 });
     }
 
-    // 5. Calculate amount paid across completed transactions
-    const { data: txs } = await supabaseAdmin
+    // 5. Calculate amount paid across completed transactions (server-side filter)
+    const { data: matchedTxs } = await supabaseAdmin
       .from('payment_transactions')
-      .select('amount, payment_status, payment_gateway_response')
+      .select('amount')
+      .contains('payment_gateway_response', { prospect_id: prospect.id })
       .in('payment_status', ['completed', 'success', 'paid']);
 
     let amountPaid = 0;
-    if (txs) {
-      for (const tx of txs) {
-        const gw = (tx.payment_gateway_response ?? {}) as unknown as SummerGatewayResponse;
-        if (gw.prospect_id === prospect.id) {
-          amountPaid += Number(tx.amount) || 0;
-        }
+    if (matchedTxs) {
+      for (const tx of matchedTxs) {
+        amountPaid += Number(tx.amount) || 0;
       }
     }
 

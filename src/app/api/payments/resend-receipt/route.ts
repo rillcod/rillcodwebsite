@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { buildReceiptHTML } from '@/lib/finance/templates/html/receipt-html';
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,7 +57,7 @@ export async function POST(req: NextRequest) {
     // Find the most recent completed payment for this user
     const { data: tx } = await supabaseAdmin
       .from('payment_transactions')
-      .select('id, amount, currency, payment_method, transaction_reference, paid_at, created_at')
+      .select('id, amount, currency, payment_method, transaction_reference, paid_at, created_at, receipt_url')
       .eq('portal_user_id', portalUserId)
       .in('payment_status', ['completed', 'success'])
       .order('paid_at', { ascending: false })
@@ -71,15 +70,38 @@ export async function POST(req: NextRequest) {
 
     const amt = Number(tx.amount) || 0;
     const docRef = tx.transaction_reference || tx.id.slice(0, 8).toUpperCase();
+
+    // Use the canonical PDF receipt — either the existing one or generate fresh
+    let receiptUrl = tx.receipt_url || '';
+    if (!receiptUrl) {
+      try {
+        const { issueReceiptForTransaction } = await import('@/lib/finance/issue');
+        const result = await issueReceiptForTransaction(tx.id);
+        receiptUrl = result.url;
+      } catch (genErr) {
+        console.error('[resend-receipt] Receipt generation failed:', genErr);
+      }
+    }
+
+    // Fetch and attach the PDF
+    let attachments: Array<{ filename: string; content: string }> | undefined;
+    if (receiptUrl) {
+      try {
+        const r = await fetch(receiptUrl);
+        if (r.ok) {
+          const buf = Buffer.from(await r.arrayBuffer());
+          const safeName = (payer.full_name || 'Payer').replace(/[^a-z0-9]+/gi, '_');
+          attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    // Build a simple branded email wrapper with the receipt link + attachment
+    const { buildReceiptHTML } = await import('@/lib/finance/templates/html/receipt-html');
     const now = new Date();
     const fmt = (d: string | null) => d
       ? new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
       : now.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
-
-    const methodLabels: Record<string, string> = {
-      bank_transfer: 'Bank Transfer', cash: 'Cash', pos: 'POS Terminal',
-      cheque: 'Cheque', online: 'Online Payment', paystack: 'Online Payment (Paystack)',
-    };
 
     const html = buildReceiptHTML({
       docRef,
@@ -92,16 +114,21 @@ export async function POST(req: NextRequest) {
       items: [{ description: 'Academic Enrolment / Tuition Fee', quantity: 1, unit_price: amt }],
       totalAmount: amt,
       payToAcc: null,
-      notes: `Reference: ${docRef}. Resent on request — original payment date: ${fmt(tx.paid_at || tx.created_at)}.`,
+      notes: `Reference: ${docRef}. Resent on request — original payment date: ${fmt(tx.paid_at || tx.created_at)}.${attachments ? ' Your receipt PDF is attached.' : ''}`,
     });
+
+    const htmlWithLink = receiptUrl
+      ? html.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
+      : html;
 
     const { notificationsService } = await import('@/services/notifications.service');
     await notificationsService.sendExternalEmail({
       to: payer.email,
       subject: `Payment Receipt (Resent) — ₦${amt.toLocaleString('en-NG')} | Rillcod Technologies`,
-      html,
+      html: htmlWithLink,
       fromName: 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
+      ...(attachments ? { attachments } : {}),
     });
 
     return NextResponse.json({
@@ -115,3 +142,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
   }
 }
+

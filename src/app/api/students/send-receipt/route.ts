@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       tx = data;
     }
 
-    // Fallback 1: match by prospect record
+    // Fallback 1: match by prospect record (server-side filter)
     if (!tx && student.parent_email) {
       const { data: prospect } = await supabaseAdmin
         .from('prospective_students')
@@ -114,57 +114,31 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (prospect) {
-        const { data: txList } = await supabaseAdmin
+        const { data: found } = await supabaseAdmin
           .from('payment_transactions')
           .select('*')
+          .contains('payment_gateway_response', { prospect_id: prospect.id })
           .in('payment_status', ['completed', 'success', 'paid'])
-          .order('created_at', { ascending: false });
-
-        if (txList) {
-          const found = txList.find((t: PaymentTransactionRow) => {
-            const gw = (t.payment_gateway_response ?? {}) as unknown as SummerGatewayResponse;
-            return gw.prospect_id === prospect.id;
-          });
-          if (found) tx = found;
-        }
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (found) tx = found;
       }
     }
 
-    // Fallback 2: match by parent_email in payment_gateway_response
+    // Fallback 2: match by parent_email in payment_gateway_response (server-side filter)
     if (!tx && student.parent_email) {
-      const { data: txList } = await supabaseAdmin
+      const { data: found } = await supabaseAdmin
         .from('payment_transactions')
         .select('*')
+        .contains('payment_gateway_response', { parent_email: student.parent_email.trim().toLowerCase() })
         .in('payment_status', ['completed', 'success', 'paid'])
-        .order('created_at', { ascending: false });
-
-      if (txList) {
-        const found = txList.find((t: PaymentTransactionRow) => {
-          const gw = (t.payment_gateway_response ?? {}) as unknown as SummerGatewayResponse;
-          const parentEmailStr = gw.parent_email ?? '';
-          return parentEmailStr.trim().toLowerCase() === student.parent_email!.trim().toLowerCase();
-        });
-        if (found) tx = found;
-      }
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (found) tx = found;
     }
 
-    // Fallback 3: match by student_name in payment_gateway_response
-    if (!tx) {
-      const { data: txList } = await supabaseAdmin
-        .from('payment_transactions')
-        .select('*')
-        .in('payment_status', ['completed', 'success', 'paid'])
-        .order('created_at', { ascending: false });
-
-      if (txList) {
-        const found = txList.find((t: PaymentTransactionRow) => {
-          const gw = (t.payment_gateway_response ?? {}) as unknown as SummerGatewayResponse;
-          const sName = gw.student_name ?? '';
-          return sName.toLowerCase() === (student.full_name || student.name).toLowerCase();
-        });
-        if (found) tx = found;
-      }
-    }
 
     if (!tx) {
       return NextResponse.json({

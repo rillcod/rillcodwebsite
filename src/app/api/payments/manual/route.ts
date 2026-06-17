@@ -96,10 +96,111 @@ export async function POST(request: Request) {
   if (invoice_id) {
     await db
       .from('invoices')
-      .update({ status: 'paid', updated_at: now })
+      .update({ status: 'paid', updated_at: now, payment_transaction_id: data.id })
       .eq('id', invoice_id)
       .in('status', ['sent', 'overdue', 'partially_paid']); // allow paying sent or overdue invoices
   }
+
+  // ── Post-insert: receipt PDF + email + staff notification ────────────
+  // Fire-and-forget so the response isn't delayed by PDF generation.
+  void (async () => {
+    try {
+      const { paymentsService } = await import('@/services/payments.service');
+      const receiptUrl = await paymentsService.generateReceipt(data.id);
+
+      // Resolve payer email (portal user → school billing contact → skip)
+      let payerEmail: string | null = null;
+      let payerName = 'Client';
+
+      if (data.portal_user_id) {
+        const { data: payer } = await db
+          .from('portal_users')
+          .select('full_name, email')
+          .eq('id', data.portal_user_id)
+          .maybeSingle();
+        payerEmail = payer?.email || null;
+        payerName = payer?.full_name || payerName;
+      }
+      if (!payerEmail && effectiveSchoolId) {
+        const { data: contact } = await db
+          .from('billing_contacts')
+          .select('representative_email, representative_name')
+          .eq('school_id', effectiveSchoolId)
+          .maybeSingle();
+        payerEmail = contact?.representative_email || null;
+        payerName = contact?.representative_name || payerName;
+        if (!payerEmail) {
+          const { data: schoolUser } = await db
+            .from('portal_users')
+            .select('email, full_name')
+            .eq('school_id', effectiveSchoolId)
+            .eq('role', 'school')
+            .maybeSingle();
+          payerEmail = schoolUser?.email || null;
+          payerName = schoolUser?.full_name || payerName;
+        }
+      }
+
+      // Send branded receipt email with PDF attachment
+      if (payerEmail && receiptUrl) {
+        const { notificationsService } = await import('@/services/notifications.service');
+        const { buildReceiptHTML } = await import('@/lib/finance/templates/html/receipt-html');
+        const amt = Number(data.amount) || 0;
+        const docRef = data.transaction_reference || data.id.slice(0, 8).toUpperCase();
+        const dateStr = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        // Fetch and attach the PDF
+        let attachments: Array<{ filename: string; content: string }> | undefined;
+        try {
+          const r = await fetch(receiptUrl);
+          if (r.ok) {
+            const buf = Buffer.from(await r.arrayBuffer());
+            const safeName = payerName.replace(/[^a-z0-9]+/gi, '_');
+            attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+          }
+        } catch { /* non-fatal */ }
+
+        const html = buildReceiptHTML({
+          docRef,
+          dateStr,
+          payDateStr: dateStr,
+          payerLabel: payerName,
+          payerType: effectiveSchoolId ? 'school' : 'student',
+          paymentMethod: method,
+          receivedBy: 'Rillcod Technologies',
+          items: [{ description: notes?.trim() || 'Payment', quantity: 1, unit_price: amt }],
+          totalAmount: amt,
+          payToAcc: null,
+          notes: `Reference: ${docRef}. Recorded manually by staff.`,
+        });
+
+        const htmlWithLink = receiptUrl
+          ? html.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
+          : html;
+
+        await notificationsService.sendExternalEmail({
+          to: payerEmail,
+          subject: `Payment Receipt — ₦${amt.toLocaleString('en-NG')} | Rillcod Technologies`,
+          html: htmlWithLink,
+          fromName: 'Rillcod Technologies',
+          fromEmail: 'support@rillcod.com',
+          ...(attachments ? { attachments } : {}),
+        });
+      }
+
+      // Staff notification
+      const { notifyStaffOfPayment } = await import('@/lib/payments/notify-staff');
+      const amtStr = `${String(data.currency || 'NGN')} ${Number(data.amount).toLocaleString()}`;
+      void notifyStaffOfPayment({
+        schoolId: effectiveSchoolId,
+        title: 'Manual Payment Recorded',
+        message: `${payerName} — ${amtStr} via ${method} (ref: ${String(data.transaction_reference || '').slice(0, 20)}).`,
+        actionUrl: '/dashboard/finance?tab=operations&ops=approvals',
+      });
+    } catch (err) {
+      console.error('[manual-payment] Post-insert receipt/email failed:', err);
+    }
+  })();
 
   return NextResponse.json({ data }, { status: 201 });
 }

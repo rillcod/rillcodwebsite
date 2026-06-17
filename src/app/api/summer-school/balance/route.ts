@@ -29,19 +29,13 @@ async function getAmountPaid(prospectId: string): Promise<number> {
   const supabase = getSummerSchoolAdminClient();
   const { data: txs } = await supabase
     .from("payment_transactions")
-    .select("amount, payment_status, payment_gateway_response")
-    .eq("payment_status", "completed")
-    .order("created_at", { ascending: false });
+    .select("amount")
+    .contains("payment_gateway_response", { prospect_id: prospectId })
+    .in("payment_status", ["completed", "success", "paid"]);
 
   if (!txs?.length) return 0;
 
-  for (const tx of txs) {
-    const gw = (tx.payment_gateway_response ?? {}) as Record<string, unknown>;
-    if (gw.prospect_id === prospectId) {
-      return Number(tx.amount) || 0;
-    }
-  }
-  return 0;
+  return txs.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 }
 
 /** GET /api/summer-school/balance?email=parent@example.com */
