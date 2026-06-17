@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 
     const { data: student } = await admin
       .from('students')
-      .select('id, full_name, name, user_id, parent_email, parent_name, school_name, currency')
+      .select('id, full_name, name, user_id, parent_email, parent_name, school_name')
       .eq('id', studentId)
       .maybeSingle();
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
       txns = data ?? [];
     }
 
-    const currency = (txns[0]?.currency) || (student as any).currency || 'NGN';
+    const currency = (txns[0]?.currency) || 'NGN';
     const lines: StatementLine[] = txns.map((t) => ({
       date: t.paid_at || t.created_at,
       description: 'Academic payment / tuition',
