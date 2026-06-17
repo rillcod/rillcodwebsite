@@ -1,0 +1,68 @@
+/**
+ * GET|POST /api/cron/receipt-sweep
+ *
+ * Dead-letter recovery for receipts. If processSuccessfulPayment failed AFTER
+ * marking a transaction completed but BEFORE generating the receipt (the
+ * idempotency guard then blocks re-processing), the receipt/email would be lost.
+ *
+ * This sweep finds completed payments with no receipt_url and re-runs the
+ * canonical receipt generator (idempotent — reuses the receipts row if present).
+ * Safe to run frequently.
+ *
+ * Auth: cron secret (same scheme as the other cron routes).
+ */
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+
+export const dynamic = 'force-dynamic';
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } },
+  );
+}
+
+export async function GET(req: NextRequest) { return handle(req); }
+export async function POST(req: NextRequest) { return handle(req); }
+
+async function handle(req: NextRequest) {
+  if (!isValidCronSecret(extractCronSecret(req))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const admin = adminClient();
+  const report = { scanned: 0, regenerated: 0, failed: 0, errors: [] as string[] };
+
+  // Completed payments missing a receipt URL (last 30 days, bounded).
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
+  const { data: txns, error } = await admin
+    .from('payment_transactions')
+    .select('id')
+    .in('payment_status', ['completed', 'success'])
+    .is('receipt_url', null)
+    .gte('created_at', since)
+    .order('created_at', { ascending: true })
+    .limit(100);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { paymentsService } = await import('@/services/payments.service');
+
+  for (const t of (txns ?? []) as Array<{ id: string }>) {
+    report.scanned++;
+    try {
+      // Idempotent — reuses an existing receipts row, sets receipt_url.
+      await paymentsService.generateReceipt(t.id);
+      report.regenerated++;
+    } catch (err: any) {
+      report.failed++;
+      report.errors.push(`${t.id}: ${err?.message ?? 'unknown'}`);
+      console.error('[receipt-sweep] regen failed for', t.id, err);
+    }
+  }
+
+  return NextResponse.json({ success: true, ...report });
+}

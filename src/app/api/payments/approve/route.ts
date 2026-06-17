@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { paymentsService } from '@/services/payments.service';
 import { queueService } from '@/services/queue.service';
+import { logAudit } from '@/lib/audit/log';
+import { ensureBillingCycleInvoice } from '@/lib/finance/billing-cycle-invoice';
 
 export async function POST(req: Request) {
     try {
@@ -61,6 +63,23 @@ export async function POST(req: Request) {
 
         if (updError) throw updError;
 
+        // #9 — Audit trail: record WHO approved this payment and WHEN.
+        if (status === 'success') {
+            await logAudit(admin as any, {
+                action: 'payment_approved',
+                actorId: user.id,
+                resourceType: 'payment_transaction',
+                resourceId: transactionId,
+                newValues: {
+                    amount: (transaction as any).amount,
+                    currency: (transaction as any).currency,
+                    reference: (transaction as any).transaction_reference,
+                    payment_method: (transaction as any).payment_method,
+                    school_id: (transaction as any).school_id,
+                },
+            });
+        }
+
         // 4. Update Invoice if linked
         if ((transaction as any).invoice_id && status === 'success') {
             await (admin as any)
@@ -108,12 +127,15 @@ export async function POST(req: Request) {
                     })
                     .eq('id', cycle.sticky_notice_id);
             }
+
+            // #10 — Surface the billing-cycle payment in the Finance invoice tab.
+            await ensureBillingCycleInvoice(admin as any, transaction as any, billingCycleId);
         }
 
         // 5. Generate Receipt + email it to the payer
         if (status === 'success') {
             try {
-                await paymentsService.generateReceipt(transactionId);
+                const receiptUrl = await paymentsService.generateReceipt(transactionId);
 
                 if (transaction.portal_user_id) {
                     const { data: payer } = await admin
@@ -134,10 +156,6 @@ export async function POST(req: Request) {
                                     ? new Date((transaction as any).paid_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
                                     : dateStr;
                                 const amt = Number((transaction as any).amount) || 0;
-                                const methodLabels: Record<string, string> = {
-                                    bank_transfer: 'Bank Transfer', cash: 'Cash', pos: 'POS Terminal',
-                                    cheque: 'Cheque', online: 'Online Payment', paystack: 'Online Payment (Paystack)',
-                                };
                                 const html = buildReceiptHTML({
                                     docRef,
                                     dateStr,
@@ -151,12 +169,32 @@ export async function POST(req: Request) {
                                     payToAcc: null,
                                     notes: `Reference: ${docRef}. Thank you for your payment. Keep this receipt for your records.`,
                                 });
+
+                                // Fetch and attach the canonical PDF receipt
+                                let attachments: Array<{ filename: string; content: string }> | undefined;
+                                if (receiptUrl) {
+                                    try {
+                                        const r = await fetch(receiptUrl);
+                                        if (r.ok) {
+                                            const buf = Buffer.from(await r.arrayBuffer());
+                                            const safeName = (payer.full_name || 'Payer').replace(/[^a-z0-9]+/gi, '_');
+                                            attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+                                        }
+                                    } catch { /* non-fatal — email still goes out without attachment */ }
+                                }
+
+                                // Add download link to HTML
+                                const htmlWithLink = receiptUrl
+                                    ? html.replace('</body>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></body>`)
+                                    : html;
+
                                 await notificationsService.sendExternalEmail({
                                     to: payer.email,
                                     subject: `Payment Receipt — ₦${amt.toLocaleString('en-NG')} | Rillcod Technologies`,
-                                    html,
+                                    html: htmlWithLink,
                                     fromName: 'Rillcod Technologies',
                                     fromEmail: 'support@rillcod.com',
+                                    ...(attachments ? { attachments } : {}),
                                 });
                             } catch (emailErr) {
                                 console.error('Receipt email failed:', emailErr);
@@ -170,6 +208,16 @@ export async function POST(req: Request) {
                         });
                     }
                 }
+
+                // Staff notification
+                const { notifyStaffOfPayment } = await import('@/lib/payments/notify-staff');
+                const amtFormatted = `${(transaction as any).currency || 'NGN'} ${Number((transaction as any).amount).toLocaleString()}`;
+                void notifyStaffOfPayment({
+                    schoolId: (transaction as any).school_id,
+                    title: 'Payment Approved',
+                    message: `${amtFormatted} approved (ref: ${String((transaction as any).transaction_reference || '').slice(0, 20)}).`,
+                    actionUrl: '/dashboard/finance?tab=operations&ops=approvals',
+                });
             } catch (err) {
                 console.error('Manual approval receipt failed:', err);
             }
