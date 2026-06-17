@@ -101,19 +101,25 @@ export default function ResendCredentialsPage() {
         .order('created_at', { ascending: false });
 
       if (results) {
+        // Results are ordered newest-first. Keep the LATEST status/date, but
+        // BACKFILL the password from the most recent row that actually has one —
+        // so a newer status-only / null-password row never makes the password
+        // "disappear". Keys are lowercased to avoid case mismatches.
         const latestByEmail: Record<string, CredentialStatus> = {};
         for (const r of results) {
-          if (r.email && !latestByEmail[r.email]) {
-            latestByEmail[r.email] = { status: r.status, created_at: r.created_at, password: r.password };
+          const key = (r.email || '').trim().toLowerCase();
+          if (!key) continue;
+          if (!latestByEmail[key]) {
+            latestByEmail[key] = { status: r.status, created_at: r.created_at, password: r.password ?? null };
+          } else if (!latestByEmail[key].password && r.password) {
+            latestByEmail[key].password = r.password;
           }
         }
         for (const row of rows) {
-          if (row.student_email && latestByEmail[row.student_email]) {
-            row.credEmail = latestByEmail[row.student_email];
-          }
-          if (row.parent_email && latestByEmail[row.parent_email]) {
-            row.parentCred = latestByEmail[row.parent_email];
-          }
+          const sKey = (row.student_email || '').trim().toLowerCase();
+          const pKey = (row.parent_email || '').trim().toLowerCase();
+          if (sKey && latestByEmail[sKey]) row.credEmail = latestByEmail[sKey];
+          if (pKey && latestByEmail[pKey]) row.parentCred = latestByEmail[pKey];
         }
       }
     }
@@ -753,20 +759,20 @@ export default function ResendCredentialsPage() {
 
       {/* Help note */}
       <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 text-sm text-blue-300">
-        <strong className="text-blue-200">How this works:</strong>{' '}
+        <strong className="text-blue-200">Which button shows depends on the student's state:</strong>{' '}
         <span className="text-muted-foreground">
-          "Activate" creates the student <span className="text-foreground font-mono">@rillcod.com</span> login + temp password and emails it to the parent's registration email.{' '}
-          "Resend" resets the password and re-emails the credentials.{' '}
-          When the student has a linked <strong className="text-blue-200">parent portal account</strong> (summer-school registrations), the email includes <strong className="text-blue-200">both the parent and student logins</strong>, and the parent password is reset so it's valid.{' '}
-          Students are auto-assigned to <em>Rillcod Online School</em> (and their class) if none is on record.{' '}
-          "Activate All Unactivated" processes every visible unactivated student in sequence.
+          <strong className="text-emerald-400">Activate</strong> appears only for students with <em>no portal account yet</em> — it creates the <span className="text-foreground font-mono">@rillcod.com</span> login + temp password and emails it.{' '}
+          Once a student is activated you'll instead see <strong className="text-foreground">View</strong> (see the parent + student logins anytime) and <strong className="text-foreground">Resend</strong> (reset the password &amp; re-email both logins).{' '}
+          So if you don't see "Activate", that student is <strong className="text-blue-200">already activated</strong> — nothing is lacking; use View or Resend.{' '}
+          The emailed credentials include <strong className="text-blue-200">both parent and student logins</strong>. Students are auto-assigned to a school + class if none is on record.{' '}
+          "Activate All Unactivated" ({notActivatedCount}) processes every not-yet-activated student in one go.
         </span>
       </div>
 
       {/* Copyable Credentials Modal */}
       {lastCreatedCredentials && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-[#141618] border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4 z-50 animate-fade-in">
+          <div className="bg-[#141618] border border-border rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-black text-foreground">Login Details — {lastCreatedCredentials.studentName}</h3>
               <button
@@ -786,10 +792,10 @@ export default function ResendCredentialsPage() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">🎓 Student Account Details</p>
                 <div className="text-xs space-y-1">
                   <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
-                  <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.studentEmail}</p>
+                  <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded break-all">{lastCreatedCredentials.studentEmail}</p>
                   <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
                   {lastCreatedCredentials.studentPassword ? (
-                    <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.studentPassword}</p>
+                    <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded break-all">{lastCreatedCredentials.studentPassword}</p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground italic">Not stored — click "Resend" to reset &amp; reveal a fresh password.</p>
                   )}
@@ -801,11 +807,11 @@ export default function ResendCredentialsPage() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">👨‍👩‍👧 Parent Account Details</p>
                   <div className="text-xs space-y-1">
                     <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
-                    <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.parentEmail}</p>
+                    <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded break-all">{lastCreatedCredentials.parentEmail}</p>
                     {lastCreatedCredentials.parentPassword && (
                       <>
                         <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
-                        <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{lastCreatedCredentials.parentPassword}</p>
+                        <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded break-all">{lastCreatedCredentials.parentPassword}</p>
                       </>
                     )}
                   </div>

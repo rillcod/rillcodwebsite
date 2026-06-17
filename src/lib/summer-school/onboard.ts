@@ -437,6 +437,18 @@ export async function onboardSummerStudent(
         class_name: prospect.grade || null,
         status: 'sent',
       });
+      // Archive the PARENT login too (only when freshly created — we have the temp
+      // password then) so staff can view/resend it later.
+      if (parent?.created && parent.password) {
+        await admin.from('registration_results').insert({
+          batch_id: batchId,
+          full_name: parentName,
+          email: parent.email,
+          password: parent.password,
+          class_name: 'Parent Account',
+          status: 'sent',
+        });
+      }
     }
   } catch (archiveErr) {
     console.error('[onboardSummerStudent] credential archive failed:', archiveErr);
