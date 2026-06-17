@@ -21,32 +21,62 @@ export function buildSchoolReceiptDocDef(input: ReceiptTemplateInput) {
   const hasSplit = typeof m.rillcodRetain === 'number' && typeof m.schoolSettlement === 'number';
 
   return {
-    pageMargins: [40, 50, 40, 50] as [number, number, number, number],
+    pageMargins: [40, 40, 40, 50] as [number, number, number, number],
     content: [
+      // ── Branded header band ──
+      {
+        table: {
+          widths: ['*', 'auto'],
+          body: [[
+            {
+              stack: [
+                { text: 'RILLCOD TECHNOLOGIES', style: 'brand' },
+                { text: 'School Partnerships Division', style: 'tagline' },
+              ],
+              fillColor: '#312e81',
+              margin: [16, 18, 0, 18],
+            },
+            {
+              stack: [
+                { text: 'PAYMENT CONFIRMATION', style: 'docType' },
+                { text: 'SCHOOL BILLING CYCLE', style: 'streamTag' },
+              ],
+              fillColor: '#312e81',
+              alignment: 'right',
+              margin: [0, 20, 16, 18],
+            },
+          ]],
+        },
+        layout: 'noBorders',
+      },
+      { canvas: [{ type: 'rect', x: 0, y: 0, w: 515, h: 4, color: '#4f46e5' }] },
+      { text: '\n' },
+
+      // ── Meta row: address + RECEIVED badge / number / ref / date ──
       {
         columns: [
           {
+            width: '*',
             stack: [
-              { text: 'RILLCOD TECHNOLOGIES', style: 'brand' },
-              { text: 'School Partnerships Division', style: 'tagline' },
               { text: '12 Digital Learning Hub, Benin City, Edo State, Nigeria', style: 'address' },
               { text: 'RC: 1892341 · partners@rillcod.com', style: 'address' },
             ],
           },
           {
-            alignment: 'right',
+            width: 'auto',
             stack: [
-              { text: 'PAYMENT CONFIRMATION', style: 'docType' },
-              { text: 'SCHOOL BILLING CYCLE', style: 'streamTag' },
-              { text: ' ', margin: [0, 4] },
-              { text: input.receiptNumber, style: 'docNumber' },
-              { text: `Ref: ${input.transactionReference}`, style: 'ref' },
-              { text: formatLongDate(input.paidAt), style: 'date' },
+              {
+                table: { body: [[{ text: 'RECEIVED', color: '#ffffff', bold: true, fontSize: 10, fillColor: '#4f46e5', margin: [10, 4, 10, 4] }]] },
+                layout: 'noBorders',
+                alignment: 'right',
+              },
+              { text: input.receiptNumber, style: 'docNumber', alignment: 'right', margin: [0, 6, 0, 0] },
+              { text: `Ref: ${input.transactionReference}`, style: 'ref', alignment: 'right' },
+              { text: formatLongDate(input.paidAt), style: 'date', alignment: 'right' },
             ],
           },
         ],
       },
-      { canvas: [{ type: 'line', x1: 0, y1: 8, x2: 515, y2: 8, lineWidth: 1.4, lineColor: '#4f46e5' }] },
       { text: '\n' },
 
       {
@@ -173,11 +203,11 @@ export function buildSchoolReceiptDocDef(input: ReceiptTemplateInput) {
       { text: `${input.receiptNumber} · system-generated`, style: 'footerMeta', alignment: 'center' },
     ],
     styles: {
-      brand: { fontSize: 18, bold: true, color: '#4338ca' },
-      tagline: { fontSize: 8, bold: true, color: '#94a3b8', margin: [0, 2, 0, 8] },
+      brand: { fontSize: 18, bold: true, color: '#ffffff' },
+      tagline: { fontSize: 8, bold: true, color: '#c7d2fe', margin: [0, 3, 0, 0] },
       address: { fontSize: 9, color: '#64748b' },
-      docType: { fontSize: 18, bold: true, color: '#0f172a' },
-      streamTag: { fontSize: 8, bold: true, color: '#4338ca', margin: [0, 2, 0, 0] },
+      docType: { fontSize: 18, bold: true, color: '#ffffff' },
+      streamTag: { fontSize: 8, bold: true, color: '#c7d2fe', margin: [0, 3, 0, 0] },
       docNumber: { fontSize: 11, bold: true, color: '#334155' },
       ref: { fontSize: 9, color: '#64748b' },
       date: { fontSize: 9, color: '#64748b' },
