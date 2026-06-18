@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
+import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import crypto from 'crypto';
 
 function adminClient() {
@@ -293,7 +294,7 @@ export async function POST(request: Request) {
   // Fetch only needed fields — avoid select('*') for security hygiene
   const { data: student, error: fetchErr } = await admin
     .from('students')
-    .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, registration_paystack_reference, date_of_birth')
+    .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, registration_payment_at, registration_paystack_reference, date_of_birth, created_by')
     .eq('id', id)
     .maybeSingle();
 
@@ -319,6 +320,13 @@ export async function POST(request: Request) {
   }
 
   // ── Approval path ────────────────────────────────────────────
+  if (studentApprovalPaymentState(student) === 'awaiting_payment') {
+    return NextResponse.json(
+      { error: 'Cannot approve: this public registration has no confirmed registration payment yet.' },
+      { status: 400 },
+    );
+  }
+
   const originalStudentEmail = student.student_email?.trim();
   const originalParentEmail = student.parent_email?.trim();
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isInstallmentPlan = (record.notes || '').includes('[Plan: installment]');
+    const isInstallmentPlan = /\[Plan:\s*(installment|instalment)\]/i.test(record.notes || '');
 
     // Approving IS the payment confirmation (admin verified the bank transfer), so
     // mark the pending tuition transaction(s) completed BEFORE onboarding. This lets
@@ -114,7 +115,10 @@ export async function POST(request: NextRequest) {
       .from('prospective_students')
       .update({
         is_active: true,
-        status: isInstallmentPlan ? 'partially_paid' : 'paid',
+        status: getSummerProspectStatusForPayment({
+          paymentPlan: isInstallmentPlan ? 'installment' : 'full',
+          balanceDue: isInstallmentPlan ? 1 : 0,
+        }),
       })
       .eq('id', id);
 

@@ -274,7 +274,7 @@ export async function POST(req: Request) {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
 
         // 2. Create pending payment transaction record
-        await supabase.from('payment_transactions').insert([{
+        const { data: tx, error: txErr } = await supabase.from('payment_transactions').insert([{
             portal_user_id: null,
             school_id: resolvedSchoolId,
             course_id: null,
@@ -294,7 +294,12 @@ export async function POST(req: Request) {
                 payment_type: 'registration',
             },
             created_at: new Date().toISOString(),
-        }]);
+        }]).select('id').single();
+
+        if (txErr || !tx) {
+            await supabase.from('students').delete().eq('id', student.id);
+            return NextResponse.json({ error: txErr?.message || 'Failed to initialize payment tracking' }, { status: 500 });
+        }
 
         // 3. Initialize Paystack transaction
         const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
@@ -326,6 +331,9 @@ export async function POST(req: Request) {
         if (!paystackData.status) {
             // Roll back student insert if Paystack fails to initialise
             await supabase.from('students').delete().eq('id', student.id);
+            if (tx?.id) {
+                await supabase.from('payment_transactions').delete().eq('id', tx.id);
+            }
             return NextResponse.json({ error: paystackData.message || 'Payment initialisation failed' }, { status: 500 });
         }
 

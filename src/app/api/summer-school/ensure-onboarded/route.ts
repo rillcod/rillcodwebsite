@@ -27,6 +27,7 @@ import { env } from '@/config/env';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 
 function adminClient() {
   return createClient(
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     const gateway = (tx.payment_gateway_response ?? {}) as Record<string, unknown>;
     const paymentType = gateway.payment_type as string | undefined;
-    if (paymentType !== 'summer_school') {
+    if (paymentType !== 'summer_school' && paymentType !== 'summer_school_balance') {
       return NextResponse.json({ error: 'Not a summer school payment' }, { status: 400 });
     }
 
@@ -96,6 +97,20 @@ export async function POST(req: NextRequest) {
         .neq('payment_status', 'completed');
     }
 
+    if (paymentType === 'summer_school_balance') {
+      await supabase.from('prospective_students').update({
+        status: 'paid',
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      }).eq('id', prospectId);
+
+      return NextResponse.json({
+        onboarded: false,
+        balanceSettled: true,
+        message: 'Summer School balance payment confirmed',
+      });
+    }
+
     // 3. Check if prospect already onboarded
     const { data: prospect } = await supabase
       .from('prospective_students')
@@ -114,10 +129,16 @@ export async function POST(req: NextRequest) {
     // resolves the school, enrols into a learning path, and archives credentials.
     const onboard = await onboardSummerStudent(supabase, prospect as any);
 
-    // Mark prospect active/paid
+    const nextStatus = getSummerProspectStatusForPayment({
+      paymentPlan: gateway.payment_plan,
+      balanceDue: gateway.balance_due,
+    });
+
+    // Mark prospect active and preserve installment balance state when applicable.
     await supabase.from('prospective_students').update({
-      status: 'paid',
+      status: nextStatus,
       is_active: true,
+      updated_at: new Date().toISOString(),
     }).eq('id', prospectId);
 
     // Sync student + parent into the CRM contact book (parity with the webhook /
@@ -136,6 +157,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       onboarded: true,
       alreadyExisted: !onboard.student.created,
+      status: nextStatus,
       message: 'Portal accounts ready and credentials sent',
       loginEmail: onboard.student.email,
       parentLogin: onboard.parent?.email ?? null,

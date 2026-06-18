@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 import { buildRillcodTransactionalEmailHtml, buildPaymentConfirmationEmail, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 
 function assertServiceRoleWebhook() {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -318,8 +319,12 @@ async function processSuccessfulPayment(reference: string, method: string, rawGa
             await supabase
                 .from('prospective_students')
                 .update({
-                    status: gatewayResponse?.payment_plan === 'installment' ? 'partially_paid' : 'paid',
+                    status: getSummerProspectStatusForPayment({
+                        paymentPlan: gatewayResponse?.payment_plan,
+                        balanceDue: gatewayResponse?.balance_due,
+                    }),
                     is_active: true,
+                    updated_at: new Date().toISOString(),
                 })
                 .eq('id', prospectId);
 

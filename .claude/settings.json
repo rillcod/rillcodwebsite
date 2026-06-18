@@ -4,7 +4,9 @@
       "Read(//c/Users/USER/.claude/**)",
       "PowerShell(npx tsc --noEmit 2>&1)",
       "Bash(sed -E 's/=\\(.{3}\\).*/=\\\\1***/')",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(curl.exe -s -o /dev/null -w \"rillcod.com -> HTTP %{http_code}, redirect: %{redirect_url}\\\\n\" -I \"https://rillcod.com/images/logo.png\")",
+      "Bash(curl.exe -s -o /dev/null -w \"www -> HTTP %{http_code}\\\\n\" -I \"https://www.rillcod.com/images/logo.png\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\USER\\.claude"

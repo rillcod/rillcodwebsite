@@ -33,6 +33,11 @@ export default function PayBalancePage() {
           if (res.ok && data.ok) {
             setVerified(true);
             toast.success("Balance payment received. Thank you!");
+            fetch("/api/summer-school/ensure-onboarded", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ reference }),
+            }).catch(() => { /* webhook fallback is non-critical for the UI */ });
             window.history.replaceState({}, document.title, "/summer-school/pay-balance");
           } else {
             toast.error(data.error || "Payment could not be verified.");

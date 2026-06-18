@@ -160,6 +160,9 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [err, setErr] = useState('');
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [paymentVerified, setPaymentVerified] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
   const [form, setForm] = useState(defaultForm);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
 
@@ -255,22 +258,6 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
 
   const paymentStatus = searchParams?.get('payment');
   const paymentRef = searchParams?.get('reference');
-  if (paymentStatus === 'success') {
-    return (
-      <div className="bg-card border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
-         <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8 rounded-none">
-            <Check className="w-10 h-10 text-emerald-500" />
-         </div>
-         <h2 className="text-3xl font-black text-foreground uppercase tracking-tight mb-4">Confirmed</h2>
-         <p className="text-muted-foreground font-medium mb-8">Registration successful! Our team will be in touch within 24 hours to confirm your enrolment details.</p>
-         {paymentRef ? (
-           <p className="text-[11px] font-mono text-muted-foreground/80 mb-8 break-all">Payment reference: <span className="text-foreground">{paymentRef}</span></p>
-         ) : null}
-         <button onClick={() => window.location.href = '/'} className="px-10 py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-600 transition-all">Return to Home</button>
-      </div>
-    );
-  }
-
   const et = form.enrollmentType;
   const schedules = useMemo(() => {
     if (et === 'school') {
@@ -303,6 +290,55 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
     return SCHEDULES[et] ?? SCHEDULES[''];
   }, [et, hasSibling]);
   const selectedSchedule = schedules.find(s => s.value === form.preferredSchedule);
+
+  useEffect(() => {
+    if (paymentStatus !== 'success' || !paymentRef) return;
+    let cancelled = false;
+
+    setVerifyingPayment(true);
+    setPaymentError('');
+    fetch(`/api/payments/registration/verify?reference=${encodeURIComponent(paymentRef)}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Payment could not be verified.');
+        }
+        if (!cancelled) setPaymentVerified(true);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setPaymentError(e.message || 'Payment verification failed.');
+      })
+      .finally(() => {
+        if (!cancelled) setVerifyingPayment(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [paymentStatus, paymentRef]);
+
+  if (paymentStatus === 'success') {
+    return (
+      <div className="bg-card border border-border p-12 text-center shadow-2xl rounded-none border-t-4 border-t-emerald-500">
+         <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-8 rounded-none">
+            {verifyingPayment ? <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" /> : <Check className="w-10 h-10 text-emerald-500" />}
+         </div>
+         <h2 className="text-3xl font-black text-foreground uppercase tracking-tight mb-4">
+           {verifyingPayment ? 'Verifying Payment' : paymentVerified ? 'Confirmed' : 'Verification Needed'}
+         </h2>
+         <p className="text-muted-foreground font-medium mb-8">
+           {verifyingPayment
+             ? 'Please wait while we confirm your payment with Paystack.'
+             : paymentVerified
+               ? 'Registration successful. Our team will review and activate the account after approval.'
+               : paymentError || 'We could not verify this payment yet. Please contact support if you were charged.'}
+         </p>
+         {paymentRef ? (
+           <p className="text-[11px] font-mono text-muted-foreground/80 mb-8 break-all">Payment reference: <span className="text-foreground">{paymentRef}</span></p>
+         ) : null}
+         <button onClick={() => window.location.href = '/'} className="px-10 py-5 bg-emerald-500 text-white font-black text-xs uppercase tracking-[0.4em] rounded-none hover:bg-emerald-600 transition-all">Return to Home</button>
+      </div>
+    );
+  }
+
   const feeLabel = selectedSchedule?.feeLabel ?? TYPE_FEES[et] ?? '';
   const feeAmount = selectedSchedule ? `₦${selectedSchedule.fee.toLocaleString()}` : '';
 

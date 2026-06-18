@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import {
     ClipboardDocumentCheckIcon, CheckCircleIcon, XCircleIcon,
     ClockIcon, BuildingOfficeIcon, AcademicCapIcon,
@@ -353,6 +354,16 @@ export default function ApprovalsPage() {
                                             <div className="flex items-center gap-2 flex-wrap mb-0.5">
                                                 <p className="font-bold text-foreground">{s.full_name}</p>
                                                 <EnrollTypeBadge type={s.enrollment_type} />
+                                                {studentApprovalPaymentState(s) === 'awaiting_payment' && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-500/10 text-rose-400 border-rose-500/30">
+                                                        Awaiting payment
+                                                    </span>
+                                                )}
+                                                {studentApprovalPaymentState(s) === 'paid' && (
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                                                        Payment confirmed
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
                                                 {s.parent_email && (
@@ -377,7 +388,10 @@ export default function ApprovalsPage() {
                                             <p className="text-xs text-muted-foreground mt-1">Applied {new Date(s.created_at).toLocaleDateString()}</p>
                                         </div>
                                         <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
-                                            <button onClick={() => handleStudent(s.id, 'approved')} disabled={acting === s.id}
+                                            <button
+                                                onClick={() => handleStudent(s.id, 'approved')}
+                                                disabled={acting === s.id || studentApprovalPaymentState(s) === 'awaiting_payment'}
+                                                title={studentApprovalPaymentState(s) === 'awaiting_payment' ? 'Payment has not been confirmed for this public registration.' : undefined}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <CheckCircleIcon className="w-4 h-4" /> Approve
                                             </button>

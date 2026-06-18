@@ -8,6 +8,7 @@ import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import crypto from 'crypto';
 import { Database as GenDatabase } from '@/types/supabase';
 
@@ -468,7 +469,7 @@ export async function POST(req: NextRequest) {
     // Fetch the student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level')
+      .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, registration_payment_at, registration_paystack_reference, created_by')
       .eq('id', studentId)
       .single();
 
@@ -493,6 +494,12 @@ export async function POST(req: NextRequest) {
 
     if (!(await callerCanAccessSchool(staff, resolvedSchoolId))) {
       return NextResponse.json({ error: 'Access denied: this student belongs to a different school' }, { status: 403 });
+    }
+
+    if (studentApprovalPaymentState(student) === 'awaiting_payment') {
+      return NextResponse.json({
+        error: 'Cannot activate: this public registration has no confirmed registration payment yet.',
+      }, { status: 400 });
     }
 
     const originalStudentEmail = student.student_email?.trim();
