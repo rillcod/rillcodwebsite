@@ -39,21 +39,29 @@ function normalizePhone(raw: string): string {
   return digits;
 }
 
+function getWhatsAppConfig() {
+  const explicitUrl = process.env.WHATSAPP_API_URL;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const version = process.env.WHATSAPP_API_VERSION ?? 'v21.0';
+  const token = process.env.WHATSAPP_API_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
+  const url = explicitUrl || (phoneNumberId ? `https://graph.facebook.com/${version}/${phoneNumberId}/messages` : '');
+  return { url, token };
+}
+
 // Send message via Meta WhatsApp Business API
 async function sendWhatsAppMessage(to: string, message: string) {
-  const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
-  const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
+  const { url, token } = getWhatsAppConfig();
 
-  if (!WHATSAPP_API_URL || !WHATSAPP_API_TOKEN) {
+  if (!url || !token) {
     console.warn('[WhatsApp] API credentials not configured. Message saved to DB only.');
     return { success: false, reason: 'credentials_missing' };
   }
 
   try {
-    const response = await fetch(WHATSAPP_API_URL, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -118,16 +126,15 @@ async function sendWhatsAppTemplate(
   templateName: string,
   variables: string[], // ordered list of {{1}}, {{2}} values
 ) {
-  const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL;
-  const WHATSAPP_API_TOKEN = process.env.WHATSAPP_API_TOKEN;
-  if (!WHATSAPP_API_URL || !WHATSAPP_API_TOKEN) {
+  const { url, token } = getWhatsAppConfig();
+  if (!url || !token) {
     return { success: false, reason: 'credentials_missing' };
   }
   try {
-    const response = await fetch(WHATSAPP_API_URL, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${WHATSAPP_API_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -222,15 +229,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: Staff access required' }, { status: 403 });
     }
 
-    // Fetch conversation to get phone number and opt-out status
+    // Fetch conversation to get phone number, opt-out status and scope.
     const { data: conversation, error: convErr } = await admin
       .from('whatsapp_conversations')
-      .select('phone_number, contact_name, opted_out')
+      .select('phone_number, contact_name, opted_out, assigned_staff_id, portal_user_id, portal_user:portal_users!portal_user_id(school_id)')
       .eq('id', conversation_id)
       .single();
 
     if (convErr || !conversation) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    const portalUser = Array.isArray((conversation as any).portal_user)
+      ? (conversation as any).portal_user[0]
+      : (conversation as any).portal_user;
+
+    if (caller.role === 'teacher' && conversation.assigned_staff_id !== caller.id) {
+      return NextResponse.json({ error: 'You can only send WhatsApp messages for conversations assigned to you' }, { status: 403 });
+    }
+
+    if (caller.role === 'school' && (!conversation.portal_user_id || portalUser?.school_id !== caller.school_id)) {
+      return NextResponse.json({ error: 'You can only send WhatsApp messages for your school contacts' }, { status: 403 });
     }
 
     // Check if user has opted out
@@ -345,7 +364,7 @@ export async function POST(req: NextRequest) {
         is_not_whatsapp_user: isNotWhatsAppUser,
         is_rate_limit_error: isRateLimitError,
         message: whatsappResult.reason === 'credentials_missing'
-          ? 'Message saved. WhatsApp API credentials pending - add WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN to environment variables.'
+          ? 'Message saved. WhatsApp API credentials pending - add WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN, or WHATSAPP_API_URL and WHATSAPP_API_TOKEN, to environment variables.'
           : isNotWhatsAppUser
           ? `This number (+${conversation.phone_number}) is not registered on WhatsApp. Message saved on the Rillcod company channel but cannot be delivered via WhatsApp.`
           : isRateLimitError

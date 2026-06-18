@@ -59,6 +59,7 @@ interface Contact {
   is_active?: boolean;
   source: 'portal' | 'whatsapp';
   portal_user_id?: string;
+  opted_out?: boolean;
 }
 
 const EMPTY_CONTACT_FORM = {
@@ -510,6 +511,7 @@ export default function UnifiedInbox() {
           role: profile?.role || 'student',
           portal_user_id: raw.portal_user_id,
           phone_number: raw.phone_number,
+          opted_out: Boolean(raw.opted_out),
         };
         setActiveConv(conv);
         setSidebarView('chats');
@@ -572,6 +574,7 @@ export default function UnifiedInbox() {
             role: c.portal_users?.role || (c.portal_user_id ? 'student' : 'external'),
             portal_user_id: c.portal_user_id ?? undefined,
             assigned_staff_id: c.assigned_staff_id,
+            opted_out: Boolean(c.opted_out),
           })));
           return;
         }
@@ -593,6 +596,7 @@ export default function UnifiedInbox() {
               role: 'student',
               portal_user_id: undefined,
               assigned_staff_id: c.assigned_staff_id ?? undefined,
+              opted_out: Boolean(c.opted_out),
             })));
             setQueueSummary(json?.summary ?? null);
             return;
@@ -616,6 +620,7 @@ export default function UnifiedInbox() {
             role: (c.portal_user as any)?.role || (c.portal_user_id ? 'student' : 'external'),
             portal_user_id: c.portal_user_id ?? undefined,
             assigned_staff_id: c.assigned_staff_id,
+            opted_out: Boolean(c.opted_out),
           })));
         }
       } else if (cat === 'parents') {
@@ -770,7 +775,7 @@ export default function UnifiedInbox() {
       if (!isParentOrStudent) {
         const { data: waConvs } = await supabase
           .from('whatsapp_conversations')
-          .select('id, phone_number, contact_name, portal_user_id')
+          .select('id, phone_number, contact_name, portal_user_id, opted_out')
           .is('portal_user_id', null)
           .order('last_message_at', { ascending: false })
           .limit(100);
@@ -780,6 +785,8 @@ export default function UnifiedInbox() {
           phone: c.phone_number,
           role: 'external',
           source: 'whatsapp' as const,
+          portal_user_id: undefined,
+          opted_out: Boolean(c.opted_out),
         }));
       }
 
@@ -1104,7 +1111,7 @@ export default function UnifiedInbox() {
 
           // Also pull external phonebook (whatsapp_conversations without portal_user_id)
           let extQ = supabase.from('whatsapp_conversations')
-            .select('id, contact_name, phone_number')
+            .select('id, contact_name, phone_number, opted_out')
             .is('portal_user_id', null)
             .order('last_message_at', { ascending: false });
           if (directorySearch) extQ = extQ.ilike('contact_name', `%${directorySearch}%`);
@@ -1115,6 +1122,7 @@ export default function UnifiedInbox() {
             phone: c.phone_number,
             role: 'external',
             isExternalWA: true,   // flag: already has a WA conversation record
+            opted_out: Boolean(c.opted_out),
           }));
 
           data = [...portalData, ...extContacts];
@@ -1161,67 +1169,42 @@ export default function UnifiedInbox() {
     setShowQuickChat(false);
     setQuickChatNumber('');
 
-    // Check if conversation exists
-    const { data: existing } = await supabase
-      .from('whatsapp_conversations')
-      .select('*')
-      .eq('phone_number', phone)
-      .maybeSingle();
-
-    if (existing) {
-      // Open existing conversation
-      const c: Conversation = {
-        id: existing.id,
-        type: 'students',
-        phone_number: existing.phone_number,
-        contact_name: existing.contact_name || `+${phone}`,
-        last_message_at: existing.last_message_at ?? '',
-        last_message_preview: existing.last_message_preview || '',
-        unread_count: existing.unread_count || 0,
-        portal_user_id: existing.portal_user_id ?? undefined,
-      };
-      setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
-      setActiveConv(c);
-      setShowSidebar(false);
-      setSidebarView('chats');
-      setActiveTab('students');
-    } else {
-      // Create new conversation
-      const { data: created } = await supabase
-        .from('whatsapp_conversations')
-        .insert({
-          phone_number: phone,
-          contact_name: `+${phone}`,
-          last_message_at: new Date().toISOString(),
-          last_message_preview: '',
-          unread_count: 0,
-        })
-        .select()
-        .single();
-
-      if (created) {
-        const c: Conversation = {
-          id: created.id,
-          type: 'students',
-          phone_number: phone,
-          contact_name: `+${phone}`,
-          last_message_at: created.last_message_at ?? '',
-          last_message_preview: '',
-          unread_count: 0,
-        };
-        setConversations(prev => [c, ...prev]);
-        setActiveConv(c);
-        setShowSidebar(false);
-        setSidebarView('chats');
-        setActiveTab('students');
-      }
+    const res = await fetch('/api/inbox/conversation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number: phone, contact_name: `+${phone}`, portal_user_id: null }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.data) {
+      setQuickChatError(json.error || 'Failed to start WhatsApp chat');
+      setShowQuickChat(true);
+      return;
     }
+
+    const conv = json.data;
+    const c: Conversation = {
+      id: conv.id,
+      type: 'students',
+      phone_number: conv.phone_number,
+      contact_name: conv.contact_name || `+${phone}`,
+      last_message_at: conv.last_message_at ?? '',
+      last_message_preview: conv.last_message_preview || '',
+      unread_count: conv.unread_count || 0,
+      portal_user_id: conv.portal_user_id ?? undefined,
+      assigned_staff_id: conv.assigned_staff_id ?? undefined,
+      opted_out: Boolean(conv.opted_out),
+    };
+    setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
+    setActiveConv(c);
+    setShowSidebar(false);
+    setSidebarView('chats');
+    setActiveTab('students');
   };
 
   // ── Open / create a WhatsApp conversation for any contact with a phone ─────
   const openWhatsAppConversation = async (item: {
     id: string; full_name: string; phone?: string; phone_number?: string;
-    role?: string; school_name?: string; isExternalWA?: boolean;
+    role?: string; school_name?: string; isExternalWA?: boolean; opted_out?: boolean;
   }) => {
     const phone = (item.phone || item.phone_number || '').replace(/\D/g, '');
     if (!phone) { setSendError(`${item.full_name} has no phone number on file.`); return; }
@@ -1230,7 +1213,7 @@ export default function UnifiedInbox() {
       // item.id IS the whatsapp_conversations.id — just open it
       const { data: conv } = await supabase.from('whatsapp_conversations').select('*').eq('id', item.id).maybeSingle();
       if (conv) {
-        const c: Conversation = { id: conv.id, type: 'students', phone_number: conv.phone_number, contact_name: conv.contact_name || item.full_name, last_message_at: conv.last_message_at ?? '', last_message_preview: conv.last_message_preview || '', unread_count: conv.unread_count || 0, role: 'external' };
+        const c: Conversation = { id: conv.id, type: 'students', phone_number: conv.phone_number, contact_name: conv.contact_name || item.full_name, last_message_at: conv.last_message_at ?? '', last_message_preview: conv.last_message_preview || '', unread_count: conv.unread_count || 0, role: 'external', assigned_staff_id: conv.assigned_staff_id ?? undefined, opted_out: Boolean(conv.opted_out) };
         setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
         setActiveConv(c); setShowSidebar(false);
         setSidebarView('chats'); setActiveTab('students');
@@ -1247,7 +1230,11 @@ export default function UnifiedInbox() {
         portal_user_id: item.id === item.phone ? null : item.id,
       }),
     });
-    const convJson = await convRes.json();
+    const convJson = await convRes.json().catch(() => ({}));
+    if (!convRes.ok) {
+      setSendError(convJson.error || 'Failed to open WhatsApp conversation.');
+      return;
+    }
     const conv = convJson.data;
 
     if (conv) {
@@ -1257,6 +1244,8 @@ export default function UnifiedInbox() {
         last_message_preview: conv.last_message_preview || '', unread_count: 0,
         school_name: item.school_name, role: item.role || 'external',
         portal_user_id: item.id,
+        assigned_staff_id: conv.assigned_staff_id ?? undefined,
+        opted_out: Boolean(conv.opted_out),
       };
       setConversations(prev => [c, ...prev.filter(x => x.id !== c.id)]);
       setActiveConv(c); setShowSidebar(false);
@@ -1461,38 +1450,16 @@ export default function UnifiedInbox() {
     if (role === 'student' || role === 'external') {
       setSidebarView('chats'); setActiveTab('students');
       await fetchConversations('students');
-      // Find existing conversation
-      const { data: existing } = await supabase
-        .from('whatsapp_conversations')
-        .select('*')
-        .or(contact.phone ? `phone_number.eq.${contact.phone?.replace(/\D/g, '')}` : `portal_user_id.eq.${contact.id}`)
-        .maybeSingle();
-      if (existing) {
-        const c: Conversation = {
-          id: existing.id, type: 'students',
-          phone_number: existing.phone_number,
-          contact_name: contact.full_name,
-          last_message_at: existing.last_message_at ?? '',
-          last_message_preview: existing.last_message_preview || '',
-          unread_count: existing.unread_count || 0,
-          school_name: contact.school_name,
+      if (contact.phone) {
+        await openWhatsAppConversation({
+          id: contact.id,
+          full_name: contact.full_name,
+          phone: contact.phone,
           role: contact.role,
-          portal_user_id: contact.portal_user_id,
-        };
-        setActiveConv(c); setShowSidebar(false);
-      } else if (contact.phone) {
-        // create new conversation
-        const cleanPhone = contact.phone.replace(/\D/g, '');
-        const { data: created } = await supabase.from('whatsapp_conversations').insert({
-          phone_number: cleanPhone, contact_name: contact.full_name,
-          portal_user_id: contact.portal_user_id || null,
-          last_message_at: new Date().toISOString(), last_message_preview: '',
-        }).select().single();
-        if (created) {
-          const c: Conversation = { id: created.id, type: 'students', phone_number: cleanPhone, contact_name: contact.full_name, last_message_at: created.last_message_at ?? '', last_message_preview: '', unread_count: 0, school_name: contact.school_name, role: contact.role };
-          setConversations(prev => [c, ...prev]);
-          setActiveConv(c); setShowSidebar(false);
-        }
+          school_name: contact.school_name,
+          isExternalWA: contact.source === 'whatsapp',
+          opted_out: contact.opted_out,
+        });
       } else {
         setSendError(`${contact.full_name} has no phone number. Update their profile first.`);
       }
