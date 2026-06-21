@@ -16,6 +16,104 @@ function adminClient() {
   );
 }
 
+type StudentScope = {
+  id: string;
+  school_id: string | null;
+  school_name: string | null;
+  class_id: string | null;
+  section_class: string | null;
+  primary_teacher_id: string | null;
+  enrollment_type: string | null;
+};
+
+async function enrolledCourseIds(admin: ReturnType<typeof adminClient>, studentId: string): Promise<Set<string>> {
+  const { data: enrollments } = await admin
+    .from('enrollments')
+    .select('program_id')
+    .eq('user_id', studentId);
+  const programIds = (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean);
+  if (programIds.length === 0) return new Set();
+
+  const { data: courses } = await admin
+    .from('courses')
+    .select('id')
+    .in('program_id', programIds);
+  return new Set((courses ?? []).map((c: any) => c.id).filter(Boolean));
+}
+
+async function getStudentClassTeacherId(admin: ReturnType<typeof adminClient>, classId: string | null): Promise<string | null> {
+  if (!classId) return null;
+  const { data } = await admin
+    .from('classes')
+    .select('teacher_id')
+    .eq('id', classId)
+    .maybeSingle();
+  return data?.teacher_id ?? null;
+}
+
+function normalizeList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function assignmentVisibleToStudent(
+  assignment: any,
+  student: StudentScope,
+  enrolledCourses: Set<string>,
+  creatorRoles: Record<string, string>,
+  classTeacherId: string | null
+): boolean {
+  const meta = assignment.metadata || {};
+  const courseId = typeof assignment.course_id === 'string' ? assignment.course_id : null;
+  const creatorId = assignment.created_by;
+  const creatorRole = creatorId ? creatorRoles[creatorId] : null;
+
+  // 1. School ID scope check: If the assignment is tied to a school, the student must belong to it.
+  if (assignment.school_id) {
+    if (!student.school_id || assignment.school_id !== student.school_id) return false;
+  }
+  // 2. School Name scope check (legacy / fallback): If school name is specified, student must match it.
+  else if (assignment.school_name) {
+    if (!student.school_name || assignment.school_name.toLowerCase() !== student.school_name.toLowerCase()) return false;
+  }
+
+  // 3. Course Enrollment check: A student must be enrolled in the course of the assignment.
+  // This is critical, especially for summer/online school students who shouldn't see other courses' assignments.
+  if (courseId) {
+    if (enrolledCourses.size > 0 && !enrolledCourses.has(courseId)) return false;
+    if (enrolledCourses.size === 0) return false;
+  }
+
+  // 4. Class / Student Scoping check:
+  const targetClassId = meta.target_class_id || assignment.class_id;
+
+  // If the assignment has explicit class scoping
+  if (meta.visibility === 'class' || targetClassId || meta.target_class_name) {
+    const classIdMatch = targetClassId && student.class_id && targetClassId === student.class_id;
+    const classNameMatch = meta.target_class_name && student.section_class &&
+      String(meta.target_class_name).toLowerCase().trim() === student.section_class.toLowerCase().trim();
+    if (!classIdMatch && !classNameMatch) return false;
+  }
+  // If no explicit class scoping, but it is created by a teacher:
+  else if (creatorRole === 'teacher') {
+    // Teacher assignments without class scoping should be targeted smartly.
+    // For summer/online school students (or all students), they should only see this assignment
+    // if the teacher is their class tutor/teacher, or if they are explicitly targeted.
+    const isTutor = classTeacherId && creatorId === classTeacherId;
+    const isPrimaryTeacher = student.primary_teacher_id && creatorId === student.primary_teacher_id;
+    if (!isTutor && !isPrimaryTeacher) return false;
+  }
+
+  // 5. Work mode checks (specific student/group targeting)
+  if (meta.work_mode === 'specific') {
+    if (!normalizeList(meta.target_student_ids).includes(student.id)) return false;
+  } else if (meta.work_mode === 'group') {
+    const groups = Array.isArray(meta.groups) ? meta.groups : [];
+    if (!groups.some((g: any) => normalizeList(g?.studentIds).includes(student.id))) return false;
+  }
+
+  return true;
+}
+
 const MCQ_TYPES = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
 
 function computeAutoGrade(
@@ -66,7 +164,7 @@ export async function POST(
     const admin = adminClient();
     const { data: caller } = await admin
       .from('portal_users')
-      .select('role, id, school_id, class_id')
+      .select('role, id, school_id, school_name, class_id, section_class, primary_teacher_id, enrollment_type')
       .eq('id', user.id)
       .single();
 
@@ -83,7 +181,7 @@ export async function POST(
     // Fetch assignment to validate access
     const { data: assignment } = await admin
       .from('assignments')
-      .select('is_active, school_id, assignment_type, metadata, questions, max_points, weight, created_by, title, grading_mode, due_date')
+      .select('is_active, course_id, class_id, school_id, school_name, assignment_type, metadata, questions, max_points, weight, created_by, title, grading_mode, due_date')
       .eq('id', assignment_id)
       .maybeSingle();
 
@@ -108,9 +206,26 @@ export async function POST(
       return NextResponse.json({ error: 'This assignment is no longer active' }, { status: 403 });
     }
 
-    // Students: school boundary check
-    if (!isStaff && assignment.school_id && assignment.school_id !== caller.school_id) {
-      return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
+    // Students: full assignment visibility check
+    if (!isStaff) {
+      const courseIds = await enrolledCourseIds(admin, effectiveUserId);
+      const classTeacherId = await getStudentClassTeacherId(admin, caller.class_id);
+
+      let creatorRoles: Record<string, string> = {};
+      if (assignment.created_by) {
+        const { data: creatorUser } = await admin
+          .from('portal_users')
+          .select('role')
+          .eq('id', assignment.created_by)
+          .maybeSingle();
+        if (creatorUser?.role) {
+          creatorRoles[assignment.created_by] = creatorUser.role;
+        }
+      }
+
+      if (!assignmentVisibleToStudent(assignment, caller as StudentScope, courseIds, creatorRoles, classTeacherId)) {
+        return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
+      }
     }
 
     // Mark late if submitted after due_date (students only — staff on-behalf always 'submitted')

@@ -15,7 +15,11 @@ type Caller = {
   role: string; id: string;
   school_id: string | null; school_name: string | null;
   class_id: string | null; section_class: string | null;
+  primary_teacher_id: string | null;
+  enrollment_type: string | null;
 };
+
+type StudentScope = Pick<Caller, 'id' | 'school_id' | 'school_name' | 'class_id' | 'section_class' | 'primary_teacher_id' | 'enrollment_type'>;
 
 async function requireAuth(): Promise<Caller | null> {
   const supabase = await createServerClient();
@@ -23,7 +27,7 @@ async function requireAuth(): Promise<Caller | null> {
   if (error || !user) return null;
   const { data: caller } = await adminClient()
     .from('portal_users')
-    .select('role, id, school_id, school_name, class_id, section_class')
+    .select('role, id, school_id, school_name, class_id, section_class, primary_teacher_id, enrollment_type')
     .eq('id', user.id)
     .single();
   return (caller as Caller) ?? null;
@@ -43,6 +47,97 @@ async function teacherSchoolIds(callerId: string, primarySchoolId: string | null
   return ids;
 }
 
+async function enrolledCourseIds(studentId: string): Promise<Set<string>> {
+  const admin = adminClient();
+  const { data: enrollments } = await admin
+    .from('enrollments')
+    .select('program_id')
+    .eq('user_id', studentId);
+  const programIds = (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean);
+  if (programIds.length === 0) return new Set();
+
+  const { data: courses } = await admin
+    .from('courses')
+    .select('id')
+    .in('program_id', programIds);
+  return new Set((courses ?? []).map((c: any) => c.id).filter(Boolean));
+}
+
+async function getStudentClassTeacherId(classId: string | null): Promise<string | null> {
+  if (!classId) return null;
+  const { data } = await adminClient()
+    .from('classes')
+    .select('teacher_id')
+    .eq('id', classId)
+    .maybeSingle();
+  return data?.teacher_id ?? null;
+}
+
+function normalizeList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function assignmentVisibleToStudent(
+  a: any,
+  student: StudentScope,
+  enrolledCourses: Set<string>,
+  creatorRoles: Record<string, string>,
+  classTeacherId: string | null
+): boolean {
+  const m = a.metadata || {};
+  const courseId = typeof a.course_id === 'string' ? a.course_id : null;
+  const creatorId = a.created_by;
+  const creatorRole = creatorId ? creatorRoles[creatorId] : null;
+
+  // 1. School ID scope check: If the assignment is tied to a school, the student must belong to it.
+  if (a.school_id) {
+    if (!student.school_id || a.school_id !== student.school_id) return false;
+  }
+  // 2. School Name scope check (legacy / fallback): If school name is specified, student must match it.
+  else if (a.school_name) {
+    if (!student.school_name || a.school_name.toLowerCase() !== student.school_name.toLowerCase()) return false;
+  }
+
+  // 3. Course Enrollment check: A student must be enrolled in the course of the assignment.
+  // This is critical, especially for summer/online school students who shouldn't see other courses' assignments.
+  if (courseId) {
+    if (enrolledCourses.size > 0 && !enrolledCourses.has(courseId)) return false;
+    if (enrolledCourses.size === 0) return false;
+  }
+
+  // 4. Class / Student Scoping check:
+  const targetClassId = m.target_class_id || a.class_id;
+
+  // If the assignment has explicit class scoping
+  if (m.visibility === 'class' || targetClassId || m.target_class_name) {
+    const classIdMatch = targetClassId && student.class_id && targetClassId === student.class_id;
+    const classNameMatch = m.target_class_name && student.section_class &&
+      String(m.target_class_name).toLowerCase().trim() === student.section_class.toLowerCase().trim();
+    if (!classIdMatch && !classNameMatch) return false;
+  }
+  // If no explicit class scoping, but it is created by a teacher:
+  else if (creatorRole === 'teacher') {
+    // Teacher assignments without class scoping should be targeted smartly.
+    // For summer/online school students (or all students), they should only see this assignment
+    // if the teacher is their class tutor/teacher, or if they are explicitly targeted.
+    const isTutor = classTeacherId && creatorId === classTeacherId;
+    const isPrimaryTeacher = student.primary_teacher_id && creatorId === student.primary_teacher_id;
+    if (!isTutor && !isPrimaryTeacher) return false;
+  }
+
+  // 5. Work mode checks (specific student/group targeting)
+  const workMode = m.work_mode;
+  if (workMode === 'specific') {
+    if (!normalizeList(m.target_student_ids).includes(student.id)) return false;
+  } else if (workMode === 'group') {
+    const groups = Array.isArray(m.groups) ? m.groups : [];
+    const inGroup = groups.some((g: any) => normalizeList(g?.studentIds).includes(student.id));
+    if (!inGroup) return false;
+  }
+
+  return true;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/assignments — list assignments visible to current user
 // ─────────────────────────────────────────────────────────────────────────────
@@ -60,9 +155,9 @@ export async function GET(request: NextRequest) {
       .select(`
         id, title, description, instructions, due_date, max_points,
         assignment_type, is_active, created_at, created_by,
-        school_id, school_name, metadata,
+        course_id, class_id, school_id, school_name, metadata,
         courses ( id, title, programs ( name ) ),
-        assignment_submissions ( id, status, grade, portal_user_id )
+        assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, file_url, portal_user_id )
       `)
       .order('due_date', { ascending: true });
 
@@ -89,10 +184,13 @@ export async function GET(request: NextRequest) {
       if (caller.school_name) orParts.push(`school_name.eq.${caller.school_name}`);
       if (orParts.length > 0) query = query.or(orParts.join(',')) as any;
     } else if (caller.role === 'student') {
-      // All active assignments scoped to student's school; visibility filtering done below
+      // All active assignments in the student's broad scope; precise visibility filtering done below.
       query = query.eq('is_active', true) as any;
-      if (caller.school_id) {
-        query = query.eq('school_id', caller.school_id) as any;
+      if (caller.school_id || caller.school_name) {
+        const scopeParts = ['school_id.is.null'];
+        if (caller.school_id) scopeParts.push(`school_id.eq.${caller.school_id}`);
+        if (caller.school_name) scopeParts.push(`school_name.eq.${JSON.stringify(caller.school_name)}`);
+        query = query.or(scopeParts.join(',')) as any;
       }
     }
 
@@ -115,41 +213,28 @@ export async function GET(request: NextRequest) {
 
     // Student: apply visibility + work-mode targeting from metadata
     if (caller.role === 'student') {
-      rows = rows.filter((a: any) => {
-        const m = a.metadata || {};
-        const vis = m.visibility;
-        const wm = m.work_mode;
-        const tcid = m.target_class_id;
-        const tids: string[] = m.target_student_ids || [];
-        const grps: any[] = m.groups || [];
+      const courseIds = await enrolledCourseIds(caller.id);
+      const classTeacherId = await getStudentClassTeacherId(caller.class_id);
 
-        // Visibility
-        if (vis === 'class') {
-          const classMatch =
-            (tcid && caller.class_id && tcid === caller.class_id) ||
-            (m.target_class_name && caller.section_class &&
-              m.target_class_name.toLowerCase().trim() === caller.section_class.toLowerCase().trim());
-          if (!classMatch) return false;
-        } else {
-          // school-wide or unset
-          const schoolMatch =
-            !a.school_id ||
-            (caller.school_id && a.school_id === caller.school_id) ||
-            (caller.school_name && a.school_name &&
-              a.school_name.toLowerCase() === caller.school_name.toLowerCase());
-          if (!schoolMatch) return false;
-        }
+      // Fetch roles of all creators of these assignments to distinguish admin-assigned vs teacher-assigned.
+      const creatorIds = Array.from(new Set(rows.map((r: any) => r.created_by).filter(Boolean)));
+      let creatorRoles: Record<string, string> = {};
+      if (creatorIds.length > 0) {
+        const { data: users } = await admin
+          .from('portal_users')
+          .select('id, role')
+          .in('id', creatorIds);
+        (users ?? []).forEach((u: any) => {
+          creatorRoles[u.id] = u.role;
+        });
+      }
 
-        // Work-mode / targeting
-        if (wm === 'specific') {
-          if (!tids.includes(caller.id)) return false;
-        } else if (wm === 'group') {
-          const inGroup = grps.some((g: any) => (g.studentIds || []).includes(caller.id));
-          if (!inGroup) return false;
-        }
-
-        return true;
-      });
+      rows = rows
+        .filter((a: any) => assignmentVisibleToStudent(a, caller, courseIds, creatorRoles, classTeacherId))
+        .map((a: any) => ({
+          ...a,
+          assignment_submissions: (a.assignment_submissions ?? []).filter((s: any) => s.portal_user_id === caller.id),
+        }));
     }
 
     return NextResponse.json({ data: rows });

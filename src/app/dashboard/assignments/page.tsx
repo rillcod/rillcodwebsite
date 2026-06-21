@@ -5,7 +5,6 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import { fetchStudentAssignments } from '@/services/dashboard.service';
 import {
   ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, ClockIcon,
   CheckCircleIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon,
@@ -109,6 +108,21 @@ const STAFF_FILTER_TABS = [
   { value: 'active', label: 'Active' },
 ];
 
+function toStudentAssignmentItem(assignment: any) {
+  const ownSubmission = assignment.assignment_submissions?.[0];
+  return {
+    id: ownSubmission?.id ?? `pending-${assignment.id}`,
+    assignment_id: assignment.id,
+    status: ownSubmission?.status ?? 'missing',
+    grade: ownSubmission?.grade ?? null,
+    feedback: ownSubmission?.feedback ?? null,
+    submitted_at: ownSubmission?.submitted_at ?? null,
+    graded_at: ownSubmission?.graded_at ?? null,
+    file_url: ownSubmission?.file_url ?? null,
+    assignments: assignment,
+  };
+}
+
 // ─── Main page inner ─────────────────────────────────────────
 function AssignmentsPageInner() {
   const { profile, loading: authLoading } = useAuth();
@@ -177,7 +191,11 @@ function AssignmentsPageInner() {
           const json = await res.json();
           data = json.data ?? [];
         } else {
-          let rawData = await fetchStudentAssignments(profile?.id || '');
+          const url = filterPlanId ? `/api/assignments?lesson_plan_id=${filterPlanId}` : '/api/assignments';
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load'); }
+          const json = await res.json();
+          let rawData = (json.data ?? []).map(toStudentAssignmentItem);
           if (filterPlanId) {
             rawData = rawData.filter((a: any) => {
               const planId = a.assignments?.metadata?.lesson_plan_id || a.metadata?.lesson_plan_id;

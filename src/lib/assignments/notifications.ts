@@ -2,8 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendPushNotification } from '@/lib/push';
 
 /**
- * Trigger in-app and push notifications for all students in a class
- * when an assignment or project is released (set to active).
+ * Trigger in-app and push notifications for the students targeted by an
+ * assignment when it is released (set to active).
  */
 export async function triggerAssignmentReleaseNotifications(
   assignmentId: string,
@@ -14,7 +14,7 @@ export async function triggerAssignmentReleaseNotifications(
   // 1. Fetch assignment details
   const { data: assignment, error: fetchErr } = await db
     .from('assignments')
-    .select('id, title, assignment_type, class_id, metadata, school_id')
+    .select('id, title, assignment_type, class_id, course_id, metadata, school_id, school_name')
     .eq('id', assignmentId)
     .single();
 
@@ -23,28 +23,18 @@ export async function triggerAssignmentReleaseNotifications(
     return;
   }
 
-  // Determine target class ID (checks column first, then metadata)
-  const targetClassId = assignment.class_id || (assignment.metadata as any)?.target_class_id;
-  if (!targetClassId) {
-    console.log('[assignment notification] Assignment is not scoped to a specific class. Skipping notifications.');
-    return;
-  }
-
-  // 2. Fetch all active students in the target class
-  const { data: students, error: studentErr } = await db
-    .from('portal_users')
-    .select('id, full_name, email')
-    .eq('role', 'student')
-    .eq('class_id', targetClassId)
-    .eq('is_active', true);
-
-  if (studentErr) {
-    console.error('[assignment notification] Failed to fetch target students:', studentErr.message);
-    return;
-  }
+  const metadata = (assignment.metadata as any) || {};
+  const students = await resolveTargetStudents(db, {
+    id: assignment.id,
+    class_id: assignment.class_id,
+    course_id: assignment.course_id,
+    school_id: assignment.school_id,
+    school_name: assignment.school_name,
+    metadata,
+  });
 
   if (!students || students.length === 0) {
-    console.log('[assignment notification] No active students found in target class:', targetClassId);
+    console.log('[assignment notification] No active target students found for assignment:', assignmentId);
     return;
   }
 
@@ -86,4 +76,106 @@ export async function triggerAssignmentReleaseNotifications(
   });
 
   console.log(`[assignment notification] Successfully sent release notifications for "${assignment.title}" to ${students.length} students.`);
+}
+
+type TargetAssignment = {
+  id: string;
+  class_id: string | null;
+  course_id: string | null;
+  school_id: string | null;
+  school_name: string | null;
+  metadata: Record<string, any>;
+};
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+async function activeStudentsByIds(db: ReturnType<typeof createAdminClient>, ids: string[]) {
+  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  if (uniqueIds.length === 0) return [];
+
+  const { data, error } = await db
+    .from('portal_users')
+    .select('id, full_name, email')
+    .eq('role', 'student')
+    .eq('is_active', true)
+    .in('id', uniqueIds);
+
+  if (error) {
+    console.error('[assignment notification] Failed to fetch target students:', error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+async function resolveTargetStudents(db: ReturnType<typeof createAdminClient>, assignment: TargetAssignment) {
+  if (assignment.metadata.work_mode === 'specific') {
+    return activeStudentsByIds(db, stringList(assignment.metadata.target_student_ids));
+  }
+
+  if (assignment.metadata.work_mode === 'group') {
+    const groups = Array.isArray(assignment.metadata.groups) ? assignment.metadata.groups : [];
+    const ids = groups.flatMap((group: any) => stringList(group?.studentIds));
+    return activeStudentsByIds(db, ids);
+  }
+
+  const targetClassId = assignment.class_id || assignment.metadata.target_class_id;
+  if (targetClassId) {
+    const { data, error } = await db
+      .from('portal_users')
+      .select('id, full_name, email')
+      .eq('role', 'student')
+      .eq('class_id', targetClassId)
+      .eq('is_active', true);
+    if (error) {
+      console.error('[assignment notification] Failed to fetch class students:', error.message);
+      return [];
+    }
+    return data ?? [];
+  }
+
+  if (assignment.school_id || assignment.school_name) {
+    let query = db
+      .from('portal_users')
+      .select('id, full_name, email')
+      .eq('role', 'student')
+      .eq('is_active', true);
+
+    const filters: string[] = [];
+    if (assignment.school_id) filters.push(`school_id.eq.${assignment.school_id}`);
+    if (assignment.school_name) filters.push(`school_name.eq.${JSON.stringify(assignment.school_name)}`);
+    query = (query as any).or(filters.join(','));
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('[assignment notification] Failed to fetch school students:', error.message);
+      return [];
+    }
+    return data ?? [];
+  }
+
+  if (assignment.course_id) {
+    const { data: course } = await db
+      .from('courses')
+      .select('program_id')
+      .eq('id', assignment.course_id)
+      .maybeSingle();
+
+    if (!course?.program_id) return [];
+
+    const { data: enrollments, error } = await db
+      .from('enrollments')
+      .select('user_id')
+      .eq('program_id', course.program_id);
+
+    if (error) {
+      console.error('[assignment notification] Failed to fetch course enrollments:', error.message);
+      return [];
+    }
+
+    return activeStudentsByIds(db, (enrollments ?? []).map((e: any) => e.user_id));
+  }
+
+  return [];
 }
