@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  assignmentVisibleToStudent,
+  resolveStudentProgramScope,
+  programIdForCourse,
+} from '@/lib/assignments/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,8 +23,6 @@ type Caller = {
   primary_teacher_id: string | null;
   enrollment_type: string | null;
 };
-
-type StudentScope = Pick<Caller, 'id' | 'school_id' | 'school_name' | 'class_id' | 'section_class' | 'primary_teacher_id' | 'enrollment_type'>;
 
 async function requireAuth(): Promise<Caller | null> {
   const supabase = await createServerClient();
@@ -47,22 +50,6 @@ async function teacherSchoolIds(callerId: string, primarySchoolId: string | null
   return ids;
 }
 
-async function enrolledCourseIds(studentId: string): Promise<Set<string>> {
-  const admin = adminClient();
-  const { data: enrollments } = await admin
-    .from('enrollments')
-    .select('program_id')
-    .eq('user_id', studentId);
-  const programIds = (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean);
-  if (programIds.length === 0) return new Set();
-
-  const { data: courses } = await admin
-    .from('courses')
-    .select('id')
-    .in('program_id', programIds);
-  return new Set((courses ?? []).map((c: any) => c.id).filter(Boolean));
-}
-
 async function getStudentClassTeacherId(classId: string | null): Promise<string | null> {
   if (!classId) return null;
   const { data } = await adminClient()
@@ -71,71 +58,6 @@ async function getStudentClassTeacherId(classId: string | null): Promise<string 
     .eq('id', classId)
     .maybeSingle();
   return data?.teacher_id ?? null;
-}
-
-function normalizeList(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
-
-function assignmentVisibleToStudent(
-  a: any,
-  student: StudentScope,
-  enrolledCourses: Set<string>,
-  creatorRoles: Record<string, string>,
-  classTeacherId: string | null
-): boolean {
-  const m = a.metadata || {};
-  const courseId = typeof a.course_id === 'string' ? a.course_id : null;
-  const creatorId = a.created_by;
-  const creatorRole = creatorId ? creatorRoles[creatorId] : null;
-
-  // 1. School ID scope check: If the assignment is tied to a school, the student must belong to it.
-  if (a.school_id) {
-    if (!student.school_id || a.school_id !== student.school_id) return false;
-  }
-  // 2. School Name scope check (legacy / fallback): If school name is specified, student must match it.
-  else if (a.school_name) {
-    if (!student.school_name || a.school_name.toLowerCase() !== student.school_name.toLowerCase()) return false;
-  }
-
-  // 3. Course Enrollment check: A student must be enrolled in the course of the assignment.
-  // This is critical, especially for summer/online school students who shouldn't see other courses' assignments.
-  if (courseId) {
-    if (enrolledCourses.size > 0 && !enrolledCourses.has(courseId)) return false;
-    if (enrolledCourses.size === 0) return false;
-  }
-
-  // 4. Class / Student Scoping check:
-  const targetClassId = m.target_class_id || a.class_id;
-
-  // If the assignment has explicit class scoping
-  if (m.visibility === 'class' || targetClassId || m.target_class_name) {
-    const classIdMatch = targetClassId && student.class_id && targetClassId === student.class_id;
-    const classNameMatch = m.target_class_name && student.section_class &&
-      String(m.target_class_name).toLowerCase().trim() === student.section_class.toLowerCase().trim();
-    if (!classIdMatch && !classNameMatch) return false;
-  }
-  // If no explicit class scoping, but it is created by a teacher:
-  else if (creatorRole === 'teacher') {
-    // Teacher assignments without class scoping should be targeted smartly.
-    // For summer/online school students (or all students), they should only see this assignment
-    // if the teacher is their class tutor/teacher, or if they are explicitly targeted.
-    const isTutor = classTeacherId && creatorId === classTeacherId;
-    const isPrimaryTeacher = student.primary_teacher_id && creatorId === student.primary_teacher_id;
-    if (!isTutor && !isPrimaryTeacher) return false;
-  }
-
-  // 5. Work mode checks (specific student/group targeting)
-  const workMode = m.work_mode;
-  if (workMode === 'specific') {
-    if (!normalizeList(m.target_student_ids).includes(student.id)) return false;
-  } else if (workMode === 'group') {
-    const groups = Array.isArray(m.groups) ? m.groups : [];
-    const inGroup = groups.some((g: any) => normalizeList(g?.studentIds).includes(student.id));
-    if (!inGroup) return false;
-  }
-
-  return true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,7 +77,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id, title, description, instructions, due_date, max_points,
         assignment_type, is_active, created_at, created_by,
-        course_id, class_id, school_id, school_name, metadata,
+        course_id, program_id, class_id, school_id, school_name, metadata,
         courses ( id, title, programs ( name ) ),
         assignment_submissions ( id, status, grade, feedback, submitted_at, graded_at, file_url, portal_user_id )
       `)
@@ -213,7 +135,7 @@ export async function GET(request: NextRequest) {
 
     // Student: apply visibility + work-mode targeting from metadata
     if (caller.role === 'student') {
-      const courseIds = await enrolledCourseIds(caller.id);
+      const scope = await resolveStudentProgramScope(admin, caller.id);
       const classTeacherId = await getStudentClassTeacherId(caller.class_id);
 
       // Fetch roles of all creators of these assignments to distinguish admin-assigned vs teacher-assigned.
@@ -230,7 +152,7 @@ export async function GET(request: NextRequest) {
       }
 
       rows = rows
-        .filter((a: any) => assignmentVisibleToStudent(a, caller, courseIds, creatorRoles, classTeacherId))
+        .filter((a: any) => assignmentVisibleToStudent(a, caller, scope, creatorRoles, classTeacherId))
         .map((a: any) => ({
           ...a,
           assignment_submissions: (a.assignment_submissions ?? []).filter((s: any) => s.portal_user_id === caller.id),
@@ -306,7 +228,7 @@ export async function POST(request: NextRequest) {
     }
 
     const allowedFields = [
-      'title', 'description', 'instructions', 'course_id', 'lesson_id',
+      'title', 'description', 'instructions', 'course_id', 'program_id', 'lesson_id',
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
       'class_id',
     ];
@@ -318,6 +240,12 @@ export async function POST(request: NextRequest) {
     };
     for (const f of allowedFields) {
       if (f in body) payload[f] = body[f] ?? null;
+    }
+
+    // Programme is the authoritative cohort scope. If the client didn't send one,
+    // derive it from the course so the assignment is never left untagged.
+    if (!payload.program_id && payload.course_id) {
+      payload.program_id = await programIdForCourse(admin, payload.course_id as string);
     }
 
     const { data, error } = await admin

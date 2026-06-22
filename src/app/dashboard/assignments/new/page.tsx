@@ -232,6 +232,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         description: form.description.trim() || null,
         instructions: form.instructions.trim() || null,
         course_id: form.course_id,
+        program_id: selectedProgramId || null,
         lesson_id: linkedLesson?.id ?? null,
         max_points: parseInt(form.max_points) || 100,
         weight: parseInt(form.weight) || 0,

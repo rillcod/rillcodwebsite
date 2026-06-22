@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { programIdForCourse } from '@/lib/assignments/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,12 +122,18 @@ export async function PATCH(
   const body = await request.json();
   const allowed: Record<string, unknown> = {};
   const allowedFields = [
-    'title', 'description', 'instructions', 'course_id',
+    'title', 'description', 'instructions', 'course_id', 'program_id',
     'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
     'class_id',
   ];
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
+  }
+
+  // Keep programme scope consistent with the course: when the course changes but no
+  // explicit programme was sent, re-derive program_id from the (new) course.
+  if ('course_id' in allowed && !('program_id' in body)) {
+    allowed.program_id = await programIdForCourse(admin, allowed.course_id as string | null);
   }
   allowed.updated_at = new Date().toISOString();
 

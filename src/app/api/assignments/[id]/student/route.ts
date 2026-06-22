@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  assignmentVisibleToStudent,
+  resolveStudentProgramScope,
+  type AssignmentStudentScope,
+} from '@/lib/assignments/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,31 +16,6 @@ function adminClient() {
   );
 }
 
-type StudentScope = {
-  id: string;
-  school_id: string | null;
-  school_name: string | null;
-  class_id: string | null;
-  section_class: string | null;
-  primary_teacher_id: string | null;
-  enrollment_type: string | null;
-};
-
-async function enrolledCourseIds(admin: ReturnType<typeof adminClient>, studentId: string): Promise<Set<string>> {
-  const { data: enrollments } = await admin
-    .from('enrollments')
-    .select('program_id')
-    .eq('user_id', studentId);
-  const programIds = (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean);
-  if (programIds.length === 0) return new Set();
-
-  const { data: courses } = await admin
-    .from('courses')
-    .select('id')
-    .in('program_id', programIds);
-  return new Set((courses ?? []).map((c: any) => c.id).filter(Boolean));
-}
-
 async function getStudentClassTeacherId(admin: ReturnType<typeof adminClient>, classId: string | null): Promise<string | null> {
   if (!classId) return null;
   const { data } = await admin
@@ -44,69 +24,6 @@ async function getStudentClassTeacherId(admin: ReturnType<typeof adminClient>, c
     .eq('id', classId)
     .maybeSingle();
   return data?.teacher_id ?? null;
-}
-
-function normalizeList(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
-
-function assignmentVisibleToStudent(
-  asgn: any,
-  student: StudentScope,
-  enrolledCourses: Set<string>,
-  creatorRoles: Record<string, string>,
-  classTeacherId: string | null
-): boolean {
-  const meta = asgn.metadata || {};
-  const courseId = typeof asgn.course_id === 'string' ? asgn.course_id : null;
-  const creatorId = asgn.created_by;
-  const creatorRole = creatorId ? creatorRoles[creatorId] : null;
-
-  // 1. School ID scope check: If the assignment is tied to a school, the student must belong to it.
-  if (asgn.school_id) {
-    if (!student.school_id || asgn.school_id !== student.school_id) return false;
-  }
-  // 2. School Name scope check (legacy / fallback): If school name is specified, student must match it.
-  else if (asgn.school_name) {
-    if (!student.school_name || asgn.school_name.toLowerCase() !== student.school_name.toLowerCase()) return false;
-  }
-
-  // 3. Course Enrollment check: A student must be enrolled in the course of the assignment.
-  // This is critical, especially for summer/online school students who shouldn't see other courses' assignments.
-  if (courseId) {
-    if (enrolledCourses.size > 0 && !enrolledCourses.has(courseId)) return false;
-    if (enrolledCourses.size === 0) return false;
-  }
-
-  // 4. Class / Student Scoping check:
-  const targetClassId = meta.target_class_id || asgn.class_id;
-
-  // If the assignment has explicit class scoping
-  if (meta.visibility === 'class' || targetClassId || meta.target_class_name) {
-    const classIdMatch = targetClassId && student.class_id && targetClassId === student.class_id;
-    const classNameMatch = meta.target_class_name && student.section_class &&
-      String(meta.target_class_name).toLowerCase().trim() === student.section_class.toLowerCase().trim();
-    if (!classIdMatch && !classNameMatch) return false;
-  }
-  // If no explicit class scoping, but it is created by a teacher:
-  else if (creatorRole === 'teacher') {
-    // Teacher assignments without class scoping should be targeted smartly.
-    // For summer/online school students (or all students), they should only see this assignment
-    // if the teacher is their class tutor/teacher, or if they are explicitly targeted.
-    const isTutor = classTeacherId && creatorId === classTeacherId;
-    const isPrimaryTeacher = student.primary_teacher_id && creatorId === student.primary_teacher_id;
-    if (!isTutor && !isPrimaryTeacher) return false;
-  }
-
-  // 5. Work mode checks (specific student/group targeting)
-  if (meta.work_mode === 'specific') {
-    if (!normalizeList(meta.target_student_ids).includes(student.id)) return false;
-  } else if (meta.work_mode === 'group') {
-    const groups = Array.isArray(meta.groups) ? meta.groups : [];
-    if (!groups.some((g: any) => normalizeList(g?.studentIds).includes(student.id))) return false;
-  }
-
-  return true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,7 +86,7 @@ export async function GET(
     const [asgnRes, subRes] = await Promise.all([
       admin
         .from('assignments')
-        .select('id, title, description, instructions, due_date, max_points, assignment_type, is_active, created_at, created_by, questions, course_id, class_id, school_id, school_name, metadata, courses ( id, title, programs ( name ) )')
+        .select('id, title, description, instructions, due_date, max_points, assignment_type, is_active, created_at, created_by, questions, course_id, program_id, class_id, school_id, school_name, metadata, courses ( id, title, programs ( name ) )')
         .eq('id', id)
         .maybeSingle(),
       admin
@@ -189,7 +106,7 @@ export async function GET(
     if (!asgn.is_active) {
       return NextResponse.json({ error: 'This assignment is not currently active' }, { status: 403 });
     }
-    const courseIds = await enrolledCourseIds(admin, targetStudentId);
+    const scope = await resolveStudentProgramScope(admin, targetStudentId);
     const classTeacherId = await getStudentClassTeacherId(admin, targetStudent.class_id);
 
     let creatorRoles: Record<string, string> = {};
@@ -204,7 +121,7 @@ export async function GET(
       }
     }
 
-    if (!assignmentVisibleToStudent(asgn, targetStudent as StudentScope, courseIds, creatorRoles, classTeacherId)) {
+    if (!assignmentVisibleToStudent(asgn, targetStudent as AssignmentStudentScope, scope, creatorRoles, classTeacherId)) {
       return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
     }
 

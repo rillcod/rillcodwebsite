@@ -222,8 +222,9 @@ export async function onboardStudentFromProspect(
     try { await syncExplicitParentStudentLink(admin, opts.parentId, studentRowId); } catch (e) { console.error('[onboardStudentFromProspect] link failed:', e); }
   }
 
-  // Flagship enrolment so the learning dashboard isn't empty.
-  void ensureDefaultEnrollment(admin, studentPortalId, { grade: prospect.grade, enrollmentType });
+  // Real learning path so the dashboard isn't empty (online tracks resolve from
+  // course_interest; everyone else falls back to a flagship programme).
+  void ensureDefaultEnrollment(admin, studentPortalId, { grade: prospect.grade, enrollmentType, courseInterest: prospect.course_interest });
 
   return {
     studentPortalId,

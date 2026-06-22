@@ -43,10 +43,44 @@ export interface EnsureEnrollmentResult {
   reason?: string;
 }
 
+/** Online / summer / bootcamp learners belong to a real track, not a flagship programme. */
+function isOnlineEnrollment(enrollmentType?: string | null): boolean {
+  const t = (enrollmentType || '').toLowerCase();
+  return t.includes('summer') || t.includes('online') || t.includes('bootcamp');
+}
+
+/** Default online tracks, in priority order, when course_interest doesn't pin one down. */
+const ONLINE_DEFAULT_PROGRAMS = ['ai engineering', 'data analysis with python'] as const;
+
+/**
+ * Resolve the bootcamp/online programme a learner should join from their chosen
+ * track (`course_interest`), falling back to the first available default track.
+ * Returns null when none of the online programmes exist yet (caller then uses the
+ * flagship logic).
+ */
+function resolveOnlineProgram(
+  programs: Array<{ id: string; name: string }>,
+  courseInterest?: string | null,
+): { id: string; name: string } | null {
+  const interest = (courseInterest || '').toLowerCase().trim();
+  if (interest) {
+    const direct = programs.find((p) => {
+      const n = p.name.toLowerCase();
+      return interest.includes(n) || n.includes(interest);
+    });
+    if (direct) return direct;
+  }
+  for (const name of ONLINE_DEFAULT_PROGRAMS) {
+    const match = programs.find((p) => p.name.toLowerCase() === name || p.name.toLowerCase().includes(name));
+    if (match) return match;
+  }
+  return null;
+}
+
 export async function ensureDefaultEnrollment(
   admin: SupabaseClient,
   userId: string,
-  opts: { grade?: string | null; enrollmentType?: string | null } = {},
+  opts: { grade?: string | null; enrollmentType?: string | null; courseInterest?: string | null } = {},
 ): Promise<EnsureEnrollmentResult> {
   try {
     // 1. Idempotent: never double-enrol.
@@ -61,26 +95,38 @@ export async function ensureDefaultEnrollment(
       return { enrolled: false, programId: existing.program_id ?? null, programName: null, reason: 'already_enrolled' };
     }
 
-    // 2. Pull active flagship programmes (the only learner-visible, content-bearing ones).
+    // 2. Pull active programmes.
     const { data: programs } = await admin
       .from('programs')
       .select('id, name, is_active')
       .eq('is_active', true);
 
-    const flagship = (programs ?? []).filter((p: any) => isAlwaysPublicProgramName(p.name)) as Array<{ id: string; name: string }>;
+    const allActive = (programs ?? []) as Array<{ id: string; name: string }>;
 
-    if (flagship.length === 0) {
-      return { enrolled: false, programId: null, programName: null, reason: 'no_flagship_program' };
+    // 2b. Online / summer / bootcamp learners belong to their chosen TRACK
+    //     (AI Engineering, Data Analysis with Python, …), NOT a flagship programme.
+    //     Enrolling them into a flagship is what hid programme-tagged bootcamp
+    //     assignments from them.
+    let target: { id: string; name: string } | null = null;
+    if (isOnlineEnrollment(opts.enrollmentType)) {
+      target = resolveOnlineProgram(allActive, opts.courseInterest);
     }
 
-    // 3. Match by learner tier; younger learners → "Young Innovator", else "Teen Developer".
-    const tier = classifyTier(opts.grade, opts.enrollmentType);
-    const wantsYoung = tier === 'kids';
-    const byTier = flagship.find((p) => {
-      const n = p.name.toLowerCase();
-      return wantsYoung ? n.includes('young') : n.includes('teen');
-    });
-    const target = byTier ?? flagship[0];
+    // 3. Otherwise (or if no online track exists yet) fall back to the flagship
+    //    programmes, matched by learner tier: younger → "Young Innovator", else "Teen Developer".
+    if (!target) {
+      const flagship = allActive.filter((p) => isAlwaysPublicProgramName(p.name));
+      if (flagship.length === 0) {
+        return { enrolled: false, programId: null, programName: null, reason: 'no_flagship_program' };
+      }
+      const tier = classifyTier(opts.grade, opts.enrollmentType);
+      const wantsYoung = tier === 'kids';
+      const byTier = flagship.find((p) => {
+        const n = p.name.toLowerCase();
+        return wantsYoung ? n.includes('young') : n.includes('teen');
+      });
+      target = byTier ?? flagship[0];
+    }
 
     // 4. Enrol.
     const { error } = await admin.from('enrollments').insert({

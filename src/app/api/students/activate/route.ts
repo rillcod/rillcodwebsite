@@ -469,7 +469,7 @@ export async function POST(req: NextRequest) {
     // Fetch the student record
     const { data: student, error: studErr } = await supabaseAdmin
       .from('students')
-      .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, registration_payment_at, registration_paystack_reference, created_by')
+      .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, course_interest, registration_payment_at, registration_paystack_reference, created_by')
       .eq('id', studentId)
       .single();
 
@@ -713,6 +713,7 @@ export async function POST(req: NextRequest) {
     void ensureDefaultEnrollment(supabaseAdmin, portalUserId, {
       grade: student.grade_level || student.current_class,
       enrollmentType: student.enrollment_type,
+      courseInterest: student.course_interest,
     });
 
     // --- Bridge Gap: Log to Registration History (Vault) ---

@@ -402,7 +402,11 @@ export async function onboardSummerStudent(
   }
 
   // ── 6. Real learning path ──
-  void ensureDefaultEnrollment(admin, studentPortalId, { grade: prospect.grade, enrollmentType: 'summer_school' });
+  void ensureDefaultEnrollment(admin, studentPortalId, {
+    grade: prospect.grade,
+    enrollmentType: 'summer_school',
+    courseInterest: prospect.course_interest,
+  });
 
   // ── 7. Archive student credentials for staff resend ──
   try {
