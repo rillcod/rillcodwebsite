@@ -39,6 +39,7 @@ WHERE  a.course_id = c.id
 --      - a programme whose name matches their course_interest exists.
 WITH online_students AS (
   SELECT e.id              AS enrollment_id,
+         e.user_id         AS user_id,
          s.course_interest AS course_interest
   FROM   enrollments e
   JOIN   portal_users pu ON pu.id = e.user_id
@@ -46,6 +47,17 @@ WITH online_students AS (
   LEFT   JOIN students s   ON s.user_id = pu.id
   WHERE  pu.enrollment_type IN ('summer_school', 'online', 'online_school', 'bootcamp')
     AND  lower(cur.name) ~ '(teen developer|young innovator)'
+    -- The programme enrolment is only a DEFAULT — an admin can override it. Never
+    -- clobber a deliberate choice: skip any learner who ALREADY holds a
+    -- non-flagship (i.e. admin-set / real-track) enrolment. We only repair the
+    -- untouched flagship default.
+    AND  NOT EXISTS (
+           SELECT 1
+           FROM   enrollments e2
+           JOIN   programs p2 ON p2.id = e2.program_id
+           WHERE  e2.user_id = e.user_id
+             AND  lower(p2.name) !~ '(teen developer|young innovator)'
+         )
 ),
 matched AS (
   -- Match course_interest to a programme in BOTH directions, because the chosen

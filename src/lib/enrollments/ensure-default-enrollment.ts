@@ -13,9 +13,15 @@ import { isAlwaysPublicProgramName } from '@/lib/courses/visibility';
  *
  * This helper closes that gap idempotently:
  *   • If the student already has ANY enrollment, it does nothing.
- *   • Otherwise it picks the best flagship programme for their level
- *     (Young Innovator(s) for younger learners, Teen Developer(s) otherwise)
- *     — the two always-public, content-bearing programmes — and enrols them.
+ *   • Otherwise, for online / summer / bootcamp learners it enrols them into the
+ *     TRACK they signed up for (course_interest → e.g. "AI Engineering &
+ *     Automation", "Data Analysis with Python"), and for everyone else it picks
+ *     the best flagship programme for their level (Young Innovator(s) for younger
+ *     learners, Teen Developer(s) otherwise).
+ *
+ * The programme chosen here is only a DEFAULT — an admin can override it later by
+ * changing the student's enrollment. Because this helper no-ops whenever any
+ * enrollment already exists, it never overwrites an admin's deliberate choice.
  *
  * It is intentionally defensive and non-throwing for callers: enrolment is a
  * nice-to-have side effect of onboarding, never a reason to fail the account

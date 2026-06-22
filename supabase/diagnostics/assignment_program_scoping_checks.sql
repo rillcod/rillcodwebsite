@@ -44,17 +44,25 @@ WHERE  pu.enrollment_type IN ('summer_school', 'online', 'online_school', 'bootc
 ORDER  BY pu.full_name;
 
 
--- 3. Preview of what migration step 3 WILL re-point (dry run of the same join).
+-- 3. Preview of what migration step 3 WILL re-point (dry run of the same join,
+--    INCLUDING the admin-override guard — learners who already hold a non-flagship
+--    enrolment are excluded so a deliberate admin choice is never overwritten).
 --    Empty result = course_interest values don't textually match any programme
 --    name, so review your programme names vs. students.course_interest.
 WITH online_students AS (
-  SELECT e.id AS enrollment_id, s.course_interest, pu.email
+  SELECT e.id AS enrollment_id, e.user_id, s.course_interest, pu.email
   FROM   enrollments e
   JOIN   portal_users pu ON pu.id = e.user_id
   JOIN   programs cur     ON cur.id = e.program_id
   LEFT   JOIN students s   ON s.user_id = pu.id
   WHERE  pu.enrollment_type IN ('summer_school', 'online', 'online_school', 'bootcamp')
     AND  lower(cur.name) ~ '(teen developer|young innovator)'
+    AND  NOT EXISTS (
+           SELECT 1 FROM enrollments e2
+           JOIN   programs p2 ON p2.id = e2.program_id
+           WHERE  e2.user_id = e.user_id
+             AND  lower(p2.name) !~ '(teen developer|young innovator)'
+         )
 )
 SELECT DISTINCT ON (os.email)
        os.email, os.course_interest, p.name AS would_move_to
