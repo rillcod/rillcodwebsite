@@ -33,7 +33,9 @@ export default function EditAssignmentPage() {
     const id = params?.id as string;
     const router = useRouter();
     const { profile, loading: authLoading } = useAuth();
+    const [programs, setPrograms] = useState<any[]>([]);
     const [courses, setCourses] = useState<any[]>([]);
+    const [selectedProgramId, setSelectedProgramId] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -59,9 +61,11 @@ export default function EditAssignmentPage() {
         const db = createClient();
         Promise.all([
             fetch(`/api/assignments/${id}`, { cache: 'no-store' }).then(r => r.json()),
-            db.from('courses').select('id, title, programs(name)').eq('is_active', true).order('title'),
-        ]).then(([aJson, cRes]) => {
+            db.from('courses').select('id, title, program_id, programs(name)').eq('is_active', true).order('title'),
+            db.from('programs').select('id, name').eq('is_active', true).order('name'),
+        ]).then(([aJson, cRes, pRes]) => {
             const a = aJson.data;
+            const courseList = cRes.data ?? [];
             if (a) {
                 setForm({
                     title: a.title ?? '',
@@ -75,10 +79,16 @@ export default function EditAssignmentPage() {
                     is_active: a.is_active ?? true,
                 });
                 setQuestions(Array.isArray(a.questions) ? a.questions as any as Question[] : []);
+                // Seed the programme from the assignment's tag, else derive it from the course.
+                const derived = a.program_id
+                    ?? courseList.find((c: any) => c.id === a.course_id)?.program_id
+                    ?? '';
+                setSelectedProgramId(derived);
             } else {
                 setError(aJson.error || 'Assignment not found.');
             }
-            setCourses(cRes.data ?? []);
+            setCourses(courseList);
+            setPrograms(pRes.data ?? []);
             setLoading(false);
         });
     }, [profile?.id, authLoading, id]);
@@ -113,6 +123,7 @@ export default function EditAssignmentPage() {
                 description: form.description.trim() || null,
                 instructions: form.instructions.trim() || null,
                 course_id: form.course_id,
+                program_id: selectedProgramId || null,
                 max_points: parseInt(form.max_points) || 100,
                 weight: parseInt(form.weight) || 0,
                 assignment_type: form.assignment_type,
@@ -199,19 +210,39 @@ export default function EditAssignmentPage() {
                             className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500 transition-colors" />
                     </div>
 
-                    {/* Course */}
-                    <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
-                            Course <span className="text-rose-400">*</span>
-                        </label>
-                        <select required value={form.course_id}
-                            onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
-                            <option value="">Select a course…</option>
-                            {courses.map(c => (
-                                <option key={c.id} value={c.id}>{c.title}{(c.programs as any)?.name ? ` — ${(c.programs as any).name}` : ''}</option>
-                            ))}
-                        </select>
+                    {/* Programme + Course */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                                Programme <span className="text-rose-400">*</span>
+                            </label>
+                            <select value={selectedProgramId}
+                                onChange={e => {
+                                    const pid = e.target.value;
+                                    setSelectedProgramId(pid);
+                                    const currentCourse = courses.find((c: any) => c.id === form.course_id);
+                                    if (currentCourse?.program_id !== pid) {
+                                        setForm(f => ({ ...f, course_id: '' }));
+                                    }
+                                }}
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer">
+                                <option value="">Select a programme…</option>
+                                {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                                Course <span className="text-rose-400">*</span>
+                            </label>
+                            <select required value={form.course_id}
+                                onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
+                                disabled={!selectedProgramId}
+                                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 cursor-pointer disabled:opacity-40">
+                                <option value="">{selectedProgramId ? 'Select a course…' : '— pick a programme first —'}</option>
+                                {courses.filter((c: any) => c.program_id === selectedProgramId)
+                                    .map((c: any) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                            </select>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
