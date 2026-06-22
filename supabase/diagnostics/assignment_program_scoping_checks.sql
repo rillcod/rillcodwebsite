@@ -56,12 +56,16 @@ WITH online_students AS (
   WHERE  pu.enrollment_type IN ('summer_school', 'online', 'online_school', 'bootcamp')
     AND  lower(cur.name) ~ '(teen developer|young innovator)'
 )
-SELECT os.email, os.course_interest, p.name AS would_move_to
+SELECT DISTINCT ON (os.email)
+       os.email, os.course_interest, p.name AS would_move_to
 FROM   online_students os
 JOIN   programs p
   ON   p.is_active IS NOT FALSE
  AND   os.course_interest IS NOT NULL
- AND   lower(os.course_interest) LIKE '%' || lower(p.name) || '%';
+ AND   length(trim(os.course_interest)) >= 4
+ AND   ( lower(os.course_interest) LIKE '%' || lower(p.name) || '%'
+      OR lower(p.name)             LIKE '%' || lower(trim(os.course_interest)) || '%' )
+ORDER  BY os.email, length(p.name) DESC;
 
 
 -- 4. Sanity: which programmes exist, and how many assignments / courses each has.

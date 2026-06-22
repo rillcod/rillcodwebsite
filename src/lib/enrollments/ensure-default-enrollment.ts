@@ -49,8 +49,12 @@ function isOnlineEnrollment(enrollmentType?: string | null): boolean {
   return t.includes('summer') || t.includes('online') || t.includes('bootcamp');
 }
 
-/** Default online tracks, in priority order, when course_interest doesn't pin one down. */
-const ONLINE_DEFAULT_PROGRAMS = ['ai engineering', 'data analysis with python'] as const;
+/**
+ * Default online tracks, in priority order, when course_interest doesn't pin one
+ * down. Substrings (not full names) so they tolerate the real programme titles
+ * e.g. "AI Engineering & Automation", "Data Analysis with Python".
+ */
+const ONLINE_DEFAULT_PROGRAMS = ['ai engineering', 'data analysis'] as const;
 
 /**
  * Resolve the bootcamp/online programme a learner should join from their chosen

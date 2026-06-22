@@ -48,13 +48,22 @@ WITH online_students AS (
     AND  lower(cur.name) ~ '(teen developer|young innovator)'
 ),
 matched AS (
-  SELECT os.enrollment_id,
+  -- Match course_interest to a programme in BOTH directions, because the chosen
+  -- track is often a shorthand of the full programme name (e.g. course_interest
+  -- "AI Engineering" → programme "AI Engineering & Automation") or vice versa.
+  -- When several programmes match, prefer the longest (most specific) name so a
+  -- short interest can't be captured by an unrelated shorter programme.
+  SELECT DISTINCT ON (os.enrollment_id)
+         os.enrollment_id,
          p.id AS target_program_id
   FROM   online_students os
   JOIN   programs p
     ON   p.is_active IS NOT FALSE
    AND   os.course_interest IS NOT NULL
-   AND   lower(os.course_interest) LIKE '%' || lower(p.name) || '%'
+   AND   length(trim(os.course_interest)) >= 4
+   AND   ( lower(os.course_interest) LIKE '%' || lower(p.name) || '%'
+        OR lower(p.name)             LIKE '%' || lower(trim(os.course_interest)) || '%' )
+  ORDER  BY os.enrollment_id, length(p.name) DESC
 )
 UPDATE enrollments e
 SET    program_id = m.target_program_id
