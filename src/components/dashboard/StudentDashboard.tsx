@@ -34,12 +34,13 @@ export default function StudentDashboard() {
     nextLesson: any; pendingAssignments: number; badges: any[]; leaderboardRank: number | null;
     recentActivity: any[]; isEnrolled: boolean;
     upcomingDue: { id: string; title: string; due_date: string; course: string | null }[];
+    overdueDue: { id: string; title: string; due_date: string; course: string | null }[];
     recentGrades: { id: string; title: string; grade: number | null; max_points: number | null; submitted_at: string | null }[];
     lmsSettings: Record<string, string>;
   }>({
     xp: 0, streak: 0, level: 'Bronze', lessonsDone: 0, avgScore: 0,
     nextLesson: null, pendingAssignments: 0, badges: [], leaderboardRank: null, recentActivity: [],
-    isEnrolled: false, upcomingDue: [], recentGrades: [],
+    isEnrolled: false, upcomingDue: [], overdueDue: [], recentGrades: [],
     lmsSettings: {} as Record<string, string>,
   });
   const [loading, setLoading] = useState(true);
@@ -73,13 +74,13 @@ export default function StudentDashboard() {
 
         // Still fetch dynamic/list data not in basic stats RPC
         const db = createClient();
-        const now = new Date().toISOString();
 
-        const [upcomingRes, recentGradesRes, activityRes, enrollRes] = await Promise.allSettled([
-          // Fix: assignments don't have 'status', we just need upcoming ones
-          // In a real scenario, we'd filter out already submitted ones via a join or secondary check
-          db.from('assignments').select('id, title, due_date, courses(title)')
-            .gte('due_date', now).eq('is_active', true).order('due_date', { ascending: true }).limit(5) as any,
+        // Upcoming/overdue assignments come from the program-scoped API (service-role,
+        // applies the same enrollment/program/class visibility as the assignments page) —
+        // NOT a raw client query, which would leak other programmes' assignments and was
+        // also hiding past-due work via a `.gte('due_date', now)` filter.
+        const [assignmentsRes, recentGradesRes, activityRes, enrollRes] = await Promise.allSettled([
+          fetch('/api/assignments', { cache: 'no-store' }).then(r => r.ok ? r.json() : { data: [] }),
           db.from('assignment_submissions').select('id, grade, submitted_at, assignments(title, max_points)')
             .eq('portal_user_id', profile.id).eq('status', 'graded').not('grade', 'is', null)
             .order('submitted_at', { ascending: false }).limit(4),
@@ -88,7 +89,24 @@ export default function StudentDashboard() {
           db.from('enrollments').select('program_id, programs(id, name)').eq('user_id', profile.id).limit(1) as any
         ]);
 
-        const upcomingDue = upcomingRes.status === 'fulfilled' ? (upcomingRes.value.data ?? []) : [];
+        // Split scoped assignments into "due soon" vs "overdue" — pending (unsubmitted) only.
+        const scopedAssignments = assignmentsRes.status === 'fulfilled' ? (assignmentsRes.value?.data ?? []) : [];
+        const nowMs = Date.now();
+        const pending = scopedAssignments.filter((a: any) => {
+          const sub = (a.assignment_submissions ?? [])[0];
+          const status = sub?.status ?? 'missing';
+          return status !== 'graded' && status !== 'submitted' && status !== 'pending_review';
+        });
+        const toCard = (a: any) => ({ id: a.id, title: a.title, due_date: a.due_date, course: a.courses?.title ?? null });
+        const upcomingDue = pending
+          .filter((a: any) => !a.due_date || new Date(a.due_date).getTime() >= nowMs)
+          .sort((x: any, y: any) => new Date(x.due_date ?? 0).getTime() - new Date(y.due_date ?? 0).getTime())
+          .slice(0, 5).map(toCard);
+        const overdueDue = pending
+          .filter((a: any) => a.due_date && new Date(a.due_date).getTime() < nowMs)
+          .sort((x: any, y: any) => new Date(y.due_date).getTime() - new Date(x.due_date).getTime())
+          .slice(0, 5).map(toCard);
+
         const recentGrades = recentGradesRes.status === 'fulfilled' ? (recentGradesRes.value.data ?? []) : [];
         const recentActivity = activityRes.status === 'fulfilled'
           ? (activityRes.value.data ?? []).map((s: any) => ({
@@ -128,12 +146,8 @@ export default function StudentDashboard() {
 
         setData(prev => ({
           ...prev,
-          upcomingDue: upcomingDue.map((a: any) => ({
-            id: a.id,
-            title: a.title,
-            due_date: a.due_date,
-            course: a.courses?.title ?? null,
-          })),
+          upcomingDue,
+          overdueDue,
           recentGrades: recentGrades.map((s: any) => ({
             id: s.id,
             title: s.assignments?.title ?? '—',
@@ -563,6 +577,36 @@ export default function StudentDashboard() {
       </div>
 
       {/* Upcoming Due + Recent Grades */}
+      {/* Overdue (pending) — full width alert so missed work is never hidden */}
+      {data.overdueDue.length > 0 && (
+        <div className="bg-rose-500/5 border border-rose-500/20 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[10px] font-black text-rose-400 uppercase tracking-[0.3em]">
+              Overdue — {data.overdueDue.length} pending
+            </h3>
+            <Link href="/dashboard/assignments" className="text-[9px] font-black text-rose-400 hover:text-rose-300 uppercase tracking-widest transition-colors">
+              Submit Now →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {data.overdueDue.map((a) => {
+              const daysLate = a.due_date ? Math.floor((Date.now() - new Date(a.due_date).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+              return (
+                <Link key={a.id} href={`/dashboard/assignments/${a.id}`} className="flex items-center gap-3 p-3 bg-background border border-rose-500/20 hover:border-rose-500/40 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-foreground truncate">{a.title}</p>
+                    {a.course && <p className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{a.course}</p>}
+                  </div>
+                  <span className="shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 border text-rose-400 bg-rose-500/10 border-rose-500/20">
+                    {daysLate <= 0 ? 'Due' : daysLate === 1 ? '1d late' : `${daysLate}d late`}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {(data.upcomingDue.length > 0 || data.recentGrades.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
