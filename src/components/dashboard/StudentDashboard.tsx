@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { motion } from 'framer-motion';
 import StudentEngagementCard from '@/components/dashboard/StudentEngagementCard';
+import RecommendedForYou from '@/components/dashboard/RecommendedForYou';
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
 
 const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; text: string; border: string }> = {
@@ -353,6 +354,9 @@ export default function StudentDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── SMART RECOMMENDATIONS ── */}
+      <RecommendedForYou />
 
       {/* ── STATS & PROGRESS SECTION ── */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
