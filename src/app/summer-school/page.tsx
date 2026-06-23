@@ -201,9 +201,9 @@ export default function SummerSchoolPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto pt-6">
             {[
-              { label: "Start Date", val: "June 8, 2026" },
-              { label: "Deadline", val: "June 12, 2026", highlight: true },
-              { label: "Ending Date", val: "August 28, 2026" },
+              { label: "Start Date", val: "June 27, 2026" },
+              { label: "Deadline", val: "June 30, 2026", highlight: true },
+              { label: "Ending Date", val: "September 7, 2026" },
               { label: "Duration", val: "7 Weeks Cohort" },
               { label: "Audience", val: "Ages 8 – 18" }
             ].map(m => (
@@ -352,11 +352,11 @@ export default function SummerSchoolPage() {
         <section id="register" className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pt-8">
           {/* Form / Success Ticket Column */}
           {verifyingPayment ? (
-          <div className="lg:col-span-2 flex items-center justify-center gap-3 py-16 text-muted-foreground bg-card border border-border rounded-2xl">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <p className="text-sm font-bold uppercase tracking-widest">Verifying your payment…</p>
-          </div>
-        ) : isSuccess && successInfo ? (
+            <div className="lg:col-span-2 flex items-center justify-center gap-3 py-16 text-muted-foreground bg-card border border-border rounded-2xl">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <p className="text-sm font-bold uppercase tracking-widest">Verifying your payment…</p>
+            </div>
+          ) : isSuccess && successInfo ? (
             <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-10 rounded-2xl shadow-2xl relative overflow-hidden border-t-8 border-t-emerald-500">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[80px] pointer-events-none" />
               <SummerSchoolSuccessTicket
@@ -370,7 +370,7 @@ export default function SummerSchoolPage() {
                 }}
               />
             </div>
-        ) : (
+          ) : (
             <div className="lg:col-span-2 bg-card border border-border p-6 sm:p-8 rounded-2xl space-y-6 shadow-2xl">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
@@ -650,8 +650,8 @@ export default function SummerSchoolPage() {
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, paymentPlan: "full" }))}
                           className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentPlan === "full"
-                              ? "bg-primary text-primary-foreground border-primary shadow-md"
-                              : "bg-card text-foreground border-border hover:bg-muted"
+                            ? "bg-primary text-primary-foreground border-primary shadow-md"
+                            : "bg-card text-foreground border-border hover:bg-muted"
                             }`}
                         >
                           {fullTuitionLabel}
@@ -660,8 +660,8 @@ export default function SummerSchoolPage() {
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, paymentPlan: "installment" }))}
                           className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentPlan === "installment"
-                              ? "bg-primary text-primary-foreground border-primary shadow-md"
-                              : "bg-card text-foreground border-border hover:bg-muted"
+                            ? "bg-primary text-primary-foreground border-primary shadow-md"
+                            : "bg-card text-foreground border-border hover:bg-muted"
                             }`}
                         >
                           {splitTuitionLabel}
@@ -677,8 +677,8 @@ export default function SummerSchoolPage() {
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, paymentMethod: "paystack" }))}
                           className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentMethod === "paystack"
-                              ? "bg-primary text-primary-foreground border-primary shadow-md"
-                              : "bg-card text-foreground border-border hover:bg-muted"
+                            ? "bg-primary text-primary-foreground border-primary shadow-md"
+                            : "bg-card text-foreground border-border hover:bg-muted"
                             }`}
                         >
                           💳 Online
@@ -687,8 +687,8 @@ export default function SummerSchoolPage() {
                           type="button"
                           onClick={() => setForm(prev => ({ ...prev, paymentMethod: "bank_transfer" }))}
                           className={`py-3 px-4 rounded-xl border text-xs font-black uppercase transition-all tracking-wider cursor-pointer ${form.paymentMethod === "bank_transfer"
-                              ? "bg-primary text-primary-foreground border-primary shadow-md"
-                              : "bg-card text-foreground border-border hover:bg-muted"
+                            ? "bg-primary text-primary-foreground border-primary shadow-md"
+                            : "bg-card text-foreground border-border hover:bg-muted"
                             }`}
                         >
                           🏦 Transfer
@@ -751,10 +751,10 @@ export default function SummerSchoolPage() {
                             <label
                               htmlFor="page-receipt-upload"
                               className={`w-full flex items-center justify-center gap-2 py-2 px-3 border border-dashed rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${uploadingReceipt
-                                  ? "bg-muted text-muted-foreground border-muted animate-pulse"
-                                  : form.paymentReference.startsWith('http')
-                                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
-                                    : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
+                                ? "bg-muted text-muted-foreground border-muted animate-pulse"
+                                : form.paymentReference.startsWith('http')
+                                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                                  : "bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
                                 }`}
                             >
                               {uploadingReceipt ? (
