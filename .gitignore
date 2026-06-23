@@ -53,3 +53,6 @@ scripts/setup-admins.mjs
 
 # PWA fallback files
 /public/fallback-*.js
+
+# one-off local DB scripts (service-role access) — never commit
+/scratch_*.js
