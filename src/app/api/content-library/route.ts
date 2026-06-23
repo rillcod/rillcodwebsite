@@ -28,12 +28,13 @@ async function listHandler(req: Request, ctx: ApiContext) {
     const gradeLevel = searchParams.get('gradeLevel');
     const sort = searchParams.get('sort') as any;
     const order = searchParams.get('order') as any;
+    const program = searchParams.get('program');
     const page = parseInt(searchParams.get('page') ?? '0', 10);
     const pageSize = parseInt(searchParams.get('pageSize') ?? '50', 10);
 
     const role = ctx.user?.role;
     let schoolIds: string[] | undefined;
-    
+
     if (role === 'teacher') {
         schoolIds = await getTeacherSchoolIds(ctx.user!.id, ctx.user?.tenantId ?? null);
     } else if (ctx.user?.tenantId) {
@@ -51,6 +52,8 @@ async function listHandler(req: Request, ctx: ApiContext) {
         page,
         pageSize,
         role,
+        programId: program,
+        userId: ctx.user?.id ?? null,
     });
 
     return NextResponse.json({ success: true, data: items });

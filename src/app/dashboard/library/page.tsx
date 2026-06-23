@@ -478,6 +478,7 @@ export default function ContentLibraryPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'school' | 'global'>('all');
   const [activeCategory, setActiveCategory] = useState('All');
   const [subjectFilter, setSubjectFilter] = useState('All');
+  const [programFilter, setProgramFilter] = useState('All');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [viewerItem, setViewerItem] = useState<ContentItem | null>(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -590,13 +591,27 @@ export default function ContentLibraryPage() {
       const matchTab = activeTab === 'all' ? true : activeTab === 'school' ? item.school_id === profile?.school_id : !item.school_id;
       const matchCat = activeCategory === 'All' ? true : (CATEGORY_TO_TYPE[activeCategory] ?? []).includes(item.content_type.toLowerCase()) || item.category === activeCategory;
       const matchSubject = subjectFilter === 'All' ? true : item.subject === subjectFilter;
-      return matchSearch && matchTab && matchCat && matchSubject;
+      const matchProgram = programFilter === 'All' ? true
+        : programFilter === 'General' ? !item.program_id
+        : item.programs?.name === programFilter;
+      return matchSearch && matchTab && matchCat && matchSubject && matchProgram;
     });
     if (sortKey === 'most_used') result = [...result].sort((a, b) => (b.usage_count ?? 0) - (a.usage_count ?? 0));
     else if (sortKey === 'top_rated') result = [...result].sort((a, b) => (b.rating_average ?? 0) - (a.rating_average ?? 0));
     else result = [...result].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return result;
-  }, [items, search, activeTab, activeCategory, subjectFilter, sortKey, profile?.school_id]);
+  }, [items, search, activeTab, activeCategory, subjectFilter, programFilter, sortKey, profile?.school_id]);
+
+  // Programme options derived from the (already programme-scoped) items.
+  const programOptions = useMemo(() => {
+    const names = new Set<string>();
+    let hasGeneral = false;
+    for (const it of items) {
+      if (it.programs?.name) names.add(it.programs.name);
+      else hasGeneral = true;
+    }
+    return ['All', ...(hasGeneral ? ['General'] : []), ...Array.from(names).sort()];
+  }, [items]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -736,6 +751,13 @@ export default function ContentLibraryPage() {
                 {subjects.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
+            {programOptions.length > 1 && (
+              <div className="flex-1 lg:flex-none relative">
+                <select value={programFilter} onChange={e => setProgramFilter(e.target.value)} className="select-premium w-full lg:w-48 bg-muted/50 border-0 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-muted/80 transition-colors">
+                  {programOptions.map(p => <option key={p} value={p}>{p === 'All' ? 'All Programmes' : p}</option>)}
+                </select>
+              </div>
+            )}
             <div className="flex-1 lg:flex-none relative">
               <select value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} className="select-premium w-full lg:w-48 bg-muted/50 border-0 rounded-2xl px-6 py-4 text-[10px] font-black uppercase tracking-widest appearance-none cursor-pointer hover:bg-muted/80 transition-colors">
                 <option value="newest">Newest First</option>

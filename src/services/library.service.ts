@@ -38,6 +38,10 @@ export interface ListFilters {
     page?: number;
     pageSize?: number;
     role?: string | null;
+    /** Explicit programme filter (UI dropdown). */
+    programId?: string | null;
+    /** Caller id — used to scope students to their enrolled programmes. */
+    userId?: string | null;
 }
 
 function isStaffRole(role: string | null | undefined): boolean {
@@ -125,6 +129,26 @@ export class LibraryService {
         if (filters.gradeLevel) query = query.eq('grade_level', filters.gradeLevel);
         if (filters.query) {
             query = query.ilike('title', `%${filters.query}%`);
+        }
+
+        // Programme scoping. Explicit dropdown filter wins; otherwise students only see
+        // content tagged to their ENROLLED programme(s) plus general (untagged) content —
+        // so a summer AI learner never sees unrelated tracks (e.g. Scratch).
+        if (filters.programId) {
+            query = query.eq('program_id', filters.programId);
+        } else if (role === 'student' && filters.userId) {
+            const { data: enr } = await supabase
+                .from('enrollments')
+                .select('program_id')
+                .eq('user_id', filters.userId);
+            const progIds = Array.from(
+                new Set((enr ?? []).map((e: any) => e.program_id).filter(Boolean) as string[]),
+            );
+            if (progIds.length > 0) {
+                query = query.or(`program_id.in.(${progIds.join(',')}),program_id.is.null`);
+            } else {
+                query = query.is('program_id', null);
+            }
         }
 
         query = query.eq('is_active', true);
