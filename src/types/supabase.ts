@@ -4733,6 +4733,7 @@ export type Database = {
       invoices: {
         Row: {
           amount: number
+          billing_cycle_id: string | null
           created_at: string | null
           currency: string | null
           due_date: string | null
@@ -4754,6 +4755,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          billing_cycle_id?: string | null
           created_at?: string | null
           currency?: string | null
           due_date?: string | null
@@ -4775,6 +4777,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          billing_cycle_id?: string | null
           created_at?: string | null
           currency?: string | null
           due_date?: string | null
@@ -4795,6 +4798,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_billing_cycle_id_fkey"
+            columns: ["billing_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "billing_cycles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_payment_transaction_id_fkey"
             columns: ["payment_transaction_id"]
@@ -10237,6 +10247,7 @@ export type Database = {
       finance_ledger: {
         Row: {
           amount: number | null
+          commission_rate: number | null
           currency: string | null
           invoice_id: string | null
           invoice_number: string | null

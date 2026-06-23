@@ -224,7 +224,7 @@ function AssignmentsPageInner() {
 
     if (isStaff) {
       const subs = a.assignment_submissions ?? [];
-      const hasPending = subs.some((s: any) => s.status === 'submitted' || s.status === 'pending_review');
+      const hasPending = subs.some((s: any) => s.status === 'submitted' || s.status === 'pending_review' || s.status === 'late');
       const overdue = isOverdue(a.due_date);
       let mTab = true;
       if (staffTab === 'needs_grading') mTab = hasPending;
@@ -235,21 +235,30 @@ function AssignmentsPageInner() {
     }
 
     const status = a.status ?? 'pending';
-    const mf = filter === 'all' || status === filter;
+    let mf = false;
+    if (filter === 'all') {
+      mf = true;
+    } else if (filter === 'pending') {
+      mf = status === 'missing' && !isOverdue(a.assignments?.due_date);
+    } else if (filter === 'missing') {
+      mf = status === 'missing' && isOverdue(a.assignments?.due_date);
+    } else {
+      mf = status === filter;
+    }
     return ms && mf && mt;
   });
 
   // Stats derived from real data
   const totalItems = items.length;
   const pendingCount = isStaff
-    ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'submitted' || s.status === 'pending_review')).length
-    : items.filter((a: any) => a.status === 'submitted' || a.status === 'pending_review').length;
+    ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'submitted' || s.status === 'pending_review' || s.status === 'late')).length
+    : items.filter((a: any) => a.status === 'submitted' || a.status === 'pending_review' || a.status === 'late').length;
   const gradedCount = isStaff
     ? items.filter((a: any) => (a.assignment_submissions ?? []).some((s: any) => s.status === 'graded')).length
     : items.filter((a: any) => a.status === 'graded').length;
   const overdueCount = isStaff
     ? items.filter((a: any) => isOverdue(a.due_date) && a.is_active !== false).length
-    : items.filter((a: any) => isOverdue(a.assignments?.due_date) && a.status !== 'graded').length;
+    : items.filter((a: any) => isOverdue(a.assignments?.due_date) && a.status === 'missing').length;
   const draftCount = isStaff ? items.filter((a: any) => a.is_active === false).length : 0;
 
   // ── LOADING ──────────────────────────────────────────────────
@@ -734,7 +743,7 @@ function AssignmentsPageInner() {
           <div className="space-y-2">
             {filtered.map((sub: any) => {
               const a = sub.assignments ?? {};
-              const overdue = isOverdue(a.due_date) && sub.status !== 'graded' && sub.status !== 'submitted';
+              const overdue = isOverdue(a.due_date) && sub.status === 'missing';
               const accentColor = SUB_ACCENT[sub.status ?? 'pending'] ?? 'bg-muted';
 
               return (
@@ -806,7 +815,7 @@ function AssignmentsPageInner() {
 
                       {/* Right: action buttons */}
                       <div className="flex flex-col gap-1.5 flex-shrink-0">
-                        {sub.status !== 'graded' && a.assignment_type === 'cbt' && (
+                        {sub.status === 'missing' && a.assignment_type === 'cbt' && (
                           <Link
                             href={`/dashboard/cbt/${sub.assignment_id ?? a.id}/take`}
                             className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
@@ -814,7 +823,7 @@ function AssignmentsPageInner() {
                             <CommandLineIcon className="w-3.5 h-3.5" /> Take Test
                           </Link>
                         )}
-                        {sub.status !== 'graded' && a.assignment_type === 'coding' && (
+                        {sub.status === 'missing' && a.assignment_type === 'coding' && (
                           <Link
                             href={`/dashboard/playground?assignmentId=${sub.assignment_id ?? a.id}`}
                             className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"
@@ -822,7 +831,7 @@ function AssignmentsPageInner() {
                             <CodeBracketIcon className="w-3.5 h-3.5" /> Code It
                           </Link>
                         )}
-                        {sub.status !== 'graded' && a.assignment_type !== 'coding' && a.assignment_type !== 'cbt' && (
+                        {sub.status === 'missing' && a.assignment_type !== 'coding' && a.assignment_type !== 'cbt' && (
                           <Link
                             href={`/dashboard/assignments/${sub.assignment_id ?? a.id}`}
                             className="flex items-center gap-2 bg-primary hover:bg-primary text-white font-black text-[9px] uppercase tracking-widest px-4 py-2 transition-colors"

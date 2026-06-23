@@ -895,10 +895,12 @@ function Badge({ status }: { status: string }) {
         graded: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
         late: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
         missing: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+        pending_review: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
     };
+    const label = status === 'pending_review' ? 'Pending Review' : status;
     return (
         <span className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${map[status] ?? 'bg-muted text-muted-foreground'}`}>
-            {status}
+            {label}
         </span>
     );
 }
@@ -1479,7 +1481,7 @@ export default function AssignmentDetailPage() {
                         {!isStaff && submission?.status && (
                             <div className="flex-shrink-0 text-right space-y-1">
                                 <Badge status={submission.status} />
-                                {submission?.status === 'submitted' && (
+                                {submission?.status !== 'graded' && submission?.status !== 'missing' && (
                                     <p className="text-[10px] text-white/30 mt-1">Awaiting grade</p>
                                 )}
                             </div>
@@ -1695,7 +1697,7 @@ export default function AssignmentDetailPage() {
                             </div>
                         )}
 
-                        {submission?.status === 'graded' || submission?.status === 'submitted' ? (
+                        {submission?.status && ['graded', 'submitted', 'late', 'pending_review'].includes(submission.status) ? (
                             <div className="space-y-4">
                                 {/* Submitted photo */}
                                 {submission.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(submission.file_url) && (
@@ -1709,7 +1711,7 @@ export default function AssignmentDetailPage() {
                                                 <span className="text-[10px] font-black text-white uppercase tracking-widest">Click to zoom · Download available</span>
                                             </div>
                                         </div>
-                                        {submission.status === 'submitted' && (
+                                        {submission.status !== 'graded' && (
                                             <p className="text-[10px] text-muted-foreground italic">Photo will be removed after grading.</p>
                                         )}
                                     </div>

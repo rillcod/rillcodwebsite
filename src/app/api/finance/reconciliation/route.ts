@@ -84,7 +84,8 @@ export async function GET(request: NextRequest) {
       if (!r.receipt_id) missingReceipts += 1;
       if (r.stream === 'school') {
         totalSchool += amt;
-        commissionRetained += splitSchoolAmount(amt, DEFAULT_COMMISSION_RATE).rillcodRetain;
+        const commRate = r.commission_rate != null ? Number(r.commission_rate) : DEFAULT_COMMISSION_RATE;
+        commissionRetained += splitSchoolAmount(amt, commRate).rillcodRetain;
       }
       if (r.stream === 'individual') totalIndividual += amt;
     }

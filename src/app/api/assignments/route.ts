@@ -113,6 +113,9 @@ export async function GET(request: NextRequest) {
         if (caller.school_id) scopeParts.push(`school_id.eq.${caller.school_id}`);
         if (caller.school_name) scopeParts.push(`school_name.eq.${JSON.stringify(caller.school_name)}`);
         query = query.or(scopeParts.join(',')) as any;
+      } else {
+        // Online / B2C student - only see platform-wide/global assignments (school_id is null)
+        query = query.is('school_id', null) as any;
       }
     }
 
