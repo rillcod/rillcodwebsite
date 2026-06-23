@@ -54,6 +54,19 @@ export async function GET(request: NextRequest) {
     let callerRole: string | null = null;
     if (user) callerRole = await getCallerRole(user.id);
 
+    // A student's catalogue is their ENROLMENT, not the generic flagship list.
+    // Summer/bootcamp learners are enrolled in programmes that are not flagged
+    // `visible_to_students` (AI Engineering & Automation, Data Analysis, …); without
+    // this they'd see the flagship catalogue (e.g. Young Innovators / Scratch) and
+    // NOT their own programme. Scope enrolled students to their enrolled programmes.
+    let enrolledProgramIds = new Set<string>();
+    if (callerRole === 'student' && user) {
+      const { data: enr } = await adminClient()
+        .from('enrollments')
+        .select('program_id')
+        .eq('user_id', user.id);
+      enrolledProgramIds = new Set((enr ?? []).map((e: any) => e.program_id).filter(Boolean));
+    }
 
     let query = adminClient()
       .from('programs')
@@ -90,7 +103,15 @@ export async function GET(request: NextRequest) {
         if (isAdmin) return true;
         if (isPublicVisitor) return true;           // public sees all active programs
         if (isTeacher) return row.visible_to_teachers === true;
-        if (isLearner) return row.visible_to_students === true;
+        if (isLearner) {
+          // Enrolled students see their OWN programmes (their real syllabus), so a
+          // summer AI student sees AI Engineering & Automation — not Scratch/flagship.
+          // Students with no enrolment (and parents) fall back to the public catalogue.
+          if (callerRole === 'student' && enrolledProgramIds.size > 0) {
+            return enrolledProgramIds.has(row.id);
+          }
+          return row.visible_to_students === true;
+        }
         return row.visible_to_students === true;    // school role: same as learner
       })
       .map((row: any) => {

@@ -601,7 +601,7 @@ export async function sendSummerCredentials(
         <tr>
           <td valign="top" style="width:34px;font-size:20px;">3️⃣</td>
           <td style="font-size:14px;color:#d4d4d8;line-height:1.6;">
-            <strong style="color:#fff;">Attend classes</strong> — the cohort starts <strong>8 June 2026</strong>. Online classes are joined from the WhatsApp group link at class time; onsite learners attend at the campus. Your child just logs in and shows up ready to build! 🚀
+            <strong style="color:#fff;">Attend classes</strong> — the cohort starts <strong>28 June 2026</strong>. Online classes are joined from the WhatsApp group link at class time; onsite learners attend at the campus. Your child just logs in and shows up ready to build! 🚀
           </td>
         </tr>
       </table>
@@ -676,7 +676,7 @@ export async function sendSummerCredentials(
           { label: 'Student', value: prospect.full_name },
           { label: 'School', value: result.schoolName },
           { label: 'Programme', value: 'AI Summer School 2026' },
-          { label: 'Cohort starts', value: '8 June 2026' },
+          { label: 'Cohort starts', value: '28 June 2026' },
         ],
         footerNote: 'rillcod technologies limited • summer school admissions',
       });
@@ -709,7 +709,7 @@ export async function sendSummerCredentials(
       lines.push('🎓 Student Portal', `Email: ${result.student.email}`, `Password: ${result.student.password}`, `Log in: ${appUrl}/login`, '');
       lines.push('Next steps:', '1. Change the passwords after first login.');
       if (waGroupLink) lines.push(`2. Join the class WhatsApp group: ${waGroupLink}`);
-      lines.push(`${waGroupLink ? '3' : '2'}. Classes start 8 June 2026 — your child logs in and joins from the group at class time.`, '', 'Questions? Call +234 811 660 0091');
+      lines.push(`${waGroupLink ? '3' : '2'}. Classes start 28 June 2026 — your child logs in and joins from the group at class time.`, '', 'Questions? Call +234 811 660 0091');
       const ok = await sendWhatsApp(result.parentPhone, lines.join('\n'));
       sent.whatsapp = ok;
     } catch (err) {

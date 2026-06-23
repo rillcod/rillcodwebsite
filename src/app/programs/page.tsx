@@ -101,12 +101,12 @@ export default function Programs() {
                   Accelerate Your Tech Journey This Summer!
                 </h2>
                 <p className="text-sm sm:text-base mb-6 text-muted-foreground font-medium italic">
-                  Intensive programs starting <strong>June 8th, 2026</strong> (register by <strong>June 12th</strong>) and running through <strong>August 28th, 2026</strong>. Both online and onsite options available.
+                  Intensive programs starting <strong>June 28th, 2026</strong> (register by <strong>July 1st, 2026</strong>) and running through <strong>September 7th, 2026</strong>. Both online and onsite options available.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                   {[
-                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Start Date: June 8th, 2026" },
-                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Ending Date: August 28th, 2026" },
+                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Start Date: June 28th, 2026" },
+                    { icon: <Calendar className="w-4 h-4 text-yellow-500" />, text: "Ending Date: September 7th, 2026" },
                     { icon: <MapPin className="w-4 h-4 text-yellow-500" />,   text: "Online & Onsite available" },
                     { icon: <Users className="w-4 h-4 text-yellow-500" />,    text: "Small class sizes (8–15 students)" },
                   ].map((item, i) => (

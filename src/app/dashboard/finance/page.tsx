@@ -54,8 +54,10 @@ function fmt(currency: string | null | undefined, amount: number): string {
   return `${c} ${n.toLocaleString('en-US')}`;
 }
 
-function relDate(iso: string) {
+function relDate(iso: string | null | undefined) {
+  if (!iso) return '—';
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -559,7 +561,7 @@ function OverviewTab({ profile }: { profile: any }) {
                           <p className="text-sm font-bold text-foreground">{fmt(inv.currency, inv.amount)}</p>
                           <p className="text-[11px] text-muted-foreground">
                             {(inv as any).invoice_number && <span className="font-mono mr-2">{(inv as any).invoice_number}</span>}
-                            Due {relDate(inv.due_date)}
+                            {inv.due_date ? `Due ${relDate(inv.due_date)}` : `Issued ${relDate((inv as any).created_at)}`}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">

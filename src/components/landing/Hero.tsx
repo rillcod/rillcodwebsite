@@ -35,7 +35,7 @@ const Hero: React.FC = () => {
             >
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 animate-pulse ring-4 ring-emerald-400/20" />
               <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex flex-wrap items-center gap-1">
-                ☀️ Summer School 2026 is Active (June 8-12 to Aug 28) <span className="text-white font-bold ml-1 group-hover:underline flex items-center gap-0.5">Register &amp; Scan <ArrowRight className="w-3 h-3 inline-block group-hover:translate-x-0.5 transition-transform" /></span>
+                ☀️ Summer School 2026 is Active (June 28 to Sept 7) <span className="text-white font-bold ml-1 group-hover:underline flex items-center gap-0.5">Register &amp; Scan <ArrowRight className="w-3 h-3 inline-block group-hover:translate-x-0.5 transition-transform" /></span>
               </span>
             </Link>
 

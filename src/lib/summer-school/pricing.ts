@@ -1,12 +1,13 @@
-/** Summer School 2026 tuition (NGN). Onsite vs Online/Hybrid. */
+/** Summer School 2026 tuition (NGN). Onsite vs Online/Hybrid.
+ *  Online is ₦50,000 total; installment allowed (50% = ₦25,000 deposit). */
 export function getSummerTotalTuition(preferredMode: string, hasSibling?: boolean): number {
   if (preferredMode === "Onsite") return 100_000;
-  return 60_000;
+  return 50_000;
 }
 
 export function getSummerDepositAmount(preferredMode: string, hasSibling?: boolean): number {
   if (preferredMode === "Onsite") return 50_000;
-  return 30_000;
+  return 25_000;
 }
 
 export function getSummerTuitionAmount(preferredMode: string, paymentPlan: string, hasSibling?: boolean): number {
@@ -26,13 +27,13 @@ export function formatNaira(amount: number): string {
 
 export function tuitionLabels(preferredMode: string, hasSibling?: boolean) {
   const isOnsite = preferredMode === "Onsite";
-  const total = isOnsite ? 100_000 : 60_000;
-  const deposit = isOnsite ? 50_000 : 30_000;
+  const total = isOnsite ? 100_000 : 50_000;
+  const deposit = isOnsite ? 50_000 : 25_000;
   return {
     total: formatNaira(total),
     deposit: formatNaira(deposit),
-    fullShort: isOnsite ? "Full (₦100k)" : "Full (₦60k)",
-    splitShort: isOnsite ? "Split (₦50k)" : "Split (₦30k)",
+    fullShort: isOnsite ? "Full (₦100k)" : "Full (₦50k)",
+    splitShort: isOnsite ? "Split (₦50k)" : "Split (₦25k)",
     isOnsite,
   };
 }

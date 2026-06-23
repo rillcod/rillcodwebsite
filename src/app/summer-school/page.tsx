@@ -201,8 +201,8 @@ export default function SummerSchoolPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto pt-6">
             {[
-              { label: "Start Date", val: "June 27, 2026" },
-              { label: "Deadline", val: "June 30, 2026", highlight: true },
+              { label: "Start Date", val: "June 28, 2026" },
+              { label: "Deadline", val: "July 1, 2026", highlight: true },
               { label: "Ending Date", val: "September 7, 2026" },
               { label: "Duration", val: "7 Weeks Cohort" },
               { label: "Audience", val: "Ages 8 – 18" }
@@ -380,7 +380,7 @@ export default function SummerSchoolPage() {
               <div className="bg-rose-500/10 border border-rose-500/20 px-4 py-3 rounded-xl flex items-center gap-2.5">
                 <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
                 <p className="text-xs font-black text-rose-500 dark:text-rose-400 uppercase tracking-wider">
-                  Registration Deadline: Friday, June 12, 2026. Secure your slot now.
+                  Registration Deadline: Wednesday, July 1, 2026. Secure your slot now.
                 </p>
               </div>
 

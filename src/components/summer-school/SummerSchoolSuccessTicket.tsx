@@ -168,7 +168,7 @@ export function SummerSchoolSuccessTicket({
             </div>
             <div className="text-right">
               <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Cohort Window</p>
-              <p className="text-xs font-black text-amber-500 printable-highlight">June 8 – August 28</p>
+              <p className="text-xs font-black text-amber-500 printable-highlight">June 28 – September 7</p>
             </div>
           </div>
 

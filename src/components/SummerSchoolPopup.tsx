@@ -117,9 +117,9 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-10">
             {[
-              { icon: Calendar, text: "June 8th, 2026", sub: "Cohort Start Date" },
-              { icon: Calendar, text: "June 27th, 2026", sub: "Registration Deadline" },
-              { icon: Calendar, text: "August 28th, 2026", sub: "Programme Ending Date" },
+              { icon: Calendar, text: "June 28th, 2026", sub: "Cohort Start Date" },
+              { icon: Calendar, text: "July 1st, 2026", sub: "Registration Deadline" },
+              { icon: Calendar, text: "September 7th, 2026", sub: "Programme Ending Date" },
               { icon: MapPin, text: "Online & Onsite", sub: "Flexible Attendance" },
             ].map((item, i) => (
               <div key={i} className="p-5 bg-muted/30 border border-border">
