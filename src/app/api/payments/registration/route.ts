@@ -5,46 +5,48 @@ import { assertRegistrationInstalmentAllowed } from './instalment-guard';
 import { checkCustomRateLimit } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 
-// ── Partner school pricing (Young Innovators & Teen Developers are subsidised) ──
+// ── Partner school pricing (subsidised, flat per-term in-school fee = ₦20,000) ──
+const PARTNER_SCHOOL_TERM_FEE = 20000;
 const SCHOOL_YOUNG_INNOVATORS_FEES: Record<string, number> = {
-    'Weekday Afternoons': 50000,
-    'Weekend In-Person':  50000,
-    'Termly Programme':   50000,
-    'Holiday Programme':  50000,
+    'Weekday Afternoons': PARTNER_SCHOOL_TERM_FEE,
+    'Weekend In-Person':  PARTNER_SCHOOL_TERM_FEE,
+    'Termly Programme':   PARTNER_SCHOOL_TERM_FEE,
+    'Holiday Programme':  PARTNER_SCHOOL_TERM_FEE,
 };
 
 const SCHOOL_TEEN_DEVELOPERS_FEES: Record<string, number> = {
-    'Weekday Afternoons': 50000,
-    'Weekend In-Person':  50000,
-    'Termly Programme':   50000,
-    'Holiday Programme':  50000,
+    'Weekday Afternoons': PARTNER_SCHOOL_TERM_FEE,
+    'Weekend In-Person':  PARTNER_SCHOOL_TERM_FEE,
+    'Termly Programme':   PARTNER_SCHOOL_TERM_FEE,
+    'Holiday Programme':  PARTNER_SCHOOL_TERM_FEE,
 };
 
 const SCHOOL_OTHER_FEES: Record<string, number> = {
-    'Weekday Afternoons': 50000,
-    'Weekend In-Person':  50000,
-    'Termly Programme':   50000,
-    'Holiday Programme':  50000,
+    'Weekday Afternoons': PARTNER_SCHOOL_TERM_FEE,
+    'Weekend In-Person':  PARTNER_SCHOOL_TERM_FEE,
+    'Termly Programme':   PARTNER_SCHOOL_TERM_FEE,
+    'Holiday Programme':  PARTNER_SCHOOL_TERM_FEE,
 };
 
-// Bootcamp and online
+// Individual / online retail (market-realistic): Summer ₦50k online · ₦100k onsite,
+// online terms ₦25k–₦40k, weekend bootcamp ₦35k, holiday ₦30k.
 const NON_SCHOOL_FEES: Record<string, number> = {
-    'Summer School':                70000,
-    'Summer Intensive (Day)':       70000,
-    'Summer Intensive (Half Day)':  45000,
-    'Summer Intensive (Afternoon)': 45000,
+    'Summer School':                50000,
+    'Summer Intensive (Day)':       100000,
+    'Summer Intensive (Half Day)':  50000,
+    'Summer Intensive (Afternoon)': 50000,
     'Weekend Bootcamp':             35000,
     'Holiday Programme':            30000,
-    'Online Self-Paced':            50000,
-    'Online Live Sessions':         50000,
-    'Online Live Classes':          50000,
-    'Online Weekend':               50000,
+    'Online Self-Paced':            30000,
+    'Online Live Sessions':         40000,
+    'Online Live Classes':          40000,
+    'Online Weekend':               25000,
 };
 
 const TYPE_FEES: Record<string, number> = {
-    school:   50000,
-    bootcamp: 70000,
-    online:   50000,
+    school:    20000,
+    bootcamp:  35000,
+    online:    30000,
     in_person: 50000,
 };
 
@@ -63,14 +65,11 @@ function getFee(enrollment_type: string, preferred_schedule: string, course_inte
         }
         return TYPE_FEES.school;
     }
-    if (enrollment_type === 'online') {
-        return 50000;
-    }
-    if (preferred_schedule === 'Summer School' || preferred_schedule === 'Summer Intensive (Day)') {
-        return hasSibling ? 50000 : 70000;
-    }
     if (preferred_schedule && NON_SCHOOL_FEES[preferred_schedule] != null) {
         return NON_SCHOOL_FEES[preferred_schedule];
+    }
+    if (enrollment_type === 'online') {
+        return TYPE_FEES.online;
     }
     return TYPE_FEES[enrollment_type] ?? 30000;
 }
@@ -84,6 +83,17 @@ async function resolveRegistrationPrice(
     course_interest?: string,
     parent_email?: string,
 ): Promise<{ amount: number; programName: string | null; resolvedProgramId: string | null }> {
+    // Partner-school registrations are a flat, subsidised per-term fee — NEVER the
+    // full programme catalogue price (₦45k–₦180k). Short-circuit so an attached
+    // program_id can't override the agreed in-school rate.
+    if (enrollment_type === 'school') {
+        return {
+            amount: getFee(enrollment_type, preferred_schedule, course_interest),
+            programName: null,
+            resolvedProgramId: null,
+        };
+    }
+
     const tryProgram = async (id: string) => {
         const { data: prog } = await supabase
             .from('programs')

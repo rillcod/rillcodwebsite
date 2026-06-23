@@ -93,18 +93,18 @@ const defaultForm = {
 // ─── Schedule options per type ────────────────────────────────────
 // Partner school: Young Innovators (ages 6–12) — subsidised via school arrangement
 const SCHOOL_YOUNG_INNOVATORS: { value: string; label: string; fee: number; feeLabel: string }[] = [
-  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',     fee: 12000, feeLabel: '₦12,000 / term' },
-  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',         fee: 10000, feeLabel: '₦10,000 / term' },
-  { value: 'Termly Programme',    label: 'Full Termly Programme',              fee: 12000, feeLabel: '₦12,000 / term' },
-  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',       fee: 18000, feeLabel: '₦18,000 / holiday' },
+  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',     fee: 20000, feeLabel: '₦20,000 / term' },
+  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',         fee: 20000, feeLabel: '₦20,000 / term' },
+  { value: 'Termly Programme',    label: 'Full Termly Programme',              fee: 20000, feeLabel: '₦20,000 / term' },
+  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',       fee: 20000, feeLabel: '₦20,000 / holiday' },
 ];
 
 // Partner school: Teen Developers (ages 12–18) — subsidised
 const SCHOOL_TEEN_DEVELOPERS: { value: string; label: string; fee: number; feeLabel: string }[] = [
-  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',     fee: 15000, feeLabel: '₦15,000 / term' },
-  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',         fee: 12000, feeLabel: '₦12,000 / term' },
-  { value: 'Termly Programme',    label: 'Full Termly Programme',              fee: 15000, feeLabel: '₦15,000 / term' },
-  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',       fee: 22000, feeLabel: '₦22,000 / holiday' },
+  { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',     fee: 20000, feeLabel: '₦20,000 / term' },
+  { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',         fee: 20000, feeLabel: '₦20,000 / term' },
+  { value: 'Termly Programme',    label: 'Full Termly Programme',              fee: 20000, feeLabel: '₦20,000 / term' },
+  { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',       fee: 20000, feeLabel: '₦20,000 / holiday' },
 ];
 
 // Helper: get school schedule options based on programme
@@ -115,15 +115,15 @@ function getSchoolSchedules(courseInterest: string) {
   // All other school programmes (Python, Web, AI, Robotics, etc.)
   return [
     { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',   fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',       fee: 18000, feeLabel: '₦18,000 / term' },
+    { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',       fee: 20000, feeLabel: '₦20,000 / term' },
     { value: 'Termly Programme',    label: 'Full Termly Programme',            fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',     fee: 25000, feeLabel: '₦25,000 / holiday' },
+    { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',     fee: 20000, feeLabel: '₦20,000 / holiday' },
   ];
 }
 
 const SCHEDULES: Record<string, { value: string; label: string; fee: number; feeLabel: string }[]> = {
   bootcamp: [
-    { value: 'Summer School',    label: 'Summer School (Mon–Fri, 9am–2pm)',  fee: 55000, feeLabel: '₦55,000' },
+    { value: 'Summer School',    label: 'Summer School (Mon–Fri, 9am–2pm)',  fee: 50000, feeLabel: '₦50,000' },
     { value: 'Weekend Bootcamp', label: 'Weekend Bootcamp (Sat & Sun)',       fee: 35000, feeLabel: '₦35,000' },
     { value: 'Holiday Programme',label: 'Holiday / Vacation Programme',       fee: 30000, feeLabel: '₦30,000' },
   ],
@@ -139,16 +139,16 @@ const SCHEDULES: Record<string, { value: string; label: string; fee: number; fee
   ],
   '': [
     { value: 'Weekday Afternoons', label: 'Weekday Afternoons (at school)',  fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Weekend In-Person',  label: 'Weekend In-Person Sessions',      fee: 18000, feeLabel: '₦18,000 / term' },
+    { value: 'Weekend In-Person',  label: 'Weekend In-Person Sessions',      fee: 20000, feeLabel: '₦20,000 / term' },
     { value: 'Termly Programme',   label: 'Full Termly Programme',           fee: 20000, feeLabel: '₦20,000 / term' },
-    { value: 'Holiday Programme',  label: 'Holiday / Vacation Programme',    fee: 25000, feeLabel: '₦25,000 / holiday' },
+    { value: 'Holiday Programme',  label: 'Holiday / Vacation Programme',    fee: 20000, feeLabel: '₦20,000 / holiday' },
   ],
 };
 
 const TYPE_FEES: Record<string, string> = {
-  school:    '₦50,000 / term',
-  bootcamp:  '₦30,000 – ₦70,000',
-  online:    '₦50,000 / term',
+  school:    '₦20,000 / term',
+  bootcamp:  '₦30,000 – ₦50,000',
+  online:    '₦25,000 – ₦40,000 / term',
   in_person: '₦50,000 / term',
   '':        '',
 };
@@ -262,27 +262,22 @@ export function StudentRegistration({ defaultEnrollmentType }: { defaultEnrollme
   const schedules = useMemo(() => {
     if (et === 'school') {
       return [
-        { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',   fee: 50000, feeLabel: '₦50,000 / term' },
-        { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',       fee: 50000, feeLabel: '₦50,000 / term' },
-        { value: 'Termly Programme',    label: 'Full Termly Programme',            fee: 50000, feeLabel: '₦50,000 / term' },
-        { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',     fee: 50000, feeLabel: '₦50,000 / holiday' },
+        { value: 'Weekday Afternoons',  label: 'Weekday Afternoons (at school)',   fee: 20000, feeLabel: '₦20,000 / term' },
+        { value: 'Weekend In-Person',   label: 'Weekend In-Person Sessions',       fee: 20000, feeLabel: '₦20,000 / term' },
+        { value: 'Termly Programme',    label: 'Full Termly Programme',            fee: 20000, feeLabel: '₦20,000 / term' },
+        { value: 'Holiday Programme',   label: 'Holiday / Vacation Programme',     fee: 20000, feeLabel: '₦20,000 / holiday' },
       ];
     }
     if (et === 'online') {
       return [
-        { value: 'Online Live Classes', label: 'Online Live Classes (scheduled sessions)', fee: 50000, feeLabel: '₦50,000 / term' },
-        { value: 'Online Self-Paced',   label: 'Online – Self-Paced (learn at your pace)', fee: 50000, feeLabel: '₦50,000 / term' },
-        { value: 'Online Weekend',      label: 'Online – Weekends Only',                   fee: 50000, feeLabel: '₦50,000 / term' },
+        { value: 'Online Live Classes', label: 'Online Live Classes (scheduled sessions)', fee: 40000, feeLabel: '₦40,000 / term' },
+        { value: 'Online Self-Paced',   label: 'Online – Self-Paced (learn at your pace)', fee: 30000, feeLabel: '₦30,000 / term' },
+        { value: 'Online Weekend',      label: 'Online – Weekends Only',                   fee: 25000, feeLabel: '₦25,000 / term' },
       ];
     }
     if (et === 'bootcamp') {
       return [
-        { 
-          value: 'Summer School',    
-          label: 'Summer School (Mon–Fri, 9am–2pm)',  
-          fee: hasSibling ? 50000 : 70000, 
-          feeLabel: hasSibling ? '₦50,000 (Sibling Discount Applied)' : '₦70,000 (₦50,000 for siblings)' 
-        },
+        { value: 'Summer School',    label: 'Summer School (Mon–Fri, 9am–2pm)',  fee: 50000, feeLabel: '₦50,000' },
         { value: 'Weekend Bootcamp', label: 'Weekend Bootcamp (Sat & Sun)',       fee: 35000, feeLabel: '₦35,000' },
         { value: 'Holiday Programme',label: 'Holiday / Vacation Programme',       fee: 30000, feeLabel: '₦30,000' },
       ];
