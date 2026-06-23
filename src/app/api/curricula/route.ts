@@ -14,7 +14,11 @@ function adminClient() {
 }
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120; // extend to 2 min for AI generation
+// Online/bootcamp syllabi generate the whole course (16–24 weeks) in one large
+// call, which routinely ran past the old 2-min cap and surfaced as a browser
+// "network error". 300s is the Vercel Pro ceiling. (School/termly generation is
+// smaller and was unaffected.)
+export const maxDuration = 300;
 
 const openRouter = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -23,6 +27,11 @@ const openRouter = new OpenAI({
     'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://rillcod.com',
     'X-Title': 'Rillcod Technologies',
   },
+  // Bound each of the fallback models so a slow/hung one fails fast to the next
+  // instead of eating the whole request budget. maxRetries:0 stops the SDK's
+  // built-in backoff from silently multiplying latency per model.
+  timeout: 45_000,
+  maxRetries: 0,
 });
 
 const CURRICULUM_MODELS = [
@@ -250,6 +259,49 @@ ${SHARED_LESSON_PLAN_SCHEMA}
 ${SHARED_OUTPUT_SHAPE}`;
 }
 
+/**
+ * Single-module online prompt — generates EXACTLY ONE module (term) of an online
+ * programme. This is the chunked path: the client calls once per module so each
+ * request stays small and finishes well under the 60s serverless cap (the
+ * full-course single call routinely timed out → "network error"). Prior module
+ * themes are passed so each module continues the arc without repeating.
+ */
+function buildOnlineModulePrompt(
+  courseName: string, gradeLevel: string, subjectArea: string,
+  moduleIndex: number, totalModules: number, weeksThisModule: number,
+  sessionsPerWeek: number, priorThemes: string[], notes?: string,
+): string {
+  const sessions = Math.max(1, weeksThisModule * sessionsPerWeek);
+  const isLast = moduleIndex >= totalModules;
+  const priorBlock = priorThemes.length
+    ? `\nMODULES ALREADY GENERATED (do NOT repeat — this module must continue beyond them):\n${priorThemes.map((t, i) => `  Module ${i + 1}: ${t}`).join('\n')}`
+    : '';
+  return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy.
+
+DELIVERY FORMAT: Online / Virtual Learning Programme — SINGLE MODULE
+Course: "${courseName}" | Audience: ${gradeLevel} | Subject Area: ${subjectArea}
+Generate ONLY Module ${moduleIndex} of ${totalModules} for this programme — one term object, nothing else.
+This module spans ~${weeksThisModule} week(s) at ${sessionsPerWeek} session(s)/week (${sessions} session entries).
+Session length: 60–90 minutes
+${notes ? `Special notes: ${notes}` : ''}
+${priorBlock}
+
+STRUCTURE (return EXACTLY ONE module as a single "terms" entry):
+- term: ${moduleIndex}
+- Module title: "Module ${moduleIndex} — [Theme]"
+- ${sessions} session entries in "weeks" (numbered 1…${sessions} within this module).
+- ${isLast
+    ? 'FINAL session: type "examination" (capstone / final project showcase).'
+    : 'FINAL session: type "assessment" (module checkpoint).'}
+- Content must be async-friendly: self-contained sessions, clear written instructions, video/resource links in resources[].
+- Assignments due: "Before next session". Engagement tips cover screen fatigue, remote collaboration, async tools.
+- Use Nigerian digital contexts (e-commerce, mobile apps, remote agri-monitoring).
+${CHRISTIAN_AFRICAN_CURRICULUM_GUIDELINE}
+
+${SHARED_LESSON_PLAN_SCHEMA}
+${getSharedOutputShape(moduleIndex)}`;
+}
+
 function buildSelfpacedPrompt(
   courseName: string, gradeLevel: string, subjectArea: string,
   modules: number, hoursPerModule: number, notes?: string,
@@ -323,10 +375,16 @@ function safeParseJSON(raw: string): any {
 }
 
 async function generateCurriculum(prompt: string): Promise<any> {
-  // Direct Google Gemini API priority path — saves 100% of OpenRouter tokens
+  // Direct Google Gemini API priority path — saves 100% of OpenRouter tokens.
+  // Bound it: this path has no internal timeout, so a stalled Gemini call would
+  // otherwise hang the whole request until the platform kills it. Cap at 60s and
+  // fall through to the OpenRouter chain on timeout.
   if (process.env.GEMINI_API_KEY) {
     const SYSTEM_PROMPT = "You are an expert curriculum designer for Rillcod Technologies.";
-    const geminiResult = await geminiGenerateText(SYSTEM_PROMPT, prompt, true).catch(() => null);
+    const geminiResult = await Promise.race([
+      geminiGenerateText(SYSTEM_PROMPT, prompt, true),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 60_000)),
+    ]).catch(() => null);
     if (geminiResult?.text) {
       try {
         const parsed = safeParseJSON(geminiResult.text);
@@ -625,30 +683,65 @@ export async function POST(req: NextRequest) {
     } catch { /* non-fatal — generation continues without context */ }
   }
 
-  const prompt = buildCurriculumPrompt(
-    course_name,
-    grade_level ?? 'General',
-    subject_area ?? 'STEM / Coding',
-    format,
-    {
-      selectedTerms: termNums,
-      weeksPerTerm: wpt,
-      programStartTerm: resolvedStartTerm,
-      previousTermsContext,
-      yearNumber: resolvedYear,
-      bootcampDurationWeeks: Number(bootcamp_duration_weeks ?? 4),
-      bootcampSchedule: bootcamp_schedule ?? 'fulltime',
-      onlineDurationWeeks: Number(online_duration_weeks ?? 8),
-      onlineSessionsPerWeek: Number(online_sessions_per_week ?? 2),
-      selfpacedModules: Number(selfpaced_modules ?? 6),
-      selfpacedHoursPerModule: Number(selfpaced_hours_per_module ?? 2),
-      notes,
-    },
-  );
+  // Chunked online mode: the client generates one module per request to stay
+  // under the 60s serverless cap. Detected by an explicit module_index.
+  const moduleIdx = Number(body.module_index);
+  const isOnlineChunk = format === 'online' && Number.isInteger(moduleIdx) && moduleIdx >= 1;
+
+  const prompt = isOnlineChunk
+    ? buildOnlineModulePrompt(
+        course_name,
+        grade_level ?? 'General',
+        subject_area ?? 'STEM / Coding',
+        moduleIdx,
+        Number(body.total_modules ?? 1),
+        Number(body.weeks_this_module ?? 3),
+        Number(online_sessions_per_week ?? 2),
+        Array.isArray(body.prior_module_themes)
+          ? (body.prior_module_themes as unknown[]).filter((t): t is string => typeof t === 'string').slice(0, 12)
+          : [],
+        notes,
+      )
+    : buildCurriculumPrompt(
+        course_name,
+        grade_level ?? 'General',
+        subject_area ?? 'STEM / Coding',
+        format,
+        {
+          selectedTerms: termNums,
+          weeksPerTerm: wpt,
+          programStartTerm: resolvedStartTerm,
+          previousTermsContext,
+          yearNumber: resolvedYear,
+          bootcampDurationWeeks: Number(bootcamp_duration_weeks ?? 4),
+          bootcampSchedule: bootcamp_schedule ?? 'fulltime',
+          onlineDurationWeeks: Number(online_duration_weeks ?? 8),
+          onlineSessionsPerWeek: Number(online_sessions_per_week ?? 2),
+          selfpacedModules: Number(selfpaced_modules ?? 6),
+          selfpacedHoursPerModule: Number(selfpaced_hours_per_module ?? 2),
+          notes,
+        },
+      );
 
   const aiContent = await generateCurriculum(prompt);
   if (!aiContent) {
     return NextResponse.json({ error: 'Syllabus generation failed — all AI models unavailable. Please try again.' }, { status: 502 });
+  }
+
+  // Chunked online: merge this single module into the modules already saved for
+  // this course, so each call persists the complete (growing) document. The first
+  // module establishes the top-level overview/outcomes; later modules preserve them.
+  if (isOnlineChunk && Array.isArray(aiContent.terms)) {
+    aiContent.terms = aiContent.terms.map((t: any) => ({ ...t, term: moduleIdx, year: 1 }));
+    const priorTerms: any[] = Array.isArray(existingCurriculumContent?.terms)
+      ? (existingCurriculumContent.terms as any[]) : [];
+    const kept = priorTerms.filter((t: any) => Number(t.term) !== moduleIdx);
+    aiContent.terms = [...kept, ...aiContent.terms].sort((a: any, b: any) => Number(a.term) - Number(b.term));
+    if (moduleIdx > 1 && existingCurriculumContent) {
+      for (const k of ['course_title', 'overview', 'learning_outcomes', 'assessment_strategy', 'materials_required', 'recommended_tools'] as const) {
+        if (existingCurriculumContent[k] != null) aiContent[k] = existingCurriculumContent[k];
+      }
+    }
   }
 
   // Stamp year onto every generated term (in case AI omits it) and inject term start dates.

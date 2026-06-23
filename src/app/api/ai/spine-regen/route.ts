@@ -4,9 +4,21 @@ import { LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
 import OpenAI from 'openai';
 import { geminiGenerateText } from '@/lib/gemini/client';
 
+// AI generation is slow on long context (big prompt + dedup retries + model
+// fallback). Without this the function is killed at the ~60s platform default,
+// which surfaces in the browser as a generic "network error". 300s is the
+// Vercel Pro ceiling. Per-week calls stay well under it; this is the safety net.
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
+
 const openai = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY ?? '',
+  // Bound each model call so a slow/hung model fails fast to the next instead of
+  // eating the whole request budget. maxRetries:0 stops the SDK's built-in
+  // exponential-backoff retries from silently multiplying latency per model.
+  timeout: 30_000,
+  maxRetries: 0,
 });
 
 const MODELS = [

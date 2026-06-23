@@ -311,6 +311,7 @@ export default function CurriculumPage() {
   const [showGenerate, setShowGenerate] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
+  const [genProgress, setGenProgress] = useState('');
   const [savingTrack, setSavingTrack] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [expandedTerms, setExpandedTerms] = useState<Set<number>>(new Set([1]));
@@ -1863,49 +1864,10 @@ export default function CurriculumPage() {
     }
     setGenerating(true);
     setGenError('');
-    try {
-      const res = await fetch('/api/curricula', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          course_id: selectedCourse.id,
-          course_name: selectedCourse.title,
-          school_id: effectiveScope === 'platform' ? null : effectiveScope,
-          grade_level: form.grade_level,
-          subject_area: form.subject_area,
-          notes: form.notes,
-          format: curriculumFormat,
-          // School
-          ...(curriculumFormat === 'school' ? {
-            selected_terms: selectedTerms,
-            weeks_per_term: Number(form.weeks_per_term),
-            program_start_term: programStartTerm,
-            programme_year: programmeYear,
-          } : {}),
-          // Bootcamp
-          ...(curriculumFormat === 'bootcamp' ? {
-            bootcamp_duration_weeks: Number(bootcampDurationWeeks),
-            bootcamp_schedule: bootcampSchedule,
-          } : {}),
-          // Online
-          ...(curriculumFormat === 'online' ? {
-            online_duration_weeks: Number(onlineDurationWeeks),
-            online_sessions_per_week: Number(onlineSessionsPerWeek),
-          } : {}),
-          // Self-paced
-          ...(curriculumFormat === 'selfpaced' ? {
-            selfpaced_modules: Number(selfpacedModules),
-            selfpaced_hours_per_module: Number(selfpacedHoursPerModule),
-          } : {}),
-          // Term start dates (school format only)
-          ...(curriculumFormat === 'school' && Object.keys(termStartDates).length > 0 ? {
-            term_start_dates: termStartDates,
-          } : {}),
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) { setGenError(json.error || 'Generation failed'); return; }
-      const doc = json.data as CurriculumDoc;
+    setGenProgress('');
+
+    // Apply a freshly-generated/updated curriculum doc to UI state.
+    const finalizeDoc = (doc: CurriculumDoc) => {
       const scope = doc.school_id ? doc.school_id : 'platform';
       setCurriculum(doc);
       setGenerateScope(scope);
@@ -1922,10 +1884,100 @@ export default function CurriculumPage() {
         setActiveTerm(newPst);
         setActiveYear(1);
       }
+    };
+
+    const baseBody = {
+      course_id: selectedCourse.id,
+      course_name: selectedCourse.title,
+      school_id: effectiveScope === 'platform' ? null : effectiveScope,
+      grade_level: form.grade_level,
+      subject_area: form.subject_area,
+      notes: form.notes,
+      format: curriculumFormat,
+    };
+
+    try {
+      // ── Online: generate ONE module per request so each call stays well under
+      //    the 60s serverless cap. A single full-course call times out on Hobby
+      //    and surfaces in the browser as a "network error". Each module is merged
+      //    server-side into the growing document, with prior themes passed for
+      //    continuity / no-repeat. ──
+      if (curriculumFormat === 'online') {
+        const weeks = Math.max(1, Number(onlineDurationWeeks) || 8);
+        const spw = Math.max(1, Number(onlineSessionsPerWeek) || 2);
+        const totalModules = Math.max(2, Math.ceil(weeks / 3));
+        const baseWeeks = Math.max(1, Math.round(weeks / totalModules));
+        const priorThemes: string[] = [];
+        let lastDoc: CurriculumDoc | null = null;
+
+        for (let m = 1; m <= totalModules; m++) {
+          setGenProgress(`Generating module ${m} of ${totalModules}…`);
+          const weeksThisModule = m < totalModules ? baseWeeks : Math.max(1, weeks - baseWeeks * (totalModules - 1));
+          const res = await fetch('/api/curricula', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...baseBody,
+              online_duration_weeks: weeks,
+              online_sessions_per_week: spw,
+              module_index: m,
+              total_modules: totalModules,
+              weeks_this_module: weeksThisModule,
+              prior_module_themes: priorThemes,
+            }),
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            setGenError(json.error || `Module ${m} of ${totalModules} failed${m > 1 ? ` — ${m - 1} module(s) saved` : ''}`);
+            if (m === 1) return;   // nothing persisted yet
+            break;                 // keep the modules already saved
+          }
+          lastDoc = json.data as CurriculumDoc;
+          const thisTerm = (lastDoc.content?.terms as Array<{ term?: number; title?: string }> | undefined)
+            ?.find((t) => Number(t.term) === m);
+          if (thisTerm?.title) priorThemes.push(thisTerm.title);
+        }
+        if (lastDoc) finalizeDoc(lastDoc);
+        return;
+      }
+
+      // ── All other formats: single request (unchanged) ──
+      const res = await fetch('/api/curricula', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...baseBody,
+          // School
+          ...(curriculumFormat === 'school' ? {
+            selected_terms: selectedTerms,
+            weeks_per_term: Number(form.weeks_per_term),
+            program_start_term: programStartTerm,
+            programme_year: programmeYear,
+          } : {}),
+          // Bootcamp
+          ...(curriculumFormat === 'bootcamp' ? {
+            bootcamp_duration_weeks: Number(bootcampDurationWeeks),
+            bootcamp_schedule: bootcampSchedule,
+          } : {}),
+          // Self-paced
+          ...(curriculumFormat === 'selfpaced' ? {
+            selfpaced_modules: Number(selfpacedModules),
+            selfpaced_hours_per_module: Number(selfpacedHoursPerModule),
+          } : {}),
+          // Term start dates (school format only)
+          ...(curriculumFormat === 'school' && Object.keys(termStartDates).length > 0 ? {
+            term_start_dates: termStartDates,
+          } : {}),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setGenError(json.error || 'Generation failed'); return; }
+      finalizeDoc(json.data as CurriculumDoc);
     } catch {
       setGenError('Network error — please try again');
     } finally {
       setGenerating(false);
+      setGenProgress('');
     }
   }
 
@@ -5636,7 +5688,7 @@ export default function CurriculumPage() {
               {generating && (
                 <div className="flex items-center gap-2 text-amber-400 text-xs">
                   <SparklesIcon className="w-3.5 h-3.5 animate-spin" />
-                  <span>Generating complete curriculum with all lesson plans… this takes 60–90 seconds</span>
+                  <span>{genProgress || 'Generating complete curriculum with all lesson plans… this takes 60–90 seconds'}</span>
                 </div>
               )}
             </div>

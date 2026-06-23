@@ -4,6 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export const dynamic = 'force-dynamic';
+// Progression generation runs multiple sequential AI calls; without raising this
+// it dies at the ~60s platform default and the client sees a "network error".
+export const maxDuration = 300;
 import {
   resolveDefaultTrackFromPolicy,
   resolveGradeKeyFromClassName,
