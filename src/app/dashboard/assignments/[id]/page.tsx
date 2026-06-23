@@ -345,6 +345,8 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
     const [subText, setSubText] = useState(sub.submission_text ?? '');
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiSuggestion, setAiSuggestion] = useState<{ score: number; feedback: string } | null>(null);
     const [err, setErr] = useState('');
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [filePreviewOpen, setFilePreviewOpen] = useState(false);
@@ -390,6 +392,36 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
         } catch (e: any) {
             setErr(e.message ?? 'Failed to save grade');
             setSaving(false);
+        }
+    };
+
+    // Ask the AI to grade an open-ended text submission. Non-destructive: it
+    // returns a suggested score + feedback which we prefill into the teacher's
+    // fields for review (and the server also stores it as ai_suggested_*).
+    const handleAiSuggest = async () => {
+        if (!assignment?.id) return;
+        setAiLoading(true); setErr('');
+        try {
+            const res = await fetch(`/api/assignments/${assignment.id}/ai-grade`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ submission_id: sub.id }),
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || 'AI grading failed');
+            const r = (j.results || [])[0];
+            if (r?.status === 'suggested' && typeof r.score === 'number') {
+                setAiSuggestion({ score: r.score, feedback: r.feedback ?? '' });
+                handleGradeChange(String(r.score));
+                if (r.feedback) setFb(r.feedback);
+            } else {
+                setErr(r?.status === 'skipped_no_text'
+                    ? 'No text submission to grade (file-only submissions can\'t be AI-graded yet).'
+                    : 'The AI could not grade this submission — please grade manually.');
+            }
+        } catch (e: any) {
+            setErr(e.message ?? 'AI grading failed');
+        } finally {
+            setAiLoading(false);
         }
     };
 
@@ -781,6 +813,24 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {/* AI grading trigger — for open-ended text submissions with no suggestion yet */}
+                    {sub.ai_suggested_grade == null && (sub.submission_text || subText) && (
+                        <button type="button" onClick={handleAiSuggest} disabled={aiLoading}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-[11px] font-black text-violet-300 uppercase tracking-widest bg-violet-500/10 border border-violet-500/25 hover:bg-violet-500/20 disabled:opacity-50 transition-all rounded-xl">
+                            {aiLoading ? 'Grading with AI…' : '✨ Grade this submission with AI'}
+                        </button>
+                    )}
+
+                    {/* Local AI suggestion (just fetched) — values are prefilled below for review */}
+                    {aiSuggestion && (
+                        <div className="border border-violet-500/30 bg-violet-500/8 rounded-xl p-4 space-y-2">
+                            <p className="text-[10px] font-black text-violet-400 uppercase tracking-widest">AI Suggested {aiSuggestion.score} / {max} — review &amp; save</p>
+                            {aiSuggestion.feedback && (
+                                <p className="text-xs text-white/50 leading-relaxed">{aiSuggestion.feedback}</p>
+                            )}
                         </div>
                     )}
 
