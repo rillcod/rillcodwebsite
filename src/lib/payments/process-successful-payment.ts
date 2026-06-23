@@ -1,0 +1,489 @@
+import { createAdminClient } from '@/lib/supabase/admin';
+import { buildRillcodTransactionalEmailHtml, buildPaymentConfirmationEmail } from '@/lib/email/rillcod-transactional-email';
+import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
+import { env } from '@/config/env';
+
+/**
+ * The SINGLE source of truth for "a payment succeeded → grant access + record finance".
+ *
+ * Used by BOTH the gateway webhook (Paystack/Stripe `charge.success`) AND the manual
+ * approval route (`/api/payments/approve`, e.g. confirmed bank transfers). Keeping one
+ * implementation guarantees a manually-confirmed bank transfer produces the SAME
+ * cohesive record as an automatic gateway payment: transaction → completed, invoice
+ * created, summer/registration student onboarded, receipt issued, staff notified.
+ *
+ * Idempotent: returns early if the transaction is already completed, and uses a
+ * conditional update (`.neq('payment_status','completed')`) so concurrent
+ * webhook/approval races only run side-effects once.
+ */
+export async function processSuccessfulPayment(reference: string, method: string, rawGatewayData: any) {
+    const supabase = createAdminClient();
+
+    // 1. Idempotency check — return early if already processed
+    const { data: existingTx } = await supabase
+        .from('payment_transactions')
+        .select('id, payment_status, invoice_id')
+        .eq('transaction_reference', reference)
+        .maybeSingle();
+
+    if (existingTx?.payment_status === 'completed') {
+        return;
+    }
+
+    // 2. Get full transaction record
+    const { data: transaction, error: txError } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .eq('transaction_reference', reference)
+        .single();
+
+    if (txError || !transaction) {
+        console.error(`Transaction not found for success: ${reference}`);
+        return;
+    }
+
+    const prevGateway =
+        transaction.payment_gateway_response &&
+        typeof transaction.payment_gateway_response === 'object' &&
+        !Array.isArray(transaction.payment_gateway_response)
+            ? (transaction.payment_gateway_response as Record<string, unknown>)
+            : {};
+
+    const mergedGateway =
+        method === 'paystack'
+            ? { ...prevGateway, paystack: rawGatewayData }
+            : method === 'stripe'
+                ? { ...prevGateway, stripe: rawGatewayData }
+                : { ...prevGateway, manual: rawGatewayData ?? { confirmed_at: new Date().toISOString() } };
+
+    // 2b. Prevent duplicate processing atomically (handles retries/races)
+    const { data: updatedTx, error: updateErr } = await supabase
+        .from('payment_transactions')
+        .update({
+            payment_status: 'completed',
+            paid_at: new Date().toISOString(),
+            payment_gateway_response: mergedGateway as any,
+        })
+        .eq('id', transaction.id)
+        .neq('payment_status', 'completed')
+        .select('id')
+        .maybeSingle();
+    if (updateErr) {
+        console.error(`Failed to mark transaction completed: ${reference}`, updateErr);
+        return;
+    }
+    if (!updatedTx) {
+        return;
+    }
+
+    // 3. Grant access — behaviour differs by payment type (metadata from DB insert survives merge)
+    const gatewayResponse = mergedGateway as any;
+    const isRegistrationPayment = gatewayResponse?.payment_type === 'registration';
+
+    if (isRegistrationPayment) {
+        const studentId = gatewayResponse?.student_id;
+        if (!studentId) {
+            console.error(`Registration payment missing student_id metadata: ${reference}`);
+            return;
+        }
+        await supabase
+            .from('students')
+            .update({
+                status: 'pending',
+                registration_payment_at: new Date().toISOString(),
+                registration_paystack_reference: method === 'paystack' ? reference : null,
+            })
+            .eq('id', studentId)
+            .eq('status', 'pending');
+
+        const { data: stud } = await supabase
+            .from('students')
+            .select('school_id, enrollment_type, full_name, name')
+            .eq('id', studentId)
+            .maybeSingle();
+
+        const { data: existingInv } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('payment_transaction_id', transaction.id)
+            .maybeSingle();
+
+        if (!existingInv) {
+            const enrollLabel = String(gatewayResponse?.enrollment_type || stud?.enrollment_type || 'Registration');
+            const progName = gatewayResponse?.program_name ? String(gatewayResponse.program_name) : '';
+            const displayName = String(stud?.full_name || stud?.name || gatewayResponse?.student_name || 'Student');
+            const rawRef = String(transaction.transaction_reference || transaction.id);
+            const invoiceNumber = `INV-REG-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
+
+            const { data: newInv, error: invErr } = await supabase
+                .from('invoices')
+                .insert({
+                    invoice_number: invoiceNumber,
+                    amount: Number(transaction.amount),
+                    currency: transaction.currency || 'NGN',
+                    status: 'paid',
+                    due_date: null,
+                    portal_user_id: null,
+                    school_id: stud?.school_id ?? transaction.school_id ?? null,
+                    payment_transaction_id: transaction.id,
+                    items: [
+                        {
+                            description: progName ? `${enrollLabel} — ${progName}` : `${enrollLabel} Registration Fee`,
+                            program_name: progName || null,
+                            enrollment_type: enrollLabel,
+                            unit_price: Number(transaction.amount),
+                            quantity: 1,
+                        },
+                    ],
+                    metadata: {
+                        registration_student_id: studentId,
+                        student_name: displayName,
+                        source: 'registration_payment',
+                    },
+                })
+                .select('id')
+                .single();
+
+            if (invErr) {
+                console.error('Failed to create registration invoice:', invErr);
+            } else if (newInv?.id) {
+                await supabase
+                    .from('payment_transactions')
+                    .update({ invoice_id: newInv.id })
+                    .eq('id', transaction.id);
+            }
+        }
+    } else if (gatewayResponse?.payment_type === 'summer_school_balance') {
+        const prospectId = gatewayResponse?.prospect_id;
+        if (prospectId) {
+            await supabase
+                .from('prospective_students')
+                .update({ status: 'paid', updated_at: new Date().toISOString() })
+                .eq('id', prospectId);
+
+            const { data: existingBalInv } = await supabase
+                .from('invoices')
+                .select('id')
+                .eq('payment_transaction_id', transaction.id)
+                .maybeSingle();
+
+            if (!existingBalInv) {
+                const { data: prospect } = await supabase
+                    .from('prospective_students')
+                    .select('full_name, parent_email')
+                    .eq('id', prospectId)
+                    .maybeSingle();
+
+                const displayName = String(prospect?.full_name || gatewayResponse?.student_name || 'Student');
+                const rawRef = String(transaction.transaction_reference || transaction.id);
+                const invoiceNumber = `INV-BAL-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
+
+                const { data: newBalInv, error: balInvErr } = await supabase
+                    .from('invoices')
+                    .insert({
+                        invoice_number: invoiceNumber,
+                        amount: Number(transaction.amount),
+                        currency: transaction.currency || 'NGN',
+                        status: 'paid',
+                        due_date: null,
+                        portal_user_id: null,
+                        school_id: null,
+                        payment_transaction_id: transaction.id,
+                        items: [
+                            {
+                                description: `AI Summer School 2026 — Remaining Tuition Balance`,
+                                program_name: 'AI Summer School 2026',
+                                student_name: displayName,
+                                unit_price: Number(transaction.amount),
+                                quantity: 1,
+                            },
+                        ],
+                        metadata: {
+                            prospect_id: prospectId,
+                            student_name: displayName,
+                            source: 'summer_balance_payment',
+                            payment_type: 'summer_school_balance',
+                        },
+                    })
+                    .select('id')
+                    .single();
+
+                if (balInvErr) {
+                    console.error('Failed to create summer balance invoice:', balInvErr);
+                } else if (newBalInv?.id) {
+                    await supabase
+                        .from('payment_transactions')
+                        .update({ invoice_id: newBalInv.id })
+                        .eq('id', transaction.id);
+                }
+            }
+        }
+    } else if (gatewayResponse?.payment_type === 'summer_school') {
+        const prospectId = gatewayResponse?.prospect_id;
+        if (prospectId) {
+            let authUserId: string | null = null;
+            const { data: record } = await supabase
+                .from('prospective_students')
+                .select('*')
+                .eq('id', prospectId)
+                .maybeSingle();
+
+            if (record) {
+                try {
+                    const onboard = await onboardSummerStudent(supabase, record as any);
+                    authUserId = onboard.student.id;
+                    gatewayResponse.generated_credentials = { email: onboard.student.email, password: onboard.student.password };
+                    void sendSummerCredentials(onboard, record as any);
+                } catch (onboardErr) {
+                    console.error('[payment] Summer onboarding failed:', onboardErr);
+                }
+            }
+
+            await supabase
+                .from('prospective_students')
+                .update({
+                    status: getSummerProspectStatusForPayment({
+                        paymentPlan: gatewayResponse?.payment_plan,
+                        balanceDue: gatewayResponse?.balance_due,
+                    }),
+                    is_active: true,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', prospectId);
+
+            try {
+                const { harnessProspectToContactBook } = await import('@/lib/crm/sync-prospect');
+                await harnessProspectToContactBook(prospectId, authUserId);
+            } catch (syncErr) {
+                console.error('Failed to sync approved summer student to CRM contact book:', syncErr);
+            }
+
+            const { data: existingSumInv } = await supabase
+                .from('invoices')
+                .select('id')
+                .eq('payment_transaction_id', transaction.id)
+                .maybeSingle();
+
+            if (!existingSumInv) {
+                const displayName = String(record?.full_name || gatewayResponse?.student_name || 'Student');
+                const rawRef = String(transaction.transaction_reference || transaction.id);
+                const isInstallment = gatewayResponse?.payment_plan === 'installment';
+                const invoiceNumber = `INV-SUM-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
+                const balanceDue = Number(gatewayResponse?.balance_due || 0);
+                const totalTuition = Number(gatewayResponse?.total_tuition || gatewayResponse?.amount_charged || transaction.amount);
+
+                const description = isInstallment
+                    ? `AI Summer School 2026 — Deposit (50% Installment)`
+                    : `AI Summer School 2026 — Full Tuition`;
+
+                const { data: newSumInv, error: sumInvErr } = await supabase
+                    .from('invoices')
+                    .insert({
+                        invoice_number: invoiceNumber,
+                        amount: Number(transaction.amount),
+                        currency: transaction.currency || 'NGN',
+                        status: 'paid',
+                        due_date: null,
+                        portal_user_id: null,
+                        school_id: null,
+                        payment_transaction_id: transaction.id,
+                        items: [
+                            {
+                                description,
+                                program_name: 'AI Summer School 2026',
+                                student_name: displayName,
+                                unit_price: Number(transaction.amount),
+                                quantity: 1,
+                            },
+                        ],
+                        metadata: {
+                            prospect_id: prospectId,
+                            student_name: displayName,
+                            source: 'summer_school_payment',
+                            payment_type: 'summer_school',
+                            payment_plan: isInstallment ? 'installment' : 'full',
+                            total_tuition: totalTuition,
+                            balance_due: isInstallment ? balanceDue : 0,
+                        },
+                    })
+                    .select('id')
+                    .single();
+
+                if (sumInvErr) {
+                    console.error('Failed to create summer school invoice:', sumInvErr);
+                } else if (newSumInv?.id) {
+                    await supabase
+                        .from('payment_transactions')
+                        .update({ invoice_id: newSumInv.id })
+                        .eq('id', transaction.id);
+                }
+            }
+        }
+    } else if (gatewayResponse?.payment_type === 'billing_cycle' && gatewayResponse?.billing_cycle_id) {
+        const billingCycleId = gatewayResponse.billing_cycle_id as string;
+        const { data: cycle } = await (supabase as any)
+            .from('billing_cycles')
+            .select('id, sticky_notice_id')
+            .eq('id', billingCycleId)
+            .maybeSingle();
+
+        await (supabase as any)
+            .from('billing_cycles')
+            .update({ status: 'paid', updated_at: new Date().toISOString() })
+            .eq('id', billingCycleId)
+            .neq('status', 'paid');
+
+        if (cycle?.sticky_notice_id) {
+            await (supabase as any)
+                .from('billing_notices')
+                .update({ is_resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                .eq('id', cycle.sticky_notice_id);
+        }
+
+        try {
+            const { ensureBillingCycleInvoice } = await import('@/lib/finance/billing-cycle-invoice');
+            await ensureBillingCycleInvoice(supabase as any, transaction as any, billingCycleId);
+        } catch (cycInvErr) {
+            console.error('[payment] billing-cycle invoice creation failed:', cycInvErr);
+        }
+    } else if ((transaction as any).invoice_id) {
+        const { error: rpcError } = await supabase.rpc('process_payment_atomic', {
+            p_reference: reference,
+            p_invoice_id: (transaction as any).invoice_id,
+            p_amount: Number(transaction.amount),
+        });
+        if (rpcError) {
+            console.error('process_payment_atomic RPC failed:', rpcError);
+            return;
+        }
+    }
+
+    // 4. Generate Receipt automatically + notify
+    const { paymentsService } = await import('@/services/payments.service');
+    const { notificationsService } = await import('@/services/notifications.service');
+    const { queueService } = await import('@/services/queue.service');
+
+    try {
+        const receiptUrl = await paymentsService.generateReceipt(transaction.id);
+
+        const { notifyStaffOfPayment } = await import('@/lib/payments/notify-staff');
+        const schoolId = (transaction as any).school_id as string | null;
+        const amtFormatted = `${(transaction as any).currency || 'NGN'} ${Number((transaction as any).amount).toLocaleString()}`;
+        const payer = isRegistrationPayment
+            ? String(gatewayResponse?.student_name || 'A registrant')
+            : 'A user';
+        void notifyStaffOfPayment({
+            schoolId,
+            title: 'Payment Confirmed',
+            message: `${payer} payment of ${amtFormatted} confirmed (ref: ${String((transaction as any).transaction_reference || '').slice(0, 12)}…).`,
+            actionUrl: '/dashboard/finance?tab=billing_cycles',
+        });
+
+        const adminTo = env.ADMIN_OPS_EMAIL?.trim();
+        const isSummerPayment =
+            gatewayResponse?.payment_type === 'summer_school' ||
+            gatewayResponse?.payment_type === 'summer_school_balance';
+        if (
+            (isRegistrationPayment || isSummerPayment) &&
+            adminTo &&
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(adminTo)
+        ) {
+            try {
+                const studName = String(gatewayResponse?.student_name || 'Student');
+                const amt = `${transaction.currency || 'NGN'} ${Number(transaction.amount).toLocaleString()}`;
+                const opsHtml = buildRillcodTransactionalEmailHtml({
+                    eyebrow: 'Operations',
+                    title: isSummerPayment ? 'Summer School payment received' : 'Registration fee received',
+                    bodyHtml: `<p style="margin:0 0 10px;">${isSummerPayment ? 'A Summer School tuition payment has been confirmed.' : 'A new student registration payment has been confirmed.'}</p>`,
+                    summaryRows: [
+                        { label: 'Student', value: studName },
+                        { label: 'Amount', value: amt },
+                        { label: 'Reference', value: String(transaction.transaction_reference) },
+                        ...(isSummerPayment ? [{ label: 'Type', value: String(gatewayResponse?.payment_type) }] : []),
+                    ],
+                    footerNote: '<span style="color:#a1a1aa;">Internal ops notice — not a receipt for the payer.</span>',
+                });
+                await notificationsService.sendExternalEmail({
+                    to: adminTo,
+                    subject: isSummerPayment ? `Summer School payment — ${studName}` : `New registration payment — ${studName}`,
+                    fromName: 'Rillcod Technologies',
+                    fromEmail: 'support@rillcod.com',
+                    html: opsHtml,
+                });
+            } catch (opsErr) {
+                console.error('Admin ops registration email failed:', opsErr);
+            }
+        }
+
+        const parentEmail =
+            typeof gatewayResponse?.parent_email === 'string'
+                ? gatewayResponse.parent_email.trim()
+                : '';
+
+        if (isRegistrationPayment && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
+            const studName = String(gatewayResponse?.student_name || 'Student');
+            const parentHtml = buildPaymentConfirmationEmail({
+                recipientName: studName,
+                amount: Number(transaction.amount),
+                currency: String(transaction.currency || 'NGN'),
+                reference: String(transaction.transaction_reference),
+                description: 'Student Registration Fee',
+                date: new Date().toISOString(),
+                portalUrl: receiptUrl,
+            });
+            await notificationsService.sendExternalEmail({
+                to: parentEmail,
+                subject: `Registration Confirmed — Rillcod Technologies (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
+                fromName: 'Rillcod Technologies',
+                fromEmail: 'support@rillcod.com',
+                html: parentHtml,
+            });
+        } else if (transaction.portal_user_id) {
+            const { data: portalUsers } = await supabase
+                .from('portal_users')
+                .select('id, email, full_name')
+                .eq('id', transaction.portal_user_id)
+                .maybeSingle();
+
+            if (portalUsers?.email) {
+                let attachments: Array<{ filename: string; content: string }> | undefined;
+                if (receiptUrl) {
+                    try {
+                        const r = await fetch(receiptUrl);
+                        if (r.ok) {
+                            const buf = Buffer.from(await r.arrayBuffer());
+                            const safeName = (portalUsers.full_name || 'Payer').replace(/[^a-z0-9]+/gi, '_');
+                            attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
+                        }
+                    } catch { /* non-fatal */ }
+                }
+
+                const portalHtml = buildPaymentConfirmationEmail({
+                    recipientName: portalUsers.full_name || 'Student',
+                    amount: Number(transaction.amount),
+                    currency: String(transaction.currency || 'NGN'),
+                    reference: String(transaction.transaction_reference),
+                    description: 'Platform Fee Payment',
+                    date: new Date().toISOString(),
+                    portalUrl: receiptUrl,
+                });
+
+                const htmlWithLink = receiptUrl
+                    ? portalHtml.replace('</td></tr>', `<div style="text-align:center;margin:16px 0;"><a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a></div></td></tr>`)
+                    : portalHtml;
+
+                await notificationsService.sendEmail(portalUsers.id, {
+                    to: portalUsers.email,
+                    subject: `Payment Receipt — Rillcod Technologies (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
+                    fromName: 'Rillcod Technologies',
+                    fromEmail: 'support@rillcod.com',
+                    html: htmlWithLink,
+                    ...(attachments ? { attachments } : {}),
+                });
+            }
+        }
+    } catch (err) {
+        console.error('Failed to generate automated receipt or notify user:', err);
+    }
+}
