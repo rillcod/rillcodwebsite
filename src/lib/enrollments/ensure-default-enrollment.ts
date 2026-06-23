@@ -56,6 +56,24 @@ function isOnlineEnrollment(enrollmentType?: string | null): boolean {
 }
 
 /**
+ * Summer-school learners belong to the dedicated "Summer School" programme (its
+ * own 4 modules), NOT the generic online tracks (AI Engineering / Data Analysis).
+ * Routing them to an online track is what left the seeded Summer School content
+ * orphaned with zero enrolments.
+ */
+function isSummerEnrollment(enrollmentType?: string | null, courseInterest?: string | null): boolean {
+  const t = `${enrollmentType ?? ''} ${courseInterest ?? ''}`.toLowerCase();
+  return t.includes('summer');
+}
+
+/** Resolve the active "Summer School" programme by name. Null when none exists yet. */
+function resolveSummerProgram(
+  programs: Array<{ id: string; name: string }>,
+): { id: string; name: string } | null {
+  return programs.find((p) => p.name.toLowerCase().includes('summer school')) ?? null;
+}
+
+/**
  * Default online tracks, in priority order, when course_interest doesn't pin one
  * down. Substrings (not full names) so they tolerate the real programme titles
  * e.g. "AI Engineering & Automation", "Data Analysis with Python".
@@ -113,12 +131,19 @@ export async function ensureDefaultEnrollment(
 
     const allActive = (programs ?? []) as Array<{ id: string; name: string }>;
 
-    // 2b. Online / summer / bootcamp learners belong to their chosen TRACK
+    // 2a. Summer-school learners belong to the dedicated Summer School programme
+    //     (its 4 modules), resolved by name. This takes priority over the generic
+    //     online-track routing below so summer kids reach the seeded summer content.
+    let target: { id: string; name: string } | null = null;
+    if (isSummerEnrollment(opts.enrollmentType, opts.courseInterest)) {
+      target = resolveSummerProgram(allActive);
+    }
+
+    // 2b. Other online / bootcamp learners belong to their chosen TRACK
     //     (AI Engineering, Data Analysis with Python, …), NOT a flagship programme.
     //     Enrolling them into a flagship is what hid programme-tagged bootcamp
     //     assignments from them.
-    let target: { id: string; name: string } | null = null;
-    if (isOnlineEnrollment(opts.enrollmentType)) {
+    if (!target && isOnlineEnrollment(opts.enrollmentType)) {
       target = resolveOnlineProgram(allActive, opts.courseInterest);
     }
 
