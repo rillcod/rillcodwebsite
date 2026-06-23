@@ -5,6 +5,7 @@ import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
+import { logAudit } from '@/lib/audit/log';
 import crypto from 'crypto';
 
 function adminClient() {
@@ -316,6 +317,14 @@ export async function POST(request: Request) {
       approved_by: caller.id,
       approved_at: null,
     }).eq('id', id);
+    await logAudit(admin as any, {
+      action: 'student.registration_rejected',
+      actorId: caller.id,
+      resourceType: 'students',
+      resourceId: id,
+      oldValues: { status: student.status },
+      newValues: { status: 'rejected' },
+    });
     return NextResponse.json({ success: true });
   }
 
@@ -452,6 +461,14 @@ export async function POST(request: Request) {
       isSummerStudent,
     );
 
+    await logAudit(admin as any, {
+      action: 'student.registration_approved',
+      actorId: caller.id,
+      resourceType: 'students',
+      resourceId: id,
+      newValues: { portal_user_id: existingPortal.id, school_id: resolvedSchoolId, enrollment_type: effectiveEnrollmentType, linked_existing_account: true },
+    });
+
     return NextResponse.json({
       success: true,
       credentials: { email: loginEmail, password },
@@ -554,6 +571,14 @@ export async function POST(request: Request) {
     authUserId,
     isSummerStudent,
   );
+
+  await logAudit(admin as any, {
+    action: 'student.registration_approved',
+    actorId: caller.id,
+    resourceType: 'students',
+    resourceId: id,
+    newValues: { portal_user_id: authUserId, school_id: resolvedSchoolId, enrollment_type: effectiveEnrollmentType, created_account: !usedExistingAuth },
+  });
 
   return NextResponse.json({
     success: true,

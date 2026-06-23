@@ -511,10 +511,12 @@ export class NotificationsService {
                 body: JSON.stringify(emailData)
             });
 
-            await this.logNotification(userId, payload.subject, 'Email sent successfully');
+            // Delivery succeeded — this is operational metadata, not a user-facing
+            // notification, so we do NOT write it to the recipient's in-app feed
+            // (doing so flooded the notification bell with "Email sent successfully").
             return true;
         } catch (error: any) {
-            await this.logNotification(userId, 'Email Delivery Failed', payload.subject, 'error');
+            console.error(`[notifications] Email delivery failed for ${userId}: ${error.message}`);
             throw new AppError(`Email delivery failed: ${error.message}`, 500);
         }
     }
@@ -584,10 +586,9 @@ export class NotificationsService {
                 body: JSON.stringify(smsData)
             });
 
-            await this.logNotification(userId, 'SMS Notification Sent', payload.body);
             return true;
         } catch (error: any) {
-            await this.logNotification(userId, 'SMS Delivery Failed', payload.body, 'error');
+            console.error(`[notifications] SMS delivery failed for ${userId}: ${error.message}`);
             throw new AppError(`SMS delivery failed: ${error.message}`, 500);
         }
     }
@@ -612,10 +613,9 @@ export class NotificationsService {
 
         try {
             const result = await this.sendExternalWhatsApp({ to: phone, body: payload.body });
-            await this.logNotification(userId, 'WhatsApp Notification Sent', payload.body, 'info');
             return result;
         } catch (error: any) {
-            await this.logNotification(userId, 'WhatsApp Delivery Failed', payload.body, 'error');
+            console.error(`[notifications] WhatsApp delivery failed for ${userId}: ${error.message}`);
             throw new AppError(`WhatsApp delivery failed: ${error.message}`, 500);
         }
     }

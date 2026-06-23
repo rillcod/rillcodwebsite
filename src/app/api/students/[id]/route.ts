@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
     return createClient(
@@ -138,5 +139,15 @@ export async function DELETE(
     const { error } = await admin.from('students').delete().eq('id', id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Audit trail — record WHO deleted this student (non-throwing).
+    await logAudit(admin as any, {
+      action: 'students.delete',
+      actorId: caller.id,
+      resourceType: 'students',
+      resourceId: id,
+      oldValues: { user_id: student.user_id, school_id: student.school_id, school_name: student.school_name },
+    });
+
     return NextResponse.json({ success: true });
 }

@@ -37,6 +37,12 @@ export async function GET(request: Request) {
   const db = createAdminClient();
 
   if (type === 'audit') {
+    // The audit trail records sensitive cross-school actions (deletes, payment
+    // approvals, role changes) — restrict it to platform admins. Teachers/schools
+    // get the school-scoped activity feed below, not the global audit log.
+    if (user.role !== 'admin') {
+      return NextResponse.json({ error: 'Audit log is restricted to admins' }, { status: 403 });
+    }
     let q = db
       .from('audit_logs')
       .select('*, portal_users(id, full_name, email, role)')

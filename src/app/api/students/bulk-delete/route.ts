@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit/log';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -122,6 +123,19 @@ export async function POST(request: Request) {
         authResults.push({ id: uid, status: 'deleted' });
       }
     }
+
+    // Audit trail — record WHO bulk-deleted WHICH students (non-throwing).
+    await logAudit(supabaseAdmin as any, {
+      action: 'students.bulk_delete',
+      actorId: user.id,
+      resourceType: 'students',
+      resourceId: null,
+      oldValues: {
+        deleted: (verified ?? []).map((u) => ({ id: u.id, full_name: u.full_name, email: u.email })),
+        requested: userIds.length,
+        skipped: skippedIds,
+      },
+    });
 
     return NextResponse.json({
       deleted: authResults.filter((r) => r.status === 'deleted').length,

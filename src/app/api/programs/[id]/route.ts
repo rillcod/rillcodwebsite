@@ -6,6 +6,7 @@ import {
   isCourseVisibleToLearners,
   isProgramVisibleToRole,
 } from '@/lib/courses/visibility';
+import { logAudit } from '@/lib/audit/log';
 
 function adminClient() {
   return createClient(
@@ -199,6 +200,15 @@ export async function PUT(
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await logAudit(adminClient() as any, {
+      action: 'program.update',
+      actorId: caller.id,
+      resourceType: 'programs',
+      resourceId: id,
+      newValues: allowed,
+    });
+
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
@@ -215,12 +225,26 @@ export async function DELETE(
     if (!caller) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
 
     const { id } = await context.params;
-    const { error } = await adminClient()
+    const db = adminClient();
+
+    // Snapshot before delete for the audit trail.
+    const { data: existing } = await db.from('programs').select('id, name, program_scope, is_active').eq('id', id).maybeSingle();
+
+    const { error } = await db
       .from('programs')
       .delete()
       .eq('id', id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    await logAudit(db as any, {
+      action: 'program.delete',
+      actorId: caller.id,
+      resourceType: 'programs',
+      resourceId: id,
+      oldValues: existing ?? { id },
+    });
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
