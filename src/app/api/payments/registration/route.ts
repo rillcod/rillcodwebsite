@@ -244,6 +244,12 @@ export async function POST(req: Request) {
             }
         }
 
+        // Instalment = pay 50% deposit now; the remaining balance is tracked on the
+        // transaction so it can be collected later. Full plan charges the whole fee.
+        const isInstalment = payment_plan === 'instalment';
+        const chargeAmount = isInstalment ? Math.round(amount * 0.5) : amount;
+        const balanceDue = isInstalment ? amount - chargeAmount : 0;
+
         // 1. Save student registration (status: 'pending' — awaiting admin approval after payment)
         const { data: student, error: studentErr } = await supabase
             .from('students')
@@ -288,7 +294,7 @@ export async function POST(req: Request) {
             portal_user_id: null,
             school_id: resolvedSchoolId,
             course_id: null,
-            amount,
+            amount: chargeAmount,
             currency: 'NGN',
             payment_method: 'paystack',
             payment_status: 'pending',
@@ -302,6 +308,9 @@ export async function POST(req: Request) {
                 program_id: program_id || null,
                 program_name: programName,
                 payment_type: 'registration',
+                payment_plan: isInstalment ? 'instalment' : 'full',
+                total_tuition: amount,
+                balance_due: balanceDue,
             },
             created_at: new Date().toISOString(),
         }]).select('id').single();
@@ -320,7 +329,7 @@ export async function POST(req: Request) {
             },
             body: JSON.stringify({
                 email: parent_email,
-                amount: amount * 100, // convert to kobo
+                amount: chargeAmount * 100, // convert to kobo (deposit when instalment)
                 reference,
                 callback_url: `${baseUrl}/online-registration?payment=success&reference=${encodeURIComponent(reference)}&name=${encodeURIComponent(full_name)}&type=${enrollment_type}`,
                 metadata: {
