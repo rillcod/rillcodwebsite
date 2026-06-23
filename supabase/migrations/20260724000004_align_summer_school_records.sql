@@ -8,12 +8,12 @@ BEGIN
   -- Find the canonical online school
   SELECT id INTO v_online_school_id
     FROM public.schools
-    WHERE LOWER(name) LIKE '%rillcod%online%'
+    WHERE LOWER(name) LIKE '%online%'
       AND is_active = true
     LIMIT 1;
 
   IF v_online_school_id IS NULL THEN
-    RAISE NOTICE 'No Rillcod Online School found. Skipping alignment.';
+    RAISE NOTICE 'No Online School found. Skipping alignment.';
     RETURN;
   END IF;
 
@@ -61,10 +61,10 @@ BEGIN
 
   -- 5. Ensure students.school_id is aligned to the online school
   UPDATE public.students
-    SET school_id = v_online_school_id::text,
-        school_name = 'Rillcod Online School'
+    SET school_id = v_online_school_id,
+        school_name = 'ONLINE SCHOOL'
     WHERE enrollment_type = 'summer_school'
-      AND (school_id IS NULL OR school_id::text != v_online_school_id::text);
+      AND (school_id IS NULL OR school_id != v_online_school_id);
 
   RAISE NOTICE 'Summer school alignment complete. School: %, Class: %', v_online_school_id, v_summer_class_id;
 END;
