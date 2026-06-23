@@ -64,6 +64,27 @@ export default function ClassDetailPage() {
   const [pathStudentModes, setPathStudentModes] = useState<Record<string, 'inherit' | 'full' | 'milestone'>>({});
   const [pathVisibilitySaving, setPathVisibilitySaving] = useState<string | null>(null);
 
+  const [programCourses, setProgramCourses] = useState<any[]>([]);
+  const [updatingCourseFocus, setUpdatingCourseFocus] = useState(false);
+
+  const handleSaveCourseFocus = async (courseId: string | null) => {
+    setUpdatingCourseFocus(true);
+    try {
+      const res = await fetch(`/api/classes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_course_id: courseId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to update');
+      setCls((prev: any) => prev ? { ...prev, current_course_id: courseId } : null);
+    } catch (e: any) {
+      alert(e.message || 'Failed to update course focus');
+    } finally {
+      setUpdatingCourseFocus(false);
+    }
+  };
+
   // Broadcast State
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastForm, setBroadcastForm] = useState({ text: '', mediaUrl: '' });
@@ -119,10 +140,11 @@ export default function ClassDetailPage() {
 
       // Only fetch program-related data if program_id exists
       if (program_id) {
-        const [lessonRes, asgnRes, cbtRes] = await Promise.all([
+        const [lessonRes, asgnRes, cbtRes, coursesRes] = await Promise.all([
           supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id),
           supabase.from('assignments').select('id, title, assignment_type, due_date, max_points, course_id, courses!inner(program_id)').eq('courses.program_id', program_id),
-          supabase.from('cbt_exams').select('id, title, duration_minutes, total_questions, is_active').eq('program_id', program_id)
+          supabase.from('cbt_exams').select('id, title, duration_minutes, total_questions, is_active').eq('program_id', program_id),
+          supabase.from('courses').select('id, title').eq('program_id', program_id).eq('is_active', true).order('level_order', { ascending: true })
         ]);
 
         const assignments = asgnRes.data ?? [];
@@ -158,6 +180,7 @@ export default function ClassDetailPage() {
           submissions,
           cbtSessions
         });
+        setProgramCourses(coursesRes.data ?? []);
       } else {
         // No program_id, set empty items
         setItems({
@@ -167,6 +190,7 @@ export default function ClassDetailPage() {
           submissions: [],
           cbtSessions: []
         });
+        setProgramCourses([]);
       }
     } catch (e: any) {
       setError(e.message);
@@ -936,6 +960,39 @@ export default function ClassDetailPage() {
                             </div>
                           ))}
                         </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {isStaff && (
+                  <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Focus Settings</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Select a specific course to display to students in this class. All other courses, assignments, and materials will be hidden from their view until unlocked.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">Active Course Focus</label>
+                      <select
+                        value={cls?.current_course_id || ''}
+                        onChange={(e) => handleSaveCourseFocus(e.target.value || null)}
+                        disabled={updatingCourseFocus || programCourses.length === 0}
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary disabled:opacity-50"
+                      >
+                        <option value="">Show All Courses (Default)</option>
+                        {programCourses.map((c: any) => (
+                          <option key={c.id} value={c.id}>
+                            {c.title}
+                          </option>
+                        ))}
+                      </select>
+                      {programCourses.length === 0 && (
+                        <p className="text-[10px] text-rose-400 italic">
+                          No active courses found for this program. Assign courses to this program to enable focus locks.
+                        </p>
                       )}
                     </div>
                   </div>

@@ -320,6 +320,23 @@ export default function CurriculumPage() {
   const [assignResult, setAssignResult] = useState<{ assignment?: boolean; project?: boolean } | null>(null);
   const [showcaseCount, setShowcaseCount] = useState<number | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [currentCourseId, setCurrentCourseId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile?.role === 'student' && profile?.class_id) {
+      const supabase = createClient();
+      supabase
+        .from('classes')
+        .select('current_course_id')
+        .eq('id', profile.class_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.current_course_id) {
+            setCurrentCourseId(data.current_course_id);
+          }
+        });
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -594,6 +611,9 @@ export default function CurriculumPage() {
         (prog.courses ?? [])
           .filter((c) => c.is_active !== false)
           .filter((c) => {
+            if (profile?.role === 'student' && currentCourseId && c.id !== currentCourseId) {
+              return false;
+            }
             if (!hasSchoolScopeFilter) return true;
             const pid = c.program_id ?? prog.id;
             return !!pid && schoolScopedProgramIds.includes(pid);
@@ -601,7 +621,7 @@ export default function CurriculumPage() {
           .map((course) => ({ prog, course })),
       )
       .slice(0, 24);
-  }, [programs, schoolScopedProgramIds]);
+  }, [programs, schoolScopedProgramIds, profile?.role, currentCourseId]);
 
   // ── Restore last visited course from localStorage ─────────────────────
   useEffect(() => {
@@ -1659,6 +1679,25 @@ export default function CurriculumPage() {
     setActiveWeek(null);
     const role = profile?.role;
     const isLearnerRole = role === 'student' || role === 'parent';
+
+    if (role === 'student' && profile?.class_id) {
+      try {
+        const supabase = createClient();
+        const { data: clsData } = await supabase
+          .from('classes')
+          .select('current_course_id')
+          .eq('id', profile.class_id)
+          .maybeSingle();
+        if (clsData?.current_course_id && courseId !== clsData.current_course_id) {
+          setLoadError('This course syllabus is not active for your class yet.');
+          clearTimeout(timer);
+          setLoadingCurr(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error checking course lock:', err);
+      }
+    }
     try {
       const res = await fetch(`/api/curricula?course_id=${courseId}`);
       if (!res.ok) throw new Error('Failed to load syllabus');
@@ -1720,7 +1759,7 @@ export default function CurriculumPage() {
       clearTimeout(timer);
       setLoadingCurr(false);
     }
-  }, [profile?.school_id, profile?.role, restoreGradeForScope]);
+  }, [profile?.school_id, profile?.role, profile?.class_id, currentCourseId, restoreGradeForScope]);
   loadCurriculumRef.current = loadCurriculum;
 
   const saveWeekEdit = useCallback(async () => {
@@ -3103,7 +3142,13 @@ export default function CurriculumPage() {
               </div>
             ) : filteredPrograms.map(prog => {
               const isExpanded = expandedPrograms.has(prog.id);
-              const activeCourses = prog.courses?.filter(c => c.is_active !== false) ?? [];
+              let activeCourses = prog.courses?.filter(c => c.is_active !== false) ?? [];
+              if (profile?.role === 'student' && currentCourseId) {
+                activeCourses = activeCourses.filter(c => c.id === currentCourseId);
+              }
+              if (profile?.role === 'student' && activeCourses.length === 0) {
+                return null;
+              }
               return (
                 <div key={prog.id} className="border-b border-border/50 last:border-0">
                   <button

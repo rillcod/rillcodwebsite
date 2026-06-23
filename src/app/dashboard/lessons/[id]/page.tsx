@@ -3017,6 +3017,20 @@ export default function LessonDetailPage() {
       if (lErr) throw lErr;
       if (!lessonData) { setError('Lesson not found'); return; }
       const lessonObj = lessonData as any;
+
+      // If the user is a student, check if their class has a course lock focus active
+      if (user.role === 'student' && user.class_id) {
+        const { data: clsData } = await db
+          .from('classes')
+          .select('current_course_id')
+          .eq('id', user.class_id)
+          .maybeSingle();
+        if (clsData?.current_course_id && clsData.current_course_id !== lessonObj.course_id) {
+          setError('This lesson is not active for your class yet.');
+          return;
+        }
+      }
+
       setLesson(lessonObj);
 
       const materialsRes = await db

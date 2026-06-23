@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { ensureProgramTemplates } from '@/lib/curriculum/ensure-program-templates';
 
 /**
  * Canonical QA syllabus week spine (see migration platform_syllabus_week_template).
@@ -31,6 +32,10 @@ export async function GET(req: NextRequest) {
   const laneIndex = searchParams.get('lane_index');
   const gradeKey = searchParams.get('grade_key');
   const track = searchParams.get('track');
+
+  if (programId) {
+    await ensureProgramTemplates(programId);
+  }
 
   let q = supabase
     .from('platform_syllabus_week_template')

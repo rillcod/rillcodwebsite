@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { SyllabusWeekDraft } from '@/lib/catalog/platformSpineToSyllabusWeeks';
 import { resolveQaSpineLane } from '@/lib/qa/resolveQaSpineLane';
 import { calendarIndex, sourceWeekIndexForCalendar } from '@/lib/qa/rotatedSpineIndex';
+import { ensureProgramTemplates } from '@/lib/curriculum/ensure-program-templates';
 import type { Json } from '@/types/supabase';
 
 function asObject(v: unknown): Record<string, unknown> {
@@ -79,6 +80,11 @@ export async function POST(req: NextRequest) {
   }
 
   const programId = (curriculum as unknown as { courses?: { program_id?: string | null } | null }).courses?.program_id ?? null;
+
+  // Ensure program-specific templates exist (auto-clone + personalize if missing)
+  if (programId) {
+    await ensureProgramTemplates(programId);
+  }
 
   let classRow: {
     id: string;

@@ -17,6 +17,7 @@ const updateContentSchema = z.object({
     licenseType: z.string().optional().nullable(),
     attribution: z.string().optional().nullable(),
     isActive: z.boolean().optional(),
+    programId: z.string().uuid().optional().nullable(),
 });
 
 async function getHandler(req: Request, ctx: ApiContext) {

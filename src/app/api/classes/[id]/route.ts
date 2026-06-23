@@ -130,7 +130,7 @@ export async function PATCH(
   // ── Field whitelist — current_students excluded (managed by enroll route only) ──
   const allowed: Record<string, unknown> = {};
   const allowedFields = [
-    'name', 'description', 'program_id', 'teacher_id',
+    'name', 'description', 'program_id', 'teacher_id', 'current_course_id',
     'max_students', 'status', 'schedule', 'start_date', 'end_date',
     'qa_grade_key', 'qa_grade_mode', 'qa_grade_band', 'qa_track_hint', 'qa_spine_lane',
   ];

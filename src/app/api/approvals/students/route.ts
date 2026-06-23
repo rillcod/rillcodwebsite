@@ -358,10 +358,29 @@ export async function POST(request: Request) {
   const resolvedSchoolName: string | null = resolvedSchool.name;
 
   const resolvedClassName = student.current_class || student.grade_level || null;
+
+  // ── Detect summer school students and ensure their class exists ───
+  const isSummerStudent = student.enrollment_type === 'summer_school'
+    || /summer/i.test(student.current_class ?? '')
+    || /summer/i.test(student.grade_level ?? '');
+
+  if (isSummerStudent && resolvedSchoolId) {
+    try {
+      const { ensureSummerClassWithTutor } = await import('@/lib/summer-school/onboard');
+      await ensureSummerClassWithTutor(admin, resolvedSchoolId, resolvedSchoolName || 'Online School');
+    } catch (err) {
+      console.error('[ApproveStudent] ensureSummerClassWithTutor failed:', err);
+    }
+  }
+
   const resolvedClassId = await resolveStudentClassId(admin, resolvedSchoolId, [
+    ...(isSummerStudent ? ['Summer School 2026'] : []),
     student.current_class,
     student.grade_level,
   ]);
+
+  // Enforce correct enrollment_type for summer students
+  const effectiveEnrollmentType = isSummerStudent ? 'summer_school' : (student.enrollment_type || 'in_person');
 
   // ── Step 1: Check portal_users by email FIRST ────────────────────────────
   const { data: existingPortal } = await admin
@@ -378,6 +397,7 @@ export async function POST(request: Request) {
       school_name: resolvedSchoolName,
       school_id: resolvedSchoolId,
       class_id: resolvedClassId,
+      enrollment_type: effectiveEnrollmentType,
       date_of_birth: student.date_of_birth || null,
       section_class: resolvedClassName,
       is_active: true,
@@ -402,6 +422,7 @@ export async function POST(request: Request) {
       approved_at: new Date().toISOString(),
       student_email: loginEmail,
       parent_email: student.parent_email || originalStudentEmail || null,
+      enrollment_type: effectiveEnrollmentType,
     }).eq('id', id);
 
     // Resolve and link any completed payment transactions to this portal user
@@ -419,7 +440,7 @@ export async function POST(request: Request) {
 
     void ensureDefaultEnrollment(admin, existingPortal.id, {
       grade: resolvedClassName,
-      enrollmentType: student.enrollment_type,
+      enrollmentType: effectiveEnrollmentType,
     });
     void sendStudentCredentialsEmail(
       destinationEmail,
@@ -428,7 +449,7 @@ export async function POST(request: Request) {
       password,
       resolvedSchoolName,
       existingPortal.id,
-      student.enrollment_type === 'summer_school',
+      isSummerStudent,
     );
 
     return NextResponse.json({
@@ -485,6 +506,7 @@ export async function POST(request: Request) {
     school_name: resolvedSchoolName,
     school_id: resolvedSchoolId,
     class_id: resolvedClassId,
+    enrollment_type: effectiveEnrollmentType,
     date_of_birth: student.date_of_birth || null,
     section_class: resolvedClassName,
     is_active: true,
@@ -503,6 +525,7 @@ export async function POST(request: Request) {
     approved_at: new Date().toISOString(),
     student_email: loginEmail,
     parent_email: student.parent_email || originalStudentEmail || null,
+    enrollment_type: effectiveEnrollmentType,
   }).eq('id', id);
 
   // Resolve and link any completed payment transactions to this portal user
@@ -520,7 +543,7 @@ export async function POST(request: Request) {
 
   void ensureDefaultEnrollment(admin, authUserId, {
     grade: resolvedClassName,
-    enrollmentType: student.enrollment_type,
+    enrollmentType: effectiveEnrollmentType,
   });
   void sendStudentCredentialsEmail(
     destinationEmail,
@@ -529,7 +552,7 @@ export async function POST(request: Request) {
     password,
     resolvedSchoolName,
     authUserId,
-    student.enrollment_type === 'summer_school',
+    isSummerStudent,
   );
 
   return NextResponse.json({

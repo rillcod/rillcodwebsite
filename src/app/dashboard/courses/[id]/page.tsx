@@ -81,8 +81,24 @@ export default function CourseDetailPage() {
           : Promise.resolve({ data: [] }));
 
         if (!cancelled) {
-          if (courseRes.status === 'fulfilled') setCourse(courseRes.value.data);
-          else throw new Error('Course not found');
+          if (courseRes.status === 'fulfilled' && courseRes.value.data) {
+            setCourse(courseRes.value.data);
+          } else {
+            throw new Error('Course not found');
+          }
+
+          // If the user is a student, check if their class has a course lock focus active
+          if (!isStaff && profile && profile.class_id) {
+            const { data: clsData } = await supabase
+              .from('classes')
+              .select('current_course_id')
+              .eq('id', profile.class_id)
+              .maybeSingle();
+            if (clsData?.current_course_id && clsData.current_course_id !== id) {
+              throw new Error('This course is not active for your class yet.');
+            }
+          }
+
           if (lessonsRes.status === 'fulfilled') setLessons(lessonsRes.value.data ?? []);
           setSessions((sessionsRes as any).data ?? []);
         }

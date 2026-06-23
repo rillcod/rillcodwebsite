@@ -141,6 +141,17 @@ export async function GET(request: NextRequest) {
       const scope = await resolveStudentProgramScope(admin, caller.id);
       const classTeacherId = await getStudentClassTeacherId(caller.class_id);
 
+      // Fetch class course focus if student is assigned to a class
+      let currentCourseId: string | null = null;
+      if (caller.class_id) {
+        const { data: clsData } = await admin
+          .from('classes')
+          .select('current_course_id')
+          .eq('id', caller.class_id)
+          .maybeSingle();
+        currentCourseId = clsData?.current_course_id ?? null;
+      }
+
       // Fetch roles of all creators of these assignments to distinguish admin-assigned vs teacher-assigned.
       const creatorIds = Array.from(new Set(rows.map((r: any) => r.created_by).filter(Boolean)));
       let creatorRoles: Record<string, string> = {};
@@ -152,6 +163,10 @@ export async function GET(request: NextRequest) {
         (users ?? []).forEach((u: any) => {
           creatorRoles[u.id] = u.role;
         });
+      }
+
+      if (currentCourseId) {
+        rows = rows.filter((a: any) => a.course_id === currentCourseId);
       }
 
       rows = rows

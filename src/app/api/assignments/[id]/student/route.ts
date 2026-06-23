@@ -109,6 +109,21 @@ export async function GET(
     const scope = await resolveStudentProgramScope(admin, targetStudentId);
     const classTeacherId = await getStudentClassTeacherId(admin, targetStudent.class_id);
 
+    // Fetch class course focus if student is assigned to a class
+    let currentCourseId: string | null = null;
+    if (targetStudent.class_id) {
+      const { data: clsData } = await admin
+        .from('classes')
+        .select('current_course_id')
+        .eq('id', targetStudent.class_id)
+        .maybeSingle();
+      currentCourseId = clsData?.current_course_id ?? null;
+    }
+
+    if (currentCourseId && asgn.course_id !== currentCourseId) {
+      return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
+    }
+
     let creatorRoles: Record<string, string> = {};
     if (asgn.created_by) {
       const { data: creatorUser } = await admin

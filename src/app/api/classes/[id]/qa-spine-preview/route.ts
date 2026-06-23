@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { resolveQaSpineLane } from '@/lib/qa/resolveQaSpineLane';
 import { calendarIndex, sourceWeekIndexForCalendar } from '@/lib/qa/rotatedSpineIndex';
+import { ensureProgramTemplates } from '@/lib/curriculum/ensure-program-templates';
 
 /**
  * Preview rotated QA topics for a class (per school+class path) for one programme year.
@@ -44,6 +45,11 @@ export async function GET(
   }
 
   const effectiveProgram = programId || cls.program_id;
+
+  // Ensure program-specific templates exist (auto-clone + personalize if missing)
+  if (effectiveProgram) {
+    await ensureProgramTemplates(effectiveProgram);
+  }
 
   const resolved = manualLane > 0 && manualLane <= 11
     ? { lane: manualLane, source: 'query' as const }

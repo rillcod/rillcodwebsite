@@ -39,11 +39,15 @@ type ContentItem = {
   usage_count?: number | null;
   school_id?: string | null;
   file_id?: string | null;
+  program_id?: string | null;
   created_at: string;
   files?: {
     public_url?: string | null;
     file_type?: string | null;
     thumbnail_url?: string | null;
+  } | null;
+  programs?: {
+    name: string;
   } | null;
 };
 
@@ -245,6 +249,13 @@ function UploadModal({ onClose, onCreated }: {
   const [url, setUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [activePrograms, setActivePrograms] = useState<{ id: string; name: string }[]>([]);
+  const [programId, setProgramId] = useState<string>('');
+
+  useEffect(() => {
+    createClient().from('programs').select('id, name').eq('is_active', true).order('name')
+      .then(({ data }) => { if (data) setActivePrograms(data); });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -265,6 +276,7 @@ function UploadModal({ onClose, onCreated }: {
         subject: subject.trim() || undefined,
         gradeLevel: gradeLevel.trim() || undefined,
         tags: tagList,
+        programId: programId || undefined,
       };
       const res = await fetch('/api/content-library', {
         method: 'POST',
@@ -397,6 +409,22 @@ function UploadModal({ onClose, onCreated }: {
               />
             </div>
           </div>
+
+          {activePrograms.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Target Program</label>
+              <select
+                value={programId}
+                onChange={e => setProgramId(e.target.value)}
+                className="select-premium w-full p-4 text-sm font-bold transition-all outline-none appearance-none cursor-pointer"
+              >
+                <option value="">All Programs (Global)</option>
+                {activePrograms.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {err && (
             <motion.div
@@ -811,6 +839,7 @@ export default function ContentLibraryPage() {
                     <div className="flex items-center gap-4 mb-2">
                       <h3 className="font-black text-xl text-foreground truncate tracking-tight">{item.title}</h3>
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg bg-muted text-muted-foreground border border-border">{item.content_type}</span>
+                      {item.programs?.name && <span className="text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20">{item.programs.name}</span>}
                       {item.is_approved && <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-500"><CheckCircleIcon className="w-4 h-4" /> Validated</div>}
                     </div>
                     <div className="flex items-center gap-6 text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">
@@ -854,7 +883,11 @@ export default function ContentLibraryPage() {
                   </div>
                   <div className="p-8 space-y-6">
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary" /><span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{item.subject || 'Syllabus Aligned'}</span></div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{item.subject || 'Syllabus Aligned'}</span>
+                        {item.programs?.name && <span className="text-[9px] font-black uppercase tracking-[0.15em] px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">{item.programs.name}</span>}
+                      </div>
                       <h3 className="text-xl font-black text-foreground leading-tight line-clamp-2 tracking-tight group-hover:text-primary transition-colors">{item.title}</h3>
                     </div>
                     <p className="text-sm text-muted-foreground/70 line-clamp-2 leading-relaxed font-medium">{item.description || 'No supplementary intelligence provided for this asset deployment.'}</p>

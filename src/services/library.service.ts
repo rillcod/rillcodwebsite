@@ -19,6 +19,7 @@ export interface CreateContentPayload {
     gradeLevel?: string | null;
     licenseType?: string | null;
     attribution?: string | null;
+    programId?: string | null;
 }
 
 export interface UpdateContentPayload extends Partial<CreateContentPayload> {
@@ -86,6 +87,7 @@ export class LibraryService {
                 grade_level: data.gradeLevel ?? null,
                 license_type: data.licenseType ?? null,
                 attribution: data.attribution ?? null,
+                program_id: data.programId ?? null,
                 is_active: true,
                 is_approved: role === 'admin' || role === 'teacher',
                 created_at: now,
@@ -108,7 +110,7 @@ export class LibraryService {
 
         let query = supabase
             .from('content_library')
-            .select('id, title, description, content_type, category, tags, subject, grade_level, rating_average, rating_count, usage_count, is_active, is_approved, school_id, created_at, created_by, file_id, files(public_url, file_type, thumbnail_url, file_size)');
+            .select('id, title, description, content_type, category, tags, subject, grade_level, rating_average, rating_count, usage_count, is_active, is_approved, school_id, created_at, created_by, file_id, program_id, programs(name), files(public_url, file_type, thumbnail_url, file_size)');
 
         const ids = typeof schoolIds === 'string' ? [schoolIds] : schoolIds;
         if (ids && ids.length > 0) {
@@ -177,6 +179,7 @@ export class LibraryService {
         if (updates.attribution !== undefined) payload.attribution = updates.attribution;
         if (updates.isActive !== undefined) payload.is_active = updates.isActive;
         if (updates.isApproved !== undefined && role === 'admin') payload.is_approved = updates.isApproved;
+        if (updates.programId !== undefined) payload.program_id = updates.programId;
 
         const { data, error } = await supabase
             .from('content_library')

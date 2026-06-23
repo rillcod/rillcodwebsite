@@ -1463,6 +1463,7 @@ export type Database = {
       classes: {
         Row: {
           created_at: string | null
+          current_course_id: string | null
           current_students: number | null
           description: string | null
           end_date: string | null
@@ -1484,6 +1485,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          current_course_id?: string | null
           current_students?: number | null
           description?: string | null
           end_date?: string | null
@@ -1505,6 +1507,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          current_course_id?: string | null
           current_students?: number | null
           description?: string | null
           end_date?: string | null
@@ -1525,6 +1528,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "classes_current_course_id_fkey"
+            columns: ["current_course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classes_program_id_fkey"
             columns: ["program_id"]
@@ -1977,6 +1987,7 @@ export type Database = {
           is_active: boolean | null
           is_approved: boolean | null
           license_type: string | null
+          program_id: string | null
           rating_average: number | null
           rating_count: number | null
           school_id: string | null
@@ -2002,6 +2013,7 @@ export type Database = {
           is_active?: boolean | null
           is_approved?: boolean | null
           license_type?: string | null
+          program_id?: string | null
           rating_average?: number | null
           rating_count?: number | null
           school_id?: string | null
@@ -2027,6 +2039,7 @@ export type Database = {
           is_active?: boolean | null
           is_approved?: boolean | null
           license_type?: string | null
+          program_id?: string | null
           rating_average?: number | null
           rating_count?: number | null
           school_id?: string | null
@@ -2038,6 +2051,13 @@ export type Database = {
           version?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "content_library_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "content_library_approved_by_fkey"
             columns: ["approved_by"]

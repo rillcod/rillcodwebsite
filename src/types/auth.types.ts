@@ -22,6 +22,7 @@ export interface UserProfile {
     profile_image_url?: string;
     grade_level?: string | null;
     enrollment_type?: string | null;
+    class_id?: string | null;
 }
 
 export interface AuthContextType {

@@ -16,6 +16,7 @@ const createContentSchema = z.object({
     gradeLevel: z.string().optional().nullable(),
     licenseType: z.string().optional().nullable(),
     attribution: z.string().optional().nullable(),
+    programId: z.string().uuid().optional().nullable(),
 });
 
 async function listHandler(req: Request, ctx: ApiContext) {

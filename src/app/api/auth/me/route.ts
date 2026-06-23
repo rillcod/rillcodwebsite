@@ -24,7 +24,7 @@ export async function GET() {
     const admin = adminClient();
     const { data, error } = await admin
       .from('portal_users')
-      .select('id, email, full_name, role, is_active, phone, bio, profile_image_url, school_id, school_name, section_class, current_module, date_of_birth, enrollment_type, created_at, updated_at')
+      .select('id, email, full_name, role, is_active, phone, bio, profile_image_url, class_id, school_id, school_name, section_class, current_module, date_of_birth, enrollment_type, created_at, updated_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -54,7 +54,7 @@ export async function GET() {
       // Re-fetch the newly created row
       const { data: created, error: fetchErr } = await admin
         .from('portal_users')
-        .select('id, email, full_name, role, is_active, phone, bio, profile_image_url, school_id, school_name, section_class, current_module, date_of_birth, enrollment_type, created_at, updated_at')
+        .select('id, email, full_name, role, is_active, phone, bio, profile_image_url, class_id, school_id, school_name, section_class, current_module, date_of_birth, enrollment_type, created_at, updated_at')
         .eq('id', user.id)
         .maybeSingle();
 

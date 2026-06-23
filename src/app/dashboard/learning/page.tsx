@@ -153,10 +153,27 @@ export default function StudentLearningPage() {
           .eq('is_active', true)
           .order('level_order', { ascending: true });
 
+        // Check if there is a current course focus lock for the student's class
+        let currentCourseId: string | null = null;
+        if (profile?.class_id) {
+          const { data: clsData } = await db
+            .from('classes')
+            .select('current_course_id')
+            .eq('id', profile.class_id)
+            .maybeSingle();
+          if (clsData?.current_course_id) {
+            currentCourseId = clsData.current_course_id;
+          }
+        }
+
+        const coursesToUse = currentCourseId
+          ? (rawCourses ?? []).filter((c: any) => c.id === currentCourseId)
+          : (rawCourses ?? []);
+
         const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
         // Hide empty courses (no lessons AND no assignments) from students —
         // "0/0 modules" placeholder cards are not a good first impression.
-        const visibleCourses = (rawCourses ?? []).filter((c: any) =>
+        const visibleCourses = (coursesToUse).filter((c: any) =>
           isCourseVisibleToLearners(c, { requireContent: true }),
         );
 
@@ -188,7 +205,7 @@ export default function StudentLearningPage() {
         // Find the first lesson in the first program that isn't done
         const { data: allLessons } = await db.from('lessons')
             .select('id, title, course_id, courses(id, title, level_order)')
-            .in('course_id', rawCourses?.map(c => c.id) || [])
+            .in('course_id', coursesToUse.map(c => c.id))
             .order('id', { ascending: true });
         
         const next = allLessons?.find(l => !doneSet.has(l.id));

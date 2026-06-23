@@ -198,10 +198,27 @@ export default function LessonsPage() {
           }
 
           const { data: courseData } = await supabase.from('courses').select('id').in('program_id', programIds);
-          const courseIds = (courseData ?? []).map((c: any) => c.id);
+          let courseIds = (courseData ?? []).map((c: any) => c.id);
+
+          // If the student has a class_id, check if the class has a course focus lock
+          let currentCourseId: string | null = null;
+          if (profile?.class_id) {
+            const { data: clsData } = await supabase
+              .from('classes')
+              .select('current_course_id')
+              .eq('id', profile.class_id)
+              .maybeSingle();
+            if (clsData?.current_course_id) {
+              currentCourseId = clsData.current_course_id;
+            }
+          }
+
+          if (currentCourseId) {
+            courseIds = courseIds.filter((id: any) => id === currentCourseId);
+          }
 
           if (!courseIds.length) {
-            // No courses found for enrolled programs
+            // No courses found for enrolled programs or current course lock
             if (!cancelled) setLessons([]);
             setLoading(false);
             return;
