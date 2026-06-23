@@ -98,7 +98,9 @@ async function run(triggeredBy: 'cron' | 'manual') {
     .from('invoices')
     .select('id, invoice_number, amount, currency, status, due_date, items, created_at, portal_user_id, reminder_1_sent_at, reminder_2_sent_at, reminder_3_sent_at, portal_users(id, full_name, email)')
     .in('status', ['sent', 'draft', 'overdue'])
-    .not('portal_user_id', 'is', null);
+    .not('portal_user_id', 'is', null)
+    .order('created_at', { ascending: true })
+    .limit(200);
 
   if (error) {
     console.error('[invoice-reminders cron] failed to load invoices:', error.message);
@@ -107,7 +109,12 @@ async function run(triggeredBy: 'cron' | 'manual') {
 
   result.invoices_scanned = (invoices ?? []).length;
 
+  // Stop ~10s before the 60s serverless cap. The reminder_N_sent_at markers make
+  // this resumable — the next scheduled run continues with invoices not yet reached.
+  const DEADLINE = Date.now() + 50_000;
+
   for (const inv of (invoices ?? [])) {
+    if (Date.now() > DEADLINE) break;
     const student = inv.portal_users as any;
     if (!student?.email) { result.skipped++; continue; }
 

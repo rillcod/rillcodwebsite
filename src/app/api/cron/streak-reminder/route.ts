@@ -45,8 +45,12 @@ async function handleRequest(req: NextRequest) {
 
   let sent = 0;
   let skipped = 0;
+  // Stop ~10s before the 60s serverless cap so the run exits gracefully under load
+  // instead of being killed mid-loop.
+  const DEADLINE = Date.now() + 50_000;
 
   for (const pref of studentPrefs) {
+    if (Date.now() > DEADLINE) break;
     const userId = pref.portal_user_id;
     const portalUser = pref.portal_users as any;
     const firstName = (portalUser?.full_name ?? '').split(' ')[0] || 'there';

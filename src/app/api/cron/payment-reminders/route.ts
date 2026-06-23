@@ -51,17 +51,25 @@ async function handle(req: NextRequest) {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
   const cutoff = Date.now() - everyDays * 86400000;
 
+  // Oldest-touched first: stamping a reminder bumps updated_at, so already-reminded
+  // prospects sink to the back and each run advances to fresh ones (resumable batching).
   const { data: prospects } = await admin
     .from('prospective_students')
     .select('id, full_name, parent_name, parent_email, email, parent_phone, notes')
     .eq('status', 'partially_paid')
     .eq('is_active', true)
+    .order('updated_at', { ascending: true })
     .limit(100);
+
+  // Stop ~10s before the 60s serverless cap so a partial run is saved and the next
+  // scheduled run resumes — never killed mid-send.
+  const DEADLINE = Date.now() + 50_000;
 
   const { notificationsService } = await import('@/services/notifications.service');
   const { buildRillcodTransactionalEmailHtml } = await import('@/lib/email/rillcod-transactional-email');
 
   for (const p of (prospects ?? []) as any[]) {
+    if (Date.now() > DEADLINE) break; // resume on next scheduled run
     report.scanned++;
 
     // De-dupe: skip if reminded within the window.

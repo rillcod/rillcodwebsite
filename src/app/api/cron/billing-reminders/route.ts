@@ -198,11 +198,18 @@ async function handleRequest(request: Request) {
     .from('billing_cycles')
     .select('*')
     .in('status', ['due', 'past_due'])
+    .order('created_at', { ascending: true })
     .limit(300);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Stop ~10s before the 60s serverless cap. Per-week sent markers
+  // (reminder_weekN_sent_at) already make this resumable, so the next scheduled
+  // run continues with the cycles this run didn't reach — never killed mid-batch.
+  const DEADLINE = Date.now() + 50_000;
+
   let processed = 0;
   for (const raw of (cycles ?? [])) {
+    if (Date.now() > DEADLINE) break;
     const cycle = raw as BillingCycle;
     const week = getWeekFromTermStart(cycle.term_start_date);
     if (![6, 7, 8].includes(week)) continue;

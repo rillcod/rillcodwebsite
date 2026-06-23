@@ -61,6 +61,20 @@ async function handleRequest(req: NextRequest) {
     return ags?.enabled === true;
   });
 
+  // Hobby-safe batching (no extra cron jobs): each run handles only the few
+  // least-recently-generated plans and stops before the serverless cap, so
+  // successive scheduled runs rotate through every plan without ever timing out.
+  // maxDuration=300 above is honoured on Pro; on Hobby the 50s budget guards it.
+  const MAX_PLANS_PER_RUN = Number(process.env.AUTO_GEN_PLANS_PER_RUN) || 3;
+  const DEADLINE = Date.now() + 50_000; // ~10s headroom under the 60s Hobby cap
+  const lastRunAt = (p: any): number => {
+    const t = (p.metadata?.auto_generate_settings as AutoGenSettings & { last_run_at?: string })?.last_run_at;
+    const ms = t ? new Date(t).getTime() : 0;
+    return Number.isFinite(ms) ? ms : 0;
+  };
+  enabledPlans.sort((a, b) => lastRunAt(a) - lastRunAt(b)); // oldest first
+  const batch = enabledPlans.slice(0, MAX_PLANS_PER_RUN);
+
   const results: Array<{
     planId: string;
     status: 'ok' | 'error';
@@ -70,7 +84,9 @@ async function handleRequest(req: NextRequest) {
     error?: string;
   }> = [];
 
-  for (const plan of enabledPlans) {
+  let stoppedEarly = false;
+  for (const plan of batch) {
+    if (Date.now() > DEADLINE) { stoppedEarly = true; break; }
     try {
       const meta = plan.metadata as Record<string, unknown>;
       const ags = meta.auto_generate_settings as AutoGenSettings;
@@ -108,6 +124,15 @@ async function handleRequest(req: NextRequest) {
         totalSkipped += skipped;
       }
 
+      // Stamp last_run_at so this plan sinks to the back of the rotation queue
+      // and the next scheduled run picks up the other plans.
+      await db.from('lesson_plans').update({
+        metadata: {
+          ...meta,
+          auto_generate_settings: { ...ags, last_run_at: new Date().toISOString() },
+        },
+      }).eq('id', plan.id);
+
       results.push({
         planId: plan.id,
         status: 'ok',
@@ -128,7 +153,9 @@ async function handleRequest(req: NextRequest) {
   return NextResponse.json({
     processed: results.filter((r) => r.status === 'ok').length,
     failed: results.filter((r) => r.status === 'error').length,
-    total: enabledPlans.length,
+    batch: batch.length,
+    total_enabled: enabledPlans.length,
+    stopped_early: stoppedEarly,
     results,
   });
 }

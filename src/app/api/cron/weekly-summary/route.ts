@@ -38,8 +38,12 @@ async function handleRequest(req: NextRequest) {
     .eq('weekly_summary', true);
 
   let sent = 0;
+  // Stop ~10s before the 60s serverless cap so the run exits gracefully instead of
+  // being killed mid-send (the categorised-email guard prevents same-week duplicates).
+  const DEADLINE = Date.now() + 50_000;
 
   for (const parent of parents ?? []) {
+    if (Date.now() > DEADLINE) break;
     const portalUser = parent.portal_users as any;
     const parentEmail = portalUser?.email;
     if (!parentEmail) continue;

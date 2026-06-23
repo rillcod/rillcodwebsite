@@ -25,6 +25,9 @@ async function handle(req: NextRequest) {
 
   const sb = adminClient();
   const results = { followup1: 0, followup2: 0, drip2: 0, drip3: 0 };
+  // Stop ~10s before the 60s serverless cap. Each stage de-dupes via logged
+  // interactions, so the next scheduled run resumes the leads this run didn't reach.
+  const DEADLINE = Date.now() + 50_000;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -71,6 +74,7 @@ async function handle(req: NextRequest) {
       .lt('submitted_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
     for (const lead of (leads24h ?? [])) {
+      if (Date.now() > DEADLINE) break;
       try {
         if (!lead.contact_id) continue;
         const alreadySent = await hasInteraction(lead.contact_id, 'whatsapp_followup_1');
@@ -100,6 +104,7 @@ async function handle(req: NextRequest) {
       .lt('submitted_at', new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
 
     for (const lead of (leads72h ?? [])) {
+      if (Date.now() > DEADLINE) break;
       try {
         if (!lead.contact_id) continue;
         const alreadySent = await hasInteraction(lead.contact_id, 'whatsapp_followup_2');
@@ -130,6 +135,7 @@ async function handle(req: NextRequest) {
       .not('email', 'is', null);
 
     for (const lead of (leads3d ?? [])) {
+      if (Date.now() > DEADLINE) break;
       try {
         if (!lead.contact_id) continue;
         const alreadySent = await hasInteraction(lead.contact_id, 'email_drip_2');
@@ -199,6 +205,7 @@ async function handle(req: NextRequest) {
       .not('email', 'is', null);
 
     for (const lead of (leads7d ?? [])) {
+      if (Date.now() > DEADLINE) break;
       try {
         if (!lead.contact_id) continue;
         const alreadySent = await hasInteraction(lead.contact_id, 'email_drip_3');
@@ -263,6 +270,7 @@ async function handle(req: NextRequest) {
       .eq('is_public', true)
       .lte('due_date', today);
     for (const f of (expired ?? [])) {
+      if (Date.now() > DEADLINE) break;
       await (sb as any).from('consent_forms').update({ is_public: false }).eq('id', f.id);
       expiredClosed++;
     }
