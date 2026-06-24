@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
  * Returns up to 6 de-duplicated items.
  */
 type Rec = {
-  type: 'continue' | 'reinforce' | 'start' | 'review';
+  type: 'continue' | 'reinforce' | 'start' | 'review' | 'exam';
   title: string;
   reason: string;
   href: string;
@@ -53,11 +53,13 @@ export async function GET() {
   for (const c of courses) courseTitle[c.id] = c.title;
 
   // 3. Lessons (ordered), 4. completed set, 5. graded submissions, 6. due flashcards — in parallel.
-  const [lessonsRes, doneRes, gradesRes, dueRes] = await Promise.all([
+  const [lessonsRes, doneRes, gradesRes, dueRes, examsRes, attemptsRes] = await Promise.all([
     db.from('lessons').select('id, title, course_id, order_index').in('course_id', courseIds).eq('status', 'active').order('order_index', { ascending: true }).limit(400),
     db.from('lesson_progress').select('lesson_id').eq('portal_user_id', user.id).eq('status', 'completed'),
     db.from('assignment_submissions').select('grade, assignments(course_id, max_points)').eq('portal_user_id', user.id).not('grade', 'is', null).limit(200),
     db.from('flashcard_reviews').select('next_review_at').eq('student_id', user.id),
+    db.from('exams').select('id, title, course_id').in('course_id', courseIds).eq('is_active', true).limit(20),
+    db.from('exam_attempts').select('exam_id').eq('portal_user_id', user.id),
   ]);
 
   const lessons = (lessonsRes.data ?? []) as any[];
@@ -131,6 +133,21 @@ export async function GET() {
       type: 'review', title: `${dueCards} flashcard${dueCards > 1 ? 's' : ''} due`,
       reason: 'Lock in what you\'ve learned with a quick review',
       href: '/dashboard/flashcards', priority: 70,
+    });
+  }
+
+  // 5. Available exams in enrolled courses the student hasn't attempted yet —
+  // surfaces exams in the student's flow (they were otherwise hard to find).
+  const attemptedExams = new Set((attemptsRes.data ?? []).map((a: any) => a.exam_id).filter(Boolean));
+  for (const ex of (examsRes.data ?? []) as any[]) {
+    if (attemptedExams.has(ex.id)) continue;
+    recs.push({
+      type: 'exam',
+      title: ex.title,
+      course_title: courseTitle[ex.course_id],
+      reason: `Exam available${courseTitle[ex.course_id] ? ` — ${courseTitle[ex.course_id]}` : ''}`,
+      href: `/dashboard/exams/${ex.id}`,
+      priority: 90,
     });
   }
 

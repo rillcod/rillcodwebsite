@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   SparklesIcon, ArrowRightIcon, BookOpenIcon, BoltIcon, AcademicCapIcon, ArrowPathIcon,
+  ClipboardDocumentListIcon,
 } from '@/lib/icons';
 
 type Rec = {
-  type: 'continue' | 'reinforce' | 'start' | 'review';
+  type: 'continue' | 'reinforce' | 'start' | 'review' | 'exam';
   title: string;
   reason: string;
   href: string;
@@ -19,15 +20,17 @@ const ICON: Record<Rec['type'], any> = {
   reinforce: BoltIcon,
   start: AcademicCapIcon,
   review: ArrowPathIcon,
+  exam: ClipboardDocumentListIcon,
 };
 const ACCENT: Record<Rec['type'], string> = {
   continue: 'text-violet-400 border-violet-500/25 bg-violet-500/8',
   reinforce: 'text-amber-400 border-amber-500/25 bg-amber-500/8',
   start: 'text-emerald-400 border-emerald-500/25 bg-emerald-500/8',
   review: 'text-cyan-400 border-cyan-500/25 bg-cyan-500/8',
+  exam: 'text-rose-400 border-rose-500/25 bg-rose-500/8',
 };
 const LABEL: Record<Rec['type'], string> = {
-  continue: 'Continue', reinforce: 'Reinforce', start: 'Start next', review: 'Review',
+  continue: 'Continue', reinforce: 'Reinforce', start: 'Start next', review: 'Review', exam: 'Exam',
 };
 
 /**
