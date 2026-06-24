@@ -19,12 +19,22 @@ type ExamInsert = Database['public']['Tables']['exams']['Insert'];
 type ExamUpdate = Database['public']['Tables']['exams']['Update'];
 
 export class ExamService {
-    async listExams(courseId?: string, tenantId?: string) {
+    /**
+     * @param allowedCourseIds when provided, restricts exams to these course ids.
+     *   Used to gate students to the courses in their ENROLLED programmes (the same
+     *   programme/course scope assignments use). An empty array → no exams.
+     */
+    async listExams(courseId?: string, tenantId?: string, allowedCourseIds?: string[]) {
         const supabase = await createClient();
         let query = supabase.from('exams').select('*');
 
         if (courseId) {
             query = query.eq('course_id', courseId);
+        }
+
+        if (allowedCourseIds) {
+            if (allowedCourseIds.length === 0) return []; // enrolled in nothing → see nothing
+            query = query.in('course_id', allowedCourseIds);
         }
 
         if (tenantId) {

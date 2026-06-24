@@ -22,7 +22,19 @@ async function listHandler(req: Request, ctx: ApiContext) {
     const { searchParams } = new URL(req.url);
     const courseId = searchParams.get('courseId') || undefined;
 
-    const exams = await examService.listExams(courseId, ctx.user?.tenantId);
+    // Students (and other non-staff) only see exams for courses in the programmes
+    // they're ENROLLED in — the same gate assignments use. Staff are school-scoped.
+    const role = ctx.user?.role;
+    const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
+    let exams;
+    if (!isStaff && ctx.user?.id) {
+        const { createAdminClient } = await import('@/lib/supabase/admin');
+        const { resolveStudentProgramScope } = await import('@/lib/assignments/visibility');
+        const scope = await resolveStudentProgramScope(createAdminClient() as any, ctx.user.id);
+        exams = await examService.listExams(courseId, undefined, Array.from(scope.courseIds));
+    } else {
+        exams = await examService.listExams(courseId, ctx.user?.tenantId);
+    }
     return NextResponse.json({ success: true, data: exams });
 }
 

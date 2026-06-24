@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 export default function NewExamPage() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [selectedProgramId, setSelectedProgramId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     course_id: '',
@@ -29,8 +30,13 @@ export default function NewExamPage() {
   });
 
   useEffect(() => {
-    fetch('/api/courses').then(r => r.json()).then(j => setCourses(j.data ?? []));
+    // Programme → course cascade (same source/selection as assignments) so exams
+    // follow the normal programme & course scoping.
+    fetch('/api/programs?is_active=true').then(r => r.json()).then(j => setPrograms(j.data ?? []));
   }, []);
+
+  // Courses are derived from the chosen programme.
+  const courses = (programs.find((p: any) => p.id === selectedProgramId)?.courses ?? []) as { id: string; title: string }[];
 
   const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
   const [genDesc, setGenDesc] = useState(false);
@@ -130,10 +136,20 @@ Return ONLY the instruction text (2-4 sentences). Mention: time allowed, how to 
 
       <form onSubmit={handleSubmit} className="bg-card border border-white/[0.08] rounded-2xl p-6 space-y-5">
         <div>
+          <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Programme <span className="text-rose-400">*</span></label>
+          <select value={selectedProgramId} onChange={e => { setSelectedProgramId(e.target.value); setForm(f => ({ ...f, course_id: '' })); }}
+            required className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
+            <option value="">Select a programme…</option>
+            {programs.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+
+        <div>
           <label className="block text-xs font-bold text-card-foreground/50 uppercase tracking-wider mb-1.5">Course <span className="text-rose-400">*</span></label>
           <select value={form.course_id} onChange={e => setForm(f => ({ ...f, course_id: e.target.value }))}
-            required className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50">
-            <option value="">Select a course…</option>
+            required disabled={!selectedProgramId}
+            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-card-foreground focus:outline-none focus:border-primary/50 disabled:opacity-50">
+            <option value="">{selectedProgramId ? 'Select a course…' : 'Choose a programme first'}</option>
             {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
         </div>

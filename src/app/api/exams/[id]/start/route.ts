@@ -11,6 +11,18 @@ async function postHandler(req: Request, ctx: ApiContext) {
         throw new AppError('Only students can take exams', 403);
     }
 
+    // Gate by programme enrolment: the exam's course must belong to a programme the
+    // student is enrolled in (defence-in-depth — same rule as the list + assignments).
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { resolveStudentProgramScope } = await import('@/lib/assignments/visibility');
+    const admin = createAdminClient();
+    const { data: exam } = await admin.from('exams').select('course_id').eq('id', id).maybeSingle();
+    const examCourseId = (exam as any)?.course_id ?? null;
+    const scope = await resolveStudentProgramScope(admin as any, ctx.user!.id);
+    if (!examCourseId || !scope.courseIds.has(examCourseId)) {
+        throw new AppError('This exam is not part of your enrolled programme.', 403);
+    }
+
     const session = await examTakingService.startExam(id, ctx.user!.id);
     return NextResponse.json({ success: true, data: session });
 }
