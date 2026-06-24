@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 import type { Database, Json } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -30,19 +31,35 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const courseId = url.searchParams.get('course_id');
   const lessonId = url.searchParams.get('lesson_id');
+  const role = profile?.role ?? '';
 
-  let query = supabase
+  // Use the admin client + explicit role scoping so a deck created under a different
+  // (or null) school_id than the student isn't hidden by RLS/school mismatch.
+  const db = createAdminClient();
+  let query = db
     .from('flashcard_decks')
     .select('*, flashcard_cards(count)')
     .order('created_at', { ascending: false });
 
-  if (profile?.role === 'teacher') {
+  if (role === 'admin') {
+    // sees everything
+  } else if (role === 'teacher') {
     query = query.eq('created_by', user.id) as any;
-  } else if (profile?.school_id) {
-    query = query.eq('school_id', profile.school_id);
+  } else if (role === 'school') {
+    if (profile?.school_id) query = query.eq('school_id', profile.school_id) as any;
+  } else {
+    // student / parent — decks for courses in their ENROLLED programmes (authoritative,
+    // matches assignments/exams/lessons), plus any school-wide decks for their school.
+    const scope = await resolveStudentProgramScope(db as any, user.id);
+    const enrolledCourseIds = Array.from(scope.courseIds);
+    const ors: string[] = [];
+    if (enrolledCourseIds.length > 0) ors.push(`course_id.in.(${enrolledCourseIds.join(',')})`);
+    if (profile?.school_id) ors.push(`school_id.eq.${profile.school_id}`);
+    if (ors.length === 0) return NextResponse.json({ data: [] });
+    query = query.or(ors.join(',')) as any;
   }
-  if (courseId) query = query.eq('course_id', courseId);
-  if (lessonId) query = query.eq('lesson_id', lessonId);
+  if (courseId) query = query.eq('course_id', courseId) as any;
+  if (lessonId) query = query.eq('lesson_id', lessonId) as any;
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
