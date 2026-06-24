@@ -82,10 +82,24 @@ export default function NewExamPage() {
     setAiGenerating(true);
     setAiError(null);
     try {
+      // Ground the questions in the SELECTED programme/course (the form already
+      // captures them) so generation follows the normal programme/course scope.
+      const selectedCourse = courses.find((c: any) => c.id === form.course_id);
+      const selectedProgramName = programs.find((p: any) => p.id === form.program_id)?.name
+        || (selectedCourse as any)?.programs?.name;
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'cbt', topic: aiTopic, questionCount: total, mcqCount: mcq, theoryCount: theory })
+        body: JSON.stringify({
+          type: 'cbt',
+          topic: aiTopic,
+          questionCount: total,
+          mcqCount: mcq,
+          theoryCount: theory,
+          courseName: (selectedCourse as any)?.title || undefined,
+          subject: (selectedCourse as any)?.title || undefined,
+          programName: selectedProgramName || undefined,
+        })
       });
       const result = await res.json();
       if (result.error) throw new Error(result.error);
@@ -105,7 +119,7 @@ export default function NewExamPage() {
           options: q.options || ['', '', '', ''],
           correct_answer: q.correct_answer || '',
           points: q.points || 5,
-          section: (q.section || (q.question_type === 'essay' ? 'subjective' : 'objective')) as Question['section'],
+          section: (q.section || (['essay', 'fill_blank', 'coding_blocks'].includes(q.question_type) ? 'subjective' : 'objective')) as Question['section'],
         }));
         setQuestions(qs);
         // Select all generated questions by default
