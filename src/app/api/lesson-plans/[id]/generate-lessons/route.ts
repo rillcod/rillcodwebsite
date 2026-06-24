@@ -47,6 +47,9 @@ export async function POST(
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
     const maxWeeks = typeof body.max_weeks === 'number' && body.max_weeks > 0 ? body.max_weeks : undefined;
+    // Auto-publish generated lessons by default (visible to students immediately).
+    // Pass auto_publish:false to keep them as drafts for manual review.
+    const lessonStatus = body.auto_publish === false ? 'draft' : 'active';
     const extraHeaders = isCron ? { 'x-cron-secret': cronSecret } : undefined;
     const weeks = extractLessonPlanOperationWeeks(plan!.plan_data) as Array<{
       week: number;
@@ -174,7 +177,7 @@ export async function POST(
             video_url: (d.video_url || null) as string | null,
             duration_minutes: (d.duration_minutes || 60) as number,
             lesson_type: (ALLOWED_LESSON_TYPES.includes(d.lesson_type as string) ? d.lesson_type : 'lesson') as string,
-            status: 'draft',
+            status: lessonStatus,
             metadata: {
               source: 'lesson-plan-bulk',
               lesson_plan_id: id,

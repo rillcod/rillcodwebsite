@@ -152,7 +152,7 @@ export default function SlideViewer({
 
         {!loading && !loadError && (
           isPdf ? (
-            <canvas ref={canvasRef} className="max-w-none shadow-2xl pointer-events-none" />
+            <canvas ref={canvasRef} className="max-w-full h-auto shadow-2xl pointer-events-none" />
           ) : imgError ? (
             <p className="text-sm text-white/50">This slide couldn&apos;t load. Try the next/previous slide.</p>
           ) : (

@@ -43,6 +43,9 @@ export async function POST(
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;
     const maxWeeks = typeof body.max_weeks === 'number' && body.max_weeks > 0 ? body.max_weeks : undefined;
+    // Auto-publish generated assignments by default (visible to students).
+    // Pass auto_publish:false to keep them hidden for manual review.
+    const assignmentActive = body.auto_publish !== false;
     const extraHeaders = isCron ? { 'x-cron-secret': cronSecret } : undefined;
     const weeks = extractLessonPlanOperationWeeks(plan.plan_data) as Array<{
       week: number;
@@ -154,7 +157,7 @@ export async function POST(
             assignment_type: (d.assignment_type || 'homework') as string,
             due_date: dueDate.toISOString(),
             max_points: 100,
-            is_active: false,
+            is_active: assignmentActive,
             metadata: {
               ...(d.metadata as Record<string, unknown> | undefined),
               lesson_plan_id: plan.id,

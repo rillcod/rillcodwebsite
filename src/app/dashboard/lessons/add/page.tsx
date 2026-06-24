@@ -102,7 +102,7 @@ function AddLessonPageContent() {
     lesson_type: 'hands-on',
     duration_minutes: '60',
     video_url: '',
-    status: 'draft',
+    status: 'active', // publish by default so generated/added lessons are visible without a manual step
     content_layout: [] as any[],
   });
 
@@ -251,6 +251,7 @@ function AddLessonPageContent() {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        let streamCompleted = false;
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -281,11 +282,17 @@ function AddLessonPageContent() {
                 }));
                 setAiOpen(false);
                 setShowLessonPreview(true);
+                streamCompleted = true;
               }
             } catch (parseErr: any) {
               if (parseErr.message !== 'Unexpected end of JSON input') throw parseErr;
             }
           }
+        }
+        // The stream ended without a complete result — the function was likely cut
+        // off (timeout). Surface a clear error + retry instead of a hasty "success".
+        if (!streamCompleted) {
+          throw new Error('Generation was cut short before finishing — please try again.');
         }
       } else {
         const payload = await res.json();

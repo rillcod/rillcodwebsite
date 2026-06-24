@@ -5,6 +5,12 @@ import { isPlatformStaffRole, isPartnerSchoolRole, PARTNER_SCHOOL_AI_GENERATE_TY
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { geminiGenerateText } from '@/lib/gemini/client';
 
+export const dynamic = 'force-dynamic';
+// Lesson/curriculum generation is slow; raise the cap so it isn't killed mid-stream
+// (honoured on Vercel Pro; Hobby still hard-caps at 60s — the client now detects a
+// cut-off stream and surfaces a retry instead of a hasty "success").
+export const maxDuration = 300;
+
 // OpenRouter provides an OpenAI-compatible API — swap base URL + auth header
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
