@@ -316,6 +316,7 @@ export default function CurriculumPage() {
   const [sourceText, setSourceText] = useState('');
   const [sourceName, setSourceName] = useState('');
   const [extractingPdf, setExtractingPdf] = useState(false);
+  const [extractMsg, setExtractMsg] = useState('');
   const [savingTrack, setSavingTrack] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [expandedTerms, setExpandedTerms] = useState<Set<number>>(new Set([1]));
@@ -1857,9 +1858,9 @@ export default function CurriculumPage() {
   // Extract text from a teacher's PDF to ground AI generation in their real material.
   async function handleSourcePdf(file: File | null) {
     if (!file) { setSourceText(''); setSourceName(''); return; }
-    setExtractingPdf(true); setGenError('');
+    setExtractingPdf(true); setGenError(''); setExtractMsg('Reading PDF…');
     try {
-      const text = await extractPdfText(file);
+      const text = await extractPdfText(file, 8000, setExtractMsg);
       if (!text) { setGenError('Could not read any text from that PDF (is it scanned images?).'); setSourceName(''); setSourceText(''); }
       else { setSourceText(text); setSourceName(file.name); }
     } catch {
@@ -5719,7 +5720,7 @@ export default function CurriculumPage() {
                 ) : (
                   <label className={`flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-border hover:border-violet-500/40 hover:bg-violet-500/5'}`}>
                     <span className="text-sm">📄</span>
-                    <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? 'Reading PDF…' : 'Upload a PDF to build from'}</span>
+                    <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build from'}</span>
                     <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
                       onChange={e => { handleSourcePdf(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
                   </label>

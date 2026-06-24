@@ -89,6 +89,7 @@ function AddLessonPageContent() {
   const [sourceText, setSourceText] = useState('');
   const [sourceName, setSourceName] = useState('');
   const [extractingPdf, setExtractingPdf] = useState(false);
+  const [extractMsg, setExtractMsg] = useState('');
   const [showLessonPreview, setShowLessonPreview] = useState(false);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
 
@@ -689,14 +690,14 @@ function AddLessonPageContent() {
                 ) : (
                   <label className={`flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed rounded-xl cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-border hover:border-violet-500/40'}`}>
                     <span className="text-sm">📄</span>
-                    <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? 'Reading PDF…' : 'Upload PDF to build from'}</span>
+                    <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload PDF to build from'}</span>
                     <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
                       onChange={async e => {
                         const input = e.currentTarget; const file = input.files?.[0] ?? null; input.value = '';
                         if (!file) return;
-                        setExtractingPdf(true); setAiError(null);
+                        setExtractingPdf(true); setAiError(null); setExtractMsg('Reading PDF…');
                         try {
-                          const t = await extractPdfText(file);
+                          const t = await extractPdfText(file, 8000, setExtractMsg);
                           if (t) { setSourceText(t); setSourceName(file.name); }
                           else setAiError('Could not read text from that PDF (is it scanned images?).');
                         } catch { setAiError('Could not read that PDF.'); }
