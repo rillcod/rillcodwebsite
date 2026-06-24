@@ -198,6 +198,13 @@ interface GenerateRequest {
 }
 
 function buildPrompt(req: GenerateRequest): string {
+  // Shared grounding block — when a teacher attaches a document (extracted PDF text),
+  // generation must build strictly from it. Used by assignment & cbt cases (lesson
+  // builds its own inline).
+  const sourceBlock = req.sourceMaterial?.trim()
+    ? `\nSOURCE MATERIAL — base this STRICTLY on the teacher's document below; keep its scope, examples and terminology, and do not introduce topics it doesn't cover:\n"""\n${req.sourceMaterial.slice(0, 8000)}\n"""`
+    : '';
+
   switch (req.type) {
     case 'custom':
       return req.prompt || req.topic;
@@ -642,7 +649,7 @@ Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 ${req.programName ? `Programme: "${req.programName}"` : ''}
-${req.courseName ? `Course: "${req.courseName}" — all questions and scenarios MUST relate to this course` : ''}
+${req.courseName ? `Course: "${req.courseName}" — all questions and scenarios MUST relate to this course` : ''}${sourceBlock}
 Assignment type hint: ${req.assignmentType ?? 'auto-detect'}
 Max Points: 100
 ${syllabusAnchorBlock}${planWeekSection}${dedupAssign}
@@ -707,7 +714,7 @@ Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 ${req.programName ? `Programme: "${req.programName}"` : ''}
-${req.courseName ? `Course: "${req.courseName}" — all questions MUST be framed within this course's scope and context` : ''}
+${req.courseName ? `Course: "${req.courseName}" — all questions MUST be framed within this course's scope and context` : ''}${sourceBlock}
 Total questions required: EXACTLY ${totalQ}. You MUST generate all ${totalQ} — do not stop early.
 
 ${mcqInstruction}

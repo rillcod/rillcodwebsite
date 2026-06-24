@@ -13,6 +13,7 @@ import {
   CodeBracketIcon, CommandLineIcon, SparklesIcon as SparklesIconOutline
 } from '@/lib/icons';
 import { isPuterAvailable, puterChat } from '@/lib/puter-ai';
+import { extractPdfText } from '@/lib/pdf/extract-text';
 
 interface Question {
   question_text: string;
@@ -78,6 +79,10 @@ export default function NewAssignmentPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiTopic, setAiTopic] = useState('');
+  const [sourceText, setSourceText] = useState('');
+  const [sourceName, setSourceName] = useState('');
+  const [extractingPdf, setExtractingPdf] = useState(false);
+  const [extractMsg, setExtractMsg] = useState('');
   const [aiLastModel, setAiLastModel] = useState<string | null>(null);
   const [aiJustGenerated, setAiJustGenerated] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -97,10 +102,11 @@ export default function NewAssignmentPage() {
       const courseCtx = selCourse
         ? `\nCourse: "${selCourse.title}"${selProgramName ? ` (Programme: ${selProgramName})` : ''} — all questions and tasks MUST fit this course's scope and level.`
         : '';
+      const srcCtx = sourceText ? `\nSOURCE MATERIAL — base it strictly on this teacher document:\n${sourceText.slice(0, 6000)}` : '';
 
       if (isPuterAvailable()) {
         // Free path — Puter.js
-        const prompt = `Generate a structured assignment for Nigerian secondary school students on this topic: "${aiTopic}".${courseCtx}
+        const prompt = `Generate a structured assignment for Nigerian secondary school students on this topic: "${aiTopic}".${courseCtx}${srcCtx}
 Return ONLY valid JSON (no markdown, no code fence) with this shape:
 {
   "title": "...",
@@ -128,6 +134,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             courseName: selCourse?.title || undefined,
             subject: selCourse?.title || undefined,
             programName: selProgramName || undefined,
+            ...(sourceText ? { sourceMaterial: sourceText } : {}),
           }),
         });
         const result = await res.json();
@@ -408,6 +415,35 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                     placeholder="e.g. Introduction to Python Functions & Loops"
                     className="w-full bg-white/5 border border-white/10 px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                   />
+                </div>
+
+                {/* Optional: base the assignment on a PDF */}
+                <div className="space-y-1 mb-4">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Base on a PDF (optional)</label>
+                  {sourceName ? (
+                    <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/25">
+                      <span className="text-sm">📄</span>
+                      <span className="text-xs text-violet-300 font-bold truncate flex-1">{sourceName}</span>
+                      <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-white/40 hover:text-white">Remove</button>
+                    </div>
+                  ) : (
+                    <label className={`flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/10 hover:border-violet-500/40'}`}>
+                      <span className="text-sm">📄</span>
+                      <span className="text-xs font-bold text-white/50">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build from'}</span>
+                      <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
+                        onChange={async e => {
+                          const input = e.currentTarget; const file = input.files?.[0] ?? null; input.value = '';
+                          if (!file) return;
+                          setExtractingPdf(true); setAiError(null); setExtractMsg('Reading PDF…');
+                          try {
+                            const t = await extractPdfText(file, 8000, setExtractMsg);
+                            if (t) { setSourceText(t); setSourceName(file.name); }
+                            else setAiError('Could not read text from that PDF (is it scanned images?).');
+                          } catch { setAiError('Could not read that PDF.'); }
+                          finally { setExtractingPdf(false); }
+                        }} />
+                    </label>
+                  )}
                 </div>
 
                 {/* Generate button row */}

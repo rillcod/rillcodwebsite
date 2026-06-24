@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { extractPdfText } from '@/lib/pdf/extract-text';
 import {
   ArrowLeftIcon, AcademicCapIcon, PlusIcon, TrashIcon,
   CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, ChevronDownIcon,
@@ -67,6 +68,10 @@ export default function NewExamPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiTopic, setAiTopic] = useState(preTopic || '');
+  const [sourceText, setSourceText] = useState('');
+  const [sourceName, setSourceName] = useState('');
+  const [extractingPdf, setExtractingPdf] = useState(false);
+  const [extractMsg, setExtractMsg] = useState('');
   const [aiMcqCount, setAiMcqCount] = useState(preExamType === 'evaluation' ? '0' : '10');
   const [aiTheoryCount, setAiTheoryCount] = useState(preExamType === 'evaluation' ? '10' : '0');
   // Track which questions are selected (all selected by default)
@@ -99,6 +104,7 @@ export default function NewExamPage() {
           courseName: (selectedCourse as any)?.title || undefined,
           subject: (selectedCourse as any)?.title || undefined,
           programName: selectedProgramName || undefined,
+          ...(sourceText ? { sourceMaterial: sourceText } : {}),
         })
       });
       const result = await res.json();
@@ -588,6 +594,35 @@ ${questionRows}
                           placeholder="e.g. Introduction to Python, Basic Electronics, Algebra"
                           className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-primary/50 transition-all"
                       />
+                  </div>
+
+                  {/* Optional: base the questions on a PDF */}
+                  <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">Base on a PDF (optional)</label>
+                      {sourceName ? (
+                        <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/10 border border-violet-500/25 rounded-2xl">
+                          <span className="text-sm">📄</span>
+                          <span className="text-xs text-violet-300 font-bold truncate flex-1">{sourceName}</span>
+                          <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-white/40 hover:text-white">Remove</button>
+                        </div>
+                      ) : (
+                        <label className={`flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-white/10 hover:border-violet-500/40'}`}>
+                          <span className="text-sm">📄</span>
+                          <span className="text-xs font-bold text-white/50">{extractingPdf ? (extractMsg || 'Reading PDF…') : 'Upload a PDF to build questions from'}</span>
+                          <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
+                            onChange={async e => {
+                              const input = e.currentTarget; const file = input.files?.[0] ?? null; input.value = '';
+                              if (!file) return;
+                              setExtractingPdf(true); setAiError(null); setExtractMsg('Reading PDF…');
+                              try {
+                                const t = await extractPdfText(file, 8000, setExtractMsg);
+                                if (t) { setSourceText(t); setSourceName(file.name); }
+                                else setAiError('Could not read text from that PDF (is it scanned images?).');
+                              } catch { setAiError('Could not read that PDF.'); }
+                              finally { setExtractingPdf(false); }
+                            }} />
+                        </label>
+                      )}
                   </div>
 
                   {/* Row 2: MCQ Count | Theory Count | Total badge | Generate button */}
