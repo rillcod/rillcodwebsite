@@ -22,6 +22,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import VideoPlayer from '@/components/media/VideoPlayer';
+import SlideViewer from '@/components/learning/SlideViewer';
 import Editor from '@monaco-editor/react';
 import * as d3 from 'd3';
 import dynamic from 'next/dynamic';
@@ -2680,6 +2681,9 @@ export default function LessonDetailPage() {
   const [addingResource, setAddingResource] = useState(false);
   const [newResource, setNewResource] = useState({ title: '', file_url: '', file_type: 'link' });
   const [savingResource, setSavingResource] = useState(false);
+  const [deckTitle, setDeckTitle] = useState('');
+  const [deckUploading, setDeckUploading] = useState(false);
+  const [viewerDeck, setViewerDeck] = useState<{ slides: string[]; title: string } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [ttsOpen, setTtsOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -2969,6 +2973,49 @@ export default function LessonDetailPage() {
     if (!confirm('Remove this resource?')) return;
     await fetch(`/api/lessons/${id}/materials/${mid}`, { method: 'DELETE' });
     setMaterials(prev => prev.filter(m => m.id !== mid));
+  };
+
+  // Upload a view-only slide deck: each image → R2, store the ordered R2 keys as a
+  // 'slide-deck' material. The /api/files/upload public_url is /api/media/<key>;
+  // we strip that prefix to get the key the /api/slides viewer streams.
+  const handleAddSlideDeck = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    if (!deckTitle.trim()) { alert('Give the slide deck a title first.'); return; }
+    setDeckUploading(true);
+    try {
+      const keys: string[] = [];
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const up = await fetch('/api/files/upload', { method: 'POST', body: fd });
+        const payload = await up.json();
+        if (!up.ok) throw new Error(payload.error || 'Upload failed');
+        const publicUrl: string = payload.data.public_url || '';
+        const key = publicUrl.replace(/^.*\/api\/media\//, '');
+        if (key) keys.push(key);
+      }
+      if (keys.length === 0) throw new Error('No slides uploaded');
+      const res = await fetch(`/api/lessons/${id}/materials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: deckTitle.trim(), file_type: 'slide-deck', file_url: JSON.stringify({ slides: keys }) }),
+      });
+      if (!res.ok) throw new Error('Failed to save slide deck');
+      const { data } = await res.json();
+      setMaterials(prev => [...prev, data]);
+      setDeckTitle('');
+    } catch (e: any) {
+      alert(e.message ?? 'Slide deck upload failed');
+    } finally {
+      setDeckUploading(false);
+    }
+  };
+
+  const parseDeckSlides = (fileUrl: string): string[] => {
+    try {
+      const parsed = JSON.parse(fileUrl);
+      return Array.isArray(parsed?.slides) ? parsed.slides : [];
+    } catch { return []; }
   };
 
   useEffect(() => {
@@ -3676,6 +3723,23 @@ export default function LessonDetailPage() {
                     </div>
                   )}
 
+                  {/* Staff: upload a view-only slide deck */}
+                  {isStaff && (
+                    <div className="bg-card border border-violet-500/15 rounded-2xl p-4">
+                      <p className="text-xs font-black text-violet-300 uppercase tracking-widest mb-1">📊 Slide Deck (view-only)</p>
+                      <p className="text-[11px] text-card-foreground/40 mb-3">Export your PowerPoint as images (File → Export → PNG/JPEG, all slides) and upload them in order. Students can view in-platform but cannot download.</p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input type="text" placeholder="Deck title" value={deckTitle} onChange={e => setDeckTitle(e.target.value)}
+                          className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50" />
+                        <label className={`px-4 py-2 text-xs font-black uppercase tracking-widest text-white rounded-xl cursor-pointer text-center transition-all ${deckUploading ? 'bg-violet-500/40 cursor-wait' : 'bg-violet-600 hover:bg-violet-500'}`}>
+                          {deckUploading ? 'Uploading…' : 'Upload Slides'}
+                          <input type="file" className="hidden" accept="image/*" multiple disabled={deckUploading}
+                            onChange={e => { handleAddSlideDeck(e.target.files); e.currentTarget.value = ''; }} />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Resource list */}
                   {materials.length === 0 ? (
                     <div className="py-20 text-center bg-card border border-dashed border-white/[0.08] rounded-2xl">
@@ -3686,6 +3750,35 @@ export default function LessonDetailPage() {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {materials.map((m: any) => {
+                        // View-only slide deck — opens the in-platform SlideViewer (no download).
+                        if (m.file_type === 'slide-deck') {
+                          const slides = parseDeckSlides(m.file_url);
+                          return (
+                            <div key={m.id}
+                              className="group bg-white/5 border border-violet-500/20 rounded-[32px] p-6 flex items-center gap-6 hover:border-violet-500/50 hover:bg-white/10 transition-all duration-500 shadow-xl">
+                              <div className="p-4 rounded-2xl flex-shrink-0 bg-violet-500/10 text-violet-300 transition-transform duration-500 group-hover:scale-110">
+                                <PaperClipIcon className="w-6 h-6" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-300/60 mb-1">Slide Deck · {slides.length} slides · view-only</p>
+                                <p className="text-base font-black text-white truncate">{m.title}</p>
+                              </div>
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <button onClick={() => slides.length > 0 && setViewerDeck({ slides, title: m.title })}
+                                  disabled={slides.length === 0}
+                                  className="px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl transition-all">
+                                  View Slides
+                                </button>
+                                {isStaff && (
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteResource(m.id); }}
+                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 text-white/40 hover:text-rose-400 rounded-xl transition-all" title="Remove deck">
+                                    <TrashIcon className="w-5 h-5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
                         const isVideo = m.file_type === 'video';
                         const isPdf = m.file_type === 'pdf';
                         const iconColor = isVideo ? 'bg-red-500/10 text-red-400' : isPdf ? 'bg-rose-500/10 text-rose-400' : 'bg-cyan-500/10 text-cyan-400';
@@ -3959,12 +4052,16 @@ export default function LessonDetailPage() {
 
       <AnimatePresence>
         {viewerItem && (
-          <InAppViewer 
-            item={viewerItem} 
-            onClose={() => setViewerItem(null)} 
+          <InAppViewer
+            item={viewerItem}
+            onClose={() => setViewerItem(null)}
           />
         )}
       </AnimatePresence>
+
+      {viewerDeck && (
+        <SlideViewer slides={viewerDeck.slides} title={viewerDeck.title} onClose={() => setViewerDeck(null)} />
+      )}
     </div>
   );
 }
