@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, PlayIcon, DocumentTextIcon, AcademicCapIcon,
   ClockIcon, BookOpenIcon, CheckCircleIcon, ClipboardDocumentListIcon,
-  PaperClipIcon, ArrowDownTrayIcon, VideoCameraIcon, DocumentIcon,
+  PaperClipIcon, ArrowDownTrayIcon, VideoCameraIcon, DocumentIcon, PresentationChartBarIcon,
   PhotoIcon, BoltIcon, CheckBadgeIcon, LockClosedIcon,
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
@@ -44,8 +44,6 @@ function InAppViewer({ item, onClose }: {
   onClose: () => void;
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
 
   const fileUrl = item.file_url;
@@ -54,6 +52,7 @@ function InAppViewer({ item, onClose }: {
   const isVideo = fileType?.startsWith('video/') || item.content_type === 'video';
   const isImage = fileType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].some(ext => fileUrl?.toLowerCase().includes(ext));
   const isPDF = fileType === 'application/pdf' || fileUrl?.toLowerCase().includes('.pdf');
+  const isPresentation = fileType === 'presentation' || fileType?.includes('powerpoint') || fileType?.includes('presentation') || ['pptx', 'ppt'].some(ext => fileUrl?.toLowerCase().includes(`.${ext}`));
   const isDocument = ['document', 'guide'].includes(item.content_type || '') || isPDF;
 
   const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
@@ -69,13 +68,12 @@ function InAppViewer({ item, onClose }: {
     document.addEventListener('keydown', handleKeyDown);
     const timer = setTimeout(() => {
       setLoading(false);
-      if (isPDF && fileUrl) setTotalPages(10); 
     }, 1200);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       clearTimeout(timer);
     };
-  }, [handleKeyDown, isPDF, fileUrl]);
+  }, [handleKeyDown]);
 
   return (
     <motion.div
@@ -133,6 +131,26 @@ function InAppViewer({ item, onClose }: {
             {isVideo && fileUrl ? (
               <div className="w-full max-w-6xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black">
                 <VideoPlayer url={fileUrl} title={item.title} cinemaMode />
+              </div>
+            ) : isPresentation && fileUrl ? (
+              <div className="text-center space-y-6 max-w-md mx-auto bg-slate-900/50 p-10 border border-white/5 rounded-[32px] backdrop-blur-xl shadow-2xl">
+                <div className="w-24 h-24 rounded-[32px] bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto shadow-inner">
+                  <PresentationChartBarIcon className="w-10 h-10 text-primary" />
+                </div>
+                <div>
+                  <h4 className="text-2xl font-black text-white tracking-tight">PowerPoint Presentation</h4>
+                  <p className="text-sm text-white/40 mt-3 leading-relaxed">
+                    PowerPoint files (<code className="text-primary font-bold">.pptx</code> / <code className="text-primary font-bold">.ppt</code>) cannot be previewed directly in the browser.
+                  </p>
+                  <p className="text-xs text-white/30 mt-2 leading-relaxed">
+                    You can download this presentation to view it locally, or convert it to PDF and upload it as a view-only slide deck.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <a href={fileUrl} download target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-3 px-10 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-3xl shadow-[0_20px_40px_rgba(234,88,12,0.3)] hover:-translate-y-1 transition-all">
+                    <ArrowDownTrayIcon className="w-4 h-4" /> Download Presentation
+                  </a>
+                </div>
               </div>
             ) : isImage && fileUrl ? (
               <motion.img

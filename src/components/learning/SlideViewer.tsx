@@ -83,7 +83,10 @@ export default function SlideViewer({
         // Self-hosted worker (copied to /public by the prebuild step) — no CDN dependency.
         pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs';
         const doc = await pdfjs.getDocument({ data: buf }).promise;
-        if (cancelled) return;
+        if (cancelled) {
+          doc.destroy();
+          return;
+        }
         pdfDocRef.current = doc;
         setNumPages(doc.numPages);
         setLoading(false);
@@ -91,7 +94,13 @@ export default function SlideViewer({
         if (!cancelled) { setLoadError('Could not load the slides. Please try again.'); setLoading(false); }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (pdfDocRef.current) {
+        pdfDocRef.current.destroy();
+        pdfDocRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfKey, lessonId]);
 

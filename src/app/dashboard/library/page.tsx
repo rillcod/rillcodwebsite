@@ -82,6 +82,7 @@ function InAppViewer({ item, onClose, onDelete }: {
   const isVideo = fileType?.startsWith('video/') || item.content_type === 'video';
   const isImage = fileType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].some(ext => fileUrl?.toLowerCase().includes(ext));
   const isPDF = fileType === 'application/pdf' || fileUrl?.toLowerCase().includes('.pdf');
+  const isPresentation = fileType === 'presentation' || fileType?.includes('powerpoint') || fileType?.includes('presentation') || ['pptx', 'ppt'].some(ext => fileUrl?.toLowerCase().includes(`.${ext}`));
   const isDocument = ['document', 'guide'].includes(item.content_type) || isPDF;
 
   const toggleFullscreen = () => {
@@ -101,11 +102,34 @@ function InAppViewer({ item, onClose, onDelete }: {
     document.addEventListener('keydown', handleKeyDown);
     const timer = setTimeout(() => {
       setLoading(false);
-      if (isPDF && fileUrl) setTotalPages(10);
     }, 1200);
+
+    let cancelled = false;
+    if (isPDF && fileUrl) {
+      (async () => {
+        try {
+          const res = await fetch(fileUrl);
+          if (!res.ok) return;
+          const buf = await res.arrayBuffer();
+          const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs');
+          pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs';
+          const doc = await pdfjs.getDocument({ data: buf }).promise;
+          if (cancelled) {
+            doc.destroy();
+            return;
+          }
+          setTotalPages(doc.numPages);
+          doc.destroy();
+        } catch (e) {
+          console.error("Failed to load PDF pages count", e);
+        }
+      })();
+    }
+
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       clearTimeout(timer);
+      cancelled = true;
     };
   }, [handleKeyDown, isPDF, fileUrl]);
 
@@ -196,6 +220,26 @@ function InAppViewer({ item, onClose, onDelete }: {
             ) : isVideo && fileUrl ? (
               <div className="w-full max-w-5xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-border">
                 <VideoPlayer url={fileUrl} title={item.title} cinemaMode />
+              </div>
+            ) : isPresentation && fileUrl ? (
+              <div className="text-center space-y-6 max-w-md mx-auto bg-card p-10 border border-border rounded-[32px] shadow-2xl">
+                <div className="w-24 h-24 rounded-[32px] bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto shadow-inner">
+                  <PresentationChartBarIcon className="w-10 h-10 text-primary" />
+                </div>
+                <div>
+                  <h4 className="text-2xl font-black text-foreground tracking-tight">PowerPoint Presentation</h4>
+                  <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+                    PowerPoint files (<code className="text-primary font-bold">.pptx</code> / <code className="text-primary font-bold">.ppt</code>) cannot be previewed directly.
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 mt-2 leading-relaxed">
+                    You can download this presentation to view it, or upload it as a view-only slide deck (PDF format) for in-platform viewing.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <a href={fileUrl} download target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-3 px-10 py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-3xl shadow-xl hover:-translate-y-1 transition-all">
+                    <ArrowDownTrayIcon className="w-4 h-4" /> Download Presentation
+                  </a>
+                </div>
               </div>
             ) : isImage && fileUrl ? (
               <motion.img
