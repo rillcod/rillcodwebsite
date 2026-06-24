@@ -148,6 +148,7 @@ export default function DashboardNavigation() {
           { name: 'Term Progression', href: '/dashboard/progression', icon: RocketLaunchIcon },
           { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
+          { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
 
           { divider: true, label: 'Academics' },
           { name: 'Programs', href: '/dashboard/programs', icon: PresentationChartLineIcon },
@@ -211,6 +212,7 @@ export default function DashboardNavigation() {
           { name: 'Term Progression', href: '/dashboard/progression', icon: RocketLaunchIcon },
           { name: 'Flashcard Studio', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
+          { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
 
           { divider: true, label: 'My Classes' },
           { name: 'My Classes', href: '/dashboard/classes', icon: UserGroupIcon },
