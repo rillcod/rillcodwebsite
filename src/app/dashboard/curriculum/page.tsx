@@ -30,6 +30,7 @@ import { CurriculumOverviewPrintDoc, DEFAULT_PRINT_OPTIONS, type PrintSectionOpt
 import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
 import { extractLessonPlanOperationWeeks } from '@/lib/progression/lessonPlanOperation';
 import { resolveQaSpineLane, LANE_LABELS } from '@/lib/qa/resolveQaSpineLane';
+import { extractPdfText } from '@/lib/pdf/extract-text';
 
 // QA track setup options
 const QA_GRADE_OPTIONS = [
@@ -312,6 +313,9 @@ export default function CurriculumPage() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
   const [genProgress, setGenProgress] = useState('');
+  const [sourceText, setSourceText] = useState('');
+  const [sourceName, setSourceName] = useState('');
+  const [extractingPdf, setExtractingPdf] = useState(false);
   const [savingTrack, setSavingTrack] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [expandedTerms, setExpandedTerms] = useState<Set<number>>(new Set([1]));
@@ -1850,6 +1854,21 @@ export default function CurriculumPage() {
   }
 
   // ── Generate curriculum ──────────────────────────────────────────────────
+  // Extract text from a teacher's PDF to ground AI generation in their real material.
+  async function handleSourcePdf(file: File | null) {
+    if (!file) { setSourceText(''); setSourceName(''); return; }
+    setExtractingPdf(true); setGenError('');
+    try {
+      const text = await extractPdfText(file);
+      if (!text) { setGenError('Could not read any text from that PDF (is it scanned images?).'); setSourceName(''); setSourceText(''); }
+      else { setSourceText(text); setSourceName(file.name); }
+    } catch {
+      setGenError('Could not read that PDF.'); setSourceName(''); setSourceText('');
+    } finally {
+      setExtractingPdf(false);
+    }
+  }
+
   async function generate() {
     if (!selectedCourse) return;
     // Teachers can't save to platform — auto-redirect to their first school
@@ -1894,6 +1913,7 @@ export default function CurriculumPage() {
       subject_area: form.subject_area,
       notes: form.notes,
       format: curriculumFormat,
+      ...(sourceText ? { source_material: sourceText } : {}),
     };
 
     try {
@@ -5682,6 +5702,28 @@ export default function CurriculumPage() {
                   rows={2}
                   className={INPUT_CLS + ' resize-none'}
                 />
+              </div>
+
+              {/* Ground generation in a teacher's document */}
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                  Base it on a document <span className="normal-case font-normal text-muted-foreground">(optional — upload a PDF and the AI builds the course from it)</span>
+                </label>
+                {sourceName ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-violet-500/10 border border-violet-500/25 rounded-xl">
+                    <span className="text-sm">📄</span>
+                    <span className="text-xs text-violet-300 font-bold truncate flex-1">{sourceName} — grounding the AI</span>
+                    <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }}
+                      className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground">Remove</button>
+                  </div>
+                ) : (
+                  <label className={`flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-border hover:border-violet-500/40 hover:bg-violet-500/5'}`}>
+                    <span className="text-sm">📄</span>
+                    <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? 'Reading PDF…' : 'Upload a PDF to build from'}</span>
+                    <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
+                      onChange={e => { handleSourcePdf(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
+                  </label>
+                )}
               </div>
 
               {genError && <p className="text-rose-400 text-xs">{genError}</p>}

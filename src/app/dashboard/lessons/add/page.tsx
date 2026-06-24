@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeLessonType } from '@/lib/lessons/lesson-type';
+import { extractPdfText } from '@/lib/pdf/extract-text';
 import {
   peekStashedCurriculumLessonPlan,
   clearStashedCurriculumLessonPlan,
@@ -85,6 +86,9 @@ function AddLessonPageContent() {
   const [lastModel, setLastModel] = useState<string | null>(null);
   const [aiMode, setAiMode] = useState<'academic' | 'project' | 'interactive'>('academic');
   const [aiObjectives, setAiObjectives] = useState<string[]>([]);
+  const [sourceText, setSourceText] = useState('');
+  const [sourceName, setSourceName] = useState('');
+  const [extractingPdf, setExtractingPdf] = useState(false);
   const [showLessonPreview, setShowLessonPreview] = useState(false);
   const [aiStatus, setAiStatus] = useState<string | null>(null);
 
@@ -227,6 +231,7 @@ function AddLessonPageContent() {
         lessonMode: aiMode,
         courseName: selectedCourse?.title || undefined,
         programName: (selectedCourse as any)?.programs?.name || undefined,
+        ...(sourceText ? { sourceMaterial: sourceText } : {}),
       });
 
       const res = await fetch('/api/ai/generate?stream=1', {
@@ -665,6 +670,33 @@ function AddLessonPageContent() {
                   placeholder="e.g. Python Programming"
                   className="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary"
                 />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Base on a PDF (optional)</label>
+                {sourceName ? (
+                  <div className="flex items-center gap-2 px-3 py-2.5 bg-violet-500/10 border border-violet-500/25 rounded-xl">
+                    <span className="text-sm">📄</span>
+                    <span className="text-xs text-violet-300 font-bold truncate flex-1">{sourceName}</span>
+                    <button type="button" onClick={() => { setSourceText(''); setSourceName(''); }} className="text-[10px] font-black uppercase text-muted-foreground hover:text-foreground">Remove</button>
+                  </div>
+                ) : (
+                  <label className={`flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed rounded-xl cursor-pointer transition-all ${extractingPdf ? 'border-violet-500/30 bg-violet-500/5' : 'border-border hover:border-violet-500/40'}`}>
+                    <span className="text-sm">📄</span>
+                    <span className="text-xs font-bold text-muted-foreground">{extractingPdf ? 'Reading PDF…' : 'Upload PDF to build from'}</span>
+                    <input type="file" className="hidden" accept="application/pdf" disabled={extractingPdf}
+                      onChange={async e => {
+                        const input = e.currentTarget; const file = input.files?.[0] ?? null; input.value = '';
+                        if (!file) return;
+                        setExtractingPdf(true); setAiError(null);
+                        try {
+                          const t = await extractPdfText(file);
+                          if (t) { setSourceText(t); setSourceName(file.name); }
+                          else setAiError('Could not read text from that PDF (is it scanned images?).');
+                        } catch { setAiError('Could not read that PDF.'); }
+                        finally { setExtractingPdf(false); }
+                      }} />
+                  </label>
+                )}
               </div>
               <button
                 type="button"

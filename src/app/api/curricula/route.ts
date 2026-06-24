@@ -683,6 +683,14 @@ export async function POST(req: NextRequest) {
     } catch { /* non-fatal — generation continues without context */ }
   }
 
+  // Ground the generation in a teacher-supplied document (extracted PDF text) when
+  // provided, so the syllabus/lessons align with the real material. Merged into the
+  // existing `notes` so every prompt builder picks it up without signature changes.
+  const sourceMaterial = typeof body.source_material === 'string' ? body.source_material.slice(0, 8000).trim() : '';
+  const groundedNotes = sourceMaterial
+    ? `${notes ? notes + '\n\n' : ''}SOURCE MATERIAL — build the curriculum, weekly topics and lessons STRICTLY from this teacher document; keep the same scope, order and terminology:\n"""\n${sourceMaterial}\n"""`
+    : notes;
+
   // Chunked online mode: the client generates one module per request to stay
   // under the 60s serverless cap. Detected by an explicit module_index.
   const moduleIdx = Number(body.module_index);
@@ -700,7 +708,7 @@ export async function POST(req: NextRequest) {
         Array.isArray(body.prior_module_themes)
           ? (body.prior_module_themes as unknown[]).filter((t): t is string => typeof t === 'string').slice(0, 12)
           : [],
-        notes,
+        groundedNotes,
       )
     : buildCurriculumPrompt(
         course_name,
@@ -719,7 +727,7 @@ export async function POST(req: NextRequest) {
           onlineSessionsPerWeek: Number(online_sessions_per_week ?? 2),
           selfpacedModules: Number(selfpaced_modules ?? 6),
           selfpacedHoursPerModule: Number(selfpaced_hours_per_module ?? 2),
-          notes,
+          notes: groundedNotes,
         },
       );
 

@@ -187,6 +187,8 @@ interface GenerateRequest {
   term_count?: number;
   weeks_per_term?: number;
   notes?: string;
+  /** Extracted text from a teacher's PDF — grounds generation in their real material. */
+  sourceMaterial?: string;
 }
 
 function buildPrompt(req: GenerateRequest): string {
@@ -480,6 +482,10 @@ ${req.siblingLessons?.length ? `Other lessons already covered in this course (DO
         ? `\nALREADY GENERATED IN THIS BATCH (use fresh examples, quiz stems, hooks; do not reuse or lightly reword these titles):\n${req.priorLessonTitlesThisRun.slice(0, 24).join(' | ')}`
         : '';
 
+      const sourceMaterialBlock = req.sourceMaterial?.trim()
+        ? `\nSOURCE MATERIAL — base this lesson STRICTLY on the teacher's document below; keep the same scope, examples and terminology, and do not introduce topics it doesn't cover:\n"""\n${req.sourceMaterial.slice(0, 8000)}\n"""`
+        : '';
+
       return `Generate an IMMERSIVE, ADDICTIVE, and COMPLETE lesson for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${grade}
@@ -487,7 +493,7 @@ Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 Lesson type: ${req.contentType ?? modeConfig.lessonTypeHint}
 LESSON MODE: ${modeConfig.label}
-${standaloneModeBlock}${curriculumContext}${syllabusAnchorBlock}${planWeekSection}${dedupLessonsBlock}
+${standaloneModeBlock}${curriculumContext}${syllabusAnchorBlock}${planWeekSection}${dedupLessonsBlock}${sourceMaterialBlock}
 ${youngLearnerOverride}
 ${modeConfig.blockRules}
 
