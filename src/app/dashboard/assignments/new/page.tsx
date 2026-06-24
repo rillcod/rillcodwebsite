@@ -62,6 +62,7 @@ export default function NewAssignmentPage() {
     max_points: '100',
     weight: '0',
     assignment_type: 'homework',
+    multi_step: false,
   });
   const [questions, setQuestions] = useState<Question[]>([]);
   const [projectMeta, setProjectMeta] = useState<{
@@ -248,6 +249,7 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
             base.deliverables = projectMeta.deliverables.filter(d => d.trim());
             base.rubric = projectMeta.rubric.filter(r => r.criterion.trim());
           }
+          if (form.multi_step) base.multi_step = true;
           return Object.keys(base).length > 0 ? base : null;
         })(),
       };
@@ -527,6 +529,17 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
                 className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors" />
             </div>
           </div>
+
+          {/* Multi-step submission toggle — lets students attach multiple work snapshots */}
+          <label className="flex items-start gap-3 p-4 bg-card shadow-sm border border-border rounded-xl cursor-pointer hover:border-amber-500/40 transition-colors">
+            <input type="checkbox" checked={form.multi_step}
+              onChange={e => setForm(f => ({ ...f, multi_step: e.target.checked }))}
+              className="mt-0.5 w-5 h-5 rounded border-border text-amber-500 focus:ring-amber-500 cursor-pointer" />
+            <div>
+              <p className="text-sm font-bold text-foreground">Multi-step submission</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Let students attach multiple work snapshots (with captions) to capture each stage of their progress, not just one final file.</p>
+            </div>
+          </label>
 
           {/* Description */}
           <div>

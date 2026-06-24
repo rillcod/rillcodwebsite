@@ -91,6 +91,16 @@ export async function POST(
     const body = await request.json();
     const { portal_user_id, submission_text, file_url, answers } = body;
 
+    // Free-form work snapshots (multi-step submissions). Stored inside the JSON
+    // `answers` column under `snapshots` — no migration needed, and the auto-grader
+    // only reads numeric question indices so it ignores this key.
+    const snapshots = Array.isArray(body.snapshots)
+      ? body.snapshots
+          .filter((s: any) => s && typeof s.url === 'string' && s.url.trim())
+          .slice(0, 20)
+          .map((s: any) => ({ url: String(s.url), caption: typeof s.caption === 'string' ? s.caption.slice(0, 200) : '' }))
+      : null;
+
     // Only admin/teacher may submit on behalf of another student
     const isStaff = ['admin', 'teacher'].includes(caller.role);
     const effectiveUserId = isStaff ? (portal_user_id ?? caller.id) : caller.id;
@@ -159,7 +169,13 @@ export async function POST(
     };
     if (submission_text !== undefined) upsertData.submission_text = submission_text || null;
     if (file_url        !== undefined) upsertData.file_url        = file_url        || null;
-    if (answers         != null)       upsertData.answers         = answers;
+    // Merge snapshots into answers without clobbering quiz answers.
+    if (snapshots && snapshots.length > 0) {
+      const base = answers && typeof answers === 'object' && !Array.isArray(answers) ? answers : {};
+      upsertData.answers = { ...base, snapshots };
+    } else if (answers != null) {
+      upsertData.answers = answers;
+    }
 
     const { data, error } = await admin
       .from('assignment_submissions')

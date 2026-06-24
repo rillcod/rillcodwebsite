@@ -713,6 +713,23 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         </div>
                     )}
 
+                    {/* Multi-step work snapshots */}
+                    {Array.isArray(sub.answers?.snapshots) && sub.answers.snapshots.length > 0 && (
+                        <div className="space-y-2">
+                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Work Snapshots ({sub.answers.snapshots.length})</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {sub.answers.snapshots.map((s: { url: string; caption: string }, i: number) => (
+                                    <div key={i} className="space-y-1">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={s.url} alt={`Snapshot ${i + 1}`} onClick={() => setLightbox(s.url)}
+                                            className="w-full h-28 object-cover bg-black/20 border border-white/10 rounded-lg cursor-pointer hover:opacity-90 transition-opacity" />
+                                        {s.caption && <p className="text-[10px] text-white/50 leading-snug line-clamp-2">{s.caption}</p>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Student answers vs correct answers — with auto-grade result */}
                     {questions.length > 0 && sub.answers && (
                         <div className="space-y-3">
@@ -977,6 +994,8 @@ export default function AssignmentDetailPage() {
     const [uploadingFile, setUploadingFile] = useState(false);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
+    const [snapshots, setSnapshots] = useState<Array<{ url: string; caption: string }>>([]);
+    const [uploadingSnap, setUploadingSnap] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     const [shareOpen, setShareOpen] = useState(false);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -1079,10 +1098,35 @@ export default function AssignmentDetailPage() {
         }
     };
 
+    // Multi-step submissions — add a work snapshot (compress + upload, then track url + caption).
+    const handleAddSnapshot = async (file: File | null) => {
+        if (!file || !profile) return;
+        if (file.size > 10 * 1024 * 1024) { setFileError('Snapshot too large (max 10 MB)'); return; }
+        if (snapshots.length >= 20) { setFileError('Maximum 20 snapshots'); return; }
+        setUploadingSnap(true); setFileError(null);
+        try {
+            const toUpload = await compressImage(file);
+            const formData = new FormData();
+            formData.append('file', toUpload);
+            const res = await fetch('/api/files/upload', { method: 'POST', body: formData });
+            const payload = await res.json();
+            if (!res.ok) throw new Error(payload.error ?? 'Upload failed');
+            setSnapshots(prev => [...prev, { url: payload.data.public_url, caption: '' }]);
+        } catch (e: any) {
+            setFileError(e.message ?? 'Snapshot upload failed');
+        } finally {
+            setUploadingSnap(false);
+        }
+    };
+    const updateSnapCaption = (i: number, caption: string) =>
+        setSnapshots(prev => prev.map((s, idx) => idx === i ? { ...s, caption } : s));
+    const removeSnapshot = (i: number) =>
+        setSnapshots(prev => prev.filter((_, idx) => idx !== i));
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!profile || !assignment) return;
-        if (uploadingFile) return;
+        if (uploadingFile || uploadingSnap) return;
         setSubmitting(true);
         // For coding assignments, combine code + notes as submission_text
         const _isCoding = assignment?.assignment_type === 'coding';
@@ -1098,6 +1142,7 @@ export default function AssignmentDetailPage() {
                     submission_text: submissionText,
                     answers: Object.keys(answers).length > 0 ? answers : null,
                     file_url: fileUrl ?? undefined,
+                    snapshots: snapshots.length > 0 ? snapshots : undefined,
                 }),
             });
             const json = await res.json();
@@ -2023,6 +2068,53 @@ export default function AssignmentDetailPage() {
                                     )}
                                     {fileError && <p className="text-xs text-rose-400 mt-1.5">{fileError}</p>}
                                 </div>
+
+                                {/* Multi-step work snapshots */}
+                                {assignment?.metadata?.multi_step && (
+                                    <div>
+                                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                                            Work Snapshots <span className="normal-case font-normal text-muted-foreground">(capture each stage — add as many as you need)</span>
+                                        </label>
+                                        {snapshots.length > 0 && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                                {snapshots.map((s, i) => (
+                                                    <div key={i} className="space-y-2 p-2 bg-white/3 border border-white/8 rounded-xl">
+                                                        <div className="relative">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={s.url} alt={`Snapshot ${i + 1}`} className="w-full max-h-40 object-contain bg-black/20 rounded-lg" />
+                                                            <button type="button" onClick={() => removeSnapshot(i)}
+                                                                className="absolute top-1.5 right-1.5 px-2 py-1 bg-rose-500/80 hover:bg-rose-500 text-white text-[10px] font-black uppercase rounded-lg transition-colors">Remove</button>
+                                                        </div>
+                                                        <input type="text" value={s.caption} maxLength={200}
+                                                            onChange={e => updateSnapCaption(i, e.target.value)}
+                                                            placeholder={`Caption / step ${i + 1} (optional)`}
+                                                            className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-amber-500" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <label className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${uploadingSnap ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
+                                                <span className="text-lg">📷</span>
+                                                <span className="text-xs font-bold text-muted-foreground">Add Photo</span>
+                                                <input type="file" className="hidden" accept="image/*" capture="environment"
+                                                    onChange={e => { handleAddSnapshot(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
+                                            </label>
+                                            <label className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center ${uploadingSnap ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:border-amber-500/40 hover:bg-amber-500/5'}`}>
+                                                <span className="text-lg">🖼️</span>
+                                                <span className="text-xs font-bold text-muted-foreground">Add Image File</span>
+                                                <input type="file" className="hidden" accept="image/*"
+                                                    onChange={e => { handleAddSnapshot(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
+                                            </label>
+                                        </div>
+                                        {uploadingSnap && (
+                                            <div className="flex items-center gap-2 px-4 py-2 mt-2 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                                <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                                                <span className="text-sm text-amber-400">Uploading snapshot…</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {error && (
                                     <div className="flex items-center gap-2 text-rose-400 text-sm">
