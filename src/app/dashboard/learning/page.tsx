@@ -524,13 +524,13 @@ export default function StudentLearningPage() {
           )}
         </div>
 
-        {/* ── Dashboard Workspaces: Student vs Parent personification ── */}
+        {/* ── Dashboard Workspaces: the student's own learning views ── */}
         <div className="bg-card/40 backdrop-blur-md border border-border/80 rounded-[24px] p-2 flex flex-col md:flex-row gap-2 items-center justify-between">
           <div className="flex flex-wrap gap-1.5 w-full md:w-auto">
             {[
               { id: 'map', label: 'My Learning Map', emoji: '🗺️', desc: 'Missions & Path' },
               { id: 'gym', label: 'Skill Revision Gym', emoji: '⚡', desc: 'Flashcards & Labs', badge: dueFlashcards > 0 ? dueFlashcards : null },
-              { id: 'insights', label: 'Parent Growth Cockpit', emoji: '👨‍👩‍👧', desc: 'Academic Analytics' },
+              { id: 'insights', label: 'Growth Analytics', emoji: '📊', desc: 'Academic Insights' },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -565,7 +565,7 @@ export default function StudentLearningPage() {
             {activeTab === 'insights' ? (
               <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Verified Parent
+                Analytics View
               </span>
             ) : (
               <span className="px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full flex items-center gap-1.5">
@@ -899,19 +899,19 @@ export default function StudentLearningPage() {
               transition={{ duration: 0.2 }}
               className="space-y-6 animate-in fade-in duration-300 text-slate-100"
             >
-              {/* Header card for Parents */}
+              {/* Header card — student's own growth analytics */}
               <div className="bg-card border border-border rounded-[24px] p-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/5 blur-3xl pointer-events-none" />
                 <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div>
                     <span className="inline-block text-[9px] font-black text-emerald-500 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-full uppercase tracking-wider mb-2">
-                      👨‍👩‍👧 Parent Growth Cockpit
+                      📊 Growth Analytics
                     </span>
                     <h2 className="text-xl font-black uppercase tracking-tight text-foreground font-black">
                       {profile?.full_name?.split(' ')[0]}'s Growth Analytics
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Monitor academic milestone completion, official lesson pacing, and official teacher remarks.
+                      Track your academic milestones, lesson pacing, and teacher remarks.
                     </p>
                   </div>
                   <div className="shrink-0 flex items-center gap-1.5 bg-muted/50 border border-border rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
