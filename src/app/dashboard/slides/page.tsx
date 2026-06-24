@@ -24,6 +24,7 @@ export default function SlidesCatalogPage() {
   const { loading: authLoading } = useAuth();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
   const [viewer, setViewer] = useState<{ slides?: string[]; pdf?: string; title: string; lessonId: string } | null>(null);
 
   useEffect(() => {
@@ -38,6 +39,26 @@ export default function SlidesCatalogPage() {
 
   const totalDecks = programs.reduce((n, p) => n + p.courses.reduce((m, c) => m + c.decks.length, 0), 0);
 
+  // Search across deck title / lesson / course / programme.
+  const q = query.trim().toLowerCase();
+  const filteredPrograms = !q ? programs : programs
+    .map((p) => ({
+      ...p,
+      courses: p.courses
+        .map((c) => ({
+          ...c,
+          decks: c.decks.filter((d) =>
+            d.title.toLowerCase().includes(q) ||
+            (d.lesson_title ?? '').toLowerCase().includes(q) ||
+            c.course_title.toLowerCase().includes(q) ||
+            p.program_name.toLowerCase().includes(q),
+          ),
+        }))
+        .filter((c) => c.decks.length > 0),
+    }))
+    .filter((p) => p.courses.length > 0);
+  const shownDecks = filteredPrograms.reduce((n, p) => n + p.courses.reduce((m, c) => m + c.decks.length, 0), 0);
+
   if (loading) return (
     <div className="min-h-[60vh] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -46,12 +67,22 @@ export default function SlidesCatalogPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-8">
-      <div className="flex items-center gap-3">
-        <div className="p-3 rounded-2xl bg-violet-500/10 text-violet-300"><PaperClipIcon className="w-6 h-6" /></div>
-        <div>
-          <h1 className="text-xl font-black text-foreground">Learning Slides</h1>
-          <p className="text-xs text-muted-foreground">View-only slide decks, organised by programme &amp; course · {totalDecks} deck{totalDecks === 1 ? '' : 's'}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="p-3 rounded-2xl bg-violet-500/10 text-violet-300"><PaperClipIcon className="w-6 h-6" /></div>
+          <div>
+            <h1 className="text-xl font-black text-foreground">Learning Slides</h1>
+            <p className="text-xs text-muted-foreground">View-only slide decks, organised by programme &amp; course · {totalDecks} deck{totalDecks === 1 ? '' : 's'}</p>
+          </div>
         </div>
+        {totalDecks > 0 && (
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search slides, course, programme…"
+            className="w-full sm:w-64 px-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-violet-500/50"
+          />
+        )}
       </div>
 
       {totalDecks === 0 ? (
@@ -59,8 +90,12 @@ export default function SlidesCatalogPage() {
           <PaperClipIcon className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
           <p className="text-sm font-bold text-muted-foreground">No slides available to you yet.</p>
         </div>
+      ) : shownDecks === 0 ? (
+        <div className="py-16 text-center bg-card border border-dashed border-border rounded-2xl">
+          <p className="text-sm font-bold text-muted-foreground">No slides match “{query}”.</p>
+        </div>
       ) : (
-        programs.map((prog) => (
+        filteredPrograms.map((prog) => (
           <section key={prog.program_id ?? prog.program_name} className="space-y-4">
             <div className="flex items-center gap-2">
               <AcademicCapIcon className="w-5 h-5 text-violet-400" />

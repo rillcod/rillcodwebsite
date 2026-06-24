@@ -196,9 +196,18 @@ export default function SlideViewer({
         <div className="flex items-center gap-3">
           <button onClick={prev} disabled={i === 0}
             className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/70 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 disabled:opacity-30 transition-all">Prev</button>
-          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: total ? `${((i + 1) / total) * 100}%` : '0%' }} />
-          </div>
+          <button type="button" aria-label="Jump to slide"
+            onClick={(e) => {
+              if (!total) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const frac = (e.clientX - rect.left) / rect.width;
+              setI(Math.max(0, Math.min(total - 1, Math.round(frac * (total - 1)))));
+            }}
+            className="flex-1 h-4 flex items-center cursor-pointer group/seek">
+            <div className="w-full h-1.5 group-hover/seek:h-2.5 bg-white/10 rounded-full overflow-hidden transition-all">
+              <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: total ? `${((i + 1) / total) * 100}%` : '0%' }} />
+            </div>
+          </button>
           <span className="text-[11px] font-black text-white/60 tabular-nums">{total ? i + 1 : 0} / {total}</span>
           <button onClick={next} disabled={total === 0 || i === total - 1}
             className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-500 rounded-lg disabled:opacity-30 transition-all">Next</button>
