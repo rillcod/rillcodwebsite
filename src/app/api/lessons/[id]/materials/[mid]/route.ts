@@ -1,8 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { r2Delete } from '@/lib/r2/client';
 
 export const dynamic = 'force-dynamic';
+
+/** Extract the R2 keys referenced by a slide-deck material's file_url JSON. */
+function deckKeys(fileUrl: string | null | undefined): string[] {
+  if (!fileUrl) return [];
+  try {
+    const p = JSON.parse(fileUrl);
+    const keys: string[] = [];
+    if (typeof p?.pdf === 'string') keys.push(p.pdf);
+    if (Array.isArray(p?.slides)) for (const k of p.slides) if (typeof k === 'string') keys.push(k);
+    return keys;
+  } catch { return []; }
+}
+
+/** Best-effort R2 cleanup — never throws. */
+async function purgeKeys(keys: string[]): Promise<void> {
+  for (const k of keys) {
+    try { await r2Delete(k); } catch (e) { console.warn('[materials] R2 purge failed for', k, e); }
+  }
+}
 
 function adminClient() {
   return createClient(
@@ -57,6 +77,60 @@ async function callerCanManageLesson(
   return false;
 }
 
+// PATCH /api/lessons/[id]/materials/[mid] — update a material (title and/or file_url).
+// For slide decks, changing file_url also purges any R2 keys that were removed.
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string; mid: string }> },
+) {
+  try {
+    const caller = await requireStaff();
+    if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+
+    const { mid } = await context.params;
+    const admin = adminClient();
+
+    const { data: material } = await admin
+      .from('lesson_materials')
+      .select('id, lesson_id, file_type, file_url, lessons(school_id, created_by)')
+      .eq('id', mid)
+      .maybeSingle();
+    if (!material) return NextResponse.json({ error: 'Material not found' }, { status: 404 });
+
+    const lesson = (material as any).lessons;
+    const canManage = await callerCanManageLesson(caller, lesson?.school_id ?? null, lesson?.created_by ?? null);
+    if (!canManage) {
+      return NextResponse.json({ error: 'Access denied: lesson is outside your school scope' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const update: Record<string, unknown> = {};
+    if (typeof body.title === 'string' && body.title.trim()) update.title = body.title.trim();
+    if (typeof body.file_url === 'string') update.file_url = body.file_url;
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
+    }
+
+    // For slide decks, purge any R2 keys dropped from the deck (remove/replace).
+    if ((material as any).file_type === 'slide-deck' && typeof body.file_url === 'string') {
+      const oldKeys = deckKeys((material as any).file_url);
+      const newKeys = new Set(deckKeys(body.file_url));
+      await purgeKeys(oldKeys.filter((k) => !newKeys.has(k)));
+    }
+
+    const { data, error } = await admin
+      .from('lesson_materials')
+      .update(update)
+      .eq('id', mid)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}
+
 // DELETE /api/lessons/[id]/materials/[mid]
 export async function DELETE(
   _request: NextRequest,
@@ -72,7 +146,7 @@ export async function DELETE(
     // Fetch material and parent lesson details to perform school boundary checks
     const { data: material } = await admin
       .from('lesson_materials')
-      .select('id, lesson_id, lessons(school_id, created_by)')
+      .select('id, lesson_id, file_type, file_url, lessons(school_id, created_by)')
       .eq('id', mid)
       .maybeSingle();
 
@@ -88,6 +162,12 @@ export async function DELETE(
 
     const { error } = await admin.from('lesson_materials').delete().eq('id', mid);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Clean up the deck's R2 objects so deleting a deck doesn't orphan storage.
+    if ((material as any).file_type === 'slide-deck') {
+      await purgeKeys(deckKeys((material as any).file_url));
+    }
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });

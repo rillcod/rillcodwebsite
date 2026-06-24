@@ -14,7 +14,7 @@ import {
   InformationCircleIcon, ExclamationTriangleIcon, RocketLaunchIcon,
   QuestionMarkCircleIcon, ChevronRightIcon, XMarkIcon,
   RectangleGroupIcon, ClipboardIcon, TrophyIcon, StarIcon, PlusIcon, TrashIcon, ArrowsPointingOutIcon,
-  SpeakerWaveIcon, SparklesIcon, ArrowPathIcon,
+  SpeakerWaveIcon, SparklesIcon, ArrowPathIcon, PencilSquareIcon,
 } from '@/lib/icons';
 import Script from 'next/script';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,6 +23,7 @@ import remarkGfm from 'remark-gfm';
 import IntegratedCodeRunner from '@/components/studio/IntegratedCodeRunner';
 import VideoPlayer from '@/components/media/VideoPlayer';
 import SlideViewer from '@/components/learning/SlideViewer';
+import SlideDeckManager from '@/components/learning/SlideDeckManager';
 import Editor from '@monaco-editor/react';
 import * as d3 from 'd3';
 import dynamic from 'next/dynamic';
@@ -2684,6 +2685,8 @@ export default function LessonDetailPage() {
   const [deckTitle, setDeckTitle] = useState('');
   const [deckUploading, setDeckUploading] = useState(false);
   const [viewerDeck, setViewerDeck] = useState<{ slides?: string[]; pdf?: string; title: string } | null>(null);
+  const [manageDeck, setManageDeck] = useState<any | null>(null);
+  const [deckProgress, setDeckProgress] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [ttsOpen, setTtsOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -2984,12 +2987,13 @@ export default function LessonDetailPage() {
     if (!deckTitle.trim()) { alert('Give the slides a title first.'); return; }
     const files = Array.from(fileList);
     const isPdf = files.length === 1 && files[0].type === 'application/pdf';
-    setDeckUploading(true);
+    setDeckUploading(true); setDeckProgress('');
     try {
       const keys: string[] = [];
-      for (const file of files) {
+      for (let n = 0; n < files.length; n++) {
+        setDeckProgress(files.length > 1 ? `Uploading ${n + 1} of ${files.length}…` : 'Uploading…');
         const fd = new FormData();
-        fd.append('file', file);
+        fd.append('file', files[n]);
         const up = await fetch('/api/files/upload', { method: 'POST', body: fd });
         const payload = await up.json();
         if (!up.ok) throw new Error(payload.error || 'Upload failed');
@@ -3012,6 +3016,7 @@ export default function LessonDetailPage() {
       alert(e.message ?? 'Slide upload failed');
     } finally {
       setDeckUploading(false);
+      setDeckProgress('');
     }
   };
 
@@ -3759,7 +3764,7 @@ export default function LessonDetailPage() {
                         <input type="text" placeholder="Slides title" value={deckTitle} onChange={e => setDeckTitle(e.target.value)}
                           className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50" />
                         <label className={`px-4 py-2 text-xs font-black uppercase tracking-widest text-white rounded-xl cursor-pointer text-center transition-all ${deckUploading ? 'bg-violet-500/40 cursor-wait' : 'bg-violet-600 hover:bg-violet-500'}`}>
-                          {deckUploading ? 'Uploading…' : 'Upload PDF / Images'}
+                          {deckUploading ? (deckProgress || 'Uploading…') : 'Upload PDF / Images'}
                           <input type="file" className="hidden" accept="application/pdf,image/*" multiple disabled={deckUploading}
                             onChange={e => { handleAddSlideDeck(e.target.files); e.currentTarget.value = ''; }} />
                         </label>
@@ -3798,6 +3803,12 @@ export default function LessonDetailPage() {
                                   className="px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl transition-all">
                                   View Slides
                                 </button>
+                                {isStaff && (
+                                  <button onClick={(e) => { e.stopPropagation(); setManageDeck(m); }}
+                                    className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/40 hover:text-white rounded-xl transition-all" title="Manage slides">
+                                    <PencilSquareIcon className="w-5 h-5" />
+                                  </button>
+                                )}
                                 {isStaff && (
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteResource(m.id); }}
                                     className="w-10 h-10 flex items-center justify-center bg-white/5 hover:bg-rose-500/20 text-white/40 hover:text-rose-400 rounded-xl transition-all" title="Remove deck">
@@ -4090,6 +4101,15 @@ export default function LessonDetailPage() {
 
       {viewerDeck && (
         <SlideViewer slides={viewerDeck.slides} pdfKey={viewerDeck.pdf} title={viewerDeck.title} lessonId={id} onClose={() => setViewerDeck(null)} />
+      )}
+
+      {manageDeck && (
+        <SlideDeckManager
+          lessonId={id}
+          material={manageDeck}
+          onClose={() => setManageDeck(null)}
+          onSaved={(updated) => setMaterials(prev => prev.map(m => m.id === updated.id ? updated : m))}
+        />
       )}
     </div>
   );

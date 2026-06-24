@@ -37,6 +37,7 @@ export default function SlideViewer({
   const [numPages, setNumPages] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(isPdf);
+  const [imgError, setImgError] = useState(false);
 
   const pdfDocRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -50,8 +51,8 @@ export default function SlideViewer({
   const zoomIn = useCallback(() => setScale((s) => Math.min(s + 0.25, 3)), []);
   const zoomOut = useCallback(() => setScale((s) => Math.max(s - 0.25, 0.5)), []);
 
-  // Reset zoom when changing page.
-  useEffect(() => { setScale(1); }, [i]);
+  // Reset zoom + image-error state when changing page.
+  useEffect(() => { setScale(1); setImgError(false); }, [i]);
 
   // Keyboard nav + blocked shortcuts.
   useEffect(() => {
@@ -143,6 +144,8 @@ export default function SlideViewer({
         {!loading && !loadError && (
           isPdf ? (
             <canvas ref={canvasRef} className="max-w-none shadow-2xl pointer-events-none" />
+          ) : imgError ? (
+            <p className="text-sm text-white/50">This slide couldn&apos;t load. Try the next/previous slide.</p>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -150,6 +153,7 @@ export default function SlideViewer({
               alt={`Slide ${i + 1}`}
               draggable={false}
               onDragStart={(e) => e.preventDefault()}
+              onError={() => setImgError(true)}
               style={{ transform: `scale(${scale})`, transformOrigin: 'center' }}
               className="max-w-full max-h-full object-contain pointer-events-none transition-transform"
             />
