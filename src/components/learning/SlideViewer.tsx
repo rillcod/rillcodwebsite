@@ -79,7 +79,8 @@ export default function SlideViewer({
         // Legacy build = transpiled/polyfilled for older browsers & Android WebViews
         // (the standard build uses Promise.withResolvers, which crashes on older devices).
         const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs');
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.min.mjs`;
+        // Self-hosted worker (copied to /public by the prebuild step) — no CDN dependency.
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs';
         const doc = await pdfjs.getDocument({ data: buf }).promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
