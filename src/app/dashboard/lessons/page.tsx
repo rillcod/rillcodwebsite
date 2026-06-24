@@ -127,7 +127,7 @@ export default function LessonsPage() {
           title: planResult.course_title || planTopic,
           description: planResult.description,
           lesson_type: 'interactive',
-          status: 'draft',
+          status: 'active', // auto-publish generated content (no manual draft→active step)
           course_id: planCourseId,
           lesson_plan: {
             objectives, activities,
@@ -144,7 +144,7 @@ export default function LessonsPage() {
       setLessons(prev => [{
         id: newLesson.id, title: planResult.course_title || planTopic,
         description: planResult.description, lesson_type: 'interactive',
-        status: 'draft', created_at: new Date().toISOString(),
+        status: 'active', created_at: new Date().toISOString(),
         courses: courses.find(c => c.id === planCourseId),
       }, ...prev]);
     } catch (e: any) {
