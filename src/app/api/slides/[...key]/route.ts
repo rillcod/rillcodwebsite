@@ -74,7 +74,9 @@ export async function GET(
     for (const d of decks ?? []) {
       try {
         const parsed = JSON.parse((d as any).file_url);
+        // image decks store keys in `slides`; PDF decks store one key in `pdf`
         if (Array.isArray(parsed?.slides)) for (const k of parsed.slides) if (typeof k === 'string') allowedKeys.add(k);
+        if (typeof parsed?.pdf === 'string') allowedKeys.add(parsed.pdf);
       } catch { /* ignore malformed */ }
     }
     if (!allowedKeys.has(r2Key)) {

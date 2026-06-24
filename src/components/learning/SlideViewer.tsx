@@ -76,8 +76,10 @@ export default function SlideViewer({
         const res = await fetch(slideUrl(pdfKey));
         if (!res.ok) throw new Error('Failed to load slides');
         const buf = await res.arrayBuffer();
-        const pdfjs: any = await import('pdfjs-dist');
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+        // Legacy build = transpiled/polyfilled for older browsers & Android WebViews
+        // (the standard build uses Promise.withResolvers, which crashes on older devices).
+        const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.min.mjs`;
         const doc = await pdfjs.getDocument({ data: buf }).promise;
         if (cancelled) return;
         pdfDocRef.current = doc;
