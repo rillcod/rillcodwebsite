@@ -17,10 +17,13 @@ import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@/lib/icons';
 export default function SlideViewer({
   slides,
   title,
+  lessonId,
   onClose,
 }: {
   slides: string[];
   title?: string;
+  /** When set, the stream route enforces enrolment in this lesson's programme. */
+  lessonId?: string;
   onClose: () => void;
 }) {
   const { profile } = useAuth();
@@ -67,7 +70,7 @@ export default function SlideViewer({
         {/* The slide — pointer-events-none + draggable false to deter save/drag */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/api/slides/${slides[i]}`}
+          src={`/api/slides/${slides[i]}${lessonId ? `?lesson=${encodeURIComponent(lessonId)}` : ''}`}
           alt={`Slide ${i + 1}`}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}

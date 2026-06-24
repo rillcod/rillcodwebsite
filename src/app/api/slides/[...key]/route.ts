@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { r2SignedUrl } from '@/lib/r2/client';
 
 export const dynamic = 'force-dynamic';
@@ -53,6 +54,54 @@ export async function GET(
 
   const user = await resolveUser(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // ── Enrollment lock ──────────────────────────────────────────────────────
+  // When the viewer passes ?lesson=<id>, enforce that (1) this key is actually a
+  // slide of that lesson's deck, and (2) the caller is staff OR enrolled in the
+  // lesson's programme. Keys are random UUIDs, but this stops a logged-in user who
+  // isn't enrolled from streaming a deck they shouldn't see.
+  const lessonId = req.nextUrl.searchParams.get('lesson');
+  if (lessonId) {
+    const db = createAdminClient();
+
+    // (1) key must belong to this lesson's slide decks
+    const { data: decks } = await db
+      .from('lesson_materials')
+      .select('file_url')
+      .eq('lesson_id', lessonId)
+      .eq('file_type', 'slide-deck');
+    const allowedKeys = new Set<string>();
+    for (const d of decks ?? []) {
+      try {
+        const parsed = JSON.parse((d as any).file_url);
+        if (Array.isArray(parsed?.slides)) for (const k of parsed.slides) if (typeof k === 'string') allowedKeys.add(k);
+      } catch { /* ignore malformed */ }
+    }
+    if (!allowedKeys.has(r2Key)) {
+      return NextResponse.json({ error: 'Slide is not part of this lesson' }, { status: 403 });
+    }
+
+    // (2) staff bypass; everyone else must be enrolled in the lesson's programme
+    const { data: prof } = await db.from('portal_users').select('role').eq('id', user.id).maybeSingle();
+    const role = (prof as any)?.role ?? '';
+    const isStaff = ['admin', 'teacher', 'school'].includes(role);
+    if (!isStaff) {
+      const { data: lesson } = await db.from('lessons').select('course_id').eq('id', lessonId).maybeSingle();
+      const courseId = (lesson as any)?.course_id ?? null;
+      const { data: course } = courseId
+        ? await db.from('courses').select('program_id').eq('id', courseId).maybeSingle()
+        : { data: null as any };
+      const programId = (course as any)?.program_id ?? null;
+      if (!programId) return NextResponse.json({ error: 'Lesson is not attached to a programme' }, { status: 403 });
+      const { data: enr } = await db
+        .from('enrollments')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('program_id', programId)
+        .maybeSingle();
+      if (!enr) return NextResponse.json({ error: 'You are not enrolled in this programme' }, { status: 403 });
+    }
+  }
 
   let signedUrl: string;
   try {

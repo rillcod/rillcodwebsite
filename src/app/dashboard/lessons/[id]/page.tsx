@@ -4060,7 +4060,7 @@ export default function LessonDetailPage() {
       </AnimatePresence>
 
       {viewerDeck && (
-        <SlideViewer slides={viewerDeck.slides} title={viewerDeck.title} onClose={() => setViewerDeck(null)} />
+        <SlideViewer slides={viewerDeck.slides} title={viewerDeck.title} lessonId={id} onClose={() => setViewerDeck(null)} />
       )}
     </div>
   );
