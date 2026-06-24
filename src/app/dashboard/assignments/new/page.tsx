@@ -90,9 +90,17 @@ export default function NewAssignmentPage() {
     try {
       let data: any = null;
 
+      // Ground generation in the SELECTED course/programme (same as CBT/lessons) so
+      // assignments follow the normal programme/course scope rather than the topic alone.
+      const selCourse: any = courses.find((c: any) => c.id === form.course_id);
+      const selProgramName = selCourse?.programs?.name || '';
+      const courseCtx = selCourse
+        ? `\nCourse: "${selCourse.title}"${selProgramName ? ` (Programme: ${selProgramName})` : ''} — all questions and tasks MUST fit this course's scope and level.`
+        : '';
+
       if (isPuterAvailable()) {
         // Free path — Puter.js
-        const prompt = `Generate a structured assignment for Nigerian secondary school students on this topic: "${aiTopic}".
+        const prompt = `Generate a structured assignment for Nigerian secondary school students on this topic: "${aiTopic}".${courseCtx}
 Return ONLY valid JSON (no markdown, no code fence) with this shape:
 {
   "title": "...",
@@ -114,7 +122,13 @@ Include 3-5 questions. Match difficulty to JSS/SS level.`;
         const res = await fetch('/api/ai/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'assignment', topic: aiTopic }),
+          body: JSON.stringify({
+            type: 'assignment',
+            topic: aiTopic,
+            courseName: selCourse?.title || undefined,
+            subject: selCourse?.title || undefined,
+            programName: selProgramName || undefined,
+          }),
         });
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || 'Generation failed');
