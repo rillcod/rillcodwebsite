@@ -132,14 +132,15 @@ export async function onboardStudentFromProspect(
     name: priorSchoolName ?? prospect.school_name,
   });
 
-  // Class — the parent's/staff's explicit class wins (when it belongs to this
-  // school); otherwise keep the student's current class; else derive one.
-  let classId: string | null = null;
-  if (opts.classId) {
+  // Class — an already-enrolled child KEEPS their current class (e.g. "Python JSS");
+  // a new form never moves them. Only a child with NO class yet gets placed: into
+  // the parent's/staff's explicit class (when it belongs to this school), else a
+  // derived one.
+  let classId: string | null = priorClassId;   // existing enrolment dominates
+  if (!classId && opts.classId) {
     const { data: cls } = await admin.from('classes').select('id, school_id').eq('id', opts.classId).maybeSingle();
     if (cls?.id && (!cls.school_id || cls.school_id === school.id)) classId = cls.id;
   }
-  if (!classId && priorClassId) classId = priorClassId;   // retain the local class they're in
   if (!classId) {
     const className = (opts.className?.trim()) || classNameFromProgram(prospect.course_interest, prospect.grade);
     classId = await ensureClassWithTutor(admin, school.id, school.name, className);
