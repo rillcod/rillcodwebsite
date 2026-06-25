@@ -123,16 +123,17 @@ export async function onboardStudentFromProspect(
     }
   }
 
-  // School — an EXISTING student keeps their current LOCAL school; they are never
-  // relocated to the online fallback. Only brand-new children use the form's school
-  // (prospect.school_id), falling back to the online school when none was provided.
+  // School — PARENT-SUBMITTED registration is authoritative over existing system
+  // data: use the school the parent registered under (consent form / summer form),
+  // fall back to the student's current school, and only the online school as a true
+  // last resort (never silently relocate a known local student to online).
   const school = await resolveOnlineSchool(admin, {
-    id: priorSchoolId ?? prospect.school_id,
-    name: priorSchoolName ?? prospect.school_name,
+    id: prospect.school_id ?? priorSchoolId,
+    name: prospect.school_name ?? priorSchoolName,
   });
 
-  // Class — an explicit staff/form class wins (when it belongs to this school);
-  // otherwise an existing student keeps their current class; else we derive one.
+  // Class — the parent's/staff's explicit class wins (when it belongs to this
+  // school); otherwise keep the student's current class; else derive one.
   let classId: string | null = null;
   if (opts.classId) {
     const { data: cls } = await admin.from('classes').select('id, school_id').eq('id', opts.classId).maybeSingle();
