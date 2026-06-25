@@ -118,12 +118,15 @@ export async function resolveOrCreateStudentRowId(
 
   const { data: pu } = await admin
     .from('portal_users')
-    .select('id, full_name, email, school_id, school_name, section_class, class_id, phone')
+    .select('id, full_name, email, school_id, school_name, section_class, phone')
     .eq('id', portalUserId)
     .maybeSingle();
   if (!pu) return null;
 
   const now = new Date().toISOString();
+  // NOTE: the students table has NO class_id column (class placement lives on
+  // portal_users). Including it here errors the insert (PGRST204) and was the
+  // cause of "Could not resolve or create student record".
   const { data: inserted, error } = await admin
     .from('students')
     .insert({
@@ -134,7 +137,6 @@ export async function resolveOrCreateStudentRowId(
       user_id: (pu as any).id,
       school_id: (pu as any).school_id ?? null,
       school_name: (pu as any).school_name ?? null,
-      class_id: (pu as any).class_id ?? null,
       grade: (pu as any).section_class ?? null,
       grade_level: (pu as any).section_class ?? null,
       current_class: (pu as any).section_class ?? null,

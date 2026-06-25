@@ -495,9 +495,11 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     if (stuErr) console.error('[link-child] students update error:', stuErr.message);
   }
 
-  // Record the link on the lead — only overwrite matched_student_id for the primary child (index 0)
+  // Record the link on the lead — only overwrite matched_student_id for the primary child (index 0).
+  // form_leads.matched_student_id FK references portal_users(id), so store the PORTAL id
+  // (not students.id, which would violate form_leads_matched_student_id_fkey).
   if (effectiveIdx === 0 || !lead.matched_student_id) {
-    const { error: leadErr } = await (sb as any).from('form_leads').update({ matched_student_id: studentRow.id }).eq('id', leadId);
+    const { error: leadErr } = await (sb as any).from('form_leads').update({ matched_student_id: student_portal_id }).eq('id', leadId);
     if (leadErr) return NextResponse.json({ error: `Linked student but failed to update lead record: ${leadErr.message}` }, { status: 500 });
   }
 
