@@ -173,22 +173,36 @@ async function syncStudentProfile(
   studentId: string,
   fields: { sectionClass?: string | null; studentName?: string | null; gender?: string | null },
 ) {
+  // IDENTITY SAFETY: grading must NEVER silently rename or re-identify an account.
+  // Previously this overwrote portal_users.full_name (and class/gender) with the
+  // report's typed values — so a report saved against the wrong account renamed
+  // that account, cascading student-identity corruption. We now only FILL blanks:
+  // a field is written only when the account currently has no value for it. Real
+  // identity edits must be made deliberately in student management, not as a
+  // side-effect of grading.
+  const { data: current } = await admin
+    .from('portal_users')
+    .select('full_name, section_class, gender')
+    .eq('id', studentId)
+    .maybeSingle();
+  const blank = (v: unknown) => v === null || v === undefined || String(v).trim() === '';
+
   const portalUpdate: Record<string, unknown> = {};
   const studentsUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (fields.sectionClass) {
+  if (fields.sectionClass && blank(current?.section_class)) {
     portalUpdate.section_class = fields.sectionClass;
     studentsUpdate.section_class = fields.sectionClass;
     studentsUpdate.current_class = fields.sectionClass;
     studentsUpdate.grade_level   = fields.sectionClass;
   }
-  if (fields.studentName) {
-    portalUpdate.full_name     = fields.studentName;
-    studentsUpdate.full_name   = fields.studentName;
+  if (fields.studentName && blank(current?.full_name)) {
+    portalUpdate.full_name   = fields.studentName;
+    studentsUpdate.full_name = fields.studentName;
   }
-  if (fields.gender) {
-    portalUpdate.gender     = fields.gender;
-    studentsUpdate.gender   = fields.gender;
+  if (fields.gender && blank(current?.gender)) {
+    portalUpdate.gender   = fields.gender;
+    studentsUpdate.gender = fields.gender;
   }
 
   if (Object.keys(portalUpdate).length > 0) {

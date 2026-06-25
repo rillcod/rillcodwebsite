@@ -56,3 +56,8 @@ scripts/setup-admins.mjs
 
 # one-off local DB scripts (service-role access) — never commit
 /scratch_*.js
+
+# Local data exports / backups (contain student PII — never commit)
+report_name_mismatches.csv
+scratch_*.json
+*_backup.json

@@ -1310,7 +1310,10 @@ function ReportBuilderInner() {
                 setExistingReport({ ...payload, id: j.data.id } as unknown as StudentReport);
             }
 
-            // Propagate name / class / gender corrections back to the student's root profile
+            // Propagate ONLY non-identity updates back to the student's root profile.
+            // Name and gender are identity and must NOT be auto-overwritten from a report
+            // (a report on the wrong account would rename it — cascading corruption). We
+            // only fill them when the account has none; class may legitimately change.
             if (!isManual && selectedStudent.id) {
                 const origName = selectedStudent.full_name ?? '';
                 const origClass = (selectedStudent as any).section_class ?? '';
@@ -1318,9 +1321,9 @@ function ReportBuilderInner() {
                 const newName = form.student_name.trim();
                 const newClass = (form.section_class || sessionConfig.section_class || '').trim();
                 const profilePatch: Record<string, string> = {};
-                if (newName && newName !== origName) profilePatch.full_name = newName;
-                if (newClass && newClass !== origClass) profilePatch.section_class = newClass;
-                if (form.gender && form.gender !== origGender) profilePatch.gender = form.gender;
+                if (newName && !origName.trim()) profilePatch.full_name = newName;           // fill-only
+                if (newClass && newClass !== origClass) profilePatch.section_class = newClass; // class can change
+                if (form.gender && !String(origGender).trim()) profilePatch.gender = form.gender; // fill-only
                 if (Object.keys(profilePatch).length > 0) {
                     fetch(`/api/portal-users/${selectedStudent.id}`, {
                         method: 'PATCH',
