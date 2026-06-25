@@ -95,21 +95,31 @@ export async function onboardStudentFromProspect(
   let priorSchoolName: string | null = null;
   let priorClassId: string | null = null;
   if (normalizedParentEmail && fullNameTrimmed) {
+    // NOTE: the students table has NO class_id column — class lives on portal_users.
     const { data } = await admin
       .from('students')
-      .select('id, user_id, student_email, school_id, school_name, class_id')
+      .select('id, user_id, student_email, school_id, school_name')
       .ilike('parent_email', normalizedParentEmail)
       .ilike('full_name', fullNameTrimmed)
       .order('created_at', { ascending: true })
       .limit(1);
-    const prior = (data ?? [])[0] as { id: string; user_id: string | null; student_email: string | null; school_id: string | null; school_name: string | null; class_id: string | null } | undefined;
+    const prior = (data ?? [])[0] as { id: string; user_id: string | null; student_email: string | null; school_id: string | null; school_name: string | null } | undefined;
     if (prior) {
       priorRowId = prior.id;
       priorUserId = prior.user_id ?? null;
       priorStudentEmail = (prior.student_email || '').trim().toLowerCase();
       priorSchoolId = prior.school_id ?? null;
       priorSchoolName = prior.school_name ?? null;
-      priorClassId = prior.class_id ?? null;
+    }
+  }
+  // Retain the existing student's class/school from their PORTAL account (the
+  // authoritative source for placement — students has no class_id).
+  if (priorUserId) {
+    const { data: pu } = await admin.from('portal_users').select('class_id, school_id, school_name').eq('id', priorUserId).maybeSingle();
+    if (pu) {
+      priorClassId = (pu as any).class_id ?? null;
+      priorSchoolId = priorSchoolId ?? (pu as any).school_id ?? null;
+      priorSchoolName = priorSchoolName ?? (pu as any).school_name ?? null;
     }
   }
 
@@ -198,7 +208,8 @@ export async function onboardStudentFromProspect(
     current_class: prospect.grade ?? null,
     school_id: school.id,
     school_name: school.name,
-    class_id: classId,
+    // class_id intentionally omitted — the students table has no class_id column;
+    // class placement is tracked on portal_users (set in the upsert above).
     course_interest: prospect.course_interest || null,
     preferred_schedule: prospect.preferred_schedule ?? null,
     enrollment_type: enrollmentType,
