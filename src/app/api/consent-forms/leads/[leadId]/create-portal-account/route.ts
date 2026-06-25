@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
-import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { syncExplicitParentStudentLink, resolveStudentRowId, resolveOrCreateStudentRowId } from '@/lib/parents/links';
 import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
@@ -115,7 +115,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   if (existing) {
     // Account exists — still link student if needed
     if (lead.matched_student_id && existing.id) {
-      await syncExplicitParentStudentLink(sb as any, existing.id, lead.matched_student_id);
+      // matched_student_id is a portal_users.id; resolve the real students.id.
+      const studentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
+      if (studentRowId) await syncExplicitParentStudentLink(sb as any, existing.id, studentRowId);
 
       const studentOverride: Record<string, unknown> = {
         parent_email: parentEmail,
@@ -127,7 +129,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       if (childClass)  studentOverride.section_class = childClass;
       if (childGender) studentOverride.gender        = childGender;
 
-      await (sb as any).from('students').update(studentOverride).eq('id', lead.matched_student_id);
+      if (studentRowId) await (sb as any).from('students').update(studentOverride).eq('id', studentRowId);
 
       // Keep portal_users in sync for name / class / gender
       const portalStudentOverride: Record<string, unknown> = {};
@@ -146,7 +148,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         const childIdx = match.childIndex;
         const childData = childrenArr?.[childIdx];
 
-        await syncExplicitParentStudentLink(sb as any, existing.id, match.studentId);
+        const siblingRowId = await resolveStudentRowId(sb as any, match.studentId);
+        if (siblingRowId) await syncExplicitParentStudentLink(sb as any, existing.id, siblingRowId);
 
         const siblingOverride: Record<string, unknown> = {
           parent_email: parentEmail,
@@ -158,7 +161,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         if (childData?.class)  siblingOverride.section_class = childData.class;
         if (childData?.gender) siblingOverride.gender        = childData.gender;
 
-        await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
+        if (siblingRowId) await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
 
         const portalSiblingOverride: Record<string, unknown> = {};
         if (childData?.name)   portalSiblingOverride.full_name     = childData.name;
@@ -259,7 +262,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
 
   // Link student if matched + override student record with parent-provided data.
   if (lead.matched_student_id) {
-    await syncExplicitParentStudentLink(sb as any, parentId, lead.matched_student_id);
+    // matched_student_id is a portal_users.id; resolve the real students.id.
+    const studentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
+    if (studentRowId) await syncExplicitParentStudentLink(sb as any, parentId, studentRowId);
 
     const studentOverride: Record<string, unknown> = {
       parent_email: parentEmail,
@@ -271,7 +276,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     if (childClass)  studentOverride.section_class = childClass;
     if (childGender) studentOverride.gender        = childGender;
 
-    await (sb as any).from('students').update(studentOverride).eq('id', lead.matched_student_id);
+    if (studentRowId) await (sb as any).from('students').update(studentOverride).eq('id', studentRowId);
 
     // Keep portal_users in sync for name / class / gender
     const portalStudentOverride: Record<string, unknown> = {};
@@ -291,7 +296,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       const childIdx = match.childIndex;
       const childData = childrenArr?.[childIdx];
 
-      await syncExplicitParentStudentLink(sb as any, parentId, match.studentId);
+      const siblingRowId = await resolveStudentRowId(sb as any, match.studentId);
+      if (siblingRowId) await syncExplicitParentStudentLink(sb as any, parentId, siblingRowId);
 
       const siblingOverride: Record<string, unknown> = {
         parent_email: parentEmail,
@@ -303,7 +309,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       if (childData?.class)  siblingOverride.section_class = childData.class;
       if (childData?.gender) siblingOverride.gender        = childData.gender;
 
-      await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
+      if (siblingRowId) await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
 
       const portalSiblingOverride: Record<string, unknown> = {};
       if (childData?.name)   portalSiblingOverride.full_name     = childData.name;
@@ -453,10 +459,12 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   const effectiveIdx = typeof child_index === 'number' ? child_index : 0;
   const leadGender  = (childrenArr?.[effectiveIdx]?.gender ?? (leadRd.child_gender as string)) || null;
 
-  // Resolve student portal user → students table row
-  const { data: studentRow } = await (sb as any)
-    .from('students').select('id').eq('user_id', student_portal_id).maybeSingle();
-  if (!studentRow) return NextResponse.json({ error: 'Student not found in students table' }, { status: 404 });
+  // Resolve student portal user → students table row. Auto-provision a minimal
+  // students row when none exists (portal-only students, e.g. summer/online),
+  // so manual linking never silently fails.
+  const studentRowId = await resolveOrCreateStudentRowId(sb as any, student_portal_id);
+  if (!studentRowId) return NextResponse.json({ error: 'Could not resolve or create a student record for this account' }, { status: 404 });
+  const studentRow = { id: studentRowId };
 
   // Get parent email/name for denormalisation
   const { data: parent } = await (sb as any)

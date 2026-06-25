@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
-import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { syncExplicitParentStudentLink, resolveStudentRowId } from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,9 +119,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     }
   }
 
+  // candidateId is a portal_users.id; the link junction + students table are
+  // keyed on students.id, so resolve the real student row before linking/updating.
+  const candidateStudentRowId = await resolveStudentRowId(sb as any, candidateId);
+
   // Sync the parent-student link if we resolved a parent and matched a student
-  if (matchedParentId && candidateId) {
-    await syncExplicitParentStudentLink(sb as any, matchedParentId, candidateId);
+  if (matchedParentId && candidateStudentRowId) {
+    await syncExplicitParentStudentLink(sb as any, matchedParentId, candidateStudentRowId);
   }
 
   // Link the lead and mark as contacted
@@ -146,9 +150,12 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   if (childGender) studentOverride.gender        = childGender;
 
   if (Object.keys(studentOverride).length > 0) {
-    // candidateId is portal_users.id (= students.id for enrolled students)
+    // portal_users + auth are keyed on the portal id (candidateId); the students
+    // row is keyed on its own PK (candidateStudentRowId), resolved above.
     await (sb as any).from('portal_users').update(studentOverride).eq('id', candidateId);
-    await (sb as any).from('students').update({ ...studentOverride, updated_at: now }).eq('id', candidateId);
+    if (candidateStudentRowId) {
+      await (sb as any).from('students').update({ ...studentOverride, updated_at: now }).eq('id', candidateStudentRowId);
+    }
     // Keep Supabase auth metadata in sync
     await sb.auth.admin.updateUserById(candidateId, { user_metadata: studentOverride });
   }

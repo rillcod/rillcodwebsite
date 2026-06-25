@@ -94,6 +94,30 @@ async function findStudentMatch(
     }
   }
 
+  // Build the set of portal-student ids that are GENUINELY this parent's children
+  // — via the explicit parent_student_links junction AND the denormalised
+  // parent_email on the student record. The +20 "parent in system" boost must
+  // only apply to a parent's actual children, never to every same-name student,
+  // or it forces false-high-confidence matches.
+  const parentChildUserIds = new Set<string>();
+  try {
+    if (parentPortalId) {
+      const { data: links } = await (sb as any)
+        .from('parent_student_links').select('student_id').eq('parent_id', parentPortalId);
+      const studentRowIds = (links ?? []).map((l: any) => l.student_id).filter(Boolean);
+      if (studentRowIds.length > 0) {
+        const { data: linkedRows } = await (sb as any)
+          .from('students').select('user_id').in('id', studentRowIds);
+        for (const r of linkedRows ?? []) if (r.user_id) parentChildUserIds.add(r.user_id);
+      }
+    }
+    if (parentEmail) {
+      const { data: byEmail } = await (sb as any)
+        .from('students').select('user_id').ilike('parent_email', parentEmail).not('user_id', 'is', null);
+      for (const r of byEmail ?? []) if (r.user_id) parentChildUserIds.add(r.user_id);
+    }
+  } catch { /* non-fatal — fall back to no parent boost */ }
+
   let best: StudentCandidate | null = null;
 
   for (const student of students) {
@@ -104,8 +128,8 @@ async function findStudentMatch(
       ? classOverlap(childClass, student.section_class)
       : 0;
 
-    // Check if this student has a linked parent whose email/phone matches
-    const directParentMatch = parentPortalId !== null; // simplified — parent exists in system
+    // This specific student is the submitting parent's child (linked or by email).
+    const directParentMatch = parentChildUserIds.has(student.id);
 
     let score = nameOv * 10 + classOv * 5;
     if (directParentMatch) score += 20;

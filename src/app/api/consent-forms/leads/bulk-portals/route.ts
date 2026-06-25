@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
-import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { syncExplicitParentStudentLink, resolveStudentRowId } from '@/lib/parents/links';
 import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
@@ -140,14 +140,18 @@ export async function POST(req: NextRequest) {
 
       if (existing) {
         if (lead.matched_student_id && existing.id) {
-          await syncExplicitParentStudentLink(sb as any, existing.id, lead.matched_student_id);
-          await (sb as any).from('students').update({
-            parent_email: parentEmail,
-            parent_name:  parentName,
-            parent_phone: parentPhone || null,
-            ...(childGender ? { gender: childGender } : {}),
-            updated_at:   new Date().toISOString(),
-          }).eq('id', lead.matched_student_id);
+          // matched_student_id is a portal_users.id; resolve the real students.id.
+          const studentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
+          if (studentRowId) {
+            await syncExplicitParentStudentLink(sb as any, existing.id, studentRowId);
+            await (sb as any).from('students').update({
+              parent_email: parentEmail,
+              parent_name:  parentName,
+              parent_phone: parentPhone || null,
+              ...(childGender ? { gender: childGender } : {}),
+              updated_at:   new Date().toISOString(),
+            }).eq('id', studentRowId);
+          }
         }
 
         // Link other matched children (siblings) for existing parent in bulk
@@ -156,7 +160,9 @@ export async function POST(req: NextRequest) {
             const childIdx = match.childIndex;
             const childData = childrenArr?.[childIdx];
 
-            await syncExplicitParentStudentLink(sb as any, existing.id, match.studentId);
+            const siblingRowId = await resolveStudentRowId(sb as any, match.studentId);
+            if (!siblingRowId) continue;
+            await syncExplicitParentStudentLink(sb as any, existing.id, siblingRowId);
 
             const siblingOverride: Record<string, unknown> = {
               parent_email: parentEmail,
@@ -168,7 +174,7 @@ export async function POST(req: NextRequest) {
             if (childData?.class)  siblingOverride.section_class = childData.class;
             if (childData?.gender) siblingOverride.gender        = childData.gender;
 
-            await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
+            await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
           }
         }
 
@@ -244,14 +250,18 @@ export async function POST(req: NextRequest) {
       });
 
       if (lead.matched_student_id) {
-        await syncExplicitParentStudentLink(sb as any, parentId, lead.matched_student_id);
-        await (sb as any).from('students').update({
-          parent_email: parentEmail,
-          parent_name:  parentName,
-          parent_phone: parentPhone || null,
-          ...(childGender ? { gender: childGender } : {}),
-          updated_at:   new Date().toISOString(),
-        }).eq('id', lead.matched_student_id);
+        // matched_student_id is a portal_users.id; resolve the real students.id.
+        const studentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
+        if (studentRowId) {
+          await syncExplicitParentStudentLink(sb as any, parentId, studentRowId);
+          await (sb as any).from('students').update({
+            parent_email: parentEmail,
+            parent_name:  parentName,
+            parent_phone: parentPhone || null,
+            ...(childGender ? { gender: childGender } : {}),
+            updated_at:   new Date().toISOString(),
+          }).eq('id', studentRowId);
+        }
       }
 
       // Link other matched children (siblings) for new parent in bulk
@@ -260,7 +270,9 @@ export async function POST(req: NextRequest) {
           const childIdx = match.childIndex;
           const childData = childrenArr?.[childIdx];
 
-          await syncExplicitParentStudentLink(sb as any, parentId, match.studentId);
+          const siblingRowId = await resolveStudentRowId(sb as any, match.studentId);
+          if (!siblingRowId) continue;
+          await syncExplicitParentStudentLink(sb as any, parentId, siblingRowId);
 
           const siblingOverride: Record<string, unknown> = {
             parent_email: parentEmail,
@@ -272,7 +284,7 @@ export async function POST(req: NextRequest) {
           if (childData?.class)  siblingOverride.section_class = childData.class;
           if (childData?.gender) siblingOverride.gender        = childData.gender;
 
-          await (sb as any).from('students').update(siblingOverride).eq('id', match.studentId);
+          await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
         }
       }
 

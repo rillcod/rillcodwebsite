@@ -75,6 +75,81 @@ export async function getParentLinkScope(
   };
 }
 
+/**
+ * Resolve a student's `students.id` from a value that may be EITHER a
+ * `portal_users.id` (what the matcher writes into match_candidate_id /
+ * matched_student_id) or already a `students.id`.
+ *
+ * `parent_student_links.student_id` and the `students` table are keyed on
+ * `students.id` — but `students.id !== portal_users.id` (students has its own PK
+ * plus a `user_id` FK to the portal account). So any code linking or updating a
+ * *matched* student MUST resolve through here first, or the link points at a
+ * non-existent row and the child never appears on the parent dashboard.
+ *
+ * Resolution order: students.user_id == id  →  students.id == id.
+ * Returns null when neither matches (no student row exists yet).
+ */
+export async function resolveStudentRowId(
+  admin: AnySupabase,
+  idOrUserId: string,
+): Promise<string | null> {
+  if (!idOrUserId) return null;
+  const { data: byUser } = await admin
+    .from('students').select('id').eq('user_id', idOrUserId).limit(1);
+  if ((byUser ?? [])[0]?.id) return (byUser as Array<{ id: string }>)[0].id;
+  const { data: byId } = await admin
+    .from('students').select('id').eq('id', idOrUserId).maybeSingle();
+  return (byId as { id: string } | null)?.id ?? null;
+}
+
+/**
+ * Like {@link resolveStudentRowId} but, when no `students` row exists for the
+ * given portal student, provisions a minimal one (denormalised from the portal
+ * account) so the parent-student link can always be created. Used by the manual
+ * "Link Child" action so it never silently fails for portal-only students
+ * (e.g. summer/online accounts created without a students row).
+ */
+export async function resolveOrCreateStudentRowId(
+  admin: AnySupabase,
+  portalUserId: string,
+): Promise<string | null> {
+  const existing = await resolveStudentRowId(admin, portalUserId);
+  if (existing) return existing;
+
+  const { data: pu } = await admin
+    .from('portal_users')
+    .select('id, full_name, email, school_id, school_name, section_class, class_id, phone')
+    .eq('id', portalUserId)
+    .maybeSingle();
+  if (!pu) return null;
+
+  const now = new Date().toISOString();
+  const { data: inserted, error } = await admin
+    .from('students')
+    .insert({
+      full_name: (pu as any).full_name ?? 'Student',
+      name: (pu as any).full_name ?? 'Student',
+      email: (pu as any).email ?? null,
+      student_email: (pu as any).email ?? null,
+      user_id: (pu as any).id,
+      school_id: (pu as any).school_id ?? null,
+      school_name: (pu as any).school_name ?? null,
+      class_id: (pu as any).class_id ?? null,
+      grade: (pu as any).section_class ?? null,
+      grade_level: (pu as any).section_class ?? null,
+      current_class: (pu as any).section_class ?? null,
+      status: 'approved',
+      is_active: true,
+      is_deleted: false,
+      created_at: now,
+      updated_at: now,
+    })
+    .select('id')
+    .single();
+  if (error) return null;
+  return (inserted as { id: string } | null)?.id ?? null;
+}
+
 export async function syncExplicitParentStudentLink(
   admin: AnySupabase,
   parentId: string,
