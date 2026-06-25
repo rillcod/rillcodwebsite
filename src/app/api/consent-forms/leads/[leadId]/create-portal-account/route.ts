@@ -172,6 +172,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       }
     }
 
+    // Matched (existing) students adopt the class the form was created for.
+    if (formClassId) {
+      const matchedIds = [lead.matched_student_id, ...childMatches.map(m => m.studentId)].filter(Boolean) as string[];
+      if (matchedIds.length) await (sb as any).from('portal_users').update({ class_id: formClassId }).in('id', matchedIds);
+    }
+
     if (!lead.matched_parent_id) {
       await (sb as any).from('form_leads').update({ matched_parent_id: existing.id }).eq('id', leadId);
     }
@@ -309,6 +315,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         await sb.auth.admin.updateUserById(match.studentId, { user_metadata: portalSiblingOverride });
       }
     }
+  }
+
+  // Matched (existing) students adopt the class the form was created for.
+  if (formClassId) {
+    const matchedIds = [lead.matched_student_id, ...childMatches.map(m => m.studentId)].filter(Boolean) as string[];
+    if (matchedIds.length) await (sb as any).from('portal_users').update({ class_id: formClassId }).in('id', matchedIds);
   }
 
   // Onboard any brand-new children (no existing match) into real student accounts

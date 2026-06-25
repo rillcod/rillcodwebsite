@@ -89,7 +89,13 @@ export async function POST(req: NextRequest) {
     log: [] as Array<{ leadId: string; email: string; name: string; channels: string[]; createdAt: string }>,
   };
 
+  // Stop ~10s before the serverless cap so a large batch returns partial progress
+  // (timed_out:true) instead of being killed — staff just re-run to continue.
+  const DEADLINE = Date.now() + 50_000;
+  let timedOut = false;
+
   for (const lead of (leads ?? [])) {
+    if (Date.now() > DEADLINE) { timedOut = true; break; }
     if (profile.role !== 'admin' && lead.school_id !== profile.school_id) {
       results.errors.push({ leadId: lead.id, error: 'Forbidden: lead belongs to a different school' });
       continue;
@@ -119,6 +125,13 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      // Matched (existing) students adopt the class the form was created for.
+      const leadFormClassId = formClassById[lead.form_id] ?? null;
+      if (leadFormClassId) {
+        const matchedIds = [lead.matched_student_id, ...childMatches.map(m => m.studentId)].filter(Boolean) as string[];
+        if (matchedIds.length) await (sb as any).from('portal_users').update({ class_id: leadFormClassId }).in('id', matchedIds);
+      }
+
       const { data: existing } = await (sb as any)
         .from('portal_users')
         .select('id, email')
@@ -352,5 +365,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json(results);
+  return NextResponse.json({ ...results, timed_out: timedOut });
 }
