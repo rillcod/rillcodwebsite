@@ -63,11 +63,20 @@ export async function POST(req: NextRequest) {
 
   const { data: leads, error: leadsErr } = await (sb as any)
     .from('form_leads')
-    .select('id, school_id, email, response_data, matched_student_id, matched_parent_id')
+    .select('id, form_id, school_id, email, response_data, matched_student_id, matched_parent_id')
     .in('id', leadIds);
 
   if (leadsErr) {
     return NextResponse.json({ error: leadsErr.message }, { status: 500 });
+  }
+
+  // Map each form to the class it was created for, so bulk-onboarded students are
+  // placed in the form's class (the bulk flow was previously class-blind).
+  const formIds = Array.from(new Set((leads ?? []).map((l: any) => l.form_id).filter(Boolean)));
+  const formClassById: Record<string, string | null> = {};
+  if (formIds.length > 0) {
+    const { data: forms } = await (sb as any).from('consent_forms').select('id, class_id').in('id', formIds);
+    for (const f of forms ?? []) formClassById[f.id] = f.class_id ?? null;
   }
 
   const results = {
@@ -153,6 +162,7 @@ export async function POST(req: NextRequest) {
         // Onboard any brand-new children into real student accounts + link them.
         const newStudents = await onboardLeadChildren(sb as any, {
           lead, parentId: existing.id, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
+          classId: formClassById[lead.form_id] ?? null,
         });
         results.students_onboarded += newStudents.length;
         if (newStudents.length > 0 && existing.email) {
@@ -256,6 +266,7 @@ export async function POST(req: NextRequest) {
       // Onboard any brand-new children into real student accounts + link them.
       const newStudents = await onboardLeadChildren(sb as any, {
         lead, parentId, parentEmail, parentName, parentPhone: parentPhone || null, approvedBy: user.id,
+        classId: formClassById[lead.form_id] ?? null,
       });
       results.students_onboarded += newStudents.length;
       const studentCredsBlock = newStudents.length > 0

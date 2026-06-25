@@ -1873,6 +1873,7 @@ export type Database = {
       consent_forms: {
         Row: {
           body: string
+          class_id: string | null
           created_at: string
           created_by: string
           due_date: string | null
@@ -1884,6 +1885,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          class_id?: string | null
           created_at?: string
           created_by: string
           due_date?: string | null
@@ -1895,6 +1897,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          class_id?: string | null
           created_at?: string
           created_by?: string
           due_date?: string | null
@@ -1905,6 +1908,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "consent_forms_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "consent_forms_created_by_fkey"
             columns: ["created_by"]
@@ -2052,13 +2062,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "content_library_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "content_library_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
@@ -2091,6 +2094,13 @@ export type Database = {
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_library_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
             referencedColumns: ["id"]
           },
           {

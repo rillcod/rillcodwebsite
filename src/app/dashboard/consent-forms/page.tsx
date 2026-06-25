@@ -947,8 +947,9 @@ export default function ConsentFormsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [newForm, setNewForm] = useState({ title: '', body: '', due_date: '', form_type: 'general', school_id: '' });
+  const [newForm, setNewForm] = useState({ title: '', body: '', due_date: '', form_type: 'general', school_id: '', class_id: '' });
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
 
   // Edit modal
   const [editingForm, setEditingForm] = useState<ConsentForm & { school_id?: string } | null>(null);
@@ -1031,6 +1032,19 @@ export default function ConsentFormsPage() {
 
   useEffect(() => { loadForms(); }, [loadForms]);
 
+  // Load classes for the form's target-class picker, scoped to the chosen (admin)
+  // or own (teacher/school) school.
+  useEffect(() => {
+    const schoolForClasses = newForm.school_id || (profile?.role !== 'admin' ? (profile?.school_id ?? '') : '');
+    if (!schoolForClasses) { setClasses([]); return; }
+    let active = true;
+    fetch(`/api/classes?school_id=${schoolForClasses}`)
+      .then(r => (r.ok ? r.json() : { data: [] }))
+      .then(j => { if (active) setClasses(j.data ?? []); })
+      .catch(() => { if (active) setClasses([]); });
+    return () => { active = false; };
+  }, [newForm.school_id, profile?.school_id, profile?.role]);
+
   // ── Create ────────────────────────────────────────────────────────────────
 
   async function createForm() {
@@ -1045,7 +1059,7 @@ export default function ConsentFormsPage() {
       const json = await res.json();
       if (!res.ok) { setCreateError(json.error || 'Failed'); return; }
       setForms(prev => [{ ...json.data, has_signed: false }, ...prev]);
-      setNewForm({ title: '', body: '', due_date: '', form_type: 'general', school_id: '' });
+      setNewForm({ title: '', body: '', due_date: '', form_type: 'general', school_id: '', class_id: '' });
       setShowCreate(false);
     } finally { setCreating(false); }
   }
@@ -1462,7 +1476,7 @@ export default function ConsentFormsPage() {
                       <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">School</label>
                       <select
                         value={newForm.school_id}
-                        onChange={e => setNewForm(f => ({ ...f, school_id: e.target.value }))}
+                        onChange={e => setNewForm(f => ({ ...f, school_id: e.target.value, class_id: '' }))}
                         className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
                       >
                         <option value="">— Auto (first school) —</option>
@@ -1472,6 +1486,22 @@ export default function ConsentFormsPage() {
                       </select>
                     </div>
                   )}
+                  <div>
+                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
+                      Class <span className="normal-case font-normal text-muted-foreground/70">(optional — students from this form join this class)</span>
+                    </label>
+                    <select
+                      value={newForm.class_id}
+                      onChange={e => setNewForm(f => ({ ...f, class_id: e.target.value }))}
+                      disabled={classes.length === 0}
+                      className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors disabled:opacity-50"
+                    >
+                      <option value="">{classes.length === 0 ? '— No classes for this school —' : '— No specific class (use child’s grade) —'}</option>
+                      {classes.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {createError && (

@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { title, body, due_date, form_type, school_id: bodySchoolId } = await req.json();
+  const { title, body, due_date, form_type, school_id: bodySchoolId, class_id: bodyClassId } = await req.json();
   if (!title?.trim() || !body?.trim()) {
     return NextResponse.json({ error: 'Title and body are required' }, { status: 400 });
   }
@@ -139,6 +139,7 @@ export async function POST(req: NextRequest) {
       created_by: user.id,
       school_id: schoolId,
       form_type: form_type ?? 'general',
+      class_id: bodyClassId || null,
     })
     .select()
     .single();

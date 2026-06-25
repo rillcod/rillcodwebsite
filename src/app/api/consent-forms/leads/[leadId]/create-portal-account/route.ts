@@ -51,11 +51,19 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   // Fetch lead
   const { data: lead, error: leadErr } = await (sb as any)
     .from('form_leads')
-    .select('id, school_id, matched_school_id, email, response_data, matched_student_id, matched_parent_id')
+    .select('id, form_id, school_id, matched_school_id, email, response_data, matched_student_id, matched_parent_id')
     .eq('id', leadId)
     .single();
 
   if (leadErr || !lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+
+  // The class the FORM was created for — used to place new students unless staff
+  // explicitly chose a different class on this action.
+  let formClassId: string | null = null;
+  if (lead.form_id) {
+    const { data: formRow } = await (sb as any).from('consent_forms').select('class_id').eq('id', lead.form_id).maybeSingle();
+    formClassId = (formRow?.class_id as string) ?? null;
+  }
   if (profile.role !== 'admin' && lead.school_id !== profile.school_id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
@@ -91,7 +99,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   const onboardUnmatchedChildren = (parentId: string) =>
     onboardLeadChildren(sb as any, {
       lead, parentId, parentEmail, parentName, parentPhone: parentPhone || null,
-      approvedBy: user.id, classId: overrideClassId, className: overrideClassName,
+      approvedBy: user.id,
+      // staff override wins, else the class the form was created for.
+      classId: overrideClassId || formClassId,
+      className: overrideClassName,
     });
 
   // Check if portal account already exists
