@@ -129,11 +129,12 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // Matched (existing) students adopt the class the form was created for.
+      // Matched (existing) students RETAIN their current class — only place those who
+      // have none yet (fill a blank, never move a student from where they already are).
       const leadFormClassId = formClassById[lead.form_id] ?? null;
       if (leadFormClassId) {
         const matchedIds = [lead.matched_student_id, ...childMatches.map(m => m.studentId)].filter(Boolean) as string[];
-        if (matchedIds.length) await (sb as any).from('portal_users').update({ class_id: leadFormClassId }).in('id', matchedIds);
+        if (matchedIds.length) await (sb as any).from('portal_users').update({ class_id: leadFormClassId }).in('id', matchedIds).is('class_id', null);
       }
 
       const { data: existing } = await (sb as any)
