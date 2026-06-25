@@ -76,6 +76,17 @@ export async function GET(req: NextRequest) {
 
     let contacts: any[] = (portalUsers || []).map((u: any) => ({ ...u, pipeline_stage: stageMap[u.id] }));
 
+    // CRM carries GENUINE, contactable people only — exclude system-generated student
+    // logins (e.g. mike123@rillcod.com) and no-email placeholders (@noemail.local), so
+    // staff always know these are real records to contact. Phone-only contacts (no
+    // email) are kept. The auto-generated logins live in the operational Records sheet
+    // (/dashboard/records → Registrations & Logins), not here.
+    const isSystemEmail = (e?: string | null) => {
+      const x = (e || '').trim().toLowerCase();
+      return x.endsWith('@rillcod.com') || x.endsWith('@noemail.local');
+    };
+    contacts = contacts.filter((c: any) => !isSystemEmail(c.email));
+
     // Enrich parents: resolve school_name from their linked students (consent-form flow)
     // and compute children_count. One query covers both.
     const parentContacts = contacts.filter(c => c.role === 'parent' && c.email);

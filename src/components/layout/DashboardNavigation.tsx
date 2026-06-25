@@ -131,6 +131,7 @@ export default function DashboardNavigation() {
         return filterEntries([
           ...base,
           { divider: true, label: 'People' },
+          { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'Schools', href: '/dashboard/schools', icon: BuildingOfficeIcon },
           { name: 'Teachers', href: '/dashboard/teachers', icon: AcademicCapIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
