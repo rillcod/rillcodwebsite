@@ -150,9 +150,12 @@ export async function POST(req: NextRequest) {
       console.error('[ensure-onboarded] CRM contact-book sync failed:', syncErr);
     }
 
-    // Deliver the single welcome email — it carries both logins, next steps, AND
-    // the receipt PDF as an attachment (no separate receipt email → avoids spam).
-    await sendSummerCredentials(onboard, prospect as any);
+    // Deliver the welcome email ONLY when an account was freshly created this run.
+    // On re-runs (page refresh, second webhook) the accounts already exist and we no
+    // longer reset passwords — so re-sending would just spam a stale/again email.
+    if (onboard.student.created || onboard.parent?.created) {
+      await sendSummerCredentials(onboard, prospect as any);
+    }
 
     return NextResponse.json({
       onboarded: true,

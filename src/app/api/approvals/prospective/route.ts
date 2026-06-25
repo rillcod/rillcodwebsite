@@ -136,10 +136,14 @@ export async function POST(request: NextRequest) {
 
     // Single welcome email: both logins, next steps, and the receipt PDF attached
     // (no separate receipt email → avoids spam). WhatsApp too when opted in.
-    try {
-      await sendSummerCredentials(onboard, record as any);
-    } catch (mailErr) {
-      console.error('Failed to send onboarding credentials on manual approval:', mailErr);
+    // Only on first creation — a repeat approval reuses existing accounts (no
+    // password reset), so re-sending would just spam with no fresh credentials.
+    if (onboard.student.created || onboard.parent?.created) {
+      try {
+        await sendSummerCredentials(onboard, record as any);
+      } catch (mailErr) {
+        console.error('Failed to send onboarding credentials on manual approval:', mailErr);
+      }
     }
 
     return NextResponse.json({

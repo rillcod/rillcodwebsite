@@ -291,15 +291,14 @@ export async function onboardSummerStudent(
   }
 
   if (studentPortalId) {
-    // Reuse the existing student account — refresh password + metadata.
+    // Reuse the existing student account — do NOT reset its password (a re-run from
+    // a page refresh or a second webhook would otherwise change the password and
+    // lock out a student who already logged in) and do NOT rename it. Just resolve
+    // the login email so messaging can reference it.
     if (!studentEmail) {
       const { data: pu } = await admin.from('portal_users').select('email').eq('id', studentPortalId).maybeSingle();
       studentEmail = (pu?.email || await generateUniqueStudentLoginEmail(admin, prospect.full_name)).toLowerCase();
     }
-    await admin.auth.admin.updateUserById(studentPortalId, {
-      password: studentPw,
-      user_metadata: { full_name: prospect.full_name, role: 'student' },
-    });
   } else {
     studentEmail = await generateUniqueStudentLoginEmail(admin, prospect.full_name);
     const { data: created, error } = await admin.auth.admin.createUser({
@@ -432,7 +431,9 @@ export async function onboardSummerStudent(
         .update({ student_count: (existingBatch.student_count ?? 0) + 1 })
         .eq('id', batchId);
     }
-    if (batchId) {
+    if (batchId && studentCreated) {
+      // Only archive on first creation — re-runs reuse the account (no new password),
+      // so we never write duplicate archive rows or a stale password.
       await admin.from('registration_results').insert({
         batch_id: batchId,
         full_name: prospect.full_name,
@@ -522,7 +523,7 @@ export async function onboardSummerStudent(
 
   return {
     parent,
-    student: { id: studentPortalId, studentRowId, email: studentEmail, password: studentPw, created: studentCreated },
+    student: { id: studentPortalId, studentRowId, email: studentEmail, password: studentCreated ? studentPw : null, created: studentCreated },
     schoolId: school.id,
     schoolName: school.name,
     whatsappOptIn,
@@ -554,10 +555,16 @@ export async function sendSummerCredentials(
        </div>`
     : '';
 
+  // Show the temporary password only when the student account was freshly created
+  // this run; for a returning account we never reset it, so we don't leak/print a
+  // stale value — we point them to their existing password / reset instead.
+  const studentPwLine = result.student.password
+    ? `<p style="margin:6px 0;font-size:14px;color:#f59e0b;font-family:monospace;"><strong>Temporary Password:</strong> ${result.student.password}</p>`
+    : `<p style="margin:6px 0;font-size:12px;color:#71717a;">Use the password from your earlier welcome email, or reset it at <a href="${appUrl}/login" style="color:#7c3aed;">${appUrl}/login</a>.</p>`;
   const studentBlock = `<div style="margin:16px 0;padding:15px;background:#141618;border:1px solid #2a2d33;border-radius:8px;">
        <p style="margin:0 0 8px;font-size:11px;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Student Portal Login</p>
        <p style="margin:6px 0;font-size:14px;color:#fff;font-family:monospace;"><strong>Email:</strong> ${result.student.email}</p>
-       <p style="margin:6px 0;font-size:14px;color:#f59e0b;font-family:monospace;"><strong>Temporary Password:</strong> ${result.student.password}</p>
+       ${studentPwLine}
        <p style="margin:8px 0 0;font-size:11px;color:#71717a;">Your child logs in to lessons, assignments and the playground at <a href="${appUrl}/login" style="color:#7c3aed;">${appUrl}/login</a>.</p>
      </div>`;
 
