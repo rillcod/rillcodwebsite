@@ -449,19 +449,25 @@ export async function POST(request: Request) {
           class_name: batchClassName || null,
         }, { onConflict: 'id' });
 
-        // 2. Map results to history entries
-        const historyEntries = results.map(r => ({
-          batch_id: batchId,
-          full_name: r.full_name,
-          email: r.email,
-          password: r.password,
-          class_name: r.class_name || null,
-          status: r.status,
-          error: r.error || null
-        }));
-        
+        // 2. Map results to history entries — only archive registrations that
+        // actually produced a live account. 'failed' / 'name_swap_conflict' never
+        // create one, so archiving them would leave a credential row with no account
+        // that surfaces forever as "Deleted". (Account deletions are auto-purged by
+        // the trg_purge_registration_archive trigger.)
+        const historyEntries = results
+          .filter(r => ['created', 'updated', 'skipped'].includes(r.status))
+          .map(r => ({
+            batch_id: batchId,
+            full_name: r.full_name,
+            email: r.email,
+            password: r.password,
+            class_name: r.class_name || null,
+            status: r.status,
+            error: r.error || null
+          }));
+
         // 3. Insert results
-        await supabaseAdmin.from('registration_results').insert(historyEntries);
+        if (historyEntries.length > 0) await supabaseAdmin.from('registration_results').insert(historyEntries);
         
         // 4. Update student count on batch
         await supabaseAdmin
