@@ -83,62 +83,70 @@ export async function onboardStudentFromProspect(
   const parentName = prospect.parent_name || 'Parent/Guardian';
   const enrollmentType = opts.enrollmentType || 'in_person';
 
-  // School — use the school the family filled (prospect.school_id); only fall back
-  // to the online school when none was provided.
-  const school = await resolveOnlineSchool(admin, { id: prospect.school_id, name: prospect.school_name });
+  // ── Reuse an existing student row for this parent + child name FIRST — so we never
+  // create a duplicate AND never relocate a child who is already enrolled somewhere.
+  // Robust against multiple matches (limit 1), case/space differences, and rows that
+  // exist WITHOUT a portal account yet.
+  const fullNameTrimmed = (prospect.full_name || '').trim().replace(/\s+/g, ' ');
+  let priorRowId: string | null = null;
+  let priorUserId: string | null = null;
+  let priorStudentEmail = '';
+  let priorSchoolId: string | null = null;
+  let priorSchoolName: string | null = null;
+  let priorClassId: string | null = null;
+  if (normalizedParentEmail && fullNameTrimmed) {
+    const { data } = await admin
+      .from('students')
+      .select('id, user_id, student_email, school_id, school_name, class_id')
+      .ilike('parent_email', normalizedParentEmail)
+      .ilike('full_name', fullNameTrimmed)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const prior = (data ?? [])[0] as { id: string; user_id: string | null; student_email: string | null; school_id: string | null; school_name: string | null; class_id: string | null } | undefined;
+    if (prior) {
+      priorRowId = prior.id;
+      priorUserId = prior.user_id ?? null;
+      priorStudentEmail = (prior.student_email || '').trim().toLowerCase();
+      priorSchoolId = prior.school_id ?? null;
+      priorSchoolName = prior.school_name ?? null;
+      priorClassId = prior.class_id ?? null;
+    }
+  }
 
-  // Class — staff may pass an explicit class (existing id or a name to create);
-  // otherwise derive one from the programme/grade and find-or-create it.
+  // School — an EXISTING student keeps their current LOCAL school; they are never
+  // relocated to the online fallback. Only brand-new children use the form's school
+  // (prospect.school_id), falling back to the online school when none was provided.
+  const school = await resolveOnlineSchool(admin, {
+    id: priorSchoolId ?? prospect.school_id,
+    name: priorSchoolName ?? prospect.school_name,
+  });
+
+  // Class — an explicit staff/form class wins (when it belongs to this school);
+  // otherwise an existing student keeps their current class; else we derive one.
   let classId: string | null = null;
   if (opts.classId) {
     const { data: cls } = await admin.from('classes').select('id, school_id').eq('id', opts.classId).maybeSingle();
-    // Only honour the class if it belongs to this school (or has none set).
     if (cls?.id && (!cls.school_id || cls.school_id === school.id)) classId = cls.id;
   }
+  if (!classId && priorClassId) classId = priorClassId;   // retain the local class they're in
   if (!classId) {
     const className = (opts.className?.trim()) || classNameFromProgram(prospect.course_interest, prospect.grade);
     classId = await ensureClassWithTutor(admin, school.id, school.name, className);
   }
 
-  // Student account — reuse the existing student row for this parent + child name
-  // so we never create a duplicate. Robust against: multiple matches (limit 1,
-  // no maybeSingle which errors on >1 row), case/space differences (ilike on a
-  // trimmed name), and rows that exist WITHOUT a portal account yet (we attach to
-  // them rather than inserting a new student).
-  let studentPortalId: string | null = null;
-  let studentEmail = '';
+  // Student account.
+  let studentPortalId: string | null = priorUserId;
+  let studentEmail = priorStudentEmail;
   let studentCreated = false;
-  let priorRowId: string | null = null;
-  const fullNameTrimmed = (prospect.full_name || '').trim().replace(/\s+/g, ' ');
-
-  if (normalizedParentEmail && fullNameTrimmed) {
-    const { data } = await admin
-      .from('students')
-      .select('id, user_id, student_email')
-      .ilike('parent_email', normalizedParentEmail)
-      .ilike('full_name', fullNameTrimmed)
-      .order('created_at', { ascending: true })
-      .limit(1);
-    const prior = (data ?? [])[0];
-    if (prior) {
-      priorRowId = prior.id;
-      if (prior.user_id) {
-        studentPortalId = prior.user_id;
-        studentEmail = (prior.student_email || '').trim().toLowerCase();
-      }
-    }
-  }
 
   const studentPw = tempPassword();
   if (studentPortalId) {
+    // Reuse the existing account — resolve its login email but DO NOT reset the
+    // password (a re-onboard would otherwise lock out a child who already logged in).
     if (!studentEmail) {
       const { data: pu } = await admin.from('portal_users').select('email').eq('id', studentPortalId).maybeSingle();
       studentEmail = (pu?.email || await generateUniqueStudentLoginEmail(admin, prospect.full_name)).toLowerCase();
     }
-    await admin.auth.admin.updateUserById(studentPortalId, {
-      password: studentPw,
-      user_metadata: { full_name: prospect.full_name, role: 'student' },
-    });
   } else {
     studentEmail = await generateUniqueStudentLoginEmail(admin, prospect.full_name);
     const { data: created, error } = await admin.auth.admin.createUser({
