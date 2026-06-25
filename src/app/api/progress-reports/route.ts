@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
-  const { existing_id } = body;
+  let targetId = body.existing_id;
 
   // Whitelist allowed fields to prevent unintended column injection
   const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
@@ -104,11 +104,26 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (existing_id) {
+  // SERVER-SIDE DEDUP: a student has at most ONE report per
+  // (course · term · academic year · teacher). If the client didn't pass an
+  // existing_id but a matching report already exists, update it instead of
+  // inserting a duplicate — the database is the source of truth, not the client.
+  if (!targetId && insertPayload.student_id) {
+    let q = admin.from('student_progress_reports').select('id')
+      .eq('student_id', String(insertPayload.student_id))
+      .eq('teacher_id', caller.id);
+    q = insertPayload.course_id ? q.eq('course_id', String(insertPayload.course_id)) : q.is('course_id', null);
+    q = insertPayload.report_term ? q.eq('report_term', String(insertPayload.report_term)) : q.is('report_term', null);
+    q = insertPayload.report_period ? q.eq('report_period', String(insertPayload.report_period)) : q.is('report_period', null);
+    const { data: found } = await q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
+    if (found) targetId = (found as { id: string }).id;
+  }
+
+  if (targetId) {
     const { data: existingReport } = await admin
       .from('student_progress_reports')
       .select('teacher_id, instructor_name')
-      .eq('id', existing_id)
+      .eq('id', targetId)
       .maybeSingle();
     if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
 
@@ -127,7 +142,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await admin
       .from('student_progress_reports')
       .update(updatePayload)
-      .eq('id', existing_id)
+      .eq('id', targetId)
       .select('id')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
