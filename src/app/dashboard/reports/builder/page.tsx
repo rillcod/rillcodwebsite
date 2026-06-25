@@ -3322,8 +3322,9 @@ function ReportBuilderInner() {
                                     </span>
                                 </div>
 
-                                {/* Actions row */}
-                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                {/* Actions row — scrolls horizontally on very narrow phones instead
+                                    of overflowing the page; normal layout once it fits. */}
+                                <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto lg:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                     <button onClick={() => handleSave(false)} disabled={saving || publishing}
                                         className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-card shadow-sm hover:bg-muted text-foreground text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 flex-shrink-0">
                                         {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CloudArrowUpIcon className="w-3.5 h-3.5" />}
