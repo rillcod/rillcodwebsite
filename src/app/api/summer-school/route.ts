@@ -209,19 +209,54 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSummerSchoolAdminClient();
+    const studentNameTrimmed = student_name.trim();
+
+    // Duplicate guard — scoped to THIS child (parent_email + name) so a parent can
+    // still register siblings. Already paid/active → blocked (already enrolled);
+    // partially paid → sent to "pay balance"; in-progress unpaid/pending → blocked
+    // only within 24h so an abandoned attempt can be retried later.
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: recentDup } = await supabase
+    const { data: childRegs } = await supabase
       .from('prospective_students')
-      .select('id')
+      .select('id, status, created_at')
       .eq('parent_email', emailNorm)
+      .ilike('full_name', studentNameTrimmed)
       .ilike('course_interest', '%Summer School%')
-      .in('status', ['unpaid', 'pending_verification', 'partially_paid'])
-      .gte('created_at', twentyFourHoursAgo)
+      .in('status', ['unpaid', 'pending_verification', 'partially_paid', 'paid', 'active'])
+      .order('created_at', { ascending: false });
+
+    const settled    = (childRegs ?? []).find((r: any) => ['paid', 'active'].includes(r.status));
+    const owing      = (childRegs ?? []).find((r: any) => r.status === 'partially_paid');
+    const inProgress = (childRegs ?? []).find((r: any) =>
+      ['unpaid', 'pending_verification'].includes(r.status) && r.created_at >= twentyFourHoursAgo);
+
+    // Also catch a child who is already a live summer-school student even if the
+    // prospect status drifted (account is the source of truth).
+    const { data: enrolledChild } = await supabase
+      .from('students')
+      .select('id')
+      .ilike('parent_email', emailNorm)
+      .ilike('full_name', studentNameTrimmed)
+      .eq('enrollment_type', 'summer_school')
+      .eq('is_active', true)
+      .limit(1)
       .maybeSingle();
 
-    if (recentDup) {
+    if (settled || enrolledChild) {
       return NextResponse.json(
-        { error: 'A registration for this email is already in progress. Check your email or contact support.' },
+        { error: `${studentNameTrimmed} is already registered for Summer School 2026. Please log in, or contact support if you need help — no need to register again.` },
+        { status: 409 }
+      );
+    }
+    if (owing) {
+      return NextResponse.json(
+        { error: `${studentNameTrimmed} is already registered with an outstanding balance. Please use the “Pay Balance” option or contact support — no need to register again.` },
+        { status: 409 }
+      );
+    }
+    if (inProgress) {
+      return NextResponse.json(
+        { error: 'A registration for this child is already in progress. Check your email to complete payment, or contact support.' },
         { status: 409 }
       );
     }
