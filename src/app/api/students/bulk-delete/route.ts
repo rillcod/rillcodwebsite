@@ -98,6 +98,23 @@ export async function POST(request: Request) {
     // Delete students registration rows — prevents orphaned records and re-registration duplicates
     await supabaseAdmin.from('students').delete().in('user_id', safeIds);
 
+    // ── Harmonise the bulk-register archive: a deleted student must also leave
+    // the registration_results history (keyed by email), and any batch left empty
+    // is pruned, so the archive always reflects live students only. ──
+    const deletedEmails = (verified ?? []).map((u) => u.email).filter(Boolean) as string[];
+    if (deletedEmails.length > 0) {
+      const { data: archRows } = await supabaseAdmin
+        .from('registration_results').select('batch_id').in('email', deletedEmails);
+      const affectedBatchIds = [...new Set((archRows ?? []).map((r: any) => r.batch_id).filter(Boolean))];
+      await supabaseAdmin.from('registration_results').delete().in('email', deletedEmails);
+      for (const bId of affectedBatchIds) {
+        const { count } = await supabaseAdmin
+          .from('registration_results').select('id', { count: 'exact', head: true }).eq('batch_id', bId);
+        if ((count ?? 0) === 0) await supabaseAdmin.from('registration_batches').delete().eq('id', bId);
+        else await supabaseAdmin.from('registration_batches').update({ student_count: count }).eq('id', bId);
+      }
+    }
+
     // ── Step 3: Delete portal_users rows (triggers 14 CASCADE deletes) ───
     const { error: profileDeleteErr } = await supabaseAdmin
       .from('portal_users')

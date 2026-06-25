@@ -128,12 +128,28 @@ export async function DELETE(
     }
 
     if (student?.user_id) {
+        // Capture the login email first so we can purge the bulk-register archive.
+        const { data: pu } = await admin.from('portal_users').select('email').eq('id', student.user_id).maybeSingle();
         await admin.from('files').update({ uploaded_by: null }).eq('uploaded_by', student.user_id);
         await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', student.user_id);
         await admin.from('study_group_members').delete().eq('user_id', student.user_id);
         await admin.from('study_groups').update({ created_by: null }).eq('created_by', student.user_id);
         await admin.from('portal_users').delete().eq('id', student.user_id);
         await admin.auth.admin.deleteUser(student.user_id);
+
+        // Harmonise the bulk-register archive (keyed by email): drop this student's
+        // history row and prune the batch if it becomes empty.
+        const email = (pu as { email?: string } | null)?.email;
+        if (email) {
+            const { data: archRows } = await admin.from('registration_results').select('batch_id').eq('email', email);
+            const batchIds = [...new Set((archRows ?? []).map((r: any) => r.batch_id).filter(Boolean))];
+            await admin.from('registration_results').delete().eq('email', email);
+            for (const bId of batchIds) {
+                const { count } = await admin.from('registration_results').select('id', { count: 'exact', head: true }).eq('batch_id', bId);
+                if ((count ?? 0) === 0) await admin.from('registration_batches').delete().eq('id', bId);
+                else await admin.from('registration_batches').update({ student_count: count }).eq('id', bId);
+            }
+        }
     }
 
     const { error } = await admin.from('students').delete().eq('id', id);
