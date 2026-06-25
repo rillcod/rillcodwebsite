@@ -453,6 +453,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     .eq('id', leadId).single();
 
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+  if (!(await canAccessSchool(user.id, profile, lead.school_id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (!lead.matched_parent_id) return NextResponse.json({ error: 'No portal account on this lead yet' }, { status: 400 });
 
   const leadRd      = (lead.response_data ?? {}) as Record<string, unknown>;

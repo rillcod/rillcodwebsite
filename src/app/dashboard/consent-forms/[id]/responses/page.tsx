@@ -543,7 +543,9 @@ export default function ResponsesPage() {
   const [linkChildIndex, setLinkChildIndex]      = useState(0);
   const [additionalLinks, setAdditionalLinks]    = useState<Record<string, Array<{ childIndex: number; studentId: string; studentName: string }>>>({});
   const [studentSearch, setStudentSearch]        = useState('');
-  const [studentOptions, setStudentOptions]      = useState<{ id: string; full_name: string; section_class: string | null }[]>([]);
+  type StudentOpt = { id: string; full_name: string; section_class: string | null; school_name?: string | null; suggested?: boolean };
+  const [studentOptions, setStudentOptions]      = useState<StudentOpt[]>([]);
+  const [allStudentOptions, setAllStudentOptions] = useState<StudentOpt[]>([]);
   const [studentsLoading, setStudentsLoading]    = useState(false);
   const [linkingStudentId, setLinkingStudentId]  = useState<string | null>(null);
 
@@ -713,26 +715,35 @@ export default function ResponsesPage() {
 
   // ── Link child to parent portal account ─────────────────────────────────
 
-  async function openLinkChild(leadId: string, childName: string, childIndex = 0) {
+  async function openLinkChild(leadId: string, _childName: string, childIndex = 0) {
     setLinkChildLeadId(leadId);
     setLinkChildIndex(childIndex);
-    setStudentSearch(childName);
+    setStudentSearch('');
     setStudentsLoading(true);
+    setStudentOptions([]);
+    setAllStudentOptions([]);
     try {
-      const res  = await fetch(`/api/parents/manage?include_picker_data=true`);
-      const json = await res.json();
-      const q    = childName.toLowerCase();
-      const all  = (json.students ?? []) as { id: string; full_name: string; section_class: string | null }[];
-      setStudentOptions(q ? all.filter(s => s.full_name.toLowerCase().includes(q)) : all.slice(0, 40));
+      // Lead-scoped, name-ranked candidates (correct school, best matches first).
+      const res  = await fetch(`/api/consent-forms/leads/${leadId}/match-students?child_index=${childIndex}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json.error ?? 'Could not load students for linking');
+        return;
+      }
+      const all = (json.students ?? []) as StudentOpt[];
+      setAllStudentOptions(all);
+      setStudentOptions(all);
+    } catch {
+      toast.error('Could not load students for linking');
     } finally {
       setStudentsLoading(false);
     }
   }
 
-  function filterStudentOptions(q: string, all: typeof studentOptions) {
-    const lower = q.toLowerCase();
+  function filterStudentOptions(q: string) {
+    const lower = q.trim().toLowerCase();
     setStudentSearch(q);
-    setStudentOptions(lower ? all.filter(s => s.full_name.toLowerCase().includes(lower)) : all.slice(0, 40));
+    setStudentOptions(lower ? allStudentOptions.filter(s => s.full_name.toLowerCase().includes(lower)) : allStudentOptions);
   }
 
   async function linkStudentToParent(leadId: string, studentPortalId: string) {
@@ -2029,13 +2040,8 @@ export default function ResponsesPage() {
                 <input
                   type="search"
                   value={studentSearch}
-                  onChange={e => {
-                    const q = e.target.value;
-                    setStudentSearch(q);
-                    if (!q) openLinkChild(linkChildLeadId, '', linkChildIndex);
-                    else setStudentOptions(prev => prev.filter(s => s.full_name.toLowerCase().includes(q.toLowerCase())));
-                  }}
-                  placeholder="Search by student name…"
+                  onChange={e => filterStudentOptions(e.target.value)}
+                  placeholder="Search students in this school…"
                   className="w-full bg-background border border-border text-foreground text-sm px-3 py-2 rounded-xl focus:outline-none focus:border-primary transition-colors"
                 />
 
@@ -2044,20 +2050,33 @@ export default function ResponsesPage() {
                     <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : studentOptions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">No students found matching that name.</p>
+                  <div className="text-center py-5 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      {allStudentOptions.length === 0
+                        ? `No student accounts in this school yet for ${displayName}.`
+                        : `No student matches “${studentSearch}”.`}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+                      If <strong>{displayName}</strong> doesn’t have an account yet, close this and use
+                      <strong> “+ Portal Account”</strong> on the lead — it creates the student and links them automatically.
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                    {studentOptions.slice(0, 20).map(s => (
+                    {studentOptions.slice(0, 30).map(s => (
                       <button
                         key={s.id}
                         disabled={linkingStudentId === s.id}
                         onClick={() => linkStudentToParent(linkChildLeadId, s.id)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 bg-muted hover:bg-muted/80 rounded-xl text-left transition-colors disabled:opacity-50 group"
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors disabled:opacity-50 group border ${s.suggested ? 'bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/15' : 'bg-muted border-transparent hover:bg-muted/80'}`}
                       >
                         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs shrink-0">👤</div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-foreground truncate">{s.full_name}</p>
-                          {s.section_class && <p className="text-[10px] text-muted-foreground">{s.section_class}</p>}
+                          <p className="text-sm font-bold text-foreground truncate flex items-center gap-1.5">
+                            {s.full_name}
+                            {s.suggested && <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full shrink-0">Likely match</span>}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">{[s.section_class, s.school_name].filter(Boolean).join(' · ') || '—'}</p>
                         </div>
                         <span className={`text-[9px] font-black text-primary transition-opacity shrink-0 flex items-center gap-1 ${linkingStudentId === s.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                           {linkingStudentId === s.id ? (
