@@ -1538,7 +1538,10 @@ tbody tr:hover{background:#f3f4f6}
                                             )}
                                         </div>
 
-                                        <div className="flex flex-wrap items-center gap-2">
+                                        {/* On phones this becomes one tidy swipeable strip (no tall wrap); the
+                                            primary Print/Download/Share/Email + editor actions are ordered first
+                                            so staff reach them without scrolling. Desktop keeps the normal wrap. */}
+                                        <div className="flex flex-nowrap lg:flex-wrap items-center gap-2 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                             {/* Term / Academic session switcher — only when the student has more than one report */}
                                             {reportHistory.length > 1 && (
                                                 <select
@@ -1619,9 +1622,9 @@ tbody tr:hover{background:#f3f4f6}
                                                 </div>
                                             )}
 
-                                            {/* Editor actions — grouped pill */}
+                                            {/* Editor actions — grouped pill (ordered first on mobile) */}
                                             {isEditor && (selectedStudent || selectedReport) && (
-                                                <div className="flex items-center gap-0.5 bg-card border border-border rounded-xl px-1 h-9 flex-shrink-0">
+                                                <div className="flex items-center gap-0.5 bg-card border border-border rounded-xl px-1 h-9 flex-shrink-0 -order-1 lg:order-none">
                                                     {selectedStudent && (
                                                         <Link
                                                             href={`/dashboard/reports/builder?student=${selectedStudent.id}`}
@@ -1677,9 +1680,9 @@ tbody tr:hover{background:#f3f4f6}
                                                 </div>
                                             )}
 
-                                            {/* Print / Download / Share — flat row */}
+                                            {/* Print / Download / Share — flat row (ordered first on mobile) */}
                                             {selectedReport && (
-                                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                <div className="flex items-center gap-1.5 flex-shrink-0 -order-1 lg:order-none">
                                                     <button
                                                         onClick={() => window.print()}
                                                         title="Print"
