@@ -143,9 +143,37 @@ const CLASS_PRESETS = [
     'Cohort A', 'Cohort B', 'Cohort C',
 ];
 const TERM_OPTIONS = ['Termly', 'Mid-Term', 'First Term', 'Second Term', 'Third Term', 'Annual'];
+
+// Report contexts that follow the Nigerian school calendar (Term + Academic Year).
+// Online / bootcamp are cohort-based and use Duration instead.
+const SCHOOL_SECTIONS = ['basic', 'secondary', 'unified', 'school'];
+const isSchoolSection = (s: string | null | undefined) => SCHOOL_SECTIONS.includes(s ?? '');
+
+// Current Nigerian term from the calendar month: Sept–Dec → First, Jan–Apr →
+// Second, May–Aug → Third. Used to default the term so staff aren't silently left
+// on "First Term" when it's actually Third Term.
+function getCurrentTermLabel(): string {
+    const m = new Date().getMonth() + 1; // 1-12
+    if (m >= 9) return 'First Term';
+    if (m >= 5) return 'Third Term';
+    return 'Second Term';
+}
+
+// Current academic session string on the Sept–Aug calendar (e.g. "2025/2026").
+function getCurrentAcademicYear(): string {
+    const now = new Date();
+    return now.getMonth() + 1 >= 9
+        ? `${now.getFullYear()}/${now.getFullYear() + 1}`
+        : `${now.getFullYear() - 1}/${now.getFullYear()}`;
+}
 const PROFICIENCY_OPTIONS = ['beginner', 'intermediate', 'advanced'];
 const DURATION_OPTIONS = ['First Term', 'Second Term', 'Third Term', 'Termly', 'Mid-Term', '4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
 const PERIOD_PRESETS = ['2024/2025 First Term', '2024/2025 Second Term', '2024/2025 Third Term', '2025/2026 First Term', '2025/2026 Second Term', '2025/2026 Third Term'];
+// Academic-year choices for the Reporting Period selector — current session ± a few.
+const ACADEMIC_YEAR_OPTIONS = (() => {
+    const base = new Date().getMonth() + 1 >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+    return [base - 1, base, base + 1, base + 2, base + 3].map(y => `${y}/${y + 1}`);
+})();
 
 const MILESTONE_SUGGESTIONS: Record<string, string[]> = {
     default: [
@@ -456,17 +484,14 @@ function ReportBuilderInner() {
                 }
             }
         } catch { /* ignore */ }
-        // Default the academic session (Sept–Aug Nigerian calendar) when none is set,
-        // so school reports always carry a session and a new year never collides with
-        // the previous one's same-named term.
-        const now = new Date();
-        const currentSession = now.getMonth() + 1 >= 9
-            ? `${now.getFullYear()}/${now.getFullYear() + 1}`
-            : `${now.getFullYear() - 1}/${now.getFullYear()}`;
+        // Default the academic session (Sept–Aug Nigerian calendar) and the current
+        // term when none is set, so school reports always carry a session/term and a
+        // new year never collides with the previous one's same-named term.
         setSessionConfig(s => ({
             ...s,
             report_date: new Date().toISOString().split('T')[0],
-            report_period: s.report_period || currentSession,
+            report_period: s.report_period || getCurrentAcademicYear(),
+            report_term: s.report_term && s.report_term !== 'First Term' ? s.report_term : getCurrentTermLabel(),
         }));
     }, [profile?.id, prefStudentId]);
 
@@ -1577,7 +1602,8 @@ function ReportBuilderInner() {
                 <div className="flex-1 text-left min-w-0">
                     <p className="text-xs font-bold text-primary uppercase tracking-widest">Session Settings</p>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {sessionConfig.report_term}
+                        <span className="font-bold text-foreground">{sessionConfig.report_term}</span>
+                        {isSchoolSection(sessionConfig.school_section) && sessionConfig.report_period && <span className="font-bold text-foreground"> · {sessionConfig.report_period}</span>}
                         {sessionConfig.school_name && ` · ${sessionConfig.school_name}`}
                         {sessionConfig.section_class && ` · ${sessionConfig.section_class}`}
                         {sessionConfig.course_name && ` · ${sessionConfig.course_name}`}
@@ -1603,14 +1629,26 @@ function ReportBuilderInner() {
                                 onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
                                 className={INPUT} />
                         </Field>
-                        {['basic', 'secondary', 'unified', 'school'].includes(sessionConfig.school_section) ? (
-                            <Field label="Term">
-                                <select value={sessionConfig.report_term}
-                                    onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
-                                    className={INPUT}>
-                                    {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                            </Field>
+                        {isSchoolSection(sessionConfig.school_section) ? (
+                            <>
+                                <Field label="Term">
+                                    <select value={sessionConfig.report_term}
+                                        onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
+                                        className={INPUT}>
+                                        {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                </Field>
+                                <Field label="Academic Year">
+                                    <select value={sessionConfig.report_period}
+                                        onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
+                                        className={INPUT}>
+                                        {sessionConfig.report_period && !ACADEMIC_YEAR_OPTIONS.includes(sessionConfig.report_period) && (
+                                            <option value={sessionConfig.report_period}>{sessionConfig.report_period}</option>
+                                        )}
+                                        {ACADEMIC_YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+                                    </select>
+                                </Field>
+                            </>
                         ) : (
                             <Field label="Duration">
                                 <select value={sessionConfig.course_duration}
@@ -1944,24 +1982,97 @@ function ReportBuilderInner() {
                             </button>
                         </div>
 
+                        {/* ── Reporting Period — the FIRST, most prominent decision ── */}
+                        <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/30 rounded-2xl p-5 space-y-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">📅</span>
+                                <h3 className="text-sm font-black text-primary uppercase tracking-widest">Reporting Period</h3>
+                                <span className="ml-auto text-[10px] font-bold text-primary/60 uppercase tracking-wider">Set this first</span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground -mt-2">
+                                Choose exactly which term &amp; session these reports belong to. Reports are saved
+                                separately per term and academic year — a new term never overwrites a previous one.
+                            </p>
+
+                            {/* Report context */}
+                            <div>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Context *</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                    {(['basic', 'secondary', 'unified', 'bootcamp', 'online'] as const).map(type => (
+                                        <button key={type} type="button"
+                                            onClick={() => setSessionConfig(s => ({
+                                                ...s,
+                                                school_section: type,
+                                                // Seed sensible term/year the moment a school context is chosen, so they're never blank.
+                                                ...(isSchoolSection(type)
+                                                    ? { report_term: s.report_term || getCurrentTermLabel(), report_period: s.report_period || getCurrentAcademicYear() }
+                                                    : {}),
+                                            }))}
+                                            className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-foreground shadow' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
+                                            {type === 'basic' ? '📚 Basic' : type === 'secondary' ? '🎓 Secondary' : type === 'unified' ? '🏫 Unified' : type === 'bootcamp' ? '💻 Bootcamp' : '🌐 Online'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {!sessionConfig.school_section ? (
+                                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+                                    <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                                    <p className="text-[11px] text-amber-300/80 font-semibold">Pick a report context above to choose the term &amp; academic year.</p>
+                                </div>
+                            ) : isSchoolSection(sessionConfig.school_section) ? (
+                                <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <Field label="Term *">
+                                            <select value={sessionConfig.report_term}
+                                                onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
+                                                className={INPUT + ' !text-base !font-bold !py-3'}>
+                                                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                                            </select>
+                                        </Field>
+                                        <Field label="Academic Year *">
+                                            <select value={sessionConfig.report_period}
+                                                onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
+                                                className={INPUT + ' !text-base !font-bold !py-3'}>
+                                                {sessionConfig.report_period && !ACADEMIC_YEAR_OPTIONS.includes(sessionConfig.report_period) && (
+                                                    <option value={sessionConfig.report_period}>{sessionConfig.report_period}</option>
+                                                )}
+                                                {ACADEMIC_YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+                                            </select>
+                                        </Field>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-2.5">
+                                        <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                                        <p className="text-[11px] text-emerald-300 font-bold">
+                                            Creating <span className="underline">{sessionConfig.report_term || '—'}</span> reports for the <span className="underline">{sessionConfig.report_period || '— set year —'}</span> session.
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <Field label="Duration *">
+                                        <select value={sessionConfig.course_duration}
+                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
+                                            className={INPUT + ' !text-base !font-bold !py-3'}>
+                                            <option value="">— Select cohort duration —</option>
+                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                    </Field>
+                                    <div className="flex items-center gap-2 bg-sky-500/10 border border-sky-500/25 rounded-xl px-4 py-2.5">
+                                        <CheckCircleIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                                        <p className="text-[11px] text-sky-300 font-bold">
+                                            Cohort-based report — {sessionConfig.course_duration || '— set duration —'} (no school term / academic year).
+                                        </p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
                         {/* Session fields */}
                         <div className="bg-card shadow-sm border border-border rounded-xl p-5 space-y-4">
                             <div className="flex items-center gap-2 border-b border-border pb-3 mb-2">
                                 <span>📋</span>
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Session Info</h3>
-                            </div>
-                            {/* Context type */}
-                            <div>
-                                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Report Context *</label>
-                                <div className="flex gap-2">
-                                    {(['basic', 'secondary', 'unified', 'bootcamp', 'online'] as const).map(type => (
-                                        <button key={type} type="button"
-                                            onClick={() => setSessionConfig(s => ({ ...s, school_section: type }))}
-                                            className={`flex-1 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-foreground' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
-                                            {type === 'basic' ? '📚 Basic' : type === 'secondary' ? '🎓 Secondary' : type === 'unified' ? '🏫 Unified' : type === 'bootcamp' ? '💻 Bootcamp' : '🌐 Online'}
-                                        </button>
-                                    ))}
-                                </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Field label="Instructor Name *">
@@ -1974,39 +2085,6 @@ function ReportBuilderInner() {
                                         onChange={e => setSessionConfig(s => ({ ...s, report_date: e.target.value }))}
                                         className={INPUT} />
                                 </Field>
-                                {['basic', 'secondary', 'unified', 'school'].includes(sessionConfig.school_section) ? (
-                                    <>
-                                        <Field label="Term *">
-                                            <select value={sessionConfig.report_term}
-                                                onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
-                                                className={INPUT}>
-                                                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                                            </select>
-                                        </Field>
-                                        <Field label="Academic Year">
-                                            <input
-                                                list="academic-year-list"
-                                                value={sessionConfig.report_period}
-                                                onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
-                                                className={INPUT}
-                                                placeholder="e.g. 2025/2026" />
-                                            <datalist id="academic-year-list">
-                                                <option value="2025/2026" />
-                                                <option value="2026/2027" />
-                                                <option value="2027/2028" />
-                                                <option value="2028/2029" />
-                                            </datalist>
-                                        </Field>
-                                    </>
-                                ) : (
-                                    <Field label="Duration *">
-                                        <select value={sessionConfig.course_duration}
-                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
-                                            className={INPUT}>
-                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                                        </select>
-                                    </Field>
-                                )}
                             </div>
                         </div>
 
@@ -2224,17 +2302,39 @@ function ReportBuilderInner() {
                             )}
                         </div>
 
-                        <button
-                            onClick={() => {
-                                sessionStudents.current = []; // reset frozen nav list for new session
-                                setSessionDone(true);
-                                setSessionExpanded(false);
-                                setClassFilter(sessionConfig.section_class); // pre-filter by selected class
-                                setStep('pick');
-                            }}
-                            className="w-full py-4 bg-primary hover:bg-primary text-foreground font-black text-base rounded-xl transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2">
-                            <UserGroupIcon className="w-5 h-5" /> Step 2: Select Students →
-                        </button>
+                        {(() => {
+                            const ctx = sessionConfig.school_section;
+                            const periodReady = !!ctx && (isSchoolSection(ctx)
+                                ? !!(sessionConfig.report_term && sessionConfig.report_period)
+                                : !!sessionConfig.course_duration);
+                            const missing = !ctx
+                                ? 'Choose a report context in the Reporting Period card above'
+                                : isSchoolSection(ctx)
+                                    ? 'Set the Term and Academic Year above'
+                                    : 'Set the cohort Duration above';
+                            return (
+                                <>
+                                    {!periodReady && (
+                                        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 mb-2">
+                                            <ExclamationTriangleIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                                            <p className="text-[11px] text-amber-300/80 font-semibold">{missing} before continuing.</p>
+                                        </div>
+                                    )}
+                                    <button
+                                        disabled={!periodReady}
+                                        onClick={() => {
+                                            sessionStudents.current = []; // reset frozen nav list for new session
+                                            setSessionDone(true);
+                                            setSessionExpanded(false);
+                                            setClassFilter(sessionConfig.section_class); // pre-filter by selected class
+                                            setStep('pick');
+                                        }}
+                                        className="w-full py-4 bg-primary hover:bg-primary text-foreground font-black text-base rounded-xl transition-all shadow-lg shadow-primary/30 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none">
+                                        <UserGroupIcon className="w-5 h-5" /> Step 2: Select Students →
+                                    </button>
+                                </>
+                            );
+                        })()}
                     </div>
                 )}
 
@@ -2764,7 +2864,7 @@ function ReportBuilderInner() {
                                             <Field label="Full Name">
                                                 <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
                                             </Field>
-                                            <div className="grid grid-cols-3 gap-3">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                                 <div className="p-3 bg-muted/20 border border-border rounded-xl">
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">School</p>
                                                     <p className="text-sm text-muted-foreground font-semibold truncate">{sessionConfig.school_name || '—'}</p>
