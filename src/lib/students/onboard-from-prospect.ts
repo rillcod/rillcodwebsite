@@ -123,13 +123,13 @@ export async function onboardStudentFromProspect(
     }
   }
 
-  // School — PARENT-SUBMITTED registration is authoritative over existing system
-  // data: use the school the parent registered under (consent form / summer form),
-  // fall back to the student's current school, and only the online school as a true
-  // last resort (never silently relocate a known local student to online).
+  // School — the EXISTING school has dominance: a known student is never relocated
+  // between schools by a new form. Only brand-new children use the parent's form
+  // school (prospect.school_id), and the online school only as a true last resort.
+  // (Parent-submitted name/class/gender/bio still overwrite — placement does not.)
   const school = await resolveOnlineSchool(admin, {
-    id: prospect.school_id ?? priorSchoolId,
-    name: prospect.school_name ?? priorSchoolName,
+    id: priorSchoolId ?? prospect.school_id,
+    name: priorSchoolName ?? prospect.school_name,
   });
 
   // Class — the parent's/staff's explicit class wins (when it belongs to this
