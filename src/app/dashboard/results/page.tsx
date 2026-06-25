@@ -127,6 +127,9 @@ function ResultsPageInner() {
     // ── Selection / view ───────────────────────────────────────────────────────
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
     const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
+    // All of the selected student's reports (across terms / academic sessions) so the
+    // viewer can switch between them — a 3rd-term report must not hide the 2nd-term one.
+    const [reportHistory, setReportHistory] = useState<StudentReport[]>([]);
     const [loadingReport, setLoadingReport] = useState(false);
     // Students see the standard (official) report card by default; staff can switch
     const [template, setTemplate] = useState<'standard' | 'modern' | 'printable'>(
@@ -212,31 +215,28 @@ function ResultsPageInner() {
                         .select('*')
                         .eq('student_id', profile.id)
                         .eq('is_published', true)
-                        .order('updated_at', { ascending: false })
-                        .limit(1)
-                        .maybeSingle(),
+                        .order('updated_at', { ascending: false }),
                     db.from('report_settings').select('*').limit(1).maybeSingle(),
                 ]);
                 if (aborted) return;
 
-                let report = repRes.data as StudentReport | null;
+                let reports = (repRes.data ?? []) as StudentReport[];
 
-                // Fallback: pre-portal report created before portal account existed
-                if (!report && profile.full_name) {
+                // Fallback: pre-portal reports created before the portal account existed
+                if (reports.length === 0 && profile.full_name) {
                     const { data: fallback } = await db
                         .from('student_progress_reports')
                         .select('*')
                         .is('student_id', null)
                         .eq('student_name', profile.full_name)
                         .eq('is_published', true)
-                        .order('updated_at', { ascending: false })
-                        .limit(1)
-                        .maybeSingle();
-                    if (!aborted) report = fallback as StudentReport | null;
+                        .order('updated_at', { ascending: false });
+                    if (!aborted) reports = (fallback ?? []) as StudentReport[];
                 }
 
                 if (!aborted) {
-                    setSelectedReport(report);
+                    setReportHistory(reports);
+                    setSelectedReport(reports[0] ?? null);
                     setOrgSettings(orgRes.data);
                     setLoading(false);
                 }
@@ -457,31 +457,55 @@ function ResultsPageInner() {
         setSelectedStudent(s);
         setLoadingReport(true);
         setSelectedReport(null);
+        setReportHistory([]);
         setReportEmailEvents([]);
         // On mobile, auto-hide sidebar when student is selected
         if (typeof window !== 'undefined' && window.innerWidth < 1024) {
             setShowSidebar(false);
         }
+        // Load ALL of the student's reports (across terms / academic sessions) so staff
+        // can switch between them; default to the most recent published one.
         let reportQuery = createClient()
             .from('student_progress_reports')
             .select('*')
             .eq('student_id', s.id)
             .order('is_published', { ascending: false })
-            .order('updated_at', { ascending: false })
-            .limit(1);
+            .order('updated_at', { ascending: false });
         if (profile?.role === 'teacher') reportQuery = reportQuery.eq('teacher_id', profile.id) as typeof reportQuery;
-        const { data } = await reportQuery.maybeSingle();
-        setSelectedReport(data as StudentReport | null);
+        const { data } = await reportQuery;
+        const history = (data ?? []) as StudentReport[];
+        setReportHistory(history);
+        const data0 = history[0] ?? null;
+        setSelectedReport(data0);
         setLoadingReport(false);
-        if (data?.id) {
+        if (data0?.id) {
             setLoadingEmailEvents(true);
-            fetch(`/api/progress-reports/${data.id}/email-events`)
+            fetch(`/api/progress-reports/${data0.id}/email-events`)
                 .then(r => r.json())
                 .then(j => { if (j.events) setReportEmailEvents(j.events); })
                 .catch(() => null)
                 .finally(() => setLoadingEmailEvents(false));
         }
     }
+
+    // Short label for a report in the term/session switcher (Term · Year · Course).
+    const reportLabel = (r: StudentReport): string => {
+        const parts = [r.report_term, (r as any).report_period, r.course_name].filter(Boolean);
+        return `${parts.join(' · ') || 'Report'}${r.is_published ? '' : ' (draft)'}`;
+    };
+
+    // Switch the displayed report (term/session) and refresh its email events.
+    const pickReport = (r: StudentReport | null) => {
+        setSelectedReport(r);
+        if (r?.id) {
+            setLoadingEmailEvents(true);
+            fetch(`/api/progress-reports/${r.id}/email-events`)
+                .then(res => res.json())
+                .then(j => { if (j.events) setReportEmailEvents(j.events); else setReportEmailEvents([]); })
+                .catch(() => setReportEmailEvents([]))
+                .finally(() => setLoadingEmailEvents(false));
+        }
+    };
 
     // ── Derived data ───────────────────────────────────────────────────────────
     // Helpers: prefer joined FK name over legacy text fields
@@ -662,6 +686,29 @@ function ResultsPageInner() {
     //     }
     // }
 
+    // Scope bulk operations (PDF / print / email) to the term + academic session
+    // currently in view (the selected report), so a class export never silently
+    // mixes terms by grabbing "whatever is latest". Falls back to latest-per-student
+    // only when no specific report/term is in view.
+    function scopedBulkReportsQuery(ids: string[]) {
+        let q = createClient()
+            .from('student_progress_reports')
+            .select('*')
+            .in('student_id', ids);
+        const term = selectedReport?.report_term ?? null;
+        const period = (selectedReport as any)?.report_period ?? null;
+        if (term) q = q.eq('report_term', term) as typeof q;
+        if (period) q = q.eq('report_period', period) as typeof q;
+        return q.order('updated_at', { ascending: false });
+    }
+
+    function bulkScopeNote(base: string): string {
+        const term = selectedReport?.report_term;
+        const period = (selectedReport as any)?.report_period;
+        const scope = [term, period].filter(Boolean).join(' · ');
+        return scope ? `${base} for ${scope}.` : `${base}.`;
+    }
+
     // ── Batch PDF ──────────────────────────────────────────────────────────────
     async function startBatchDownload() {
         const ids = [...selectedIds];
@@ -669,15 +716,11 @@ function ResultsPageInner() {
         batchMode.current = 'download';
         setIsBatchDownloading(true);
 
-        const { data: reports } = await createClient()
-            .from('student_progress_reports')
-            .select('*')
-            .in('student_id', ids)
-            .order('updated_at', { ascending: false });
+        const { data: reports } = await scopedBulkReportsQuery(ids);
 
         if (!reports || reports.length === 0) {
             setIsBatchDownloading(false);
-            alert('No reports found for the selected students.');
+            alert(bulkScopeNote('No reports found for the selected students'));
             return;
         }
 
@@ -704,15 +747,11 @@ function ResultsPageInner() {
         if (ids.length === 0) return;
         setIsBulkPrinting(true);
 
-        const { data: reports } = await createClient()
-            .from('student_progress_reports')
-            .select('*')
-            .in('student_id', ids)
-            .order('updated_at', { ascending: false });
+        const { data: reports } = await scopedBulkReportsQuery(ids);
 
         if (!reports || reports.length === 0) {
             setIsBulkPrinting(false);
-            alert('No reports found for the selected students.');
+            alert(bulkScopeNote('No reports found for the selected students'));
             return;
         }
 
@@ -742,15 +781,11 @@ function ResultsPageInner() {
         batchMode.current = 'email';
         setIsBulkEmailing(true);
 
-        const { data: reports } = await createClient()
-            .from('student_progress_reports')
-            .select('*')
-            .in('student_id', ids)
-            .order('updated_at', { ascending: false });
+        const { data: reports } = await scopedBulkReportsQuery(ids);
 
         if (!reports || reports.length === 0) {
             setIsBulkEmailing(false);
-            alert('No reports found for the selected students.');
+            alert(bulkScopeNote('No reports found for the selected students'));
             return;
         }
 
@@ -1504,6 +1539,20 @@ tbody tr:hover{background:#f3f4f6}
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-2">
+                                            {/* Term / Academic session switcher — only when the student has more than one report */}
+                                            {reportHistory.length > 1 && (
+                                                <select
+                                                    value={selectedReport?.id ?? ''}
+                                                    onChange={(e) => pickReport(reportHistory.find(x => x.id === e.target.value) ?? null)}
+                                                    className="bg-card shadow-sm rounded-xl border border-border h-9 px-2 text-[10px] font-bold text-foreground flex-shrink-0 cursor-pointer max-w-[14rem] outline-none"
+                                                    title="Switch term / academic session"
+                                                >
+                                                    {reportHistory.map(r => (
+                                                        <option key={r.id} value={r.id} className="bg-card text-foreground">{reportLabel(r)}</option>
+                                                    ))}
+                                                </select>
+                                            )}
+
                                             {/* Prev / Next */}
                                             {isStaff && currentIdx >= 0 && (
                                                 <div className="flex items-center gap-1.5 bg-card shadow-sm p-1 rounded-xl border border-border h-9 flex-shrink-0">

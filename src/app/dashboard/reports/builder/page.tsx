@@ -370,8 +370,9 @@ function ReportBuilderInner() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // null = no issue | 'published' = already published this term | 'cross-session' = loaded from different course/term
-    const [duplicateWarning, setDuplicateWarning] = useState<null | 'published' | 'cross-session'>(null);
+    // null = no issue | 'published' = already published this term | 'cross-session' = loaded from different course
+    // | 'new-term' = no report for the current term yet; a prior-term report exists (a fresh report will be created)
+    const [duplicateWarning, setDuplicateWarning] = useState<null | 'published' | 'cross-session' | 'new-term'>(null);
     const [duplicateDetail, setDuplicateDetail] = useState<string>('');
 
     // Auto-clear success after 4 seconds
@@ -455,7 +456,18 @@ function ReportBuilderInner() {
                 }
             }
         } catch { /* ignore */ }
-        setSessionConfig(s => ({ ...s, report_date: new Date().toISOString().split('T')[0] }));
+        // Default the academic session (Sept–Aug Nigerian calendar) when none is set,
+        // so school reports always carry a session and a new year never collides with
+        // the previous one's same-named term.
+        const now = new Date();
+        const currentSession = now.getMonth() + 1 >= 9
+            ? `${now.getFullYear()}/${now.getFullYear() + 1}`
+            : `${now.getFullYear() - 1}/${now.getFullYear()}`;
+        setSessionConfig(s => ({
+            ...s,
+            report_date: new Date().toISOString().split('T')[0],
+            report_period: s.report_period || currentSession,
+        }));
     }, [profile?.id, prefStudentId]);
 
     // ── Dynamic preview scale based on container width ────────────────────────
@@ -777,39 +789,56 @@ function ReportBuilderInner() {
         // Pre-portal student (from students table, no portal_users record) — look up by name
         const isPrePortal = s.id?.startsWith('students-');
         const isTeacher = profile?.role === 'teacher';
-        const { data: report } = isPrePortal
-            ? await db
-                .from('student_progress_reports')
-                .select('*')
-                .eq('student_name', s.full_name ?? '')
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .maybeSingle()
-            : await (() => {
-                let q = db
-                    .from('student_progress_reports')
-                    .select('*')
-                    .eq('student_id', s.id)
-                    .order('updated_at', { ascending: false })
-                    .limit(1);
-                if (isTeacher && profile?.id) q = q.eq('teacher_id', profile.id) as typeof q;
-                return q.maybeSingle();
-              })();
+        // Base lookup (pre-portal students keyed by name, portal students by id).
+        const baseSelect = () => {
+            let q = isPrePortal
+                ? db.from('student_progress_reports').select('*').eq('student_name', s.full_name ?? '')
+                : db.from('student_progress_reports').select('*').eq('student_id', s.id);
+            if (isTeacher && profile?.id && !isPrePortal) q = q.eq('teacher_id', profile.id) as typeof q;
+            return q;
+        };
 
+        // Most-recent report of ANY term — drives Edit-link hydration, the
+        // module-advance suggestion, and the cross-session hint.
+        const { data: latestReport } = await baseSelect()
+            .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+
+        // The report THIS grading session edits/creates — scoped to the current
+        // term + academic year (school) / duration (online·bootcamp) + course, so a
+        // new term/session/cohort NEVER overwrites a prior report. School reports
+        // separate by Term + Academic Year; online/bootcamp carry their duration in
+        // report_term and leave academic year blank, so we constrain only on the
+        // discriminators actually present for this format.
+        let scoped = baseSelect();
+        if (sessionConfig.report_term)   scoped = scoped.eq('report_term', sessionConfig.report_term) as typeof scoped;
+        if (sessionConfig.report_period) scoped = scoped.eq('report_period', sessionConfig.report_period) as typeof scoped;
+        if (sessionConfig.course_id)     scoped = scoped.eq('course_id', sessionConfig.course_id) as typeof scoped;
+        const { data: scopedReport } = await scoped
+            .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+
+        // Edit link → edit the latest report (adopt its term/year); normal grading
+        // session → the report for the current term/year/course (or none → insert).
+        const report = opts?.forceHydrate ? latestReport : scopedReport;
         setExistingReport(report ?? null);
 
         // ── Duplicate / cross-session detection ──────────────────────────────────
-        // Skip when forceHydrate: we're explicitly editing this report, so any
-        // "already published" or "cross-session" signal would be a false positive.
-        if (report && !opts?.forceHydrate) {
-            const sameCourse = sessionConfig.course_id && report.course_id === sessionConfig.course_id;
-            const sameTerm   = sessionConfig.report_term && report.report_term === sessionConfig.report_term;
-            if (sameCourse && sameTerm && report.is_published) {
+        // Skip when forceHydrate: we're explicitly editing this report.
+        if (!opts?.forceHydrate) {
+            const curTerm = sessionConfig.report_term;
+            const curPeriod = sessionConfig.report_period ?? '';
+            if (report?.is_published) {
+                // A published report already exists for this exact term/year/course.
                 setDuplicateWarning('published');
-                setDuplicateDetail(`${report.course_name ?? 'this course'} — ${report.report_term}`);
-            } else if (sessionConfig.course_id && report.course_id && report.course_id !== sessionConfig.course_id) {
+                setDuplicateDetail(`${report.course_name ?? 'this course'} — ${report.report_term}${report.report_period ? ` (${report.report_period})` : ''}`);
+            } else if (!report && latestReport && sessionConfig.course_id && latestReport.course_id && latestReport.course_id !== sessionConfig.course_id) {
+                // Their most recent report is for a different course (carry-over hint).
                 setDuplicateWarning('cross-session');
-                setDuplicateDetail(`${report.course_name ?? '?'} (${report.report_term ?? '?'})`);
+                setDuplicateDetail(`${latestReport.course_name ?? '?'} (${latestReport.report_term ?? '?'})`);
+            } else if (!report && latestReport && (latestReport.report_term !== curTerm || (latestReport.report_period ?? '') !== curPeriod)) {
+                // No report for the CURRENT term yet, but a prior-term report exists — a
+                // brand-new report will be created for this term (the old one is kept).
+                setDuplicateWarning('new-term');
+                setDuplicateDetail(`${latestReport.report_term ?? '?'}${latestReport.report_period ? ` · ${latestReport.report_period}` : ''}`);
             }
         }
 
@@ -824,18 +853,18 @@ function ReportBuilderInner() {
                 .order('updated_at', { ascending: false })
                 .range(1, 1)          // second-most-recent report
                 .maybeSingle();
-            if (!prevReport && report?.next_module) {
+            if (!prevReport && latestReport?.next_module) {
                 // Only one report found — suggest advancing from its next_module
-                const sugg = getModuleSuggestions(report.course_name ?? '');
-                const nextIdx = sugg.modules.indexOf(report.next_module);
+                const sugg = getModuleSuggestions(latestReport.course_name ?? '');
+                const nextIdx = sugg.modules.indexOf(latestReport.next_module);
                 const autoNext = nextIdx >= 0 && nextIdx + 1 < sugg.next.length
                     ? sugg.next[nextIdx + 1]
-                    : sugg.next[sugg.modules.indexOf(report.next_module)] ?? '';
-                if (report.next_module && report.next_module !== report.current_module) {
-                    setSuggestedModule({ current: report.next_module, next: autoNext });
+                    : sugg.next[sugg.modules.indexOf(latestReport.next_module)] ?? '';
+                if (latestReport.next_module && latestReport.next_module !== latestReport.current_module) {
+                    setSuggestedModule({ current: latestReport.next_module, next: autoNext });
                 }
             } else if (prevReport?.next_module) {
-                const sugg = getModuleSuggestions(report?.course_name ?? '');
+                const sugg = getModuleSuggestions(latestReport?.course_name ?? '');
                 const nextIdx = sugg.modules.indexOf(prevReport.next_module);
                 const autoNext = nextIdx >= 0 ? sugg.next[nextIdx] ?? '' : '';
                 setSuggestedModule({ current: prevReport.next_module, next: autoNext });
@@ -855,7 +884,9 @@ function ReportBuilderInner() {
             setSessionConfig(prev => ({
                 instructor_name: report.instructor_name ?? prev.instructor_name,
                 report_date: report.report_date ?? prev.report_date,
-                report_term: prev.report_term,
+                // Adopt the report's term/year when editing an existing report so the
+                // scoped save targets the right one; keep the session's term otherwise.
+                report_term: opts?.forceHydrate ? (report.report_term ?? prev.report_term) : prev.report_term,
                 report_period: report.report_period ?? prev.report_period,
                 course_id: report.course_id ?? prev.course_id,
                 course_name: report.course_name ?? prev.course_name,
@@ -1104,10 +1135,16 @@ function ReportBuilderInner() {
 
                 // 4. Check for existing report
                 const isPrePortal = s.id?.startsWith('manual-') || s.id?.startsWith('students-');
+                // Scope the existing-report check to term + academic year + course so a
+                // new term/session/cohort inserts a fresh report instead of overwriting
+                // a prior one (school: Term + Academic Year; online/bootcamp: duration).
                 const { data: existing } = isPrePortal ? { data: null } : await (() => {
-                    let q = db.from('student_progress_reports').select('id').eq('student_id', s.id).eq('report_term', sessionConfig.report_term).order('updated_at', { ascending: false });
+                    let q = db.from('student_progress_reports').select('id').eq('student_id', s.id);
+                    if (sessionConfig.report_term)   q = q.eq('report_term', sessionConfig.report_term) as typeof q;
+                    if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period) as typeof q;
+                    if (sessionConfig.course_id)     q = q.eq('course_id', sessionConfig.course_id) as typeof q;
                     if (profile?.role === 'teacher' && profile?.id) q = q.eq('teacher_id', profile.id) as typeof q;
-                    return q.maybeSingle();
+                    return q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
                 })();
 
                 const overall = Math.round(
@@ -2535,6 +2572,20 @@ function ReportBuilderInner() {
                                     </p>
                                 </div>
                                 <button onClick={() => setDuplicateWarning(null)} className="text-rose-400/40 hover:text-rose-400 transition-colors flex-shrink-0">
+                                    <XMarkIcon className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
+                        {duplicateWarning === 'new-term' && (
+                            <div className="flex items-start gap-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">
+                                <DocumentTextIcon className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Starting a New {sessionConfig.report_term} Report</p>
+                                    <p className="text-[11px] text-emerald-300/70 mt-0.5">
+                                        This creates a <strong className="text-emerald-300">fresh report</strong> for <strong className="text-emerald-300">{selectedStudent?.full_name}</strong>. Their previous report (<strong className="text-emerald-300">{duplicateDetail}</strong>) is kept untouched and stays viewable in Progress Reports.
+                                    </p>
+                                </div>
+                                <button onClick={() => setDuplicateWarning(null)} className="text-emerald-400/40 hover:text-emerald-400 transition-colors flex-shrink-0">
                                     <XMarkIcon className="w-3.5 h-3.5" />
                                 </button>
                             </div>
