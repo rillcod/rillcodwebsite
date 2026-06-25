@@ -39,9 +39,15 @@ export async function resolveOnlineSchool(
   admin: SupabaseClient,
   current?: { id?: string | null; name?: string | null },
 ): Promise<ResolvedSchool> {
-  // 1. Student already has a concrete school — keep it.
+  // 1. Student already has a concrete school — keep it. CRITICAL: never assume the
+  //    online name here. If the caller didn't pass a name, look up the school's REAL
+  //    name; defaulting to ONLINE_SCHOOL_NAME stamped "Rillcod Online School" onto
+  //    students who actually belong to a local school (their school_id was correct,
+  //    only the denormalised school_name was wrong).
   if (current?.id) {
-    return { id: current.id, name: current.name ?? ONLINE_SCHOOL_NAME };
+    if (current.name && current.name.trim()) return { id: current.id, name: current.name };
+    const { data: s } = await admin.from('schools').select('name').eq('id', current.id).maybeSingle();
+    return { id: current.id, name: (s as { name?: string } | null)?.name ?? current.name ?? '' };
   }
 
   // 2. Find an existing "online" school by name, regardless of status.
