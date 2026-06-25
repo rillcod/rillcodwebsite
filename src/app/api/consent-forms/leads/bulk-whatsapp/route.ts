@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
+import { getAllowedSchoolIds } from '@/lib/auth/school-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,10 +74,11 @@ export async function POST(req: NextRequest) {
   };
 
   const now = new Date().toISOString();
+  const allowedSchools = profile.role === 'admin' ? null : await getAllowedSchoolIds(user.id, profile);
 
   for (const lead of (leads ?? [])) {
-    // School-scoped gate
-    if (profile.role !== 'admin' && lead.school_id !== profile.school_id) {
+    // School-scoped gate (own school + teacher_schools assignments)
+    if (allowedSchools && !(lead.school_id && allowedSchools.has(lead.school_id))) {
       results.failed++;
       continue;
     }

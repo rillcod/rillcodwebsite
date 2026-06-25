@@ -4,6 +4,7 @@ import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
+import { canAccessSchool } from '@/lib/auth/school-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     .single();
 
   if (!leadCheck) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (profile.role !== 'admin' && leadCheck.school_id !== profile.school_id) {
+  if (!(await canAccessSchool(user.id, profile, leadCheck.school_id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

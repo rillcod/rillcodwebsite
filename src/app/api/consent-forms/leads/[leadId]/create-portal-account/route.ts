@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { syncExplicitParentStudentLink, resolveStudentRowId, resolveOrCreateStudentRowId } from '@/lib/parents/links';
+import { canAccessSchool } from '@/lib/auth/school-scope';
 import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     const { data: formRow } = await (sb as any).from('consent_forms').select('class_id').eq('id', lead.form_id).maybeSingle();
     formClassId = (formRow?.class_id as string) ?? null;
   }
-  if (profile.role !== 'admin' && lead.school_id !== profile.school_id) {
+  if (!(await canAccessSchool(user.id, profile, lead.school_id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -522,7 +523,7 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
     .single();
 
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
-  if (profile.role !== 'admin' && lead.school_id !== profile.school_id) {
+  if (!(await canAccessSchool(user.id, profile, lead.school_id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   if (!lead.matched_parent_id) {

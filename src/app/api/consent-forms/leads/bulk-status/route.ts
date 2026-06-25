@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
+import { getAllowedSchoolIds } from '@/lib/auth/school-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,11 +43,13 @@ export async function PATCH(req: NextRequest) {
 
   const sb = adminClient();
 
-  // Scope check — non-admins can only touch their school's leads
+  // Scope check — non-admins can only touch leads from a school they belong to
+  // (own school + teacher_schools assignments).
   if (profile.role !== 'admin') {
+    const allowed = await getAllowedSchoolIds(user.id, profile);
     const { data: leads } = await (sb as any)
       .from('form_leads').select('id, school_id').in('id', leadIds);
-    const forbidden = (leads ?? []).some((l: any) => l.school_id !== profile.school_id);
+    const forbidden = (leads ?? []).some((l: any) => !(l.school_id && allowed.has(l.school_id)));
     if (forbidden) return NextResponse.json({ error: 'Forbidden: one or more leads belong to another school' }, { status: 403 });
   }
 

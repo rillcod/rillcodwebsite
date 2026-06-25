@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { syncExplicitParentStudentLink, resolveStudentRowId } from '@/lib/parents/links';
+import { canAccessSchool } from '@/lib/auth/school-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +46,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     .single();
 
   if (!lead) return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
-  if (profile.role !== 'admin' && lead.school_id !== profile.school_id) {
+  if (!(await canAccessSchool(user.id, profile, lead.school_id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   if (lead.match_status !== 'pending_review') {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { syncExplicitParentStudentLink, resolveStudentRowId } from '@/lib/parents/links';
+import { getAllowedSchoolIds } from '@/lib/auth/school-scope';
 import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
@@ -94,9 +95,12 @@ export async function POST(req: NextRequest) {
   const DEADLINE = Date.now() + 50_000;
   let timedOut = false;
 
+  // Resolve the staff member's allowed schools once (own school + teacher_schools).
+  const allowedSchools = profile.role === 'admin' ? null : await getAllowedSchoolIds(user.id, profile);
+
   for (const lead of (leads ?? [])) {
     if (Date.now() > DEADLINE) { timedOut = true; break; }
-    if (profile.role !== 'admin' && lead.school_id !== profile.school_id) {
+    if (allowedSchools && !(lead.school_id && allowedSchools.has(lead.school_id))) {
       results.errors.push({ leadId: lead.id, error: 'Forbidden: lead belongs to a different school' });
       continue;
     }
