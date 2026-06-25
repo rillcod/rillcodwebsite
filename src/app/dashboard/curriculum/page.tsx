@@ -2443,6 +2443,13 @@ export default function CurriculumPage() {
       const content = curriculum.content;
       const course = content?.course_title || selectedCourse?.title || 'Curriculum';
       const school = curriculum.schools?.name || 'Rillcod Managed Academy';
+      // Format-aware unit naming for the export (Term vs Module vs Week).
+      const pdfFormat: string = (content as any)?.metadata?.format ?? 'school';
+      const pdfUnitLabel = (t: { term: number; title?: string }): string => {
+        if (pdfFormat === 'school') return TERM_LABEL[t.term] ?? `Term ${t.term}`;
+        const noun = pdfFormat === 'bootcamp' ? 'Week' : 'Module';
+        return (t.title?.trim()) || `${noun} ${t.term}`;
+      };
 
       doc.setTextColor(...bodyText);
       doc.setFont('helvetica', 'bold');
@@ -2464,7 +2471,8 @@ export default function CurriculumPage() {
 
       if (mode === 'week' && activeWeek) {
         heading('Week Plan');
-        text(`Term: ${TERM_LABEL[activeTerm] ?? `Term ${activeTerm}`}`, 10, 'bold');
+        const activeTermForPdf = (content?.terms ?? []).find(t => t.term === activeTerm);
+        text(`${pdfFormat === 'school' ? 'Term' : pdfFormat === 'bootcamp' ? 'Week' : 'Module'}: ${pdfUnitLabel({ term: activeTerm, title: activeTermForPdf?.title })}`, 10, 'bold');
         text(`Type: ${WEEK_META[activeWeek.type]?.label ?? activeWeek.type}`, 9);
         text(`Topic: ${activeWeek.topic}`, 10, 'bold');
         if (activeWeek.subtopics?.length) {
@@ -2504,7 +2512,7 @@ export default function CurriculumPage() {
           bullets(content.learning_outcomes);
         }
         (content?.terms ?? []).filter(term => printOptions.terms.includes(term.term)).forEach((term) => {
-          heading(`${TERM_LABEL[term.term] ?? `Term ${term.term}`}: ${term.title}`);
+          heading(`${pdfUnitLabel(term)}${term.title && pdfFormat === 'school' ? `: ${term.title}` : ''}`);
           if (term.objectives?.length) {
             text('Term Objectives', 10, 'bold');
             bullets(term.objectives);
@@ -2859,6 +2867,16 @@ export default function CurriculumPage() {
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const allTerms: CurriculumTerm[] = curriculum?.content?.terms ?? [];
+  // Format-aware unit naming. School curricula run on the Nigerian 3-term calendar;
+  // online / bootcamp / self-paced are cohort-based and run on Modules / Weeks — they
+  // must NOT be labelled "Term". The format is stamped into content.metadata.format.
+  const loadedFormat: string = (curriculum?.content as any)?.metadata?.format ?? 'school';
+  const isCohortFormat = loadedFormat === 'online' || loadedFormat === 'bootcamp' || loadedFormat === 'selfpaced';
+  const unitNoun = loadedFormat === 'bootcamp' ? 'Week' : (loadedFormat === 'online' || loadedFormat === 'selfpaced') ? 'Module' : 'Term';
+  const unitLabel = (term: { term: number; title?: string }): string => {
+    if (loadedFormat === 'school') return TERM_LABEL[term.term] ?? `Term ${term.term}`;
+    return (term.title?.trim()) || `${unitNoun} ${term.term}`;
+  };
   const yearsAvailable = useMemo(() => {
     const yrs = Array.from(new Set(allTerms.map((t) => t.year ?? 1)));
     return yrs.sort((a, b) => a - b);
@@ -3029,7 +3047,7 @@ export default function CurriculumPage() {
 
           {/* Terms */}
           <div className="space-y-2 mb-4">
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Terms to include</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">{unitNoun}s to include</p>
             <div className="flex flex-wrap gap-3">
               {(curriculum.content?.terms ?? []).sort((a, b) => a.term - b.term).map(t => (
                 <label key={t.term} className="flex items-center gap-2 text-xs font-bold cursor-pointer select-none">
@@ -3042,7 +3060,7 @@ export default function CurriculumPage() {
                       terms: e.target.checked ? [...o.terms, t.term] : o.terms.filter(x => x !== t.term)
                     }))}
                   />
-                  {TERM_LABEL[t.term] ?? `Term ${t.term}`}
+                  {unitLabel(t)}
                 </label>
               ))}
             </div>
@@ -3847,7 +3865,7 @@ export default function CurriculumPage() {
                           <div className="inline-flex items-center h-7 sm:h-8 rounded-lg border border-border bg-card/60 backdrop-blur-sm overflow-hidden">
                             <div className="flex items-center gap-1.5 px-2 border-r border-border h-full">
                               <BookOpenIcon className="w-3 h-3 text-muted-foreground shrink-0" />
-                              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Term</span>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{unitNoun}</span>
                             </div>
                             <select
                               value={activeTerm}
@@ -3863,11 +3881,13 @@ export default function CurriculumPage() {
                                 const tw = tracking.filter(t => t.term_number === term.term);
                                 const termWeeks = term.weeks?.length ?? 0;
                                 const termDone = tw.filter(t => t.status === 'completed').length;
-                                const isNow = term.term === getCurrentTerm();
+                                const isNow = !isCohortFormat && term.term === getCurrentTerm();
                                 const progTermNum = getProgrammeTerm(term.term, effectiveProgramStartTerm);
                                 const PROG_THEME: Record<number, string> = { 1: 'Foundations', 2: 'Application', 3: 'Innovation' };
-                                const nationalLabel = TERM_LABEL[term.term] ?? `Term ${term.term}`;
-                                const progLabel = effectiveProgramStartTerm !== 1
+                                const nationalLabel = unitLabel(term);
+                                // Programme-term theming only applies to the school calendar; cohort
+                                // formats (online/bootcamp/self-paced) just show Module/Week labels.
+                                const progLabel = (!isCohortFormat && effectiveProgramStartTerm !== 1)
                                   ? `T${progTermNum} ${PROG_THEME[progTermNum] ?? ''} (${nationalLabel})`
                                   : nationalLabel;
                                 const doneLabel = termWeeks > 0 ? ` · ${termDone}/${termWeeks}` : '';
@@ -4146,11 +4166,11 @@ export default function CurriculumPage() {
                             </div>
                           ) : (
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <h2 className="text-lg font-black">{currentTermData.title || (TERM_LABEL[currentTermData.term] ?? `Term ${currentTermData.term}`)}</h2>
+                              <h2 className="text-lg font-black">{currentTermData.title || unitLabel(currentTermData)}</h2>
                               {canModifyCurriculum && (
                                 <button
                                   onClick={() => {
-                                    setEditTermTitleVal(currentTermData.title || TERM_LABEL[currentTermData.term] || `Term ${currentTermData.term}`);
+                                    setEditTermTitleVal(currentTermData.title || unitLabel(currentTermData));
                                     setEditingTermTitle(true);
                                   }}
                                   className="inline-flex items-center justify-center w-5 h-5 rounded-md border border-white/10 hover:border-primary/40 bg-white/5 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
@@ -4161,7 +4181,7 @@ export default function CurriculumPage() {
                               )}
                             </div>
                           )}
-                          {(() => {
+                          {!isCohortFormat && (() => {
                             const pt = getProgrammeTerm(currentTermData.term, effectiveProgramStartTerm);
                             const PILL_COLOR: Record<number, string> = {
                               1: 'bg-primary/10 border-primary/25 text-primary',
@@ -4190,7 +4210,7 @@ export default function CurriculumPage() {
                               </div>
                             );
                           })()}
-                          {(() => {
+                          {!isCohortFormat && (() => {
                             const termAcYear = effectiveAcademicYearForTerm(activeTerm, effectiveProgramStartTerm, academicYear);
                             const customStart = currentTermData.start_date;
                             const td = customStart

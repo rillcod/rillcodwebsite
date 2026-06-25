@@ -132,6 +132,14 @@ function getSharedOutputShape(termNum: number = 1): string {
 
 const SHARED_OUTPUT_SHAPE = getSharedOutputShape(1);
 
+// Applied to EVERY curriculum format (school / bootcamp / online / self-paced /
+// chunked online module). Enforces that no weekly topic, activity or assessment
+// is repeated or lightly reworded anywhere in the output — each week must teach
+// something genuinely new that builds on, rather than re-covers, prior weeks.
+const CURRICULUM_UNIQUENESS_RULE = `
+
+GLOBAL UNIQUENESS (critical — non-negotiable): Across the ENTIRE output — every year, term, module and week — each weekly topic, lesson title, hands-on activity and assessment MUST be distinct. Do NOT repeat, duplicate, restate, or lightly reword any topic, project, or task from one week/term/module to another. If a concept was already introduced, ADVANCE it (go deeper, add a new application, raise the difficulty) instead of re-teaching it. Before finalising, scan all weeks and remove or replace any that overlap. A repeated or paraphrased topic is a failure.`;
+
 const CHRISTIAN_AFRICAN_CURRICULUM_GUIDELINE = `
 - Christian STEM & Local African/Nigerian Integration:
   * We are a Christian STEM/Coding innovation academy. All generated courses, weekly topics, and learning activities MUST creatively combine Christian/Biblical narrative analogies with real-world African local technology innovation.
@@ -270,11 +278,17 @@ function buildOnlineModulePrompt(
   courseName: string, gradeLevel: string, subjectArea: string,
   moduleIndex: number, totalModules: number, weeksThisModule: number,
   sessionsPerWeek: number, priorThemes: string[], notes?: string,
+  priorWeekTopics: string[] = [],
 ): string {
   const sessions = Math.max(1, weeksThisModule * sessionsPerWeek);
   const isLast = moduleIndex >= totalModules;
   const priorBlock = priorThemes.length
     ? `\nMODULES ALREADY GENERATED (do NOT repeat — this module must continue beyond them):\n${priorThemes.map((t, i) => `  Module ${i + 1}: ${t}`).join('\n')}`
+    : '';
+  // Exact session topics already covered in earlier modules — the strongest
+  // anti-repetition signal: every new session must be genuinely different.
+  const coveredBlock = priorWeekTopics.length
+    ? `\nSESSION TOPICS ALREADY COVERED (do NOT repeat, paraphrase, or lightly reword any of these — go deeper or cover new ground):\n${priorWeekTopics.slice(0, 60).map((t, i) => `  ${i + 1}. ${t}`).join('\n')}`
     : '';
   return `You are an expert curriculum designer for Rillcod Technologies — a STEM/Coding innovation academy.
 
@@ -284,7 +298,7 @@ Generate ONLY Module ${moduleIndex} of ${totalModules} for this programme — on
 This module spans ~${weeksThisModule} week(s) at ${sessionsPerWeek} session(s)/week (${sessions} session entries).
 Session length: 60–90 minutes
 ${notes ? `Special notes: ${notes}` : ''}
-${priorBlock}
+${priorBlock}${coveredBlock}
 
 STRUCTURE (return EXACTLY ONE module as a single "terms" entry):
 - term: ${moduleIndex}
@@ -580,6 +594,12 @@ export async function POST(req: NextRequest) {
   }
   const wpt = Number(weeks_per_term ?? 8);
 
+  // ── Online chunking: the client generates ONE module per request (to stay under
+  //    the 60s serverless cap). Detected by an explicit module_index. Hoisted here
+  //    so the existing-content load below can merge + dedup against prior modules.
+  const moduleIdx = Number(body.module_index);
+  const isOnlineChunk = format === 'online' && Number.isInteger(moduleIdx) && moduleIdx >= 1;
+
   // ── Target school: one syllabus row per (course_id, school_id) — unique in DB.
   // - `school_id` omitted → admin defaults to platform (null); teacher defaults to profile.school_id.
   // - `school_id: null` → platform / shared Rillcod template.
@@ -629,7 +649,10 @@ export async function POST(req: NextRequest) {
   // This covers both cross-year continuity (prior years) and same-year-other-terms.
   let previousTermsContext: string | undefined;
   let existingCurriculumContent: any = null;
-  if (format === 'school' && course_id) {
+  // Topics already covered by previously-generated online modules — fed into the
+  // module prompt's avoid-list so each new module is genuinely non-overlapping.
+  const priorOnlineWeekTopics: string[] = [];
+  if (course_id && (format === 'school' || isOnlineChunk)) {
     try {
       let existingQ = admin
         .from('course_curricula')
@@ -639,7 +662,20 @@ export async function POST(req: NextRequest) {
       else existingQ = existingQ.is('school_id', null);
       const { data: existing } = await existingQ.maybeSingle();
       existingCurriculumContent = existing?.content ?? null;
-      if (existingCurriculumContent?.terms?.length) {
+
+      // Online chunk: collect every weekly topic from modules OTHER than the one
+      // being generated now, so the model is told exactly what not to repeat.
+      if (isOnlineChunk && Array.isArray(existingCurriculumContent?.terms)) {
+        for (const t of existingCurriculumContent.terms as any[]) {
+          if (Number(t.term) === moduleIdx) continue;
+          for (const w of (t.weeks ?? [])) {
+            const topic = (w?.topic ?? w?.title ?? '').toString().trim();
+            if (topic) priorOnlineWeekTopics.push(topic);
+          }
+        }
+      }
+
+      if (format === 'school' && existingCurriculumContent?.terms?.length) {
         const existingTermNums = new Set(termNums);
         const contextParts: string[] = [];
 
@@ -691,11 +727,7 @@ export async function POST(req: NextRequest) {
     ? `${notes ? notes + '\n\n' : ''}SOURCE MATERIAL — build the curriculum, weekly topics and lessons STRICTLY from this teacher document; keep the same scope, order and terminology:\n"""\n${sourceMaterial}\n"""`
     : notes;
 
-  // Chunked online mode: the client generates one module per request to stay
-  // under the 60s serverless cap. Detected by an explicit module_index.
-  const moduleIdx = Number(body.module_index);
-  const isOnlineChunk = format === 'online' && Number.isInteger(moduleIdx) && moduleIdx >= 1;
-
+  // moduleIdx / isOnlineChunk computed earlier (before the existing-content load).
   const prompt = isOnlineChunk
     ? buildOnlineModulePrompt(
         course_name,
@@ -709,6 +741,7 @@ export async function POST(req: NextRequest) {
           ? (body.prior_module_themes as unknown[]).filter((t): t is string => typeof t === 'string').slice(0, 12)
           : [],
         groundedNotes,
+        priorOnlineWeekTopics,
       )
     : buildCurriculumPrompt(
         course_name,
@@ -731,7 +764,7 @@ export async function POST(req: NextRequest) {
         },
       );
 
-  const aiContent = await generateCurriculum(prompt);
+  const aiContent = await generateCurriculum(prompt + CURRICULUM_UNIQUENESS_RULE);
   if (!aiContent) {
     return NextResponse.json({ error: 'Syllabus generation failed — all AI models unavailable. Please try again.' }, { status: 502 });
   }
