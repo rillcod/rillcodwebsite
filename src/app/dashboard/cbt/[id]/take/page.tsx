@@ -5,8 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon,
-  CodeBracketIcon, SparklesIcon
+  ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon
 } from '@/lib/icons';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 import { isObjectiveQuestion, normalizeCbtOptions } from '@/lib/cbt/print-utils';
@@ -90,6 +89,7 @@ export default function TakeExamPage() {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<{ score: number; passed: boolean; correct: number; status: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [examError, setExamError] = useState<string | null>(null);
   const startTimeRef = useRef<Date>(new Date());
   const submitRef = useRef<any>(null);
 
@@ -104,145 +104,60 @@ export default function TakeExamPage() {
       .then(({ data: existing }) => {
         if (existing) { router.push(`/dashboard/cbt/${id}`); return; }
         return fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' })
-          .then(r => r.json())
+          .then(async r => {
+            const payload = await r.json();
+            if (!r.ok) throw new Error(payload.error || 'This exam is not available.');
+            return payload;
+          })
           .then(({ data: examData }) => {
-            if (!examData) { router.push('/dashboard/cbt'); return; }
+            if (!examData) { throw new Error('This exam is not available.'); }
             setExam(examData);
             setQuestions([...(examData.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
             setTimeLeft((examData.duration_minutes ?? 60) * 60);
             setLoading(false);
           });
       })
-      .catch(() => setLoading(false));
+      .catch((e) => {
+        setExamError(e?.message || 'Unable to open this exam.');
+        setLoading(false);
+      });
   }, [profile?.id, authLoading]); // eslint-disable-line
 
   const handleSubmit = useCallback(async (auto = false) => {
     if (submitting || submitted) return;
     if (!auto && !confirm('Submit exam? You cannot change answers after submission.')) return;
     setSubmitting(true);
+    setExamError(null);
     try {
-      // Calculate score for auto-gradable questions
-      let correct = 0;
-      let manualGradingRequired = false;
-
-      questions.forEach(q => {
-        if (q.question_type === 'essay') {
-          manualGradingRequired = true;
-        }
-        // Only count correct for auto-gradable types
-        if (q.question_type !== 'essay') {
-          const isCorrect = (answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase();
-          if (isCorrect) correct++;
-        }
-      });
-
-      const totalPoints = questions.reduce((s, q) => s + (q.points ?? 0), 0);
-      const sectionWeights: Record<string, number> = exam?.metadata?.section_weights ?? {};
-      const hasWeights = Object.values(sectionWeights).some((w: any) => w > 0);
-
-      // Helper: is a question auto-gradable?
-      const isAutoGradable = (q: any) => q.question_type !== 'essay';
-
-      // Auto-points: everything except essay
-      let autoPoints = questions.reduce((s, q) => {
-        if (!isAutoGradable(q)) return s;
-        if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
-          return s + (q.points ?? 0);
-        }
-        return s;
-      }, 0);
-
-      let aiScores: Record<string, number> = {};
-      let aiFeedback = '';
-
-      if (manualGradingRequired) {
-        try {
-          const aiRes = await fetch('/api/ai/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'cbt-grading',
-              topic: exam?.title || 'CBT Grading',
-              questions: questions.filter(q => q.question_type === 'essay').map(q => ({
-                id: q.id,
-                text: q.question_text,
-                type: q.question_type,
-                points: q.points,
-                correct_answer: q.correct_answer
-              })),
-              studentAnswers: answers
-            })
-          });
-          if (aiRes.ok) {
-            const aiPayload = await aiRes.json();
-            aiScores = aiPayload.data.scores || {};
-            aiFeedback = aiPayload.data.feedback || '';
-            // Add AI scores to points
-            Object.values(aiScores).forEach(s => { autoPoints += s; });
-          }
-        } catch (e) {
-          console.error("AI Grading failed during submission:", e);
-        }
-      }
-
-      // Compute score — weighted by section if configured, otherwise flat points
-      let score: number;
-      if (hasWeights) {
-        const sections = ['objective', 'subjective', 'practical'] as const;
-        let weightedScore = 0;
-        const activeTotal = sections.reduce((s, sec) => {
-          const qs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
-          return qs.length > 0 ? s + (sectionWeights[sec] ?? 0) : s;
-        }, 0);
-
-        for (const sec of sections) {
-          const secQs = questions.filter(q => (q.metadata?.section ?? 'objective') === sec);
-          const secWeight = sectionWeights[sec] ?? 0;
-          if (secQs.length === 0 || secWeight === 0) continue;
-          const secTotal = secQs.reduce((s, q) => s + (q.points ?? 0), 0);
-          let secEarned = 0;
-          secQs.forEach(q => {
-            if (!isAutoGradable(q)) {
-              secEarned += aiScores[q.id] ?? 0;
-            } else if ((answers[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) {
-              secEarned += q.points ?? 0;
-            }
-          });
-          const normalizedWeight = activeTotal > 0 ? (secWeight / activeTotal) * 100 : secWeight;
-          weightedScore += secTotal > 0 ? (secEarned / secTotal) * normalizedWeight : 0;
-        }
-        score = Math.round(weightedScore);
-      } else {
-        score = totalPoints > 0 ? Math.round((autoPoints / totalPoints) * 100) : 0;
-      }
-      const passed = score >= (exam?.passing_score ?? 70);
-      const finalStatus = manualGradingRequired ? 'pending_grading' : (passed ? 'passed' : 'failed');
-
       const sessionRes = await fetch('/api/cbt/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           exam_id: exam.id,
           start_time: startTimeRef.current.toISOString(),
-          end_time: new Date().toISOString(),
-          score,
-          status: finalStatus,
           answers,
-          manual_scores: aiScores,
-          grading_notes: aiFeedback ? `AI Preliminary Evaluation: ${aiFeedback}` : null,
-          needs_grading: manualGradingRequired,
+          auto_submitted: auto,
+          submitted_at: new Date().toISOString(),
         }),
       });
       if (!sessionRes.ok) {
         const j = await sessionRes.json();
         throw new Error(j.error || 'Failed to submit exam');
       }
+      const { data: savedSession } = await sessionRes.json();
 
-      setResult({ score, passed, correct, status: finalStatus });
+      setResult({
+        score: savedSession?.score ?? 0,
+        passed: !!savedSession?.passed,
+        correct: savedSession?.correct ?? 0,
+        status: savedSession?.status ?? 'completed',
+      });
       setSubmitted(true);
 
       // Certificate is auto-issued by the database trigger on cbt_sessions INSERT.
       // No client-side call needed — and students are blocked from POST /api/certificates anyway.
+    } catch (e: any) {
+      setExamError(e?.message || 'Failed to submit exam.');
     } finally {
       setSubmitting(false);
     }
@@ -270,6 +185,17 @@ export default function TakeExamPage() {
     </div>
   );
 
+  if (examError && !exam) return (
+    <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
+      <div className="text-center max-w-md px-6 pb-12">
+        <XCircleIcon className="w-16 h-16 mx-auto text-amber-400 mb-4" />
+        <h1 className="text-2xl font-bold">Exam Not Available</h1>
+        <p className="text-muted-foreground mt-2">{examError}</p>
+        <button onClick={() => router.push('/dashboard/cbt')} className="mt-6 px-6 py-2.5 bg-muted hover:bg-muted text-sm font-bold rounded-xl transition-colors">Return to CBT Centre</button>
+      </div>
+    </div>
+  );
+
   if (!loading && questions.length === 0) return (
     <div className="min-h-screen bg-background flex items-center justify-center text-foreground">
       <div className="text-center pb-12">
@@ -282,8 +208,7 @@ export default function TakeExamPage() {
   );
 
   if (submitted && result) {
-    const isPending = result.status === 'pending_grading' && result.score === 0;
-    const isAiGraded = result.status === 'pending_grading' && result.score > 0;
+    const isPending = result.status === 'pending_grading';
 
     return (
       <div className="min-h-screen bg-background flex items-center justify-center text-foreground p-6 relative overflow-hidden">
@@ -309,8 +234,14 @@ export default function TakeExamPage() {
             {isPending ? (
               <div className="bg-card shadow-sm border border-border rounded-xl p-8 space-y-4">
                 <p className="text-lg text-muted-foreground font-medium leading-relaxed">
-                  Your performance review is in progress.
+                  Your objective answers have been recorded. Subjective answers are awaiting instructor review.
                 </p>
+                <div className="flex justify-between items-end">
+                  <span className="text-muted-foreground text-xs font-black uppercase tracking-widest">
+                    Current Auto Score
+                  </span>
+                  <span className="text-4xl font-black text-amber-400">{result.score}%</span>
+                </div>
                 <div className="flex flex-col gap-2">
                   <span className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20 w-fit mx-auto">
                     Awaiting Manual Evaluation
@@ -325,7 +256,7 @@ export default function TakeExamPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-end">
                     <span className="text-muted-foreground text-xs font-black uppercase tracking-widest">
-                      {isAiGraded ? 'Preliminary Grade' : 'Final Grade'}
+                      Final Grade
                     </span>
                     <span className={`text-4xl font-black ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>{result.score}%</span>
                   </div>
@@ -345,12 +276,6 @@ export default function TakeExamPage() {
                     <p className="text-xl font-bold text-muted-foreground">{exam?.passing_score ?? 70}%</p>
                   </div>
                 </div>
-                {isAiGraded && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl border border-primary/20 w-fit mx-auto">
-                    <SparklesIcon className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-[9px] font-black uppercase text-primary tracking-widest">AI Evaluated Subjective Answers</span>
-                  </div>
-                )}
               </div>
             )}
 
@@ -367,7 +292,7 @@ export default function TakeExamPage() {
 
   const q = questions[current];
   const progress = ((current + 1) / questions.length) * 100;
-  const answered = Object.keys(answers).length;
+  const answered = questions.filter((question) => String(answers[question.id] ?? '').trim().length > 0).length;
   const mcqOptions = q ? normalizeCbtOptions(q.options, q.question_type) : [];
   const showMcq = q && isObjectiveQuestion(q) && mcqOptions.length > 0 && q.question_type !== 'true_false';
 
@@ -394,6 +319,11 @@ export default function TakeExamPage() {
             <span className="text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
           </div>
         </div>
+        {examError && (
+          <div className="max-w-5xl mx-auto mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-400">
+            {examError}
+          </div>
+        )}
       </div>
 
       {/* Main Examination Canvas */}

@@ -53,7 +53,7 @@ export async function PATCH(
       // Fetch session — must belong to this student and be in_progress
       const { data: session } = await admin
         .from('cbt_sessions')
-        .select('id, status, deadline')
+        .select('id, status, start_time, cbt_exams(duration_minutes, end_date)')
         .eq('id', id)
         .eq('user_id', caller.id)
         .maybeSingle();
@@ -63,12 +63,20 @@ export async function PATCH(
         return NextResponse.json({ error: 'Session is not in progress' }, { status: 422 });
       }
 
-      // Deadline check (Req 3.5 — stop auto-save if deadline exceeded)
-      if (session.deadline) {
-        const deadlineMs = new Date(session.deadline).getTime();
+      // Deadline check (Req 3.5 — stop auto-save if deadline exceeded).
+      // The live schema has no deadline column; compute it from start_time + exam duration.
+      const exam = (session as any).cbt_exams;
+      const endDateMs = exam?.end_date ? new Date(exam.end_date).getTime() : null;
+      const durationDeadlineMs = session.start_time && exam?.duration_minutes
+        ? new Date(session.start_time).getTime() + Number(exam.duration_minutes) * 60_000
+        : null;
+      const deadlineMs = [endDateMs, durationDeadlineMs]
+        .filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+        .sort((a, b) => a - b)[0];
+      if (deadlineMs) {
         if (Date.now() > deadlineMs + 30_000) {
           return NextResponse.json(
-            { error: 'DEADLINE_EXCEEDED', deadline: session.deadline },
+            { error: 'DEADLINE_EXCEEDED', deadline: new Date(deadlineMs).toISOString() },
             { status: 422 },
           );
         }
@@ -85,7 +93,7 @@ export async function PATCH(
     }
 
     // ── Teacher / admin grading path (existing behaviour) ────────────────────
-    if (!['admin', 'teacher'].includes(caller.role)) {
+    if (!['admin', 'teacher', 'school'].includes(caller.role)) {
       return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
     }
 
@@ -97,6 +105,13 @@ export async function PATCH(
       .maybeSingle();
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+
+    if (caller.role === 'school' && (session as any).cbt_exams?.school_id && (session as any).cbt_exams.school_id !== caller.school_id) {
+      return NextResponse.json(
+        { error: 'Access denied: this session belongs to an exam outside your school scope' },
+        { status: 403 },
+      );
+    }
 
     if (caller.role === 'teacher') {
       const exam = (session as any).cbt_exams;

@@ -56,6 +56,7 @@ export default function NewExamPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [classId, setClassId] = useState<string | null>(preClassId || null);
+  const [className, setClassName] = useState<string>('');
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -86,13 +87,17 @@ export default function NewExamPage() {
   // Track which questions are selected (all selected by default)
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
   const [printFilter, setPrintFilter] = useState<'all' | 'mcq' | 'theory'>('all');
+  const examBoundary = form.exam_type === 'evaluation'
+    ? { label: 'Evaluation/Test', min: 5, max: 20, duration: '20-45 min', note: 'Focused check for recent class learning.' }
+    : { label: 'Main Examination', min: 5, max: 40, duration: '45-120 min', note: 'Broader assessment with realistic coverage.' };
 
   const handleAiGenerate = async () => {
     if (!aiTopic.trim()) { setAiError('Enter a topic first.'); return; }
-    const mcq    = Math.max(0, Math.min(50, parseInt(aiMcqCount)    || 0));
-    const theory = Math.max(0, Math.min(50, parseInt(aiTheoryCount) || 0));
+    const mcq    = Math.max(0, Math.min(examBoundary.max, parseInt(aiMcqCount)    || 0));
+    const theory = Math.max(0, Math.min(examBoundary.max, parseInt(aiTheoryCount) || 0));
     const total  = mcq + theory;
-    if (total < 1) { setAiError('Set at least 1 question (MCQ or Theory).'); return; }
+    if (total < examBoundary.min) { setAiError(`${examBoundary.label} should have at least ${examBoundary.min} questions for a realistic paper.`); return; }
+    if (total > examBoundary.max) { setAiError(`${examBoundary.label} should not exceed ${examBoundary.max} generated questions. Reduce MCQ or theory count.`); return; }
     setAiGenerating(true);
     setAiError(null);
     try {
@@ -113,6 +118,9 @@ export default function NewExamPage() {
           courseName: (selectedCourse as any)?.title || undefined,
           subject: (selectedCourse as any)?.title || undefined,
           programName: selectedProgramName || undefined,
+          className: className || undefined,
+          examType: form.exam_type,
+          sourceName: sourceName || undefined,
           ...(sourceText ? { sourceMaterial: sourceText } : {}),
         })
       });
@@ -179,6 +187,7 @@ export default function NewExamPage() {
         .then(({ data: cls }) => {
           if (!cls) return;
           setClassId(cls.id);
+          setClassName(cls.name || '');
           setForm(prev => ({
             ...prev,
             program_id: cls.program_id || prev.program_id,
@@ -187,7 +196,7 @@ export default function NewExamPage() {
     }
   }, [profile?.id, authLoading, preProgramId, preCourseId, preClassId]);
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
   const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
   const removeQuestion = (i: number) => setQuestions(q => q.filter((_, idx) => idx !== i));
@@ -268,7 +277,7 @@ export default function NewExamPage() {
   };
 
   // ── Print exam sheet — always prints every filled question (selection is for save only) ──
-  const handlePrintExam = () => {
+  const handlePrintExam = (mode: 'student' | 'staff') => {
     let toPrint = questions.filter((q) => q.question_text.trim());
     if (printFilter === 'mcq') toPrint = toPrint.filter(isObjectiveQuestion);
     if (printFilter === 'theory') toPrint = toPrint.filter(isTheoryQuestion);
@@ -294,7 +303,7 @@ export default function NewExamPage() {
       logoUrl: `${window.location.origin}/logo.png`,
       mcqQuestions: mcq,
       theoryQuestions: theory,
-      mode: 'staff',
+      mode,
       examTypeLabel: printFilter === 'mcq' ? 'OBJECTIVE' : printFilter === 'theory' ? 'THEORY' : 'EXAMINATION',
     }));
   };
@@ -339,13 +348,22 @@ export default function NewExamPage() {
                     </button>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={handlePrintExam}
-                  className="flex items-center gap-2 px-5 py-3 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all"
-                >
-                  Print Exam
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePrintExam('student')}
+                    className="flex items-center gap-2 px-4 py-3 bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary font-black text-[10px] uppercase tracking-[0.18em] rounded-xl transition-all"
+                  >
+                    Student Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePrintExam('staff')}
+                    className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-black text-[10px] uppercase tracking-[0.18em] rounded-xl transition-all"
+                  >
+                    Teacher Copy
+                  </button>
+                </div>
               </div>
             )}
             <button onClick={handleSubmit} disabled={saving} className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black text-xs uppercase tracking-[0.2em] rounded-xl shadow-xl shadow-emerald-900/40 transition-all disabled:opacity-50">
@@ -427,13 +445,19 @@ export default function NewExamPage() {
                   </div>
 
                   {/* Row 2: MCQ Count | Theory Count | Total badge | Generate button */}
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/35">Realistic boundary</p>
+                    <p className="text-xs text-white/65 mt-1">
+                      {examBoundary.label}: {examBoundary.min}-{examBoundary.max} questions · {examBoundary.duration}. {examBoundary.note}
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
                       <div className="space-y-1">
                           <label className="text-[10px] font-black uppercase tracking-widest text-brand-red-600/60">
                             Multiple-choice questions
                           </label>
                           <input
-                            type="number" min="0" max="50"
+                            type="number" min="0" max={examBoundary.max}
                             value={aiMcqCount}
                             onChange={e => setAiMcqCount(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-primary/50 transition-all"
@@ -444,7 +468,7 @@ export default function NewExamPage() {
                             Written / essay questions
                           </label>
                           <input
-                            type="number" min="0" max="50"
+                            type="number" min="0" max={examBoundary.max}
                             value={aiTheoryCount}
                             onChange={e => setAiTheoryCount(e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm text-white outline-none focus:border-primary/50 transition-all"

@@ -201,10 +201,17 @@ export async function fetchStudentAssignments(portalUserId: string) {
     // 8. Map CBT exams into unified submission-shaped records
     const cbtItems = (cbtExams ?? []).map((exam: any) => {
         const session = sessionByExam.get(exam.id);
+        const status = !session
+            ? 'missing'
+            : session.status === 'pending_grading'
+                ? 'pending_review'
+                : ['passed', 'failed', 'completed'].includes(session.status)
+                    ? 'graded'
+                    : 'submitted';
         return {
             id: `cbt-${exam.id}`,
             assignment_id: exam.id,
-            status: session ? 'submitted' : 'missing',
+            status,
             grade: session?.score ?? null,
             feedback: null,
             submitted_at: session?.end_time ?? null,

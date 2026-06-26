@@ -83,18 +83,18 @@ const SCREEN_STYLES = {
     bodyCompact: '10pt',
     list: '10pt',
     listCompact: '9pt',
-    codeBg: '#1a1a2e',
-    codeColor: '#e8e8f0',
-    codeBorder: '#4c1d95',
-    codeFont: '7.5pt',
+    codeBg: '#f7f7f7',
+    codeColor: '#111',
+    codeBorder: '#444',
+    codeFont: '8pt',
     codePad: '4pt 6pt',
-    codeMargin: '3pt 0',
-    inlineCodeBg: '#f0f0f8',
-    inlineCodeColor: '#4c1d95',
-    inlineCodeBorder: '#ddd6fe',
-    heading: '#4c1d95',
-    quoteBg: '#f5f3ff',
-    quoteBorder: '#7c3aed',
+    codeMargin: '3pt 0 4pt',
+    inlineCodeBg: '#f2f2f2',
+    inlineCodeColor: '#111',
+    inlineCodeBorder: '#cfcfcf',
+    heading: '#111',
+    quoteBg: '#f8f8f8',
+    quoteBorder: '#555',
     text: '#111',
   },
   compact: {
@@ -102,18 +102,18 @@ const SCREEN_STYLES = {
     bodyCompact: '9.5pt',
     list: '9pt',
     listCompact: '8.5pt',
-    codeBg: '#1a1a2e',
-    codeColor: '#e8e8f0',
-    codeBorder: '#4c1d95',
-    codeFont: '7pt',
+    codeBg: '#f7f7f7',
+    codeColor: '#111',
+    codeBorder: '#444',
+    codeFont: '7.6pt',
     codePad: '3pt 5pt',
-    codeMargin: '2pt 0',
-    inlineCodeBg: '#f0f0f8',
-    inlineCodeColor: '#4c1d95',
-    inlineCodeBorder: '#ddd6fe',
-    heading: '#4c1d95',
-    quoteBg: '#f5f3ff',
-    quoteBorder: '#7c3aed',
+    codeMargin: '2pt 0 3pt',
+    inlineCodeBg: '#f2f2f2',
+    inlineCodeColor: '#111',
+    inlineCodeBorder: '#cfcfcf',
+    heading: '#111',
+    quoteBg: '#f8f8f8',
+    quoteBorder: '#555',
     text: '#111',
   },
   screen: {
@@ -167,7 +167,7 @@ function renderMarkdownHtml(text: string, styles: MdStyles, compact = false): st
       ? `<span style="font-size:0.65rem;font-weight:700;color:${styles.codeBorder};text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">${esc(lang)}</span>`
       : '';
     codeBlocks.push(
-      `<div class="cbt-code-block" style="margin:${styles.codeMargin};background:${styles.codeBg};padding:${styles.codePad};border-radius:3px;border-left:2pt solid ${styles.codeBorder};overflow-x:auto;break-inside:avoid;page-break-inside:avoid">${langLabel}<pre style="margin:0;font-family:'Courier New',Consolas,monospace;font-size:${styles.codeFont};color:${styles.codeColor};white-space:pre-wrap;word-break:break-word;line-height:1.45">${esc(code.replace(/\s+$/, ''))}</pre></div>`,
+      `<div class="cbt-code-block" style="margin:${styles.codeMargin};background:${styles.codeBg};padding:${styles.codePad};border-radius:3px;border:0.8pt solid #bdbdbd;border-left:2pt solid ${styles.codeBorder};overflow-wrap:anywhere;break-inside:avoid;page-break-inside:avoid">${langLabel}<pre style="margin:0;font-family:'Courier New',Consolas,'Liberation Mono',monospace;font-size:${styles.codeFont};color:${styles.codeColor};white-space:pre-wrap;word-break:break-word;line-height:1.38">${esc(code.replace(/\s+$/, ''))}</pre></div>`,
     );
     return `\x00C${codeBlocks.length - 1}\x00`;
   });
@@ -356,18 +356,14 @@ function renderPrintQuestionBlock(q: CbtPrintQuestion, num: number, mode: 'stude
 
 function formalInstructionsHtml(cfg: CbtPrintSheetConfig, totalMarks: number, hasMcq: boolean, hasTheory: boolean): string {
   const extra = cfg.description ? `<p class="instr-extra">${escapeHtml(cfg.description)}</p>` : '';
+  const sectionRules = [
+    hasMcq ? 'Objective: circle one letter only.' : null,
+    hasTheory ? 'Theory: write legibly in blue or black ink.' : null,
+  ].filter(Boolean).join(' ');
   return `<div class="instructions">
     <div class="instr-title">Instructions to Candidates</div>
-    <ol class="instr-list">
-      <li>Read <strong>all</strong> instructions carefully before you begin.</li>
-      <li>Write your <strong>full name</strong>, <strong>class/grade</strong>, and <strong>admission number</strong> in the spaces provided.</li>
-      <li>Answer <strong>ALL</strong> questions. Total marks: <strong>${totalMarks}</strong>. Time allowed: <strong>${cfg.durationMinutes} minutes</strong>. Pass mark: <strong>${cfg.passingScore}%</strong>.</li>
-      ${hasMcq ? '<li><strong>Section A (Objective):</strong> Circle <em>one</em> letter only (A, B, C …) for each question. Do not tick, underline, or select more than one answer.</li>' : ''}
-      ${hasTheory ? '<li><strong>Section B (Theory):</strong> Write answers legibly in <strong>blue or black ink</strong> in the spaces provided. Start each answer on a new line where shown.</li>' : ''}
-      <li>No mobile phones, smart watches, or unauthorised materials. All devices must be switched <strong>off</strong> and kept out of sight.</li>
-      <li>Rough work may be done on this paper but must be crossed out neatly. Do not detach any page.</li>
-      <li>Stop writing immediately when you are told to do so. Review your work if time permits.</li>
-    </ol>
+    <p><strong>1.</strong> Fill in your details and answer <strong>ALL</strong> questions. Total: <strong>${totalMarks}</strong> marks · Time: <strong>${cfg.durationMinutes} min</strong> · Pass mark: <strong>${cfg.passingScore}%</strong>.</p>
+    <p><strong>2.</strong> ${sectionRules} No phones, smart watches, or unauthorised materials. Stop writing when instructed.</p>
     ${extra}
   </div>`;
 }
@@ -453,11 +449,10 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
 .stu-field:last-child{border-right:none}
 .stu-label{font-size:6pt;font-weight:900;text-transform:uppercase;color:#555;display:block;margin-bottom:3pt}
 .stu-line{border-bottom:1pt solid #333;height:11pt}
-.instructions{border:1pt solid #999;border-left:3pt solid #000;background:#f8f8f8;padding:5pt 8pt;margin:5pt 0 7pt;font-size:8.5pt;line-height:1.45}
-.instr-title{font-size:7pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:3pt}
-.instr-list{margin:0 0 0 14pt;padding:0}
-.instr-list li{margin-bottom:2pt}
-.instr-extra{margin-top:4pt;font-style:italic;color:#333}
+.instructions{border:1pt solid #999;border-left:3pt solid #000;background:#f8f8f8;padding:4pt 7pt;margin:4pt 0 6pt;font-size:8.2pt;line-height:1.35}
+.instr-title{font-size:6.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:2pt}
+.instructions p{margin:0 0 1.5pt}
+.instr-extra{margin-top:2pt!important;font-style:italic;color:#333}
 .section-hdr{display:flex;align-items:center;gap:6pt;margin:8pt 0 5pt;border-top:1pt solid #000;padding-top:4pt}
 .s-title{font-size:8.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px}
 .s-pts{font-size:8pt;color:#444;margin-left:auto}
@@ -532,5 +527,18 @@ export function openCbtPrintWindow(html: string): void {
   w.document.write(html);
   w.document.close();
   w.focus();
-  setTimeout(() => w.print(), 500);
+  let printed = false;
+  const printWhenReady = () => {
+    if (printed) return;
+    printed = true;
+    const doPrint = () => setTimeout(() => w.print(), 250);
+    if (w.requestAnimationFrame) w.requestAnimationFrame(doPrint);
+    else doPrint();
+  };
+  if (w.document.readyState === 'complete') {
+    printWhenReady();
+  } else {
+    w.addEventListener('load', printWhenReady, { once: true });
+    setTimeout(printWhenReady, 900);
+  }
 }

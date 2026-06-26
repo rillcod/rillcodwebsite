@@ -6,6 +6,7 @@ import {
   loadCbtStudentProfile,
   resolveStudentCbtScope,
 } from '@/lib/cbt/visibility';
+import { gradeCbtSubmission } from '@/lib/cbt/grading';
 
 function adminClient() {
   return createClient(
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     if (!caller) return NextResponse.json({ error: 'User not found' }, { status: 403 });
 
     const body = await request.json();
-    const { exam_id, start_time, end_time, score, status, answers, manual_scores, grading_notes, needs_grading, auto_submitted, submitted_at } = body;
+    const { exam_id, start_time, answers, auto_submitted, submitted_at } = body;
 
     if (!exam_id) return NextResponse.json({ error: 'exam_id required' }, { status: 400 });
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     // (Querying cbt_sessions for the deadline was dead code — no session exists yet.)
     const { data: examRow } = await admin
       .from('cbt_exams')
-      .select('duration_minutes, end_date, is_active, program_id, course_id, school_id, metadata')
+      .select('id, duration_minutes, end_date, is_active, program_id, course_id, school_id, metadata, passing_score')
       .eq('id', exam_id)
       .single();
 
@@ -77,8 +78,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce duration-based deadline
-    if (examRow.duration_minutes && start_time) {
-      const deadline = new Date(start_time).getTime() + examRow.duration_minutes * 60_000;
+    const startMs = start_time ? new Date(start_time).getTime() : Date.now();
+    const safeStartMs = Number.isFinite(startMs) && startMs <= Date.now() + 60_000 ? startMs : Date.now();
+    if (examRow.duration_minutes) {
+      const deadline = safeStartMs + examRow.duration_minutes * 60_000;
       const submittedMs = submitted_at ? new Date(submitted_at).getTime() : Date.now();
       const GRACE_MS = 30_000; // 30-second grace period for network latency
 
@@ -90,26 +93,51 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const { data: questionRows, error: questionsErr } = await admin
+      .from('cbt_questions')
+      .select('id, question_type, options, correct_answer, points, metadata')
+      .eq('exam_id', exam_id)
+      .order('order_index');
+
+    if (questionsErr) return NextResponse.json({ error: questionsErr.message }, { status: 500 });
+    if (!questionRows || questionRows.length === 0) {
+      return NextResponse.json({ error: 'This exam has no questions configured' }, { status: 422 });
+    }
+
+    const cleanAnswers = answers && typeof answers === 'object' && !Array.isArray(answers)
+      ? answers as Record<string, unknown>
+      : {};
+    const grading = gradeCbtSubmission(examRow, questionRows, cleanAnswers);
+    const gradingNotes = [
+      grading.needsGrading ? `Awaiting instructor review for ${grading.manualQuestionCount} subjective question(s).` : null,
+      auto_submitted ? 'Auto-submitted when the timer expired.' : null,
+    ].filter(Boolean).join(' ');
+
     const { data, error } = await admin
       .from('cbt_sessions')
       .insert({
         exam_id,
         user_id: caller.id,
-        start_time: start_time ?? new Date().toISOString(),
-        end_time: end_time ?? new Date().toISOString(),
-        score: score ?? 0,
-        status: status ?? 'completed',
-        answers: answers ?? {},
-        manual_scores: manual_scores ?? {},
-        grading_notes: grading_notes ?? null,
-        needs_grading: needs_grading ?? false,
-        auto_submitted: auto_submitted ?? false,
+        start_time: new Date(safeStartMs).toISOString(),
+        end_time: new Date().toISOString(),
+        score: grading.score,
+        status: grading.status,
+        answers: cleanAnswers,
+        manual_scores: grading.manualScores,
+        grading_notes: gradingNotes || null,
+        needs_grading: grading.needsGrading,
       })
-      .select('id, score, status')
+      .select('id, score, status, needs_grading, manual_scores, grading_notes, end_time')
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data }, { status: 201 });
+    return NextResponse.json({
+      data: {
+        ...data,
+        correct: grading.correct,
+        passed: grading.score >= Number(examRow.passing_score ?? 70),
+      },
+    }, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
@@ -131,7 +159,7 @@ export async function GET(request: NextRequest) {
     if (exam_id) {
       const { data } = await admin
         .from('cbt_sessions')
-        .select('id, score, status, exam_id')
+        .select('id, score, status, exam_id, answers, end_time, needs_grading, manual_scores, grading_notes')
         .eq('exam_id', exam_id)
         .eq('user_id', user.id)
         .maybeSingle();

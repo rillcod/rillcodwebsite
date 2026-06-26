@@ -18,6 +18,7 @@ import {
   openCbtPrintWindow,
 } from '@/lib/cbt/print-utils';
 import CbtMarkdown from '@/components/cbt/CbtMarkdown';
+import { cbtAnswerMatchesOption, isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
 
 export default function ExamDetailPage() {
   const params = useParams() as { id?: string };
@@ -39,6 +40,7 @@ export default function ExamDetailPage() {
 
   const role = profile?.role ?? '';
   const isStaff = role === 'admin' || role === 'teacher' || role === 'school';
+  const canManageExam = role === 'admin' || role === 'teacher';
 
   useEffect(() => {
     if (authLoading || !profile) return;
@@ -73,13 +75,21 @@ export default function ExamDetailPage() {
       });
     } else {
       Promise.all([
-        db.from('cbt_exams').select('*, programs(name)').eq('id', id).single(),
-        db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
-        db.from('cbt_sessions').select('*').eq('exam_id', id).eq('user_id', profile.id),
-      ]).then(([examRes, qRes, sesRes]) => {
-        setExam(examRes.data);
-        setQuestions(qRes.data ?? []);
-        setSessions(sesRes.data ?? []);
+        fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' }).then(async (r) => {
+          const payload = await r.json();
+          if (!r.ok) throw new Error(payload.error || 'Exam not available');
+          return payload.data;
+        }),
+        fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' }).then(r => r.json()),
+      ]).then(([examData, sessionPayload]) => {
+        setExam(examData);
+        setQuestions([...(examData?.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
+        setSessions(sessionPayload.data ? [sessionPayload.data] : []);
+        setLoading(false);
+      }).catch(() => {
+        setExam(null);
+        setQuestions([]);
+        setSessions([]);
         setLoading(false);
       });
     }
@@ -272,6 +282,9 @@ export default function ExamDetailPage() {
                         </div>
 
                         {/* ── Print Actions ── */}
+                        <div className="px-4 pt-3 pb-2">
+                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Choose print copy</p>
+                        </div>
                         <button
                           onClick={() => { setPrintMenuOpen(false); handlePrintExam('student', printFilter); }}
                           className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-muted transition-colors border-b border-border flex flex-col gap-0.5">
@@ -281,16 +294,18 @@ export default function ExamDetailPage() {
                         <button
                           onClick={() => { setPrintMenuOpen(false); handlePrintExam('staff', printFilter); }}
                           className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-muted transition-colors flex flex-col gap-0.5">
-                          <span className="text-primary">Staff Copy + Answer Key</span>
-                          <span className="text-muted-foreground font-normal">Includes marked answers &amp; key</span>
+                          <span className="text-primary">Teacher Copy + Answer Key</span>
+                          <span className="text-muted-foreground font-normal">Teacher-only version with marked answers</span>
                         </button>
                       </div>
                     )}
                   </div>
-                  <Link href={`/dashboard/cbt/${exam.id}/edit`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl transition-colors">
-                    <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
-                  </Link>
+                  {canManageExam && (
+                    <Link href={`/dashboard/cbt/${exam.id}/edit`}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl transition-colors">
+                      <PencilIcon className="w-3.5 h-3.5" /> Edit Exam
+                    </Link>
+                  )}
                 </>
               )}
             </div>
@@ -309,13 +324,27 @@ export default function ExamDetailPage() {
             </div>
           )}
           {mySession && (
-            <div className={`mt-4 p-4 rounded-xl border ${mySession.status === 'passed' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+            <div className={`mt-4 p-4 rounded-xl border ${
+              mySession.status === 'passed'
+                ? 'bg-emerald-500/10 border-emerald-500/20'
+                : mySession.status === 'pending_grading'
+                  ? 'bg-amber-500/10 border-amber-500/20'
+                  : 'bg-rose-500/10 border-rose-500/20'
+            }`}>
               <div className="flex items-center gap-2">
                 {mySession.status === 'passed'
                   ? <CheckCircleIcon className="w-5 h-5 text-emerald-400" />
-                  : <XCircleIcon className="w-5 h-5 text-rose-400" />}
-                <span className={`font-bold ${mySession.status === 'passed' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {mySession.status === 'passed' ? 'Passed' : 'Failed'} — Score: {mySession.score}%
+                  : mySession.status === 'pending_grading'
+                    ? <ClockIcon className="w-5 h-5 text-amber-400" />
+                    : <XCircleIcon className="w-5 h-5 text-rose-400" />}
+                <span className={`font-bold ${
+                  mySession.status === 'passed'
+                    ? 'text-emerald-400'
+                    : mySession.status === 'pending_grading'
+                      ? 'text-amber-400'
+                      : 'text-rose-400'
+                }`}>
+                  {mySession.status === 'passed' ? 'Passed' : mySession.status === 'pending_grading' ? 'Pending grading' : 'Failed'} — Score: {mySession.score}%
                 </span>
               </div>
               {mySession.end_time && (
@@ -338,32 +367,29 @@ export default function ExamDetailPage() {
         {/* Student: answer review */}
         {!isStaff && mySession && mySession.answers && questions.length > 0 && showReview && (() => {
           const answers: Record<string, string> = mySession.answers ?? {};
-          const essayTypes = new Set(['essay']);
           type ReviewQ = {
             q: any;
             studentAnswer: string;
-            isEssay: boolean;
-            isCorrect: boolean | null; // null = essay / pending
+            isManual: boolean;
+            isCorrect: boolean | null; // null = manual / pending
             pts: number;
             earnedPts: number | null;
           };
           const reviewed: ReviewQ[] = questions.map((q: any) => {
             const studentAnswer = answers[q.id] ?? '';
-            const isEssay = essayTypes.has(q.question_type);
+            const isManual = isManualCbtQuestion(q);
             const pts = q.points ?? 0;
-            if (isEssay) {
-              return { q, studentAnswer, isEssay: true, isCorrect: null, pts, earnedPts: null };
+            if (isManual) {
+              return { q, studentAnswer, isManual: true, isCorrect: null, pts, earnedPts: null };
             }
-            const correct = (q.correct_answer ?? '').toString().trim().toLowerCase();
-            const given = studentAnswer.trim().toLowerCase();
-            const isCorrect = correct.length > 0 && given === correct;
-            return { q, studentAnswer, isEssay: false, isCorrect, pts, earnedPts: isCorrect ? pts : 0 };
+            const isCorrect = isCbtAnswerCorrect(q, studentAnswer);
+            return { q, studentAnswer, isManual: false, isCorrect, pts, earnedPts: isCorrect ? pts : 0 };
           });
 
           const correctCount   = reviewed.filter(r => r.isCorrect === true).length;
           const incorrectCount = reviewed.filter(r => r.isCorrect === false).length;
           const pendingCount   = reviewed.filter(r => r.isCorrect === null).length;
-          const autoTotal      = reviewed.filter(r => !r.isEssay).length;
+          const autoTotal      = reviewed.filter(r => !r.isManual).length;
           const scorePct       = mySession.score ?? 0;
           const passing        = exam.passing_score ?? 70;
 
@@ -393,21 +419,21 @@ export default function ExamDetailPage() {
               {/* Per-question cards */}
               <div className="space-y-3">
                 {reviewed.map((r, i) => {
-                  const { q, studentAnswer, isEssay, isCorrect, pts, earnedPts } = r;
+                  const { q, studentAnswer, isManual, isCorrect, pts, earnedPts } = r;
                   const isMCQ = q.options && Array.isArray(q.options) && q.options.length > 0;
-                  const isFillOrCode = !isMCQ && !isEssay;
+                  const isFillOrCode = !isMCQ && !isManual;
 
-                  const badgeCls = isEssay
+                  const badgeCls = isManual
                     ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                     : isCorrect
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                       : 'bg-rose-500/10 border-rose-500/30 text-rose-400';
-                  const badgeLabel = isEssay ? 'Pending' : isCorrect ? 'Correct' : 'Incorrect';
+                  const badgeLabel = isManual ? 'Pending' : isCorrect ? 'Correct' : 'Incorrect';
 
-                  const ptsCls = isEssay
+                  const ptsCls = isManual
                     ? 'text-amber-400'
                     : isCorrect ? 'text-emerald-400' : 'text-rose-400';
-                  const ptsLabel = isEssay ? `?/${pts} pts` : `${earnedPts}/${pts} pts`;
+                  const ptsLabel = isManual ? `?/${pts} pts` : `${earnedPts}/${pts} pts`;
 
                   return (
                     <div key={q.id} className="bg-card border border-border p-5 space-y-4 rounded-xl">
@@ -431,8 +457,8 @@ export default function ExamDetailPage() {
                       {isMCQ && (
                         <div className="space-y-1.5 pl-8">
                           {(q.options as string[]).map((opt: string, oi: number) => {
-                            const isAnswer = opt.trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase();
-                            const isSelected = opt.trim().toLowerCase() === studentAnswer.trim().toLowerCase();
+                            const isAnswer = cbtAnswerMatchesOption(opt, oi, q.correct_answer);
+                            const isSelected = cbtAnswerMatchesOption(opt, oi, studentAnswer);
                             const isWrong = isSelected && !isAnswer;
 
                             let optCls = 'border-border text-muted-foreground';
@@ -471,8 +497,8 @@ export default function ExamDetailPage() {
                         </div>
                       )}
 
-                      {/* Essay */}
-                      {isEssay && (
+                      {/* Manual/open question */}
+                      {isManual && (
                         <div className="pl-8 space-y-2">
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your Answer</p>
                           <div className="px-3 py-2.5 border border-border bg-white/5 rounded-xl text-xs text-foreground leading-relaxed whitespace-pre-wrap">

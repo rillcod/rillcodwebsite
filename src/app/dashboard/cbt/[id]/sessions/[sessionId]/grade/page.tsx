@@ -10,6 +10,7 @@ import {
     CheckCircleIcon, XCircleIcon, CloudArrowUpIcon, SparklesIcon, BookOpenIcon,
     AcademicCapIcon, ChartBarIcon
 } from '@/lib/icons';
+import { isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
 
 export default function GradeSessionPage() {
     const params = useParams() as { id: string, sessionId: string };
@@ -111,8 +112,6 @@ export default function GradeSessionPage() {
             // Calculate final score
             const sectionWeights: Record<string, number> = exam?.metadata?.section_weights ?? {};
             const hasWeights = Object.values(sectionWeights).some((w: any) => w > 0);
-            const isManualType = (q: any) => ['essay', 'fill_blank', 'coding_blocks'].includes(q.question_type);
-
             let finalScore: number;
             if (hasWeights) {
               const sections = ['objective', 'subjective', 'practical'] as const;
@@ -128,11 +127,9 @@ export default function GradeSessionPage() {
                 const secTotal = secQs.reduce((s, q) => s + (q.points ?? 0), 0);
                 let secEarned = 0;
                 secQs.forEach(q => {
-                  const studentAnswer = (session.answers[q.id] ?? '').trim().toLowerCase();
-                  const correctAnswer = (q.correct_answer ?? '').trim().toLowerCase();
-                  if (isManualType(q) && manualScores[q.id] !== undefined) {
+                  if (isManualCbtQuestion(q) && manualScores[q.id] !== undefined) {
                     secEarned += manualScores[q.id] ?? 0;
-                  } else if (!isManualType(q) && studentAnswer === correctAnswer) {
+                  } else if (!isManualCbtQuestion(q) && isCbtAnswerCorrect(q, session.answers?.[q.id])) {
                     secEarned += q.points ?? 0;
                   }
                 });
@@ -144,11 +141,9 @@ export default function GradeSessionPage() {
               let autoPoints = 0, manualPoints = 0, totalMaxPoints = 0;
               questions.forEach(q => {
                 totalMaxPoints += (q.points ?? 0);
-                const studentAnswer = (session.answers[q.id] ?? '').trim().toLowerCase();
-                const correctAnswer = (q.correct_answer ?? '').trim().toLowerCase();
-                if (isManualType(q) && manualScores[q.id] !== undefined) {
+                if (isManualCbtQuestion(q) && manualScores[q.id] !== undefined) {
                   manualPoints += manualScores[q.id] ?? 0;
-                } else if (!isManualType(q) && studentAnswer === correctAnswer) {
+                } else if (!isManualCbtQuestion(q) && isCbtAnswerCorrect(q, session.answers?.[q.id])) {
                   autoPoints += q.points ?? 0;
                 }
               });
@@ -276,7 +271,6 @@ export default function GradeSessionPage() {
                 {(() => {
                   const sw: Record<string, number> = exam?.metadata?.section_weights ?? {};
                   const hw = Object.values(sw).some((w: any) => w > 0);
-                  const isManT = (q: any) => ['essay', 'fill_blank', 'coding_blocks'].includes(q.question_type);
                   let pct = 0;
                   if (hw) {
                     const secs = ['objective', 'subjective', 'practical'];
@@ -290,8 +284,8 @@ export default function GradeSessionPage() {
                       const sW = sw[sec] ?? 0; if (sQs.length === 0 || sW === 0) continue;
                       const sT = sQs.reduce((s, q) => s + (q.points ?? 0), 0); let sE = 0;
                       sQs.forEach(q => {
-                        if (isManT(q) && manualScores[q.id] !== undefined) sE += manualScores[q.id] ?? 0;
-                        else if (!isManT(q) && (session.answers?.[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) sE += q.points ?? 0;
+                        if (isManualCbtQuestion(q) && manualScores[q.id] !== undefined) sE += manualScores[q.id] ?? 0;
+                        else if (!isManualCbtQuestion(q) && isCbtAnswerCorrect(q, session.answers?.[q.id])) sE += q.points ?? 0;
                       });
                       ws += sT > 0 ? (sE / sT) * (aT > 0 ? (sW / aT) * 100 : sW) : 0;
                     }
@@ -300,15 +294,15 @@ export default function GradeSessionPage() {
                     let autoP = 0, manualP = 0, totalP = 0;
                     questions.forEach(q => {
                       totalP += (q.points ?? 0);
-                      if (isManT(q) && manualScores[q.id] !== undefined) manualP += manualScores[q.id] ?? 0;
-                      else if (!isManT(q) && (session.answers?.[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) autoP += q.points ?? 0;
+                      if (isManualCbtQuestion(q) && manualScores[q.id] !== undefined) manualP += manualScores[q.id] ?? 0;
+                      else if (!isManualCbtQuestion(q) && isCbtAnswerCorrect(q, session.answers?.[q.id])) autoP += q.points ?? 0;
                     });
                     pct = totalP > 0 ? Math.round(((autoP + manualP) / totalP) * 100) : 0;
                   }
                   const totalP = questions.reduce((s, q) => s + (q.points ?? 0), 0);
                   const total = questions.reduce((s, q) => {
-                    if (isManT(q) && manualScores[q.id] !== undefined) return s + (manualScores[q.id] ?? 0);
-                    if (!isManT(q) && (session.answers?.[q.id] ?? '').trim().toLowerCase() === (q.correct_answer ?? '').trim().toLowerCase()) return s + (q.points ?? 0);
+                    if (isManualCbtQuestion(q) && manualScores[q.id] !== undefined) return s + (manualScores[q.id] ?? 0);
+                    if (!isManualCbtQuestion(q) && isCbtAnswerCorrect(q, session.answers?.[q.id])) return s + (q.points ?? 0);
                     return s;
                   }, 0);
                   const passes = pct >= (exam?.passing_score ?? 70);
@@ -457,9 +451,9 @@ export default function GradeSessionPage() {
                                                             ))}
                                                         </div>
                                                         <div className="flex items-center gap-2 mt-2 px-3 py-1.5 bg-card shadow-sm rounded-xl border border-border w-fit">
-                                                            <div className={`w-2 h-2 rounded-full ${ (session.answers[q.id] || "").trim().toLowerCase() === (q.correct_answer || "").trim().toLowerCase() ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" }`} />
+                                                            <div className={`w-2 h-2 rounded-full ${isCbtAnswerCorrect(q, session.answers?.[q.id]) ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"}`} />
                                                             <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground italic">
-                                                                {(session.answers[q.id] || "").trim().toLowerCase() === (q.correct_answer || "").trim().toLowerCase() ? "Sequence Matched" : "Sequence Mismatch"}
+                                                                {isCbtAnswerCorrect(q, session.answers?.[q.id]) ? "Sequence Matched" : "Sequence Mismatch"}
                                                             </span>
                                                         </div>
                                                     </div>

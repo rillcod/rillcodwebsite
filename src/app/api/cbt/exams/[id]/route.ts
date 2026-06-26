@@ -66,6 +66,7 @@ export async function GET(
   const { id } = await context.params;
   const admin = adminClient();
   const isStaff = ['admin', 'teacher', 'school'].includes(caller.role);
+  let studentHasSubmitted = false;
 
   // Fetch exam metadata first for access checks
   const { data: examMeta, error: metaErr } = await admin
@@ -99,6 +100,14 @@ export async function GET(
     if (!cbtExamVisibleToStudent(examMeta, student, scope)) {
       return NextResponse.json({ error: 'You do not have access to this exam' }, { status: 403 });
     }
+
+    const { data: existingSession } = await admin
+      .from('cbt_sessions')
+      .select('id')
+      .eq('exam_id', id)
+      .eq('user_id', caller.id)
+      .maybeSingle();
+    studentHasSubmitted = !!existingSession;
   }
 
   // Staff school-boundary check
@@ -112,8 +121,8 @@ export async function GET(
     }
   }
 
-  // Students must NOT receive correct_answer
-  const questionsSelect = isStaff
+  // Students only receive correct answers after they already have a recorded submission.
+  const questionsSelect = isStaff || studentHasSubmitted
     ? 'cbt_questions(*)'
     : 'cbt_questions(id, question_text, question_type, options, points, order_index)';
 

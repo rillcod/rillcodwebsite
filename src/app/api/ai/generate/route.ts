@@ -171,6 +171,9 @@ interface GenerateRequest {
   proficiencyLevel?: string;
   courseName?: string;
   programName?: string;
+  className?: string;
+  examType?: 'examination' | 'evaluation';
+  sourceName?: string;
   // Qualifiers selected/typed by the teacher — used to ground AI output
   participationGrade?: string;
   projectsGrade?: string;
@@ -195,6 +198,166 @@ interface GenerateRequest {
   notes?: string;
   /** Extracted text from a teacher's PDF — grounds generation in their real material. */
   sourceMaterial?: string;
+}
+
+type CbtGenerationPlan = {
+  examType: 'examination' | 'evaluation';
+  requestedMcq: number;
+  requestedOpen: number;
+  mcqCount: number;
+  openCount: number;
+  totalQ: number;
+  maxQuestions: number;
+  durationMinutes: number;
+  passingScore: number;
+  objectivePoints: number;
+  theoryPoints: number;
+  boundaryNote: string;
+};
+
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(n)));
+}
+
+function getCbtGenerationPlan(req: GenerateRequest): CbtGenerationPlan {
+  const examType = req.examType === 'evaluation' ? 'evaluation' : 'examination';
+  const maxQuestions = examType === 'evaluation' ? 20 : 40;
+  const requestedMcq = clampInt(req.mcqCount, 0, 80, req.questionCount ?? (examType === 'evaluation' ? 10 : 20));
+  const requestedOpen = clampInt(req.theoryCount, 0, 80, examType === 'evaluation' ? 0 : 5);
+  const requestedTotal = requestedMcq + requestedOpen || clampInt(req.questionCount, 5, maxQuestions, examType === 'evaluation' ? 10 : 20);
+
+  let mcqCount = requestedMcq;
+  let openCount = requestedOpen;
+
+  if (requestedTotal > maxQuestions) {
+    const scale = maxQuestions / requestedTotal;
+    mcqCount = Math.floor(requestedMcq * scale);
+    openCount = Math.floor(requestedOpen * scale);
+    while (mcqCount + openCount < maxQuestions) {
+      if (requestedMcq >= requestedOpen) mcqCount++;
+      else openCount++;
+    }
+  }
+
+  if (mcqCount + openCount < 5) {
+    const needed = 5 - (mcqCount + openCount);
+    if (mcqCount > 0 || openCount === 0) mcqCount += needed;
+    else openCount += needed;
+  }
+
+  const totalQ = mcqCount + openCount;
+  const durationMinutes = examType === 'evaluation'
+    ? clampInt(totalQ * 2 + openCount * 3, 20, 45, 30)
+    : clampInt(totalQ * 2 + openCount * 4, 45, 120, 60);
+
+  const objectivePoints = examType === 'evaluation' ? 2 : 2;
+  const theoryPoints = examType === 'evaluation' ? 5 : 6;
+  const passingScore = examType === 'evaluation' ? 60 : 70;
+  const boundaryNote = examType === 'evaluation'
+    ? 'Evaluation/test boundary: 5-20 questions, 20-45 minutes, focused on recent learning.'
+    : 'Main examination boundary: 10-40 questions, 45-120 minutes, broad coverage with balanced difficulty.';
+
+  return {
+    examType,
+    requestedMcq,
+    requestedOpen,
+    mcqCount,
+    openCount,
+    totalQ,
+    maxQuestions,
+    durationMinutes,
+    passingScore,
+    objectivePoints,
+    theoryPoints,
+    boundaryNote,
+  };
+}
+
+function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
+  const plan = getCbtGenerationPlan(req);
+  const rawQuestions = Array.isArray(parsed?.questions) ? parsed.questions : [];
+  const objective: any[] = [];
+  const open: any[] = [];
+
+  for (const q of rawQuestions) {
+    const type = String(q?.question_type ?? '').toLowerCase();
+    if (['essay', 'fill_blank', 'coding_blocks'].includes(type)) open.push(q);
+    else objective.push(q);
+  }
+
+  const fallbackQuestion = (idx: number, kind: 'objective' | 'open') => {
+    if (kind === 'objective') {
+      return {
+        question_text: `Question ${idx}: ${req.topic} - choose the best answer.`,
+        question_type: 'multiple_choice',
+        options: ['Option A', 'Option B', 'Option C', 'Option D'],
+        correct_answer: 'Option A',
+        points: plan.objectivePoints,
+        section: 'objective',
+      };
+    }
+    return {
+      question_text: `Question ${idx}: Explain one important idea from ${req.topic}.`,
+      question_type: 'essay',
+      options: [],
+      correct_answer: 'Award marks for accurate explanation, correct terminology, and a relevant example.',
+      points: plan.theoryPoints,
+      section: 'subjective',
+    };
+  };
+
+  const pickedObjective = objective.slice(0, plan.mcqCount);
+  while (pickedObjective.length < plan.mcqCount) {
+    pickedObjective.push(fallbackQuestion(pickedObjective.length + 1, 'objective'));
+  }
+
+  const pickedOpen = open.slice(0, plan.openCount);
+  while (pickedOpen.length < plan.openCount) {
+    pickedOpen.push(fallbackQuestion(plan.mcqCount + pickedOpen.length + 1, 'open'));
+  }
+
+  const questions = [...pickedObjective, ...pickedOpen].map((q, idx) => {
+    const type = ['multiple_choice', 'true_false', 'fill_blank', 'essay', 'coding_blocks'].includes(q.question_type)
+      ? q.question_type
+      : (idx < plan.mcqCount ? 'multiple_choice' : 'essay');
+    const isObjective = idx < plan.mcqCount;
+    const options = isObjective
+      ? (Array.isArray(q.options) && q.options.length >= 2 ? q.options.slice(0, 4).map(String) : ['True', 'False'])
+      : [];
+    return {
+      question_text: String(q.question_text ?? '').trim() || fallbackQuestion(idx + 1, isObjective ? 'objective' : 'open').question_text,
+      question_type: type,
+      options,
+      correct_answer: String(q.correct_answer ?? '').trim(),
+      points: Number(q.points) > 0 ? Number(q.points) : (isObjective ? plan.objectivePoints : plan.theoryPoints),
+      section: q.section ?? (isObjective ? 'objective' : 'subjective'),
+      metadata: q.metadata ?? null,
+    };
+  });
+
+  return {
+    ...parsed,
+    title: parsed?.title || `${req.topic} ${plan.examType === 'evaluation' ? 'Evaluation' : 'Examination'}`,
+    description: parsed?.description || `${plan.boundaryNote} Generated from the selected course context.`,
+    duration_minutes: plan.durationMinutes,
+    passing_score: plan.passingScore,
+    questions,
+    generation_constraints: {
+      exam_type: plan.examType,
+      requested_mcq: plan.requestedMcq,
+      requested_theory: plan.requestedOpen,
+      generated_mcq: plan.mcqCount,
+      generated_theory: plan.openCount,
+      max_questions: plan.maxQuestions,
+      boundary_note: plan.boundaryNote,
+    },
+  };
+}
+
+function finalizeGeneratedData(type: GenerateType, parsed: any, req: GenerateRequest): any {
+  return type === 'cbt' ? finalizeCbtGeneratedData(parsed, req) : parsed;
 }
 
 function buildPrompt(req: GenerateRequest): string {
@@ -697,35 +860,50 @@ RULES:
     }
 
     case 'cbt': {
-      const qCount    = req.questionCount ?? 10;
-      const mcqCount  = req.mcqCount  ?? qCount;   // default: all MCQ if not split
-      const openCount = req.theoryCount ?? 0;
-      const totalQ    = mcqCount + openCount;
+      const plan = getCbtGenerationPlan(req);
+      const mcqCount = plan.mcqCount;
+      const openCount = plan.openCount;
+      const totalQ = plan.totalQ;
 
       const mcqInstruction = mcqCount > 0
-        ? `SECTION A — Objective/MCQ: Generate EXACTLY ${mcqCount} multiple-choice or true/false questions. Each MUST have an "options" array of 4 choices and a "correct_answer". Set "question_type" to "multiple_choice" or "true_false".`
+        ? `SECTION A — Objective/MCQ: Generate EXACTLY ${mcqCount} multiple-choice or true/false questions. Each MUST have an "options" array of 4 choices and a "correct_answer". Set "question_type" to "multiple_choice" or "true_false". Use ${plan.objectivePoints} points unless a question is unusually demanding.`
         : '';
       const theoryInstruction = openCount > 0
-        ? `SECTION B — Theory/Open: Generate EXACTLY ${openCount} open-ended questions (essay, fill_blank, or coding_blocks). These MUST have NO "options" array (or empty []). Set "question_type" to "essay", "fill_blank", or "coding_blocks" as appropriate.`
+        ? `SECTION B — Theory/Open: Generate EXACTLY ${openCount} open-ended questions (essay, fill_blank, or coding_blocks). These MUST have NO "options" array (or empty []). Set "question_type" to "essay", "fill_blank", or "coding_blocks" as appropriate. Use ${plan.theoryPoints} points for essay/coding_blocks and 3-5 points for fill_blank.`
         : '';
 
       return `Generate a Computer Based Test (CBT) for Rillcod Technologies.
 Topic: "${req.topic}"
 Grade level: ${req.gradeLevel ?? 'Basic 1–SS3'}
 Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
+Exam type: ${plan.examType === 'evaluation' ? 'Evaluation/Test' : 'Main Examination'}
 ${req.programName ? `Programme: "${req.programName}"` : ''}
-${req.courseName ? `Course: "${req.courseName}" — all questions MUST be framed within this course's scope and context` : ''}${sourceBlock}
+${req.courseName ? `Course: "${req.courseName}" — all questions MUST be framed within this course's scope and context` : ''}
+${req.className ? `Class/Cohort: "${req.className}" — pitch difficulty and scenarios to this class.` : ''}
+${req.sourceName ? `Attached teacher material: "${req.sourceName}"` : ''}${sourceBlock}
 Total questions required: EXACTLY ${totalQ}. You MUST generate all ${totalQ} — do not stop early.
+Realistic boundary: ${plan.boundaryNote}
+Duration to return: ${plan.durationMinutes} minutes. Passing score to return: ${plan.passingScore}.
 
 ${mcqInstruction}
 ${theoryInstruction}
+
+CONTEXT-AWARE RULES:
+- Stay inside the selected programme/course/source scope. Do not introduce unrelated technologies or advanced topics not implied by the teacher context.
+- If source material is provided, at least 80% of questions must be traceable to it.
+- Use realistic Nigerian classroom or academy scenarios only when they help the concept; avoid decorative stories that distract from assessment.
+- Difficulty spread: about 40% recall/foundation, 40% application, 20% reasoning/debugging.
+- For coding/web/database topics, include short code snippets in some questions using triple-backtick fences with the language. Keep snippets printable: 4-12 lines where possible.
+- For MCQ questions, make distractors plausible and similar in length. Avoid "all of the above" and joke options.
+- For theory questions, ask for explain/apply/debug/compare tasks, not vague "discuss everything" prompts.
+- Do not ask students to use tools, internet, phones, or unavailable hardware during the CBT.
 
 Return a JSON object with this exact shape:
 {
   "title": "string — exam title",
   "description": "string — brief exam description",
-  "duration_minutes": ${Math.max(30, totalQ * 2)},
-  "passing_score": 70,
+  "duration_minutes": ${plan.durationMinutes},
+  "passing_score": ${plan.passingScore},
   "questions": [
     {
       "question_text": "string — for code-based questions wrap the code snippet in triple backtick fences with the language, e.g. \`\`\`python\\nprint('hello')\\n\`\`\`",
@@ -745,7 +923,8 @@ CRITICAL:
 - questions array MUST contain exactly ${totalQ} items total.
 ${mcqCount > 0 ? `- First ${mcqCount} questions MUST be objective (MCQ/true_false) with options arrays.` : ''}
 ${openCount > 0 ? `- Last ${openCount} questions MUST be open-ended (essay/fill_blank/coding_blocks) with no options.` : ''}
-- Cover the topic comprehensively across different difficulty levels.
+- Keep boundaries realistic: do not exceed ${plan.maxQuestions} questions, do not return a duration outside ${plan.examType === 'evaluation' ? '20-45' : '45-120'} minutes.
+- Cover the topic across foundation, application, and reasoning levels.
 - For technical/coding topics, include code snippets in triple-backtick fences where relevant.`;}
 
 
@@ -1082,7 +1261,8 @@ export async function POST(req: NextRequest) {
 
     // Rich lesson types need more tokens to avoid truncated JSON
     // For CBT scale tokens with question count: ~150 tokens per question minimum
-    const cbtTotal  = (body.mcqCount ?? 0) + (body.theoryCount ?? 0) || (body.questionCount ?? 10);
+    const cbtPlan = type === 'cbt' ? getCbtGenerationPlan(body) : null;
+    const cbtTotal  = cbtPlan?.totalQ ?? ((body.mcqCount ?? 0) + (body.theoryCount ?? 0) || (body.questionCount ?? 10));
     const cbtTokens = type === 'cbt' ? Math.max(3000, cbtTotal * 200) : 0;
     const maxTokens =
       type === 'lesson' ? 4000 :
@@ -1382,9 +1562,9 @@ export async function POST(req: NextRequest) {
           if (clean.length > 100) {
             try {
               const parsed = safeParseJSON(clean);
-              if (parsed.lesson_notes) return NextResponse.json({ success: true, model: geminiResult.model, data: parsed });
+              if (parsed.lesson_notes) return NextResponse.json({ success: true, model: geminiResult.model, data: finalizeGeneratedData(type, parsed, body) });
             } catch {}
-            return NextResponse.json({ success: true, model: geminiResult.model, data: { lesson_notes: clean } });
+            return NextResponse.json({ success: true, model: geminiResult.model, data: finalizeGeneratedData(type, { lesson_notes: clean }, body) });
           }
         } else {
           try {
@@ -1392,7 +1572,7 @@ export async function POST(req: NextRequest) {
             if (type === 'custom') {
               return NextResponse.json({ success: true, content: parsed.content || parsed.text || parsed.answer || geminiResult.text, ...parsed });
             }
-            return NextResponse.json({ success: true, model: geminiResult.model, data: parsed });
+            return NextResponse.json({ success: true, model: geminiResult.model, data: finalizeGeneratedData(type, parsed, body) });
           } catch {
             // Malformed JSON from Gemini — fall through to OpenRouter queue
           }
@@ -1446,12 +1626,12 @@ export async function POST(req: NextRequest) {
                 if (!parsed.lesson_notes && typeof content === 'string') {
                   return NextResponse.json({ success: true, model: modelId, data: { lesson_notes: content.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim() } });
                 }
-                return NextResponse.json({ success: true, model: modelId, data: parsed });
+                return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, parsed, body) });
               } catch {
                 // JSON parse failed — use raw text as lesson_notes directly
                 const cleanContent = content.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim();
                 if (cleanContent.length > 100) {
-                  return NextResponse.json({ success: true, model: modelId, data: { lesson_notes: cleanContent } });
+                  return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, { lesson_notes: cleanContent }, body) });
                 }
               }
             } else {
@@ -1464,7 +1644,7 @@ export async function POST(req: NextRequest) {
                   ...parsed
                 });
               }
-              return NextResponse.json({ success: true, model: modelId, data: parsed });
+              return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, parsed, body) });
             }
           }
         } else {

@@ -20,7 +20,8 @@ export default function CBTPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<'all' | 'examination' | 'evaluation'>('all');
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+  const canManageExams = profile?.role === 'admin' || profile?.role === 'teacher';
 
   useEffect(() => {
     if (authLoading || profileLoading || !profile) return;
@@ -156,12 +157,14 @@ export default function CBTPage() {
                     </div>
                   ))}
                 </div>
-                <Link
-                  href="/dashboard/cbt/new"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:min-h-0 sm:py-2.5 transition-colors"
-                >
-                  <PlusIcon className="w-4 h-4" /> Create Exam
-                </Link>
+                {canManageExams && (
+                  <Link
+                    href="/dashboard/cbt/new"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-3 min-h-[44px] sm:min-h-0 sm:py-2.5 transition-colors"
+                  >
+                    <PlusIcon className="w-4 h-4" /> Create Exam
+                  </Link>
+                )}
               </div>
             )}
           </div>
@@ -211,7 +214,7 @@ export default function CBTPage() {
             <p className="text-sm text-muted-foreground mt-1">
               {isStaff ? 'Get started by creating your first exam.' : 'No exams have been scheduled yet.'}
             </p>
-            {isStaff && (
+            {canManageExams && (
               <Link
                 href="/dashboard/cbt/new"
                 className="inline-flex items-center gap-2 mt-6 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
@@ -322,21 +325,25 @@ export default function CBTPage() {
                             >
                               <EyeIcon className="w-4 h-4" />
                             </Link>
-                            <Link
-                              href={`/dashboard/cbt/${exam.id}/edit`}
-                              className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
-                              title="Edit"
-                            >
-                              <PencilIcon className="w-4 h-4" />
-                            </Link>
-                            <button
-                              onClick={() => handleDelete(exam.id, exam.title)}
-                              disabled={deleting === exam.id}
-                              className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
-                              title="Delete"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
+                            {canManageExams && (
+                              <>
+                                <Link
+                                  href={`/dashboard/cbt/${exam.id}/edit`}
+                                  className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                                  title="Edit"
+                                >
+                                  <PencilIcon className="w-4 h-4" />
+                                </Link>
+                                <button
+                                  onClick={() => handleDelete(exam.id, exam.title)}
+                                  disabled={deleting === exam.id}
+                                  className="p-3 min-h-[44px] min-w-[44px] sm:p-2.5 sm:min-h-0 sm:min-w-0 flex items-center justify-center text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 transition-colors disabled:opacity-40"
+                                  title="Delete"
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                           </>
                         ) : (
                           studentSession ? (
