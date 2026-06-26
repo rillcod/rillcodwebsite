@@ -35,13 +35,13 @@ function CodingBlocksChallenge({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="p-6 bg-muted/30 border border-border rounded-[2rem] flex flex-wrap items-center gap-x-3 gap-y-4 leading-[3rem]">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="p-4 sm:p-6 bg-muted/30 border border-border rounded-2xl sm:rounded-[2rem] flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-3 sm:gap-y-4 leading-9 sm:leading-[3rem]">
         {parts.map((p: string, pi: number) => (
           <div key={pi} className="contents">
-            <span className="text-lg font-medium text-muted-foreground">{p}</span>
+            <span className="text-sm sm:text-lg font-medium text-muted-foreground break-words">{p}</span>
             {pi < parts.length - 1 && (
-              <div className="inline-block min-w-[100px] h-10 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl px-4 text-sm font-black text-emerald-400 flex items-center justify-center italic shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+              <div className="inline-flex min-w-[72px] sm:min-w-[100px] min-h-9 sm:h-10 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-xl px-3 sm:px-4 text-xs sm:text-sm font-black text-emerald-400 items-center justify-center italic shadow-[0_0_20px_rgba(16,185,129,0.1)] break-words">
                 {currentAnswers[pi] || "???"}
               </div>
             )}
@@ -59,7 +59,7 @@ function CodingBlocksChallenge({
               const targetIdx = firstEmpty === -1 ? 0 : firstEmpty;
               if (targetIdx < parts.length - 1) updateAt(targetIdx, block);
             }}
-            className="px-5 py-3 bg-card shadow-sm hover:bg-emerald-500/20 border border-border hover:border-emerald-500/30 rounded-xl text-sm font-bold text-muted-foreground hover:text-emerald-400 transition-all active:scale-95"
+          className="px-4 sm:px-5 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-emerald-500/20 border border-border hover:border-emerald-500/30 rounded-xl text-xs sm:text-sm font-bold text-muted-foreground hover:text-emerald-400 transition-all active:scale-95 break-words"
           >
             {block}
           </button>
@@ -67,7 +67,7 @@ function CodingBlocksChallenge({
         <button
           type="button"
           onClick={() => onChange('')}
-          className="px-4 py-3 bg-card shadow-sm hover:bg-rose-500/20 border border-border hover:border-rose-500/30 rounded-xl text-[10px] uppercase font-black text-muted-foreground hover:text-rose-400 ml-auto transition-all"
+          className="px-4 py-2.5 sm:py-3 bg-card shadow-sm hover:bg-rose-500/20 border border-border hover:border-rose-500/30 rounded-xl text-[10px] uppercase font-black text-muted-foreground hover:text-rose-400 sm:ml-auto transition-all"
         >
           Clear Blocks
         </button>
@@ -300,12 +300,12 @@ export default function TakeExamPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30">
       {/* Cinematic Header */}
-      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-2xl border-b border-border px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-8">
-          <div className="flex-1 flex items-center gap-6">
-            <div className="flex-shrink-0">
-              <div className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">Live Examination</div>
-              <h2 className="text-sm font-bold text-muted-foreground truncate max-w-[200px] sm:max-w-md">{exam?.title}</h2>
+      <div className="sticky top-0 z-50 bg-background/90 backdrop-blur-2xl border-b border-border px-3 sm:px-6 py-3 sm:py-4">
+        <div className="max-w-5xl mx-auto flex items-start sm:items-center justify-between gap-3 sm:gap-8">
+          <div className="flex-1 min-w-0 flex items-center gap-3 sm:gap-6">
+            <div className="min-w-0 flex-1 sm:flex-shrink-0">
+              <div className="text-[9px] sm:text-[10px] font-black text-emerald-500 uppercase tracking-[0.16em] sm:tracking-[0.2em] mb-1">Live Examination</div>
+              <h2 className="text-xs sm:text-sm font-bold text-muted-foreground truncate max-w-[56vw] sm:max-w-md">{exam?.title}</h2>
             </div>
             <div className="hidden sm:flex flex-1 items-center gap-3">
               <div className="flex-1 h-1 bg-card shadow-sm rounded-full overflow-hidden max-w-[120px]">
@@ -315,9 +315,9 @@ export default function TakeExamPage() {
             </div>
           </div>
 
-          <div className={`flex items-center gap-3 px-5 py-2.5 rounded-xl border transition-all duration-500 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse' : 'bg-muted/30 border-border text-muted-foreground'}`}>
-            <ClockIcon className={`w-4 h-4 ${timeLeft < 120 ? 'text-rose-500' : 'text-emerald-500/50'}`} />
-            <span className="text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
+          <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl border transition-all duration-500 flex-shrink-0 ${timeLeft < 120 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse' : 'bg-muted/30 border-border text-muted-foreground'}`}>
+            <ClockIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${timeLeft < 120 ? 'text-rose-500' : 'text-emerald-500/50'}`} />
+            <span className="text-sm sm:text-lg font-black tracking-widest leading-none">{formatTime(timeLeft)}</span>
           </div>
         </div>
         {examError && (
@@ -328,37 +328,38 @@ export default function TakeExamPage() {
       </div>
 
       {/* Main Examination Canvas */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      <div className="flex-1 flex flex-col items-stretch sm:items-center justify-start sm:justify-center px-3 sm:px-6 py-4 sm:py-6 relative overflow-hidden">
         {/* Subtle Ambient Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-emerald-500/[0.02] blur-[150px] rounded-full pointer-events-none" />
 
-        <div className="max-w-4xl w-full space-y-8 relative z-10 py-12">
-          <div className="space-y-8 min-h-[400px]">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
+        <div className="max-w-4xl w-full space-y-5 sm:space-y-8 relative z-10 py-4 sm:py-12">
+          <div className="space-y-5 sm:space-y-8 min-h-[auto] sm:min-h-[400px]">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points} Points</span>
+                <span className="sm:hidden text-[10px] text-muted-foreground font-bold uppercase tracking-widest ml-auto">{current + 1}/{questions.length}</span>
               </div>
-              <div className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
+              <div className="text-lg sm:text-3xl font-bold text-foreground leading-snug sm:leading-tight break-words">
                 <CbtMarkdown text={q?.question_text ?? ''} />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 pt-4">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 pt-2 sm:pt-4">
               {showMcq && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {mcqOptions.map((opt: string, oi: number) => (
                     <button key={oi} type="button"
                       onClick={() => setAnswers(a => ({ ...a, [q.id]: opt }))}
-                      className={`group relative flex items-start gap-5 p-5 rounded-[1.5rem] border-2 transition-all duration-300 text-left ${answers[q.id] === opt
-                        ? 'bg-emerald-500/10 border-emerald-500/50 scale-[1.02]'
+                      className={`group relative flex items-start gap-3 sm:gap-5 p-4 sm:p-5 rounded-2xl sm:rounded-[1.5rem] border-2 transition-all duration-300 text-left ${answers[q.id] === opt
+                        ? 'bg-emerald-500/10 border-emerald-500/50 sm:scale-[1.02]'
                         : 'bg-muted/20 border-border hover:bg-muted hover:border-border'
                         }`}>
-                      <div className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-xs font-black transition-all flex-shrink-0 ${answers[q.id] === opt ? 'bg-emerald-500 border-emerald-500 text-foreground rotate-6' : 'bg-card shadow-sm border-border text-muted-foreground'}`}>
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl border-2 flex items-center justify-center text-xs font-black transition-all flex-shrink-0 ${answers[q.id] === opt ? 'bg-emerald-500 border-emerald-500 text-foreground sm:rotate-6' : 'bg-card shadow-sm border-border text-muted-foreground'}`}>
                         {String.fromCharCode(65 + oi)}
                       </div>
-                      <div className={`text-base font-medium transition-colors flex-1 min-w-0 ${answers[q.id] === opt ? 'text-foreground' : 'text-muted-foreground group-hover:text-muted-foreground'}`}>
-                        <CbtMarkdown text={opt} className="text-base" />
+                      <div className={`text-sm sm:text-base font-medium transition-colors flex-1 min-w-0 break-words ${answers[q.id] === opt ? 'text-foreground' : 'text-muted-foreground group-hover:text-muted-foreground'}`}>
+                        <CbtMarkdown text={opt} className="text-sm sm:text-base" />
                       </div>
                     </button>
                   ))}
@@ -366,16 +367,16 @@ export default function TakeExamPage() {
               )}
 
               {q?.question_type === 'true_false' && (
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-3 sm:gap-6">
                   {['True', 'False'].map(val => (
                     <button key={val} type="button"
                       onClick={() => setAnswers(a => ({ ...a, [q.id]: val }))}
-                      className={`h-32 rounded-[2rem] border-2 flex flex-col items-center justify-center gap-3 transition-all duration-300 ${answers[q.id] === val
-                        ? 'bg-emerald-500/10 border-emerald-500/50 scale-[1.05]'
+                      className={`h-24 sm:h-32 rounded-2xl sm:rounded-[2rem] border-2 flex flex-col items-center justify-center gap-2 sm:gap-3 transition-all duration-300 ${answers[q.id] === val
+                        ? 'bg-emerald-500/10 border-emerald-500/50 sm:scale-[1.05]'
                         : 'bg-muted/20 border-border hover:bg-muted'
                         }`}>
                       <div className={`w-3 h-3 rounded-full transition-all ${answers[q.id] === val ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-muted'}`} />
-                      <span className={`text-xl font-black italic tracking-tighter uppercase transition-all ${answers[q.id] === val ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                      <span className={`text-base sm:text-xl font-black italic tracking-tighter uppercase transition-all ${answers[q.id] === val ? 'text-emerald-400' : 'text-muted-foreground'}`}>
                         {val}
                       </span>
                     </button>
@@ -391,7 +392,7 @@ export default function TakeExamPage() {
                     value={answers[q?.id] ?? ''}
                     onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.value }))}
                     placeholder={q.question_type === 'essay' ? 'Compose your comprehensive response here…' : 'Provide the specific answer…'}
-                    className="relative w-full px-8 py-6 bg-muted/20 border-2 border-border rounded-[2rem] text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500/50 focus:bg-muted/30 transition-all resize-none shadow-2xl"
+                    className="relative w-full px-4 sm:px-8 py-4 sm:py-6 bg-muted/20 border-2 border-border rounded-2xl sm:rounded-[2rem] text-base sm:text-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-emerald-500/50 focus:bg-muted/30 transition-all resize-y shadow-2xl"
                   />
                 </div>
               )}
@@ -407,15 +408,15 @@ export default function TakeExamPage() {
           </div>
 
           {/* Navigation Controls */}
-          <div className="flex items-center justify-between pt-12 border-t border-border">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-6 sm:pt-12 border-t border-border">
             <button onClick={() => setCurrent(c => Math.max(0, c - 1))} disabled={current === 0}
-              className="group flex items-center gap-3 px-6 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-all disabled:opacity-0">
+              className="group flex items-center justify-center sm:justify-start gap-3 px-4 sm:px-6 py-3 text-xs sm:text-sm font-bold text-muted-foreground hover:text-foreground transition-all disabled:opacity-40 disabled:pointer-events-none order-2 sm:order-1">
               <ChevronLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
               <span className="uppercase tracking-widest italic">Previous</span>
             </button>
 
-            <div className="flex-1 flex justify-center">
-              <div className="bg-card shadow-sm border border-border rounded-full px-4 py-2 flex items-center gap-4">
+            <div className="flex-1 flex justify-center order-1 sm:order-2">
+              <div className="w-full sm:w-auto bg-card shadow-sm border border-border rounded-2xl sm:rounded-full px-3 sm:px-4 py-2 flex items-center justify-center gap-3 sm:gap-4">
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{answered} Submitted</span>
                 <div className="w-1 h-1 bg-muted rounded-full" />
                 <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{questions.length - answered} Remaining</span>
@@ -424,13 +425,13 @@ export default function TakeExamPage() {
 
             {current < questions.length - 1 ? (
               <button onClick={() => setCurrent(c => Math.min(questions.length - 1, c + 1))}
-                className="group flex items-center gap-3 px-6 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-all">
+                className="group flex items-center justify-center sm:justify-end gap-3 px-4 sm:px-6 py-3 text-xs sm:text-sm font-bold text-muted-foreground hover:text-foreground transition-all order-3">
                 <span className="uppercase tracking-widest italic">Proceed</span>
                 <ChevronRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             ) : (
               <button onClick={() => handleSubmit(false)} disabled={submitting}
-                className="relative group overflow-hidden px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black uppercase tracking-[0.2em] italic text-xs rounded-xl transition-all shadow-xl shadow-emerald-900/40 disabled:opacity-50">
+                className="relative group overflow-hidden px-6 sm:px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-foreground font-black uppercase tracking-[0.16em] sm:tracking-[0.2em] italic text-xs rounded-xl transition-all shadow-xl shadow-emerald-900/40 disabled:opacity-50 order-3">
                 <span className="relative z-10">{submitting ? 'Finalizing…' : 'Complete Exam'}</span>
                 <div className="absolute inset-0 bg-muted translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
               </button>
@@ -440,14 +441,14 @@ export default function TakeExamPage() {
       </div>
 
       {/* Persistent Question Grid Footer */}
-      <div className="bg-background/80 backdrop-blur-xl border-t border-border p-6">
-        <div className="max-w-5xl mx-auto flex items-center gap-6 overflow-x-auto pb-2 no-scrollbar">
+      <div className="bg-background/90 backdrop-blur-xl border-t border-border px-3 sm:px-6 py-3 sm:py-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
           <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex-shrink-0">Jump To</span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             {questions.map((_, i) => (
               <button key={i} onClick={() => setCurrent(i)}
-                className={`w-10 h-10 rounded-xl text-xs font-black transition-all duration-300 flex-shrink-0 ${i === current
-                  ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-110'
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-xs font-black transition-all duration-300 flex-shrink-0 ${i === current
+                  ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)] sm:scale-110'
                   : answers[questions[i]?.id]
                     ? 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
                     : 'bg-muted/30 text-muted-foreground border border-border hover:border-emerald-500/30'

@@ -120,7 +120,7 @@ export async function GET(
   }
 
   // Staff school-boundary check
-  if (caller.role === 'school' && examMeta.school_id && examMeta.school_id !== caller.school_id) {
+  if (caller.role === 'school' && (!caller.school_id || examMeta.school_id !== caller.school_id)) {
     return NextResponse.json({ error: 'Access denied: exam is outside your school scope' }, { status: 403 });
   }
   if (caller.role === 'teacher') {
@@ -184,6 +184,16 @@ export async function PATCH(
 
   const body = await request.json();
   const { questions, deletedQuestionIds = [], ...examFields } = body;
+  if (examFields.start_date && examFields.end_date) {
+    const startMs = new Date(examFields.start_date).getTime();
+    const endMs = new Date(examFields.end_date).getTime();
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+      return NextResponse.json(
+        { error: 'Exam close time must be after the scheduled start time.' },
+        { status: 400 },
+      );
+    }
+  }
 
   const examPayload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),

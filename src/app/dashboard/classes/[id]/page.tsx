@@ -140,16 +140,29 @@ export default function ClassDetailPage() {
 
       // Only fetch program-related data if program_id exists
       if (program_id) {
+        let cbtQuery = supabase
+          .from('cbt_exams')
+          .select('id, title, duration_minutes, total_questions, is_active, school_id, metadata')
+          .eq('program_id', program_id);
+        if (clsData.school_id) {
+          cbtQuery = cbtQuery.eq('school_id', clsData.school_id);
+        } else {
+          cbtQuery = cbtQuery.is('school_id', null);
+        }
+
         const [lessonRes, asgnRes, cbtRes, coursesRes] = await Promise.all([
           supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id),
           supabase.from('assignments').select('id, title, assignment_type, due_date, max_points, course_id, courses!inner(program_id)').eq('courses.program_id', program_id),
-          supabase.from('cbt_exams').select('id, title, duration_minutes, total_questions, is_active').eq('program_id', program_id),
+          cbtQuery,
           supabase.from('courses').select('id, title').eq('program_id', program_id).eq('is_active', true).order('level_order', { ascending: true })
         ]);
 
         const assignments = asgnRes.data ?? [];
         const assignmentIds = assignments.map(a => a.id);
-        const cbtExams = cbtRes.data ?? [];
+        const cbtExams = (cbtRes.data ?? []).filter((exam: any) => {
+          const targetClassId = exam.metadata?.target_class_id;
+          return !targetClassId || targetClassId === id;
+        });
         const cbtIds = cbtExams.map(e => e.id);
 
         let submissions: any[] = [];

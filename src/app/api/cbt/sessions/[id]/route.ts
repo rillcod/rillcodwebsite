@@ -168,7 +168,7 @@ export async function PATCH(
 
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
-    if (caller.role === 'school' && (session as any).cbt_exams?.school_id && (session as any).cbt_exams.school_id !== caller.school_id) {
+    if (caller.role === 'school' && (!caller.school_id || (session as any).cbt_exams?.school_id !== caller.school_id)) {
       return NextResponse.json(
         { error: 'Access denied: this session belongs to an exam outside your school scope' },
         { status: 403 },

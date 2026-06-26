@@ -58,12 +58,15 @@ export async function GET(_request: NextRequest) {
         const filterSid = searchParams.get('school_id');
         if (filterSid) query = query.eq('school_id', filterSid) as any;
       } else if (caller.role === 'teacher') {
-        query = query.eq('created_by', caller.id) as any;
+        const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+        const filters = [`created_by.eq.${caller.id}`];
+        if (scopedIds.length > 0) filters.push(`school_id.in.(${scopedIds.join(',')})`);
+        query = query.or(filters.join(',')) as any;
       } else if (caller.role === 'school') {
         if (caller.school_id) {
-          query = query.or(`school_id.eq.${caller.school_id},school_id.is.null`) as any;
+          query = query.eq('school_id', caller.school_id) as any;
         } else {
-          query = query.is('school_id', null);
+          return NextResponse.json({ data: [] });
         }
       }
 
@@ -86,9 +89,11 @@ export async function GET(_request: NextRequest) {
       .or(`end_date.is.null,end_date.gte.${now}`)
       .order('start_date');
 
-    // Narrow the DB fetch by school when the student belongs to one.
+    // School students only see exams explicitly tied to their school.
     if (student.school_id) {
-      examQuery = examQuery.or(`school_id.eq.${student.school_id},school_id.is.null`) as typeof examQuery;
+      examQuery = examQuery.eq('school_id', student.school_id) as typeof examQuery;
+    } else {
+      examQuery = examQuery.is('school_id', null) as typeof examQuery;
     }
 
     const { data: rawExams, error } = await examQuery;
@@ -116,6 +121,32 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { questions = [], ...examFields } = body;
+    const admin = adminClient();
+    let classSchoolId: string | null = null;
+    let classScoped = false;
+
+    if (examFields.class_id) {
+      classScoped = true;
+      const { data: cls, error: clsErr } = await admin
+        .from('classes')
+        .select('id, school_id')
+        .eq('id', examFields.class_id)
+        .maybeSingle();
+      if (clsErr) return NextResponse.json({ error: clsErr.message }, { status: 500 });
+      if (!cls) return NextResponse.json({ error: 'Selected class was not found.' }, { status: 400 });
+      classSchoolId = cls.school_id ?? null;
+    }
+
+    if (examFields.start_date && examFields.end_date) {
+      const startMs = new Date(examFields.start_date).getTime();
+      const endMs = new Date(examFields.end_date).getTime();
+      if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+        return NextResponse.json(
+          { error: 'Exam close time must be after the scheduled start time.' },
+          { status: 400 },
+        );
+      }
+    }
 
     const examPayload: Record<string, unknown> = {
       created_by: caller.id,
@@ -143,10 +174,8 @@ export async function POST(request: NextRequest) {
     }
     if (Object.keys(baseMeta).length > 0) examPayload.metadata = baseMeta;
 
-    const admin = adminClient();
-
     // school_id: validate teacher is assigned to the school
-    const requestedSchoolId: string | null = typeof examFields.school_id === 'string' ? examFields.school_id : null;
+    const requestedSchoolId: string | null = classSchoolId ?? (typeof examFields.school_id === 'string' ? examFields.school_id : null);
     if (caller.role === 'teacher') {
       if (requestedSchoolId) {
         const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
@@ -157,12 +186,13 @@ export async function POST(request: NextRequest) {
           );
         }
         examPayload.school_id = requestedSchoolId;
-      } else if (caller.school_id) {
+      } else if (!classScoped && caller.school_id) {
         examPayload.school_id = caller.school_id;
       }
     } else {
       // admin: trust the provided school_id as-is
-      if ('school_id' in examFields) examPayload.school_id = examFields.school_id ?? null;
+      if (classScoped) examPayload.school_id = classSchoolId;
+      else if ('school_id' in examFields) examPayload.school_id = examFields.school_id ?? null;
     }
 
     if (!examPayload.title) {

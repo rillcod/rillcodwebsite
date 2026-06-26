@@ -171,7 +171,9 @@ export async function fetchStudentAssignments(portalUserId: string) {
         .or(`start_date.is.null,start_date.lte.${now}`)
         .or(`end_date.is.null,end_date.gte.${now}`);
     if (studentProfile?.school_id) {
-        cbtQuery = (cbtQuery as any).or(`school_id.eq.${studentProfile.school_id},school_id.is.null`);
+        cbtQuery = cbtQuery.eq('school_id', studentProfile.school_id);
+    } else {
+        cbtQuery = cbtQuery.is('school_id', null);
     }
     const { data: rawCbtExams } = await cbtQuery;
     const studentScope = {

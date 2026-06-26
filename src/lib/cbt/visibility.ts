@@ -66,9 +66,11 @@ export function cbtExamVisibleToStudent(
   const targetClassId = meta.target_class_id as string | undefined;
   const classScoped = meta.visibility === 'class' || !!targetClassId;
 
-  // School boundary — school-tagged exams stay within that school.
-  if (exam.school_id) {
-    if (!student.school_id || exam.school_id !== student.school_id) return false;
+  // School boundary — school students only see exams explicitly tied to their school.
+  if (student.school_id) {
+    if (exam.school_id !== student.school_id) return false;
+  } else if (exam.school_id) {
+    return false;
   }
 
   // Class-targeted exam — only members of that class.

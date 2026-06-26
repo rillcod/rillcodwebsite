@@ -52,6 +52,7 @@ export default function NewExamPage() {
   const isMinimal = searchParams?.get('minimal') === 'true';
   const [programs, setPrograms] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
+  const [assignedSchools, setAssignedSchools] = useState<Array<{ id: string; name: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,8 +67,10 @@ export default function NewExamPage() {
     passing_score: '70',
     start_date: '',
     end_date: '',
+    access_window_minutes: '60',
     is_active: true,
     exam_type: preExamType === 'evaluation' ? 'evaluation' : 'examination',
+    school_id: '',
   });
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
   const [sectionWeights, setSectionWeights] = useState({ objective: 60, subjective: 30, practical: 10 });
@@ -160,28 +163,74 @@ export default function NewExamPage() {
     if (authLoading || !profile) return;
     const db = createClient();
     
-    // 1. Fetch programs
+    // 1. Fetch admin school list; teachers load schools together with scoped courses below.
+    if (profile.role === 'admin') {
+      db.from('schools').select('id, name').eq('status', 'approved').order('name')
+        .then(({ data }) => setAssignedSchools(data ?? []));
+    }
+
+    // 2. Fetch programs
     db.from('programs').select('id, name').eq('is_active', true).order('name')
       .then(({ data }) => {
         setPrograms(data ?? []);
         if (preProgramId) setForm(prev => ({ ...prev, program_id: preProgramId }));
       });
 
-    // 2. Fetch courses (linked course pattern)
-    let courseQuery = db.from('courses').select('id, title, program_id, school_id, programs(name)').eq('is_active', true);
-    if (profile?.school_id) {
-      courseQuery = courseQuery.or(`school_id.eq.${profile.school_id},school_id.is.null`);
-    }
-    courseQuery.order('title').then(({ data }) => {
-      const cList = data ?? [];
-      setCourses(cList);
-      if (preCourseId) {
-        const c = cList.find((x: any) => x.id === preCourseId);
-        setForm(prev => ({ ...prev, course_id: preCourseId, program_id: c?.program_id || prev.program_id }));
+    const loadCourses = (schoolIds?: string[]) => {
+      let courseQuery = db.from('courses').select('id, title, program_id, school_id, programs(name)').eq('is_active', true);
+      if (profile.role === 'teacher') {
+        const filters = ['school_id.is.null', ...(schoolIds ?? []).map(id => `school_id.eq.${id}`)];
+        courseQuery = courseQuery.or(filters.join(','));
+      } else if (profile.role !== 'admin' && profile?.school_id) {
+        courseQuery = courseQuery.or(`school_id.eq.${profile.school_id},school_id.is.null`);
       }
-    });
+      return courseQuery.order('title').then(({ data }) => {
+        const cList = data ?? [];
+        setCourses(cList);
+        if (preCourseId) {
+          const c = cList.find((x: any) => x.id === preCourseId);
+          setForm(prev => ({ ...prev, course_id: c ? preCourseId : '', program_id: c?.program_id || prev.program_id }));
+        }
+      });
+    };
 
-    // Pre-fill programme (and school) when launched from a class page.
+    // 3. Fetch courses after teacher school scope is known.
+    if (profile.role !== 'teacher') {
+      loadCourses();
+    }
+
+    const setTeacherSchools = (schools: Array<{ id: string; name: string }>) => {
+      setAssignedSchools(schools);
+      if (schools.length === 1) setForm(prev => ({ ...prev, school_id: prev.school_id || schools[0].id }));
+      loadCourses(schools.map(s => s.id));
+    };
+
+    // Keep the old promise chain lightweight while still avoiding broad teacher course fetches.
+    if (profile.role === 'teacher') {
+      const schoolMap = new Map<string, string>();
+      const loads: PromiseLike<any>[] = [];
+      if (profile.school_id) {
+        loads.push(
+          db.from('schools').select('id, name').eq('id', profile.school_id).maybeSingle()
+            .then(({ data }) => { if (data?.id) schoolMap.set(data.id, data.name); }),
+        );
+      }
+      loads.push(
+        db.from('teacher_schools').select('school_id, schools(id, name)').eq('teacher_id', profile.id)
+          .then(({ data }) => {
+            (data ?? []).forEach((row: any) => {
+              if (row.schools?.id) schoolMap.set(row.schools.id, row.schools.name);
+            });
+          }),
+      );
+      Promise.all(loads).then(() => {
+        setTeacherSchools([...schoolMap.entries()]
+          .map(([id, name]) => ({ id, name }))
+          .sort((a, b) => a.name.localeCompare(b.name)));
+      });
+    }
+
+    // Pre-fill programme and lock school when launched from a class page.
     if (preClassId) {
       db.from('classes').select('id, name, program_id, school_id').eq('id', preClassId).maybeSingle()
         .then(({ data: cls }) => {
@@ -191,12 +240,17 @@ export default function NewExamPage() {
           setForm(prev => ({
             ...prev,
             program_id: cls.program_id || prev.program_id,
+            school_id: cls.school_id || prev.school_id,
           }));
         });
     }
   }, [profile?.id, authLoading, preProgramId, preCourseId, preClassId]);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+  const selectedSchoolName = assignedSchools.find(s => s.id === form.school_id)?.name || '';
+  const autoClosePreview = form.start_date
+    ? new Date(new Date(form.start_date).getTime() + ((parseInt(form.access_window_minutes, 10) || parseInt(form.duration_minutes, 10) || 60) * 60_000))
+    : null;
 
   const addQuestion = () => setQuestions(q => [...q, emptyQuestion()]);
   const removeQuestion = (i: number) => setQuestions(q => q.filter((_, idx) => idx !== i));
@@ -209,6 +263,10 @@ export default function NewExamPage() {
     e.preventDefault();
     if (!form.title.trim() || !form.program_id) {
       setError('Title and programme are required.');
+      return;
+    }
+    if (profile?.role === 'teacher' && !form.school_id) {
+      setError('Select the school that should see this exam.');
       return;
     }
     if (useWeights && sectionWeights.objective + sectionWeights.subjective + sectionWeights.practical !== 100) {
@@ -256,10 +314,18 @@ export default function NewExamPage() {
           order_index: i + 1,
         })),
       };
-      if (form.start_date) examPayload.start_date = new Date(form.start_date).toISOString();
-      if (form.end_date) examPayload.end_date = new Date(form.end_date).toISOString();
+      if (form.start_date) {
+        const start = new Date(form.start_date);
+        examPayload.start_date = start.toISOString();
+        const windowMinutes = parseInt(form.access_window_minutes, 10) || parseInt(form.duration_minutes, 10) || 60;
+        examPayload.end_date = new Date(start.getTime() + windowMinutes * 60_000).toISOString();
+        examPayload.metadata.access_window_minutes = windowMinutes;
+      } else if (form.end_date) {
+        examPayload.end_date = new Date(form.end_date).toISOString();
+      }
       if (classId) examPayload.class_id = classId;
-      if (profile?.school_id) examPayload.school_id = profile.school_id;
+      if (form.school_id) examPayload.school_id = form.school_id;
+      else if (profile?.school_id) examPayload.school_id = profile.school_id;
 
       const res = await fetch('/api/cbt/exams', {
         method: 'POST',
@@ -551,9 +617,43 @@ export default function NewExamPage() {
                   disabled={!form.program_id}
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-40">
                   <option value="">{form.program_id ? 'Select a course…' : '— pick a programme first —'}</option>
-                  {courses.filter(c => c.program_id === form.program_id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  {courses
+                    .filter(c => c.program_id === form.program_id)
+                    .filter(c => !form.school_id || !c.school_id || c.school_id === form.school_id)
+                    .map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">
+                Visible To School {profile?.role === 'teacher' ? <span className="text-rose-400">*</span> : <span className="text-white/30">(optional for admin)</span>}
+              </label>
+              <select
+                value={form.school_id}
+                onChange={e => {
+                  const schoolId = e.target.value;
+                  setForm(f => {
+                    const currentCourse = courses.find(c => c.id === f.course_id);
+                    const keepCourse = !currentCourse?.school_id || !schoolId || currentCourse.school_id === schoolId;
+                    return { ...f, school_id: schoolId, course_id: keepCourse ? f.course_id : '' };
+                  });
+                }}
+                disabled={!!classId}
+                className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {profile?.role === 'admin' ? 'Platform-wide / no school gate' : 'Select one of your assigned schools…'}
+                </option>
+                {assignedSchools.map(school => <option key={school.id} value={school.id}>{school.name}</option>)}
+              </select>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {classId
+                  ? `Locked to the class school${selectedSchoolName ? `: ${selectedSchoolName}` : ''}.`
+                  : form.school_id
+                    ? `Only students and staff scoped to ${selectedSchoolName || 'this school'} will see this exam.`
+                    : 'Teachers must choose one assigned school so the exam is not exposed outside the intended school.'}
+              </p>
             </div>
 
             {/* Exam Type — critical for score routing */}
@@ -602,7 +702,7 @@ export default function NewExamPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Start Date/Time</label>
                 <input type="datetime-local" value={form.start_date}
@@ -610,10 +710,19 @@ export default function NewExamPage() {
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">End Date/Time</label>
-                <input type="datetime-local" value={form.end_date}
-                  onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Open Window (min)</label>
+                <input type="number" min="5" value={form.access_window_minutes}
+                  onChange={e => setForm(f => ({ ...f, access_window_minutes: e.target.value }))}
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 transition-colors" />
+              </div>
+              <div className="rounded-xl border border-border bg-card px-4 py-3">
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Auto Closes</label>
+                <p className="text-sm font-semibold text-foreground">
+                  {autoClosePreview ? autoClosePreview.toLocaleString() : 'Set a start time'}
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground leading-relaxed">
+                  After this time students cannot start or continue the exam.
+                </p>
               </div>
             </div>
 

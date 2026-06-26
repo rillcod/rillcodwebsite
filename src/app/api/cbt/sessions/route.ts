@@ -26,7 +26,7 @@ async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller
 
   if (!exam) return false;
   if (caller.role === 'admin') return true;
-  if (caller.role === 'school') return !exam.school_id || exam.school_id === caller.school_id;
+  if (caller.role === 'school') return !!caller.school_id && exam.school_id === caller.school_id;
   if (caller.role === 'teacher') {
     if (exam.created_by === caller.id) return true;
     if (exam.school_id && exam.school_id === caller.school_id) return true;
@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (!caller) return NextResponse.json({ error: 'User not found' }, { status: 403 });
+    if (caller.role !== 'student') {
+      return NextResponse.json({ error: 'Only students can submit CBT exams' }, { status: 403 });
+    }
 
     const body = await request.json();
     const { exam_id, start_time, answers, auto_submitted, submitted_at } = body;
@@ -89,14 +92,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Exam not found or is no longer active' }, { status: 404 });
     }
 
-    // Students must be allowed to take this exam (class / programme scope).
-    if (caller.role === 'student') {
-      const student = await loadCbtStudentProfile(admin, caller.id);
-      if (!student) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-      const scope = await resolveStudentCbtScope(admin, caller.id, student.class_id);
-      if (!cbtExamVisibleToStudent(examRow, student, scope)) {
-        return NextResponse.json({ error: 'You do not have access to this exam' }, { status: 403 });
-      }
+    // Students must be allowed to take this exam (class / programme / school scope).
+    const student = await loadCbtStudentProfile(admin, caller.id);
+    if (!student) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    const scope = await resolveStudentCbtScope(admin, caller.id, student.class_id);
+    if (!cbtExamVisibleToStudent(examRow, student, scope)) {
+      return NextResponse.json({ error: 'You do not have access to this exam' }, { status: 403 });
     }
 
     // Check exam window closed

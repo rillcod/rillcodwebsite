@@ -247,7 +247,7 @@ function renderMarkdownHtml(text: string, styles: MdStyles, compact = false): st
       continue;
     }
     if (!ln.trim()) {
-      out.push('<div style="height:6px"></div>');
+      out.push(`<div style="height:${compact ? '2px' : '6px'}"></div>`);
       i++;
       continue;
     }
@@ -336,11 +336,52 @@ function theoryLineCount(q: CbtPrintQuestion): number {
   return 6;
 }
 
+function hasCodeBlock(value: unknown): boolean {
+  return typeof value === 'string' && /```|<pre|<code/i.test(value);
+}
+
+function codeFitsPrintColumn(value: unknown): boolean {
+  if (typeof value !== 'string') return true;
+  const fencedBlocks = Array.from(value.matchAll(/```(?:\w*)\n?([\s\S]*?)```/g), match => match[1] ?? '');
+  if (fencedBlocks.length === 0) return !/<pre|<code/i.test(value);
+
+  return fencedBlocks.every((block) => {
+    const lines = block.replace(/\s+$/, '').split('\n');
+    const nonEmptyLines = lines.filter(line => line.trim()).length;
+    const longestLine = lines.reduce((max, line) => Math.max(max, line.replace(/\t/g, '  ').length), 0);
+    return nonEmptyLines <= 8 && longestLine <= 42 && block.length <= 360;
+  });
+}
+
+function needsFullWidthPrintBlock(q: CbtPrintQuestion): boolean {
+  const text = q.question_text ?? '';
+  const options = normalizeCbtOptions(q.options, q.question_type);
+  return (
+    (hasCodeBlock(text) && !codeFitsPrintColumn(text))
+    || text.length > 260
+    || options.some((option) => (
+      (hasCodeBlock(option) && !codeFitsPrintColumn(option))
+      || option.length > 120
+    ))
+  );
+}
+
+function canUsePrintColumns(questions: CbtPrintQuestion[]): boolean {
+  return questions.length >= 6 && questions.every((q) => {
+    const options = normalizeCbtOptions(q.options, q.question_type);
+    return (
+      isObjectiveQuestion(q)
+      && options.length > 0
+    );
+  });
+}
+
 function renderPrintQuestionBlock(q: CbtPrintQuestion, num: number, mode: 'student' | 'staff'): string {
   const opts = normalizeCbtOptions(q.options, q.question_type);
   const isMCQ = isObjectiveQuestion(q) && opts.length > 0;
   const pts = q.points ?? 1;
-  return `<div class="q-block">
+  const widthClass = needsFullWidthPrintBlock(q) ? ' q-wide' : '';
+  return `<div class="q-block${widthClass}">
     <div class="q-row">
       <span class="q-num">${num}.</span>
       <div class="q-body">
@@ -378,14 +419,15 @@ export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
   const totalMarks = mcqPts + theoryPts;
   const examLabel = cfg.examTypeLabel ?? 'EXAMINATION';
 
+  const mcqColumns = canUsePrintColumns(mcq);
   const mcqHtml = mcq.length
     ? `<div class="section-hdr"><span class="s-title">Section A — Objective</span><span class="s-pts">${mcq.length} Q · ${mcqPts} marks</span></div>
-       ${mcq.map((q, i) => renderPrintQuestionBlock(q, i + 1, cfg.mode)).join('')}`
+       <div class="${mcqColumns ? 'q-columns' : 'q-list'}">${mcq.map((q, i) => renderPrintQuestionBlock(q, i + 1, cfg.mode)).join('')}</div>`
     : '';
 
   const theoryHtml = theory.length
     ? `<div class="section-hdr"><span class="s-title">Section B — Theory</span><span class="s-pts">${theory.length} Q · ${theoryPts} marks</span></div>
-       ${theory.map((q, i) => renderPrintQuestionBlock(q, mcq.length + i + 1, cfg.mode)).join('')}`
+       <div class="q-list">${theory.map((q, i) => renderPrintQuestionBlock(q, mcq.length + i + 1, cfg.mode)).join('')}</div>`
     : '';
 
   const allQuestions = [...mcq, ...theory];
@@ -427,7 +469,7 @@ export function buildCbtPrintHtml(cfg: CbtPrintSheetConfig): string {
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;background:#fff}
-@page{size:A4 portrait;margin:9mm 11mm}
+@page{size:A4 portrait;margin:8mm 9mm}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 .official-hdr{display:flex;align-items:center;gap:10pt;padding-bottom:6pt;border-bottom:2.5pt double #000;margin-bottom:5pt}
 .compact-hdr{margin-bottom:4pt}
@@ -439,31 +481,35 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
 .title-band{text-align:center;margin:5pt 0 4pt}
 .exam-title{font-size:12.5pt;font-weight:900;text-transform:uppercase;letter-spacing:0.5px}
 .exam-sub{font-size:8pt;color:#444;margin-top:2pt}
-.meta-grid{display:grid;grid-template-columns:repeat(5,1fr);border:1pt solid #000;margin:5pt 0;font-size:8.5pt}
-.meta-cell{padding:3pt 4pt;border-right:1pt solid #aaa;text-align:center}
+.meta-grid{display:grid;grid-template-columns:repeat(5,1fr);border:1pt solid #000;margin:4pt 0;font-size:8.3pt}
+.meta-cell{padding:2.5pt 4pt;border-right:1pt solid #aaa;text-align:center}
 .meta-cell:last-child{border-right:none}
 .meta-label{font-size:6pt;font-weight:900;text-transform:uppercase;color:#666;display:block}
 .meta-val{font-size:9pt;font-weight:700;display:block;margin-top:1pt}
-.stu-box{display:grid;grid-template-columns:2.2fr 1fr 1fr 0.8fr;border:1pt solid #000;margin:5pt 0}
-.stu-field{padding:4pt 6pt 3pt;border-right:1pt solid #aaa}
+.stu-box{display:grid;grid-template-columns:2.2fr 1fr 1fr 0.8fr;border:1pt solid #000;margin:4pt 0}
+.stu-field{padding:3pt 5pt 2.5pt;border-right:1pt solid #aaa}
 .stu-field:last-child{border-right:none}
 .stu-label{font-size:6pt;font-weight:900;text-transform:uppercase;color:#555;display:block;margin-bottom:3pt}
 .stu-line{border-bottom:1pt solid #333;height:11pt}
-.instructions{border:1pt solid #999;border-left:3pt solid #000;background:#f8f8f8;padding:4pt 7pt;margin:4pt 0 6pt;font-size:8.2pt;line-height:1.35}
+.instructions{border:1pt solid #999;border-left:3pt solid #000;background:#f8f8f8;padding:3pt 6pt;margin:3pt 0 5pt;font-size:8pt;line-height:1.3}
 .instr-title{font-size:6.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:2pt}
 .instructions p{margin:0 0 1.5pt}
 .instr-extra{margin-top:2pt!important;font-style:italic;color:#333}
-.section-hdr{display:flex;align-items:center;gap:6pt;margin:8pt 0 5pt;border-top:1pt solid #000;padding-top:4pt}
+.section-hdr{display:flex;align-items:center;gap:6pt;margin:6pt 0 4pt;border-top:1pt solid #000;padding-top:3pt}
 .s-title{font-size:8.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px}
 .s-pts{font-size:8pt;color:#444;margin-left:auto}
-.q-block{margin-bottom:7pt;break-inside:auto;page-break-inside:auto}
+.q-list{display:block}
+.q-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:5pt 12pt}
+.q-columns .q-block{break-inside:avoid;page-break-inside:avoid;margin-bottom:0}
+.q-columns .q-wide{grid-column:1 / -1}
+.q-block{margin-bottom:6pt;break-inside:auto;page-break-inside:auto}
 .q-row{display:flex;gap:5pt;align-items:flex-start}
 .q-num{font-weight:900;min-width:16pt;font-size:10pt;flex-shrink:0}
 .q-body{flex:1;min-width:0}
-.q-text{line-height:1.45}
+.q-text{line-height:1.38}
 .q-pts{font-size:7pt;color:#555;font-style:italic;flex-shrink:0;padding-top:2pt}
 .ans-lines{margin:3pt 0 0 20pt}
-.ans-line{border-bottom:0.6pt solid #bbb;height:16pt;margin-bottom:0}
+.ans-line{border-bottom:0.6pt solid #bbb;height:15pt;margin-bottom:0}
 .cbt-code-block{max-width:100%}
 .page-footer{margin-top:8pt;border-top:0.5pt solid #ccc;padding-top:3pt;display:flex;justify-content:space-between;font-size:7pt;color:#666}
 .score-box{border:1pt solid #000;display:flex;margin-top:10pt;break-inside:avoid}
