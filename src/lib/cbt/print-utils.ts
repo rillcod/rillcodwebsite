@@ -285,8 +285,8 @@ export function renderPrintOptions(
   const correct = (opts?.correctAnswer ?? '').trim().toLowerCase();
   const useTwoCol = list.every((o) => o.length < 72 && !o.includes('```') && !o.includes('\n'));
   const layout = useTwoCol
-    ? 'display:grid;grid-template-columns:1fr 1fr;gap:2pt 12pt;margin:3pt 0 0 24pt'
-    : 'display:flex;flex-direction:column;gap:2pt;margin:3pt 0 0 24pt';
+    ? 'display:grid;grid-template-columns:1fr 1fr;gap:2.5pt 10pt;margin:3pt 0 0 22pt'
+    : 'display:flex;flex-direction:column;gap:2.5pt;margin:3pt 0 0 22pt';
 
   return `<div class="options" style="${layout}">
     ${list
@@ -296,8 +296,8 @@ export function renderPrintOptions(
           opt.trim().toLowerCase() === correct
           || label.toLowerCase() === correct
         );
-        return `<div class="opt" style="display:flex;align-items:flex-start;gap:4pt;font-size:9.5pt;line-height:1.4;break-inside:avoid;${isCorrect ? 'font-weight:700' : ''}">
-          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:13pt;height:13pt;border:1pt solid #000;border-radius:50%;font-size:7.5pt;font-weight:900;flex-shrink:0">${label}</span>
+        return `<div class="opt" style="display:flex;align-items:flex-start;gap:4pt;font-size:9.15pt;line-height:1.34;break-inside:avoid;${isCorrect ? 'font-weight:700' : ''}">
+          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:12.5pt;height:12.5pt;border:0.9pt solid #111;border-radius:50%;font-size:7.2pt;font-weight:900;flex-shrink:0;background:#fff">${label}</span>
           <span style="flex:1;min-width:0">${mdToPrintHtml(opt, true)}</span>
           ${isCorrect ? '<span style="font-weight:900;font-size:8pt">✓</span>' : ''}
         </div>`;
@@ -402,9 +402,9 @@ function formalInstructionsHtml(cfg: CbtPrintSheetConfig, totalMarks: number, ha
     hasTheory ? 'Theory: write legibly in blue or black ink.' : null,
   ].filter(Boolean).join(' ');
   return `<div class="instructions">
-    <div class="instr-title">Instructions to Candidates</div>
-    <p><strong>1.</strong> Fill in your details and answer <strong>ALL</strong> questions. Total: <strong>${totalMarks}</strong> marks · Time: <strong>${cfg.durationMinutes} min</strong> · Pass mark: <strong>${cfg.passingScore}%</strong>.</p>
-    <p><strong>2.</strong> ${sectionRules} No phones, smart watches, or unauthorised materials. Stop writing when instructed.</p>
+    <div class="instr-title">Candidate Instructions</div>
+    <p><strong>1.</strong> Complete your details and answer <strong>ALL</strong> questions. Total: <strong>${totalMarks}</strong> marks · Time: <strong>${cfg.durationMinutes} min</strong> · Pass: <strong>${cfg.passingScore}%</strong>.</p>
+    <p><strong>2.</strong> ${sectionRules} No phones, smart watches, or unauthorised materials; stop immediately when instructed.</p>
     ${extra}
   </div>`;
 }
@@ -499,14 +499,16 @@ body{font-family:'Times New Roman',Georgia,serif;font-size:10.5pt;color:#000;bac
 .s-title{font-size:8.5pt;font-weight:900;text-transform:uppercase;letter-spacing:1px}
 .s-pts{font-size:8pt;color:#444;margin-left:auto}
 .q-list{display:block}
-.q-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:5pt 12pt}
-.q-columns .q-block{break-inside:avoid;page-break-inside:avoid;margin-bottom:0}
-.q-columns .q-wide{grid-column:1 / -1}
+.q-columns{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:5pt 15pt}
+.q-columns::before{content:"";position:absolute;top:0;bottom:0;left:50%;border-left:0.85pt solid #999;box-shadow:1.5pt 0 0 #f2f2f2;transform:translateX(-50%)}
+.q-columns .q-block{position:relative;z-index:1;break-inside:avoid;page-break-inside:avoid;margin-bottom:0;background:#fff}
+.q-columns .q-wide{grid-column:1 / -1;padding:3pt 0 4pt;border-top:0.6pt solid #d7d7d7;border-bottom:0.6pt solid #e5e5e5}
 .q-block{margin-bottom:6pt;break-inside:auto;page-break-inside:auto}
 .q-row{display:flex;gap:5pt;align-items:flex-start}
-.q-num{font-weight:900;min-width:16pt;font-size:10pt;flex-shrink:0}
+.q-num{font-weight:900;min-width:16pt;font-size:10.2pt;line-height:1.25;flex-shrink:0;color:#111}
 .q-body{flex:1;min-width:0}
-.q-text{line-height:1.38}
+.q-text{font-size:10pt;line-height:1.42;color:#111;font-weight:500}
+.q-text strong{font-weight:900}
 .q-pts{font-size:7pt;color:#555;font-style:italic;flex-shrink:0;padding-top:2pt}
 .ans-lines{margin:3pt 0 0 20pt}
 .ans-line{border-bottom:0.6pt solid #bbb;height:15pt;margin-bottom:0}
