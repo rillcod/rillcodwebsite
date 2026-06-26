@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
+import { verifySummerBalancePayment } from '@/lib/payments/verified-payment';
 
 export const dynamic = 'force-dynamic';
 function admin() {
@@ -41,6 +42,28 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date().toISOString();
+
+  if (prospect.status === 'partially_paid') {
+    try {
+      const result = await verifySummerBalancePayment({
+        prospectId,
+        amount,
+        method,
+        reference,
+        evidenceUrl,
+        actorId: user.id,
+        note: `Recorded by ${profile.full_name ?? profile.role}`,
+        source: 'summer_school_manual_balance',
+      });
+      return NextResponse.json({
+        ok: true,
+        ...result,
+        message: 'Balance payment verified, receipt issued, and reminders stopped.',
+      });
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message || 'Balance verification failed' }, { status: e.statusCode || 500 });
+    }
+  }
 
   // 1. Record the offline payment as a COMPLETED transaction, with the evidence.
   await (sb as any).from('payment_transactions').insert({

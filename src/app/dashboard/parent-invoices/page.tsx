@@ -22,17 +22,20 @@ interface Invoice {
   due_date: string | null;
   notes: string | null;
   payment_link: string | null;
-  items: { description: string; amount: number; qty?: number }[];
+  items: { description: string; amount?: number; total?: number; unit_price?: number; qty?: number; quantity?: number }[];
   created_at: string;
 }
 interface Payment {
   id: string;
   amount: number;
+  currency?: string | null;
   payment_method: string;
   payment_status: string;
   transaction_reference: string | null;
-  payment_date: string | null;
-  notes: string | null;
+  paid_at?: string | null;
+  created_at?: string | null;
+  receipt_url?: string | null;
+  invoice_id?: string | null;
 }
 interface BankAccount {
   id: string;
@@ -46,10 +49,17 @@ interface BankAccount {
 
 const STATUS_CONFIG: Record<string, { label: string; style: string; icon: any }> = {
   paid:    { label: 'Paid',    style: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400', icon: CheckCircleIcon },
+  sent:    { label: 'Due',     style: 'bg-primary/10 border-primary/30 text-primary',              icon: ClockIcon },
   pending: { label: 'Pending', style: 'bg-amber-500/10 border-amber-500/30 text-amber-400',      icon: ClockIcon },
+  partially_paid: { label: 'Part Paid', style: 'bg-amber-500/10 border-amber-500/30 text-amber-400', icon: ClockIcon },
   overdue: { label: 'Overdue', style: 'bg-rose-500/10 border-rose-500/30 text-rose-400',          icon: ExclamationTriangleIcon },
   draft:   { label: 'Draft',   style: 'bg-muted border-border text-muted-foreground',             icon: ClockIcon },
 };
+
+function invoiceItemAmount(item: Invoice['items'][number]) {
+  const qty = Number(item.quantity ?? item.qty ?? 1) || 1;
+  return Number(item.total ?? item.amount ?? (Number(item.unit_price ?? 0) * qty)) || 0;
+}
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: currency || 'NGN', minimumFractionDigits: 0 }).format(amount);
@@ -101,7 +111,11 @@ function PaymentEvidenceForm({ invoiceId, studentName }: { invoiceId: string; st
         const fd = new FormData();
         fd.append('file', file);
         fd.append('note', `Receipt: ${receiptNo.trim()}`);
-        await fetch(`/api/invoices/${invoiceId}/proofs`, { method: 'POST', body: fd }).catch(() => null);
+        const fileRes = await fetch(`/api/invoices/${invoiceId}/proofs`, { method: 'POST', body: fd });
+        if (!fileRes.ok) {
+          const fileJson = await fileRes.json().catch(() => ({}));
+          throw new Error(fileJson.error || 'Text evidence was saved, but receipt file upload failed. Please retry the file upload.');
+        }
       }
 
       setSubmitted(true);
@@ -375,7 +389,8 @@ function ParentInvoicesContent() {
   const { profile } = useAuth();
   const searchParams = useSearchParams();
   const studentParam = searchParams.get('student');
-  const paidParam = searchParams.get('paid');
+  const paymentParam = searchParams.get('payment');
+  const invoiceParam = searchParams.get('invoice');
 
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(studentParam);
@@ -385,7 +400,8 @@ function ParentInvoicesContent() {
   const [loadingData, setLoadingData] = useState(false);
   const [activeTab, setActiveTab] = useState<'invoices' | 'payments'>('invoices');
   const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
-  const [showPaidBanner, setShowPaidBanner] = useState(!!paidParam);
+  const [showPaymentBanner, setShowPaymentBanner] = useState(paymentParam === 'success' || paymentParam === 'cancelled');
+  const [busyReceipt, setBusyReceipt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -415,6 +431,9 @@ function ParentInvoicesContent() {
         if (!data.success) throw new Error(data.error || 'Failed to load invoices');
         setInvoices((data.invoices ?? []) as Invoice[]);
         setPayments((data.payments ?? []) as Payment[]);
+        if (invoiceParam && (data.invoices ?? []).some((inv: Invoice) => inv.id === invoiceParam)) {
+          setActiveTab('invoices');
+        }
         setLoadingData(false);
       })
       .catch(err => {
@@ -433,23 +452,49 @@ function ParentInvoicesContent() {
   }
 
   const selectedChild = children.find(c => c.id === selectedId);
-  const totalOwed = invoices.filter(i => i.status === 'pending' || i.status === 'overdue').reduce((s, i) => s + i.amount, 0);
+  const totalOwed = invoices
+    .filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()))
+    .reduce((s, i) => s + i.amount, 0);
   const totalPaid = payments.filter(p => p.payment_status === 'completed').reduce((s, p) => s + p.amount, 0);
+
+  const openReceipt = async (transactionId: string) => {
+    setBusyReceipt(transactionId);
+    try {
+      const res = await fetch(`/api/payments/receipt/${transactionId}`, { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not open receipt');
+      if (json.url) window.open(json.url, '_blank', 'noopener,noreferrer');
+    } catch (e: unknown) {
+      toast.error((e as Error).message || 'Could not open receipt');
+    } finally {
+      setBusyReceipt(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <BillingStickyNotices />
 
-      {/* Payment success banner */}
-      {showPaidBanner && (
-        <div className="flex items-start justify-between gap-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+      {/* Payment callback banner */}
+      {showPaymentBanner && (
+        <div className={`flex items-start justify-between gap-4 p-4 rounded-xl ${
+          paymentParam === 'cancelled'
+            ? 'bg-amber-500/10 border border-amber-500/30'
+            : 'bg-emerald-500/10 border border-emerald-500/30'
+        }`}>
           <div className="flex items-center gap-3">
-            <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-            <p className="text-sm text-emerald-400 font-bold">
-              Payment initiated! Your receipt will be automatically generated and sent once confirmed.
+            {paymentParam === 'cancelled' ? (
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            ) : (
+              <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+            )}
+            <p className={`text-sm font-bold ${paymentParam === 'cancelled' ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {paymentParam === 'cancelled'
+                ? 'Payment was cancelled. No receipt will be issued until payment is completed.'
+                : 'Payment initiated! Your receipt will be automatically generated and sent once confirmed.'}
             </p>
           </div>
-          <button onClick={() => setShowPaidBanner(false)} className="text-emerald-400 font-black text-sm shrink-0">✕</button>
+          <button onClick={() => setShowPaymentBanner(false)} className={`font-black text-sm shrink-0 ${paymentParam === 'cancelled' ? 'text-amber-400' : 'text-emerald-400'}`}>✕</button>
         </div>
       )}
 
@@ -546,9 +591,11 @@ function ParentInvoicesContent() {
                   {invoices.map(inv => {
                     const cfg = STATUS_CONFIG[inv.status] ?? STATUS_CONFIG.pending;
                     const StatusIcon = cfg.icon;
-                    const isPayable = inv.status === 'pending' || inv.status === 'overdue';
+                    const isPayable = ['pending', 'sent', 'overdue', 'partially_paid'].includes(inv.status);
                     return (
-                      <div key={inv.id} className="bg-card border border-border rounded-xl p-5 hover:bg-white/5 transition-all">
+                      <div key={inv.id} className={`bg-card border rounded-xl p-5 hover:bg-white/5 transition-all ${
+                        invoiceParam === inv.id ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+                      }`}>
                         {/* Header */}
                         <div className="flex items-start justify-between gap-4 mb-3">
                           <div>
@@ -573,8 +620,8 @@ function ParentInvoicesContent() {
                             <div className="divide-y divide-border">
                               {inv.items.map((item, i) => (
                                 <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                                  <span className="text-xs text-foreground">{item.description}{item.qty && item.qty > 1 ? ` × ${item.qty}` : ''}</span>
-                                  <span className="text-xs font-black text-foreground">{formatCurrency(item.amount, inv.currency)}</span>
+                                  <span className="text-xs text-foreground">{item.description}{Number(item.quantity ?? item.qty ?? 1) > 1 ? ` × ${item.quantity ?? item.qty}` : ''}</span>
+                                  <span className="text-xs font-black text-foreground">{formatCurrency(invoiceItemAmount(item), inv.currency)}</span>
                                 </div>
                               ))}
                             </div>
@@ -629,19 +676,20 @@ function ParentInvoicesContent() {
                 </div>
               ) : (
                 <div className="bg-card border border-border rounded-xl overflow-hidden">
-                  <div className="grid grid-cols-4 gap-4 px-5 py-2.5 border-b border-border bg-muted">
+                  <div className="grid grid-cols-5 gap-4 px-5 py-2.5 border-b border-border bg-muted">
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Date</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Amount</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Method</span>
                     <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Status</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground text-right">Receipt</span>
                   </div>
                   <div className="divide-y divide-border">
                     {payments.map(pay => (
-                      <div key={pay.id} className="grid grid-cols-4 gap-4 px-5 py-3 hover:bg-white/5 transition-all">
+                      <div key={pay.id} className="grid grid-cols-5 gap-4 px-5 py-3 hover:bg-white/5 transition-all">
                         <span className="text-xs text-foreground">
-                          {pay.payment_date ? new Date(pay.payment_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
+                          {(pay.paid_at || pay.created_at) ? new Date(pay.paid_at || pay.created_at || '').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'}
                         </span>
-                        <span className="text-xs font-black text-foreground">{formatCurrency(pay.amount, 'NGN')}</span>
+                        <span className="text-xs font-black text-foreground">{formatCurrency(pay.amount, pay.currency || 'NGN')}</span>
                         <span className="text-xs text-muted-foreground capitalize">{pay.payment_method.replace('_', ' ')}</span>
                         <span>
                           <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${
@@ -653,6 +701,19 @@ function ParentInvoicesContent() {
                           }`}>
                             {pay.payment_status}
                           </span>
+                        </span>
+                        <span className="text-right">
+                          {pay.payment_status === 'completed' ? (
+                            <button
+                              onClick={() => openReceipt(pay.id)}
+                              disabled={busyReceipt === pay.id}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 disabled:opacity-50"
+                            >
+                              {busyReceipt === pay.id ? 'Opening' : 'Receipt'}
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">—</span>
+                          )}
                         </span>
                       </div>
                     ))}

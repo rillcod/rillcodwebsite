@@ -346,7 +346,7 @@ export default function TransactionsPage() {
                         </button>
                       )}
                       {tx.invoice_id && (
-                        <a href={`/dashboard/payments/invoices/${tx.invoice_id}/edit`}
+                        <a href={`/dashboard/finance?tab=operations&ops=invoices&invoice=${tx.invoice_id}`}
                           className="flex items-center gap-2 px-4 py-2 border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:border-foreground/30 hover:text-foreground transition-all">
                           View Invoice
                         </a>

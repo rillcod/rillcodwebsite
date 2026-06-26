@@ -149,8 +149,11 @@ export async function POST(req: Request) {
             try {
                 const reference = `EMAIL-INV-${invoice.invoice_number}-${Date.now()}`;
                 const callbackUrl = isSchoolStream
-                    ? `${appBase}/dashboard/finance`
-                    : `${appBase}/dashboard/parent-invoices?paid=1&invoice=${invoiceId}`;
+                    ? `${appBase}/dashboard/school-billing?payment=success`
+                    : `${appBase}/dashboard/parent-invoices?payment=success&invoice=${invoiceId}`;
+                const cancelUrl = isSchoolStream
+                    ? `${appBase}/dashboard/school-billing?payment=cancelled`
+                    : `${appBase}/dashboard/parent-invoices?payment=cancelled&invoice=${invoiceId}`;
 
                 const psRes = await fetch('https://api.paystack.co/transaction/initialize', {
                     method: 'POST',
@@ -164,10 +167,10 @@ export async function POST(req: Request) {
                         reference,
                         currency: invoice.currency ?? 'NGN',
                         callback_url: callbackUrl,
+                        cancel_action: cancelUrl,
                         metadata: {
                             invoice_id: invoiceId,
                             invoice_number: invoice.invoice_number,
-                            cancel_action: callbackUrl,
                         },
                     }),
                 });

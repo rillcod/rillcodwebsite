@@ -77,7 +77,7 @@ export default function AdminDashboard({ profile, stats, activities, schoolPayme
               <p className="text-[9px] font-black text-brand-red-600 uppercase tracking-[0.4em]">Finance</p>
               <h2 className="text-xl font-black text-foreground uppercase tracking-tight mt-0.5">School Billing Records</h2>
             </div>
-            <Link href="/dashboard/payments?view=billing"
+            <Link href="/dashboard/finance?tab=operations&ops=billing_cycles"
               className="px-4 py-2 text-[9px] font-black uppercase tracking-widest border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 rounded-xl transition-all flex items-center gap-1.5">
               <BanknotesIcon className="w-3.5 h-3.5" /> Full Billing View
             </Link>

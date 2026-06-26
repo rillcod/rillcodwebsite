@@ -356,8 +356,34 @@ function finalizeCbtGeneratedData(parsed: any, req: GenerateRequest): any {
   };
 }
 
+function normalizeGeneratedLessonNotes(parsed: any, req: GenerateRequest): { lesson_notes: string } {
+  let notes = typeof parsed?.lesson_notes === 'string' ? parsed.lesson_notes : typeof parsed === 'string' ? parsed : '';
+  notes = notes.replace(/^```(?:json|markdown|md)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+  if (notes.startsWith('{') && notes.endsWith('}')) {
+    try {
+      const nested = JSON.parse(notes);
+      if (typeof nested?.lesson_notes === 'string') notes = nested.lesson_notes;
+    } catch {
+      // Keep raw text if this only looks like JSON.
+    }
+  }
+
+  if (!notes.includes('\n') && notes.includes('\\n')) notes = notes.replace(/\\n/g, '\n');
+  notes = notes.replace(/\\"/g, '"').trim();
+
+  const hasMarkdownStructure = /(^|\n)\s{0,3}#{2,3}\s+\S|(^|\n)\s*[-*]\s+\S|```/.test(notes);
+  if (notes && !hasMarkdownStructure) {
+    notes = `## ${req.topic}\n\n${notes}`;
+  }
+
+  return { lesson_notes: notes };
+}
+
 function finalizeGeneratedData(type: GenerateType, parsed: any, req: GenerateRequest): any {
-  return type === 'cbt' ? finalizeCbtGeneratedData(parsed, req) : parsed;
+  if (type === 'cbt') return finalizeCbtGeneratedData(parsed, req);
+  if (type === 'lesson-notes') return normalizeGeneratedLessonNotes(parsed, req);
+  return parsed;
 }
 
 function buildPrompt(req: GenerateRequest): string {
@@ -505,6 +531,14 @@ ${req.courseName ? `- Show how "${req.topic}" connects to the student's "${req.c
 - End with 3 simple fun questions like "Can you name 3 things that use ${req.topic}?"
 ${notesModeStyle}
 
+MARKDOWN CONTRACT — lesson_notes MUST be real markdown:
+- Use ## headings exactly like the examples above.
+- Use short bullet lists where helpful.
+- Use blank lines between sections.
+- Do NOT return one plain paragraph.
+- Do NOT return HTML.
+- Do NOT wrap the markdown in triple backticks.
+
 Return ONLY this JSON (nothing else):
 {
   "lesson_notes": "your markdown notes here — use ## headers, bullet points, and emojis"
@@ -518,6 +552,15 @@ Subject: ${req.subject ?? req.courseName ?? 'Coding & Technology'}
 Duration: ${req.durationMinutes ?? 60} minutes
 ${notesContextLine ? `Context: ${notesContextLine}` : ''}
 ${notesModeStyle}
+
+MARKDOWN CONTRACT — lesson_notes MUST be real markdown:
+- Use ## section headings and ### subsection headings.
+- Use bullet lists where helpful.
+- Use fenced code blocks with language names for code examples.
+- Use blank lines between sections.
+- Do NOT return one plain paragraph.
+- Do NOT return HTML.
+- Do NOT wrap the markdown in triple backticks.
 
 CONTENT GUIDE (adapt freely to the topic — this is a suggestion, not a rigid template):
 - Open with a short punchy hook or surprising fact — no heading needed for the first paragraph
@@ -1624,7 +1667,7 @@ export async function POST(req: NextRequest) {
                 const parsed = safeParseJSON(content);
                 // If parsed but lesson_notes is missing, wrap the whole content
                 if (!parsed.lesson_notes && typeof content === 'string') {
-                  return NextResponse.json({ success: true, model: modelId, data: { lesson_notes: content.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim() } });
+                  return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, { lesson_notes: content }, body) });
                 }
                 return NextResponse.json({ success: true, model: modelId, data: finalizeGeneratedData(type, parsed, body) });
               } catch {

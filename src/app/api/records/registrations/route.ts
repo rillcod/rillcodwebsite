@@ -56,7 +56,10 @@ export async function GET() {
       registered: r.created_at || b.created_at || null,
       batchId: r.batch_id,
     };
-  }).filter((r: any) => !scopeSchoolIds || (r.schoolId && scopeSchoolIds.includes(r.schoolId)));
+  }).filter((r: any) => {
+    if (!liveByEmail.has(norm(r.email))) return false;
+    return !scopeSchoolIds || (r.schoolId && scopeSchoolIds.includes(r.schoolId));
+  });
 
   rows.sort((a: any, b: any) => String(b.registered || '').localeCompare(String(a.registered || '')));
   return NextResponse.json({ registrations: rows, count: rows.length });

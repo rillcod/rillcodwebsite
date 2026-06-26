@@ -15,6 +15,7 @@ import {
   UserIcon,
   ArrowDownTrayIcon,
   ExclamationTriangleIcon,
+  CheckBadgeIcon,
 } from '@/lib/icons';
 import {
   classifyInvoiceStream,
@@ -65,6 +66,9 @@ interface InvoiceRow {
   billing_cycle_id?: string | null;
   schools?: { name?: string } | null;
   portal_users?: { full_name?: string; email?: string } | null;
+  proof_count?: number;
+  latest_proof_at?: string | null;
+  latest_proof_status?: string | null;
 }
 
 type TabKey = 'pending_tx' | 'proof_queue' | 'all_tx';
@@ -92,6 +96,14 @@ export function ApprovalsPanel() {
   const [proofModal, setProofModal] = useState<{ invoiceId: string; invoiceNumber: string } | null>(
     null,
   );
+  const [showManualVerify, setShowManualVerify] = useState(false);
+  const [manualTarget, setManualTarget] = useState<'invoice' | 'summer_balance'>('invoice');
+  const [manualTargetId, setManualTargetId] = useState('');
+  const [manualAmount, setManualAmount] = useState('');
+  const [manualMethod, setManualMethod] = useState('bank_transfer');
+  const [manualReference, setManualReference] = useState('');
+  const [manualNote, setManualNote] = useState('');
+  const [manualBusy, setManualBusy] = useState(false);
 
   const loadAll = async () => {
     setLoading(true);
@@ -100,8 +112,28 @@ export function ApprovalsPanel() {
         fetch('/api/payments/transactions?limit=200').then((r) => (r.ok ? r.json() : { data: [] })),
         fetch('/api/invoices?limit=200').then((r) => (r.ok ? r.json() : { data: [] })),
       ]);
+      const invoiceRows = ((invRes.data as InvoiceRow[]) ?? []);
+      const openInvoices = invoiceRows.filter((inv) => ['sent', 'overdue', 'pending', 'partially_paid'].includes(inv.status));
+      const proofMeta = await Promise.all(openInvoices.map(async (inv) => {
+        try {
+          const res = await fetch(`/api/invoices/${inv.id}/proofs`);
+          if (!res.ok) return { id: inv.id, proof_count: 0 };
+          const json = await res.json().catch(() => ({}));
+          const proofs = Array.isArray(json.data) ? json.data : [];
+          return {
+            id: inv.id,
+            proof_count: proofs.length,
+            latest_proof_at: proofs[0]?.created_at ?? null,
+            latest_proof_status: proofs[0]?.status ?? null,
+          };
+        } catch {
+          return { id: inv.id, proof_count: 0 };
+        }
+      }));
+      const proofMetaById = new Map(proofMeta.map((meta) => [meta.id, meta]));
+
       setTxs((txRes.data as TxRow[]) ?? []);
-      setInvoices((invRes.data as InvoiceRow[]) ?? []);
+      setInvoices(invoiceRows.map((inv) => ({ ...inv, ...(proofMetaById.get(inv.id) ?? {}) })));
     } catch (e: unknown) {
       toast.error((e as Error).message || 'Failed to load');
     } finally {
@@ -162,7 +194,7 @@ export function ApprovalsPanel() {
   const issueReceipt = async (id: string) => {
     setBusyId(id);
     try {
-      const res = await fetch(`/api/payments/receipt/${id}`);
+      const res = await fetch(`/api/payments/receipt/${id}`, { method: 'POST' });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Failed to issue receipt');
       toast.success(`Receipt ${j.receipt_number || ''} ready`);
@@ -173,21 +205,6 @@ export function ApprovalsPanel() {
     } finally {
       setBusyId(null);
     }
-  };
-
-  const rejectStalePoof = async (inv: InvoiceRow) => {
-    if (!isAdmin) return;
-    try {
-      await fetch(`/api/invoices/${inv.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'cancelled' }),
-      });
-      toast.success(`#${inv.invoice_number} auto-rejected`);
-    } catch {
-      toast.error(`Failed to reject #${inv.invoice_number}`);
-    }
-    await loadAll();
   };
 
   const bulkIssueReceipts = async () => {
@@ -201,7 +218,7 @@ export function ApprovalsPanel() {
     let fail = 0;
     for (const tx of missing) {
       try {
-        const res = await fetch(`/api/payments/receipt/${tx.id}`);
+        const res = await fetch(`/api/payments/receipt/${tx.id}`, { method: 'POST' });
         if (res.ok) ok++; else fail++;
       } catch {
         fail++;
@@ -211,6 +228,53 @@ export function ApprovalsPanel() {
     if (ok > 0) toast.success(`${ok} receipt${ok === 1 ? '' : 's'} issued${fail > 0 ? ` · ${fail} failed` : ''}`);
     if (fail > 0 && ok === 0) toast.error(`All ${fail} failed — check API logs`);
     await loadAll();
+  };
+
+  const verifyManualPayment = async () => {
+    const targetId = manualTargetId.trim();
+    const amount = Number(manualAmount);
+    if (!targetId) {
+      toast.error(manualTarget === 'invoice' ? 'Enter an invoice ID' : 'Enter a summer prospect ID');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter a valid amount');
+      return;
+    }
+
+    setManualBusy(true);
+    try {
+      const res = await fetch('/api/payments/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          payment_method: manualMethod,
+          reference: manualReference.trim() || undefined,
+          notes: manualNote.trim() || undefined,
+          ...(manualTarget === 'invoice'
+            ? { invoice_id: targetId }
+            : { prospect_id: targetId, payment_type: 'summer_school_balance' }),
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Verification failed');
+      toast.success(
+        manualTarget === 'invoice'
+          ? 'Invoice payment verified and receipted'
+          : 'Summer balance verified and reminders stopped',
+      );
+      setManualTargetId('');
+      setManualAmount('');
+      setManualReference('');
+      setManualNote('');
+      setShowManualVerify(false);
+      await loadAll();
+    } catch (e: unknown) {
+      toast.error((e as Error).message || 'Verification failed');
+    } finally {
+      setManualBusy(false);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -266,7 +330,7 @@ export function ApprovalsPanel() {
     return {
       pending: txList.filter((t) => ['pending', 'processing'].includes(t.payment_status)),
       all: txList,
-      proofQueue: invList.filter((i) => ['sent', 'overdue', 'draft'].includes(i.status)),
+      proofQueue: invList.filter((i) => Number(i.proof_count || 0) > 0),
     };
   }, [txs, invoices, search, streamFilter]);
 
@@ -304,6 +368,15 @@ export function ApprovalsPanel() {
         </div>
 
         <div className="flex-1" />
+
+        {isAdmin && (
+          <button
+            onClick={() => setShowManualVerify((v) => !v)}
+            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-black uppercase tracking-widest bg-emerald-600/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/25 rounded-md"
+          >
+            <CheckBadgeIcon className="w-4 h-4" /> Verify payment
+          </button>
+        )}
 
         {(isAdmin || isSchool) && (
           <div className="inline-flex border border-border rounded-xl overflow-hidden text-xs">
@@ -354,6 +427,76 @@ export function ApprovalsPanel() {
         </button>
       </div>
 
+      {showManualVerify && isAdmin && (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-black text-foreground">Manual balance verification</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Use this when a bank transfer, POS, cash, or uploaded proof has been confirmed outside the online gateway.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+            <select
+              value={manualTarget}
+              onChange={(e) => setManualTarget(e.target.value as 'invoice' | 'summer_balance')}
+              className="md:col-span-1 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
+            >
+              <option value="invoice">Invoice</option>
+              <option value="summer_balance">Summer balance</option>
+            </select>
+            <input
+              value={manualTargetId}
+              onChange={(e) => setManualTargetId(e.target.value)}
+              placeholder={manualTarget === 'invoice' ? 'Invoice ID' : 'Prospect ID'}
+              className="md:col-span-2 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
+            />
+            <input
+              value={manualAmount}
+              onChange={(e) => setManualAmount(e.target.value)}
+              type="number"
+              min="1"
+              placeholder="Amount"
+              className="px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
+            />
+            <select
+              value={manualMethod}
+              onChange={(e) => setManualMethod(e.target.value)}
+              className="px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
+            >
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="pos">POS</option>
+              <option value="cash">Cash</option>
+              <option value="mobile_money">Mobile money</option>
+              <option value="cheque">Cheque</option>
+              <option value="other">Other</option>
+            </select>
+            <input
+              value={manualReference}
+              onChange={(e) => setManualReference(e.target.value)}
+              placeholder="Reference"
+              className="px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
+            />
+          </div>
+          <div className="flex flex-col md:flex-row gap-2">
+            <textarea
+              value={manualNote}
+              onChange={(e) => setManualNote(e.target.value)}
+              placeholder="Optional note, e.g. proof checked against bank statement"
+              rows={2}
+              className="flex-1 px-3 py-2 text-xs border border-border bg-background rounded-md focus:outline-none focus:border-primary"
+            />
+            <button
+              onClick={verifyManualPayment}
+              disabled={manualBusy}
+              className="md:w-44 inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md"
+            >
+              {manualBusy ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+              Verify
+            </button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -370,7 +513,6 @@ export function ApprovalsPanel() {
           onOpen={(i) =>
             setProofModal({ invoiceId: i.id, invoiceNumber: i.invoice_number })
           }
-          onAutoReject={isAdmin ? rejectStalePoof : undefined}
         />
       ) : (
         <TxList
@@ -514,7 +656,7 @@ function ProofQueueList({
   onOpen: (inv: InvoiceRow) => void;
   onAutoReject?: (inv: InvoiceRow) => void;
 }) {
-  const stale = rows.filter(inv => Math.floor((Date.now() - new Date(inv.created_at).getTime()) / 86400000) > 30);
+  const stale = rows.filter(inv => Math.floor((Date.now() - new Date(inv.latest_proof_at || inv.created_at).getTime()) / 86400000) > 30);
 
   return (
     <div className="space-y-2">
@@ -533,7 +675,7 @@ function ProofQueueList({
         </div>
       )}
       {rows.map((inv) => {
-        const age = proofAgeBadge(inv.created_at);
+        const age = proofAgeBadge(inv.latest_proof_at || inv.created_at);
         return (
           <div
             key={inv.id}
@@ -549,7 +691,10 @@ function ProofQueueList({
                     #{inv.invoice_number}
                   </span>
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                    {inv.status}
+                    {inv.latest_proof_status || 'proof submitted'}
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/30">
+                    {inv.proof_count || 0} proof{Number(inv.proof_count || 0) === 1 ? '' : 's'}
                   </span>
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${age.cls}`}>
                     {age.label}
@@ -571,7 +716,9 @@ function ProofQueueList({
                   )}
                 </div>
                 <div className="text-[11px] text-muted-foreground mt-1">
-                  Issued {formatShortDate(inv.created_at)}
+                  Latest proof {formatShortDate(inv.latest_proof_at || inv.created_at)}
+                  {' · '}
+                  Invoice issued {formatShortDate(inv.created_at)}
                   {inv.due_date && ` · Due ${formatShortDate(inv.due_date)}`}
                 </div>
               </div>

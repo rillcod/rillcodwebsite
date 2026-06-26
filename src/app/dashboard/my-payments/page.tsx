@@ -35,6 +35,7 @@ interface PaymentTx {
   transaction_reference: string | null;
   paid_at: string | null;
   created_at: string;
+  receipt_url?: string | null;
 }
 
 interface BankAccount {
@@ -114,6 +115,7 @@ export default function MyPaymentsPage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'invoices' | 'history' | 'pay'>('invoices');
+  const [busyReceipt, setBusyReceipt] = useState<string | null>(null);
 
   const loadData = async () => {
     if (!profile) return;
@@ -126,7 +128,7 @@ export default function MyPaymentsPage() {
           .eq('portal_user_id', profile.id)
           .order('created_at', { ascending: false }),
         (db as any).from('payment_transactions')
-          .select('id, amount, currency, payment_method, payment_status, transaction_reference, paid_at, created_at')
+          .select('id, amount, currency, payment_method, payment_status, transaction_reference, paid_at, created_at, receipt_url')
           .eq('portal_user_id', profile.id)
           .order('created_at', { ascending: false })
           .limit(30),
@@ -141,6 +143,23 @@ export default function MyPaymentsPage() {
       toast.error('Failed to load payment data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openReceipt = async (transactionId: string) => {
+    setBusyReceipt(transactionId);
+    try {
+      const res = await fetch(`/api/payments/receipt/${transactionId}`, { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not open receipt');
+      if (json.url) {
+        window.open(json.url, '_blank', 'noopener,noreferrer');
+        setTransactions((prev) => prev.map((tx) => tx.id === transactionId ? { ...tx, receipt_url: json.url } : tx));
+      }
+    } catch (e: unknown) {
+      toast.error((e as Error).message || 'Could not open receipt');
+    } finally {
+      setBusyReceipt(null);
     }
   };
 
@@ -340,9 +359,21 @@ export default function MyPaymentsPage() {
                       <p className="text-[10px] font-mono text-card-foreground/30 mt-0.5">{tx.transaction_reference}</p>
                     )}
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${tx.payment_status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
-                    {tx.payment_status}
-                  </span>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${tx.payment_status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+                      {tx.payment_status}
+                    </span>
+                    {tx.payment_status === 'completed' && (
+                      <button
+                        onClick={() => openReceipt(tx.id)}
+                        disabled={busyReceipt === tx.id}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 disabled:opacity-50"
+                      >
+                        <ArrowDownTrayIcon className="w-3 h-3" />
+                        {busyReceipt === tx.id ? 'Opening' : 'Receipt'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

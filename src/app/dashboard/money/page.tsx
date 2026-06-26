@@ -19,9 +19,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   ArrowLeft, Wallet, CreditCard, FileText, CheckCircle2, AlertCircle,
-  Download, ExternalLink, RefreshCw, ChevronRight, Clock,
+  Download, RefreshCw, ChevronRight, Clock,
   TrendingUp, Banknote, Receipt, Loader2, Search, Filter,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -137,7 +138,12 @@ function StatusPill({ status }: { status: string }) {
 
 export default function MoneyHubPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const role = profile?.role as Role | undefined;
+  const paymentParam = searchParams.get('payment');
+  const paymentRef = searchParams.get('ref');
+  const invoiceParam = searchParams.get('invoice');
+  const alreadyPaid = searchParams.get('already_paid') === '1';
 
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -148,18 +154,47 @@ export default function MoneyHubPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [streamTab, setStreamTab] = useState<StreamTab>('all');
+  const [markPaidInv, setMarkPaidInv] = useState<InvoiceRow | null>(null);
+  const [markMethod, setMarkMethod] = useState('cash');
+  const [markRef, setMarkRef] = useState('');
+  const [markingPaid, setMarkingPaid] = useState(false);
+  const [markError, setMarkError] = useState('');
+  const [localPaid, setLocalPaid] = useState<Set<string>>(new Set());
 
   const fetchEverything = useCallback(async () => {
     setErr(null);
     try {
-      const [txRes, invRes] = await Promise.all([
-        fetch('/api/payments/transactions', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/invoices', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
+      const loadTransactions = async () => {
+        const all: Transaction[] = [];
+        let cursor: { created_at: string; id: string } | null = null;
+        for (let page = 0; page < 25; page++) {
+          const q = new URLSearchParams();
+          if (cursor) {
+            q.set('cursor_created_at', cursor.created_at);
+            q.set('cursor_id', cursor.id);
+          }
+          const res = await fetch(`/api/payments/transactions${q.toString() ? `?${q.toString()}` : ''}`, { cache: 'no-store' });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || 'Failed to load transactions');
+          all.push(...(Array.isArray(json.data) ? json.data : []));
+          if (!json.nextCursor) break;
+          cursor = json.nextCursor;
+        }
+        return all;
+      };
+
+      const [txRows, invRes] = await Promise.all([
+        loadTransactions(),
+        fetch('/api/invoices?limit=500', { cache: 'no-store' }),
       ]);
-      setTxs(Array.isArray(txRes?.data) ? txRes.data : []);
-      setInvoices(Array.isArray(invRes?.data) ? invRes.data : []);
+      const invJson = await invRes.json().catch(() => ({}));
+      if (!invRes.ok) throw new Error(invJson.error || 'Failed to load invoices');
+      setTxs(txRows);
+      setInvoices(Array.isArray(invJson?.data) ? invJson.data : []);
     } catch (e: any) {
       setErr(e?.message ?? 'Failed to load finance data');
+      setTxs([]);
+      setInvoices([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -274,14 +309,6 @@ export default function MoneyHubPage() {
     );
     const overdueForTeacher = outstandingForTeacher.filter(i => i.due_date && new Date(i.due_date) < new Date());
     const paidForTeacher = invoices.filter(i => i.portal_user_id && (i.status || '').toLowerCase() === 'paid');
-
-    // Mark-as-paid modal state
-    const [markPaidInv, setMarkPaidInv] = useState<InvoiceRow | null>(null);
-    const [markMethod, setMarkMethod] = useState('cash');
-    const [markRef, setMarkRef] = useState('');
-    const [markingPaid, setMarkingPaid] = useState(false);
-    const [markError, setMarkError] = useState('');
-    const [localPaid, setLocalPaid] = useState<Set<string>>(new Set());
 
     async function confirmPayment() {
       if (!markPaidInv) return;
@@ -432,9 +459,9 @@ export default function MoneyHubPage() {
               <p className="text-[11px] font-black text-amber-400 uppercase tracking-widest mb-1">Payment Evidence Submissions</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Students and parents who paid through the school can submit their receipt number, grade level, and date of payment from their parent portal.
-                Review and approve these submissions from <strong className="text-foreground">Finance → Invoices</strong>.
+                Review and approve these submissions from <strong className="text-foreground">Finance → Approvals</strong>.
               </p>
-              <a href="/dashboard/finance?tab=invoices"
+              <a href="/dashboard/finance?tab=operations&ops=approvals"
                 className="inline-flex items-center gap-1 mt-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors">
                 Go to Finance &amp; Review Evidence →
               </a>
@@ -449,7 +476,7 @@ export default function MoneyHubPage() {
 
         {/* ── Mark as Paid modal ─────────────────────────────────────── */}
         {markPaidInv && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4">
             <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
               <div>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Confirm Payment</p>
@@ -501,7 +528,7 @@ export default function MoneyHubPage() {
                 <button
                   onClick={confirmPayment}
                   disabled={markingPaid}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-primary-foreground text-sm font-black transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {markingPaid ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   {markingPaid ? 'Confirming…' : 'Confirm Payment'}
@@ -517,6 +544,34 @@ export default function MoneyHubPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6">
+
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        {(paymentParam === 'success' || paymentParam === 'cancelled') && (
+          <div className={`rounded-2xl border p-4 flex items-start gap-3 ${
+            paymentParam === 'cancelled'
+              ? 'border-amber-500/30 bg-amber-500/10'
+              : 'border-emerald-500/30 bg-emerald-500/10'
+          }`}>
+            {paymentParam === 'cancelled' ? (
+              <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            )}
+            <div className="min-w-0">
+              <p className={`text-sm font-black ${paymentParam === 'cancelled' ? 'text-amber-300' : 'text-emerald-300'}`}>
+                {paymentParam === 'cancelled' ? 'Payment cancelled' : alreadyPaid ? 'Payment already confirmed' : 'Payment submitted'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {paymentParam === 'cancelled'
+                  ? 'No payment was confirmed. Any unpaid invoice remains open.'
+                  : alreadyPaid
+                    ? 'This bill is already marked as paid. No further action is required.'
+                    : 'We are confirming the gateway response. Receipts and balances update automatically once confirmation completes.'}
+                {paymentRef ? ` Reference: ${paymentRef}` : ''}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ── Header ─────────────────────────────────────────────────── */}
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -546,7 +601,7 @@ export default function MoneyHubPage() {
             {isStaff && (
               <Link
                 href="/dashboard/finance"
-                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-gradient-to-r from-primary to-fuchsia-600 hover:from-primary hover:to-fuchsia-500 text-white shadow-lg shadow-violet-900/20 min-h-[40px]"
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg bg-gradient-to-r from-primary to-fuchsia-600 hover:from-primary hover:to-fuchsia-500 text-primary-foreground shadow-lg shadow-violet-900/20 min-h-[40px]"
               >
                 Advanced <ChevronRight className="w-3.5 h-3.5" />
               </Link>
@@ -624,7 +679,7 @@ export default function MoneyHubPage() {
                 </p>
               </div>
               <a
-                href={role === 'parent' ? '/dashboard/parent-invoices' : '/dashboard/my-payments'}
+                href={role === 'parent' ? '/dashboard/parent-invoices' : isSchool ? '/dashboard/school-billing' : '/dashboard/my-payments'}
                 className={`inline-flex items-center gap-1 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-white shrink-0 min-h-[40px] ${isOver ? 'bg-rose-500 hover:bg-rose-400' : 'bg-amber-500 hover:bg-amber-400'} transition-colors`}
               >
                 Pay Now <ChevronRight className="w-3 h-3" />
@@ -655,7 +710,7 @@ export default function MoneyHubPage() {
                 </p>
               </div>
               <a
-                href="/dashboard/finance"
+                href="/dashboard/school-billing"
                 className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-500 shrink-0 min-h-[40px] transition-colors"
               >
                 View Invoices <ChevronRight className="w-3 h-3" />
@@ -723,9 +778,9 @@ export default function MoneyHubPage() {
           )}
           {isSchool && (
             <>
+              <ActionLink href="/dashboard/school-billing" icon={CreditCard} label="Pay billing" />
               <ActionLink href="/dashboard/finance" icon={FileText} label="My Invoices" />
-              <ActionLink href="/dashboard/finance?tab=receipts" icon={Receipt} label="My Receipts" />
-              <ActionLink href="/dashboard/finance?tab=billing_docs" icon={Banknote} label="Billing Docs" />
+              <ActionLink href="/dashboard/finance?tab=operations&ops=receipts" icon={Receipt} label="My Receipts" />
             </>
           )}
           {role === 'student' && (
@@ -759,13 +814,19 @@ export default function MoneyHubPage() {
             <ul className="divide-y divide-border">
               {scopedInvoices
                 .filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()))
+                .sort((a, b) => (a.id === invoiceParam ? -1 : b.id === invoiceParam ? 1 : 0))
                 .slice(0, 8)
                 .map(inv => {
+                  const highlighted = invoiceParam === inv.id;
                   const payHref = role === 'parent'
                     ? `/dashboard/parent-invoices?invoice=${inv.id}`
-                    : `/dashboard/my-payments?invoice=${inv.id}`;
+                    : isSchool
+                      ? '/dashboard/school-billing'
+                      : `/dashboard/my-payments?invoice=${inv.id}`;
                   return (
-                    <li key={inv.id} className="flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/30 transition-colors">
+                    <li key={inv.id} className={`flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/30 transition-colors ${
+                      highlighted ? 'bg-primary/5 ring-1 ring-primary/30' : ''
+                    }`}>
                       <div className="w-10 h-10 rounded-lg bg-sky-500/10 text-sky-300 inline-flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4" />
                       </div>
@@ -874,7 +935,7 @@ export default function MoneyHubPage() {
                       )}
                       {['completed', 'paid'].includes((t.payment_status || '').toLowerCase()) && (
                         <button
-                          onClick={() => t.receipt_url ? window.open(t.receipt_url, '_blank', 'noopener,noreferrer') : handleDownloadReceipt(t.id)}
+                          onClick={() => handleDownloadReceipt(t.id)}
                           disabled={busyRow === t.id}
                           className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground min-h-[36px] disabled:opacity-50"
                         >
@@ -944,25 +1005,14 @@ export default function MoneyHubPage() {
                         </td>
                         <td className="px-3 py-3 text-right">
                           {['completed', 'paid'].includes((t.payment_status || '').toLowerCase()) ? (
-                            t.receipt_url ? (
-                              <a
-                                href={t.receipt_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20"
-                              >
-                                <ExternalLink className="w-3 h-3" /> Open
-                              </a>
-                            ) : (
-                              <button
-                                onClick={() => handleDownloadReceipt(t.id)}
-                                disabled={busyRow === t.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground disabled:opacity-50"
-                              >
-                                {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-                                {busyRow === t.id ? 'Generating' : 'Receipt'}
-                              </button>
-                            )
+                            <button
+                              onClick={() => handleDownloadReceipt(t.id)}
+                              disabled={busyRow === t.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-md bg-muted hover:bg-muted/70 text-foreground disabled:opacity-50"
+                            >
+                              {busyRow === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                              {busyRow === t.id ? 'Opening' : 'Receipt'}
+                            </button>
                           ) : (
                             <span className="text-[10px] text-muted-foreground">—</span>
                           )}

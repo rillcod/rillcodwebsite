@@ -656,62 +656,9 @@ export async function PATCH(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
-  try {
-    const supabase = await createServerClient();
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const { data: deleteCaller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
-    if (!deleteCaller || !['admin', 'teacher'].includes(deleteCaller.role)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const batchId = searchParams.get('batchId');
-    const resultId = searchParams.get('resultId');
-
-    if (batchId && !resultId) {
-      // Delete whole batch
-      const { error: resErr } = await supabaseAdmin
-        .from('registration_results')
-        .delete()
-        .eq('batch_id', batchId);
-      if (resErr) throw resErr;
-
-      const { error: batErr } = await supabaseAdmin
-        .from('registration_batches')
-        .delete()
-        .eq('id', batchId);
-      if (batErr) throw batErr;
-
-      return NextResponse.json({ success: true });
-    }
-
-    if (resultId) {
-      if (resultId.includes(',')) {
-        // Bulk delete multiple result entries
-        const ids = resultId.split(',').filter(Boolean);
-        const { error } = await supabaseAdmin
-          .from('registration_results')
-          .delete()
-          .in('id', ids);
-        if (error) throw error;
-        return NextResponse.json({ success: true, count: ids.length });
-      }
-
-      // Delete single result
-      const { error } = await supabaseAdmin
-        .from('registration_results')
-        .delete()
-        .eq('id', resultId);
-      if (error) throw error;
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json({ error: 'Batch ID or Result ID required' }, { status: 400 });
-  } catch (err: any) {
-    console.error('Bulk delete error:', err);
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
-  }
+export async function DELETE() {
+  return NextResponse.json(
+    { error: 'Registration archive deletion has been retired. Use Records for live credentials, or Bulk Delete Students to remove accounts and cleanup credentials.' },
+    { status: 410 },
+  );
 }

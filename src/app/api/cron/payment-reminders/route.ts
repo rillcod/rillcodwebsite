@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +56,7 @@ async function handle(req: NextRequest) {
   // prospects sink to the back and each run advances to fresh ones (resumable batching).
   const { data: prospects } = await admin
     .from('prospective_students')
-    .select('id, full_name, parent_name, parent_email, email, parent_phone, notes')
+    .select('id, full_name, parent_name, parent_email, email, parent_phone, notes, preferred_schedule')
     .eq('status', 'partially_paid')
     .eq('is_active', true)
     .order('updated_at', { ascending: true })
@@ -79,21 +80,34 @@ async function handle(req: NextRequest) {
     const to = (p.parent_email || p.email || '').trim().toLowerCase();
     if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(to)) { report.skipped++; continue; }
 
-    // Resolve the outstanding balance from the deposit transaction.
-    let balanceDue = 0;
-    const { data: tx } = await admin
+    // Resolve the outstanding balance from completed transactions, not stale
+    // balance_due JSON on an old deposit transaction.
+    const { data: txs } = await admin
       .from('payment_transactions')
-      .select('payment_gateway_response')
+      .select('amount')
       .contains('payment_gateway_response', { prospect_id: p.id })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const gw = (tx?.payment_gateway_response ?? {}) as Record<string, unknown>;
-    balanceDue = Number(gw.balance_due || 0);
+      .in('payment_status', ['completed', 'success', 'paid']);
+    const amountPaid = (txs ?? []).reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
+    const email = String(p.parent_email || p.email || '').trim().toLowerCase();
+    const [{ count: studentCount }, { count: prospectiveCount }] = await Promise.all([
+      admin.from('students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
+      admin.from('prospective_students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
+    ]);
+    const hasSibling = (studentCount || 0) + (prospectiveCount || 0) > 1;
+    const preferredMode = p.preferred_schedule || 'Online';
+    const totalTuition = getSummerTotalTuition(preferredMode, hasSibling);
+    const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
+    if (balanceDue <= 0) {
+      await admin.from('prospective_students')
+        .update({ status: 'paid', updated_at: new Date().toISOString() })
+        .eq('id', p.id);
+      report.skipped++;
+      continue;
+    }
 
     const parentName = p.parent_name || 'Parent/Guardian';
     const payLink = `${baseUrl}/summer-school/pay-balance?email=${encodeURIComponent(to)}`;
-    const amountStr = balanceDue > 0 ? `₦${balanceDue.toLocaleString()}` : 'your outstanding balance';
+    const amountStr = `₦${balanceDue.toLocaleString()}`;
 
     try {
       const html = buildRillcodTransactionalEmailHtml({
@@ -105,6 +119,7 @@ async function handle(req: NextRequest) {
         summaryRows: [
           { label: 'Student', value: p.full_name },
           { label: 'Outstanding', value: amountStr },
+          { label: 'Total tuition', value: `₦${totalTuition.toLocaleString()}` },
           { label: 'Programme', value: 'AI Summer School 2026' },
         ],
         footerNote: 'rillcod technologies limited • summer school admissions',

@@ -513,7 +513,7 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                         {row.invoices?.id && (
                           <p className="sm:col-span-2">
                             <span className="text-muted-foreground">Linked invoice:</span>{' '}
-                            <Link href="/dashboard/payments" className="font-bold text-primary underline">
+                            <Link href={`/dashboard/finance?tab=operations&ops=invoices&invoice=${row.invoices.id}`} className="font-bold text-primary underline">
                               {row.invoices.invoice_number}
                             </Link>
                             <span className="text-muted-foreground ml-2">({row.invoices.status})</span>

@@ -65,11 +65,33 @@ export async function POST(req: Request) {
     let reference: string | null = null;
 
     if (env.PAYSTACK_SECRET_KEY) {
+      const pendingCutoff = new Date(Date.now() - 15 * 60_000).toISOString();
+      const { data: existingPending } = await supabase
+        .from('payment_transactions')
+        .select('transaction_reference')
+        .eq('invoice_id', invoice_id)
+        .eq('portal_user_id', profile.id)
+        .eq('payment_status', 'pending')
+        .gte('created_at', pendingCutoff)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existingPending) {
+        return NextResponse.json(
+          {
+            error: 'A payment checkout is already pending for this invoice. Complete it or wait a few minutes before trying again.',
+            reference: existingPending.transaction_reference,
+            bankAccounts: bankAccounts ?? [],
+          },
+          { status: 409 },
+        );
+      }
+
       reference = `PAR-INV-${invoice.invoice_number}-${Date.now()}`;
       const amountKobo = Math.round(invoice.amount * 100); // Paystack uses kobo
 
       // Create a payment_transaction record
-      const { data: tx } = await supabase
+      const { data: tx, error: txErr } = await supabase
         .from('payment_transactions')
         .insert({
           portal_user_id: profile.id,
@@ -84,8 +106,13 @@ export async function POST(req: Request) {
         })
         .select('id')
         .single();
+      if (txErr || !tx) {
+        return NextResponse.json({ error: `Could not record pending payment: ${txErr?.message || 'unknown error'}` }, { status: 500 });
+      }
 
-      const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/dashboard/parent-invoices?paid=1&invoice=${invoice_id}`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+      const callbackUrl = `${appUrl}/dashboard/parent-invoices?payment=success&invoice=${invoice_id}`;
+      const cancelUrl = `${appUrl}/dashboard/parent-invoices?payment=cancelled&invoice=${invoice_id}`;
 
       const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
         method: 'POST',
@@ -99,13 +126,13 @@ export async function POST(req: Request) {
           reference,
           currency: invoice.currency ?? 'NGN',
           callback_url: callbackUrl,
+          cancel_action: cancelUrl,
           metadata: {
             invoice_id,
             invoice_number: invoice.invoice_number,
             parent_id: profile.id,
             parent_name: profile.full_name,
             transaction_id: tx?.id,
-            cancel_action: callbackUrl,
           },
         }),
       });
@@ -113,6 +140,9 @@ export async function POST(req: Request) {
       const paystackData = await paystackRes.json();
       if (paystackData.status) {
         paystackUrl = paystackData.data.authorization_url;
+      } else {
+        await supabase.from('payment_transactions').delete().eq('id', tx.id);
+        return NextResponse.json({ error: paystackData.message || 'Payment gateway failed to initialize' }, { status: 502 });
       }
     }
 

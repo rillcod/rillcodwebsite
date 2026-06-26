@@ -61,7 +61,7 @@ const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-background bg-opacity-50 transition-opacity"
+        className="fixed inset-0 bg-foreground/35 backdrop-blur-[1px] transition-opacity"
         onClick={closeOnBackdrop ? onClose : undefined}
       />
 
@@ -130,9 +130,9 @@ export const ConfirmModal: React.FC<{
   variant = 'info',
 }) => {
   const variantClasses = {
-    danger: 'bg-red-600 hover:bg-red-700',
-    warning: 'bg-yellow-600 hover:bg-yellow-700',
-    info: 'bg-primary hover:opacity-90',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
+    warning: 'bg-yellow-600 text-white hover:bg-yellow-700',
+    info: 'bg-primary text-primary-foreground hover:opacity-90',
   };
 
   const handleConfirm = () => {
@@ -153,7 +153,7 @@ export const ConfirmModal: React.FC<{
           </button>
           <button
             onClick={handleConfirm}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${variantClasses[variant]}`}
+            className={`px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${variantClasses[variant]}`}
           >
             {confirmText}
           </button>

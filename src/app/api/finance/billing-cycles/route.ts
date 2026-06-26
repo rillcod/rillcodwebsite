@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -141,6 +142,37 @@ export async function PATCH(request: Request) {
   }
 
   const db = createAdminClient();
+
+  if (body.status === 'paid') {
+    const { data: cycle } = await db
+      .from('billing_cycles')
+      .select('id, invoice_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (!cycle) return NextResponse.json({ error: 'Billing cycle not found' }, { status: 404 });
+    if (!cycle.invoice_id) {
+      return NextResponse.json(
+        { error: 'This billing cycle has no linked invoice. Create/link the invoice before marking it paid.' },
+        { status: 409 },
+      );
+    }
+    try {
+      const payment = await verifyInvoicePayment({
+        invoiceId: cycle.invoice_id,
+        method: 'manual',
+        actorId: caller.id,
+        source: 'billing_cycle_mark_paid',
+      });
+      await db
+        .from('billing_cycles')
+        .update({ status: 'paid', updated_at: new Date().toISOString() })
+        .eq('id', id);
+      return NextResponse.json({ data: { id, status: 'paid', invoice_id: cycle.invoice_id }, payment });
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message || 'Failed to verify billing-cycle payment' }, { status: err.statusCode || 500 });
+    }
+  }
+
   const { data, error } = await db.from('billing_cycles')
     .update(updates)
     .eq('id', id)

@@ -1,0 +1,233 @@
+import { AppError } from '@/lib/errors';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getSummerBalanceDue, getSummerTotalTuition } from '@/lib/summer-school/pricing';
+import { processSuccessfulPayment } from './process-successful-payment';
+
+const MANUAL_METHODS = ['cash', 'pos', 'bank_transfer', 'cheque', 'mobile_money', 'manual', 'other'] as const;
+
+function cleanReference(reference: string | undefined, prefix: string) {
+  const trimmed = reference?.trim();
+  if (trimmed) return trimmed;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+}
+
+function normalizeMethod(method: string | undefined) {
+  const value = String(method || 'manual').toLowerCase();
+  return MANUAL_METHODS.includes(value as any) ? value : 'manual';
+}
+
+async function sumCompletedProspectPayments(db: any, prospectId: string) {
+  const { data: txs } = await db
+    .from('payment_transactions')
+    .select('amount')
+    .contains('payment_gateway_response', { prospect_id: prospectId })
+    .in('payment_status', ['completed', 'success', 'paid']);
+  return (txs ?? []).reduce((sum: number, tx: any) => sum + (Number(tx.amount) || 0), 0);
+}
+
+async function prospectHasSibling(db: any, email: string | null) {
+  if (!email) return false;
+  const [{ count: studentCount }, { count: prospectiveCount }] = await Promise.all([
+    db.from('students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
+    db.from('prospective_students').select('id', { count: 'exact', head: true }).eq('parent_email', email),
+  ]);
+  return (studentCount || 0) + (prospectiveCount || 0) > 1;
+}
+
+export async function verifyInvoicePayment(input: {
+  invoiceId: string;
+  amount?: number;
+  currency?: string;
+  method?: string;
+  reference?: string;
+  note?: string;
+  actorId: string;
+  source?: string;
+  proofId?: string;
+}) {
+  const db: any = createAdminClient();
+  const { data: invoice } = await db
+    .from('invoices')
+    .select('id, invoice_number, amount, currency, status, payment_transaction_id, portal_user_id, school_id')
+    .eq('id', input.invoiceId)
+    .maybeSingle();
+
+  if (!invoice) throw new AppError('Invoice not found', 404);
+  if (['cancelled', 'void'].includes(String(invoice.status || '').toLowerCase())) {
+    throw new AppError(`Cannot verify payment for a ${invoice.status} invoice.`, 409);
+  }
+
+  const invoiceAmount = Number(invoice.amount) || 0;
+  const amount = input.amount == null ? invoiceAmount : Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) throw new AppError('Enter a valid payment amount.', 400);
+  if (Math.abs(amount - invoiceAmount) > 1) {
+    throw new AppError(`Payment amount (${amount}) does not match invoice amount (${invoiceAmount}).`, 400);
+  }
+
+  let transactionId = invoice.payment_transaction_id as string | null;
+  let reference = cleanReference(input.reference, `MAN-INV-${String(invoice.invoice_number || invoice.id).replace(/[^a-zA-Z0-9-]/g, '').slice(0, 28)}`);
+  const method = normalizeMethod(input.method);
+  const now = new Date().toISOString();
+
+  if (transactionId) {
+    const { data: existingTx } = await db
+      .from('payment_transactions')
+      .select('id, transaction_reference, payment_status, receipt_url')
+      .eq('id', transactionId)
+      .maybeSingle();
+    if (existingTx?.transaction_reference) reference = existingTx.transaction_reference;
+    if (existingTx?.payment_status === 'completed') {
+      await db.from('invoices')
+        .update({ status: 'paid', payment_transaction_id: transactionId, updated_at: now })
+        .eq('id', invoice.id);
+      return { invoiceId: invoice.id, transactionId, receiptUrl: existingTx.receipt_url ?? null, alreadyPaid: true };
+    }
+    await db.from('payment_transactions').update({
+      amount,
+      currency: input.currency || invoice.currency || 'NGN',
+      payment_method: method,
+      transaction_reference: reference,
+      invoice_id: invoice.id,
+      portal_user_id: invoice.portal_user_id,
+      school_id: invoice.school_id,
+      updated_at: now,
+      payment_gateway_response: {
+        payment_type: 'invoice_payment',
+        invoice_id: invoice.id,
+        source: input.source || 'staff_verification',
+        verified_by: input.actorId,
+        verified_at: now,
+        proof_id: input.proofId || null,
+        note: input.note || null,
+      },
+    }).eq('id', transactionId);
+  } else {
+    const { data: tx, error } = await db.from('payment_transactions').insert({
+      portal_user_id: invoice.portal_user_id,
+      school_id: invoice.school_id,
+      amount,
+      currency: input.currency || invoice.currency || 'NGN',
+      payment_method: method,
+      payment_status: 'pending',
+      transaction_reference: reference,
+      invoice_id: invoice.id,
+      payment_gateway_response: {
+        payment_type: 'invoice_payment',
+        invoice_id: invoice.id,
+        source: input.source || 'staff_verification',
+        verified_by: input.actorId,
+        verified_at: now,
+        proof_id: input.proofId || null,
+        note: input.note || null,
+      },
+      created_at: now,
+      updated_at: now,
+    }).select('id').single();
+    if (error || !tx) throw new AppError(`Failed to create payment record: ${error?.message || 'unknown error'}`, 500);
+    transactionId = tx.id;
+  }
+
+  await processSuccessfulPayment(reference, method, {
+    verified_by: input.actorId,
+    verified_at: now,
+    source: input.source || 'staff_verification',
+    proof_id: input.proofId || null,
+    note: input.note || null,
+  });
+
+  const { data: settledTx } = await db
+    .from('payment_transactions')
+    .select('id, receipt_url')
+    .eq('transaction_reference', reference)
+    .maybeSingle();
+  return { invoiceId: invoice.id, transactionId: settledTx?.id || transactionId, receiptUrl: settledTx?.receipt_url ?? null, alreadyPaid: false };
+}
+
+export async function verifySummerBalancePayment(input: {
+  prospectId: string;
+  amount: number;
+  method?: string;
+  reference?: string;
+  evidenceUrl?: string | null;
+  note?: string;
+  actorId: string;
+  source?: string;
+}) {
+  const db: any = createAdminClient();
+  const { data: prospect } = await db
+    .from('prospective_students')
+    .select('id, full_name, parent_name, parent_email, email, preferred_schedule, status')
+    .eq('id', input.prospectId)
+    .maybeSingle();
+
+  if (!prospect) throw new AppError('Applicant not found', 404);
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount <= 0) throw new AppError('Enter a valid payment amount.', 400);
+
+  const parentEmail = String(prospect.parent_email || prospect.email || '').trim().toLowerCase();
+  const preferredMode = prospect.preferred_schedule || 'Online';
+  const amountPaid = await sumCompletedProspectPayments(db, prospect.id);
+  const hasSibling = await prospectHasSibling(db, parentEmail || null);
+  const totalTuition = getSummerTotalTuition(preferredMode, hasSibling);
+  const balanceDue = getSummerBalanceDue(preferredMode, amountPaid, hasSibling);
+  if (balanceDue <= 0) throw new AppError('This applicant has no outstanding balance.', 400);
+  if (amount + 1 < balanceDue) {
+    throw new AppError(`Payment amount (${amount}) is below the outstanding balance (${balanceDue}).`, 400);
+  }
+
+  const method = normalizeMethod(input.method);
+  const reference = cleanReference(input.reference, `SUM-BAL-MAN-${prospect.id.slice(0, 6)}`);
+  const now = new Date().toISOString();
+
+  const { data: tx, error } = await db.from('payment_transactions').insert({
+    portal_user_id: null,
+    school_id: null,
+    course_id: null,
+    amount,
+    currency: 'NGN',
+    payment_method: method,
+    payment_status: 'pending',
+    transaction_reference: reference,
+    payment_gateway_response: {
+      payment_type: 'summer_school_balance',
+      prospect_id: prospect.id,
+      student_name: prospect.full_name,
+      parent_name: prospect.parent_name,
+      parent_email: parentEmail || null,
+      preferred_mode: preferredMode,
+      total_tuition: totalTuition,
+      previous_amount_paid: amountPaid,
+      balance_due: balanceDue,
+      balance_payment: true,
+      manual: true,
+      evidence_url: input.evidenceUrl || null,
+      source: input.source || 'staff_balance_verification',
+      verified_by: input.actorId,
+      verified_at: now,
+      note: input.note || null,
+    },
+    created_at: now,
+    updated_at: now,
+  }).select('id').single();
+  if (error || !tx) throw new AppError(`Failed to create payment record: ${error?.message || 'unknown error'}`, 500);
+
+  await processSuccessfulPayment(reference, method, {
+    verified_by: input.actorId,
+    verified_at: now,
+    source: input.source || 'staff_balance_verification',
+    evidence_url: input.evidenceUrl || null,
+    note: input.note || null,
+  });
+
+  const { data: settledTx } = await db
+    .from('payment_transactions')
+    .select('id, invoice_id, receipt_url')
+    .eq('transaction_reference', reference)
+    .maybeSingle();
+  return {
+    prospectId: prospect.id,
+    transactionId: settledTx?.id || tx.id,
+    invoiceId: settledTx?.invoice_id ?? null,
+    receiptUrl: settledTx?.receipt_url ?? null,
+  };
+}

@@ -16,7 +16,17 @@ export async function ensureBillingCycleInvoice(
 ): Promise<string | null> {
   try {
     // Already linked / already invoiced?
-    if (transaction.invoice_id) return transaction.invoice_id;
+    if (transaction.invoice_id) {
+      await admin
+        .from('invoices')
+        .update({
+          status: 'paid',
+          payment_transaction_id: transaction.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', transaction.invoice_id);
+      return transaction.invoice_id;
+    }
     const { data: existing } = await admin
       .from('invoices')
       .select('id')

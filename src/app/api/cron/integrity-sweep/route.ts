@@ -7,7 +7,7 @@
  *   1. Re-sync denormalised school_name → the school's REAL name (catches school
  *      renames and any stray "Rillcod Online School" stamping on local students),
  *      on both portal_users (students) and the students table.
- *   2. Purge orphaned registration_results archive rows whose login email no longer
+ *   2. Purge orphaned registration credential rows whose login email no longer
  *      maps to a live account, and prune any batch left empty.
  *   3. Remove parent_student_links whose parent or student no longer exists.
  *
@@ -41,7 +41,7 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const admin = adminClient();
-  const report = { schoolNameResynced: 0, archivePurged: 0, batchesPruned: 0, danglingLinksRemoved: 0, studentsNoSchool: 0, studentsNoClass: 0, errors: [] as string[] };
+  const report = { schoolNameResynced: 0, credentialsPurged: 0, batchesPruned: 0, danglingLinksRemoved: 0, studentsNoSchool: 0, studentsNoClass: 0, errors: [] as string[] };
 
   try {
     // ── 1. Re-sync school_name to the real school name ──
@@ -61,14 +61,14 @@ async function handle(req: NextRequest) {
       }
     }
 
-    // ── 2. Purge orphaned registration_results + prune empty batches ──
+    // ── 2. Purge orphaned registration credentials + prune empty batches ──
     const rr = await fetchAll(admin, 'registration_results', 'id, email, batch_id');
     const liveEmails = new Set((await fetchAll(admin, 'portal_users', 'email', (q: any) => q.neq('is_deleted', true))).map((u: any) => norm(u.email)).filter(Boolean));
     const orphanRows = rr.filter((r: any) => r.email && !liveEmails.has(norm(r.email)));
     const orphanIds = orphanRows.map((r: any) => r.id);
     for (let i = 0; i < orphanIds.length; i += 100) {
       const { error } = await admin.from('registration_results').delete().in('id', orphanIds.slice(i, i + 100));
-      if (error) report.errors.push(`archive purge: ${error.message}`); else report.archivePurged += orphanIds.slice(i, i + 100).length;
+      if (error) report.errors.push(`credential cleanup: ${error.message}`); else report.credentialsPurged += orphanIds.slice(i, i + 100).length;
     }
     for (const b of [...new Set(orphanRows.map((r: any) => r.batch_id).filter(Boolean))]) {
       const { count } = await admin.from('registration_results').select('id', { count: 'exact', head: true }).eq('batch_id', b);

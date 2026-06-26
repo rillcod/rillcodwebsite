@@ -48,6 +48,9 @@ export async function GET(
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!['admin', 'school'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Only finance admins or school accounts can update invoices' }, { status: 403 });
+  }
 
   const { id } = await context.params;
   const admin = adminClient();
@@ -97,6 +100,12 @@ export async function PATCH(
   }
   if (existing.status === 'paid') {
     return NextResponse.json({ error: 'Cannot edit a paid invoice' }, { status: 400 });
+  }
+  if (status === 'paid') {
+    return NextResponse.json(
+      { error: 'Use /api/invoices/mark-paid so payment, receipt, audit, and acknowledgement stay in sync.' },
+      { status: 400 },
+    );
   }
 
   const update: Record<string, any> = { updated_at: new Date().toISOString() };

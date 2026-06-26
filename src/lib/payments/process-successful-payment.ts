@@ -4,6 +4,10 @@ import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 import { env } from '@/config/env';
 
+function isValidEmail(email: string | null | undefined) {
+    return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
+}
+
 /**
  * The SINGLE source of truth for "a payment succeeded → grant access + record finance".
  *
@@ -171,7 +175,7 @@ export async function processSuccessfulPayment(reference: string, method: string
             if (!existingBalInv) {
                 const { data: prospect } = await supabase
                     .from('prospective_students')
-                    .select('full_name, parent_email')
+                    .select('full_name, parent_name, parent_email')
                     .eq('id', prospectId)
                     .maybeSingle();
 
@@ -202,6 +206,8 @@ export async function processSuccessfulPayment(reference: string, method: string
                         metadata: {
                             prospect_id: prospectId,
                             student_name: displayName,
+                            parent_name: prospect?.parent_name || gatewayResponse?.parent_name || null,
+                            parent_email: prospect?.parent_email || gatewayResponse?.parent_email || null,
                             source: 'summer_balance_payment',
                             payment_type: 'summer_school_balance',
                         },
@@ -300,6 +306,8 @@ export async function processSuccessfulPayment(reference: string, method: string
                         metadata: {
                             prospect_id: prospectId,
                             student_name: displayName,
+                            parent_name: record?.parent_name || gatewayResponse?.parent_name || null,
+                            parent_email: record?.parent_email || gatewayResponse?.parent_email || null,
                             source: 'summer_school_payment',
                             payment_type: 'summer_school',
                             payment_plan: isInstallment ? 'installment' : 'full',
@@ -348,13 +356,39 @@ export async function processSuccessfulPayment(reference: string, method: string
             console.error('[payment] billing-cycle invoice creation failed:', cycInvErr);
         }
     } else if ((transaction as any).invoice_id) {
-        const { error: rpcError } = await supabase.rpc('process_payment_atomic', {
-            p_reference: reference,
-            p_invoice_id: (transaction as any).invoice_id,
-            p_amount: Number(transaction.amount),
-        });
-        if (rpcError) {
-            console.error('process_payment_atomic RPC failed:', rpcError);
+        const { data: invoice, error: invFetchErr } = await (supabase as any)
+            .from('invoices')
+            .select('id, amount, status, payment_transaction_id')
+            .eq('id', (transaction as any).invoice_id)
+            .maybeSingle();
+        if (invFetchErr || !invoice) {
+            console.error('Invoice not found for successful payment:', (transaction as any).invoice_id, invFetchErr);
+            return;
+        }
+
+        const expected = Number(invoice.amount) || 0;
+        const received = Number(transaction.amount) || 0;
+        if (Math.abs(received - expected) > 1) {
+            console.error('Invoice payment amount mismatch:', {
+                invoice_id: invoice.id,
+                expected,
+                received,
+                reference,
+            });
+            return;
+        }
+
+        const { error: invUpdateErr } = await (supabase as any)
+            .from('invoices')
+            .update({
+                status: 'paid',
+                payment_transaction_id: transaction.id,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', invoice.id)
+            .neq('status', 'paid');
+        if (invUpdateErr) {
+            console.error('Failed to mark invoice paid:', invUpdateErr);
             return;
         }
     }
@@ -421,20 +455,24 @@ export async function processSuccessfulPayment(reference: string, method: string
                 ? gatewayResponse.parent_email.trim()
                 : '';
 
-        if (isRegistrationPayment && parentEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(parentEmail)) {
+        if ((isRegistrationPayment || isSummerPayment) && isValidEmail(parentEmail)) {
             const studName = String(gatewayResponse?.student_name || 'Student');
             const parentHtml = buildPaymentConfirmationEmail({
                 recipientName: studName,
                 amount: Number(transaction.amount),
                 currency: String(transaction.currency || 'NGN'),
                 reference: String(transaction.transaction_reference),
-                description: 'Student Registration Fee',
+                description: isSummerPayment
+                    ? (gatewayResponse?.payment_type === 'summer_school_balance'
+                        ? 'AI Summer School Remaining Balance'
+                        : 'AI Summer School Tuition')
+                    : 'Student Registration Fee',
                 date: new Date().toISOString(),
                 portalUrl: receiptUrl,
             });
             await notificationsService.sendExternalEmail({
                 to: parentEmail,
-                subject: `Registration Confirmed — Rillcod Technologies (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
+                subject: `${isSummerPayment ? 'Payment Confirmed' : 'Registration Confirmed'} — Rillcod Technologies (Ref: ${String(transaction.transaction_reference).slice(0, 12)})`,
                 fromName: 'Rillcod Technologies',
                 fromEmail: 'support@rillcod.com',
                 html: parentHtml,
@@ -480,6 +518,45 @@ export async function processSuccessfulPayment(reference: string, method: string
                     fromEmail: 'support@rillcod.com',
                     html: htmlWithLink,
                     ...(attachments ? { attachments } : {}),
+                });
+            }
+        } else if (transaction.school_id) {
+            const { data: invoice } = await (supabase as any)
+                .from('invoices')
+                .select('id, invoice_number')
+                .eq('payment_transaction_id', transaction.id)
+                .maybeSingle();
+            const { data: billingContact } = await (supabase as any)
+                .from('billing_contacts')
+                .select('representative_email, representative_name')
+                .eq('school_id', transaction.school_id)
+                .maybeSingle();
+            const { data: schoolUser } = !billingContact?.representative_email
+                ? await (supabase as any)
+                    .from('portal_users')
+                    .select('email, full_name')
+                    .eq('school_id', transaction.school_id)
+                    .eq('role', 'school')
+                    .maybeSingle()
+                : { data: null };
+            const schoolEmail = billingContact?.representative_email || schoolUser?.email || '';
+            if (isValidEmail(schoolEmail)) {
+                const contactName = billingContact?.representative_name || schoolUser?.full_name || 'Finance Team';
+                const schoolHtml = buildPaymentConfirmationEmail({
+                    recipientName: contactName,
+                    amount: Number(transaction.amount),
+                    currency: String(transaction.currency || 'NGN'),
+                    reference: String(transaction.transaction_reference),
+                    description: invoice?.invoice_number ? `Invoice ${invoice.invoice_number}` : 'School Billing Payment',
+                    date: new Date().toISOString(),
+                    portalUrl: receiptUrl,
+                });
+                await notificationsService.sendExternalEmail({
+                    to: schoolEmail,
+                    subject: `Payment Confirmed — ${invoice?.invoice_number || 'School Billing'} | Rillcod Technologies`,
+                    fromName: 'Rillcod Technologies',
+                    fromEmail: 'support@rillcod.com',
+                    html: schoolHtml,
                 });
             }
         }

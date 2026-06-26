@@ -158,8 +158,11 @@ export class PaymentsService {
                 amount: amountMinor,
                 reference,
                 callback_url: invoiceId
-                    ? `${baseUrl}/dashboard/payments?payment=success&ref=${reference}`
+                    ? `${baseUrl}/dashboard/money?payment=success&ref=${reference}`
                     : `${baseUrl}/courses/${courseId}?payment=success`,
+                cancel_action: invoiceId
+                    ? `${baseUrl}/dashboard/money?payment=cancelled&ref=${reference}`
+                    : `${baseUrl}/courses/${courseId}?payment=cancelled`,
                 metadata: {
                     userId,
                     courseId,

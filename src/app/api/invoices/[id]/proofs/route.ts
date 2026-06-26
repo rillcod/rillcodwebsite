@@ -3,6 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { r2Upload, r2SignedUrl, R2_BUCKET } from '@/lib/r2/client';
 import { notifyStaffOfPayment } from '@/lib/payments/notify-staff';
+import { logAudit } from '@/lib/audit/log';
+import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
+import { getParentLinkScope } from '@/lib/parents/links';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 function adminClient() {
   return createClient(
@@ -17,10 +21,54 @@ async function getUser() {
   if (error || !user) return null;
   const { data: profile } = await adminClient()
     .from('portal_users')
-    .select('id, role, school_id')
+    .select('id, role, school_id, email')
     .eq('id', user.id)
     .single();
   return profile ?? null;
+}
+
+async function resolveInvoiceSchoolId(admin: ReturnType<typeof adminClient>, invoice: { school_id?: string | null; portal_user_id?: string | null }) {
+  if (invoice.school_id) return invoice.school_id;
+  if (!invoice.portal_user_id) return null;
+  const { data: payer } = await admin
+    .from('portal_users')
+    .select('school_id')
+    .eq('id', invoice.portal_user_id)
+    .maybeSingle();
+  return (payer as { school_id?: string | null } | null)?.school_id || null;
+}
+
+async function canAccessInvoiceProof(
+  admin: ReturnType<typeof adminClient>,
+  caller: { id: string; role: string; school_id: string | null; email?: string | null },
+  invoice: { portal_user_id?: string | null; school_id?: string | null },
+  mode: 'submit' | 'review',
+) {
+  if (caller.role === 'admin') return true;
+
+  if (caller.role === 'parent') {
+    if (mode !== 'submit' || !invoice.portal_user_id) return false;
+    const { studentUserIds } = await getParentLinkScope(
+      admin as any,
+      { id: caller.id, email: caller.email || undefined },
+    );
+    return studentUserIds.includes(invoice.portal_user_id);
+  }
+
+  if (caller.role === 'student') {
+    return mode === 'submit' && invoice.portal_user_id === caller.id;
+  }
+
+  if (caller.role === 'teacher') return false;
+
+  if (caller.role === 'school') {
+    const invoiceSchoolId = await resolveInvoiceSchoolId(admin, invoice);
+    if (!invoiceSchoolId) return false;
+    const allowedSchoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+    return allowedSchoolIds.includes(invoiceSchoolId);
+  }
+
+  return false;
 }
 
 // GET /api/invoices/[id]/proofs — list proof submissions for an invoice (staff only)
@@ -30,12 +78,23 @@ export async function GET(
 ) {
   const caller = await getUser();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!['admin', 'school', 'teacher'].includes(caller.role)) {
+  if (!['admin', 'school'].includes(caller.role)) {
     return NextResponse.json({ error: 'Staff only' }, { status: 403 });
   }
 
   const { id: invoiceId } = await context.params;
   const admin = adminClient();
+
+  const { data: invoice } = await admin
+    .from('invoices')
+    .select('id, portal_user_id, school_id')
+    .eq('id', invoiceId)
+    .single();
+
+  if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+  if (!(await canAccessInvoiceProof(admin, caller, invoice, 'review'))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { data, error } = await admin
     .from('invoice_payment_proofs')
@@ -88,22 +147,8 @@ export async function POST(
 
   if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 
-  // Parents can only upload for their own children's invoices
-  if (caller.role === 'parent') {
-    const { data: childUser } = await admin
-      .from('students')
-      .select('user_id')
-      .eq('user_id', invoice.portal_user_id)
-      .single();
-    // Check parent link via students table parent_email
-    const { data: parentStudent } = await admin
-      .from('students')
-      .select('id')
-      .eq('user_id', invoice.portal_user_id)
-      .maybeSingle();
-    if (!parentStudent) {
-      return NextResponse.json({ error: 'Not authorised for this invoice' }, { status: 403 });
-    }
+  if (!(await canAccessInvoiceProof(admin, caller, invoice, 'submit'))) {
+    return NextResponse.json({ error: 'Not authorised for this invoice' }, { status: 403 });
   }
 
   const contentType = req.headers.get('content-type') ?? '';
@@ -155,7 +200,7 @@ export async function POST(
       schoolId: invoice.school_id,
       title: 'Payment Evidence Submitted',
       message: `A ${caller.role} submitted payment evidence (receipt: ${receipt_no.trim()}) for invoice ${invoiceId.slice(0, 8)}…. Please review and verify.`,
-      actionUrl: '/dashboard/finance?tab=invoices',
+      actionUrl: '/dashboard/finance?tab=operations&ops=approvals',
     });
 
     return NextResponse.json({ success: true, data: { ...data, signed_url: null } });
@@ -207,7 +252,7 @@ export async function POST(
     schoolId: invoice.school_id,
     title: 'Payment Evidence Submitted',
     message: `A ${caller.role} submitted payment proof for invoice ${invoiceId.slice(0, 8)}…. Please review and verify.`,
-    actionUrl: '/dashboard/finance?tab=invoices',
+    actionUrl: '/dashboard/finance?tab=operations&ops=approvals',
   });
 
   return NextResponse.json({ success: true, data: { ...data, signed_url: signedUrl } });
@@ -221,7 +266,7 @@ export async function PATCH(
 ) {
   const caller = await getUser();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!['admin', 'school', 'teacher'].includes(caller.role)) {
+  if (!['admin', 'school'].includes(caller.role)) {
     return NextResponse.json({ error: 'Staff only' }, { status: 403 });
   }
 
@@ -239,6 +284,16 @@ export async function PATCH(
 
   const admin = adminClient();
 
+  const { data: invoice } = await admin
+    .from('invoices')
+    .select('id, portal_user_id, school_id')
+    .eq('id', invoiceId)
+    .single();
+  if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+  if (!(await canAccessInvoiceProof(admin, caller, invoice, 'review'))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const { data, error } = await admin
     .from('invoice_payment_proofs')
     .update({
@@ -254,12 +309,26 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // If approved → mark invoice as paid
+  let paymentResult: Awaited<ReturnType<typeof verifyInvoicePayment>> | null = null;
+
+  // If approved → complete the full finance path: transaction, invoice, receipt,
+  // acknowledgement, and audit. Never mark only invoices.status directly.
   if (action === 'approved') {
-    await admin
-      .from('invoices')
-      .update({ status: 'paid', updated_at: new Date().toISOString() } as any)
-      .eq('id', invoiceId);
+    paymentResult = await verifyInvoicePayment({
+      invoiceId,
+      method: 'bank_transfer',
+      actorId: caller.id,
+      source: 'invoice_proof_approval',
+      proofId: proof_id,
+      note: admin_note,
+    });
+    await logAudit(admin as any, {
+      action: 'invoice_payment_proof_approved',
+      actorId: caller.id,
+      resourceType: 'invoice',
+      resourceId: invoiceId,
+      newValues: { proof_id, transaction_id: paymentResult.transactionId },
+    });
   }
 
   // Notify the submitter
@@ -284,5 +353,5 @@ export async function PATCH(
     } catch { /* non-critical */ }
   }
 
-  return NextResponse.json({ success: true, data });
+  return NextResponse.json({ success: true, data, payment: paymentResult });
 }

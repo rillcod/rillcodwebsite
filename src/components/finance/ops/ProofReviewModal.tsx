@@ -74,7 +74,7 @@ export function ProofReviewModal({
         return;
       }
       if (action === 'approved') {
-        toast.success('Proof approved — invoice marked paid');
+        toast.success('Proof approved — payment receipted and acknowledgement sent');
         onApprove?.();
         onClose();
         return;
@@ -89,7 +89,7 @@ export function ProofReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
       <div className="bg-background border border-border w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
           <div>
@@ -208,14 +208,14 @@ export function ProofReviewModal({
                             <button
                               onClick={() => handleReview(proof.id, 'approved')}
                               disabled={acting}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
                             >
                               Approve &amp; Mark Paid
                             </button>
                             <button
                               onClick={() => handleReview(proof.id, 'request_more')}
                               disabled={acting}
-                              className="px-3 py-1.5 bg-primary hover:bg-primary text-white text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
+                              className="px-3 py-1.5 bg-primary hover:bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md disabled:opacity-50"
                             >
                               Request More
                             </button>

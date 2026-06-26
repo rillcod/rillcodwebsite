@@ -24,10 +24,12 @@ export async function GET(request: Request) {
     if (!cycle) return NextResponse.json({ error: 'Billing cycle not found' }, { status: 404 });
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    const callbackUrl = `${baseUrl}/dashboard/payments?paid=1&cycle=${cycle.id}`;
+    const billingSurface = cycle.owner_type === 'school' ? '/dashboard/school-billing' : '/dashboard/money';
+    const callbackUrl = `${baseUrl}${billingSurface}?payment=success&cycle=${cycle.id}`;
+    const cancelUrl = `${baseUrl}${billingSurface}?payment=cancelled&cycle=${cycle.id}`;
 
     if (cycle.status === 'paid') {
-      return NextResponse.redirect(`${callbackUrl}&already_paid=1`);
+      return NextResponse.redirect(`${baseUrl}${billingSurface}?payment=success&already_paid=1&cycle=${cycle.id}`);
     }
     if (cycle.status === 'cancelled') {
       return NextResponse.json({ error: 'Billing cycle is cancelled' }, { status: 400 });
@@ -56,7 +58,7 @@ export async function GET(request: Request) {
       // No pending transaction yet — create one now.
       reference = `BILL-CYCLE-${cycle.id.slice(0, 8)}-${Date.now()}`;
 
-      const { data: newTx } = await db
+      const { data: newTx, error: txErr } = await db
         .from('payment_transactions')
         .insert({
           portal_user_id:          cycle.owner_user_id,
@@ -76,6 +78,13 @@ export async function GET(request: Request) {
         })
         .select('id')
         .single();
+
+      if (txErr || !newTx?.id) {
+        return NextResponse.json(
+          { error: `Could not record pending payment: ${txErr?.message || 'unknown error'}` },
+          { status: 500 },
+        );
+      }
 
       txId = newTx?.id;
     }
@@ -118,11 +127,11 @@ export async function GET(request: Request) {
         reference,
         currency:     cycle.currency || 'NGN',
         callback_url: callbackUrl,
+        cancel_action: cancelUrl,
         metadata: {
           billing_cycle_id: cycle.id,
           transaction_id:   txId,
           term_label:       cycle.term_label,
-          cancel_action:    callbackUrl,
         },
       }),
     });

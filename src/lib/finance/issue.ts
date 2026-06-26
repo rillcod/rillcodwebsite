@@ -100,6 +100,8 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
   const gw = (txn.payment_gateway_response ?? {}) as any;
   const isPartPayment = gw.payment_plan === 'installment' || gw.payment_plan === 'instalment';
   const isBalancePayment = gw.payment_type === 'summer_school_balance' || gw.balance_payment === true;
+  const metadataPayerName = gw.parent_name || gw.student_name || invoice?.metadata?.student_name;
+  const metadataPayerEmail = gw.parent_email || invoice?.metadata?.parent_email;
 
   // ── Build template input ──
   let items: ReceiptTemplateInput['items'];
@@ -178,8 +180,8 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
     currency,
     items,
     payer: {
-      name: payer?.full_name || (stream === 'school' ? (school?.name || 'Partner School') : 'Valued Learner'),
-      email: payer?.email,
+      name: payer?.full_name || (stream === 'school' ? (school?.name || 'Partner School') : (metadataPayerName || 'Valued Learner')),
+      email: payer?.email || metadataPayerEmail,
       schoolName: school?.name,
       address: school?.address,
       term: stream === 'school' ? (invoice?.metadata?.term_label || undefined) : undefined,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   BanknotesIcon,
@@ -74,8 +74,11 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const editInvoiceId = searchParams.get('edit_invoice');
-  const [tab, setTab] = useState<OpsTab>(defaultTab);
+  const opsParam = searchParams.get('ops') as OpsTab | null;
+  const [tab, setTab] = useState<OpsTab>(opsParam || defaultTab);
 
   // When arriving with ?edit_invoice=<id>, switch to the school invoice builder
   useEffect(() => {
@@ -87,6 +90,17 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
   useEffect(() => {
     setTab(isSchool ? 'invoices' : defaultTab);
   }, [defaultTab, isSchool]);
+
+  useEffect(() => {
+    if (opsParam) setTab(opsParam);
+  }, [opsParam]);
+
+  const switchTab = (next: OpsTab) => {
+    setTab(next);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('ops', next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   if (!isAdmin && !isSchool) {
     return (
@@ -237,7 +251,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
           return (
             <button
               key={t.k}
-              onClick={() => setTab(t.k)}
+              onClick={() => switchTab(t.k)}
               className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-colors ${
                 active
                   ? 'bg-primary text-primary-foreground border-primary'

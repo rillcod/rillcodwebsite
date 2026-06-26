@@ -15,7 +15,6 @@ type LineItem = { description: string; quantity: number; unit_price: number; tot
 const STATUSES: { value: string; label: string; color: string }[] = [
   { value: 'draft',     label: 'Draft',     color: 'border-border text-muted-foreground' },
   { value: 'sent',      label: 'Sent',      color: 'border-amber-500/40 text-amber-400' },
-  { value: 'paid',      label: 'Paid',      color: 'border-emerald-500/40 text-emerald-400' },
   { value: 'overdue',   label: 'Overdue',   color: 'border-rose-500/40 text-rose-400' },
   { value: 'cancelled', label: 'Cancelled', color: 'border-border text-muted-foreground' },
 ];

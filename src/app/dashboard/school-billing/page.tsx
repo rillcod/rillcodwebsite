@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   BanknotesIcon, CalendarDaysIcon, CheckCircleIcon,
@@ -33,9 +33,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 function BillingPaymentModal({
   cycle,
   onClose,
+  onUpdated,
 }: {
   cycle: { id: string; term_label: string; amount_due: number; currency: string; invoice_id?: string | null };
   onClose: () => void;
+  onUpdated: () => void;
 }) {
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
@@ -73,6 +75,7 @@ function BillingPaymentModal({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Proof upload failed');
       setUploaded(true);
+      onUpdated();
     } catch (err: any) {
       setError(err.message ?? 'Proof upload failed');
     } finally {
@@ -82,7 +85,7 @@ function BillingPaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
       <div className="bg-card border border-border rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
@@ -97,7 +100,7 @@ function BillingPaymentModal({
           <button
             onClick={openCheckout}
             disabled={loadingCheckout}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary to-primary text-white text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary to-primary text-primary-foreground text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all disabled:opacity-50"
           >
             {loadingCheckout ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <BanknotesIcon className="w-4 h-4" />}
             {loadingCheckout ? 'Preparing checkout...' : 'Pay via Paystack'}
@@ -152,7 +155,10 @@ function BillingPaymentModal({
 export default function SchoolBillingPage() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+  const paymentParam = searchParams.get('payment');
+  const alreadyPaid = searchParams.get('already_paid') === '1';
 
   const [cycles, setCycles] = useState<any[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<any[]>([]);
@@ -160,6 +166,7 @@ export default function SchoolBillingPage() {
   const [school, setSchool] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [payingCycle, setPayingCycle] = useState<any | null>(null);
+  const [showPaymentBanner, setShowPaymentBanner] = useState(paymentParam === 'success' || paymentParam === 'cancelled');
 
   useEffect(() => {
     if (!authLoading && profile?.role !== 'school') {
@@ -222,6 +229,31 @@ export default function SchoolBillingPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      {showPaymentBanner && (
+        <div className={`flex items-start justify-between gap-4 p-4 rounded-xl ${
+          paymentParam === 'cancelled'
+            ? 'bg-amber-500/10 border border-amber-500/30'
+            : 'bg-emerald-500/10 border border-emerald-500/30'
+        }`}>
+          <div className="flex items-center gap-3">
+            {paymentParam === 'cancelled' ? (
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            ) : (
+              <CheckCircleIcon className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+            )}
+            <p className={`text-sm font-bold ${paymentParam === 'cancelled' ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {paymentParam === 'cancelled'
+                ? 'Payment was cancelled. Your billing cycle remains outstanding until payment is completed.'
+                : alreadyPaid
+                  ? 'This billing cycle is already marked as paid. No further action is required.'
+                  : 'Payment initiated. Your receipt and billing status will update once the payment is confirmed.'}
+            </p>
+          </div>
+          <button onClick={() => setShowPaymentBanner(false)} className={`font-black text-sm shrink-0 ${paymentParam === 'cancelled' ? 'text-amber-400' : 'text-emerald-400'}`}>✕</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -303,7 +335,7 @@ export default function SchoolBillingPage() {
                   {(cycle.status === 'due' || cycle.status === 'past_due') && (
                     <button
                       onClick={() => setPayingCycle(cycle)}
-                      className="px-3 py-2 bg-gradient-to-r from-primary to-primary text-white text-[10px] font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all"
+                      className="px-3 py-2 bg-gradient-to-r from-primary to-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all"
                     >
                       Pay Now
                     </button>
@@ -397,7 +429,11 @@ export default function SchoolBillingPage() {
         </p>
       </div>
       {payingCycle && (
-        <BillingPaymentModal cycle={payingCycle} onClose={() => setPayingCycle(null)} />
+        <BillingPaymentModal
+          cycle={payingCycle}
+          onClose={() => setPayingCycle(null)}
+          onUpdated={loadData}
+        />
       )}
     </div>
   );

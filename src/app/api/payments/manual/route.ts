@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import { verifyInvoicePayment, verifySummerBalancePayment } from '@/lib/payments/verified-payment';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -14,11 +16,11 @@ async function getCaller() {
 /**
  * POST /api/payments/manual
  * Records an offline/manual payment transaction (cash, POS, bank transfer, cheque).
- * Admin: any school. School/teacher: scoped to their own school_id only.
+ * Admin: any school. School: scoped to its own school_id only.
  */
 export async function POST(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+  if (!caller || !['admin', 'school'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -32,6 +34,8 @@ export async function POST(request: Request) {
     notes,
     portal_user_id,
     invoice_id,
+    prospect_id,
+    payment_type,
   } = body as {
     school_id?: string;
     amount?: number;
@@ -41,6 +45,8 @@ export async function POST(request: Request) {
     notes?: string;
     portal_user_id?: string;
     invoice_id?: string;
+    prospect_id?: string;
+    payment_type?: string;
   };
 
   if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) {
@@ -58,13 +64,72 @@ export async function POST(request: Request) {
     ? (school_id || caller.school_id)
     : caller.school_id;
 
-  if (!effectiveSchoolId) {
-    return NextResponse.json({ error: 'school_id required' }, { status: 400 });
-  }
-
   const db = createAdminClient();
   const now = new Date().toISOString();
   const txRef = `MANUAL-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+
+  if (invoice_id) {
+    try {
+      if (caller.role !== 'admin') {
+        const { data: invoiceScope } = await db
+          .from('invoices')
+          .select('school_id, portal_user_id')
+          .eq('id', invoice_id)
+          .maybeSingle();
+        if (!invoiceScope) {
+          return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+        }
+        const allowedSchoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+        let invoiceSchoolId = (invoiceScope as { school_id?: string | null; portal_user_id?: string | null }).school_id;
+        const invoicePortalUserId = (invoiceScope as { portal_user_id?: string | null }).portal_user_id;
+        if (!invoiceSchoolId && invoicePortalUserId) {
+          const { data: payer } = await db
+            .from('portal_users')
+            .select('school_id')
+            .eq('id', invoicePortalUserId)
+            .maybeSingle();
+          invoiceSchoolId = (payer as { school_id?: string | null } | null)?.school_id || null;
+        }
+        if (!invoiceSchoolId || !allowedSchoolIds.includes(invoiceSchoolId)) {
+          return NextResponse.json({ error: 'Forbidden: invoice belongs to a different school' }, { status: 403 });
+        }
+      }
+      const result = await verifyInvoicePayment({
+        invoiceId: invoice_id,
+        amount: Number(amount),
+        currency,
+        method,
+        reference,
+        note: notes,
+        actorId: caller.id,
+        source: 'manual_payment_route',
+      });
+      return NextResponse.json({ data: { id: result.transactionId, receipt_url: result.receiptUrl, invoice_id }, success: true }, { status: 201 });
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message || 'Payment verification failed' }, { status: err.statusCode || 500 });
+    }
+  }
+
+  if (payment_type === 'summer_school_balance' || prospect_id) {
+    try {
+      const result = await verifySummerBalancePayment({
+        prospectId: prospect_id || '',
+        amount: Number(amount),
+        method,
+        reference,
+        note: notes,
+        actorId: caller.id,
+        source: 'manual_payment_route',
+      });
+      return NextResponse.json({ data: result, success: true }, { status: 201 });
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message || 'Balance verification failed' }, { status: err.statusCode || 500 });
+    }
+  }
+
+  if (!effectiveSchoolId) {
+    return NextResponse.json({ error: 'school_id required' }, { status: 400 });
+  }
 
   const { data, error } = await db
     .from('payment_transactions')

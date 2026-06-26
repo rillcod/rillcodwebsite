@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { classifyReceiptStream } from '@/lib/finance/streams';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 function adminClient() {
   return createClient(
@@ -16,7 +17,7 @@ async function requireCaller() {
   if (error || !user) return null;
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('id, role, school_id')
+    .select('id, role, school_id, email')
     .eq('id', user.id)
     .single();
   if (!profile) return null;
@@ -47,8 +48,15 @@ export async function GET(request: NextRequest) {
     if (schoolIdParam) query = query.eq('school_id', schoolIdParam);
   } else if ((caller.role === 'school' || caller.role === 'teacher') && caller.school_id) {
     query = query.eq('school_id', caller.school_id);
+  } else if (caller.role === 'parent') {
+    const { studentUserIds } = await getParentLinkScope(
+      admin as any,
+      { id: caller.id, email: (caller as any).email || undefined },
+    );
+    if (studentUserIds.length === 0) return NextResponse.json({ data: [] });
+    query = query.in('student_id', studentUserIds);
   } else {
-    // student / parent: only their own receipts
+    // student: only their own receipts
     query = query.eq('student_id', caller.id);
   }
 

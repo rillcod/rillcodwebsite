@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { issueReceiptForTransaction } from '@/lib/finance/issue';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 /**
  * POST /api/payments/receipt/[transactionId]
@@ -34,15 +35,20 @@ export async function POST(
   // NF-10.5 — verify the requester belongs to the transaction's school or is the portal_user
   const { data: profile } = await db
     .from('portal_users')
-    .select('role, school_id')
+    .select('role, school_id, email')
     .eq('id', user.id)
     .single();
 
   const isOwner = tx.portal_user_id === user.id;
   const isSameSchool = profile?.school_id && tx.school_id && profile.school_id === tx.school_id;
   const isAdmin = profile?.role === 'admin';
+  let isLinkedParent = false;
+  if (profile?.role === 'parent' && tx.portal_user_id) {
+    const { studentUserIds } = await getParentLinkScope(db as any, { id: user.id, email: profile.email || undefined });
+    isLinkedParent = studentUserIds.includes(tx.portal_user_id);
+  }
 
-  if (!isOwner && !isSameSchool && !isAdmin) {
+  if (!isOwner && !isSameSchool && !isAdmin && !isLinkedParent) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

@@ -110,7 +110,7 @@ export async function GET(req: Request) {
       // Batch fetch stats
       const [attRes, invRes, certRes, gradeRes] = await Promise.all([
         userIds.length > 0 ? admin.from('attendance').select('user_id, status').in('user_id', userIds) : Promise.resolve({ data: [] }),
-        userIds.length > 0 ? admin.from('invoices').select('portal_user_id, status').in('portal_user_id', userIds).in('status', ['pending', 'overdue']) : Promise.resolve({ data: [] }),
+        userIds.length > 0 ? admin.from('invoices').select('portal_user_id, status').in('portal_user_id', userIds).in('status', ['pending', 'sent', 'overdue', 'partially_paid']) : Promise.resolve({ data: [] }),
         userIds.length > 0 ? admin.from('certificates').select('portal_user_id').in('portal_user_id', userIds) : Promise.resolve({ data: [] }),
         userIds.length > 0 ? admin.from('student_progress_reports').select('student_id, overall_grade, report_date').in('student_id', userIds).eq('is_published', true).order('report_date', { ascending: false }) : Promise.resolve({ data: [] }),
       ]);
@@ -277,12 +277,14 @@ export async function GET(req: Request) {
             .order('created_at', { ascending: false })
         : Promise.resolve({ data: [], error: null });
 
-      const paymentQuery = admin
-        .from('payments')
-        .select('id, amount, payment_method, payment_status, transaction_reference, payment_date, notes')
-        .eq('student_id', childId)
-        .order('payment_date', { ascending: false })
-        .limit(30);
+      const paymentQuery = child.user_id
+        ? admin
+            .from('payment_transactions')
+            .select('id, amount, currency, payment_method, payment_status, transaction_reference, paid_at, created_at, receipt_url, invoice_id')
+            .eq('portal_user_id', child.user_id)
+            .order('created_at', { ascending: false })
+            .limit(50)
+        : Promise.resolve({ data: [], error: null });
 
       const [invRes, payRes] = await Promise.all([invoiceQuery, paymentQuery]);
       if (invRes.error) throw invRes.error;

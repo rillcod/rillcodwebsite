@@ -111,16 +111,16 @@ export function InvoicesPanel() {
     if (!confirm(`Mark invoice #${inv.invoice_number} as paid?`)) return;
     setBusyId(inv.id);
     try {
-      const res = await fetch(`/api/invoices/${inv.id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/invoices/mark-paid', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'paid' }),
+        body: JSON.stringify({ invoiceId: inv.id, amount: inv.amount }),
       });
+      const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
         throw new Error(j.error || 'Failed');
       }
-      toast.success('Marked as paid');
+      toast.success(j.receiptUrl ? 'Paid, receipted, and acknowledged' : 'Paid and acknowledgement queued');
       setInvoices((prev) =>
         prev.map((i) => (i.id === inv.id ? { ...i, status: 'paid' } : i)),
       );

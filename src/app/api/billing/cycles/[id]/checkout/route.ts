@@ -66,6 +66,26 @@ export async function POST(
   const amount = Number(cycle.amount_due ?? 0);
   if (amount <= 0) return NextResponse.json({ error: 'Invalid cycle amount' }, { status: 400 });
 
+  const pendingCutoff = new Date(Date.now() - 15 * 60_000).toISOString();
+  const { data: recentPending } = await db
+    .from('payment_transactions')
+    .select('id, transaction_reference, created_at')
+    .contains('payment_gateway_response', { billing_cycle_id: id })
+    .eq('payment_status', 'pending')
+    .gte('created_at', pendingCutoff)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (recentPending) {
+    return NextResponse.json(
+      {
+        error: 'A Paystack checkout is already pending for this billing cycle. Complete it or wait a few minutes before trying again.',
+        reference: recentPending.transaction_reference,
+      },
+      { status: 409 },
+    );
+  }
+
   const currency = (cycle.currency || 'NGN').toUpperCase();
   let amountMinor: number;
   let payCurrency: 'NGN' | 'USD';
@@ -79,12 +99,16 @@ export async function POST(
 
   const reference = `BCY-${Date.now()}-${caller.id.substring(0, 5)}`;
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const billingSurface = caller.role === 'school' ? '/dashboard/school-billing' : '/dashboard/money';
+  const callbackUrl = `${baseUrl}${billingSurface}?payment=success&ref=${reference}&cycle=${id}`;
+  const cancelUrl = `${baseUrl}${billingSurface}?payment=cancelled&ref=${reference}&cycle=${id}`;
 
   const initBody: Record<string, unknown> = {
     email: caller.email || 'user@rillcod.com',
     amount: amountMinor,
     reference,
-    callback_url: `${baseUrl}/dashboard/finance?tab=billing_cycles&payment=success&ref=${reference}`,
+    callback_url: callbackUrl,
+    cancel_action: cancelUrl,
     metadata: {
       userId: caller.id,
       payment_type: 'billing_cycle',
@@ -116,7 +140,7 @@ export async function POST(
 
   // Record pending transaction
   const totalAmount = payCurrency === 'NGN' ? calculatePaystackTotal(amount) : Math.round(amount * 100) / 100;
-  await db.from('payment_transactions').insert([{
+  const { error: insertErr } = await db.from('payment_transactions').insert([{
     school_id: cycle.school_id || cycle.owner_school_id || null,
     portal_user_id: caller.id,
     invoice_id: cycle.invoice_id || null,
@@ -135,6 +159,9 @@ export async function POST(
     },
     created_at: new Date().toISOString(),
   }]);
+  if (insertErr) {
+    return NextResponse.json({ error: `Could not record pending transaction: ${insertErr.message}` }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true, url: psk.data.authorization_url, reference });
 }

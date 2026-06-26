@@ -19,7 +19,7 @@ async function getCaller() {
 // GET /api/billing/settings?school_id=...
 export async function GET(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+  if (!caller || !['admin', 'school'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 // POST /api/billing/settings
 export async function POST(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+  if (!caller || !['admin', 'school'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

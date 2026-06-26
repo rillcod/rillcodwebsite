@@ -162,7 +162,7 @@ export function buildNotificationUrl(type: NotificationType, resourceId?: string
   switch (type) {
     case 'payment_confirmed':
     case 'instalment_due':
-      return resourceId ? `/dashboard/payments/invoices/${resourceId}` : '/dashboard/payments';
+      return resourceId ? `/dashboard/money?invoice=${resourceId}` : '/dashboard/money';
     case 'report_published':
       return resourceId ? `/dashboard/results/${resourceId}` : '/dashboard/results';
     case 'assignment_graded':

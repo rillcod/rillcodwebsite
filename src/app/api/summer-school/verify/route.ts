@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { env } from "@/config/env";
+import { processSuccessfulPayment } from "@/lib/payments/process-successful-payment";
 
 function getAdminClient() {
   return createClient(
@@ -46,11 +47,14 @@ export async function GET(req: Request) {
     const paystackData = await paystackRes.json();
     const paystackStatus = paystackData?.data?.status as string | undefined;
     const verified = paystackData.status === true && paystackStatus === "success";
+    if (verified && tx.payment_status !== "completed") {
+      await processSuccessfulPayment(reference, "paystack", paystackData.data);
+    }
 
     return NextResponse.json({
       ok: verified,
       status: paystackStatus ?? "unknown",
-      paymentStatus: tx.payment_status,
+      paymentStatus: verified ? "completed" : tx.payment_status,
       studentName: (gateway.student_name as string | undefined) ?? null,
       reference,
     });

@@ -265,7 +265,7 @@ export default function BulkRegisterPage() {
   const [vaultClasses, setVaultClasses] = useState<{id: string; name: string; school_id: string}[]>([]);
   const [historySchoolId, setHistorySchoolId] = useState('all');
 
-  // Unified Credentials Center State
+  // Legacy credential state retained only for compatibility; Records is the operational surface.
   const [unifiedResults, setUnifiedResults] = useState<any[]>([]);
   const [loadingUnified, setLoadingUnified] = useState(false);
   const [unifiedSchoolId, setUnifiedSchoolId] = useState('all');
@@ -832,7 +832,7 @@ export default function BulkRegisterPage() {
              </div>
            </div>
            <div style="text-align:right;">
-             <div style="font-weight:900; font-size: 14px;">BATCH archive: ${batchIdStr}</div>
+             <div style="font-weight:900; font-size: 14px;">BATCH record: ${batchIdStr}</div>
              <div style="font-size: 10px; color: #6b7280; font-weight: bold; margin-top: 4px;">DATED: ${dateStr}</div>
            </div>
         </div>
@@ -1481,9 +1481,8 @@ export default function BulkRegisterPage() {
       sessionStorage.setItem('last_bulk_reg', JSON.stringify({ results: allResults, date: new Date().toISOString() }));
       setHasRecoverable(true);
 
-      // Show success screen, then load history in background
+      // Show success screen. Operational follow-up now lives in Records.
       setStep('done');
-      fetchHistory().catch(() => { }); // non-blocking
 
     } catch (err: any) {
       alert(err.message);
@@ -1590,7 +1589,7 @@ export default function BulkRegisterPage() {
           </Link>
         </div>
 
-        {/* Unified Tab Bar */}
+        {/* Registration actions. History/credential operations now live in Records. */}
         <div className="max-w-7xl mx-auto mb-8">
           <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
             <div className="flex bg-card p-1.5 border border-border w-full sm:w-fit min-w-max">
@@ -1606,19 +1605,16 @@ export default function BulkRegisterPage() {
               >
                 Single Student
               </button>
-              <button
-                onClick={() => { setActiveTab('vault'); fetchHistory(); }}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'vault' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+              <Link
+                href="/dashboard/records"
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap text-muted-foreground hover:text-foreground"
               >
-                History
-              </button>
-              <button
-                onClick={() => { setActiveTab('unified'); }}
-                className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeTab === 'unified' ? 'bg-primary text-white shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Credentials Center
-              </button>
+                Records
+              </Link>
             </div>
+            <p className="mt-2 text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+              Registration history, credential cards, print lists, filters and exports are consolidated in Records.
+            </p>
           </div>
         </div>
 
@@ -1659,7 +1655,7 @@ export default function BulkRegisterPage() {
             {/* ══════════════════ STEP 1 — SINGLE ══════════════════════════ */}
             {step === 'single' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <AddStudentModal inline isOpen={true} onClose={() => { }} onSuccess={() => { setStep('input'); setActiveTab('vault'); fetchHistory(); toast.success('Student registered. Check history.'); }} classId={selectedRegistryClass || undefined} />
+                <AddStudentModal inline isOpen={true} onClose={() => { }} onSuccess={() => { setStep('input'); setActiveTab('register'); toast.success('Student registered. Open Records to print cards or review credentials.'); }} classId={selectedRegistryClass || undefined} />
               </div>
             )}
 
@@ -2321,6 +2317,10 @@ Yusuf Ibrahim SS1A`}
                     Confirm Fixes
                   </button>
 
+                  <Link href="/dashboard/records" className="flex items-center gap-2 px-8 py-4 bg-violet-600/10 hover:bg-violet-600/20 text-violet-300 font-bold border border-violet-500/20 text-[10px] uppercase tracking-widest">
+                    <ArchiveBoxIcon className="w-4 h-4" /> Open Records
+                  </Link>
+
                   <button onClick={() => setStep('input')} className="flex items-center gap-2 px-8 py-4 bg-card border border-border text-muted-foreground font-bold text-[10px] uppercase tracking-widest">
                     <PlusIcon className="w-4 h-4" /> New Batch
                   </button>
@@ -2335,7 +2335,7 @@ Yusuf Ibrahim SS1A`}
                         <ClipboardDocumentListIcon className="w-5 h-5 text-primary" />
                         Session results
                       </h3>
-                      <p className="text-muted-foreground text-[10px] uppercase font-black tracking-widest mt-1">Archive ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}</p>
+                      <p className="text-muted-foreground text-[10px] uppercase font-black tracking-widest mt-1">Batch Record ID: {results[0]?.batch_id?.slice(0, 8) || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="overflow-x-auto">
@@ -2438,7 +2438,7 @@ Yusuf Ibrahim SS1A`}
                 <div className="max-w-xl">
                   <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
                     <div className="w-2 h-2 bg-primary rounded-xl animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
-                    <span className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-[0.4em]">Registration Archive</span>
+                    <span className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-[0.4em]">Records Migration</span>
                   </div>
                   <h2 className="text-base sm:text-xl lg:text-2xl font-black text-foreground italic uppercase tracking-tighter leading-none mb-1 sm:mb-2">Registration History</h2>
                   <p className="text-muted-foreground text-[9px] sm:text-[10px] font-medium leading-relaxed uppercase tracking-widest hidden sm:block">A record of all student registration sessions.</p>
@@ -2872,7 +2872,7 @@ Yusuf Ibrahim SS1A`}
                     <span className="w-2.5 h-2.5 bg-primary rounded-full animate-pulse shadow-[0_0_15px_rgba(234,88,12,0.4)]" />
                     <span className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-[0.4em]">Unified School Roster Center</span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-black text-foreground italic uppercase tracking-tighter mb-1">Credentials Center</h2>
+                  <h2 className="text-xl sm:text-2xl font-black text-foreground italic uppercase tracking-tighter mb-1">Records Credentials</h2>
                   <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest leading-relaxed">
                     Merge, search, filter and print credentials across ALL registration sessions.
                   </p>
@@ -3114,7 +3114,7 @@ Yusuf Ibrahim SS1A`}
         <AddStudentModal
           isOpen={isSingleModalOpen}
           onClose={() => setIsSingleModalOpen(false)}
-          onSuccess={() => { setIsSingleModalOpen(false); setActiveTab('vault'); fetchHistory(); toast.success('Student registered successfully.'); }}
+          onSuccess={() => { setIsSingleModalOpen(false); setActiveTab('register'); toast.success('Student registered successfully. Open Records to print cards or review credentials.'); }}
         />
       </div>
     </>

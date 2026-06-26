@@ -28,7 +28,7 @@ export async function POST(
 
   const { data: cycle } = await db
     .from('billing_cycles')
-    .select('id, invoice_id, school_id, owner_school_id, status')
+    .select('id, invoice_id, school_id, owner_school_id, owner_user_id, owner_type, status, amount_due, currency, due_date, term_label, items')
     .eq('id', id)
     .single();
 
@@ -40,6 +40,35 @@ export async function POST(
     if (!schoolId || (cycle.school_id !== schoolId && cycle.owner_school_id !== schoolId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+  }
+  if (!['due', 'past_due'].includes(cycle.status)) {
+    return NextResponse.json({ error: 'Proof can only be uploaded for due or past-due cycles' }, { status: 400 });
+  }
+
+  let invoiceId = cycle.invoice_id as string | null;
+  if (!invoiceId) {
+    const { data: invoice, error: invoiceErr } = await db
+      .from('invoices')
+      .insert({
+        invoice_number: `BCY-${Date.now().toString(36).toUpperCase()}`,
+        school_id: cycle.owner_type === 'school' ? (cycle.owner_school_id || cycle.school_id || null) : null,
+        portal_user_id: cycle.owner_type === 'individual' ? (cycle.owner_user_id || null) : null,
+        amount: Number(cycle.amount_due) || 0,
+        currency: cycle.currency || 'NGN',
+        due_date: cycle.due_date || null,
+        status: 'sent',
+        stream: cycle.owner_type === 'school' ? 'school' : 'individual',
+        billing_cycle_id: cycle.id,
+        notes: `Auto-generated from billing cycle: ${cycle.term_label || cycle.id}`,
+        items: Array.isArray(cycle.items) ? cycle.items : [],
+      } as any)
+      .select('id')
+      .single();
+    if (invoiceErr || !invoice?.id) {
+      return NextResponse.json({ error: `Could not create linked invoice: ${invoiceErr?.message || 'unknown error'}` }, { status: 500 });
+    }
+    invoiceId = invoice.id;
+    await db.from('billing_cycles').update({ invoice_id: invoiceId, updated_at: new Date().toISOString() }).eq('id', cycle.id);
   }
 
   const formData = await req.formData();
@@ -78,24 +107,21 @@ export async function POST(
 
   let responseData: Record<string, unknown> = { key, signed_url: signedUrl };
 
-  // If cycle has a linked invoice, record the proof there for admin review
-  if (cycle.invoice_id) {
-    const { data, error } = await db
-      .from('invoice_payment_proofs')
-      .insert({
-        invoice_id: cycle.invoice_id,
-        submitted_by: caller.id,
-        proof_image_url: key,
-        payer_note: note
-          ? `[Billing Cycle ${id}] ${note}`
-          : `[Billing Cycle ${id}]`,
-      })
-      .select('id, created_at')
-      .single();
+  const { data, error } = await db
+    .from('invoice_payment_proofs')
+    .insert({
+      invoice_id: invoiceId,
+      submitted_by: caller.id,
+      proof_image_url: key,
+      payer_note: note
+        ? `[Billing Cycle ${id}] ${note}`
+        : `[Billing Cycle ${id}]`,
+    })
+    .select('id, created_at')
+    .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    responseData = { ...data, signed_url: signedUrl };
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  responseData = { ...data, invoice_id: invoiceId, signed_url: signedUrl };
 
   // Notify admins and school teachers (fire-and-forget)
   void notifyStaffOfPayment({

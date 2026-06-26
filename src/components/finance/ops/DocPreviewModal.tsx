@@ -78,16 +78,16 @@ export function DocPreviewModal({
     if (!confirm(`Mark invoice #${data.number} as paid?`)) return;
     setBusy('mark_paid');
     try {
-      const res = await fetch(`/api/invoices/${invoiceId}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/invoices/mark-paid', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'paid' }),
+        body: JSON.stringify({ invoiceId, amount: data.amount }),
       });
+      const j = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
         throw new Error(j.error || 'Failed to mark paid');
       }
-      toast.success('Invoice marked as paid.');
+      toast.success(j.receiptUrl ? 'Invoice paid, receipted, and acknowledged.' : 'Invoice paid and acknowledgement queued.');
       onChanged?.();
       onClose();
     } catch (e: unknown) {
@@ -165,7 +165,7 @@ export function DocPreviewModal({
   const anyBusy = busy !== null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md overflow-y-auto pt-20 pb-20 px-0 sm:px-4">
+    <div className="fixed inset-0 z-[100] bg-foreground/40 backdrop-blur-md overflow-y-auto pt-20 pb-20 px-0 sm:px-4">
       <div className="relative max-w-[850px] mx-auto">
         {/* Floating actions */}
         <div className="fixed top-4 right-4 flex flex-wrap items-center gap-2 z-[110]">
@@ -174,7 +174,7 @@ export function DocPreviewModal({
               <button
                 onClick={markPaid}
                 disabled={anyBusy}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
               >
                 {busy === 'mark_paid' ? (
                   <ArrowPathIcon className="w-4 h-4 animate-spin" />
@@ -200,7 +200,7 @@ export function DocPreviewModal({
                   <button
                     onClick={() => sendEmail(recipientEmail)}
                     disabled={anyBusy || !recipientEmail.trim()}
-                    className="px-2 py-1 bg-primary disabled:opacity-40 text-white text-[10px] font-black uppercase rounded"
+                    className="px-2 py-1 bg-primary disabled:opacity-40 text-primary-foreground text-[10px] font-black uppercase rounded"
                   >
                     {busy === 'send_email' ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : 'Send'}
                   </button>
@@ -212,7 +212,7 @@ export function DocPreviewModal({
                 <button
                   onClick={() => isSchoolInvoice ? setShowEmailInput(true) : sendEmail()}
                   disabled={anyBusy}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest rounded-md shadow-lg"
                 >
                   {busy === 'send_email' ? (
                     <ArrowPathIcon className="w-4 h-4 animate-spin" />

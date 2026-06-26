@@ -288,8 +288,8 @@ type TabDef = {
 
 const ALL_TABS: TabDef[] = [
   { key: 'overview', label: 'Overview', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
-  { key: 'billing_cycles', label: 'Billing cycles', icon: CalendarDaysIcon, roles: ['admin', 'school', 'teacher'] },
-  { key: 'operations', label: 'Financial records', icon: ReceiptPercentIcon, roles: ['admin', 'school', 'teacher'] },
+  { key: 'billing_cycles', label: 'Billing cycles', icon: CalendarDaysIcon, roles: ['admin', 'school'] },
+  { key: 'operations', label: 'Financial records', icon: ReceiptPercentIcon, roles: ['admin', 'school'] },
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon, roles: ['admin'] },
   { key: 'settlements', label: 'Settlements', icon: BuildingOfficeIcon, adminOnly: true },
   { key: 'automation', label: 'Automation', icon: BoltIcon, adminOnly: true },
@@ -603,7 +603,7 @@ function OverviewTab({ profile }: { profile: any }) {
 
       {/* Record Manual Payment Modal */}
       {showManualPayment && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
@@ -666,7 +666,7 @@ function OverviewTab({ profile }: { profile: any }) {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={recordManualPayment} disabled={savingManual}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors">
                   {savingManual ? 'Recording…' : 'Record Payment'}
                 </button>
                 <button onClick={() => setShowManualPayment(false)}
@@ -942,7 +942,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-card border-b border-border flex items-center justify-between px-5 py-4 z-10">
               <h3 className="font-black text-foreground">{editId ? 'Edit Subscription' : 'New Subscription'}</h3>
@@ -1057,7 +1057,7 @@ function SubscriptionsTab({ profile }: { profile: any }) {
 
               <div className="flex gap-3 pt-2">
                 <button onClick={save} disabled={saving}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors">
                   {saving ? 'Saving…' : editId ? 'Update' : 'Create'}
                 </button>
                 <button onClick={() => setShowForm(false)}
@@ -1245,7 +1245,7 @@ function SettlementsTab({ profile }: { profile: any }) {
 
       {/* Create / Edit Settlement Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h3 className="font-black text-foreground">{editId ? 'Edit Settlement' : 'New Settlement'}</h3>
@@ -1290,7 +1290,7 @@ function SettlementsTab({ profile }: { profile: any }) {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={save} disabled={saving}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors">
                   {saving ? 'Saving…' : editId ? 'Save Changes' : 'Create Settlement'}
                 </button>
                 <button onClick={() => setShowForm(false)}

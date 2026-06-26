@@ -406,12 +406,16 @@ function renderSchoolInvoiceHtml(invoice: any, cycle: any): string {
     : splitSchoolAmount(amount, commissionRate).schoolSettlement;
 
   const cycleItems: any[] = Array.isArray(cycle?.items) ? cycle.items : Array.isArray(invoice.items) ? invoice.items : [];
+  const itemAmount = (item: any) => {
+    const qty = Number(item.quantity ?? item.qty ?? 1) || 1;
+    return Number(item.total ?? item.amount ?? (Number(item.unit_price ?? 0) * qty)) || 0;
+  };
   const itemsHtml = cycleItems.map((item: any, i: number) => `
     <tr style="background:${i % 2 === 0 ? '#fff' : '#f5f7ff'};">
       <td style="padding:10px 14px; font-size:12px; color:#1e1b4b; font-weight:600;">${item.student_name ?? item.description ?? 'Student'}</td>
       <td style="padding:10px 14px; font-size:12px; color:#4338ca; font-family:monospace;">${item.invoice_number ?? ''}</td>
       <td style="padding:10px 14px; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">${item.status ?? 'pending'}</td>
-      <td style="padding:10px 14px; text-align:right; font-family:monospace; font-size:13px; font-weight:700; color:#1e1b4b;">${currencySymbol}${Number(item.amount ?? 0).toLocaleString()}</td>
+      <td style="padding:10px 14px; text-align:right; font-family:monospace; font-size:13px; font-weight:700; color:#1e1b4b;">${currencySymbol}${itemAmount(item).toLocaleString()}</td>
     </tr>
   `).join('');
 

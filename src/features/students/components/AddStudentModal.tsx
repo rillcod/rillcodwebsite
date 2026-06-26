@@ -300,7 +300,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
         return (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+                <div className="absolute inset-0 bg-foreground/35 backdrop-blur-sm" />
                 <div className="relative w-full max-w-md bg-background border border-border border-l-4 border-l-emerald-500 rounded-none shadow-2xl overflow-hidden">
                     <div className="p-6 border-b border-border flex items-center gap-4">
                         <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-none flex items-center justify-center flex-shrink-0">
@@ -357,7 +357,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                         </button>
                         <button
                             onClick={() => { setCredentials(null); onSuccess(); onClose(); }}
-                            className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all rounded-none"
+                            className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-500 text-primary-foreground font-bold text-xs transition-all rounded-none"
                         >
                             Done
                         </button>
@@ -413,7 +413,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                                 <button
                                     type="button"
                                     onClick={(e) => handleSubmit(e, true)}
-                                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider transition-all"
+                                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-primary-foreground text-[10px] font-bold uppercase tracking-wider transition-all"
                                 >
                                     Proceed Anyway
                                 </button>
@@ -534,7 +534,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                         </button>
                     )}
                     <button type="submit" disabled={loading}
-                        className="flex-[2] flex items-center justify-center gap-2 py-3.5 bg-primary hover:bg-primary text-white text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] rounded-none">
+                        className="flex-[2] flex items-center justify-center gap-2 py-3.5 bg-primary hover:bg-primary text-primary-foreground text-xs font-bold transition-all disabled:opacity-50 active:scale-[0.98] rounded-none">
                         {loading
                             ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>
                             : <><CheckIcon className="w-4 h-4" /> {initialData ? 'Save Changes' : 'Register Student'}</>}
@@ -548,7 +548,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-foreground/35 backdrop-blur-sm" onClick={onClose} />
             {content}
         </div>
     );

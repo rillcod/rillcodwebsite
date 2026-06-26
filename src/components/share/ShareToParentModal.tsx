@@ -125,7 +125,7 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-[200] bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="w-full sm:max-w-lg bg-background border border-border shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[85vh]">
 
         {/* Header */}
@@ -168,7 +168,7 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   placeholder="e.g. 08012345678"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#25D366]/50 font-mono"
+                  className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-[#25D366]/50 font-mono"
                 />
                 {phone && normalisePhone(phone).length >= 10 && (
                   <p className="text-[10px] text-[#25D366] mt-1 font-bold">→ Opens chat with +{normalisePhone(phone)}</p>
@@ -204,7 +204,7 @@ export default function ShareToParentModal({ open, onClose, defaultMessage, titl
                     </button>
                   </div>
                   {groups.map(g => (
-                    <div key={g.id} className="flex items-center gap-2 p-3 bg-white/[0.04] border border-border">
+                    <div key={g.id} className="flex items-center gap-2 p-3 bg-card border border-border">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-foreground">{g.name}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{g.link}</p>

@@ -30,7 +30,7 @@ function nextInvoiceNumber(existing: string[]): string {
  */
 export async function POST(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+  if (!caller || !['admin', 'school'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

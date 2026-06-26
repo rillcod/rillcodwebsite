@@ -99,19 +99,37 @@ export async function POST(request: NextRequest) {
     stream: streamFromBody, billing_cycle_id,
   } = body;
 
+  const admin = adminClient();
+  const effectiveSchoolId = caller.role === 'admin' ? (school_id || null) : caller.school_id;
+  if (caller.role !== 'admin' && !effectiveSchoolId) {
+    return NextResponse.json({ error: 'Your account is not linked to a school.' }, { status: 403 });
+  }
+  if (caller.role !== 'admin' && school_id && school_id !== effectiveSchoolId) {
+    return NextResponse.json({ error: 'Forbidden: cannot create invoices for another school' }, { status: 403 });
+  }
+  if (portal_user_id && effectiveSchoolId) {
+    const { data: payer } = await admin
+      .from('portal_users')
+      .select('school_id')
+      .eq('id', portal_user_id)
+      .maybeSingle();
+    if (caller.role !== 'admin' && payer?.school_id && payer.school_id !== effectiveSchoolId) {
+      return NextResponse.json({ error: 'Forbidden: payer belongs to another school' }, { status: 403 });
+    }
+  }
+
   const { classifyInvoiceStream } = await import('@/lib/finance/streams');
   const stream = classifyInvoiceStream({
     stream: streamFromBody ?? null,
-    school_id: school_id ?? null,
+    school_id: effectiveSchoolId ?? null,
     portal_user_id: portal_user_id ?? null,
     billing_cycle_id: billing_cycle_id ?? null,
   });
 
-  const admin = adminClient();
   const { data, error } = await admin
     .from('invoices')
     .insert([{
-      school_id: school_id || null,
+      school_id: effectiveSchoolId || null,
       portal_user_id: portal_user_id || null,
       amount: parseFloat(amount) || 0,
       currency: currency || 'NGN',

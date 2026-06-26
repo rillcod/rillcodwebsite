@@ -22,6 +22,15 @@ export default function BillingStickyNotices() {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   const isAdmin = profile?.role === 'admin';
+  const paymentHref =
+    profile?.role === 'parent'
+      ? '/dashboard/parent-invoices'
+      : profile?.role === 'school'
+        ? '/dashboard/school-billing'
+        : profile?.role === 'student'
+          ? '/dashboard/my-payments'
+          : '/dashboard/finance?tab=operations&ops=approvals';
+  const billingContactHref = profile?.role === 'school' ? '/dashboard/school-billing' : '/dashboard/money';
   const visibleForRole = useMemo(
     () => ['admin', 'school', 'teacher', 'parent', 'student'].includes(profile?.role ?? ''),
     [profile?.role],
@@ -90,14 +99,14 @@ export default function BillingStickyNotices() {
             </div>
             <div className="flex items-center gap-2">
               <Link
-                href="/dashboard/payments"
+                href={paymentHref}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider border border-amber-500/30 text-amber-200 hover:bg-amber-500/10 rounded-xl"
               >
                 <BanknotesIcon className="w-3.5 h-3.5" />
                 Pay Now
               </Link>
               <Link
-                href="/dashboard/billing"
+                href={billingContactHref}
                 className="inline-flex items-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase tracking-wider border border-border text-muted-foreground hover:text-foreground hover:bg-card rounded-xl"
               >
                 <CogIcon className="w-3.5 h-3.5" />
