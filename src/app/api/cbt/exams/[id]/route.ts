@@ -130,8 +130,13 @@ export async function GET(
     }
   }
 
-  // Students only receive correct answers after they already have a recorded submission.
-  const questionsSelect = isStaff || studentHasSubmitted
+  const answerReviewReleased = !!(
+    (examMeta.metadata as any)?.release_answers === true
+    || (examMeta.end_date && examMeta.end_date <= new Date().toISOString())
+  );
+
+  // Students only receive correct answers after submission and after the release point.
+  const questionsSelect = isStaff || (studentHasSubmitted && answerReviewReleased)
     ? 'cbt_questions(*)'
     : 'cbt_questions(id, question_text, question_type, options, points, order_index, metadata)';
 
@@ -143,7 +148,7 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
-  if (!isStaff && !studentHasSubmitted) {
+  if (!isStaff && !(studentHasSubmitted && answerReviewReleased)) {
     data.cbt_questions = (data.cbt_questions ?? []).map((question: any) => ({
       ...question,
       metadata: sanitizeQuestionMetadataForStudent(question.metadata),
@@ -237,17 +242,18 @@ export async function PATCH(
 
     for (const q of existingQs) {
       // Scope update to this exam only — prevent editing another exam's question by ID
+      const questionUpdate: Record<string, unknown> = {
+        question_text: q.question_text,
+        question_type: q.question_type,
+        options: q.options ?? null,
+        correct_answer: q.correct_answer,
+        points: q.points ?? 5,
+        order_index: q.order_index,
+      };
+      if ('metadata' in q) questionUpdate.metadata = q.metadata ?? null;
       const { error: uErr } = await admin
         .from('cbt_questions')
-        .update({
-          question_text: q.question_text,
-          question_type: q.question_type,
-          options: q.options ?? null,
-          correct_answer: q.correct_answer,
-          points: q.points ?? 5,
-          order_index: q.order_index,
-          metadata: q.metadata ?? null,
-        })
+        .update(questionUpdate)
         .eq('id', q.id)
         .eq('exam_id', id); // safety: only update questions owned by this exam
       if (uErr) return NextResponse.json({ error: `Failed to update question: ${uErr.message}` }, { status: 500 });

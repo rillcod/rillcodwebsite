@@ -188,6 +188,11 @@ export async function POST(request: NextRequest) {
         examPayload.school_id = requestedSchoolId;
       } else if (!classScoped && caller.school_id) {
         examPayload.school_id = caller.school_id;
+      } else {
+        return NextResponse.json(
+          { error: 'Select one of your assigned schools for this exam.' },
+          { status: 400 },
+        );
       }
     } else {
       // admin: trust the provided school_id as-is

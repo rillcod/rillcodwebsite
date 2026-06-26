@@ -34,15 +34,26 @@ async function getCaller(): Promise<Caller | null> {
  */
 async function callerCanManageSubmission(
   caller: Caller,
-  assignmentSchoolId: string | null,
-  assignmentCreatedBy: string | null,
+  assignment: any,
 ): Promise<boolean> {
+  const assignmentSchoolId: string | null = assignment?.school_id ?? null;
+  const assignmentCreatedBy: string | null = assignment?.created_by ?? null;
+  const targetClassId: string | null = assignment?.metadata?.target_class_id || assignment?.class_id || null;
+
   if (caller.role === 'admin') return true;
   if (caller.role === 'school') {
-    return !assignmentSchoolId || assignmentSchoolId === caller.school_id;
+    return !!caller.school_id && assignmentSchoolId === caller.school_id;
   }
   if (caller.role === 'teacher') {
     if (assignmentCreatedBy === caller.id) return true;
+    if (targetClassId) {
+      const { data: cls } = await adminClient()
+        .from('classes')
+        .select('teacher_id')
+        .eq('id', targetClassId)
+        .maybeSingle();
+      return cls?.teacher_id === caller.id;
+    }
     if (!assignmentSchoolId) return false;
     if (caller.school_id === assignmentSchoolId) return true;
     const { data: ts } = await adminClient()
@@ -75,17 +86,14 @@ export async function PATCH(
     // Fetch submission + its assignment school for boundary check (single query)
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, assignment_id, file_url, assignments(school_id, created_by, weight, max_points)')
+      .select('id, assignment_id, file_url, assignments(school_id, created_by, class_id, metadata, weight, max_points)')
       .eq('id', id)
       .maybeSingle();
 
     if (!sub) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
 
     const assignment = (sub as any).assignments;
-    const assignmentSchoolId: string | null  = assignment?.school_id   ?? null;
-    const assignmentCreatedBy: string | null = assignment?.created_by  ?? null;
-
-    const canManage = await callerCanManageSubmission(caller, assignmentSchoolId, assignmentCreatedBy);
+    const canManage = await callerCanManageSubmission(caller, assignment);
     if (!canManage) {
       return NextResponse.json(
         { error: 'Access denied: this submission belongs to an assignment outside your school scope' },
@@ -201,18 +209,14 @@ export async function DELETE(
 
     const { data: sub } = await admin
       .from('assignment_submissions')
-      .select('id, assignments(school_id, created_by)')
+      .select('id, assignments(school_id, created_by, class_id, metadata)')
       .eq('id', id)
       .maybeSingle();
 
     if (!sub) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
 
     const assignment = (sub as any).assignments;
-    const canManage = await callerCanManageSubmission(
-      caller,
-      assignment?.school_id  ?? null,
-      assignment?.created_by ?? null,
-    );
+    const canManage = await callerCanManageSubmission(caller, assignment);
     if (!canManage) {
       return NextResponse.json(
         { error: 'Access denied: this submission belongs to an assignment outside your school scope' },

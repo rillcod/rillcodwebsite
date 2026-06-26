@@ -93,16 +93,28 @@ export async function POST(
       : 'Cloned from platform template',
   };
 
-  const { data: newCurr, error: insertErr } = await admin
-    .from('course_curricula')
-    .insert({
-      course_id: source.course_id,
-      school_id: targetSchoolId,
-      content: clonedContent,
-      version: nextVersion,
-      is_visible_to_school: false,
-      created_by: user.id,
-    })
+  const write = existing
+    ? admin
+      .from('course_curricula')
+      .update({
+        content: clonedContent,
+        version: nextVersion,
+        is_visible_to_school: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+    : admin
+      .from('course_curricula')
+      .insert({
+        course_id: source.course_id,
+        school_id: targetSchoolId,
+        content: clonedContent,
+        version: nextVersion,
+        is_visible_to_school: false,
+        created_by: user.id,
+      });
+
+  const { data: newCurr, error: insertErr } = await write
     .select('*, schools(id, name)')
     .single();
 

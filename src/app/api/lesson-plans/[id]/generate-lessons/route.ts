@@ -11,7 +11,8 @@ import {
 import { AIFetchError, fetchAIGenerate } from '@/lib/lesson-plans/ai-fetch';
 import { validateLessonPlanForGeneration } from '@/lib/api-guards';
 import { extractLessonPlanOperationWeeks, getMetadataWeekCompositeKey, getWeekCompositeKey, parseWeekTermRefs } from '@/lib/progression/lessonPlanOperation';
-import { requireStaffUser } from '@/app/api/lesson-plans/authz';
+import { canAccessLessonScope, requireStaffUser } from '@/app/api/lesson-plans/authz';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { createSSEResponse } from '@/lib/sse-stream';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 
@@ -32,7 +33,7 @@ export async function POST(
     const supabase = await createServerClient();
     const cronSecret = extractCronSecret(req);
     const isCron = isValidCronSecret(cronSecret);
-    const staff = isCron ? { id: 'cron', role: 'admin' } : await requireStaffUser(supabase);
+    const staff = isCron ? { id: 'cron', role: 'admin', school_id: null } : await requireStaffUser(supabase);
     if (!staff) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { data: plan, error: planErr } = await supabase
@@ -43,6 +44,17 @@ export async function POST(
 
     const validationError = validateLessonPlanForGeneration(planErr ? null : plan);
     if (validationError) return NextResponse.json({ error: validationError.error }, { status: validationError.status });
+    if (!isCron && staff.role !== 'admin') {
+      const teacherSchoolIds = staff.role === 'teacher'
+        ? await getTeacherSchoolIds(staff.id, staff.school_id)
+        : [];
+      const allowed = canAccessLessonScope(
+        staff,
+        { school_id: (plan as any)?.school_id ?? null, created_by: (plan as any)?.created_by ?? null },
+        teacherSchoolIds,
+      );
+      if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
     const dryRun = body.dry_run === true;

@@ -40,6 +40,28 @@ function callerCanManageAssignment(
   return false;
 }
 
+async function teacherOwnsClass(admin: ReturnType<typeof adminClient>, teacherId: string, classId: string | null): Promise<boolean> {
+  if (!classId) return false;
+  const { data } = await admin
+    .from('classes')
+    .select('teacher_id')
+    .eq('id', classId)
+    .maybeSingle();
+  return data?.teacher_id === teacherId;
+}
+
+async function teacherAssignedToSchool(admin: ReturnType<typeof adminClient>, teacherId: string, primarySchoolId: string | null, schoolId: string | null): Promise<boolean> {
+  if (!schoolId) return false;
+  if (primarySchoolId === schoolId) return true;
+  const { data } = await admin
+    .from('teacher_schools')
+    .select('school_id')
+    .eq('teacher_id', teacherId)
+    .eq('school_id', schoolId)
+    .maybeSingle();
+  return !!data;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/assignments/[id]
 // Staff only — returns full assignment with all submissions for grading.
@@ -76,11 +98,15 @@ export async function GET(
   if (!data) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
   // School boundary check
-  if (caller.role === 'school' && (data as any).school_id && (data as any).school_id !== caller.school_id) {
+  if (caller.role === 'school' && (!caller.school_id || (data as any).school_id !== caller.school_id)) {
     return NextResponse.json({ error: 'Access denied: assignment is outside your school scope' }, { status: 403 });
   }
   if (caller.role === 'teacher') {
-    const canAccess = await callerCanManageAssignment(caller, (data as any).school_id, (data as any).created_by);
+    const targetClassId = (data as any).metadata?.target_class_id || (data as any).class_id || null;
+    const canAccess =
+      (data as any).created_by === caller.id ||
+      await teacherOwnsClass(admin, caller.id, targetClassId) ||
+      (!targetClassId && await teacherAssignedToSchool(admin, caller.id, caller.school_id, (data as any).school_id));
     if (!canAccess) {
       return NextResponse.json({ error: 'Access denied: assignment is outside your school scope' }, { status: 403 });
     }
@@ -124,16 +150,39 @@ export async function PATCH(
   const allowedFields = [
     'title', 'description', 'instructions', 'course_id', 'program_id',
     'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
-    'class_id',
+    'class_id', 'weight', 'grading_mode',
   ];
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
+  }
+  if (!allowed.grading_mode && Array.isArray(allowed.questions) && allowed.questions.length > 0) {
+    const autoTypes = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
+    const autoGradeable = allowed.questions.every((q: any) => (
+      autoTypes.has(String(q.question_type ?? '').toLowerCase())
+      && String(q.correct_answer ?? '').trim()
+    ));
+    if (autoGradeable) allowed.grading_mode = 'auto';
   }
 
   // Keep programme scope consistent with the course: when the course changes but no
   // explicit programme was sent, re-derive program_id from the (new) course.
   if ('course_id' in allowed && !('program_id' in body)) {
     allowed.program_id = await programIdForCourse(admin, allowed.course_id as string | null);
+  }
+  const targetClassId = (body.metadata as any)?.target_class_id || body.class_id;
+  if (caller.role === 'teacher' && targetClassId) {
+    const ownsClass = await teacherOwnsClass(admin, caller.id, targetClassId);
+    if (!ownsClass) {
+      return NextResponse.json({ error: 'You can only target classes you own' }, { status: 403 });
+    }
+    const { data: targetClass } = await admin
+      .from('classes')
+      .select('school_id')
+      .eq('id', targetClassId)
+      .maybeSingle();
+    if (existing.school_id && targetClass?.school_id && targetClass.school_id !== existing.school_id) {
+      return NextResponse.json({ error: 'Target class belongs to a different school' }, { status: 403 });
+    }
   }
   allowed.updated_at = new Date().toISOString();
 

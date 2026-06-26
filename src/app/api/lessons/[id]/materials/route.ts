@@ -89,7 +89,7 @@ export async function POST(
 
     const { data, error } = await admin
       .from('lesson_materials')
-      .insert({ lesson_id, ...body })
+      .insert({ ...body, lesson_id })
       .select()
       .single();
 

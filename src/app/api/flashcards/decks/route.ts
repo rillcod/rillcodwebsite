@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
+import { canReadFlashcardDeck, getFlashcardCaller } from '@/lib/flashcards/auth';
 import type { Database, Json } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,8 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('school_id, role').eq('id', user.id).single();
+  const db = createAdminClient();
+  const profile = await getFlashcardCaller(db as any, user.id);
   const url = new URL(req.url);
   const courseId = url.searchParams.get('course_id');
   const lessonId = url.searchParams.get('lesson_id');
@@ -35,22 +37,23 @@ export async function GET(req: NextRequest) {
 
   // Use the admin client + explicit role scoping so a deck created under a different
   // (or null) school_id than the student isn't hidden by RLS/school mismatch.
-  const db = createAdminClient();
   let query = db
     .from('flashcard_decks')
-    .select('*, flashcard_cards(count)')
+    .select('*, flashcard_cards(count), courses(program_id)')
     .order('created_at', { ascending: false });
 
   if (role === 'admin') {
     // sees everything
   } else if (role === 'teacher') {
-    query = query.eq('created_by', user.id) as any;
+    const scopedIds = await getTeacherSchoolIds(user.id, profile?.school_id ?? null);
+    const ors = [`created_by.eq.${user.id}`];
+    if (scopedIds.length > 0) ors.push(`school_id.in.(${scopedIds.join(',')})`);
+    query = query.or(ors.join(',')) as any;
   } else if (role === 'school') {
     if (profile?.school_id) query = query.eq('school_id', profile.school_id) as any;
   } else {
-    // student / parent — decks for courses in their ENROLLED programmes (authoritative,
-    // matches assignments/exams/lessons), plus any school-wide decks for their school.
-    const scope = await resolveStudentProgramScope(db as any, user.id);
+    // student — decks for enrolled programmes/courses only, with school boundary.
+    const scope = await resolveStudentProgramScope(db as any, user.id, profile?.class_id ?? null);
     const enrolledCourseIds = Array.from(scope.courseIds);
     const ors: string[] = [];
     if (enrolledCourseIds.length > 0) ors.push(`course_id.in.(${enrolledCourseIds.join(',')})`);
@@ -63,7 +66,10 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  const scopedData = role === 'student'
+    ? await Promise.all((data ?? []).map(async (deck: any) => (profile && await canReadFlashcardDeck(db as any, profile, deck)) ? deck : null))
+    : data ?? [];
+  return NextResponse.json({ data: scopedData.filter(Boolean) });
 }
 
 // POST /api/flashcards/decks
@@ -72,15 +78,17 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
+  const adminSupabase = createAdminClient();
+  const profile = await getFlashcardCaller(adminSupabase as any, user.id);
   if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
-    return NextResponse.json({ error: 'Only teachers can create flashcard decks' }, { status: 403 });
+    return NextResponse.json({ error: 'Only staff can create flashcard decks' }, { status: 403 });
   }
 
   const {
     title,
     lesson_id,
     course_id,
+    school_id,
     progression_track,
     progression_delivery_mode,
     progression_weekly_frequency,
@@ -197,14 +205,27 @@ export async function POST(req: NextRequest) {
   }
 
   // Resolve school_id — use profile primary first, then teacher_schools for multi-school teachers
-  let resolvedSchoolId: string | null = profile.school_id ?? null;
-  if (!resolvedSchoolId && profile.role === 'teacher') {
-    const { data: tsRows } = await supabase
-      .from('teacher_schools')
+  let resolvedSchoolId: string | null = typeof school_id === 'string' ? school_id : profile.school_id ?? null;
+  if (profile.role === 'teacher') {
+    const scopedIds = await getTeacherSchoolIds(user.id, profile.school_id ?? null);
+    if (!resolvedSchoolId) resolvedSchoolId = scopedIds[0] ?? null;
+    if (resolvedSchoolId && !scopedIds.includes(resolvedSchoolId)) {
+      return NextResponse.json({ error: 'You can only create decks for your assigned schools.' }, { status: 403 });
+    }
+  } else if (profile.role === 'school' && resolvedSchoolId !== profile.school_id) {
+    return NextResponse.json({ error: 'You can only create decks for your school.' }, { status: 403 });
+  }
+
+  if (course_id) {
+    const { data: course } = await adminSupabase
+      .from('courses')
       .select('school_id')
-      .eq('teacher_id', user.id)
-      .limit(1);
-    resolvedSchoolId = (tsRows?.[0] as any)?.school_id ?? null;
+      .eq('id', course_id)
+      .maybeSingle();
+    if (!course) return NextResponse.json({ error: 'Selected course not found' }, { status: 400 });
+    if (course.school_id && resolvedSchoolId && course.school_id !== resolvedSchoolId) {
+      return NextResponse.json({ error: 'Selected course belongs to a different school.' }, { status: 400 });
+    }
   }
 
   const insertPayload: FlashcardDeckInsert = {
@@ -220,7 +241,6 @@ export async function POST(req: NextRequest) {
   };
   if (resolvedSchoolId) insertPayload.school_id = resolvedSchoolId;
 
-  const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase
     .from('flashcard_decks')
     .insert(insertPayload)

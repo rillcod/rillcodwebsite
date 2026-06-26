@@ -164,7 +164,7 @@ export async function POST(
         .update({
           ai_suggested_grade: ai.score,
           ai_suggested_feedback: ai.feedback,
-          grading_mode: 'ai_assisted',
+          grading_mode: 'ai_suggested',
           status: 'pending_review',
           updated_at: new Date().toISOString(),
         })

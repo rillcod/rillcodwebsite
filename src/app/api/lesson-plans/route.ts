@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     // New term-level fields (Req 15)
     plan_data, status, version, curriculum_version_id,
     term_start, term_end, sessions_per_week,
-    school_id, course_id, class_id, term, created_by,
+    school_id, course_id, class_id, term,
   } = body;
 
   const db = createAdminClient();
@@ -117,6 +117,22 @@ export async function POST(request: Request) {
     }
     if (!class_id) {
       return NextResponse.json({ error: 'Assign a class before creating a lesson plan' }, { status: 400 });
+    }
+
+    const { data: course } = await db
+      .from('courses')
+      .select('id, school_id')
+      .eq('id', course_id)
+      .maybeSingle();
+    if (!course) {
+      return NextResponse.json({ error: 'Selected course not found' }, { status: 400 });
+    }
+    const courseSchoolId = (course as { school_id: string | null }).school_id;
+    if (courseSchoolId && targetSchoolId && courseSchoolId !== targetSchoolId) {
+      return NextResponse.json({ error: 'Selected course belongs to a different school' }, { status: 400 });
+    }
+    if (courseSchoolId && !targetSchoolId) {
+      return NextResponse.json({ error: 'School-specific courses require a school-scoped plan' }, { status: 400 });
     }
 
     // Validate teacher can only create plans inside assigned schools.
@@ -225,7 +241,7 @@ export async function POST(request: Request) {
       plan_data: autoPlanData,
       status: status ?? 'draft',
       version: version ?? 1,
-      created_by: created_by || user.id,
+      created_by: user.id,
       updated_at: new Date().toISOString(),
     }).select().single();
 

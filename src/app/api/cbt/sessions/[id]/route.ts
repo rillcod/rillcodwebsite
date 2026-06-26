@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { isCbtAnswerCorrect, isManualCbtQuestion } from '@/lib/cbt/grading';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ async function staffCanAccessSession(admin: ReturnType<typeof adminClient>, call
   const examCreatedBy: string | null = exam?.created_by ?? null;
 
   if (caller.role === 'school') {
-    return !examSchoolId || examSchoolId === caller.school_id ? session : null;
+    return caller.school_id && examSchoolId === caller.school_id ? session : null;
   }
 
   if (caller.role === 'teacher') {
@@ -162,7 +163,7 @@ export async function PATCH(
     // Fetch session + its exam's school to enforce boundary
     const { data: session } = await admin
       .from('cbt_sessions')
-      .select('id, exam_id, cbt_exams(school_id, created_by)')
+      .select('id, exam_id, answers, cbt_exams(school_id, created_by, passing_score, metadata)')
       .eq('id', id)
       .maybeSingle();
 
@@ -203,11 +204,71 @@ export async function PATCH(
     }
 
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if ('score'         in body) allowed.score         = body.score;
-    if ('status'        in body) allowed.status        = body.status;
-    if ('manual_scores' in body) allowed.manual_scores = body.manual_scores;
+    if ('manual_scores' in body || 'score' in body || 'status' in body) {
+      const { data: questions, error: qErr } = await admin
+        .from('cbt_questions')
+        .select('id, question_type, options, correct_answer, points, metadata')
+        .eq('exam_id', (session as any).exam_id)
+        .order('order_index');
+      if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 });
+
+      const rawManualScores = body.manual_scores && typeof body.manual_scores === 'object'
+        ? body.manual_scores as Record<string, unknown>
+        : {};
+      const manualScores: Record<string, number | null> = {};
+      for (const q of questions ?? []) {
+        if (!isManualCbtQuestion(q)) continue;
+        const raw = rawManualScores[q.id];
+        const max = Number(q.points ?? 0);
+        const n = raw === null || raw === undefined || raw === '' ? null : Number(raw);
+        manualScores[q.id] = n === null || !Number.isFinite(n)
+          ? null
+          : Math.max(0, Math.min(max, n));
+      }
+
+      const answers = ((session as any).answers && typeof (session as any).answers === 'object')
+        ? (session as any).answers as Record<string, unknown>
+        : {};
+      const exam = (session as any).cbt_exams ?? {};
+      const sectionWeights: Record<string, number> = exam?.metadata?.section_weights ?? {};
+      const hasWeights = Object.values(sectionWeights).some((w: any) => Number(w) > 0);
+      const totalPoints = (questions ?? []).reduce((sum: number, q: any) => sum + Number(q.points ?? 0), 0);
+
+      const earnedForQuestion = (q: any) => {
+        if (isManualCbtQuestion(q)) return Number(manualScores[q.id] ?? 0);
+        return isCbtAnswerCorrect(q, answers[q.id]) ? Number(q.points ?? 0) : 0;
+      };
+
+      let score = 0;
+      if (hasWeights) {
+        const sections = ['objective', 'subjective', 'practical'] as const;
+        const activeWeightTotal = sections.reduce((sum, section) => {
+          const sectionQuestions = (questions ?? []).filter((q: any) => (q.metadata?.section ?? 'objective') === section);
+          const weight = Number(sectionWeights[section] ?? 0);
+          return sectionQuestions.length > 0 && weight > 0 ? sum + weight : sum;
+        }, 0);
+        for (const section of sections) {
+          const sectionQuestions = (questions ?? []).filter((q: any) => (q.metadata?.section ?? 'objective') === section);
+          const sectionTotal = sectionQuestions.reduce((sum: number, q: any) => sum + Number(q.points ?? 0), 0);
+          const sectionEarned = sectionQuestions.reduce((sum: number, q: any) => sum + earnedForQuestion(q), 0);
+          const sectionWeight = Number(sectionWeights[section] ?? 0);
+          if (sectionTotal > 0 && sectionWeight > 0) {
+            score += (sectionEarned / sectionTotal) * (activeWeightTotal > 0 ? (sectionWeight / activeWeightTotal) * 100 : sectionWeight);
+          }
+        }
+        score = Math.round(score);
+      } else {
+        const earned = (questions ?? []).reduce((sum: number, q: any) => sum + earnedForQuestion(q), 0);
+        score = totalPoints > 0 ? Math.round((earned / totalPoints) * 100) : 0;
+      }
+
+      const hasUngradedManual = Object.values(manualScores).some((value) => value === null);
+      allowed.score = Math.max(0, Math.min(100, score));
+      allowed.status = hasUngradedManual ? 'pending_grading' : (score >= Number(exam.passing_score ?? 70) ? 'passed' : 'failed');
+      allowed.needs_grading = hasUngradedManual;
+      allowed.manual_scores = manualScores;
+    }
     if ('grading_notes' in body) allowed.grading_notes = body.grading_notes;
-    if ('needs_grading' in body) allowed.needs_grading = body.needs_grading;
 
     const { data, error } = await admin
       .from('cbt_sessions')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { geminiGenerateText } from '@/lib/gemini/client';
+import { getFlashcardCaller, loadFlashcardDeckForManage } from '@/lib/flashcards/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,16 +62,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Verify user owns the deck — use admin client to bypass RLS so the lookup
-  // succeeds regardless of school_id or other RLS conditions on flashcard_decks.
   const adminClient = createAdminClient();
-  const { data: deck } = await (adminClient as any)
-    .from('flashcard_decks')
-    .select('created_by, title')
-    .eq('id', id)
-    .single();
-
-  if (!deck || deck.created_by !== user.id) {
+  const caller = await getFlashcardCaller(adminClient as any, user.id);
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { deck } = await loadFlashcardDeckForManage(adminClient as any, caller, id);
+  if (!deck) {
     return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 

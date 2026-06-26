@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 
 function adminClient() {
   return createClient(
@@ -100,12 +101,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No students found for the selected class' }, { status: 404 });
   }
 
-  // 2. Fetch Global data for calculations (Assignments in this course)
-  const { data: allAssignments } = await admin
+  // 2. Fetch Global data for calculations (Assignments in this course/school)
+  let assignmentQuery = admin
     .from('assignments')
     .select('id, max_points')
     .eq('course_id', course_id)
     .eq('is_active', true);
+  if (caller.role === 'teacher') {
+    assignmentQuery = assignmentQuery.in('school_id', teacherSchoolIds) as typeof assignmentQuery;
+  } else if (school_id) {
+    assignmentQuery = assignmentQuery.eq('school_id', school_id) as typeof assignmentQuery;
+  }
+  const { data: allAssignments } = await assignmentQuery;
     
   const totalAssignmentsCount = allAssignments?.length || 0;
 
@@ -118,56 +125,59 @@ export async function POST(request: NextRequest) {
         // Attendance
         admin.from('attendance').select('id, status').eq('user_id', student.id).eq('status', 'present'),
         // Graded Submissions
-        admin.from('assignment_submissions').select('grade, assignment_id').eq('portal_user_id', student.id).eq('status', 'graded'),
+        admin.from('assignment_submissions').select('grade, assignment_id, assignments!inner(course_id, assignment_type)').eq('portal_user_id', student.id).eq('status', 'graded').eq('assignments.course_id', course_id),
         // CBT scores
-        admin.from('cbt_sessions').select('score, cbt_exams(metadata)').eq('user_id', student.id).order('score', { ascending: false }),
+        admin.from('cbt_sessions').select('score, cbt_exams(course_id, metadata)').eq('user_id', student.id).order('score', { ascending: false }),
         // Projects
         admin.from('lab_projects').select('id').eq('user_id', student.id),
         admin.from('portfolio_projects').select('id').eq('user_id', student.id),
       ]);
 
-      // CALCULATION LOGIC (Matching the Report Builder pattern)
+      // CALCULATION LOGIC (Matching the Report Builder's 6-component WAEC pattern)
       
-      // Theory (Exam) - 40% - Best CBT score (Examination type)
+      // Theory / Written Tests - 20% - Best CBT examination score
       const examSessions = (cbtRes.data || []).filter(r => {
-        const t = (r.cbt_exams as any)?.metadata?.exam_type;
-        return !t || t === 'examination';
+        const exam = r.cbt_exams as any;
+        const t = exam?.metadata?.exam_type;
+        return exam?.course_id === course_id && (!t || t === 'examination');
       });
       const theoryScore = Math.min(100, examSessions[0]?.score || 0);
 
-      // Practical (Test) - 20% - Average of graded assignments
+      // Classwork - 10% - current proxy: graded homework/classwork average
       const grades = (subRes.data || []).map(s => s.grade).filter(g => g !== null) as number[];
       const asgnAvg = grades.length > 0 ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length) : 0;
+      const classworkScore = asgnAvg;
       
-      // Practical Evaluation Toggle: Prefer evaluation CBT scores if they exist
-      const evalSessions = (cbtRes.data || []).filter(r => (r.cbt_exams as any)?.metadata?.exam_type === 'evaluation');
-      const practicalScore = Math.min(100, evalSessions[0]?.score || asgnAvg);
+      // Practical / Projects - 25%
+      const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
+      const practicalScore = Math.min(100, Math.round((projectCount / 3) * 100));
 
-      // Attendance / Continuity - 20% - Assignment completion %
+      // Assignments Submitted - 20%
       const gradedCount = subRes.data?.length || 0;
-      const attendanceScore = totalAssignmentsCount > 0 
+      const assignmentScore = totalAssignmentsCount > 0
         ? Math.round((gradedCount / totalAssignmentsCount) * 100) 
         : 80; // Default to 80 if no assignments yet
 
-      // Participation (Project Engagement) - 20%
-      const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
-      const participationScore = Math.min(100, Math.round((projectCount / 3) * 100));
+      // Attendance - 10%
+      const attendanceScore = attRes.data?.length ? Math.min(100, attRes.data.length * 10) : 0;
 
-      const overallScore = Math.round(
-        (theoryScore * 0.40) + 
-        (practicalScore * 0.20) + 
-        (attendanceScore * 0.20) + 
-        (participationScore * 0.20)
-      );
+      // Mid-term Assessment - 15% - best CBT evaluation score
+      const evalSessions = (cbtRes.data || []).filter(r => {
+        const exam = r.cbt_exams as any;
+        const t = exam?.metadata?.exam_type;
+        return exam?.course_id === course_id && t === 'evaluation';
+      });
+      const assessmentScore = Math.min(100, evalSessions[0]?.score || asgnAvg);
 
-      const reportGrade = (score: number) => {
-        if (score >= 90) return 'A+';
-        if (score >= 80) return 'A';
-        if (score >= 70) return 'B';
-        if (score >= 60) return 'C';
-        if (score >= 50) return 'D';
-        return 'F';
-      };
+      const overallScore = computeWeightedScore({
+        theory: theoryScore,
+        classwork: classworkScore,
+        practical: practicalScore,
+        assignments: assignmentScore,
+        attendance: attendanceScore,
+        assessment: assessmentScore,
+      });
+      const reportGrade = getWAECGrade(overallScore).code;
 
       const payload = {
         student_id: student.id,
@@ -182,10 +192,11 @@ export async function POST(request: NextRequest) {
         instructor_name: instructor_name || caller.full_name,
         theory_score: theoryScore,
         practical_score: practicalScore,
-        attendance_score: attendanceScore,
-        participation_score: participationScore,
+        attendance_score: assignmentScore,
+        participation_score: attendanceScore,
+        engagement_metrics: { classwork_score: classworkScore, assessment_score: assessmentScore },
         overall_score: overallScore,
-        overall_grade: reportGrade(overallScore),
+        overall_grade: reportGrade,
         is_published: publish_immediately,
         updated_at: new Date().toISOString(),
       };

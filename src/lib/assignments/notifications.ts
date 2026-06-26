@@ -14,7 +14,7 @@ export async function triggerAssignmentReleaseNotifications(
   // 1. Fetch assignment details
   const { data: assignment, error: fetchErr } = await db
     .from('assignments')
-    .select('id, title, assignment_type, class_id, course_id, metadata, school_id, school_name')
+    .select('id, title, assignment_type, class_id, course_id, program_id, metadata, school_id, school_name')
     .eq('id', assignmentId)
     .single();
 
@@ -28,6 +28,7 @@ export async function triggerAssignmentReleaseNotifications(
     id: assignment.id,
     class_id: assignment.class_id,
     course_id: assignment.course_id,
+    program_id: assignment.program_id,
     school_id: assignment.school_id,
     school_name: assignment.school_name,
     metadata,
@@ -82,6 +83,7 @@ type TargetAssignment = {
   id: string;
   class_id: string | null;
   course_id: string | null;
+  program_id: string | null;
   school_id: string | null;
   school_name: string | null;
   metadata: Record<string, any>;
@@ -89,6 +91,47 @@ type TargetAssignment = {
 
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+async function filterStudentsByAssignmentProgram(
+  db: ReturnType<typeof createAdminClient>,
+  assignment: TargetAssignment,
+  students: any[],
+) {
+  let programId = assignment.program_id;
+  if (!programId && assignment.course_id) {
+    const { data: course } = await db
+      .from('courses')
+      .select('program_id')
+      .eq('id', assignment.course_id)
+      .maybeSingle();
+    programId = course?.program_id ?? null;
+  }
+  if (!programId) return students;
+
+  const studentIds = students.map((student) => student.id).filter(Boolean);
+  if (studentIds.length === 0) return [];
+
+  const [{ data: enrollments }, { data: classes }] = await Promise.all([
+    db
+      .from('enrollments')
+      .select('user_id')
+      .eq('program_id', programId)
+      .in('status', ['active', 'enrolled', 'approved'])
+      .in('user_id', studentIds),
+    db
+      .from('classes')
+      .select('id')
+      .eq('program_id', programId)
+      .in('id', students.map((student) => student.class_id).filter(Boolean)),
+  ]);
+
+  const eligibleUserIds = new Set((enrollments ?? []).map((row: any) => row.user_id));
+  const eligibleClassIds = new Set((classes ?? []).map((row: any) => row.id));
+  return students.filter((student) => (
+    eligibleUserIds.has(student.id)
+    || (student.class_id && eligibleClassIds.has(student.class_id))
+  ));
 }
 
 async function activeStudentsByIds(db: ReturnType<typeof createAdminClient>, ids: string[]) {
@@ -124,7 +167,7 @@ async function resolveTargetStudents(db: ReturnType<typeof createAdminClient>, a
   if (targetClassId) {
     const { data, error } = await db
       .from('portal_users')
-      .select('id, full_name, email')
+      .select('id, full_name, email, class_id')
       .eq('role', 'student')
       .eq('class_id', targetClassId)
       .eq('is_active', true);
@@ -132,7 +175,7 @@ async function resolveTargetStudents(db: ReturnType<typeof createAdminClient>, a
       console.error('[assignment notification] Failed to fetch class students:', error.message);
       return [];
     }
-    return data ?? [];
+    return filterStudentsByAssignmentProgram(db, assignment, data ?? []);
   }
 
   if (assignment.school_id || assignment.school_name) {

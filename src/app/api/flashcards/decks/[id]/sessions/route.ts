@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getFlashcardCaller, loadFlashcardDeckForRead } from '@/lib/flashcards/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,12 @@ export async function POST(
   }
 
   try {
+    const admin = createAdminClient();
+    const caller = await getFlashcardCaller(admin as any, user.id);
+    if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const { deck } = await loadFlashcardDeckForRead(admin as any, caller, deckId);
+    if (!deck) return NextResponse.json({ error: 'Deck not found or access denied' }, { status: 404 });
+
     const body = await req.json();
     const {
       cardsStudied,
@@ -77,8 +85,6 @@ export async function POST(
       const { engagementService } = await import('@/services/engagement.service');
       
       // Get deck details to find school_id
-      const { data: deck } = await supabase.from('flashcard_decks').select('school_id').eq('id', deckId).single();
-
       await engagementService.awardXP(user.id, 'flashcard_review', {
         refId: session.id,
         refType: 'assignment', // using assignment as refType proxy for engagement tracking
@@ -133,19 +139,19 @@ export async function GET(
   }
 
   try {
+    const admin = createAdminClient();
+    const caller = await getFlashcardCaller(admin as any, user.id);
+    if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const { deck } = await loadFlashcardDeckForRead(admin as any, caller, deckId);
+    if (!deck) return NextResponse.json({ error: 'Deck not found or access denied' }, { status: 404 });
+
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '10');
     const studentId = searchParams.get('studentId') || user.id;
 
     // Check if user can view other students' sessions (teachers only)
     if (studentId !== user.id) {
-      const { data: profile } = await supabase
-        .from('portal_users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile || !['teacher', 'admin', 'school'].includes(profile.role)) {
+      if (!['teacher', 'admin', 'school'].includes(caller.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }

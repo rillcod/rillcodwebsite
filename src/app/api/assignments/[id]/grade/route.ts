@@ -100,7 +100,7 @@ export async function POST(
     // Fetch assignment to verify access + get weight/max_points
     const { data: assignment } = await admin
       .from('assignments')
-      .select('weight, max_points, school_id, created_by, title, metadata')
+      .select('weight, max_points, school_id, created_by, title, metadata, class_id')
       .eq('id', assignment_id)
       .maybeSingle();
 
@@ -113,7 +113,7 @@ export async function POST(
     // 3. School-wide platform assignment: any teacher at that school can grade
     if (caller.role === 'teacher' && assignment.created_by !== caller.id) {
       const meta = (assignment as any).metadata || {};
-      const targetClassId = meta.target_class_id;
+      const targetClassId = meta.target_class_id || (assignment as any).class_id;
 
       if (targetClassId) {
         // Class-targeted: only the class owner can grade

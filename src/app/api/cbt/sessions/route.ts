@@ -17,6 +17,8 @@ function adminClient() {
 
 type Caller = { role: string; id: string; school_id: string | null };
 
+const FINAL_CBT_STATUSES = ['completed', 'passed', 'failed', 'pending_grading'] as const;
+
 async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller: Caller, examId: string) {
   const { data: exam } = await admin
     .from('cbt_exams')
@@ -43,7 +45,7 @@ async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller
 }
 
 // POST /api/cbt/sessions
-// Called by students when they submit a CBT exam.
+// Students call with action=start to begin/resume and action=submit to finish.
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient();
@@ -63,25 +65,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { exam_id, start_time, answers, auto_submitted, submitted_at } = body;
+    const { exam_id, answers, auto_submitted } = body;
+    const action = body.action === 'start' ? 'start' : 'submit';
 
     if (!exam_id) return NextResponse.json({ error: 'exam_id required' }, { status: 400 });
 
-    // Prevent duplicate submissions — check if session already exists
-    const { data: existing } = await admin
-      .from('cbt_sessions')
-      .select('id')
-      .eq('exam_id', exam_id)
-      .eq('user_id', caller.id)
-      .maybeSingle();
-
-    if (existing) {
-      return NextResponse.json({ error: 'Exam already submitted' }, { status: 409 });
-    }
-
-    // ── Server-side deadline enforcement ─────────────────────────────────────
-    // Compute deadline from exam duration + student's start_time.
-    // (Querying cbt_sessions for the deadline was dead code — no session exists yet.)
     const { data: examRow } = await admin
       .from('cbt_exams')
       .select('id, duration_minutes, start_date, end_date, is_active, program_id, course_id, school_id, metadata, passing_score')
@@ -108,12 +96,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'The exam window has closed' }, { status: 422 });
     }
 
-    // Enforce duration-based deadline
-    const startMs = start_time ? new Date(start_time).getTime() : Date.now();
-    const safeStartMs = Number.isFinite(startMs) && startMs <= Date.now() + 60_000 ? startMs : Date.now();
+    const { data: existing } = await admin
+      .from('cbt_sessions')
+      .select('id, status, start_time, answers, score, needs_grading, manual_scores, grading_notes, end_time')
+      .eq('exam_id', exam_id)
+      .eq('user_id', caller.id)
+      .maybeSingle();
+
+    if (existing && FINAL_CBT_STATUSES.includes(existing.status as any)) {
+      if (action === 'start') return NextResponse.json({ data: existing });
+      return NextResponse.json({ error: 'Exam already submitted' }, { status: 409 });
+    }
+
+    if (action === 'start') {
+      if (existing) return NextResponse.json({ data: existing });
+
+      const { data: started, error: startErr } = await admin
+        .from('cbt_sessions')
+        .insert({
+          exam_id,
+          user_id: caller.id,
+          start_time: new Date().toISOString(),
+          status: 'in_progress',
+          answers: {},
+          manual_scores: {},
+          needs_grading: false,
+        })
+        .select('id, status, start_time, answers, score, needs_grading, manual_scores, grading_notes, end_time')
+        .single();
+
+      if (startErr) return NextResponse.json({ error: startErr.message }, { status: 500 });
+      return NextResponse.json({ data: started }, { status: 201 });
+    }
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Start the exam before submitting.' }, { status: 409 });
+    }
+
+    const startMs = existing.start_time ? new Date(existing.start_time).getTime() : Date.now();
+    const safeStartMs = Number.isFinite(startMs) ? startMs : Date.now();
     if (examRow.duration_minutes) {
       const deadline = safeStartMs + examRow.duration_minutes * 60_000;
-      const submittedMs = submitted_at ? new Date(submitted_at).getTime() : Date.now();
+      const submittedMs = Date.now();
       const GRACE_MS = 30_000; // 30-second grace period for network latency
 
       if (submittedMs > deadline + GRACE_MS) {
@@ -146,10 +170,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await admin
       .from('cbt_sessions')
-      .insert({
-        exam_id,
-        user_id: caller.id,
-        start_time: new Date(safeStartMs).toISOString(),
+      .update({
         end_time: new Date().toISOString(),
         score: grading.score,
         status: grading.status,
@@ -157,7 +178,10 @@ export async function POST(request: NextRequest) {
         manual_scores: grading.manualScores,
         grading_notes: gradingNotes || null,
         needs_grading: grading.needsGrading,
+        updated_at: new Date().toISOString(),
       })
+      .eq('id', existing.id)
+      .eq('user_id', caller.id)
       .select('id, score, status, needs_grading, manual_scores, grading_notes, end_time')
       .single();
 
@@ -210,7 +234,7 @@ export async function GET(request: NextRequest) {
 
       const { data } = await admin
         .from('cbt_sessions')
-        .select('id, score, status, exam_id, answers, end_time, needs_grading, manual_scores, grading_notes')
+        .select('id, score, status, exam_id, answers, start_time, end_time, needs_grading, manual_scores, grading_notes')
         .eq('exam_id', exam_id)
         .eq('user_id', user.id)
         .maybeSingle();
@@ -220,7 +244,7 @@ export async function GET(request: NextRequest) {
     // No exam_id — return all sessions for this user
     const { data, error } = await admin
       .from('cbt_sessions')
-      .select('id, exam_id, score, status, end_time')
+      .select('id, exam_id, score, status, start_time, end_time')
       .eq('user_id', user.id)
       .order('end_time', { ascending: false });
 

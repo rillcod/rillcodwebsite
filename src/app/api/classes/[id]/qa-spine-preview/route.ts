@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { resolveQaSpineLane } from '@/lib/qa/resolveQaSpineLane';
 import { calendarIndex, sourceWeekIndexForCalendar } from '@/lib/qa/rotatedSpineIndex';
 import { ensureProgramTemplates } from '@/lib/curriculum/ensure-program-templates';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 /**
  * Preview rotated QA topics for a class (per school+class path) for one programme year.
@@ -40,7 +41,10 @@ export async function GET(
     .eq('id', classId)
     .single();
   if (cErr || !cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
-  if (profile.role === 'teacher' && cls.school_id && profile.school_id && cls.school_id !== profile.school_id) {
+  const teacherSchoolIds = profile.role === 'teacher'
+    ? await getTeacherSchoolIds(user.id, profile.school_id ?? null)
+    : [];
+  if (profile.role === 'teacher' && cls.school_id && !teacherSchoolIds.includes(cls.school_id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

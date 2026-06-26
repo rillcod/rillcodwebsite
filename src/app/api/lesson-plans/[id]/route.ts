@@ -134,7 +134,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const existingPlanData = asObject((existingPlan as Record<string, unknown>).plan_data);
-  const patchBody: Record<string, unknown> = { ...body };
+  const patchBody: Record<string, unknown> = {};
+  for (const key of ['plan_data', 'status', 'version', 'term_start', 'term_end', 'sessions_per_week', 'progression_term_status_update']) {
+    if (key in body) patchBody[key] = body[key];
+  }
   let nextPlanData = existingPlanData;
 
   if (patchBody.progression_term_status_update && typeof patchBody.progression_term_status_update === 'object') {

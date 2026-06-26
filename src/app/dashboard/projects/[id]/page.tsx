@@ -475,19 +475,18 @@ export default function ProjectBuilderPage() {
     const loadActivity = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/assignments/${id}`, { cache: 'no-store' });
+            const res = await fetch(isStudent ? `/api/assignments/${id}/student` : `/api/assignments/${id}`, { cache: 'no-store' });
             const j   = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to load');
-            setActivity(j.data);
+            const activityData = j.data;
+            setActivity(activityData);
 
-            const cat = j.data?.metadata?.category || 'coding';
+            const cat = activityData?.metadata?.category || 'coding';
             setEditorLang(detectLang(cat));
 
             if (isStudent && profile?.id) {
-                const myRes = await fetch(`/api/assignments/${id}/student`, { cache: 'no-store' });
-                const myJ   = await myRes.json();
-                if (myJ.data) {
-                    const sub = myJ.data;
+                const sub = j.data?.assignment_submissions?.[0];
+                if (sub) {
                     setMySubmission(sub);
                     const ans = sub.answers || {};
                     setLinks(ans.links?.length ? ans.links : ['']);

@@ -45,6 +45,7 @@ export default function NewExamPage() {
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
   const preClassId = searchParams?.get('class_id');
+  const preSchoolId = searchParams?.get('school_id');
   const preTopic = searchParams?.get('topic');
   const preWeek = searchParams?.get('week');
   const preCurrId = searchParams?.get('curriculum_id');
@@ -70,7 +71,7 @@ export default function NewExamPage() {
     access_window_minutes: '60',
     is_active: true,
     exam_type: preExamType === 'evaluation' ? 'evaluation' : 'examination',
-    school_id: '',
+    school_id: preSchoolId || '',
   });
   const [questions, setQuestions] = useState<Question[]>([emptyQuestion()]);
   const [sectionWeights, setSectionWeights] = useState({ objective: 60, subjective: 30, practical: 10 });
@@ -244,7 +245,7 @@ export default function NewExamPage() {
           }));
         });
     }
-  }, [profile?.id, authLoading, preProgramId, preCourseId, preClassId]);
+  }, [profile?.id, authLoading, preProgramId, preCourseId, preClassId, preSchoolId]);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
   const selectedSchoolName = assignedSchools.find(s => s.id === form.school_id)?.name || '';

@@ -19,7 +19,7 @@ async function requireStaff() {
     .select('id, role, school_id')
     .eq('id', user.id)
     .single();
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) return null;
+  if (!profile || !['admin', 'teacher'].includes(profile.role)) return null;
   return profile;
 }
 
@@ -92,15 +92,23 @@ export async function POST(request: NextRequest) {
       ? await getTeacherSchoolIds(admin, caller.id, caller.school_id ?? null, caller.role)
       : [];
 
-  if (updatePayload.student_id && caller.role !== 'admin') {
+  if (updatePayload.student_id) {
     const { data: student } = await admin
       .from('portal_users')
-      .select('school_id')
+      .select('school_id, school_name')
       .eq('id', String(updatePayload.student_id))
       .maybeSingle();
     const studentSchoolId = student?.school_id ?? null;
-    if (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId)) {
+    if (caller.role !== 'admin' && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
       return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
+    }
+    if (studentSchoolId) {
+      updatePayload.school_id = studentSchoolId;
+      insertPayload.school_id = studentSchoolId;
+    }
+    if (student?.school_name) {
+      updatePayload.school_name = student.school_name;
+      insertPayload.school_name = student.school_name;
     }
   }
 

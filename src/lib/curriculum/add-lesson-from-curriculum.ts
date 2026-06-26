@@ -60,6 +60,7 @@ export function buildAddLessonQueryFromCurriculum(opts: {
   weekNumber: number;
   courseId: string;
   programId?: string | null;
+  schoolId?: string | null;
   title: string;
   description: string;
   durationMinutes: number;
@@ -72,6 +73,7 @@ export function buildAddLessonQueryFromCurriculum(opts: {
     week: String(opts.weekNumber),
     course_id: opts.courseId,
     program_id: (opts.programId ?? '').trim(),
+    school_id: (opts.schoolId ?? '').trim(),
     title: opts.title.slice(0, 240),
     description: (opts.description ?? '').slice(0, 800),
     duration: String(Math.min(480, Math.max(5, opts.durationMinutes || 60))),

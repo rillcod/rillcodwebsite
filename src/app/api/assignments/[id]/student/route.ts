@@ -106,7 +106,7 @@ export async function GET(
     if (!asgn.is_active) {
       return NextResponse.json({ error: 'This assignment is not currently active' }, { status: 403 });
     }
-    const scope = await resolveStudentProgramScope(admin, targetStudentId);
+    const scope = await resolveStudentProgramScope(admin, targetStudentId, targetStudent.class_id);
     const classTeacherId = await getStudentClassTeacherId(admin, targetStudent.class_id);
 
     // Fetch class course focus if student is assigned to a class

@@ -87,7 +87,7 @@ export async function PATCH(
     const caller = await requireStaff();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-    const { mid } = await context.params;
+    const { id: lessonId, mid } = await context.params;
     const admin = adminClient();
 
     const { data: material } = await admin
@@ -96,6 +96,9 @@ export async function PATCH(
       .eq('id', mid)
       .maybeSingle();
     if (!material) return NextResponse.json({ error: 'Material not found' }, { status: 404 });
+    if ((material as any).lesson_id !== lessonId) {
+      return NextResponse.json({ error: 'Material does not belong to this lesson' }, { status: 404 });
+    }
 
     const lesson = (material as any).lessons;
     const canManage = await callerCanManageLesson(caller, lesson?.school_id ?? null, lesson?.created_by ?? null);
@@ -140,7 +143,7 @@ export async function DELETE(
     const caller = await requireStaff();
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
-    const { mid } = await context.params;
+    const { id: lessonId, mid } = await context.params;
     const admin = adminClient();
 
     // Fetch material and parent lesson details to perform school boundary checks
@@ -152,6 +155,9 @@ export async function DELETE(
 
     if (!material) {
       return NextResponse.json({ error: 'Material not found' }, { status: 404 });
+    }
+    if ((material as any).lesson_id !== lessonId) {
+      return NextResponse.json({ error: 'Material does not belong to this lesson' }, { status: 404 });
     }
 
     const lesson = (material as any).lessons;

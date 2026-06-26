@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getFlashcardCaller, loadFlashcardDeckForRead } from '@/lib/flashcards/auth';
+
+async function canAccessCard(admin: any, userId: string, cardId: string) {
+  const caller = await getFlashcardCaller(admin, userId);
+  if (!caller) return false;
+  const { data: card } = await admin
+    .from('flashcard_cards')
+    .select('deck_id')
+    .eq('id', cardId)
+    .maybeSingle();
+  if (!card?.deck_id) return false;
+  const { deck } = await loadFlashcardDeckForRead(admin, caller, card.deck_id);
+  return !!deck;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +35,10 @@ export async function POST(
   }
 
   try {
+    const admin = createAdminClient();
+    const allowed = await canAccessCard(admin as any, user.id, cardId);
+    if (!allowed) return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
+
     const body = await req.json();
     const { correct, confidence = 3, studyTimeSeconds = 0 } = body;
 
@@ -114,6 +133,10 @@ export async function GET(
   }
 
   try {
+    const admin = createAdminClient();
+    const allowed = await canAccessCard(admin as any, user.id, cardId);
+    if (!allowed) return NextResponse.json({ error: 'Card not found or access denied' }, { status: 404 });
+
     const { data: review } = await supabase
       .from('flashcard_reviews')
       .select('*')

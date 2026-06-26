@@ -135,7 +135,7 @@ export async function POST(
 
     // Students: full assignment visibility check
     if (!isStaff) {
-      const scope = await resolveStudentProgramScope(admin, effectiveUserId);
+      const scope = await resolveStudentProgramScope(admin, effectiveUserId, caller.class_id);
       const classTeacherId = await getStudentClassTeacherId(admin, caller.class_id);
 
       let creatorRoles: Record<string, string> = {};
@@ -240,7 +240,7 @@ export async function POST(
       } catch (autoErr) {
         console.error('[auto-grade] failed:', autoErr);
       }
-    } else if (gradingMode === 'ai_assisted' && answers && data) {
+    } else if (gradingMode === 'ai_suggested' && answers && data) {
       // AI-assisted: call AI grading endpoint, store suggestions, set status='pending_review'
       try {
         const aiRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/generate`, {

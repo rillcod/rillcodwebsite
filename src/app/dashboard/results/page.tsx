@@ -224,13 +224,15 @@ function ResultsPageInner() {
 
                 // Fallback: pre-portal reports created before the portal account existed
                 if (reports.length === 0 && profile.full_name) {
-                    const { data: fallback } = await db
+                    let fallbackQuery = db
                         .from('student_progress_reports')
                         .select('*')
                         .is('student_id', null)
                         .eq('student_name', profile.full_name)
                         .eq('is_published', true)
                         .order('updated_at', { ascending: false });
+                    if (profile.school_id) fallbackQuery = fallbackQuery.eq('school_id', profile.school_id) as typeof fallbackQuery;
+                    const { data: fallback } = await fallbackQuery;
                     if (!aborted) reports = (fallback ?? []) as StudentReport[];
                 }
 

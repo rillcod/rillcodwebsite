@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeftIcon, AcademicCapIcon, ClockIcon, CheckCircleIcon,
   XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon, PrinterIcon,
@@ -44,7 +43,6 @@ export default function ExamDetailPage() {
 
   useEffect(() => {
     if (authLoading || !profile) return;
-    const db = createClient();
     const id = params?.id as string;
     if (!id) return;
 
@@ -52,11 +50,14 @@ export default function ExamDetailPage() {
       // Fetch sessions without the portal_users join (RLS blocks it from the browser client)
       // Then enrich with student names from the API
       Promise.all([
-        db.from('cbt_exams').select('*, programs(name)').eq('id', id).single(),
-        db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
+        fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' }).then(async (r) => {
+          const payload = await r.json();
+          if (!r.ok) throw new Error(payload.error || 'Exam not available');
+          return payload.data;
+        }),
         fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' }).then(r => r.json()),
         fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
-      ]).then(([examRes, qRes, sesRes, usersJson]) => {
+      ]).then(([examData, sesRes, usersJson]) => {
         const umap: Record<string, any> = {};
         (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
         let rawSessions: any[] = Array.isArray(sesRes.data) ? sesRes.data : [];
@@ -68,9 +69,14 @@ export default function ExamDetailPage() {
           ...s,
           portal_users: umap[s.user_id] ?? null,
         }));
-        setExam(examRes.data);
-        setQuestions(qRes.data ?? []);
+        setExam(examData);
+        setQuestions([...(examData?.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
         setSessions(enriched);
+        setLoading(false);
+      }).catch(() => {
+        setExam(null);
+        setQuestions([]);
+        setSessions([]);
         setLoading(false);
       });
     } else {

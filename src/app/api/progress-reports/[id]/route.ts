@@ -41,20 +41,26 @@ async function syncStudentProfile(
   studentId: string,
   fields: { sectionClass?: string | null; studentName?: string | null; gender?: string | null },
 ) {
+  const { data: current } = await admin
+    .from('portal_users')
+    .select('full_name, section_class, gender')
+    .eq('id', studentId)
+    .maybeSingle();
+  const blank = (v: unknown) => v === null || v === undefined || String(v).trim() === '';
   const portalUpdate: Record<string, unknown> = {};
   const studentsUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (fields.sectionClass) {
+  if (fields.sectionClass && blank(current?.section_class)) {
     portalUpdate.section_class = fields.sectionClass;
     studentsUpdate.section_class = fields.sectionClass;
     studentsUpdate.current_class = fields.sectionClass;
     studentsUpdate.grade_level   = fields.sectionClass;
   }
-  if (fields.studentName) {
+  if (fields.studentName && blank(current?.full_name)) {
     portalUpdate.full_name   = fields.studentName;
     studentsUpdate.full_name = fields.studentName;
   }
-  if (fields.gender) {
+  if (fields.gender && blank(current?.gender)) {
     portalUpdate.gender   = fields.gender;
     studentsUpdate.gender = fields.gender;
   }

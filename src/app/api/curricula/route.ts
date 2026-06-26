@@ -456,7 +456,9 @@ export async function GET(req: NextRequest) {
   // curricula (is_visible_to_school=true + profile.school_id) so learners
   // can browse published syllabi even without a formal enrolment row.
   let learnerCourseIds: string[] | null = null;
+  let learnerSchoolIds: string[] = [];
   if (role === 'student') {
+    if (profile?.school_id) learnerSchoolIds = [profile.school_id];
     const { data: progs } = await supabase
       .from('student_level_enrollments')
       .select('course_id')
@@ -476,6 +478,11 @@ export async function GET(req: NextRequest) {
       email: user.email,
     });
     if (childIds.length > 0) {
+      const { data: children } = await adminForLinks
+        .from('portal_users')
+        .select('school_id')
+        .in('id', childIds);
+      learnerSchoolIds = Array.from(new Set((children ?? []).map((row: any) => row.school_id).filter(Boolean)));
       const { data: progs } = await supabase
         .from('student_level_enrollments')
         .select('course_id')
@@ -524,6 +531,8 @@ export async function GET(req: NextRequest) {
   if (role === 'student' || role === 'parent') {
     if (learnerCourseIds && learnerCourseIds.length > 0) {
       query = query.in('course_id', learnerCourseIds);
+      const schoolFilters = ['school_id.is.null', ...learnerSchoolIds.map((sid) => `school_id.eq.${sid}`)];
+      query = query.or(schoolFilters.join(',')) as typeof query;
     } else if (profile?.school_id) {
       // No enrollments: scope to their school's published curricula
       query = query.or(`school_id.is.null,school_id.eq.${profile.school_id}`);
@@ -855,6 +864,7 @@ export async function POST(req: NextRequest) {
     content: { ...aiContent, description: body.description || null },
     version: 1,
     created_by: user.id,
+    is_visible_to_school: body.is_visible_to_school === true,
   };
   if (course_id) insertPayload.course_id = course_id;
   insertPayload.school_id = targetSchoolId;

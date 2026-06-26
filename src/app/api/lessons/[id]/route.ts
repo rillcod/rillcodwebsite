@@ -48,7 +48,7 @@ async function callerCanManageLesson(
 ): Promise<boolean> {
   if (caller.role === 'admin') return true;
   if (caller.role === 'school') {
-    return !lessonSchoolId || lessonSchoolId === caller.school_id;
+    return !!caller.school_id && lessonSchoolId === caller.school_id;
   }
   if (caller.role === 'teacher') {
     if (lessonCreatedBy === caller.id) return true;
@@ -114,6 +114,7 @@ export async function PATCH(
     const body = await request.json();
 
     // Verify course_id if updated
+    let nextCourseSchoolId: string | null | undefined;
     if (body.course_id) {
       const { data: course } = await admin
         .from('courses')
@@ -133,6 +134,7 @@ export async function PATCH(
           }
         }
       }
+      nextCourseSchoolId = course.school_id ?? null;
     }
 
     const allowed: Record<string, unknown> = {};
@@ -141,6 +143,7 @@ export async function PATCH(
     for (const f of allowedFields) {
       if (f in body) allowed[f] = body[f] ?? null;
     }
+    if (nextCourseSchoolId !== undefined) allowed.school_id = nextCourseSchoolId;
     allowed.updated_at = new Date().toISOString();
 
     const { error } = await admin.from('lessons').update(allowed).eq('id', id);

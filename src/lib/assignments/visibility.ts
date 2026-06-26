@@ -40,15 +40,25 @@ export interface StudentProgramScope {
 export async function resolveStudentProgramScope(
   admin: SupabaseClient,
   studentId: string,
+  classId?: string | null,
 ): Promise<StudentProgramScope> {
   const { data: enrollments } = await admin
     .from('enrollments')
     .select('program_id')
-    .eq('user_id', studentId);
+    .eq('user_id', studentId)
+    .in('status', ['active', 'enrolled', 'approved']);
 
   const programIds = new Set(
     (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean) as string[],
   );
+  if (classId) {
+    const { data: cls } = await admin
+      .from('classes')
+      .select('program_id')
+      .eq('id', classId)
+      .maybeSingle();
+    if (cls?.program_id) programIds.add(cls.program_id);
+  }
   if (programIds.size === 0) return { programIds, courseIds: new Set() };
 
   const { data: courses } = await admin
@@ -94,7 +104,7 @@ export function assignmentVisibleToStudent(
     if (scope.programIds.size === 0 || !scope.programIds.has(programId)) return false;
   } else if (courseId) {
     if (scope.courseIds.size === 0 || !scope.courseIds.has(courseId)) return false;
-  } else if (meta.visibility !== 'all') {
+  } else if (!['all', 'school', 'class'].includes(String(meta.visibility ?? ''))) {
     return false;
   }
 

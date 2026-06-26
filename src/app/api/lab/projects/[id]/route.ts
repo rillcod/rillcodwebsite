@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
+
+async function teacherCanManageProject(teacherId: string, teacherSchoolId: string | null, projectId: string) {
+  const admin = createAdminClient();
+  const { data: project } = await admin.from('lab_projects').select('user_id').eq('id', projectId).maybeSingle();
+  if (!project?.user_id) return false;
+  const schoolIds = await getTeacherSchoolIds(teacherId, teacherSchoolId);
+  if (schoolIds.length === 0) return false;
+  const { data: student } = await admin
+    .from('portal_users')
+    .select('id')
+    .eq('id', project.user_id)
+    .eq('role', 'student')
+    .in('school_id', schoolIds)
+    .maybeSingle();
+  return !!student;
+}
 
 // PATCH /api/lab/projects/[id] — update project
 export async function PATCH(
@@ -25,11 +43,15 @@ export async function PATCH(
 
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('role')
+    .select('id, role, school_id')
     .eq('id', user.id)
     .single();
 
   const isStaff = ['admin', 'teacher'].includes(profile?.role || '');
+  if (profile?.role === 'teacher') {
+    const allowed = await teacherCanManageProject(profile.id, profile.school_id ?? null, id);
+    if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   let query = (supabase as any)
     .from('lab_projects')
@@ -59,11 +81,15 @@ export async function DELETE(
 
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('role')
+    .select('id, role, school_id')
     .eq('id', user.id)
     .single();
 
   const isStaff = ['admin', 'teacher'].includes(profile?.role || '');
+  if (profile?.role === 'teacher') {
+    const allowed = await teacherCanManageProject(profile.id, profile.school_id ?? null, id);
+    if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   let query = (supabase as any)
     .from('lab_projects')

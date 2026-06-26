@@ -168,6 +168,7 @@ export default function EditExamPage() {
                     correct_answer: q.correct_answer.trim(),
                     points: q.points,
                     order_index: q.order_index ?? i + 1,
+                    metadata: q.metadata ?? null,
                 })),
             };
 

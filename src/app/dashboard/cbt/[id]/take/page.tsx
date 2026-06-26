@@ -90,6 +90,7 @@ export default function TakeExamPage() {
   const [result, setResult] = useState<{ score: number; passed: boolean; correct: number; status: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [examError, setExamError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const startTimeRef = useRef<Date>(new Date());
   const submitRef = useRef<any>(null);
 
@@ -98,23 +99,40 @@ export default function TakeExamPage() {
     if (profile.role !== 'student') { router.push('/dashboard/cbt'); return; }
     const id = params?.id as string;
     if (!id) return;
-    // Check if already attempted (via admin-client API)
+    const finalStatuses = new Set(['completed', 'passed', 'failed', 'pending_grading']);
     fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(({ data: existing }) => {
-        if (existing) { router.push(`/dashboard/cbt/${id}`); return; }
+        if (existing && finalStatuses.has(existing.status)) { router.push(`/dashboard/cbt/${id}`); return; }
         return fetch(`/api/cbt/exams/${id}`, { cache: 'no-store' })
           .then(async r => {
             const payload = await r.json();
             if (!r.ok) throw new Error(payload.error || 'This exam is not available.');
             return payload;
           })
-          .then(({ data: examData }) => {
+          .then(async ({ data: examData }) => {
             if (!examData) { throw new Error('This exam is not available.'); }
-            startTimeRef.current = new Date();
+            const session = existing ?? await fetch('/api/cbt/sessions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'start', exam_id: id }),
+            }).then(async r => {
+              const payload = await r.json();
+              if (!r.ok) throw new Error(payload.error || 'Unable to start this exam.');
+              return payload.data;
+            });
+            const startedAt = session?.start_time ? new Date(session.start_time) : new Date();
+            startTimeRef.current = startedAt;
+            setSessionId(session?.id ?? null);
+            if (session?.answers && typeof session.answers === 'object' && !Array.isArray(session.answers)) {
+              setAnswers(session.answers);
+            }
             setExam(examData);
             setQuestions([...(examData.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
-            setTimeLeft((examData.duration_minutes ?? 60) * 60);
+            const durationDeadline = startedAt.getTime() + (examData.duration_minutes ?? 60) * 60_000;
+            const windowDeadline = examData.end_date ? new Date(examData.end_date).getTime() : Number.POSITIVE_INFINITY;
+            const deadline = Math.min(durationDeadline, windowDeadline);
+            setTimeLeft(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
             setLoading(false);
           });
       })
@@ -135,10 +153,9 @@ export default function TakeExamPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           exam_id: exam.id,
-          start_time: startTimeRef.current.toISOString(),
+          action: 'submit',
           answers,
           auto_submitted: auto,
-          submitted_at: new Date().toISOString(),
         }),
       });
       if (!sessionRes.ok) {
@@ -167,6 +184,21 @@ export default function TakeExamPage() {
   useEffect(() => {
     submitRef.current = handleSubmit;
   }, [handleSubmit]);
+
+  useEffect(() => {
+    if (!sessionId || submitted || loading) return;
+    const save = () => {
+      fetch(`/api/cbt/sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }),
+      }).catch(() => {
+        // Autosave is best-effort; final submission still reports hard failures.
+      });
+    };
+    const t = setInterval(save, 10_000);
+    return () => clearInterval(t);
+  }, [answers, loading, sessionId, submitted]);
 
   // Countdown timer
   useEffect(() => {

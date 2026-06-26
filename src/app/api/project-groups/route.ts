@@ -1,12 +1,48 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 async function getCallerProfile(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data } = await supabase.from('portal_users').select('id, role, school_id, school_name').eq('id', user.id).single();
   return data as { id: string; role: string; school_id: string | null; school_name: string | null } | null;
+}
+
+async function canManageAssignmentGroups(admin: ReturnType<typeof createAdminClient>, profile: NonNullable<Awaited<ReturnType<typeof getCallerProfile>>>, assignmentId: string | null) {
+  if (profile.role === 'admin') return true;
+  if (!assignmentId) return false;
+  const { data: assignment } = await admin
+    .from('assignments')
+    .select('id, school_id, created_by, class_id, metadata')
+    .eq('id', assignmentId)
+    .maybeSingle();
+  if (!assignment) return false;
+  const targetClassId = (assignment as any).metadata?.target_class_id || (assignment as any).class_id || null;
+  if (profile.role === 'teacher') {
+    if ((assignment as any).created_by === profile.id) return true;
+    if (targetClassId) {
+      const { data: cls } = await admin
+        .from('classes')
+        .select('teacher_id')
+        .eq('id', targetClassId)
+        .maybeSingle();
+      if (cls?.teacher_id === profile.id) return true;
+    }
+    const scopedIds = await getTeacherSchoolIds(profile.id, profile.school_id);
+    return !!(assignment as any).school_id && scopedIds.includes((assignment as any).school_id);
+  }
+  return false;
+}
+
+async function groupAssignmentId(admin: ReturnType<typeof createAdminClient>, groupId: string) {
+  const { data } = await admin
+    .from('project_groups')
+    .select('assignment_id')
+    .eq('id', groupId)
+    .maybeSingle();
+  return data?.assignment_id ?? null;
 }
 
 // ── GET ──────────────────────────────────────────────────────────────────────
@@ -40,7 +76,10 @@ export async function GET(req: Request) {
         .order('created_at', { ascending: false });
 
       if (assignmentId) q = q.eq('assignment_id', assignmentId);
-      if (profile.role === 'teacher' && profile.school_name) {
+      if (profile.role === 'teacher' && assignmentId) {
+        const allowed = await canManageAssignmentGroups(admin, profile, assignmentId);
+        if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      } else if (profile.role === 'teacher' && profile.school_name) {
         q = q.eq('school_name', profile.school_name);
       }
 
@@ -70,7 +109,7 @@ export async function GET(req: Request) {
           class_name, created_at, assignment_id,
           assignments(id, title, description, due_date),
           project_group_members(
-            id, student_id, individual_score, individual_feedback, task_description,
+            id, student_id, task_description,
             portal_users(id, full_name)
           )
         `)
@@ -107,6 +146,22 @@ export async function POST(req: Request) {
     }
 
     const admin = createAdminClient();
+    const allowed = await canManageAssignmentGroups(admin, profile, assignment_id || null);
+    if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    if (student_ids.length > 0) {
+      let studentQuery = admin
+        .from('portal_users')
+        .select('id, school_id')
+        .eq('role', 'student')
+        .in('id', student_ids);
+      if (profile.role === 'teacher' && profile.school_id) studentQuery = studentQuery.eq('school_id', profile.school_id);
+      const { data: validStudents } = await studentQuery;
+      const validIds = new Set((validStudents ?? []).map((student: any) => student.id));
+      if ((student_ids as string[]).some((sid) => !validIds.has(sid))) {
+        return NextResponse.json({ error: 'One or more students are outside your project scope.' }, { status: 403 });
+      }
+    }
 
     const { data: group, error: gErr } = await admin
       .from('project_groups')
@@ -154,6 +209,9 @@ export async function PATCH(req: Request) {
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
     const admin = createAdminClient();
+    const assignmentId = await groupAssignmentId(admin, id);
+    const allowed = await canManageAssignmentGroups(admin, profile, assignmentId);
+    if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Build typed update object
     const updates: {
@@ -230,6 +288,9 @@ export async function DELETE(req: Request) {
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
     const admin = createAdminClient();
+    const assignmentId = await groupAssignmentId(admin, id);
+    const allowed = await canManageAssignmentGroups(admin, profile, assignmentId);
+    if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     const { error } = await admin.from('project_groups').delete().eq('id', id);
     if (error) throw error;
 

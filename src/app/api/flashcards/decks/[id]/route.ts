@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getFlashcardCaller, loadFlashcardDeckForManage, loadFlashcardDeckForRead } from '@/lib/flashcards/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,18 +12,16 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // Keep this query minimal so deck view always loads, even if optional relation
-  // metadata or RLS on joined tables changes.
-  const { data: deck, error } = await supabase
-    .from('flashcard_decks')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
+  const db = createAdminClient();
+  const caller = await getFlashcardCaller(db as any, user.id);
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const { deck, error } = await loadFlashcardDeckForRead(db as any, caller, id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  if (!deck) return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
+  if (!deck) return NextResponse.json({ error: error?.message === 'Forbidden' ? 'Forbidden' : 'Deck not found' }, { status: error?.message === 'Forbidden' ? 403 : 404 });
 
   return NextResponse.json({ data: deck });
 }
@@ -36,7 +36,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   const { title, lesson_id, course_id } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
-  const { data, error } = await supabase
+  const db = createAdminClient();
+  const caller = await getFlashcardCaller(db as any, user.id);
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { deck } = await loadFlashcardDeckForManage(db as any, caller, id);
+  if (!deck) return NextResponse.json({ error: 'Deck not found or access denied' }, { status: 404 });
+
+  const { data, error } = await db
     .from('flashcard_decks')
     .update({ 
       title: title.trim(), 
@@ -44,7 +50,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       course_id: course_id || null 
     })
     .eq('id', id)
-    .eq('created_by', user.id) // Only allow creator to update
     .select()
     .single();
 
@@ -61,11 +66,16 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { error } = await supabase
+  const db = createAdminClient();
+  const caller = await getFlashcardCaller(db as any, user.id);
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { deck } = await loadFlashcardDeckForManage(db as any, caller, id);
+  if (!deck) return NextResponse.json({ error: 'Deck not found or access denied' }, { status: 404 });
+
+  const { error } = await db
     .from('flashcard_decks')
     .delete()
-    .eq('id', id)
-    .eq('created_by', user.id); // Only allow creator to delete
+    .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

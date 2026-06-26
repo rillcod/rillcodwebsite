@@ -851,7 +851,7 @@ function GradeCanvas({ sub, maxPoints, assignment, onClose, onSaved }: {
                         </div>
                     )}
 
-                    {/* AI-suggested grade banner — shown when grading_mode is ai_assisted */}
+                    {/* AI-suggested grade banner — shown when grading_mode is ai_suggested */}
                     {sub.ai_suggested_grade != null && (
                         <div className="border border-violet-500/30 bg-violet-500/8 rounded-xl p-4 space-y-2">
                             <div className="flex items-center justify-between flex-wrap gap-2">

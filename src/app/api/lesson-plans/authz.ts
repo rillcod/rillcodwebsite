@@ -1,14 +1,14 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function requireStaffUser(supabase: any): Promise<{ id: string; role: string } | null> {
+export async function requireStaffUser(supabase: any): Promise<{ id: string; role: string; school_id: string | null } | null> {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('role')
+    .select('role, school_id')
     .eq('id', user.id)
     .single();
   if (!['admin', 'teacher'].includes(profile?.role || '')) return null;
-  return { id: user.id as string, role: profile.role as string };
+  return { id: user.id as string, role: profile.role as string, school_id: profile.school_id ?? null };
 }
 
 export type LessonPlanAccessUser = {

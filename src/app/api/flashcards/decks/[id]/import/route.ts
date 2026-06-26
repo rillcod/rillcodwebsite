@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getFlashcardCaller, loadFlashcardDeckForManage } from '@/lib/flashcards/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,14 +38,11 @@ export async function POST(
   }
 
   try {
-    // Verify user owns the deck
-    const { data: deck } = await supabase
-      .from('flashcard_decks')
-      .select('created_by')
-      .eq('id', deckId)
-      .single();
-
-    if (!deck || deck.created_by !== user.id) {
+    const admin = createAdminClient();
+    const caller = await getFlashcardCaller(admin as any, user.id);
+    if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const { deck } = await loadFlashcardDeckForManage(admin as any, caller, deckId);
+    if (!deck) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

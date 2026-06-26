@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getFlashcardCaller, loadFlashcardDeckForRead } from '@/lib/flashcards/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,11 +31,17 @@ export async function GET(
   }
 
   try {
+    const admin = createAdminClient();
+    const caller = await getFlashcardCaller(admin as any, user.id);
+    if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const { deck } = await loadFlashcardDeckForRead(admin as any, caller, deckId);
+    if (!deck) return NextResponse.json({ error: 'Deck not found or access denied' }, { status: 404 });
+
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get('mode') || 'due'; // due, all, starred, difficult
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    let query = supabase
+    let query = (admin as any)
       .from('flashcard_cards')
       .select('*')
       .eq('deck_id', deckId)
@@ -71,7 +79,7 @@ export async function GET(
       );
     }
 
-    const cardIds = (cards ?? []).map((card) => card.id);
+    const cardIds = (cards ?? []).map((card: any) => card.id);
     const { data: reviews } = cardIds.length
       ? await supabase
           .from('flashcard_reviews')
@@ -84,7 +92,7 @@ export async function GET(
 
     // Process cards to determine due status
     const now = new Date();
-    const processedCards = cards?.map(card => {
+    const processedCards = cards?.map((card: any) => {
       const review = reviewByCardId.get(card.id) ?? null;
 
       const isDue = !review?.next_review_at || new Date(review.next_review_at) <= now;
@@ -103,7 +111,7 @@ export async function GET(
 
     // Filter for due cards if mode is 'due'
     const filteredCards = mode === 'due' 
-      ? processedCards.filter(card => card.isDue)
+      ? processedCards.filter((card: any) => card.isDue)
       : processedCards;
 
     return NextResponse.json({
@@ -111,9 +119,9 @@ export async function GET(
       meta: {
         total: filteredCards.length,
         mode,
-        dueCount: processedCards.filter(c => c.isDue).length,
-        newCount: processedCards.filter(c => c.isNew).length,
-        reviewedCount: processedCards.filter(c => !c.isNew).length
+        dueCount: processedCards.filter((c: any) => c.isDue).length,
+        newCount: processedCards.filter((c: any) => c.isNew).length,
+        reviewedCount: processedCards.filter((c: any) => !c.isNew).length
       }
     });
 

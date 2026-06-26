@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getFlashcardCaller, loadFlashcardDeckForManage, loadFlashcardDeckForRead } from '@/lib/flashcards/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +13,15 @@ export async function GET(
 ) {
   const { id: deckId } = await context.params;
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const adminClient = createAdminClient();
+  const caller = await getFlashcardCaller(adminClient as any, user.id);
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { deck } = await loadFlashcardDeckForRead(adminClient as any, caller, deckId);
+  if (!deck) return NextResponse.json({ error: 'Deck not found or access denied' }, { status: 404 });
 
-  const { data, error } = await supabase
+  const { data, error } = await (adminClient as any)
     .from('flashcard_cards')
     .select('*')
     .eq('deck_id', deckId)
@@ -51,6 +59,10 @@ export async function POST(
 
   // Use admin client to bypass RLS on flashcard_cards
   const adminClient = createAdminClient();
+  const caller = await getFlashcardCaller(adminClient as any, user.id);
+  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { deck } = await loadFlashcardDeckForManage(adminClient as any, caller, deckId);
+  if (!deck) return NextResponse.json({ error: 'Deck not found or access denied' }, { status: 404 });
 
   let nextPosition = position;
   if (nextPosition === null || nextPosition === undefined) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,13 +21,14 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const db = createAdminClient();
-  const { data: prof } = await db.from('portal_users').select('role, school_id').eq('id', user.id).maybeSingle();
+  const { data: prof } = await db.from('portal_users').select('role, school_id, class_id').eq('id', user.id).maybeSingle();
   const role = (prof as any)?.role ?? '';
   const schoolId = (prof as any)?.school_id ?? null;
 
   // Scope inputs
   let teacherSchoolIds: string[] = [];
   let enrolledProgramIds = new Set<string>();
+  let enrolledCourseIds = new Set<string>();
   if (role === 'teacher') {
     const ids = new Set<string>();
     if (schoolId) ids.add(schoolId);
@@ -34,8 +36,9 @@ export async function GET() {
     for (const r of ts ?? []) if ((r as any).school_id) ids.add((r as any).school_id);
     teacherSchoolIds = Array.from(ids);
   } else if (role === 'student' || role === 'parent') {
-    const { data: enr } = await db.from('enrollments').select('program_id').eq('user_id', user.id);
-    enrolledProgramIds = new Set((enr ?? []).map((e: any) => e.program_id).filter(Boolean));
+    const scope = await resolveStudentProgramScope(db as any, user.id, (prof as any)?.class_id ?? null);
+    enrolledProgramIds = scope.programIds;
+    enrolledCourseIds = scope.courseIds;
   }
 
   const { data: rows, error } = await db
@@ -60,7 +63,13 @@ export async function GET() {
     if (role === 'admin') { /* all */ }
     else if (role === 'teacher') { if (!lessonSchoolId || !teacherSchoolIds.includes(lessonSchoolId)) continue; }
     else if (role === 'school') { if (!schoolId || lessonSchoolId !== schoolId) continue; }
-    else { if (!programId || !enrolledProgramIds.has(programId)) continue; } // student/parent
+    else {
+      if (schoolId && lessonSchoolId && lessonSchoolId !== schoolId) continue;
+      if (!programId && !course?.id) continue;
+      if (programId && enrolledProgramIds.has(programId)) { /* allowed */ }
+      else if (course?.id && enrolledCourseIds.has(course.id)) { /* allowed */ }
+      else continue;
+    } // student/parent
 
     const pKey = programId ?? 'none';
     const pName = program?.name ?? 'Other';

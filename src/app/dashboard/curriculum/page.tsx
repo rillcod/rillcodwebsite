@@ -2219,6 +2219,7 @@ export default function CurriculumPage() {
       weekNumber: week.week,
       courseId: selectedCourse.id,
       programId: selectedProgram?.id ?? selectedCourse.program_id,
+      schoolId: curriculum.school_id ?? undefined,
       title: `Week ${week.week}: ${week.topic}`,
       description: (week.subtopics ?? []).join(', '),
       durationMinutes: plan?.duration_minutes ?? 60,
@@ -2252,6 +2253,7 @@ export default function CurriculumPage() {
           title: weekTag,
           description: `Syllabus-aligned flashcards for ${selectedCourse.title}`,
           course_id: selectedCourse.id,
+          school_id: curriculum.school_id ?? undefined,
           tags: ['curriculum', week.topic]
         }),
       });
@@ -2275,6 +2277,7 @@ export default function CurriculumPage() {
       topic: week.topic,
       course_id: selectedCourse.id,
       curriculum_id: curriculum.id,
+      ...(curriculum.school_id ? { school_id: curriculum.school_id } : {}),
       term: String(activeTerm),
       week: String(week.week),
       exam_type: week.type === 'examination' ? 'examination' : 'evaluation',
@@ -2301,6 +2304,7 @@ export default function CurriculumPage() {
           max_points: 100,
           is_active: true,
           course_id: selectedCourse.id,
+          school_id: curriculum?.school_id ?? undefined,
           metadata: { source: 'curriculum', curriculum_id: curriculum?.id, term: activeTerm, week: week.week },
         }),
       });
@@ -2333,6 +2337,7 @@ export default function CurriculumPage() {
           max_points: 100,
           is_active: true,
           course_id: selectedCourse.id,
+          school_id: curriculum?.school_id ?? undefined,
           metadata: { source: 'curriculum', curriculum_id: curriculum?.id, term: activeTerm, week: week.week },
         }),
       });

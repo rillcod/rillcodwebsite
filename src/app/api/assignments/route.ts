@@ -128,8 +128,21 @@ export async function GET(request: NextRequest) {
     // Strip out class-targeted assignments that belong to other teachers —
     // those are private to their creator (only visible via direct assignment view).
     if (caller.role === 'teacher') {
+      const classIds = Array.from(new Set(rows
+        .map((a: any) => (a.metadata || {}).target_class_id || a.class_id)
+        .filter(Boolean) as string[]));
+      let classOwners: Record<string, string> = {};
+      if (classIds.length > 0) {
+        const { data: classes } = await admin
+          .from('classes')
+          .select('id, teacher_id')
+          .in('id', classIds);
+        (classes ?? []).forEach((cls: any) => { if (cls.id) classOwners[cls.id] = cls.teacher_id; });
+      }
       rows = rows.filter((a: any) => {
         if (a.created_by === caller.id) return true;
+        const targetClassId = (a.metadata || {}).target_class_id || a.class_id;
+        if (targetClassId) return classOwners[targetClassId] === caller.id;
         // Platform / admin school-wide assignment: visible if NOT class-scoped
         const vis = (a.metadata || {}).visibility;
         return vis !== 'class';
@@ -138,7 +151,7 @@ export async function GET(request: NextRequest) {
 
     // Student: apply visibility + work-mode targeting from metadata
     if (caller.role === 'student') {
-      const scope = await resolveStudentProgramScope(admin, caller.id);
+      const scope = await resolveStudentProgramScope(admin, caller.id, caller.class_id);
       const classTeacherId = await getStudentClassTeacherId(caller.class_id);
 
       // Fetch class course focus if student is assigned to a class
@@ -221,6 +234,12 @@ export async function POST(request: NextRequest) {
         }
         resolvedSchoolId = requestedSchoolId;
       } else {
+        if (!caller.school_id) {
+          return NextResponse.json(
+            { error: 'Select one of your assigned schools for this assignment.' },
+            { status: 400 },
+          );
+        }
         resolvedSchoolId = caller.school_id;
       }
       resolvedSchoolName = body.school_name ?? caller.school_name ?? null;
@@ -228,11 +247,12 @@ export async function POST(request: NextRequest) {
 
     // Validate that a class-scoped assignment targets a class this teacher owns.
     // Without this, Suleiman could create an assignment targeting Amaka's class_id.
-    if (caller.role === 'teacher' && body.metadata?.target_class_id) {
+    const targetClassId = body.metadata?.target_class_id || body.class_id;
+    if (caller.role === 'teacher' && targetClassId) {
       const { data: targetCls } = await admin
         .from('classes')
-        .select('teacher_id')
-        .eq('id', body.metadata.target_class_id)
+        .select('teacher_id, school_id')
+        .eq('id', targetClassId)
         .maybeSingle();
       if (!targetCls) {
         return NextResponse.json({ error: 'Target class not found' }, { status: 400 });
@@ -243,12 +263,18 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         );
       }
+      if (resolvedSchoolId && targetCls.school_id && targetCls.school_id !== resolvedSchoolId) {
+        return NextResponse.json(
+          { error: 'Target class belongs to a different school' },
+          { status: 403 },
+        );
+      }
     }
 
     const allowedFields = [
       'title', 'description', 'instructions', 'course_id', 'program_id', 'lesson_id',
       'due_date', 'max_points', 'assignment_type', 'is_active', 'questions', 'metadata',
-      'class_id',
+      'class_id', 'weight', 'grading_mode',
     ];
     const payload: Record<string, unknown> = {
       created_by: caller.id,
@@ -259,11 +285,26 @@ export async function POST(request: NextRequest) {
     for (const f of allowedFields) {
       if (f in body) payload[f] = body[f] ?? null;
     }
+    if (!payload.grading_mode && Array.isArray(payload.questions) && payload.questions.length > 0) {
+      const autoTypes = new Set(['multiple_choice', 'true_false', 'coding_blocks']);
+      const autoGradeable = payload.questions.every((q: any) => (
+        autoTypes.has(String(q.question_type ?? '').toLowerCase())
+        && String(q.correct_answer ?? '').trim()
+      ));
+      if (autoGradeable) payload.grading_mode = 'auto';
+    }
 
     // Programme is the authoritative cohort scope. If the client didn't send one,
     // derive it from the course so the assignment is never left untagged.
     if (!payload.program_id && payload.course_id) {
       payload.program_id = await programIdForCourse(admin, payload.course_id as string);
+    } else if (!payload.program_id && payload.class_id) {
+      const { data: cls } = await admin
+        .from('classes')
+        .select('program_id')
+        .eq('id', payload.class_id as string)
+        .maybeSingle();
+      if (cls?.program_id) payload.program_id = cls.program_id;
     }
 
     const { data, error } = await admin

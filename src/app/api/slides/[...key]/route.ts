@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { r2SignedUrl } from '@/lib/r2/client';
+import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,24 +85,24 @@ export async function GET(
     }
 
     // (2) staff bypass; everyone else must be enrolled in the lesson's programme
-    const { data: prof } = await db.from('portal_users').select('role').eq('id', user.id).maybeSingle();
+    const { data: prof } = await db.from('portal_users').select('role, school_id, class_id').eq('id', user.id).maybeSingle();
     const role = (prof as any)?.role ?? '';
     const isStaff = ['admin', 'teacher', 'school'].includes(role);
     if (!isStaff) {
-      const { data: lesson } = await db.from('lessons').select('course_id').eq('id', lessonId).maybeSingle();
+      const { data: lesson } = await db.from('lessons').select('course_id, school_id').eq('id', lessonId).maybeSingle();
+      const lessonSchoolId = (lesson as any)?.school_id ?? null;
+      const studentSchoolId = (prof as any)?.school_id ?? null;
+      if (studentSchoolId && lessonSchoolId && lessonSchoolId !== studentSchoolId) {
+        return NextResponse.json({ error: 'Slide is outside your school scope' }, { status: 403 });
+      }
       const courseId = (lesson as any)?.course_id ?? null;
       const { data: course } = courseId
         ? await db.from('courses').select('program_id').eq('id', courseId).maybeSingle()
         : { data: null as any };
       const programId = (course as any)?.program_id ?? null;
-      if (!programId) return NextResponse.json({ error: 'Lesson is not attached to a programme' }, { status: 403 });
-      const { data: enr } = await db
-        .from('enrollments')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('program_id', programId)
-        .maybeSingle();
-      if (!enr) return NextResponse.json({ error: 'You are not enrolled in this programme' }, { status: 403 });
+      const scope = await resolveStudentProgramScope(db as any, user.id, (prof as any)?.class_id ?? null);
+      const allowed = (programId && scope.programIds.has(programId)) || (courseId && scope.courseIds.has(courseId));
+      if (!allowed) return NextResponse.json({ error: 'You are not enrolled in this programme' }, { status: 403 });
     }
   }
 

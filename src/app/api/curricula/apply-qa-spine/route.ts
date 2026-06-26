@@ -5,6 +5,7 @@ import { resolveQaSpineLane } from '@/lib/qa/resolveQaSpineLane';
 import { calendarIndex, sourceWeekIndexForCalendar } from '@/lib/qa/rotatedSpineIndex';
 import { ensureProgramTemplates } from '@/lib/curriculum/ensure-program-templates';
 import type { Json } from '@/types/supabase';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 function asObject(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
@@ -75,8 +76,11 @@ export async function POST(req: NextRequest) {
   if (currErr || !curriculum) {
     return NextResponse.json({ error: 'Curriculum not found' }, { status: 404 });
   }
-  if (profile.role === 'teacher' && profile.school_id && curriculum.school_id && curriculum.school_id !== profile.school_id) {
-    return NextResponse.json({ error: 'You can only apply QA spine to your school curriculum.' }, { status: 403 });
+  const teacherSchoolIds = profile.role === 'teacher'
+    ? await getTeacherSchoolIds(user.id, profile.school_id ?? null)
+    : [];
+  if (profile.role === 'teacher' && curriculum.school_id && !teacherSchoolIds.includes(curriculum.school_id)) {
+    return NextResponse.json({ error: 'You can only apply QA spine to your assigned school curriculum.' }, { status: 403 });
   }
 
   const programId = (curriculum as unknown as { courses?: { program_id?: string | null } | null }).courses?.program_id ?? null;
@@ -111,7 +115,7 @@ export async function POST(req: NextRequest) {
       qa_track_hint: cl.qa_track_hint,
       name: cl.name,
     };
-    if (profile.role === 'teacher' && classRow.school_id && classRow.school_id !== profile.school_id) {
+    if (profile.role === 'teacher' && classRow.school_id && !teacherSchoolIds.includes(classRow.school_id)) {
       return NextResponse.json({ error: 'Class is not in your school scope.' }, { status: 403 });
     }
   }

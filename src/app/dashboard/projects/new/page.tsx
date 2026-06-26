@@ -308,6 +308,26 @@ export default function NewProjectActivityPage() {
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to create activity');
+            if (isGroup) {
+                for (const group of groups.filter(g => g.studentIds.length >= 2)) {
+                    const groupRes = await fetch('/api/project-groups', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: group.name,
+                            assignment_id: j.data.id,
+                            class_name: targetClassName || null,
+                            school_name: targetSchoolName || profile?.school_name || null,
+                            evaluation_type: gradingMode === 'rubric' ? 'individual' : 'group',
+                            student_ids: group.studentIds,
+                        }),
+                    });
+                    if (!groupRes.ok) {
+                        const groupJson = await groupRes.json().catch(() => ({}));
+                        throw new Error(groupJson.error || `Failed to create ${group.name}`);
+                    }
+                }
+            }
             if (preLessonPlanId) {
               router.push(`/dashboard/lesson-plans/${preLessonPlanId}`);
             } else {
