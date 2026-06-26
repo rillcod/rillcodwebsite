@@ -80,7 +80,7 @@ export async function GET(_request: NextRequest) {
     const now = new Date().toISOString();
     let examQuery = admin
       .from('cbt_exams')
-      .select('id, title, description, duration_minutes, passing_score, total_questions, start_date, end_date, program_id, course_id, school_id, metadata, programs(name), courses(title)')
+      .select('id, title, description, duration_minutes, passing_score, total_questions, is_active, start_date, end_date, program_id, course_id, school_id, metadata, programs(name), courses(title)')
       .eq('is_active', true)
       .or(`start_date.is.null,start_date.lte.${now}`)
       .or(`end_date.is.null,end_date.gte.${now}`)
