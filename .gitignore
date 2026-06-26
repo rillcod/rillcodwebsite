@@ -61,3 +61,6 @@ scripts/setup-admins.mjs
 report_name_mismatches.csv
 scratch_*.json
 *_backup.json
+
+# Scratch TS scripts (service-role access)
+scratch_*.ts
