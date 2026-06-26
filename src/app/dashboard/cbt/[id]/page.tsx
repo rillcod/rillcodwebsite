@@ -54,12 +54,12 @@ export default function ExamDetailPage() {
       Promise.all([
         db.from('cbt_exams').select('*, programs(name)').eq('id', id).single(),
         db.from('cbt_questions').select('*').eq('exam_id', id).order('order_index'),
-        db.from('cbt_sessions').select('*').eq('exam_id', id).order('created_at', { ascending: false }),
+        fetch(`/api/cbt/sessions?exam_id=${id}`, { cache: 'no-store' }).then(r => r.json()),
         fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
       ]).then(([examRes, qRes, sesRes, usersJson]) => {
         const umap: Record<string, any> = {};
         (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
-        let rawSessions: any[] = sesRes.data ?? [];
+        let rawSessions: any[] = Array.isArray(sesRes.data) ? sesRes.data : [];
         // Filter by school if school role
         if (role === 'school' && profile.school_id) {
           rawSessions = rawSessions.filter((s: any) => umap[s.user_id]?.school_id === profile.school_id);

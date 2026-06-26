@@ -15,6 +15,33 @@ function adminClient() {
   );
 }
 
+type Caller = { role: string; id: string; school_id: string | null };
+
+async function callerCanAccessExam(admin: ReturnType<typeof adminClient>, caller: Caller, examId: string) {
+  const { data: exam } = await admin
+    .from('cbt_exams')
+    .select('id, school_id, created_by')
+    .eq('id', examId)
+    .maybeSingle();
+
+  if (!exam) return false;
+  if (caller.role === 'admin') return true;
+  if (caller.role === 'school') return !exam.school_id || exam.school_id === caller.school_id;
+  if (caller.role === 'teacher') {
+    if (exam.created_by === caller.id) return true;
+    if (exam.school_id && exam.school_id === caller.school_id) return true;
+    if (!exam.school_id) return false;
+    const { data: assignment } = await admin
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', caller.id)
+      .eq('school_id', exam.school_id)
+      .maybeSingle();
+    return !!assignment;
+  }
+  return false;
+}
+
 // POST /api/cbt/sessions
 // Called by students when they submit a CBT exam.
 export async function POST(request: NextRequest) {
@@ -26,7 +53,7 @@ export async function POST(request: NextRequest) {
     const admin = adminClient();
     const { data: caller } = await admin
       .from('portal_users')
-      .select('role, id')
+      .select('role, id, school_id')
       .eq('id', user.id)
       .single();
 
@@ -54,7 +81,7 @@ export async function POST(request: NextRequest) {
     // (Querying cbt_sessions for the deadline was dead code — no session exists yet.)
     const { data: examRow } = await admin
       .from('cbt_exams')
-      .select('id, duration_minutes, end_date, is_active, program_id, course_id, school_id, metadata, passing_score')
+      .select('id, duration_minutes, start_date, end_date, is_active, program_id, course_id, school_id, metadata, passing_score')
       .eq('id', exam_id)
       .single();
 
@@ -73,6 +100,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check exam window closed
+    if (examRow.start_date && new Date(examRow.start_date) > new Date()) {
+      return NextResponse.json({ error: 'The exam window has not opened yet' }, { status: 422 });
+    }
     if (examRow.end_date && new Date(examRow.end_date) < new Date()) {
       return NextResponse.json({ error: 'The exam window has closed' }, { status: 422 });
     }
@@ -155,8 +185,28 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const exam_id = searchParams.get('exam_id');
     const admin = adminClient();
+    const { data: caller } = await admin
+      .from('portal_users')
+      .select('role, id, school_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!caller) return NextResponse.json({ error: 'User not found' }, { status: 403 });
+    const isStaff = ['admin', 'teacher', 'school'].includes(caller.role);
 
     if (exam_id) {
+      if (isStaff) {
+        const canAccess = await callerCanAccessExam(admin, caller as Caller, exam_id);
+        if (!canAccess) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+        const { data, error } = await admin
+          .from('cbt_sessions')
+          .select('*')
+          .eq('exam_id', exam_id)
+          .order('created_at', { ascending: false });
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ data: data ?? [] });
+      }
+
       const { data } = await admin
         .from('cbt_sessions')
         .select('id, score, status, exam_id, answers, end_time, needs_grading, manual_scores, grading_notes')

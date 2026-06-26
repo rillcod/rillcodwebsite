@@ -35,26 +35,30 @@ export default function GradeSessionPage() {
             return;
         }
 
-        const db = createClient();
         async function fetchData() {
             try {
-                const [sessionRes, examRes, questionsRes, usersJson] = await Promise.all([
-                    db.from('cbt_sessions').select('*').eq('id', params.sessionId).single(),
-                    db.from('cbt_exams').select('*').eq('id', params.id).single(),
-                    db.from('cbt_questions').select('*').eq('exam_id', params.id).order('order_index'),
+                const [sessionJson, examJson, usersJson] = await Promise.all([
+                    fetch(`/api/cbt/sessions/${params.sessionId}`, { cache: 'no-store' }).then(async r => {
+                        const payload = await r.json();
+                        if (!r.ok) throw new Error(payload.error || 'Session not found');
+                        return payload;
+                    }),
+                    fetch(`/api/cbt/exams/${params.id}`, { cache: 'no-store' }).then(async r => {
+                        const payload = await r.json();
+                        if (!r.ok) throw new Error(payload.error || 'Exam not found');
+                        return payload;
+                    }),
                     fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] })),
                 ]);
-
-                if (sessionRes.error) throw sessionRes.error;
-                if (examRes.error) throw examRes.error;
 
                 // Enrich session with student info from API (bypasses RLS on portal_users)
                 const umap: Record<string, any> = {};
                 (usersJson.data ?? []).forEach((u: any) => { umap[u.id] = u; });
-                const sess = { ...(sessionRes.data as any), portal_users: umap[(sessionRes.data as any)?.user_id] ?? null };
+                const sess = { ...(sessionJson.data as any), portal_users: umap[(sessionJson.data as any)?.user_id] ?? null };
+                const examData = examJson.data;
                 setSession(sess);
-                setExam(examRes.data);
-                setQuestions(questionsRes.data ?? []);
+                setExam(examData);
+                setQuestions([...(examData?.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
                 setManualScores(sess?.manual_scores ?? {});
                 setGradingNotes(sess?.grading_notes ?? '');
             } catch (e: any) {

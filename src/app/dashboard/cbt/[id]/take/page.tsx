@@ -111,6 +111,7 @@ export default function TakeExamPage() {
           })
           .then(({ data: examData }) => {
             if (!examData) { throw new Error('This exam is not available.'); }
+            startTimeRef.current = new Date();
             setExam(examData);
             setQuestions([...(examData.cbt_questions ?? [])].sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0)));
             setTimeLeft((examData.duration_minutes ?? 60) * 60);

@@ -18,6 +18,15 @@ function adminClient() {
 
 type Caller = { role: string; id: string; school_id: string | null };
 
+function sanitizeQuestionMetadataForStudent(metadata: any) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+  const safe: Record<string, unknown> = {};
+  for (const key of ['section', 'logic_sentence', 'logic_blocks']) {
+    if (key in metadata) safe[key] = metadata[key];
+  }
+  return Object.keys(safe).length > 0 ? safe : null;
+}
+
 async function getCaller(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -124,7 +133,7 @@ export async function GET(
   // Students only receive correct answers after they already have a recorded submission.
   const questionsSelect = isStaff || studentHasSubmitted
     ? 'cbt_questions(*)'
-    : 'cbt_questions(id, question_text, question_type, options, points, order_index)';
+    : 'cbt_questions(id, question_text, question_type, options, points, order_index, metadata)';
 
   const { data, error } = await admin
     .from('cbt_exams')
@@ -134,6 +143,12 @@ export async function GET(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
+  if (!isStaff && !studentHasSubmitted) {
+    data.cbt_questions = (data.cbt_questions ?? []).map((question: any) => ({
+      ...question,
+      metadata: sanitizeQuestionMetadataForStudent(question.metadata),
+    }));
+  }
   return NextResponse.json({ data });
 }
 

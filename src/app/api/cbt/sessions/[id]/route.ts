@@ -25,6 +25,68 @@ async function getCaller(): Promise<Caller | null> {
   return (caller as Caller) ?? null;
 }
 
+async function staffCanAccessSession(admin: ReturnType<typeof adminClient>, caller: Caller, sessionId: string) {
+  const { data: session } = await admin
+    .from('cbt_sessions')
+    .select('id, user_id, exam_id, cbt_exams(school_id, created_by)')
+    .eq('id', sessionId)
+    .maybeSingle();
+
+  if (!session) return null;
+  if (caller.role === 'student') return session.user_id === caller.id ? session : null;
+  if (caller.role === 'admin') return session;
+
+  const exam = (session as any).cbt_exams;
+  const examSchoolId: string | null = exam?.school_id ?? null;
+  const examCreatedBy: string | null = exam?.created_by ?? null;
+
+  if (caller.role === 'school') {
+    return !examSchoolId || examSchoolId === caller.school_id ? session : null;
+  }
+
+  if (caller.role === 'teacher') {
+    if (examCreatedBy === caller.id) return session;
+    if (examSchoolId && caller.school_id === examSchoolId) return session;
+    if (!examSchoolId) return null;
+    const { data: assignment } = await admin
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', caller.id)
+      .eq('school_id', examSchoolId)
+      .maybeSingle();
+    return assignment ? session : null;
+  }
+
+  return null;
+}
+
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const caller = await getCaller();
+    if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id } = await context.params;
+    const admin = adminClient();
+    const accessSession = await staffCanAccessSession(admin, caller, id);
+    if (!accessSession) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+
+    const { data, error } = await admin
+      .from('cbt_sessions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    return NextResponse.json({ data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/cbt/sessions/[id]
 //
