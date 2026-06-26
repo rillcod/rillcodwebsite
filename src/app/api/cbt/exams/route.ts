@@ -1,5 +1,10 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
+import {
+  cbtExamVisibleToStudent,
+  loadCbtStudentProfile,
+  resolveStudentCbtScope,
+} from '@/lib/cbt/visibility';
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -67,36 +72,32 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ data: data ?? [] });
     }
 
-    // ── Student: active exams within date window, scoped to their programs ──
-    const { data: enrollments } = await admin
-      .from('enrollments')
-      .select('program_id')
-      .eq('user_id', caller.id)
-      .in('status', ['active', 'enrolled', 'approved']);
-    const programIds = (enrollments ?? []).map((e: any) => e.program_id).filter(Boolean) as string[];
+    // ── Student: active exams within date window, scoped by class + programme ──
+    const student = await loadCbtStudentProfile(admin, caller.id);
+    if (!student) return NextResponse.json({ data: [] });
 
+    const scope = await resolveStudentCbtScope(admin, caller.id, student.class_id);
     const now = new Date().toISOString();
     let examQuery = admin
       .from('cbt_exams')
-      .select('id, title, description, duration_minutes, passing_score, total_questions, start_date, end_date, program_id, course_id, programs(name), courses(title)')
+      .select('id, title, description, duration_minutes, passing_score, total_questions, start_date, end_date, program_id, course_id, school_id, metadata, programs(name), courses(title)')
       .eq('is_active', true)
       .or(`start_date.is.null,start_date.lte.${now}`)
       .or(`end_date.is.null,end_date.gte.${now}`)
       .order('start_date');
 
-    if (programIds.length > 0) {
-      // Exams linked to their programs OR global exams (no program restriction)
-      examQuery = examQuery.or(
-        `program_id.in.(${programIds.join(',')}),program_id.is.null`,
-      ) as any;
-    } else {
-      // No enrollments — only global exams
-      examQuery = examQuery.is('program_id', null) as any;
+    // Narrow the DB fetch by school when the student belongs to one.
+    if (student.school_id) {
+      examQuery = examQuery.or(`school_id.eq.${student.school_id},school_id.is.null`) as typeof examQuery;
     }
 
-    const { data, error } = await examQuery;
+    const { data: rawExams, error } = await examQuery;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: data ?? [] });
+
+    const data = (rawExams ?? []).filter((exam) =>
+      cbtExamVisibleToStudent(exam, student, scope),
+    );
+    return NextResponse.json({ data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }
@@ -122,13 +123,25 @@ export async function POST(request: NextRequest) {
     };
 
     const allowedExamFields = [
-      'title', 'description', 'program_id', 'course_id', 'exam_type',
+      'title', 'description', 'program_id', 'course_id',
       'duration_minutes', 'passing_score', 'total_questions', 'is_active',
       'start_date', 'end_date', 'metadata',
     ];
     for (const f of allowedExamFields) {
       if (f in examFields) examPayload[f] = examFields[f] ?? null;
     }
+
+    // exam_type is stored in metadata (no cbt_exams.exam_type column).
+    const examType = typeof examFields.exam_type === 'string' ? examFields.exam_type : null;
+    const baseMeta = (examPayload.metadata && typeof examPayload.metadata === 'object')
+      ? { ...(examPayload.metadata as Record<string, unknown>) }
+      : {};
+    if (examType) baseMeta.exam_type = examType;
+    if (examFields.class_id) {
+      baseMeta.target_class_id = examFields.class_id;
+      baseMeta.visibility = 'class';
+    }
+    if (Object.keys(baseMeta).length > 0) examPayload.metadata = baseMeta;
 
     const admin = adminClient();
 
@@ -150,12 +163,6 @@ export async function POST(request: NextRequest) {
     } else {
       // admin: trust the provided school_id as-is
       if ('school_id' in examFields) examPayload.school_id = examFields.school_id ?? null;
-    }
-
-    // Always try to attach school_name if school_id is present (safe multi-tenancy)
-    if (examPayload.school_id) {
-      const { data: s } = await admin.from('schools').select('name').eq('id', examPayload.school_id).single();
-      if (s?.name) examPayload.school_name = s.name;
     }
 
     if (!examPayload.title) {

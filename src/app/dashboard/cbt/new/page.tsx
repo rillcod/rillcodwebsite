@@ -12,6 +12,13 @@ import {
   CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, ChevronDownIcon,
   SparklesIcon, CheckCircleIcon,
 } from '@/lib/icons';
+import {
+  isObjectiveQuestion,
+  isTheoryQuestion,
+  buildCbtPrintHtml,
+  openCbtPrintWindow,
+} from '@/lib/cbt/print-utils';
+import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 
 interface Question {
   question_text: string;
@@ -37,6 +44,7 @@ export default function NewExamPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const preProgramId = searchParams?.get('program_id');
   const preCourseId = searchParams?.get('course_id');
+  const preClassId = searchParams?.get('class_id');
   const preTopic = searchParams?.get('topic');
   const preWeek = searchParams?.get('week');
   const preCurrId = searchParams?.get('curriculum_id');
@@ -47,6 +55,7 @@ export default function NewExamPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [classId, setClassId] = useState<string | null>(preClassId || null);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -163,7 +172,20 @@ export default function NewExamPage() {
         setForm(prev => ({ ...prev, course_id: preCourseId, program_id: c?.program_id || prev.program_id }));
       }
     });
-  }, [profile?.id, authLoading, preProgramId, preCourseId]);
+
+    // Pre-fill programme (and school) when launched from a class page.
+    if (preClassId) {
+      db.from('classes').select('id, name, program_id, school_id').eq('id', preClassId).maybeSingle()
+        .then(({ data: cls }) => {
+          if (!cls) return;
+          setClassId(cls.id);
+          setForm(prev => ({
+            ...prev,
+            program_id: cls.program_id || prev.program_id,
+          }));
+        });
+    }
+  }, [profile?.id, authLoading, preProgramId, preCourseId, preClassId]);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -205,17 +227,20 @@ export default function NewExamPage() {
         duration_minutes: parseInt(form.duration_minutes) || 60,
         passing_score: parseInt(form.passing_score) || 70,
         total_questions: validQuestions.length,
-        exam_type: form.exam_type,
         metadata: {
+            exam_type: form.exam_type,
             ...(useWeights ? { section_weights: sectionWeights, weights_total: weightTotal } : {}),
             ...(preWeek ? { week: parseInt(preWeek, 10) } : {}),
             ...(preCurrId ? { curriculum_id: preCurrId } : {}),
-            source: preCurrId ? 'curriculum' : 'standalone',
+            source: preCurrId ? 'curriculum' : (classId ? 'class' : 'standalone'),
+            ...(classId ? { target_class_id: classId, visibility: 'class' } : {}),
         },
         questions: validQuestions.map((q, i) => ({
           question_text: q.question_text.trim(),
           question_type: q.question_type,
-          options: q.question_type === 'multiple_choice' ? q.options.filter((o: string) => o.trim()) : null,
+          options: ['multiple_choice', 'true_false'].includes(q.question_type)
+            ? q.options.filter((o: string) => o.trim())
+            : null,
           correct_answer: q.correct_answer.trim(),
           points: q.points,
           section: q.section,
@@ -224,6 +249,8 @@ export default function NewExamPage() {
       };
       if (form.start_date) examPayload.start_date = new Date(form.start_date).toISOString();
       if (form.end_date) examPayload.end_date = new Date(form.end_date).toISOString();
+      if (classId) examPayload.class_id = classId;
+      if (profile?.school_id) examPayload.school_id = profile.school_id;
 
       const res = await fetch('/api/cbt/exams', {
         method: 'POST',
@@ -240,262 +267,36 @@ export default function NewExamPage() {
     }
   };
 
-  // ── Print exam sheet (A4 — compact, 20-30 questions per page + marking guide) ──
+  // ── Print exam sheet — always prints every filled question (selection is for save only) ──
   const handlePrintExam = () => {
-    const hasSelection = selectedQuestions.size > 0;
-    const isMcq = (q: Question) => q.question_type === 'multiple_choice' || q.question_type === 'true_false';
-    const isTheory = (q: Question) => !isMcq(q);
-    let toPrint = questions.filter((q, i) =>
-      q.question_text.trim() && (!hasSelection || selectedQuestions.has(i))
-    );
-    if (printFilter === 'mcq') toPrint = toPrint.filter(isMcq);
-    if (printFilter === 'theory') toPrint = toPrint.filter(isTheory);
+    let toPrint = questions.filter((q) => q.question_text.trim());
+    if (printFilter === 'mcq') toPrint = toPrint.filter(isObjectiveQuestion);
+    if (printFilter === 'theory') toPrint = toPrint.filter(isTheoryQuestion);
     if (toPrint.length === 0) {
       alert(printFilter === 'mcq' ? 'No objective (MCQ/True-False) questions found.' : printFilter === 'theory' ? 'No theory questions found.' : 'No questions to print. Add questions first.');
       return;
     }
 
-    const docRef = `CBT-${Date.now().toString(36).toUpperCase()}`;
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' });
     const prog = programs.find(p => p.id === form.program_id)?.name ?? '';
     const course = courses.find(c => c.id === form.course_id)?.title ?? '';
-    const totalPts = toPrint.reduce((s, q) => s + (q.points || 0), 0);
+    const mcq = toPrint.filter(isObjectiveQuestion);
+    const theory = toPrint.filter(isTheoryQuestion);
 
-    const optLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
-
-    // Full markdown → HTML converter for print output
-    function formatQuestionText(text: string): string {
-      const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-      // Extract fenced code blocks first (protect them from inline processing)
-      const codeBlocks: string[] = [];
-      const t = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
-        const langLabel = lang ? `<span style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;display:block">${escHtml(lang)}</span>` : '';
-        codeBlocks.push(`<div style="margin:5px 0;background:#1e1e2e;border-radius:5px;padding:8px 10px;border-left:3px solid #7c3aed">${langLabel}<pre style="margin:0;font-family:'Courier New',monospace;font-size:10.5px;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;line-height:1.5">${escHtml(code.trimEnd())}</pre></div>`);
-        return `\x00CODE${codeBlocks.length - 1}\x00`;
-      });
-
-      // Process line by line for block elements
-      const lines = t.split('\n');
-      const out: string[] = [];
-      let i = 0;
-      while (i < lines.length) {
-        const line = lines[i];
-
-        // Headings
-        if (/^### /.test(line)) { out.push(`<div style="font-size:11px;font-weight:900;color:#4c1d95;margin:7px 0 3px;text-transform:uppercase;letter-spacing:0.5px">${inlineMd(line.slice(4))}</div>`); i++; continue; }
-        if (/^## /.test(line))  { out.push(`<div style="font-size:12px;font-weight:900;color:#4c1d95;margin:8px 0 4px;border-bottom:1px solid #ddd6fe;padding-bottom:2px">${inlineMd(line.slice(3))}</div>`); i++; continue; }
-        if (/^# /.test(line))   { out.push(`<div style="font-size:13px;font-weight:900;color:#4c1d95;margin:9px 0 5px">${inlineMd(line.slice(2))}</div>`); i++; continue; }
-
-        // Blockquote
-        if (/^> /.test(line)) {
-          const quotes: string[] = [];
-          while (i < lines.length && /^> /.test(lines[i])) { quotes.push(lines[i].slice(2)); i++; }
-          out.push(`<div style="border-left:3px solid #7c3aed;background:#f5f3ff;padding:5px 10px;margin:5px 0;font-size:10.5px;color:#374151;font-style:italic">${inlineMd(quotes.join(' '))}</div>`);
-          continue;
-        }
-
-        // Horizontal rule
-        if (/^---+$/.test(line.trim())) { out.push(`<hr style="border:none;border-top:1px solid #d1d5db;margin:7px 0"/>`); i++; continue; }
-
-        // Bullet list
-        if (/^[-*] /.test(line)) {
-          const items: string[] = [];
-          while (i < lines.length && /^[-*] /.test(lines[i])) { items.push(lines[i].slice(2)); i++; }
-          out.push(`<ul style="margin:5px 0 5px 14px;padding:0;list-style:disc">${items.map(it => `<li style="font-size:10.5px;color:#1f2937;margin-bottom:2px;line-height:1.5">${inlineMd(it)}</li>`).join('')}</ul>`);
-          continue;
-        }
-
-        // Numbered list
-        if (/^\d+\. /.test(line)) {
-          const items: string[] = [];
-          while (i < lines.length && /^\d+\. /.test(lines[i])) { items.push(lines[i].replace(/^\d+\. /, '')); i++; }
-          out.push(`<ol style="margin:5px 0 5px 14px;padding:0;list-style:decimal">${items.map(it => `<li style="font-size:10.5px;color:#1f2937;margin-bottom:2px;line-height:1.5">${inlineMd(it)}</li>`).join('')}</ol>`);
-          continue;
-        }
-
-        // Placeholder for extracted code block
-        if (/^\x00CODE\d+\x00$/.test(line.trim())) {
-          const idx = parseInt(line.trim().replace(/\x00CODE(\d+)\x00/, '$1'), 10);
-          out.push(codeBlocks[idx] ?? '');
-          i++; continue;
-        }
-
-        // Empty line
-        if (!line.trim()) { out.push('<br/>'); i++; continue; }
-
-        // Paragraph
-        const paraLines: string[] = [];
-        while (i < lines.length && lines[i].trim() && !/^#{1,3} /.test(lines[i]) && !/^[-*] /.test(lines[i]) && !/^\d+\. /.test(lines[i]) && !/^> /.test(lines[i]) && !/^---+$/.test(lines[i].trim()) && !/^\x00CODE/.test(lines[i])) {
-          paraLines.push(lines[i]); i++;
-        }
-        if (paraLines.length) out.push(`<span style="font-size:11.5px;color:#1f2937;line-height:1.5">${inlineMd(paraLines.join(' '))}</span>`);
-      }
-      return out.join('');
-
-      function inlineMd(s: string): string {
-        // Restore code block placeholders inside inline context (shouldn't happen but be safe)
-        s = s.replace(/\x00CODE(\d+)\x00/g, (_, idx) => codeBlocks[parseInt(idx, 10)] ?? '');
-        return s
-          .replace(/`([^`\n]+)`/g, '<code style="font-family:\'Courier New\',monospace;font-size:10px;background:#f0f0f8;color:#4c1d95;padding:1px 4px;border-radius:3px;border:1px solid #ddd6fe">$1</code>')
-          .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-          .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:800;color:#111827">$1</strong>')
-          .replace(/__(.+?)__/g, '<strong style="font-weight:800;color:#111827">$1</strong>')
-          .replace(/\*(.+?)\*/g, '<em style="font-style:italic">$1</em>')
-          .replace(/_(.+?)_/g, '<em style="font-style:italic">$1</em>')
-          .replace(/~~(.+?)~~/g, '<s style="opacity:0.5">$1</s>')
-          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:#7c3aed;text-decoration:underline">$1</a>');
-      }
-    }
-
-    const questionRows = toPrint.map((q, i) => {
-      const isChoice = q.question_type === 'multiple_choice';
-      const opts = isChoice
-        ? q.options.filter(o => o.trim()).map((o, j) => `<span style="margin-right:14px;white-space:nowrap"><b>${optLabels[j]}.</b> ${o}</span>`).join('')
-        : '';
-      const formattedText = formatQuestionText(q.question_text);
-      return `<div style="break-inside:avoid;margin-bottom:7px;padding:5px 8px;border-left:2px solid #7c3aed22;background:${i % 2 === 0 ? '#fafafa' : '#fff'}">
-  <div style="display:flex;align-items:flex-start;gap:6px">
-    <span style="font-weight:800;font-size:11px;color:#4c1d95;min-width:22px;padding-top:1px">${i + 1}.</span>
-    <div style="flex:1">
-      <div style="font-size:11.5px;color:#1f2937;line-height:1.5">${formattedText}</div>
-      ${isChoice ? `<div style="margin-top:5px;font-size:10.5px;color:#374151;display:flex;flex-wrap:wrap;gap:2px 0">${opts}</div>` : '<div style="margin-top:6px;border-bottom:1px solid #d1d5db;width:60%;height:1px"></div>'}
-      <span style="font-size:9px;color:#9ca3af;float:right">[${q.points} pt${q.points !== 1 ? 's' : ''}]</span>
-    </div>
-  </div>
-</div>`;
-    }).join('');
-
-    const answerRows = toPrint.map((q, i) => {
-      const isChoice = q.question_type === 'multiple_choice';
-      const optIdx = isChoice ? q.options.findIndex(o => o.trim() === q.correct_answer.trim()) : -1;
-      const label = optIdx >= 0 ? optLabels[optIdx] : (q.correct_answer || '—');
-      // Strip code fences for the short summary in the marking guide table
-      const shortText = q.question_text.replace(/```[\s\S]*?```/g, '[code]').replace(/`[^`]+`/g, '[code]');
-      const truncated = shortText.length > 70 ? shortText.slice(0, 70) + '…' : shortText;
-      return `<tr style="border-bottom:1px solid #e5e7eb">
-        <td style="padding:3px 8px;text-align:center;font-weight:700;font-size:10.5px;color:#4c1d95">${i + 1}</td>
-        <td style="padding:3px 8px;font-size:10px;color:#111827;max-width:260px">${truncated}</td>
-        <td style="padding:3px 8px;text-align:center;font-weight:800;font-size:11px;color:#059669">${isChoice ? label : '—'}</td>
-        <td style="padding:3px 8px;font-size:10px;color:#374151;max-width:200px">${q.correct_answer || '—'}</td>
-        <td style="padding:3px 8px;text-align:center;font-size:10px;color:#6b7280">${q.points}</td>
-      </tr>`;
-    }).join('');
-
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>${form.title || 'CBT Exam'} — Exam Sheet</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:18px 20px}
-@page{size:A4;margin:12mm 14mm}
-@media print{body{padding:0}.no-print{display:none!important}}
-.header{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:3px solid #7c3aed;padding-bottom:12px;margin-bottom:14px}
-.logo-block{display:flex;align-items:center;gap:12px}
-.logo-img{width:52px;height:52px;object-fit:contain}
-.org-name{font-size:18px;font-weight:900;color:#7c3aed}
-.org-sub{font-size:9px;color:#6b7280;margin-top:2px}
-.doc-meta{text-align:right;font-size:9px;color:#6b7280;line-height:1.6}
-.exam-title-box{background:linear-gradient(135deg,#4c1d9511,#4f46e511);border:1px solid #7c3aed44;border-radius:8px;padding:10px 16px;margin-bottom:12px}
-.exam-title{font-size:16px;font-weight:900;color:#4c1d95}
-.meta-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
-.meta-cell{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:6px 10px;text-align:center}
-.meta-label{font-size:8px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px}
-.meta-val{font-size:13px;font-weight:800;color:#111827;margin-top:2px}
-.instructions{background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#92400e}
-.section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#4c1d95;border-bottom:1px solid #7c3aed33;padding-bottom:4px;margin-bottom:8px}
-.page-break{page-break-before:always;padding-top:16px}
-table{width:100%;border-collapse:collapse}
-thead tr{background:#4c1d95;color:white}
-thead th{padding:5px 8px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
-tbody tr:nth-child(even){background:#f9fafb}
-.footer{margin-top:18px;border-top:1px solid #e5e7eb;padding-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-.sig-box{text-align:center}
-.sig-line{border-bottom:1px solid #374151;height:32px;margin-bottom:5px}
-.sig-label{font-size:8px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px}
-.watermark{text-align:center;margin-top:14px;font-size:8px;color:#9ca3af}
-.name-box{border:1px solid #d1d5db;border-radius:6px;padding:7px 14px;margin-bottom:12px;display:flex;gap:24px}
-.name-field{flex:1;border-bottom:1px solid #374151;font-size:11px;padding-bottom:2px;color:#111;min-width:120px}
-.name-label{font-size:9px;color:#6b7280;margin-bottom:2px}
-</style></head><body>
-<div class="header">
-  <div class="logo-block">
-    <img src="${window.location.origin}/logo.png" alt="Rillcod Logo" class="logo-img" onerror="this.style.display='none'" />
-    <div>
-      <div class="org-name">Rillcod Technologies</div>
-      <div class="org-sub">Technology &amp; Innovation in Education</div>
-    </div>
-  </div>
-  <div class="doc-meta">
-    <div><b>Exam Ref:</b> ${docRef}</div>
-    <div><b>Date:</b> ${dateStr}</div>
-    <div><b>Total Questions:</b> ${toPrint.length}</div>
-    <div><b>Total Points:</b> ${totalPts}</div>
-  </div>
-</div>
-<div class="exam-title-box">
-  <div class="exam-title">${form.title || 'Computer-Based Test'}</div>
-  ${form.description ? `<div style="font-size:11px;color:#374151;margin-top:4px">${form.description}</div>` : ''}
-  ${prog || course ? `<div style="font-size:10px;color:#7c3aed;margin-top:4px;font-weight:600">${[prog, course].filter(Boolean).join(' · ')}</div>` : ''}
-</div>
-<div class="meta-grid">
-  <div class="meta-cell"><div class="meta-label">Duration</div><div class="meta-val">${form.duration_minutes} min</div></div>
-  <div class="meta-cell"><div class="meta-label">Questions</div><div class="meta-val">${toPrint.length}</div></div>
-  <div class="meta-cell"><div class="meta-label">Total Points</div><div class="meta-val">${totalPts}</div></div>
-  <div class="meta-cell"><div class="meta-label">Pass Mark</div><div class="meta-val">${form.passing_score}%</div></div>
-</div>
-<div class="name-box">
-  <div><div class="name-label">Student Name</div><div class="name-field">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div></div>
-  <div><div class="name-label">Class / Grade</div><div class="name-field">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div></div>
-  <div><div class="name-label">Date</div><div class="name-field">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div></div>
-</div>
-<div class="instructions">
-  <b>Instructions:</b> Answer all questions. For multiple-choice questions, circle or underline the letter of your chosen answer.
-  Write clearly and legibly. No erasure on answers. Duration: <b>${form.duration_minutes} minutes</b>. Total marks: <b>${totalPts} points</b>.
-</div>
-<div class="section-title">Section A — Questions (${toPrint.length} Questions · ${totalPts} Marks)</div>
-${questionRows}
-<div class="page-break">
-  <div class="header" style="border-bottom:3px solid #dc2626;padding-bottom:10px;margin-bottom:14px">
-    <div class="logo-block">
-      <img src="${window.location.origin}/logo.png" alt="Rillcod Logo" class="logo-img" onerror="this.style.display='none'" />
-      <div>
-        <div class="org-name" style="color:#dc2626">Rillcod Technologies — Marking Guide</div>
-        <div class="org-sub">CONFIDENTIAL — For Examiner Use Only · Do Not Distribute</div>
-      </div>
-    </div>
-    <div class="doc-meta"><div><b>Ref:</b> ${docRef}-MG</div><div><b>Exam:</b> ${form.title || 'CBT'}</div></div>
-  </div>
-  <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#7f1d1d">
-    <b>⚠ Restricted:</b> This marking guide is strictly for the use of the examining facilitator. It must not be shown to or shared with students before or during the examination.
-  </div>
-  <div class="section-title" style="color:#dc2626;border-bottom-color:#dc262633">Answer Key &amp; Marking Scheme</div>
-  <table>
-    <thead><tr>
-      <th style="width:40px;text-align:center">#</th>
-      <th>Question (truncated)</th>
-      <th style="width:60px;text-align:center">Answer</th>
-      <th>Full Answer / Expected Response</th>
-      <th style="width:50px;text-align:center">Points</th>
-    </tr></thead>
-    <tbody>${answerRows}</tbody>
-    <tfoot><tr style="background:#4c1d95;color:white"><td colspan="4" style="padding:5px 8px;font-weight:700;font-size:10px;text-align:right">TOTAL MARKS</td><td style="padding:5px 8px;text-align:center;font-weight:900">${totalPts}</td></tr></tfoot>
-  </table>
-  <div class="footer">
-    <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Examiner / Facilitator</div></div>
-    <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Academic Coordinator</div></div>
-    <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Head of Department / Stamp</div></div>
-  </div>
-</div>
-<div class="watermark">Rillcod Technologies · ${docRef} · This is a computer-generated examination document.</div>
-</body></html>`;
-
-    const w = window.open('', '_blank', 'width=900,height=750');
-    if (!w) { alert('Pop-up blocked. Please allow pop-ups.'); return; }
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => w.print(), 600);
+    openCbtPrintWindow(buildCbtPrintHtml({
+      title: form.title || 'Computer-Based Test',
+      schoolName: 'Rillcod Technologies',
+      subtitle: [prog, course].filter(Boolean).join(' · ') || undefined,
+      description: form.description.trim() || undefined,
+      durationMinutes: parseInt(form.duration_minutes, 10) || 60,
+      passingScore: parseInt(form.passing_score, 10) || 70,
+      dateStr: new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' }),
+      docRef: `CBT-${Date.now().toString(36).toUpperCase()}`,
+      logoUrl: `${window.location.origin}/logo.png`,
+      mcqQuestions: mcq,
+      theoryQuestions: theory,
+      mode: 'staff',
+      examTypeLabel: printFilter === 'mcq' ? 'OBJECTIVE' : printFilter === 'theory' ? 'THEORY' : 'EXAMINATION',
+    }));
   };
 
   if (authLoading || profileLoading) return (
@@ -912,16 +713,27 @@ ${questionRows}
 
                 <div className="p-5 space-y-4">
 
-                <textarea rows={2} value={q.question_text}
+                <textarea rows={4} value={q.question_text}
                   onChange={e => updateQuestion(qi, { question_text: e.target.value })}
-                  placeholder="Enter question text…"
-                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-none" />
+                  placeholder="Enter question text… Use ```python for code blocks, or `inline code`"
+                  className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-emerald-500 transition-colors resize-y font-mono" />
+                {(q.question_text.includes('```') || q.question_text.includes('`')) && (
+                  <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">Preview</p>
+                    <CbtMarkdown text={q.question_text} className="text-sm" />
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs text-muted-foreground uppercase tracking-widest mb-1">Type</label>
                     <select value={q.question_type}
-                      onChange={e => updateQuestion(qi, { question_type: e.target.value, options: ['', '', '', ''], correct_answer: '', section: e.target.value === 'essay' ? 'subjective' : q.section })}
+                      onChange={e => updateQuestion(qi, {
+                        question_type: e.target.value,
+                        options: e.target.value === 'true_false' ? ['True', 'False'] : ['', '', '', ''],
+                        correct_answer: '',
+                        section: e.target.value === 'essay' ? 'subjective' : q.section,
+                      })}
                       className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-emerald-500 cursor-pointer">
                       <option value="multiple_choice">Multiple Choice</option>
                       <option value="true_false">True / False</option>

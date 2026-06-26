@@ -105,33 +105,46 @@ export async function fetchStudentAssignments(portalUserId: string) {
         .order('submitted_at', { ascending: false });
     if (error) throw error;
 
-    // 2. Find enrolled program IDs
-    const { data: enr } = await client
-        .from('enrollments').select('program_id').eq('user_id', portalUserId);
-    const programIds = (enr ?? []).map((e: any) => e.program_id).filter(Boolean);
-    if (!programIds.length) return subs ?? [];
+    // 2. Resolve programme scope — enrollments plus the class programme.
+    const { data: studentProfile } = await client
+        .from('portal_users')
+        .select('class_id, school_id, school_name, section_class')
+        .eq('id', portalUserId)
+        .maybeSingle();
+    const { resolveStudentCbtScope, cbtExamVisibleToStudent } = await import('@/lib/cbt/visibility');
+    const cbtScope = await resolveStudentCbtScope(client, portalUserId, studentProfile?.class_id ?? null);
+    const programIds = Array.from(cbtScope.programIds);
 
     // 3. Find course IDs for those programs — exclude locked courses, EXCEPT
     // for our always-public flagship programmes (Young Innovator, Teen Developer)
     // which are exempt from the lock per product policy.
-    const { data: courseRows } = await client
-        .from('courses')
-        .select('id, is_locked, is_active, programs(name)')
-        .in('program_id', programIds);
+    let courseRows: any[] = [];
+    if (programIds.length > 0) {
+        const { data } = await client
+            .from('courses')
+            .select('id, is_locked, is_active, programs(name)')
+            .in('program_id', programIds);
+        courseRows = data ?? [];
+    }
     const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
-    const courseIds = (courseRows ?? [])
-        .filter((c: any) => isCourseVisibleToLearners(c))
-        .map((c: any) => c.id);
-    if (!courseIds.length) return subs ?? [];
+    const courseIds = programIds.length
+        ? (courseRows ?? [])
+            .filter((c: any) => isCourseVisibleToLearners(c))
+            .map((c: any) => c.id)
+        : [];
 
     // 4. Fetch all active assignments for enrolled courses
-    const { data: allAsgns } = await client
-        .from('assignments')
-        .select(`id, title, description, due_date, max_points, assignment_type,
+    let allAsgns: any[] = [];
+    if (courseIds.length > 0) {
+        const { data } = await client
+            .from('assignments')
+            .select(`id, title, description, due_date, max_points, assignment_type,
           courses ( title, programs ( name ) )`)
-        .in('course_id', courseIds)
-        .eq('is_active', true)
-        .order('due_date', { ascending: true });
+            .in('course_id', courseIds)
+            .eq('is_active', true)
+            .order('due_date', { ascending: true });
+        allAsgns = data ?? [];
+    }
 
     // 5. Add assignments not yet submitted as synthetic "missing" records
     const submittedIds = new Set((subs ?? []).map((s: any) => s.assignment_id ?? s.assignments?.id));
@@ -149,20 +162,28 @@ export async function fetchStudentAssignments(portalUserId: string) {
             assignments: a,
         }));
 
-    // 6. Fetch active CBT exams scoped to student's enrolled programs
+    // 6. Fetch active CBT exams visible to this student (class + programme scope)
     const now = new Date().toISOString();
     let cbtQuery = client
         .from('cbt_exams')
-        .select('id, title, description, duration_minutes, passing_score, end_date, program_id, course_id, courses(title, programs(name))')
+        .select('id, title, description, duration_minutes, passing_score, end_date, program_id, course_id, school_id, metadata, courses(title, programs(name))')
         .eq('is_active', true)
         .or(`start_date.is.null,start_date.lte.${now}`)
         .or(`end_date.is.null,end_date.gte.${now}`);
-    if (programIds.length > 0) {
-        cbtQuery = (cbtQuery as any).or(`program_id.in.(${programIds.join(',')}),program_id.is.null`);
-    } else {
-        cbtQuery = (cbtQuery as any).is('program_id', null);
+    if (studentProfile?.school_id) {
+        cbtQuery = (cbtQuery as any).or(`school_id.eq.${studentProfile.school_id},school_id.is.null`);
     }
-    const { data: cbtExams } = await cbtQuery;
+    const { data: rawCbtExams } = await cbtQuery;
+    const studentScope = {
+        id: portalUserId,
+        school_id: studentProfile?.school_id ?? null,
+        school_name: studentProfile?.school_name ?? null,
+        class_id: studentProfile?.class_id ?? null,
+        section_class: studentProfile?.section_class ?? null,
+    };
+    const cbtExams = (rawCbtExams ?? []).filter((exam: any) =>
+        cbtExamVisibleToStudent(exam, studentScope, cbtScope),
+    );
 
     // 7. Fetch student's CBT sessions to map attempt status
     const cbtExamIds = (cbtExams ?? []).map((e: any) => e.id);

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  cbtExamVisibleToStudent,
+  loadCbtStudentProfile,
+  resolveStudentCbtScope,
+} from '@/lib/cbt/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,7 +70,7 @@ export async function GET(
   // Fetch exam metadata first for access checks
   const { data: examMeta, error: metaErr } = await admin
     .from('cbt_exams')
-    .select('id, is_active, start_date, end_date, program_id, school_id, created_by')
+    .select('id, is_active, start_date, end_date, program_id, course_id, school_id, created_by, metadata')
     .eq('id', id)
     .maybeSingle();
 
@@ -85,18 +90,14 @@ export async function GET(
       return NextResponse.json({ error: 'This exam has ended' }, { status: 403 });
     }
 
-    // Verify student is enrolled in the exam's program (if scoped)
-    if (examMeta.program_id) {
-      const { data: enr } = await admin
-        .from('enrollments')
-        .select('id')
-        .eq('user_id', caller.id)
-        .eq('program_id', examMeta.program_id)
-        .in('status', ['active', 'enrolled', 'approved'])
-        .maybeSingle();
-      if (!enr) {
-        return NextResponse.json({ error: 'You are not enrolled in the program this exam belongs to' }, { status: 403 });
-      }
+    // Verify student can see this exam (class + programme scope).
+    const student = await loadCbtStudentProfile(admin, caller.id);
+    if (!student) {
+      return NextResponse.json({ error: 'Student profile not found' }, { status: 403 });
+    }
+    const scope = await resolveStudentCbtScope(admin, caller.id, student.class_id);
+    if (!cbtExamVisibleToStudent(examMeta, student, scope)) {
+      return NextResponse.json({ error: 'You do not have access to this exam' }, { status: 403 });
     }
   }
 

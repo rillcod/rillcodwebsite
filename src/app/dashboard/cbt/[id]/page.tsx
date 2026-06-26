@@ -11,21 +11,13 @@ import {
   XCircleIcon, UserGroupIcon, ChartBarIcon, PencilIcon, PrinterIcon,
   CheckIcon, XMarkIcon,
 } from '@/lib/icons';
-
-// Inline markdown renderer for UI display of question/option text
-function MarkdownText({ text, className }: { text: string; className?: string }) {
-  const html = (text ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    // code spans first (protect from bold/italic)
-    .replace(/`([^`\n]+)`/g, '<code class="font-mono text-[0.8em] bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-500/20">$1</code>')
-    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-black text-foreground">$1</strong>')
-    .replace(/__(.+?)__/g, '<strong class="font-black text-foreground">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/_(.+?)_/g, '<em>$1</em>')
-    .replace(/~~(.+?)~~/g, '<s class="opacity-50">$1</s>');
-  return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
-}
+import {
+  isObjectiveQuestion,
+  isTheoryQuestion,
+  buildCbtPrintHtml,
+  openCbtPrintWindow,
+} from '@/lib/cbt/print-utils';
+import CbtMarkdown from '@/components/cbt/CbtMarkdown';
 
 export default function ExamDetailPage() {
   const params = useParams() as { id?: string };
@@ -112,16 +104,17 @@ export default function ExamDetailPage() {
     const schoolName = profile?.school_name || 'RILLCOD TECHNOLOGIES';
     const logoUrl = window.location.origin + '/logo.png';
 
-    const allMcq  = questions.filter((q: any) =>  q.options && Array.isArray(q.options) && q.options.length > 0);
-    const allOpen = questions.filter((q: any) => !q.options || !Array.isArray(q.options) || q.options.length === 0);
+    const sorted = [...questions].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    const allMcq  = sorted.filter((q) => isObjectiveQuestion(q));
+    const allOpen = sorted.filter((q) => isTheoryQuestion(q));
 
-    // Apply count limits from print settings
-    const mcqLimit   = printMcqCount    ? Math.max(1, parseInt(printMcqCount,    10)) : undefined;
-    const theoryLimit = printTheoryCount ? Math.max(1, parseInt(printTheoryCount, 10)) : undefined;
+    // Optional count limits from print settings ('' = print all).
+    const mcqLimit    = printMcqCount.trim()    ? Math.max(1, parseInt(printMcqCount,    10)) : undefined;
+    const theoryLimit = printTheoryCount.trim() ? Math.max(1, parseInt(printTheoryCount, 10)) : undefined;
 
     const rawMcq  = filter === 'theory' ? [] : allMcq;
     const rawOpen = filter === 'mcq'    ? [] : allOpen;
-    const mcqQuestions  = mcqLimit   ? rawMcq.slice(0, mcqLimit)   : rawMcq;
+    const mcqQuestions  = mcqLimit    ? rawMcq.slice(0, mcqLimit)    : rawMcq;
     const openQuestions = theoryLimit ? rawOpen.slice(0, theoryLimit) : rawOpen;
 
     if (mcqQuestions.length === 0 && openQuestions.length === 0) {
@@ -129,365 +122,25 @@ export default function ExamDetailPage() {
       return;
     }
 
-    // Override duration / pass mark if set in print settings
-    const durationVal  = printDuration  ? parseInt(printDuration,  10) : exam.duration_minutes;
-    const passMarkVal  = printPassMark  ? parseInt(printPassMark,  10) : (exam.passing_score ?? 70);
-
-    const mcqPoints  = mcqQuestions.reduce((s: number, q: any)  => s + (q.points ?? 0), 0);
-    const openPoints = openQuestions.reduce((s: number, q: any) => s + (q.points ?? 0), 0);
+    const durationVal = printDuration ? parseInt(printDuration, 10) : exam.duration_minutes;
+    const passMarkVal = printPassMark ? parseInt(printPassMark, 10) : (exam.passing_score ?? 70);
     const examTypeLabel = filter === 'mcq' ? 'OBJECTIVE EXAMINATION' : filter === 'theory' ? 'THEORY EXAMINATION' : 'EXAMINATION';
 
-    // Lines per question type
-    const lineCount = (q: any) => q.question_type === 'essay' ? 12 : q.question_type === 'fill_blank' ? 4 : 8;
-
-    // Full markdown → HTML for print output
-    function mdToHtml(text: string): string {
-      const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      const codeBlocks: string[] = [];
-      const t = (text ?? '').replace(/```(\w*)\n?([\s\S]*?)```/g, (_m, lang, code) => {
-        const lbl = lang ? `<span style="font-size:7.5pt;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:2pt">${esc(lang)}</span>` : '';
-        codeBlocks.push(`<div style="margin:4pt 0;background:#1e1e2e;padding:7pt 9pt;border-left:3pt solid #7c3aed">${lbl}<pre style="margin:0;font-family:'Courier New',monospace;font-size:8.5pt;color:#cdd6f4;white-space:pre-wrap;word-break:break-all;line-height:1.5">${esc(code.trimEnd())}</pre></div>`);
-        return `\x00C${codeBlocks.length - 1}\x00`;
-      });
-      const lines = t.split('\n');
-      const out: string[] = [];
-      let i = 0;
-      while (i < lines.length) {
-        const ln = lines[i];
-        if (/^### /.test(ln)) { out.push(`<div style="font-size:9pt;font-weight:900;color:#4c1d95;margin:6pt 0 2pt;text-transform:uppercase;letter-spacing:0.5px">${inl(ln.slice(4))}</div>`); i++; continue; }
-        if (/^## /.test(ln))  { out.push(`<div style="font-size:10pt;font-weight:900;color:#4c1d95;margin:7pt 0 3pt;border-bottom:0.5pt solid #ddd6fe;padding-bottom:2pt">${inl(ln.slice(3))}</div>`); i++; continue; }
-        if (/^# /.test(ln))   { out.push(`<div style="font-size:11pt;font-weight:900;color:#4c1d95;margin:8pt 0 4pt">${inl(ln.slice(2))}</div>`); i++; continue; }
-        if (/^> /.test(ln)) {
-          const qs: string[] = [];
-          while (i < lines.length && /^> /.test(lines[i])) { qs.push(lines[i].slice(2)); i++; }
-          out.push(`<div style="border-left:2.5pt solid #7c3aed;background:#f5f3ff;padding:4pt 8pt;margin:4pt 0;font-size:9pt;color:#374151;font-style:italic">${inl(qs.join(' '))}</div>`);
-          continue;
-        }
-        if (/^---+$/.test(ln.trim())) { out.push(`<hr style="border:none;border-top:0.5pt solid #d1d5db;margin:5pt 0"/>`); i++; continue; }
-        if (/^[-*] /.test(ln)) {
-          const its: string[] = [];
-          while (i < lines.length && /^[-*] /.test(lines[i])) { its.push(lines[i].slice(2)); i++; }
-          out.push(`<ul style="margin:3pt 0 3pt 14pt;padding:0;list-style:disc">${its.map(it => `<li style="font-size:9.5pt;line-height:1.5;margin-bottom:1.5pt">${inl(it)}</li>`).join('')}</ul>`);
-          continue;
-        }
-        if (/^\d+\. /.test(ln)) {
-          const its: string[] = [];
-          while (i < lines.length && /^\d+\. /.test(lines[i])) { its.push(lines[i].replace(/^\d+\. /, '')); i++; }
-          out.push(`<ol style="margin:3pt 0 3pt 14pt;padding:0;list-style:decimal">${its.map(it => `<li style="font-size:9.5pt;line-height:1.5;margin-bottom:1.5pt">${inl(it)}</li>`).join('')}</ol>`);
-          continue;
-        }
-        if (/^\x00C\d+\x00$/.test(ln.trim())) {
-          const idx = parseInt(ln.trim().replace(/\x00C(\d+)\x00/, '$1'), 10);
-          out.push(codeBlocks[idx] ?? ''); i++; continue;
-        }
-        if (!ln.trim()) { out.push('<br/>'); i++; continue; }
-        const para: string[] = [];
-        while (i < lines.length && lines[i].trim() && !/^#{1,3} /.test(lines[i]) && !/^[-*] /.test(lines[i]) && !/^\d+\. /.test(lines[i]) && !/^> /.test(lines[i]) && !/^---+$/.test(lines[i].trim()) && !/^\x00C/.test(lines[i])) {
-          para.push(lines[i]); i++;
-        }
-        if (para.length) out.push(`<span style="font-size:10.5pt;line-height:1.6">${inl(para.join(' '))}</span>`);
-      }
-      return out.join('');
-      function inl(s: string): string {
-        return s
-          .replace(/\x00C(\d+)\x00/g, (_, idx) => codeBlocks[parseInt(idx, 10)] ?? '')
-          .replace(/`([^`\n]+)`/g, '<code style="font-family:\'Courier New\',monospace;font-size:8.5pt;background:#f0f0f8;color:#4c1d95;padding:0.5pt 3pt;border:0.5pt solid #ddd6fe">$1</code>')
-          .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-          .replace(/__(.+?)__/g, '<strong>$1</strong>')
-          .replace(/\*(.+?)\*/g, '<em>$1</em>')
-          .replace(/_(.+?)_/g, '<em>$1</em>')
-          .replace(/~~(.+?)~~/g, '<s>$1</s>')
-          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-      }
-    }
-
-    const renderQuestion = (q: any, globalNum: number) => {
-      const isMCQ    = q.options && Array.isArray(q.options) && q.options.length > 0;
-      const isCorrect = (opt: string) => mode === 'staff' && opt === q.correct_answer;
-      return `
-      <div class="q-block">
-        <div class="q-header">
-          <span class="q-num">${globalNum}.</span>
-          <div class="q-text">${mdToHtml(q.question_text)}</div>
-          <span class="q-pts">${q.points ?? 1} mark${(q.points ?? 1) !== 1 ? 's' : ''}</span>
-        </div>
-        ${isMCQ ? `
-        <div class="options">
-          ${(q.options as string[]).map((opt: string, oi: number) => `
-          <div class="opt ${isCorrect(opt) ? 'correct' : ''}">
-            <span class="bubble">${String.fromCharCode(65 + oi)}</span>
-            <span class="opt-text">${mdToHtml(opt)}</span>
-            ${isCorrect(opt) ? '<span class="tick">✓</span>' : ''}
-          </div>`).join('')}
-        </div>` : `
-        <div class="ans-block">
-          ${Array.from({ length: lineCount(q) }).map(() => '<div class="ans-line"></div>').join('')}
-        </div>`}
-      </div>`;
-    };
-
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<title>${exam.title}</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Times New Roman', Georgia, serif; background: #fff; color: #000; font-size: 11.5pt; }
-  @page { size: A4 portrait; margin: 15mm 18mm 14mm; }
-  .page { width: 100%; }
-
-  /* ══ OFFICIAL HEADER ══ */
-  .official-hdr { display: flex; align-items: center; gap: 14pt; padding-bottom: 10pt; border-bottom: 3pt double #000; margin-bottom: 5pt; }
-  .hdr-logo { width: 52pt; height: 52pt; object-fit: contain; flex-shrink: 0; }
-  .hdr-org { flex: 1; text-align: center; }
-  .hdr-school { font-size: 13pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; line-height: 1.2; }
-  .hdr-brand  { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #444; margin-top: 2pt; }
-  .hdr-web    { font-size: 7.5pt; color: #888; margin-top: 1pt; }
-  .hdr-type   { background: #000; color: #fff; padding: 5pt 10pt; font-size: 7.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; text-align: center; flex-shrink: 0; align-self: flex-start; margin-top: 4pt; }
-
-  /* ══ EXAM TITLE BAND ══ */
-  .title-band { text-align: center; margin: 8pt 0; }
-  .exam-title { font-size: 15pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
-  .exam-sub   { font-size: 9pt; color: #555; margin-top: 3pt; }
-
-  /* ══ META GRID ══ */
-  .meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); border: 1pt solid #000; margin: 8pt 0; }
-  .meta-cell { padding: 5pt 6pt; border-right: 1pt solid #aaa; text-align: center; }
-  .meta-cell:last-child { border-right: none; }
-  .meta-label { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #666; display: block; margin-bottom: 2pt; }
-  .meta-val   { font-size: 10pt; font-weight: 700; display: block; }
-
-  /* ══ STUDENT INFO BOX ══ */
-  .stu-box { display: grid; grid-template-columns: 2.5fr 1fr 1fr 1fr; border: 1.5pt solid #000; margin: 8pt 0; }
-  .stu-field { padding: 6pt 8pt 4pt; border-right: 1pt solid #888; }
-  .stu-field:last-child { border-right: none; }
-  .stu-label { font-size: 7pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #555; display: block; margin-bottom: 5pt; }
-  .stu-line  { border-bottom: 1pt solid #333; height: 13pt; }
-
-  /* ══ INSTRUCTIONS ══ */
-  .instructions { background: #f5f5f5; border: 1pt solid #ccc; border-left: 4pt solid #000; padding: 7pt 10pt; margin: 8pt 0 12pt; font-size: 9.5pt; line-height: 1.6; }
-  .instructions b { font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; }
-
-  /* ══ SECTION HEADER ══ */
-  .section-hdr { display: flex; align-items: center; gap: 8pt; margin: 14pt 0 10pt; }
-  .s-rule  { flex: 1; border-top: 1.5pt solid #000; }
-  .s-title { font-size: 9.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; white-space: nowrap; padding: 0 8pt; border: 1pt solid #000; }
-  .s-pts   { font-size: 8.5pt; color: #444; font-weight: 700; white-space: nowrap; }
-
-  /* ══ QUESTIONS ══ */
-  .q-block  { margin-bottom: 18pt; page-break-inside: avoid; }
-  .q-header { display: flex; gap: 8pt; align-items: flex-start; margin-bottom: 6pt; }
-  .q-num    { font-size: 11pt; font-weight: 900; min-width: 22pt; flex-shrink: 0; padding-top: 1pt; }
-  .q-text   { flex: 1; font-size: 11.5pt; line-height: 1.6; }
-  .q-pts    { font-size: 8pt; font-weight: 700; color: #555; white-space: nowrap; flex-shrink: 0; font-style: italic; padding-top: 3pt; }
-
-  /* MCQ options — 2-column grid */
-  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 5pt 20pt; margin: 4pt 0 0 30pt; }
-  .opt     { display: flex; align-items: flex-start; gap: 6pt; font-size: 10.5pt; line-height: 1.45; padding: 2pt 0; }
-  .opt.correct { font-weight: 700; }
-  .bubble  { display: inline-flex; align-items: center; justify-content: center; width: 15pt; height: 15pt; border: 1.2pt solid #000; border-radius: 50%; font-size: 8.5pt; font-weight: 900; flex-shrink: 0; margin-top: 0.5pt; }
-  .opt.correct .bubble { background: #000; color: #fff; }
-  .opt-text { flex: 1; }
-  .tick    { font-size: 9pt; font-weight: 900; margin-left: 3pt; }
-
-  /* Theory answer lines — generous spacing */
-  .ans-block { margin: 4pt 0 0 30pt; }
-  .ans-line  { border-bottom: 0.8pt solid #bbb; height: 24pt; margin-bottom: 1pt; }
-
-  /* ══ SCORE BOX (bottom of student page) ══ */
-  .score-box { border: 1.5pt solid #000; display: flex; margin-top: 20pt; page-break-inside: avoid; }
-  .score-cell { flex: 1; padding: 6pt 10pt; border-right: 1pt solid #aaa; text-align: center; }
-  .score-cell:last-child { border-right: none; }
-  .score-label { font-size: 7pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #666; display: block; margin-bottom: 8pt; }
-  .score-space { height: 16pt; border-bottom: 1pt solid #333; }
-
-  /* ══ PAGE FOOTER ══ */
-  .page-footer { margin-top: 14pt; border-top: 0.75pt solid #ccc; padding-top: 5pt; display: flex; justify-content: space-between; font-size: 7.5pt; color: #777; font-style: italic; }
-
-  /* ══ ANSWER KEY PAGE ══ */
-  .ak-page { page-break-before: always; }
-  .ak-official { display: flex; align-items: center; gap: 10pt; border-bottom: 3pt double #000; padding-bottom: 8pt; margin-bottom: 12pt; }
-  .ak-logo { width: 38pt; height: 38pt; object-fit: contain; }
-  .ak-org  { flex: 1; }
-  .ak-school { font-size: 11pt; font-weight: 900; text-transform: uppercase; }
-  .ak-brand  { font-size: 7pt; text-transform: uppercase; letter-spacing: 2px; color: #555; margin-top: 1pt; }
-  .ak-badge  { background: #000; color: #fff; padding: 4pt 10pt; font-size: 7pt; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
-  .ak-exam-title { font-size: 13pt; font-weight: 900; text-transform: uppercase; text-align: center; margin: 8pt 0 4pt; letter-spacing: 1px; }
-  .ak-sub { text-align: center; font-size: 8pt; color: #c00; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14pt; }
-
-  .ak-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5pt; margin-bottom: 18pt; }
-  .ak-cell { border: 1pt solid #ccc; padding: 5pt; text-align: center; }
-  .ak-qn   { font-size: 7pt; color: #888; font-weight: 900; text-transform: uppercase; }
-  .ak-ans  { font-size: 11pt; font-weight: 900; margin-top: 2pt; }
-
-  .ak-open-title { font-size: 8.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10pt; border-bottom: 1pt solid #ddd; padding-bottom: 4pt; }
-  .ak-item { margin-bottom: 14pt; page-break-inside: avoid; padding-left: 10pt; border-left: 2pt solid #ddd; }
-  .ak-q    { font-size: 10.5pt; font-weight: 700; margin-bottom: 4pt; }
-  .ak-a    { font-size: 10pt; color: #222; line-height: 1.6; }
-  .ak-a-label { font-size: 7pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 2pt; }
-
-  .sig-row { display: flex; gap: 20pt; margin-top: 24pt; }
-  .sig-block { flex: 1; border-top: 1pt solid #333; padding-top: 4pt; }
-  .sig-label { font-size: 7.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #555; }
-
-  .score-tbl { width: 100%; border-collapse: collapse; margin-top: 18pt; font-size: 10pt; }
-  .score-tbl th, .score-tbl td { border: 1pt solid #aaa; padding: 6pt 10pt; text-align: left; }
-  .score-tbl th { background: #f0f0f0; font-weight: 900; font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; }
-
-  @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .q-block  { page-break-inside: avoid; }
-    .ak-item  { page-break-inside: avoid; }
-    .ak-page  { page-break-before: always; }
-  }
-</style>
-</head>
-<body>
-<div class="page">
-
-  <!-- ══ OFFICIAL HEADER ══ -->
-  <div class="official-hdr">
-    <img src="${logoUrl}" class="hdr-logo" onerror="this.style.display='none'" />
-    <div class="hdr-org">
-      <div class="hdr-school">${schoolName}</div>
-      <div class="hdr-brand">Rillcod Technologies · Coding &amp; STEM Academy</div>
-      <div class="hdr-web">www.rillcod.com</div>
-    </div>
-    <div class="hdr-type">${examTypeLabel}</div>
-  </div>
-
-  <!-- ══ EXAM TITLE ══ -->
-  <div class="title-band">
-    <div class="exam-title">${exam.title}</div>
-    ${exam.programs?.name || exam.courses?.title ? `<div class="exam-sub">${[exam.programs?.name, exam.courses?.title].filter(Boolean).join(' · ')}</div>` : ''}
-  </div>
-
-  <!-- ══ META GRID ══ -->
-  <div class="meta-grid">
-    <div class="meta-cell"><span class="meta-label">Duration</span><span class="meta-val">${durationVal ? durationVal + ' min' : '—'}</span></div>
-    <div class="meta-cell"><span class="meta-label">Total Marks</span><span class="meta-val">${mcqPoints + openPoints}</span></div>
-    <div class="meta-cell"><span class="meta-label">Pass Mark</span><span class="meta-val">${passMarkVal}%</span></div>
-    <div class="meta-cell"><span class="meta-label">Questions</span><span class="meta-val">${mcqQuestions.length + openQuestions.length}</span></div>
-    <div class="meta-cell"><span class="meta-label">Date</span><span class="meta-val">${today}</span></div>
-  </div>
-
-  <!-- ══ STUDENT INFO BOX ══ -->
-  <div class="stu-box">
-    <div class="stu-field"><span class="stu-label">Student Full Name</span><div class="stu-line"></div></div>
-    <div class="stu-field"><span class="stu-label">Class / Grade</span><div class="stu-line"></div></div>
-    <div class="stu-field"><span class="stu-label">Admission No.</span><div class="stu-line"></div></div>
-    <div class="stu-field"><span class="stu-label">Score / Marks</span><div class="stu-line"></div></div>
-  </div>
-
-  <!-- ══ INSTRUCTIONS ══ -->
-  <div class="instructions">
-    <b>Instructions to Candidates:</b>&nbsp;
-    ${exam.description ? exam.description + ' ' : ''}
-    Answer <u>ALL</u> questions.${mcqQuestions.length > 0 ? ' For objective questions, <strong>circle</strong> the letter of the correct answer — do <em>not</em> tick or underline.' : ''}${openQuestions.length > 0 ? ' Write your answers legibly in the spaces provided. Use a blue or black biro.' : ''} No unauthorised materials. Mobile phones must be switched off.
-  </div>
-
-  <!-- ══ SECTION A: MCQ ══ -->
-  ${mcqQuestions.length > 0 ? `
-  <div class="section-hdr">
-    <div class="s-rule"></div>
-    <span class="s-title">Section A — Objective Questions</span>
-    <span class="s-pts">[${mcqPoints} marks]</span>
-    <div class="s-rule"></div>
-  </div>
-  ${mcqQuestions.map((q: any, i: number) => renderQuestion(q, i + 1)).join('')}
-  ` : ''}
-
-  <!-- ══ SECTION B: THEORY ══ -->
-  ${openQuestions.length > 0 ? `
-  <div class="section-hdr">
-    <div class="s-rule"></div>
-    <span class="s-title">Section B — Theory Questions</span>
-    <span class="s-pts">[${openPoints} marks]</span>
-    <div class="s-rule"></div>
-  </div>
-  ${openQuestions.map((q: any, i: number) => renderQuestion(q, mcqQuestions.length + i + 1)).join('')}
-  ` : ''}
-
-  <!-- ══ SCORE BOX ══ -->
-  <div class="score-box">
-    ${mcqQuestions.length > 0 ? `<div class="score-cell"><span class="score-label">Section A Score</span><div class="score-space"></div></div>` : ''}
-    ${openQuestions.length > 0 ? `<div class="score-cell"><span class="score-label">Section B Score</span><div class="score-space"></div></div>` : ''}
-    <div class="score-cell"><span class="score-label">Total Score</span><div class="score-space"></div></div>
-    <div class="score-cell"><span class="score-label">Examiner's Signature</span><div class="score-space"></div></div>
-  </div>
-
-  <!-- ══ FOOTER ══ -->
-  <div class="page-footer">
-    <span>${schoolName} · ${examTypeLabel} · ${today}</span>
-    <span>www.rillcod.com</span>
-  </div>
-</div>
-
-${mode === 'staff' ? `
-<!-- ══════════════ ANSWER KEY / MARKING SCHEME ══════════════ -->
-<div class="page ak-page">
-  <div class="ak-official">
-    <img src="${logoUrl}" class="ak-logo" onerror="this.style.display='none'" />
-    <div class="ak-org">
-      <div class="ak-school">${schoolName}</div>
-      <div class="ak-brand">Rillcod Technologies · Coding &amp; STEM Academy</div>
-    </div>
-    <div class="ak-badge">Marking Scheme — Staff Only</div>
-  </div>
-  <div class="ak-exam-title">${exam.title}</div>
-  <div class="ak-sub">Confidential — Do Not Distribute to Students</div>
-
-  ${mcqQuestions.length > 0 ? `
-  <div class="ak-open-title">Section A — Objective Answer Key</div>
-  <div class="ak-grid">
-    ${mcqQuestions.map((q: any, i: number) => `
-    <div class="ak-cell">
-      <div class="ak-qn">Q${i + 1}</div>
-      <div class="ak-ans">${q.correct_answer ?? '—'}</div>
-    </div>`).join('')}
-  </div>` : ''}
-
-  ${openQuestions.length > 0 ? `
-  <div class="ak-open-title">Section B — Theory Model Answers</div>
-  ${openQuestions.map((q: any, i: number) => `
-  <div class="ak-item">
-    <div class="ak-q">${mcqQuestions.length + i + 1}. ${mdToHtml(q.question_text)}</div>
-    <div class="ak-a-label">Expected Answer / Marking Guide:</div>
-    <div class="ak-a">${q.correct_answer ? mdToHtml(q.correct_answer) : '<em style="color:#aaa">No model answer provided</em>'}</div>
-  </div>`).join('')}` : ''}
-
-  <table class="score-tbl">
-    <thead>
-      <tr><th>Section</th><th>Questions</th><th>Max Marks</th><th>Score Obtained</th><th>Remarks</th></tr>
-    </thead>
-    <tbody>
-      ${mcqQuestions.length > 0 ? `<tr><td>Section A — Objective</td><td>${mcqQuestions.length}</td><td>${mcqPoints}</td><td></td><td></td></tr>` : ''}
-      ${openQuestions.length > 0 ? `<tr><td>Section B — Theory</td><td>${openQuestions.length}</td><td>${openPoints}</td><td></td><td></td></tr>` : ''}
-      <tr><td><strong>TOTAL</strong></td><td><strong>${mcqQuestions.length + openQuestions.length}</strong></td><td><strong>${totalPoints}</strong></td><td></td><td></td></tr>
-    </tbody>
-  </table>
-
-  <div class="sig-row">
-    <div class="sig-block"><span class="sig-label">Examiner's Signature &amp; Date</span></div>
-    <div class="sig-block"><span class="sig-label">Co-ordinator's Signature &amp; Date</span></div>
-    <div class="sig-block"><span class="sig-label">Head of Department</span></div>
-  </div>
-
-  <div class="page-footer">
-    <span>${schoolName} — Marking Scheme</span>
-    <span>Staff Copy · ${today}</span>
-  </div>
-</div>
-` : ''}
-
-<script>window.onload = () => { window.print(); }</script>
-</body>
-</html>`;
-    const win = window.open('', '_blank');
-    win?.document.write(html);
-    win?.document.close();
+    openCbtPrintWindow(buildCbtPrintHtml({
+      title: exam.title,
+      schoolName,
+      subtitle: [exam.programs?.name, exam.courses?.title].filter(Boolean).join(' · ') || undefined,
+      description: exam.description?.trim() || undefined,
+      durationMinutes: durationVal || 60,
+      passingScore: passMarkVal,
+      dateStr: today,
+      docRef: `CBT-${exam.id?.slice(0, 8) ?? 'EXAM'}`,
+      logoUrl,
+      mcqQuestions,
+      theoryQuestions: openQuestions,
+      mode,
+      examTypeLabel,
+    }));
   };
 
   return (
@@ -551,11 +204,11 @@ ${mode === 'staff' ? `
                               <div>
                                 <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                                   Obj / MCQ
-                                  <span className="text-primary/60 ml-1 normal-case font-normal">({questions.filter((q:any) => q.options?.length > 0).length} avail)</span>
+                                  <span className="text-primary/60 ml-1 normal-case font-normal">({questions.filter((q: any) => isObjectiveQuestion(q)).length} avail)</span>
                                 </label>
                                 <input
                                   type="number" min="1"
-                                  max={questions.filter((q:any) => q.options?.length > 0).length}
+                                  max={questions.filter((q: any) => isObjectiveQuestion(q)).length}
                                   value={printMcqCount}
                                   onChange={e => setPrintMcqCount(e.target.value)}
                                   placeholder="All"
@@ -567,11 +220,11 @@ ${mode === 'staff' ? `
                               <div>
                                 <label className="block text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                                   Theory
-                                  <span className="text-primary/60 ml-1 normal-case font-normal">({questions.filter((q:any) => !q.options?.length).length} avail)</span>
+                                  <span className="text-primary/60 ml-1 normal-case font-normal">({questions.filter((q: any) => isTheoryQuestion(q)).length} avail)</span>
                                 </label>
                                 <input
                                   type="number" min="1"
-                                  max={questions.filter((q:any) => !q.options?.length).length}
+                                  max={questions.filter((q: any) => isTheoryQuestion(q)).length}
                                   value={printTheoryCount}
                                   onChange={e => setPrintTheoryCount(e.target.value)}
                                   placeholder="All"
@@ -764,7 +417,7 @@ ${mode === 'staff' ? `
                           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-0.5 flex-shrink-0">
                             Q{i + 1}
                           </span>
-                          <MarkdownText text={q.question_text} className="text-sm text-foreground leading-relaxed" />
+                          <CbtMarkdown text={q.question_text} className="text-sm text-foreground leading-relaxed" />
                         </div>
                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                           <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border rounded-xl ${badgeCls}`}>
@@ -904,12 +557,12 @@ ${mode === 'staff' ? `
                   <div className="flex items-start gap-3">
                     <span className="text-xs font-bold text-muted-foreground w-6 flex-shrink-0 pt-0.5">{i + 1}.</span>
                     <div className="flex-1">
-                      <MarkdownText text={q.question_text} className="text-sm text-foreground" />
+                      <CbtMarkdown text={q.question_text} className="text-sm text-foreground" />
                       {q.options && Array.isArray(q.options) && (
                         <div className="mt-2 space-y-1">
                           {q.options.map((opt: string, oi: number) => (
                             <p key={oi} className={`text-xs px-2 py-1 rounded ${opt === q.correct_answer ? 'bg-emerald-500/10 text-emerald-400' : 'text-muted-foreground'}`}>
-                              {String.fromCharCode(65 + oi)}. <MarkdownText text={opt} />
+                              {String.fromCharCode(65 + oi)}. <CbtMarkdown text={opt} className="inline" />
                             </p>
                           ))}
                         </div>

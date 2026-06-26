@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  cbtExamVisibleToStudent,
+  loadCbtStudentProfile,
+  resolveStudentCbtScope,
+} from '@/lib/cbt/visibility';
 
 function adminClient() {
   return createClient(
@@ -48,12 +53,22 @@ export async function POST(request: NextRequest) {
     // (Querying cbt_sessions for the deadline was dead code — no session exists yet.)
     const { data: examRow } = await admin
       .from('cbt_exams')
-      .select('duration_minutes, end_date, is_active')
+      .select('duration_minutes, end_date, is_active, program_id, course_id, school_id, metadata')
       .eq('id', exam_id)
       .single();
 
     if (!examRow || !examRow.is_active) {
       return NextResponse.json({ error: 'Exam not found or is no longer active' }, { status: 404 });
+    }
+
+    // Students must be allowed to take this exam (class / programme scope).
+    if (caller.role === 'student') {
+      const student = await loadCbtStudentProfile(admin, caller.id);
+      if (!student) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      const scope = await resolveStudentCbtScope(admin, caller.id, student.class_id);
+      if (!cbtExamVisibleToStudent(examRow, student, scope)) {
+        return NextResponse.json({ error: 'You do not have access to this exam' }, { status: 403 });
+      }
     }
 
     // Check exam window closed

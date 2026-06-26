@@ -8,6 +8,8 @@ import {
   ClockIcon, CheckCircleIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon,
   CodeBracketIcon, SparklesIcon
 } from '@/lib/icons';
+import CbtMarkdown from '@/components/cbt/CbtMarkdown';
+import { isObjectiveQuestion, normalizeCbtOptions } from '@/lib/cbt/print-utils';
 
 function CodingBlocksChallenge({
   question,
@@ -366,6 +368,8 @@ export default function TakeExamPage() {
   const q = questions[current];
   const progress = ((current + 1) / questions.length) * 100;
   const answered = Object.keys(answers).length;
+  const mcqOptions = q ? normalizeCbtOptions(q.options, q.question_type) : [];
+  const showMcq = q && isObjectiveQuestion(q) && mcqOptions.length > 0 && q.question_type !== 'true_false';
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-emerald-500/30">
@@ -404,27 +408,27 @@ export default function TakeExamPage() {
                 <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-black text-emerald-400 tracking-widest uppercase">Question {current + 1}</span>
                 <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{q?.points} Points</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
-                {q?.question_text}
-              </h1>
+              <div className="text-2xl sm:text-3xl font-bold text-foreground leading-tight">
+                <CbtMarkdown text={q?.question_text ?? ''} />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 pt-4">
-              {q?.question_type === 'multiple_choice' && Array.isArray(q.options) && (
+              {showMcq && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {q.options.filter((o: string) => o.trim()).map((opt: string, oi: number) => (
+                  {mcqOptions.map((opt: string, oi: number) => (
                     <button key={oi} type="button"
                       onClick={() => setAnswers(a => ({ ...a, [q.id]: opt }))}
-                      className={`group relative flex items-center gap-5 p-5 rounded-[1.5rem] border-2 transition-all duration-300 ${answers[q.id] === opt
+                      className={`group relative flex items-start gap-5 p-5 rounded-[1.5rem] border-2 transition-all duration-300 text-left ${answers[q.id] === opt
                         ? 'bg-emerald-500/10 border-emerald-500/50 scale-[1.02]'
                         : 'bg-muted/20 border-border hover:bg-muted hover:border-border'
                         }`}>
-                      <div className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-xs font-black transition-all ${answers[q.id] === opt ? 'bg-emerald-500 border-emerald-500 text-foreground rotate-6' : 'bg-card shadow-sm border-border text-muted-foreground'}`}>
+                      <div className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center text-xs font-black transition-all flex-shrink-0 ${answers[q.id] === opt ? 'bg-emerald-500 border-emerald-500 text-foreground rotate-6' : 'bg-card shadow-sm border-border text-muted-foreground'}`}>
                         {String.fromCharCode(65 + oi)}
                       </div>
-                      <span className={`text-base font-medium transition-colors ${answers[q.id] === opt ? 'text-foreground' : 'text-muted-foreground group-hover:text-muted-foreground'}`}>
-                        {opt}
-                      </span>
+                      <div className={`text-base font-medium transition-colors flex-1 min-w-0 ${answers[q.id] === opt ? 'text-foreground' : 'text-muted-foreground group-hover:text-muted-foreground'}`}>
+                        <CbtMarkdown text={opt} className="text-base" />
+                      </div>
                     </button>
                   ))}
                 </div>

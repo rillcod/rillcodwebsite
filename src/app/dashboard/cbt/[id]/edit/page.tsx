@@ -162,7 +162,9 @@ export default function EditExamPage() {
                     id: q._new ? undefined : q.id,
                     question_text: q.question_text.trim(),
                     question_type: q.question_type,
-                    options: q.question_type === 'multiple_choice' ? q.options.filter((o: string) => o.trim()) : null,
+                    options: ['multiple_choice', 'true_false'].includes(q.question_type)
+                      ? q.options.filter((o: string) => o.trim())
+                      : null,
                     correct_answer: q.correct_answer.trim(),
                     points: q.points,
                     order_index: q.order_index ?? i + 1,

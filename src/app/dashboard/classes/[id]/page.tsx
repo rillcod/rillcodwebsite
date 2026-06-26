@@ -1169,7 +1169,7 @@ export default function ClassDetailPage() {
                     <span className="text-xs text-muted-foreground">({items.cbt.length})</span>
                   </div>
                   {isStaff && (
-                    <Link href="/dashboard/cbt/new" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
+                    <Link href={`/dashboard/cbt/new?class_id=${id}${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-xs font-bold transition-colors">
                       <PlusIcon className="w-3.5 h-3.5 text-amber-400" /> New Exam
                     </Link>
                   )}
@@ -1420,7 +1420,7 @@ export default function ClassDetailPage() {
                 {([
                   { label: 'Take Attendance', desc: 'Mark roll call', icon: CheckCircleIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
                   { label: 'Add Lesson', desc: 'Add curriculum content', icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', action: () => router.push(`/dashboard/lessons/add?class_id=${id}`) },
-                  { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/cbt/new?class_id=${id}`) },
+                  { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/cbt/new?class_id=${id}${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`) },
                   { label: 'Grade Submissions', desc: 'Review student work', icon: ChartBarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', action: () => setActiveTab('gradebook') },
                 ] as const).map(btn => (
                   <button key={btn.label} onClick={btn.action}
