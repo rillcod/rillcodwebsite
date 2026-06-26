@@ -2050,16 +2050,29 @@ export default function ResponsesPage() {
                     <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : studentOptions.length === 0 ? (
-                  <div className="text-center py-5 space-y-2">
+                  <div className="text-center py-5 space-y-3">
                     <p className="text-xs text-muted-foreground">
                       {allStudentOptions.length === 0
-                        ? `No student accounts in this school yet for ${displayName}.`
+                        ? `No existing account found for ${displayName}.`
                         : `No student matches “${studentSearch}”.`}
                     </p>
-                    <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                      If <strong>{displayName}</strong> doesn’t have an account yet, close this and use
-                      <strong> “+ Portal Account”</strong> on the lead — it creates the student and links them automatically.
+                    <p className="text-[10px] text-muted-foreground/70 leading-relaxed px-2">
+                      <strong>{displayName}</strong> doesn’t have an account yet. Create one now — it makes the
+                      student login and links them to this parent automatically.
                     </p>
+                    <button
+                      disabled={!!creatingPortalId}
+                      onClick={async () => {
+                        const theLead = leads.find(l => l.id === linkChildLeadId);
+                        const pn = ((theLead?.response_data as Record<string, unknown>)?.parent_name as string) || 'Parent/Guardian';
+                        setLinkChildLeadId(null);
+                        await createPortalAccount(linkChildLeadId, pn);
+                        await load();
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-xs font-black rounded-xl transition-colors disabled:opacity-50"
+                    >
+                      {creatingPortalId ? 'Creating…' : `➕ Create account for ${displayName.split(' ').slice(0, 2).join(' ')}`}
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-1.5 max-h-60 overflow-y-auto">
