@@ -5,6 +5,7 @@ import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { canAccessSchool } from '@/lib/auth/school-scope';
+import { cascadeDeleteLead } from '@/lib/admin/cascade-delete';
 
 export const dynamic = 'force-dynamic';
 
@@ -183,4 +184,42 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   }
 
   return NextResponse.json({ data });
+}
+
+// DELETE /api/consent-forms/leads/[leadId] — staff: HARD CASCADE delete a junk /
+// discarded / duplicate lead AND every account uniquely created from it (matched/
+// child students + the parent), leaving genuinely shared records intact.
+export async function DELETE(_req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
+  const { leadId } = await context.params;
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('role, school_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const { data: leadCheck } = await (supabase as any)
+    .from('form_leads')
+    .select('id, school_id')
+    .eq('id', leadId)
+    .single();
+
+  if (!leadCheck) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!(await canAccessSchool(user.id, profile, leadCheck.school_id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  // Service-role client so the cascade isn't blocked by RLS.
+  const result = await cascadeDeleteLead(adminClient() as any, leadId);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
+
+  return NextResponse.json({ ok: true, deletedStudents: result.deletedStudents, parentDeleted: result.parentDeleted });
 }

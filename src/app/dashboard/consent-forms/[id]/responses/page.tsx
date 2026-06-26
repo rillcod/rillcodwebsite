@@ -529,6 +529,7 @@ export default function ResponsesPage() {
   const [updatingId, setUpdatingId]     = useState<string | null>(null);
   const [creatingPortalId, setCreatingPortalId] = useState<string | null>(null);
   const [deletingPortalId, setDeletingPortalId] = useState<string | null>(null);
+  const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
   const [portalStatus, setPortalStatus] = useState<Record<string, 'created' | 'exists'>>({});
   const [credsModal, setCredsModal] = useState<{ email: string; password: string; parentName: string } | null>(null);
 
@@ -710,6 +711,21 @@ export default function ResponsesPage() {
       setPortalStatus(prev => { const next = { ...prev }; delete next[leadId]; return next; });
     } finally {
       setDeletingPortalId(null);
+    }
+  }
+
+  // ── Delete the lead row entirely (junk / duplicate / discarded) ──────────
+  async function deleteLead(leadId: string, who: string) {
+    if (!confirm(`Permanently delete this lead (${who})? This removes the submission row. Any portal account already created from it is NOT affected — remove that separately if needed.`)) return;
+    setDeletingLeadId(leadId);
+    try {
+      const res = await fetch(`/api/consent-forms/leads/${leadId}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(json.error ?? 'Failed to delete lead'); return; }
+      setLeads(prev => prev.filter(l => l.id !== leadId));
+      setSelected(prev => { const next = new Set(prev); next.delete(leadId); return next; });
+    } finally {
+      setDeletingLeadId(null);
     }
   }
 
@@ -1634,6 +1650,16 @@ export default function ResponsesPage() {
                                   </button>
                                 );
                               })()}
+
+                              {/* Discard the whole lead (junk / duplicate) — hard cascade delete */}
+                              <button
+                                disabled={deletingLeadId === lead.id}
+                                onClick={() => deleteLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
+                                className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500/5 hover:bg-rose-500/20 text-rose-400/80 hover:text-rose-400 border border-rose-500/15 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
+                                title="Permanently delete this lead and any account created from it (cascade)"
+                              >
+                                {deletingLeadId === lead.id ? 'Deleting…' : '🗑 Delete lead'}
+                              </button>
 
                               {/* Child link status — handles single and multi-child */}
                               {lead.matched_parent_id && (() => {

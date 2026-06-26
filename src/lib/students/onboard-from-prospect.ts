@@ -66,6 +66,42 @@ async function findAuthUserId(admin: AnySupabase, email: string): Promise<string
   return data?.users?.find((u) => u.email?.trim().toLowerCase() === email)?.id ?? null;
 }
 
+const nameTokens = (n: string | null | undefined): Set<string> =>
+  new Set((n || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((t) => t.length > 1));
+
+/**
+ * DUPLICATE GATE: catch a same-school student whose name is a token subset/superset
+ * of this one (e.g. "Paul Aladhe" ↔ "Paul Aladhe Eseoghene", "Odigie Lux" ↔ "Odigie
+ * Lux Osatohamwen") even when the parent email differs. Requires ≥2 fully-shared name
+ * tokens in the SAME school, so siblings (different first names) and unrelated children
+ * never collapse together. When found, onboarding REUSES that account instead of
+ * creating a second one — the new (often fuller) name is adopted as the bio.
+ */
+async function findDuplicateStudentByName(
+  admin: AnySupabase, schoolId: string | null | undefined, fullName: string,
+): Promise<{ rowId: string; userId: string | null; studentEmail: string | null; schoolId: string | null; schoolName: string | null } | null> {
+  if (!schoolId) return null;
+  const target = nameTokens(fullName);
+  if (target.size < 2) return null;
+  const { data } = await admin
+    .from('students')
+    .select('id, user_id, student_email, full_name, school_id, school_name')
+    .eq('school_id', schoolId)
+    .neq('is_deleted', true);
+  for (const s of (data ?? []) as Array<{ id: string; user_id: string | null; student_email: string | null; full_name: string | null; school_id: string | null; school_name: string | null }>) {
+    const other = nameTokens(s.full_name);
+    if (other.size < 2) continue;
+    const smaller = target.size <= other.size ? target : other;
+    const larger = target.size <= other.size ? other : target;
+    let shared = 0;
+    for (const t of smaller) if (larger.has(t)) shared++;
+    if (shared === smaller.size && shared >= 2) {
+      return { rowId: s.id, userId: s.user_id, studentEmail: s.student_email, schoolId: s.school_id, schoolName: s.school_name };
+    }
+  }
+  return null;
+}
+
 export async function onboardStudentFromProspect(
   admin: AnySupabase,
   prospect: ProspectChild,
@@ -112,6 +148,20 @@ export async function onboardStudentFromProspect(
       priorSchoolName = prior.school_name ?? null;
     }
   }
+  // DUPLICATE GATE — no exact parent+name match: catch a same-school name-variant
+  // duplicate (different/typo parent email) so a second consent form for the same
+  // child reuses the account instead of creating a twin.
+  if (!priorRowId) {
+    const dup = await findDuplicateStudentByName(admin, prospect.school_id, fullNameTrimmed);
+    if (dup) {
+      priorRowId = dup.rowId;
+      priorUserId = dup.userId;
+      priorStudentEmail = (dup.studentEmail || '').trim().toLowerCase();
+      priorSchoolId = priorSchoolId ?? dup.schoolId;
+      priorSchoolName = priorSchoolName ?? dup.schoolName;
+    }
+  }
+
   // Retain the existing student's class/school from their PORTAL account (the
   // authoritative source for placement — students has no class_id).
   if (priorUserId) {

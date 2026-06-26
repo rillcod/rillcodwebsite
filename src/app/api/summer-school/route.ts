@@ -211,12 +211,16 @@ export async function POST(req: NextRequest) {
     const supabase = getSummerSchoolAdminClient();
     const studentNameTrimmed = student_name.trim();
 
-    // Duplicate guard — scoped to THIS child (parent_email + name) so a parent can
-    // still register siblings. Already paid/active → blocked (already enrolled);
-    // partially paid → sent to "pay balance"; in-progress unpaid/pending → blocked
-    // only within 24h so an abandoned attempt can be retried later.
+    // Duplicate guard — scoped to THIS child so a parent can still register siblings.
+    // Matched by parent EMAIL *or* parent PHONE + child name, so a typo'd/changed email
+    // (e.g. "ausiat1@gmail.coom" vs the real address) can't create a twin row.
+    // Already paid/active → blocked (already enrolled); partially paid → "pay balance";
+    // in-progress unpaid/pending → blocked only within 24h so an abandoned attempt retries.
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: childRegs } = await supabase
+    const phoneDigits = (parent_phone || '').replace(/\D/g, '');
+    const phoneTail = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '';
+
+    const { data: byEmail } = await supabase
       .from('prospective_students')
       .select('id, status, created_at')
       .eq('parent_email', emailNorm)
@@ -224,6 +228,23 @@ export async function POST(req: NextRequest) {
       .ilike('course_interest', '%Summer School%')
       .in('status', ['unpaid', 'pending_verification', 'partially_paid', 'paid', 'active'])
       .order('created_at', { ascending: false });
+
+    let byPhone: any[] = [];
+    if (phoneTail) {
+      const { data } = await supabase
+        .from('prospective_students')
+        .select('id, status, created_at, parent_phone')
+        .ilike('full_name', studentNameTrimmed)
+        .ilike('course_interest', '%Summer School%')
+        .ilike('parent_phone', `%${phoneTail}%`)
+        .in('status', ['unpaid', 'pending_verification', 'partially_paid', 'paid', 'active']);
+      byPhone = data ?? [];
+    }
+    // Union by id, newest first.
+    const seenIds = new Set<string>();
+    const childRegs = [...(byEmail ?? []), ...byPhone]
+      .filter((r: any) => (seenIds.has(r.id) ? false : (seenIds.add(r.id), true)))
+      .sort((a: any, b: any) => (b.created_at > a.created_at ? 1 : -1));
 
     const settled    = (childRegs ?? []).find((r: any) => ['paid', 'active'].includes(r.status));
     const owing      = (childRegs ?? []).find((r: any) => r.status === 'partially_paid');
@@ -261,6 +282,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // One unpaid entry per child: if an older (>24h) unpaid/pending attempt exists,
+    // reuse and refresh it instead of inserting a duplicate, so the queue stays clean
+    // and professional. A new transaction is only created once payment completes.
+    const reusable = (childRegs ?? []).find((r: any) =>
+      ['unpaid', 'pending_verification'].includes(r.status));
+
     // Sibling detection on backend
     let hasSibling = false;
     const { count: studentCount } = await supabase
@@ -285,31 +312,39 @@ export async function POST(req: NextRequest) {
       notesStr = `${notesStr} [Parental Consent: Yes] [WhatsApp Opt-in: ${whatsapp_consent === true ? 'Yes' : 'No'}]`.trim();
     }
 
-    const { data: prospect, error: prospectErr } = await supabase
-      .from('prospective_students')
-      .insert({
-        full_name: student_name,
-        email: emailNorm,
-        parent_name,
-        parent_phone,
-        parent_email: emailNorm,
-        grade: current_class || null,
-        school_id: null,
-        school_name: school || 'Direct / Summer School',
-        age: age || null,
-        gender: gender || null,
-        course_interest: courseInterest,
-        preferred_schedule: preferred_mode || null,
-        hear_about_us: hear_about_us || null,
-        notes: notesStr || null,
-        status: initialStatus,
-        is_active: false,
-        is_deleted: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
+    const prospectPayload = {
+      full_name: student_name,
+      email: emailNorm,
+      parent_name,
+      parent_phone,
+      parent_email: emailNorm,
+      grade: current_class || null,
+      school_id: null,
+      school_name: school || 'Direct / Summer School',
+      age: age || null,
+      gender: gender || null,
+      course_interest: courseInterest,
+      preferred_schedule: preferred_mode || null,
+      hear_about_us: hear_about_us || null,
+      notes: notesStr || null,
+      status: initialStatus,
+      is_active: false,
+      is_deleted: false,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: prospect, error: prospectErr } = reusable
+      ? await supabase
+          .from('prospective_students')
+          .update(prospectPayload)
+          .eq('id', reusable.id)
+          .select('id')
+          .single()
+      : await supabase
+          .from('prospective_students')
+          .insert({ ...prospectPayload, created_at: new Date().toISOString() })
+          .select('id')
+          .single();
 
     if (prospectErr || !prospect) {
       console.error('Summer school registration db error:', prospectErr);

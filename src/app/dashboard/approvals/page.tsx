@@ -100,6 +100,15 @@ export default function ApprovalsPage() {
         parent?: { email: string; password?: string | null } | null;
     } | null>(null);
 
+    // Manual (offline / physical) payment → admit flow
+    const [payModal, setPayModal] = useState<any | null>(null);
+    const [payAmount, setPayAmount] = useState('');
+    const [payMethod, setPayMethod] = useState('cash');
+    const [payRef, setPayRef] = useState('');
+    const [payFile, setPayFile] = useState<File | null>(null);
+    const [paying, setPaying] = useState(false);
+    const [removing, setRemoving] = useState<string | null>(null);
+
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
 
     useEffect(() => {
@@ -200,6 +209,85 @@ export default function ApprovalsPage() {
             setActingError(e.message ?? 'Action failed. Please try again.');
         } finally {
             setActing(null);
+        }
+    };
+
+    // Record a PHYSICAL/offline payment (upload evidence) and admit the student in one step.
+    const recordManualPayment = async () => {
+        if (!payModal) return;
+        if (!payFile) { toast.error('Upload the payment evidence (receipt / screenshot) first.'); return; }
+        const amt = Number(payAmount);
+        if (!Number.isFinite(amt) || amt <= 0) { toast.error('Enter a valid payment amount.'); return; }
+        setPaying(true);
+        try {
+            // 1. Upload the evidence to R2.
+            const fd = new FormData();
+            fd.append('file', payFile);
+            const upRes = await fetch('/api/files/upload', { method: 'POST', body: fd });
+            const upJson = await upRes.json();
+            if (!upRes.ok || !upJson.success) throw new Error(upJson.error || upJson.message || 'Evidence upload failed');
+            const evidenceUrl = upJson.data?.public_url;
+            if (!evidenceUrl) throw new Error('Upload did not return a file URL — try again.');
+
+            // 2. Record payment + admit.
+            const res = await fetch('/api/summer-school/manual-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prospectId: payModal.id, amount: amt, method: payMethod, reference: payRef.trim(), evidenceUrl }),
+            });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Failed to record payment');
+
+            setProspective(prev => prev.filter(p => p.id !== payModal.id));
+            setCredentials({
+                email: json.studentLogin || '',
+                password: json.studentPassword || '',
+                name: payModal.full_name ?? 'Summer Student',
+                student: json.studentLogin ? { email: json.studentLogin, password: json.studentPassword } : null,
+                parent: json.parentLogin ? { email: json.parentLogin, password: json.parentPassword } : null,
+            });
+            toast.success(json.message || 'Payment recorded and student admitted.');
+            setPayModal(null); setPayAmount(''); setPayRef(''); setPayFile(null); setPayMethod('cash');
+        } catch (e: any) {
+            toast.error(e.message || 'Failed to record payment.');
+        } finally {
+            setPaying(false);
+        }
+    };
+
+    // Full CRUD removal of an unwanted / duplicate / failed entry.
+    // Summer prospects → HARD CASCADE delete (row + any account it created).
+    // Pending students/schools (no account yet) → soft retire from the queue.
+    const removeEntry = async (kind: 'students' | 'schools' | 'prospective', id: string, label: string) => {
+        const hard = kind === 'prospective';
+        const msg = hard
+            ? `Permanently delete "${label}"? This removes the applicant AND any student/parent account created from it. This cannot be undone.`
+            : `Remove "${label}" from the queue? This hides the entry — an admin can restore it from the database if needed.`;
+        if (!confirm(msg)) return;
+        setRemoving(id); setActingError(null);
+        try {
+            if (hard) {
+                const res = await fetch(`/api/summer-school/prospect/${id}`, { method: 'DELETE' });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(json.error || 'Delete failed');
+                setProspective(prev => prev.filter(s => s.id !== id));
+                toast.success(json.deletedStudent ? 'Applicant + account deleted.' : 'Applicant deleted.');
+            } else {
+                const supabase = createClient();
+                const table = kind === 'students' ? 'students' : 'schools';
+                const { error } = await supabase
+                    .from(table)
+                    .update({ is_deleted: true, is_active: false, updated_at: new Date().toISOString() })
+                    .eq('id', id);
+                if (error) throw new Error(error.message);
+                if (kind === 'students') setStudents(prev => prev.filter(s => s.id !== id));
+                else setSchools(prev => prev.filter(s => s.id !== id));
+                toast.success('Entry removed from the queue.');
+            }
+        } catch (e: any) {
+            setActingError(`Could not remove entry: ${e.message}`);
+        } finally {
+            setRemoving(null);
         }
     };
 
@@ -399,6 +487,11 @@ export default function ApprovalsPage() {
                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <XCircleIcon className="w-4 h-4" /> Reject
                                             </button>
+                                            <button onClick={() => removeEntry('students', s.id, s.full_name ?? 'this student')} disabled={removing === s.id}
+                                                title="Remove a duplicate / failed / unwanted entry"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50 border border-border hover:border-rose-500/30">
+                                                {removing === s.id ? '…' : '🗑'}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -458,6 +551,11 @@ export default function ApprovalsPage() {
                                             <button onClick={() => handleSchool(s.id, 'rejected')} disabled={acting === s.id}
                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50">
                                                 <XCircleIcon className="w-4 h-4" /> Reject
+                                            </button>
+                                            <button onClick={() => removeEntry('schools', s.id, s.name ?? 'this school')} disabled={removing === s.id}
+                                                title="Remove a duplicate / failed / unwanted entry"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground hover:text-rose-400 text-xs font-bold rounded-xl transition-all disabled:opacity-50 border border-border hover:border-rose-500/30">
+                                                {removing === s.id ? '…' : '🗑'}
                                             </button>
                                         </div>
                                     </div>
@@ -559,6 +657,79 @@ export default function ApprovalsPage() {
                          </div>
                      </div>
                  )}
+
+                {/* ── Manual payment modal — upload offline proof and admit an unpaid applicant ── */}
+                {payModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+                        <div className="bg-[#141618] border border-border rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4 my-8">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">💵</span>
+                                <div>
+                                    <p className="font-extrabold text-foreground">Record Payment &amp; Admit</p>
+                                    <p className="text-xs text-muted-foreground">{payModal.full_name}{payModal.parent_email ? ` · ${payModal.parent_email}` : ''}</p>
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                For a student who paid <span className="font-bold text-foreground">physically / by bank transfer</span> (not online).
+                                Upload the proof, enter the amount, and the student is admitted with login credentials created automatically.
+                            </p>
+
+                            <div className="space-y-3">
+                                {/* Evidence upload */}
+                                <div>
+                                    <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Payment Evidence <span className="text-rose-400">*</span></label>
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                                        onChange={(e) => setPayFile(e.target.files?.[0] ?? null)}
+                                        className="block w-full text-xs text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-violet-600 file:text-white hover:file:bg-violet-700 cursor-pointer bg-black/20 border border-border rounded-xl p-2"
+                                    />
+                                    {payFile && <p className="text-[11px] text-emerald-400 mt-1 font-medium truncate">✓ {payFile.name} ({(payFile.size / 1024).toFixed(0)} KB)</p>}
+                                    <p className="text-[10px] text-muted-foreground mt-1">Receipt, bank alert or transfer screenshot — JPEG, PNG, WebP or PDF (max 10 MB).</p>
+                                </div>
+                                {/* Amount */}
+                                <div>
+                                    <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Amount Paid (₦) <span className="text-rose-400">*</span></label>
+                                    <input
+                                        type="number" min="0" inputMode="decimal" value={payAmount}
+                                        onChange={(e) => setPayAmount(e.target.value)} placeholder="e.g. 25000"
+                                        className="w-full px-4 py-2.5 bg-black/20 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500"
+                                    />
+                                </div>
+                                {/* Method + reference */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Method</label>
+                                        <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
+                                            className="w-full px-3 py-2.5 bg-black/20 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                                            <option value="cash">Cash</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
+                                            <option value="pos">POS</option>
+                                            <option value="cheque">Cheque</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Reference</label>
+                                        <input type="text" value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="Optional"
+                                            className="w-full px-3 py-2.5 bg-black/20 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 justify-end pt-2">
+                                <button onClick={() => { if (!paying) { setPayModal(null); } }} disabled={paying}
+                                    className="px-4 py-2 bg-muted hover:bg-muted/80 border border-border text-foreground rounded-xl text-xs font-semibold transition-all disabled:opacity-50">
+                                    Cancel
+                                </button>
+                                <button onClick={recordManualPayment} disabled={paying}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-2">
+                                    {paying ? 'Processing…' : 'Confirm Payment & Admit'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Prospective list */}
                 {tab === 'prospective' && prospective.length > 0 && (
@@ -708,16 +879,28 @@ export default function ApprovalsPage() {
                                                 )}
                                             </div>
 
-                                            {/* Right Column: Actions (Approve/Reject) */}
+                                            {/* Right Column: Actions (Approve / Record Payment / Reject) */}
                                             <div className="flex lg:flex-col gap-2 w-full lg:w-auto flex-shrink-0 self-stretch justify-end lg:justify-start pt-2">
                                                 <button onClick={() => handleProspective(s.id, 'approved')} disabled={acting === s.id || s.status === 'unpaid'}
-                                                    title={s.status === 'unpaid' ? 'Applicant has not completed Paystack checkout' : undefined}
-                                                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full lg:w-32 shadow-sm border border-emerald-500/20">
+                                                    title={s.status === 'unpaid' ? 'Applicant has not paid online — use “Record Payment & Admit” to admit with offline proof' : undefined}
+                                                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full lg:w-44 shadow-sm border border-emerald-500/20">
                                                     <CheckCircleIcon className="w-4 h-4" /> Approve
                                                 </button>
+                                                {s.status === 'unpaid' && (
+                                                    <button onClick={() => { setPayModal(s); setPayAmount(''); setPayRef(''); setPayFile(null); setPayMethod('cash'); }} disabled={acting === s.id}
+                                                        title="Upload proof of a physical / bank payment and admit this student"
+                                                        className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-44 shadow-sm border border-amber-500/30">
+                                                        💵 Record Payment &amp; Admit
+                                                    </button>
+                                                )}
                                                 <button onClick={() => handleProspective(s.id, 'rejected')} disabled={acting === s.id}
-                                                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-32 shadow-sm border border-rose-500/20">
+                                                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-foreground text-xs font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-44 shadow-sm border border-rose-500/20">
                                                     <XCircleIcon className="w-4 h-4" /> Reject
+                                                </button>
+                                                <button onClick={() => removeEntry('prospective', s.id, s.full_name ?? 'this applicant')} disabled={removing === s.id}
+                                                    title="Remove a duplicate / failed / unwanted entry from the queue"
+                                                    className="flex items-center justify-center gap-1.5 px-4 py-2 text-muted-foreground hover:text-rose-400 text-[11px] font-bold rounded-xl transition-all disabled:opacity-50 w-full lg:w-44 border border-border hover:border-rose-500/30">
+                                                    {removing === s.id ? 'Removing…' : '🗑 Remove entry'}
                                                 </button>
                                             </div>
                                         </div>
