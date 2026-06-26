@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError, ValidationError } from '@/lib/errors';
 import { mediaService } from './media.service';
-import { r2Upload, r2Delete } from '@/lib/r2/client';
+import { r2Upload, r2Delete, r2Exists } from '@/lib/r2/client';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? '';
 function proxyUrl(storagePath: string) {
@@ -72,29 +72,37 @@ export class FilesService {
 
             if (existingFiles && existingFiles.length > 0) {
                 const existing = existingFiles[0];
-                const { data: copyData, error: copyErr } = await supabase
-                    .from('files')
-                    .insert([{
-                        school_id: tenantId,
-                        uploaded_by: uploaderId,
-                        filename: existing.filename,
-                        original_filename: file.name,
-                        file_type: existing.file_type,
-                        file_size: existing.file_size,
-                        mime_type: existing.mime_type,
-                        storage_path: existing.storage_path,
-                        storage_provider: 's3',
-                        is_virus_scanned: existing.is_virus_scanned,
-                        virus_scan_result: existing.virus_scan_result,
-                        metadata: { file_hash: fileHash, original_id: existing.id, is_duplicate: true },
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    }])
-                    .select()
-                    .single();
+                const existingPath = typeof existing.storage_path === 'string' ? existing.storage_path : '';
+                const objectStillExists = existingPath ? await r2Exists(existingPath) : false;
+                if (!objectStillExists) {
+                    // Metadata can outlive a purged lesson slide deck. In that case the
+                    // duplicate shortcut would return a dead key, so upload a fresh object.
+                } else {
+                    const { data: copyData, error: copyErr } = await supabase
+                        .from('files')
+                        .insert([{
+                            school_id: tenantId,
+                            uploaded_by: uploaderId,
+                            filename: existing.filename,
+                            original_filename: file.name,
+                            file_type: existing.file_type,
+                            file_size: existing.file_size,
+                            mime_type: existing.mime_type,
+                            storage_path: existingPath,
+                            storage_provider: existing.storage_provider ?? 'r2',
+                            public_url: existing.public_url ?? proxyUrl(existingPath),
+                            is_virus_scanned: existing.is_virus_scanned,
+                            virus_scan_result: existing.virus_scan_result,
+                            metadata: { file_hash: fileHash, original_id: existing.id, is_duplicate: true },
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        }])
+                        .select()
+                        .single();
 
-                if (copyErr) throw new AppError(`Failed to save file duplicate metadata: ${copyErr.message}`, 500);
-                return copyData;
+                    if (copyErr) throw new AppError(`Failed to save file duplicate metadata: ${copyErr.message}`, 500);
+                    return copyData;
+                }
             }
         }
 

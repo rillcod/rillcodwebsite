@@ -17,10 +17,35 @@ function deckKeys(fileUrl: string | null | undefined): string[] {
   } catch { return []; }
 }
 
-/** Best-effort R2 cleanup — never throws. */
-async function purgeKeys(keys: string[]): Promise<void> {
+function jsonStringContainsKey(fileUrl: string | null | undefined, key: string): boolean {
+  if (!fileUrl) return false;
+  try {
+    const parsed = JSON.parse(fileUrl);
+    if (typeof parsed?.pdf === 'string' && parsed.pdf === key) return true;
+    if (Array.isArray(parsed?.slides) && parsed.slides.includes(key)) return true;
+  } catch {
+    return fileUrl.includes(key);
+  }
+  return false;
+}
+
+async function keyIsUsedByAnotherDeck(admin: ReturnType<typeof adminClient>, key: string, excludeMaterialId: string): Promise<boolean> {
+  const { data } = await admin
+    .from('lesson_materials')
+    .select('id, file_url')
+    .eq('file_type', 'slide-deck')
+    .neq('id', excludeMaterialId)
+    .ilike('file_url', `%${key}%`);
+  return (data ?? []).some((row: any) => jsonStringContainsKey(row.file_url, key));
+}
+
+/** Best-effort R2 cleanup — never throws and never deletes a key another deck still uses. */
+async function purgeKeys(admin: ReturnType<typeof adminClient>, keys: string[], excludeMaterialId: string): Promise<void> {
   for (const k of keys) {
-    try { await r2Delete(k); } catch (e) { console.warn('[materials] R2 purge failed for', k, e); }
+    try {
+      if (await keyIsUsedByAnotherDeck(admin, k, excludeMaterialId)) continue;
+      await r2Delete(k);
+    } catch (e) { console.warn('[materials] R2 purge failed for', k, e); }
   }
 }
 
@@ -118,7 +143,7 @@ export async function PATCH(
     if ((material as any).file_type === 'slide-deck' && typeof body.file_url === 'string') {
       const oldKeys = deckKeys((material as any).file_url);
       const newKeys = new Set(deckKeys(body.file_url));
-      await purgeKeys(oldKeys.filter((k) => !newKeys.has(k)));
+      await purgeKeys(admin, oldKeys.filter((k) => !newKeys.has(k)), mid);
     }
 
     const { data, error } = await admin
@@ -171,7 +196,7 @@ export async function DELETE(
 
     // Clean up the deck's R2 objects so deleting a deck doesn't orphan storage.
     if ((material as any).file_type === 'slide-deck') {
-      await purgeKeys(deckKeys((material as any).file_url));
+      await purgeKeys(admin, deckKeys((material as any).file_url), mid);
     }
 
     return NextResponse.json({ success: true });

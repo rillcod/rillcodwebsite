@@ -22,7 +22,9 @@ async function uploadToKey(file: File): Promise<string> {
   const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
   const payload = await res.json();
   if (!res.ok) throw new Error(payload.error || 'Upload failed');
-  return String(payload.data.public_url || '').replace(/^.*\/api\/media\//, '');
+  const key = payload.data.storage_path || String(payload.data.public_url || '').replace(/^.*\/api\/media\//, '');
+  if (!key) throw new Error('Upload succeeded but no storage key was returned.');
+  return key;
 }
 
 /**

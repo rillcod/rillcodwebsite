@@ -2992,7 +2992,12 @@ export default function LessonDetailPage() {
 
   const handleDeleteResource = async (mid: string) => {
     if (!confirm('Remove this resource?')) return;
-    await fetch(`/api/lessons/${id}/materials/${mid}`, { method: 'DELETE' });
+    const res = await fetch(`/api/lessons/${id}/materials/${mid}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      alert(payload.error || 'Failed to remove this resource');
+      return;
+    }
     setMaterials(prev => prev.filter(m => m.id !== mid));
   };
 
@@ -3016,7 +3021,7 @@ export default function LessonDetailPage() {
         const payload = await up.json();
         if (!up.ok) throw new Error(payload.error || 'Upload failed');
         const publicUrl: string = payload.data.public_url || '';
-        const key = publicUrl.replace(/^.*\/api\/media\//, '');
+        const key = payload.data.storage_path || publicUrl.replace(/^.*\/api\/media\//, '');
         if (key) keys.push(key);
       }
       if (keys.length === 0) throw new Error('No slides uploaded');
@@ -3026,7 +3031,10 @@ export default function LessonDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: deckTitle.trim(), file_type: 'slide-deck', file_url: fileUrl }),
       });
-      if (!res.ok) throw new Error('Failed to save slides');
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.error || 'Failed to save slides');
+      }
       const { data } = await res.json();
       setMaterials(prev => [...prev, data]);
       setDeckTitle('');
