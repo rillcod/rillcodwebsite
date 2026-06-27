@@ -12,7 +12,7 @@ import {
     PrinterIcon, AcademicCapIcon, MagnifyingGlassIcon,
     TrophyIcon, DocumentTextIcon, PencilSquareIcon, CheckCircleIcon,
     ArrowDownTrayIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
-    TrashIcon, XMarkIcon
+    TrashIcon, XMarkIcon, CalendarIcon
 } from '@/lib/icons';
 
 function WhatsAppIcon({ className }: { className?: string }) {
@@ -50,6 +50,16 @@ const WAEC_TIERS = [
     { codes: ['E8'],         label: 'E8',    bar: 'from-primary/80  to-primary/40',  text: 'text-primary'  },
     { codes: ['F9'],         label: 'F9',    bar: 'from-rose-500/80    to-rose-400/40',    text: 'text-rose-400'    },
 ];
+
+const REPORT_TERMS = ['First Term', 'Second Term', 'Third Term', 'Annual'];
+function academicYearOptions() {
+    const now = new Date();
+    const start = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    return Array.from({ length: 6 }, (_, i) => {
+        const y = start - 2 + i;
+        return `${y}/${y + 1}`;
+    }).reverse();
+}
 
 function GradeDistribution({ students, reportsMap }: { students: PortalUser[], reportsMap: Record<string, any> }) {
     // Count per WAEC tier
@@ -146,6 +156,8 @@ function ResultsPageInner() {
     const [filterGrade, setFilterGrade] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'none'>('all');
     const [filterParentEmail, setFilterParentEmail] = useState<'all' | 'has' | 'missing'>('all');
+    const [periodDraft, setPeriodDraft] = useState({ year: academicYearOptions()[0] ?? '', term: '' });
+    const [confirmedPeriod, setConfirmedPeriod] = useState<{ year: string; term: string } | null>(null);
 
     // ── Multi-select ───────────────────────────────────────────────────────────
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -191,10 +203,22 @@ function ResultsPageInner() {
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
     // School partners can VIEW and PRINT but cannot create or edit reports
     const isEditor = profile?.role === 'admin' || profile?.role === 'teacher';
+    const staffPeriodReady = !isStaff || !!(confirmedPeriod?.year && confirmedPeriod?.term);
 
     // ── Data loading ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (authLoading || !profile) return;
+
+        // Staff must confirm a term/year first so the centre never mixes periods.
+        if (isStaff && !confirmedPeriod) {
+            setStudents([]);
+            setReportsMap({});
+            setSelectedStudent(null);
+            setSelectedReport(null);
+            setReportHistory([]);
+            setLoading(false);
+            return;
+        }
 
         // Reset stale state immediately so the UI shows spinner, not cached data
         setStudents([]);
@@ -418,8 +442,14 @@ function ResultsPageInner() {
                 const allReports: any[] = [];
                 await Promise.all(chunks.map(async (chunk) => {
                     let reportsQuery = db.from('student_progress_reports')
-                        .select('student_id, overall_grade, is_published, updated_at')
+                        .select('student_id, overall_grade, is_published, updated_at, report_term, report_period')
                         .in('student_id', chunk);
+
+                    if (confirmedPeriod) {
+                        reportsQuery = reportsQuery
+                            .eq('report_term', confirmedPeriod.term)
+                            .eq('report_period', confirmedPeriod.year) as typeof reportsQuery;
+                    }
 
                     if (profile?.role === 'teacher') {
                         reportsQuery = reportsQuery.eq('teacher_id', profile.id);
@@ -462,7 +492,7 @@ function ResultsPageInner() {
 
         loadStaffData().catch(() => { if (!aborted) setLoading(false); });
         return () => { aborted = true; };
-    }, [profile?.id, authLoading]); // eslint-disable-line
+    }, [profile?.id, authLoading, confirmedPeriod?.year, confirmedPeriod?.term]); // eslint-disable-line
 
     // ── Auto-print when ?autoprint=1 is in the URL ────────────────────────────
     const autoPrintFired = useRef(false);
@@ -495,6 +525,11 @@ function ResultsPageInner() {
             .eq('student_id', s.id)
             .order('is_published', { ascending: false })
             .order('updated_at', { ascending: false });
+        if (isStaff && confirmedPeriod) {
+            reportQuery = reportQuery
+                .eq('report_term', confirmedPeriod.term)
+                .eq('report_period', confirmedPeriod.year) as typeof reportQuery;
+        }
         if (profile?.role === 'teacher') reportQuery = reportQuery.eq('teacher_id', profile.id) as typeof reportQuery;
         const { data } = await withTimeout(
             reportQuery,
@@ -1222,7 +1257,7 @@ tbody tr:hover{background:#f3f4f6}
                             </span>
                         </div>
                         <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight">Student Progress Reports</h1>
-                        {isStaff && (
+                        {isStaff && staffPeriodReady && (
                             <div className="flex items-center gap-4 mt-2 flex-wrap">
                                 <span className="text-xs text-muted-foreground">{stats.total} students</span>
                                 <span className="flex items-center gap-1 text-xs text-emerald-400">
@@ -1235,6 +1270,57 @@ tbody tr:hover{background:#f3f4f6}
                         )}
                     </div>
 
+                    {isStaff && (
+                        <div className="w-full sm:w-auto bg-card border border-border rounded-2xl p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <CalendarIcon className="w-4 h-4 text-primary" />
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Academic Period Lock</p>
+                                    <p className="text-[11px] text-muted-foreground">Confirm year and term before viewing reports.</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+                                <select
+                                    value={periodDraft.year}
+                                    onChange={e => setPeriodDraft(p => ({ ...p, year: e.target.value }))}
+                                    className="px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
+                                >
+                                    <option value="">Academic Year</option>
+                                    {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                                <select
+                                    value={periodDraft.term}
+                                    onChange={e => setPeriodDraft(p => ({ ...p, term: e.target.value }))}
+                                    className="px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
+                                >
+                                    <option value="">Select Term</option>
+                                    {REPORT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                                <button
+                                    onClick={() => {
+                                        if (!periodDraft.year || !periodDraft.term) return;
+                                        setConfirmedPeriod({ year: periodDraft.year, term: periodDraft.term });
+                                        setSelectedIds(new Set());
+                                    }}
+                                    disabled={!periodDraft.year || !periodDraft.term}
+                                    className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                            {confirmedPeriod ? (
+                                <p className="text-[11px] text-emerald-400 font-bold">
+                                    Showing only {confirmedPeriod.term} · {confirmedPeriod.year}
+                                </p>
+                            ) : (
+                                <p className="text-[11px] text-amber-400 font-bold">
+                                    Reports, exports, printing, and email actions stay hidden until confirmed.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {(!isStaff || staffPeriodReady) && (
                     <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 flex-nowrap sm:flex-wrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {isEditor && (
                             <Link
@@ -1308,6 +1394,7 @@ tbody tr:hover{background:#f3f4f6}
                             </button>
                         )}
                     </div>
+                    )}
                 </div>
 
                 {/* ── Batch progress bar ── */}
@@ -1341,7 +1428,18 @@ tbody tr:hover{background:#f3f4f6}
                     </div>
                 )}
 
+                {isStaff && !staffPeriodReady && (
+                    <div className="bg-card border border-dashed border-border rounded-3xl p-8 sm:p-12 text-center">
+                        <AcademicCapIcon className="w-14 h-14 mx-auto text-muted-foreground/40 mb-4" />
+                        <h2 className="text-lg font-black text-foreground">Confirm Academic Year And Term</h2>
+                        <p className="text-sm text-muted-foreground mt-2 max-w-xl mx-auto">
+                            Select the exact academic year and term above. The centre will then load only matching reports, so reports from other terms cannot mix into printing, export, or parent email workflows.
+                        </p>
+                    </div>
+                )}
+
                 {/* ── Main layout ── */}
+                {staffPeriodReady && (
                 <div className={isStaff ? 'flex flex-col lg:flex-row gap-5 items-start' : ''}>
                     
                     {/* ══ Sidebar — staff only ══ */}
@@ -1996,6 +2094,7 @@ tbody tr:hover{background:#f3f4f6}
                         )}
                     </div>
                 </div>
+                )}
             </div>
 
             {/* ══ Print view — branded letterhead + performance table (list only, no report selected) ══ */}

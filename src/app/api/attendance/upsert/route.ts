@@ -36,6 +36,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'records array required' }, { status: 400 });
     }
 
+    const validStatuses = new Set(['present', 'absent', 'late', 'excused']);
+    const invalidRecord = records.find(record => !record.session_id || !record.user_id || !validStatuses.has(record.status));
+    if (invalidRecord) {
+      return NextResponse.json({ error: 'Each record needs a session, student, and valid status' }, { status: 400 });
+    }
+
     const uniqueSessionIds = [...new Set(records.map(r => r.session_id).filter(Boolean))];
     const { data: sessionRows } = await admin
       .from('class_sessions')
@@ -80,6 +86,7 @@ export async function POST(request: NextRequest) {
         ...record,
         term_id: session.term_id ?? null,
         class_term_roster_id: roster?.id ?? null,
+        recorded_by: caller.id,
       };
     });
 

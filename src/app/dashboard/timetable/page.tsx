@@ -26,11 +26,22 @@ type Slot = {
   end_time: string; subject: string; teacher_id: string | null; teacher_name: string | null;
   room: string | null; notes: string | null; course_id: string | null;
 };
+type Program = { id: string; name: string };
+type Course = { id: string; title: string; program_id: string | null; programs?: { name: string } | null };
 
 const BLANK_SLOT = {
   day_of_week: 'Monday', start_time: '08:00', end_time: '09:00',
   subject: '', teacher_id: '', teacher_name: '', room: '', notes: '', course_id: '',
 };
+const TERMS = ['First Term', 'Second Term', 'Third Term', 'Annual'];
+function academicYearOptions() {
+  const now = new Date();
+  const start = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  return Array.from({ length: 6 }, (_, i) => {
+    const y = start - 2 + i;
+    return `${y}/${y + 1}`;
+  }).reverse();
+}
 
 function Badge({ text, color }: { text: string; color: string }) {
   return (
@@ -160,7 +171,7 @@ function SlotMenu({
 
 // ── Slot card ─────────────────────────────────────────────────────────────────
 function SlotCell({
-  slot, teachers, onEdit, onDelete, onReassign, onMove, canEdit, isCurrent,
+  slot, teachers, onEdit, onDelete, onReassign, onMove, canEdit, isCurrent, courseLabel, programLabel,
 }: {
   slot: Slot;
   teachers: { id: string; full_name: string | null }[];
@@ -170,6 +181,8 @@ function SlotCell({
   onMove: (slotId: string, day: string) => void;
   canEdit: boolean;
   isCurrent?: boolean;
+  courseLabel?: string | null;
+  programLabel?: string | null;
 }) {
   const isPractical = /lab|practical|coding|robotics/i.test(slot.subject);
   const isExam = /exam|test|quiz/i.test(slot.subject);
@@ -221,6 +234,12 @@ function SlotCell({
           📍 {slot.room}
         </p>
       )}
+      {(courseLabel || programLabel) && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {programLabel && <Badge text={programLabel} color="bg-primary/15 text-primary" />}
+          {courseLabel && <Badge text={courseLabel} color="bg-muted text-muted-foreground" />}
+        </div>
+      )}
       {isCurrent && (
         <p className="text-[9px] font-black text-emerald-400 mt-2 uppercase tracking-widest animate-pulse">Now Ongoing</p>
       )}
@@ -241,15 +260,24 @@ export default function TimetablePage() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [teachers, setTeachers] = useState<{ id: string; full_name: string | null }[]>([]);
   const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTimetable, setActiveTimetable] = useState<string | null>(null);
   const [mobileDay, setMobileDay] = useState(DAYS.includes(TODAY) ? TODAY : 'Monday');
+  const [scope, setScope] = useState({
+    academic_year: academicYearOptions()[0] ?? '',
+    term: 'First Term',
+    school_id: '',
+    section: '',
+    program_id: '',
+  });
 
   const [showTTForm, setShowTTForm] = useState(false);
   const [editingTT, setEditingTT] = useState<Timetable | null>(null);
   const [ttForm, setTTForm] = useState({
-    title: '', section: '', academic_year: '2025/2026', term: 'First Term',
+    title: '', section: '', academic_year: academicYearOptions()[0] ?? '', term: 'First Term',
     school_id: '', is_active: true,
   });
 
@@ -327,6 +355,10 @@ export default function TimetablePage() {
     
     // For students and school partners, default to their assigned school
     const defaultSchoolId = schoolIdParam || profile.school_id;
+    if (defaultSchoolId) setScope(s => ({ ...s, school_id: defaultSchoolId }));
+    if (!isAdmin && profile.school_id) {
+      setSchools([{ id: profile.school_id, name: (profile as any).school_name ?? 'Assigned School' }]);
+    }
     
     if (!isTeacher) loadTimetables(defaultSchoolId);
     
@@ -336,6 +368,13 @@ export default function TimetablePage() {
       db.from('schools').select('id, name').order('name')
         .then(({ data }) => setSchools((data ?? []) as { id: string; name: string }[]));
     }
+    Promise.all([
+      db.from('programs').select('id, name').order('name'),
+      db.from('courses').select('id, title, program_id, programs(name)').order('title'),
+    ]).then(([programRes, courseRes]) => {
+      setPrograms((programRes.data ?? []) as Program[]);
+      setCourses((courseRes.data ?? []) as unknown as Course[]);
+    });
   }, [profile?.id, authLoading, schoolIdParam, profile?.school_id, profile?.role]); // eslint-disable-line
 
   const handleSelectTT = async (id: string) => {
@@ -346,7 +385,14 @@ export default function TimetablePage() {
   // ── Timetable CRUD ────────────────────────────────────────────────────────
   const openNewTT = () => {
     setEditingTT(null);
-    setTTForm({ title: '', section: '', academic_year: '2025/2026', term: 'First Term', school_id: '', is_active: true });
+    setTTForm({
+      title: '',
+      section: scope.section,
+      academic_year: scope.academic_year,
+      term: scope.term,
+      school_id: scope.school_id,
+      is_active: true,
+    });
     setShowTTForm(true);
   };
   const openEditTT = (tt: Timetable) => {
@@ -355,7 +401,10 @@ export default function TimetablePage() {
     setShowTTForm(true);
   };
   const saveTT = async () => {
-    if (!ttForm.title.trim() || !ttForm.school_id) { setError('Title and School are required.'); return; }
+    if (!ttForm.title.trim() || !ttForm.school_id || !ttForm.academic_year || !ttForm.term) {
+      setError('Title, School, Academic Year, and Term are required.');
+      return;
+    }
     setSaving(true); setError(null);
     try {
       const payload = {
@@ -627,7 +676,7 @@ export default function TimetablePage() {
     if (!active) { alert('No timetable selected.'); return; }
     const win = window.open('', '_blank');
     if (!win) { alert('Pop-up blocked.'); return; }
-    win.document.write(buildTimetablePrint(active, slots));
+    win.document.write(buildTimetablePrint(active, visibleSlots));
     win.document.close();
     win.focus();
     setTimeout(() => win.print(), 600);
@@ -635,12 +684,17 @@ export default function TimetablePage() {
 
   // Admin: print ALL timetables in one document
   const handlePrintAll = async () => {
-    if (!isAdmin || timetables.length === 0) return;
+    if (!isAdmin || visibleTimetables.length === 0) return;
     // Fetch all slots for all timetables
     const { data: allSlots } = await anyDb.from('timetable_slots').select('*').order('start_time');
     const slotList = (allSlots ?? []) as Slot[];
-    const pages = timetables.map(tt => {
-      const ttSlots = slotList.filter(s => s.timetable_id === tt.id);
+    const pages = visibleTimetables.map(tt => {
+      const ttSlots = slotList.filter(s => {
+        if (s.timetable_id !== tt.id) return false;
+        if (!scope.program_id) return true;
+        const course = s.course_id ? courseById.get(s.course_id) : null;
+        return course?.program_id === scope.program_id;
+      });
       return buildTimetablePrint(tt, ttSlots);
     });
     // Merge all into one document with page breaks
@@ -667,12 +721,30 @@ export default function TimetablePage() {
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────
+  const programNameById = new Map(programs.map(p => [p.id, p.name]));
+  const courseById = new Map(courses.map(c => [c.id, c]));
+  const courseProgramName = (course?: Course | null) => {
+    if (!course) return null;
+    return course.programs?.name ?? (course.program_id ? programNameById.get(course.program_id) : null) ?? null;
+  };
+  const visibleTimetables = timetables.filter(tt => {
+    if (scope.school_id && tt.school_id !== scope.school_id) return false;
+    if (scope.academic_year && tt.academic_year !== scope.academic_year) return false;
+    if (scope.term && tt.term !== scope.term) return false;
+    if (scope.section && tt.section !== scope.section) return false;
+    return true;
+  });
+  const active = visibleTimetables.find(t => t.id === activeTimetable) ?? visibleTimetables[0] ?? null;
+  const visibleSlots = slots.filter(slot => {
+    if (!scope.program_id) return true;
+    const course = slot.course_id ? courseById.get(slot.course_id) : null;
+    return course?.program_id === scope.program_id;
+  });
   const slotsByDay: Record<string, Slot[]> = {};
   DAYS.forEach(d => {
-    slotsByDay[d] = slots.filter(s => s.day_of_week === d)
+    slotsByDay[d] = visibleSlots.filter(s => s.day_of_week === d)
       .sort((a, b) => a.start_time.localeCompare(b.start_time));
   });
-  const active = timetables.find(t => t.id === activeTimetable);
   const todaySlots = slotsByDay[TODAY] ?? [];
 
   // ── Teacher view: slots across all schools ────────────────────────────────
@@ -688,6 +760,21 @@ export default function TimetablePage() {
         setLoading(false);
       });
   }, [profile?.id, isTeacher]); // eslint-disable-line
+
+  useEffect(() => {
+    if (isTeacher) return;
+    if (!active?.id) {
+      if (activeTimetable) {
+        setActiveTimetable(null);
+        setSlots([]);
+      }
+      return;
+    }
+    if (active.id !== activeTimetable) {
+      setActiveTimetable(active.id);
+      loadSlots(active.id);
+    }
+  }, [active?.id, activeTimetable, isTeacher]); // eslint-disable-line
 
   const teacherTodaySlots = teacherSlots.filter(s => s.day_of_week === TODAY);
 
@@ -770,6 +857,72 @@ export default function TimetablePage() {
             )}
           </div>
         </div>
+
+        {!isTeacher && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Timetable Scope</p>
+                <p className="text-xs text-muted-foreground">
+                  Set the academic year, term, program/course focus, and school before editing or printing.
+                </p>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                {visibleTimetables.length} timetable{visibleTimetables.length !== 1 ? 's' : ''} in view
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              <select
+                value={scope.academic_year}
+                onChange={e => setScope(s => ({ ...s, academic_year: e.target.value }))}
+                className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
+              >
+                <option value="">All Years</option>
+                {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <select
+                value={scope.term}
+                onChange={e => setScope(s => ({ ...s, term: e.target.value }))}
+                className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
+              >
+                <option value="">All Terms</option>
+                {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <select
+                value={scope.school_id}
+                onChange={e => setScope(s => ({ ...s, school_id: e.target.value }))}
+                disabled={isStudent || isSchool}
+                className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary disabled:opacity-60"
+              >
+                <option value="">All Schools</option>
+                {schools.map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
+              </select>
+              <select
+                value={scope.section}
+                onChange={e => setScope(s => ({ ...s, section: e.target.value }))}
+                className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
+              >
+                <option value="">All Sections</option>
+                <option value="basic">Basic</option>
+                <option value="secondary">Secondary</option>
+                <option value="unified">Unified</option>
+              </select>
+              <select
+                value={scope.program_id}
+                onChange={e => setScope(s => ({ ...s, program_id: e.target.value }))}
+                className="px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
+              >
+                <option value="">All Programs</option>
+                {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            {scope.program_id && (
+              <p className="text-[11px] text-muted-foreground">
+                Program filter applies to slots linked to courses in {programNameById.get(scope.program_id) ?? 'the selected program'}.
+              </p>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-rose-400 text-sm flex items-center justify-between">
@@ -873,7 +1026,7 @@ export default function TimetablePage() {
         {!isTeacher && (
           <>
             {/* Today's highlight */}
-            {(isStudent || isSchool) && timetables.length > 0 && todaySlots.length > 0 && (
+            {(isStudent || isSchool) && visibleTimetables.length > 0 && todaySlots.length > 0 && (
               <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 flex items-center gap-4">
                 <BellAlertIcon className="w-5 h-5 text-primary flex-shrink-0" />
                 <div>
@@ -884,7 +1037,7 @@ export default function TimetablePage() {
             )}
 
             {/* Timetable tabs */}
-            {timetables.length > 0 && (
+            {visibleTimetables.length > 0 && (
               <div className="space-y-2">
                 {isAdmin && (
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -892,7 +1045,7 @@ export default function TimetablePage() {
                   </p>
                 )}
                 <div className="flex flex-wrap gap-3">
-                  {timetables.map(tt => (
+                  {visibleTimetables.map(tt => (
                     <div key={tt.id} role="button" tabIndex={0}
                       onClick={() => handleSelectTT(tt.id)}
                       onKeyDown={e => e.key === 'Enter' && handleSelectTT(tt.id)}
@@ -907,6 +1060,9 @@ export default function TimetablePage() {
                             {(tt as any).schools.name}
                           </p>
                         )}
+                        <p className={`text-[10px] truncate ${activeTimetable === tt.id ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {[tt.term, tt.academic_year].filter(Boolean).join(' · ') || 'No period set'}
+                        </p>
                       </div>
                       {tt.section && <Badge text={tt.section} color={activeTimetable === tt.id ? 'bg-muted text-foreground' : 'bg-muted text-muted-foreground'} />}
                       {!tt.is_active && <Badge text="Inactive" color="bg-rose-500/20 text-rose-400" />}
@@ -938,9 +1094,10 @@ export default function TimetablePage() {
                 {active.section && <span><span className="text-muted-foreground">Section:</span> <span className="text-muted-foreground">{active.section}</span></span>}
                 {active.term && <span><span className="text-muted-foreground">Term:</span> <span className="text-muted-foreground">{active.term}</span></span>}
                 {active.academic_year && <span><span className="text-muted-foreground">Year:</span> <span className="text-muted-foreground">{active.academic_year}</span></span>}
+                {scope.program_id && <span><span className="text-muted-foreground">Program:</span> <span className="text-muted-foreground">{programNameById.get(scope.program_id) ?? 'Selected program'}</span></span>}
                 <span className="flex items-center gap-1.5">
                   <UserGroupIcon className="w-3.5 h-3.5" />
-                  <span>{slots.length} slot{slots.length !== 1 ? 's' : ''}</span>
+                  <span>{visibleSlots.length} slot{visibleSlots.length !== 1 ? 's' : ''}</span>
                 </span>
                 {canEdit && (
                   <button onClick={() => openNewSlot()}
@@ -1027,6 +1184,7 @@ export default function TimetablePage() {
                             const start = h1 * 60 + m1;
                             const end = h2 * 60 + m2;
                             const isCurrent = day === currentDay && currentTime >= start && currentTime < end;
+                            const course = slot.course_id ? courseById.get(slot.course_id) : null;
 
                             return (
                               <SlotCell
@@ -1039,6 +1197,8 @@ export default function TimetablePage() {
                                 onMove={handleMove}
                                 canEdit={canEdit}
                                 isCurrent={isCurrent}
+                                courseLabel={course?.title ?? null}
+                                programLabel={courseProgramName(course)}
                               />
                             );
                           })}
@@ -1050,7 +1210,7 @@ export default function TimetablePage() {
               </div>
             )}
 
-            {timetables.length === 0 && (
+            {visibleTimetables.length === 0 && (
               <div className="text-center py-24 bg-card shadow-sm border border-border rounded-xl">
                 <CalendarDaysIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                 {isAdmin ? (
@@ -1079,8 +1239,8 @@ export default function TimetablePage() {
 
       {/* ── Timetable Form Modal ── */}
       {showTTForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-background border border-border rounded-xl p-6 space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-foreground/35 dark:bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-background border border-border rounded-t-3xl sm:rounded-xl p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="font-extrabold text-foreground">{editingTT ? 'Edit Timetable' : 'New Timetable'}</h2>
               <button onClick={() => setShowTTForm(false)} className="p-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted">
@@ -1105,11 +1265,11 @@ export default function TimetablePage() {
                   Timetable Title <span className="text-rose-400">*</span>
                 </label>
                 <input value={ttForm.title} onChange={e => setTTForm(s => ({ ...s, title: e.target.value }))}
-                  placeholder="e.g. 2025/2026 First Term — Primary"
+                  placeholder={`${ttForm.academic_year || 'Academic Year'} ${ttForm.term || 'Term'} — Class / Program`}
                   className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Section</label>
                   <select value={ttForm.section} onChange={e => setTTForm(s => ({ ...s, section: e.target.value }))}
@@ -1121,17 +1281,19 @@ export default function TimetablePage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Year <span className="text-rose-400">*</span></label>
                   <select value={ttForm.academic_year} onChange={e => setTTForm(s => ({ ...s, academic_year: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary">
-                    {['2024/2025', '2025/2026', '2026/2027'].map(y => <option key={y} value={y}>{y}</option>)}
+                    className={`w-full bg-card shadow-sm border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary ${!ttForm.academic_year ? 'border-rose-500/40' : 'border-border'}`}>
+                    <option value="">— Select year —</option>
+                    {academicYearOptions().map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Term <span className="text-rose-400">*</span></label>
                   <select value={ttForm.term} onChange={e => setTTForm(s => ({ ...s, term: e.target.value }))}
-                    className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary">
-                    {['First Term', 'Second Term', 'Third Term', 'Annual'].map(t => <option key={t} value={t}>{t}</option>)}
+                    className={`w-full bg-card shadow-sm border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary ${!ttForm.term ? 'border-rose-500/40' : 'border-border'}`}>
+                    <option value="">— Select term —</option>
+                    {TERMS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
@@ -1150,7 +1312,7 @@ export default function TimetablePage() {
 
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowTTForm(false)} className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
-              <button onClick={saveTT} disabled={saving || !ttForm.title.trim() || !ttForm.school_id}
+              <button onClick={saveTT} disabled={saving || !ttForm.title.trim() || !ttForm.school_id || !ttForm.academic_year || !ttForm.term}
                 className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground font-bold text-sm rounded-xl transition-all">
                 {saving ? <div className="w-4 h-4 border-2 border-border border-t-transparent rounded-full animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                 {editingTT ? 'Update' : 'Create'}
@@ -1162,14 +1324,14 @@ export default function TimetablePage() {
 
       {/* ── Slot Form Modal ── */}
       {showSlotForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-background border border-border rounded-xl p-6 space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-foreground/35 dark:bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto bg-background border border-border rounded-t-3xl sm:rounded-xl p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-extrabold text-foreground">{editingSlot ? 'Edit Slot' : 'Add Slot'}</h2>
                 {active && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {(active as any).schools?.name ?? 'Timetable'} · {active.section ?? 'All sections'}
+                    {[(active as any).schools?.name ?? 'Timetable', active.section ?? 'All sections', active.term, active.academic_year].filter(Boolean).join(' · ')}
                   </p>
                 )}
               </div>
@@ -1184,6 +1346,33 @@ export default function TimetablePage() {
                 <input value={slotForm.subject} onChange={e => setSlotForm(s => ({ ...s, subject: e.target.value }))}
                   placeholder="e.g. Python Programming"
                   className="w-full bg-card shadow-sm border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Program / Course Link</label>
+                <select
+                  value={slotForm.course_id}
+                  onChange={e => {
+                    const course = courses.find(c => c.id === e.target.value);
+                    setSlotForm(s => ({
+                      ...s,
+                      course_id: e.target.value,
+                      subject: s.subject || course?.title || '',
+                    }));
+                  }}
+                  className="w-full bg-card shadow-sm border border-border rounded-xl px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                >
+                  <option value="">— No linked course —</option>
+                  {courses
+                    .filter(c => !scope.program_id || c.program_id === scope.program_id)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>
+                        {[courseProgramName(c), c.title].filter(Boolean).join(' — ')}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-muted-foreground">
+                  Linking a course lets the program filter and reports read this slot correctly.
+                </p>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Day</label>

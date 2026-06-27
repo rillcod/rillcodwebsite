@@ -125,6 +125,12 @@ function AttendanceContent() {
     }
   }, [classIdFromQuery, isStaff]);
 
+  useEffect(() => {
+    if (isCanMark && !selectedClass && activeTab === 'log') {
+      setActiveTab('mark');
+    }
+  }, [isCanMark, selectedClass, activeTab]);
+
   // Load sessions when class selected
   useEffect(() => {
     if (!selectedClass) return;
@@ -496,6 +502,11 @@ function AttendanceContent() {
 
   const markQrStudent = useCallback(async () => {
     if (!qrStudent || !selectedSession) return;
+    if (!students.some((student: any) => student.id === qrStudent.id)) {
+      setQrMsg(`${qrStudent.name} is not enrolled in the selected class.`);
+      setQrMsgType('err');
+      return;
+    }
     const record = { session_id: selectedSession, user_id: qrStudent.id, status: qrStatus, notes: qrNotes || null };
     const res = await fetch('/api/attendance/upsert', {
       method: 'POST',
@@ -509,7 +520,7 @@ function AttendanceContent() {
     setQrMsg(`✓ ${qrStudent.name} marked as ${qrStatus}`);
     setQrMsgType('ok');
     setQrStudent(null);
-  }, [qrStudent, selectedSession, qrStatus, qrNotes]);
+  }, [qrStudent, selectedSession, qrStatus, qrNotes, students]);
 
   if (authLoading || profileLoading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -541,7 +552,7 @@ function AttendanceContent() {
             </div>
             <h1 className="text-3xl font-extrabold">My Attendance</h1>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Total Sessions', value: myAttendance.length, color: 'text-teal-400' },
               { label: 'Present', value: present, color: 'text-emerald-400' },
@@ -563,15 +574,15 @@ function AttendanceContent() {
               {myAttendance.map((a: any) => {
                 const cfg = STATUS_CONFIG[a.status] ?? STATUS_CONFIG.present;
                 return (
-                  <div key={a.id} className="bg-card shadow-sm border border-border rounded-xl p-4 flex items-center justify-between gap-4">
-                    <div>
+                  <div key={a.id} className="bg-card shadow-sm border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="min-w-0">
                       <p className="font-semibold text-foreground">{a.class_sessions?.topic || 'Session'}</p>
                       <p className="text-xs text-muted-foreground">
                         {a.class_sessions?.classes?.name} · {a.class_sessions?.session_date && new Date(a.class_sessions.session_date).toLocaleDateString()}
                       </p>
                       {a.notes && <p className="text-xs text-muted-foreground mt-1">{a.notes}</p>}
                     </div>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${cfg.color}`}>{cfg.label}</span>
+                    <span className={`w-fit px-2.5 py-1 rounded-full text-xs font-bold border ${cfg.color}`}>{cfg.label}</span>
                   </div>
                 );
               })}
@@ -584,6 +595,18 @@ function AttendanceContent() {
 
   // ── STAFF VIEW ───────────────────────────────────────────────────────────
   const currentSession = sessions.find(s => s.id === selectedSession);
+  const currentClass = classes.find(c => c.id === selectedClass);
+  const currentClassTerm = [currentClass?.academic_terms?.term_label, currentClass?.academic_terms?.academic_year]
+    .filter(Boolean)
+    .join(' · ');
+  const currentClassProgram = currentClass?.programs?.name ?? null;
+  const currentSessionContext = currentSession
+    ? [
+        currentSession.session_date ? new Date(currentSession.session_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : null,
+        currentSession.start_time && currentSession.end_time ? `${currentSession.start_time}–${currentSession.end_time}` : null,
+        currentSession.topic,
+      ].filter(Boolean).join(' · ')
+    : '';
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -633,6 +656,72 @@ function AttendanceContent() {
           </div>
         )}
 
+        {(!selectedClass || !isCanMark) && (
+          <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Choose Attendance Scope</p>
+              <p className="text-sm text-muted-foreground">
+                Select the class before reviewing attendance. Program and term are shown to avoid mixing records.
+              </p>
+            </div>
+            <div className="relative">
+              <select
+                value={selectedClass}
+                onChange={e => {
+                  setSelectedClass(e.target.value);
+                  setSelectedSession('');
+                  setActiveTab(isCanMark ? 'mark' : 'log');
+                }}
+                className="w-full px-4 py-3 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none"
+              >
+                <option value="">Choose a class...</option>
+                {classes.map(c => {
+                  const term = [c.academic_terms?.term_label, c.academic_terms?.academic_year].filter(Boolean).join(' ');
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {[c.name, c.programs?.name, term].filter(Boolean).join(' — ')}
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+        )}
+
+        {selectedClass && currentClass && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-teal-400">Attendance Scope</p>
+                <h2 className="text-lg font-extrabold text-foreground truncate">{currentClass.name}</h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {[currentClassProgram, currentClassTerm || 'No academic term linked'].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {sessions.length} session{sessions.length !== 1 ? 's' : ''}
+                </span>
+                {students.length > 0 && (
+                  <span className="rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    {students.length} student{students.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            </div>
+            {currentSession ? (
+              <div className="rounded-xl border border-teal-500/20 bg-teal-500/10 px-3 py-2 text-xs text-teal-300">
+                Active session: <span className="font-bold text-teal-200">{currentSessionContext}</span>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                Choose or create a session before marking attendance. New sessions use this class&apos;s linked term automatically.
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tabs */}
         {selectedClass && (
           <div className="flex items-center gap-1 p-1 bg-card shadow-sm border border-border rounded-xl w-fit">
@@ -661,7 +750,14 @@ function AttendanceContent() {
                     <select value={selectedClass} onChange={e => { setSelectedClass(e.target.value); setSelectedSession(''); }}
                       className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none">
                       <option value="">Choose a class…</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.programs?.name ? ` — ${c.programs.name}` : ''}</option>)}
+                      {classes.map(c => {
+                        const term = [c.academic_terms?.term_label, c.academic_terms?.academic_year].filter(Boolean).join(' ');
+                        return (
+                          <option key={c.id} value={c.id}>
+                            {[c.name, c.programs?.name, term].filter(Boolean).join(' — ')}
+                          </option>
+                        );
+                      })}
                     </select>
                     <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </div>
@@ -673,11 +769,14 @@ function AttendanceContent() {
                       disabled={!selectedClass || sessions.length === 0}
                       className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 cursor-pointer appearance-none disabled:opacity-40">
                       <option value="">Choose a session…</option>
-                      {sessions.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {new Date(s.session_date).toLocaleDateString()}{s.topic ? ` — ${s.topic}` : ''}
-                        </option>
-                      ))}
+                      {sessions.map(s => {
+                        const time = s.start_time && s.end_time ? `${s.start_time}-${s.end_time}` : '';
+                        return (
+                          <option key={s.id} value={s.id}>
+                            {[new Date(s.session_date).toLocaleDateString(), time, s.topic].filter(Boolean).join(' — ')}
+                          </option>
+                        );
+                      })}
                     </select>
                     <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   </div>
@@ -754,7 +853,7 @@ function AttendanceContent() {
                       {/* Student found — show card + status buttons */}
                       {qrStudent && (
                         <div className="space-y-3">
-                          <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3">
+                          <div className="flex items-center gap-3 bg-background border border-border rounded-xl p-3">
                             <div className="w-10 h-10 bg-primary/20 border border-primary/30 rounded-xl flex items-center justify-center text-base font-black text-primary flex-shrink-0">
                               {qrStudent.name?.charAt(0) ?? '?'}
                             </div>
@@ -806,10 +905,22 @@ function AttendanceContent() {
                   {showNewSession && (
                     <div className="bg-card shadow-sm border border-teal-500/10 rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                       <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest px-1">Session Options</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <input type="date" value={newSession.session_date}
                           onChange={e => setNewSession(f => ({ ...f, session_date: e.target.value }))}
                           className="px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 transition-colors" />
+                        <input type="time" value={newSession.start_time}
+                          onChange={e => setNewSession(f => ({ ...f, start_time: e.target.value }))}
+                          className="px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 transition-colors" />
+                        <input type="time" value={newSession.end_time}
+                          onChange={e => setNewSession(f => ({ ...f, end_time: e.target.value }))}
+                          className="px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-teal-500 transition-colors" />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+                        <input type="text" value={newSession.topic}
+                          onChange={e => setNewSession(f => ({ ...f, topic: e.target.value }))}
+                          placeholder="Topic / Lessons (optional)"
+                          className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                         <button onClick={async () => {
                           if (!newSession.session_date) return;
                           setLoading(true);
@@ -818,6 +929,7 @@ function AttendanceContent() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               class_id: selectedClass,
+                              term_id: selectedClassTermId,
                               session_date: newSession.session_date,
                               topic: newSession.topic || `Session on ${newSession.session_date}`,
                               start_time: newSession.start_time || null,
@@ -837,10 +949,9 @@ function AttendanceContent() {
                           Confirm & Create
                         </button>
                       </div>
-                      <input type="text" value={newSession.topic}
-                        onChange={e => setNewSession(f => ({ ...f, topic: e.target.value }))}
-                        placeholder="Topic / Lessons (optional)"
-                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
+                      <p className="text-[10px] text-muted-foreground px-1">
+                        Session will be linked to {currentClassTerm || 'this class term'} for clean logs and report scoring.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -870,7 +981,7 @@ function AttendanceContent() {
 
             {!loading && selectedSession && students.length > 0 && (
               <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                <div className="p-5 border-b border-border flex items-center justify-between flex-wrap gap-3">
+                <div className="p-5 border-b border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="font-bold text-foreground">
                       {currentSession?.session_date && new Date(currentSession.session_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -878,7 +989,7 @@ function AttendanceContent() {
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{students.length} students</p>
                   </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                       {/* Mark all buttons */}
                       {isCanMark && ['present', 'absent'].map(s => (
                         <button key={s} onClick={() => {
@@ -887,17 +998,17 @@ function AttendanceContent() {
                           setAttendance(next);
                           setSaved(false);
                         }}
-                          className="px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors capitalize">
+                          className="flex-1 sm:flex-none px-3 py-1.5 text-xs font-bold text-muted-foreground bg-card shadow-sm hover:bg-muted rounded-xl transition-colors capitalize">
                           All {s}
                         </button>
                       ))}
                       <button onClick={handlePrintSession}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-xl transition-colors">
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground border border-border rounded-xl transition-colors">
                         <PrinterIcon className="w-4 h-4" />
                       </button>
                       {isCanMark && (
                         <button onClick={handleSave} disabled={saving}
-                          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-xl transition-colors disabled:opacity-50">
+                          className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold bg-teal-600 hover:bg-teal-500 text-foreground rounded-xl transition-colors disabled:opacity-50 sm:flex-none">
                           {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : saved ? <CheckIcon className="w-3.5 h-3.5" /> : <ClipboardDocumentCheckIcon className="w-3.5 h-3.5" />}
                           {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Attendance'}
                         </button>
@@ -939,12 +1050,12 @@ function AttendanceContent() {
                   );
                 })()}
 
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-border">
                   {students.map((student: any, i: number) => {
                     const att = attendance[student.id] ?? { status: 'present', notes: '' };
                     const cfg = STATUS_CONFIG[att.status];
                     return (
-                      <div key={student.id} className="px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                      <div key={student.id} className="px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className="w-9 h-9 bg-teal-500/10 border border-teal-500/20 rounded-xl flex items-center justify-center text-sm font-black text-teal-400 flex-shrink-0">
                             {student.full_name?.charAt(0) ?? '?'}
@@ -954,7 +1065,8 @@ function AttendanceContent() {
                             <p className="text-xs text-muted-foreground truncate">{student.email}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center lg:flex-shrink-0">
+                          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                           {Object.entries(STATUS_CONFIG).map(([val, c]) => (
                           <button key={val} onClick={() => { 
                                 if (!isCanMark) return;
@@ -966,6 +1078,7 @@ function AttendanceContent() {
                               {c.label}
                             </button>
                           ))}
+                          </div>
                           <input type="text" value={att.notes} placeholder="Notes"
                             readOnly={!isCanMark}
                             onChange={e => { 
@@ -973,7 +1086,7 @@ function AttendanceContent() {
                                 setAttendance(a => ({ ...a, [student.id]: { ...a[student.id], notes: e.target.value } })); 
                                 setSaved(false); 
                             }}
-                            className="hidden sm:block w-28 px-2 py-1.5 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
+                            className="w-full lg:w-32 px-2 py-1.5 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-teal-500 transition-colors" />
                         </div>
                       </div>
                     );
@@ -981,7 +1094,7 @@ function AttendanceContent() {
                 </div>
 
                 {/* Summary bar */}
-                <div className="px-5 py-4 border-t border-border bg-white/3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                <div className="px-5 py-4 border-t border-border bg-muted/20 flex flex-wrap gap-4 text-xs text-muted-foreground">
                   {Object.entries(STATUS_CONFIG).map(([s, c]) => {
                     const count = Object.values(attendance).filter(a => a.status === s).length;
                     return <span key={s} className={`font-bold ${c.color.split(' ')[1]}`}>{c.label}: {count}</span>;
@@ -995,23 +1108,27 @@ function AttendanceContent() {
         {/* Tab Content: ATTENDANCE LOG */}
         {activeTab === 'log' && (
           <div className="space-y-6">
-            <div className="bg-card shadow-sm border border-border rounded-xl p-6 flex items-center justify-between gap-4">
-              <div>
+            <div className="bg-card shadow-sm border border-border rounded-xl p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-xl font-bold">Attendance History</h2>
-                <p className="text-muted-foreground text-sm">Review student performance metrics across all {sessions.length} sessions</p>
+                <p className="text-muted-foreground text-sm">
+                  Review {currentClass?.name ?? 'class'} attendance across {sessions.length} session{sessions.length !== 1 ? 's' : ''}
+                  {currentClassTerm ? ` · ${currentClassTerm}` : ''}
+                </p>
               </div>
               <button 
                 onClick={handlePrintLog}
-                className="flex items-center gap-2 px-6 py-3 bg-muted hover:bg-muted text-foreground text-xs font-bold rounded-xl transition-all border border-border"
+                disabled={!selectedClass || students.length === 0}
+                className="flex w-full items-center justify-center gap-2 px-6 py-3 bg-muted hover:bg-muted disabled:opacity-40 text-foreground text-xs font-bold rounded-xl transition-all border border-border sm:w-auto"
               >
                 <PrinterIcon className="w-4 h-4" /> Print Full Report
               </button>
             </div>
 
-            <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-              <table className="w-full border-collapse">
+            <div className="bg-card shadow-sm border border-border rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[720px] border-collapse">
                 <thead>
-                  <tr className="border-b border-border bg-white/3">
+                  <tr className="border-b border-border bg-muted/30">
                     <th className="px-6 py-4 text-left text-[10px] font-black uppercase text-muted-foreground tracking-widest">Student Information</th>
                     <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Present</th>
                     <th className="px-6 py-4 text-center text-[10px] font-black uppercase text-muted-foreground tracking-widest">Late/Excused</th>
@@ -1019,7 +1136,7 @@ function AttendanceContent() {
                     <th className="px-6 py-4 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-border">
                   {students.map(student => {
                     const studentRecords = fullAttendanceData.filter(d => d.user_id === student.id);
                     const present = studentRecords.filter(r => r.status === 'present').length;
@@ -1029,7 +1146,7 @@ function AttendanceContent() {
                     const rate = total > 0 ? Math.round((present / total) * 100) : 0;
                     
                     return (
-                      <tr key={student.id} className="hover:bg-white/[0.02] transition-colors">
+                      <tr key={student.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 text-sm">
                           <div className="font-bold text-foreground">{student.full_name}</div>
                           <div className="text-[10px] text-muted-foreground font-medium">{student.email}</div>
