@@ -49,6 +49,16 @@ type CatalogSummary = {
   versions: Array<{ catalog_version: string; count: number }>;
 };
 
+type AcademicTermRow = {
+  id: string;
+  academic_year: string;
+  term_number: number;
+  term_label: string;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+};
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const OPS_PILLARS = [
@@ -211,6 +221,9 @@ function SettingsPageContent() {
   const [termCalendarSaving, setTermCalendarSaving] = useState(false);
   const [academicYearSetting, setAcademicYearSetting] = useState('');
   const [academicYearSaving, setAcademicYearSaving] = useState(false);
+  const [academicTerms, setAcademicTerms] = useState<AcademicTermRow[]>([]);
+  const [currentTermId, setCurrentTermId] = useState('');
+  const [currentTermSaving, setCurrentTermSaving] = useState(false);
 
   // Platform settings (operations)
   const [opsData, setOpsData] = useState<OpsData>({});
@@ -327,10 +340,13 @@ function SettingsPageContent() {
       setOpsData((j.data ?? {}) as OpsData); setOpsReadonly(Boolean(j.readonly));
     }).catch(() => showToast('Failed to load platform settings', false))
       .finally(() => setOpsLoading(false));
-    // Load academic year + term calendar
+    loadAcademicCalendarSettings();
+  }, [canManageAcademic, tab, academicSubTab, profile?.school_id]);
+
+  const loadAcademicCalendarSettings = async () => {
     const schoolId = profile?.school_id;
     const qs = schoolId ? `?school_id=${schoolId}` : '';
-    fetch(`/api/settings/academic-year${qs}`, { cache: 'no-store' }).then(r => r.json()).then(j => {
+    const j = await fetch(`/api/settings/academic-year${qs}`, { cache: 'no-store' }).then(r => r.json());
       setAcademicYearSetting(j.effective ?? j.platform ?? '');
       const tc = j.term_calendar ?? {};
       setTermCalendar({
@@ -338,8 +354,9 @@ function SettingsPageContent() {
         term2_start: tc.term2?.start ?? '', term2_end: tc.term2?.end ?? '',
         term3_start: tc.term3?.start ?? '', term3_end: tc.term3?.end ?? '',
       });
-    }).catch(() => {});
-  }, [canManageAcademic, tab, academicSubTab, profile?.school_id]);
+    setAcademicTerms((j.terms ?? []) as AcademicTermRow[]);
+    setCurrentTermId(j.current_term?.id ?? '');
+  };
 
   // Policies — load when on either the Program Rules sub-tab or the Teaching Templates tab
   // (Teaching Templates needs the program list for the Add Template dropdown)
@@ -509,6 +526,7 @@ function SettingsPageContent() {
       if (profile?.school_id) body.school_id = profile.school_id;
       const res = await fetch('/api/settings/academic-year', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      await loadAcademicCalendarSettings();
       showToast('Academic year saved');
     } catch (e: any) { showToast(e.message ?? 'Save failed', false); } finally { setAcademicYearSaving(false); }
   };
@@ -521,12 +539,26 @@ function SettingsPageContent() {
         term2: { start: termCalendar.term2_start, end: termCalendar.term2_end },
         term3: { start: termCalendar.term3_start, end: termCalendar.term3_end },
       };
-      const body: Record<string, unknown> = { term_calendar: calendar };
+      const body: Record<string, unknown> = { year: academicYearSetting, term_calendar: calendar };
       if (profile?.school_id) body.school_id = profile.school_id;
       const res = await fetch('/api/settings/academic-year', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      await loadAcademicCalendarSettings();
       showToast('Term dates saved' + (profile?.school_id ? ' for your school' : ' platform-wide'));
     } catch (e: any) { showToast(e.message ?? 'Save failed', false); } finally { setTermCalendarSaving(false); }
+  };
+
+  const saveCurrentTerm = async () => {
+    if (!currentTermId) return;
+    setCurrentTermSaving(true);
+    try {
+      const body: Record<string, unknown> = { current_term_id: currentTermId };
+      if (profile?.school_id) body.school_id = profile.school_id;
+      const res = await fetch('/api/settings/academic-year', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      await loadAcademicCalendarSettings();
+      showToast('Current academic term updated');
+    } catch (e: any) { showToast(e.message ?? 'Save failed', false); } finally { setCurrentTermSaving(false); }
   };
 
   const updatePolicy = <K extends keyof EditablePolicy>(key: K, value: EditablePolicy[K]) => {
@@ -861,6 +893,64 @@ function SettingsPageContent() {
                             {academicYearSaving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
                             Save Year
                           </button>
+                        </div>
+                      </div>
+
+                      {/* ── Current Term ── */}
+                      <div className="p-4 space-y-3 bg-primary/5 border-y border-primary/10">
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+                          <div>
+                            <p className="text-xs font-bold text-foreground uppercase tracking-widest">Current Active Term</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              This controls the default term used by class placement, attendance sessions, lesson plans, and reports.
+                            </p>
+                          </div>
+                          {academicTerms.find(t => t.id === currentTermId)?.is_current && (
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest">
+                              Active Now
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+                          <select
+                            value={currentTermId}
+                            onChange={e => {
+                              const id = e.target.value;
+                              setCurrentTermId(id);
+                              const term = academicTerms.find(t => t.id === id);
+                              if (term?.academic_year) setAcademicYearSetting(term.academic_year);
+                              if (term) {
+                                setTermCalendar(p => ({
+                                  ...p,
+                                  [`term${term.term_number}_start`]: term.start_date ?? p[`term${term.term_number}_start` as keyof typeof p],
+                                  [`term${term.term_number}_end`]: term.end_date ?? p[`term${term.term_number}_end` as keyof typeof p],
+                                }));
+                              }
+                            }}
+                            className="px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:border-primary appearance-none"
+                          >
+                            <option value="">Select current term</option>
+                            {academicTerms.map(term => (
+                              <option key={term.id} value={term.id}>
+                                {term.academic_year} · {term.term_label}{term.is_current ? ' (Current)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <button onClick={saveCurrentTerm} disabled={currentTermSaving || !currentTermId || !isAdmin}
+                            className="flex items-center justify-center gap-2 px-5 py-2 bg-primary rounded-xl text-xs font-bold text-primary-foreground disabled:opacity-50">
+                            {currentTermSaving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CheckIcon className="w-3.5 h-3.5" />}
+                            {isAdmin ? 'Set Current Term' : 'Admin Only'}
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {academicTerms.filter(t => t.academic_year === academicYearSetting).sort((a, b) => a.term_number - b.term_number).map(term => (
+                            <div key={term.id} className={`rounded-xl border p-3 ${term.id === currentTermId ? 'border-primary bg-primary/10' : 'border-border bg-background'}`}>
+                              <p className="text-xs font-black text-foreground">{term.term_label}</p>
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                {term.start_date || 'No start'} → {term.end_date || 'No end'}
+                              </p>
+                            </div>
+                          ))}
                         </div>
                       </div>
 

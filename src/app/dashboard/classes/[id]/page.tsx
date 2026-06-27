@@ -34,6 +34,7 @@ export default function ClassDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'lessons' | 'assignments' | 'cbt' | 'gradebook'>('overview');
+  const [activeOperation, setActiveOperation] = useState<'roster' | 'teaching' | 'assessment' | 'communication'>('roster');
   const [items, setItems] = useState<{ lessons: any[], assignments: any[], cbt: any[], submissions: any[], cbtSessions: any[] }>({ lessons: [], assignments: [], cbt: [], submissions: [], cbtSessions: [] });
   const [manualEntry, setManualEntry] = useState(false);
   const [matrixSaving, setMatrixSaving] = useState<Record<string, boolean>>({});
@@ -735,139 +736,311 @@ export default function ClassDetailPage() {
     ...enrollments.filter((student: any) => student.is_current_term_active === false),
     ...formerEnrollments,
   ];
+  const latestSession = sessions[0] ?? null;
+  const openAssignments = items.assignments.filter((assignment: any) => {
+    if (!assignment.due_date) return true;
+    return new Date(assignment.due_date).getTime() >= Date.now();
+  }).length;
+  const activeExamCount = items.cbt.filter((exam: any) => exam.is_active).length;
+  const gradedSubmissionCount = items.submissions.filter((submission: any) => submission.grade !== null && submission.grade !== undefined).length + items.cbtSessions.filter((session: any) => session.score !== null && session.score !== undefined).length;
+  const operationCards = [
+    {
+      id: 'roster' as const,
+      title: 'Roster',
+      desc: 'Students, reinstatement, term movement',
+      icon: UserGroupIcon,
+      stat: `${currentTermStudents.length} active`,
+      tone: 'text-primary',
+    },
+    {
+      id: 'teaching' as const,
+      title: 'Teaching',
+      desc: 'Lessons, course focus, class sessions',
+      icon: BookOpenIcon,
+      stat: `${items.lessons.length} lessons`,
+      tone: 'text-cyan-400',
+    },
+    {
+      id: 'assessment' as const,
+      title: 'Assessment',
+      desc: 'Assignments, CBT, grades and reports',
+      icon: ChartBarIcon,
+      stat: `${openAssignments + activeExamCount} open`,
+      tone: 'text-amber-400',
+    },
+    {
+      id: 'communication' as const,
+      title: 'Communication',
+      desc: 'Attendance, broadcast, parent updates',
+      icon: ClipboardDocumentCheckIcon,
+      stat: `${sessions.length} sessions`,
+      tone: 'text-emerald-400',
+    },
+  ];
+  const selectedOperation = operationCards.find(card => card.id === activeOperation) ?? operationCards[0];
 
   return (
     <div className="text-foreground">
       <div className="space-y-6 pb-20">
 
-        {/* ── Header ────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-xl transition-colors">
-                <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
-              </button>
-              <AcademicCapIcon className="w-4 h-4 text-primary" />
-              <span className="text-xs font-bold text-primary uppercase tracking-widest">Class Detail</span>
+        {/* ── Class Operations Canvas ────────────────────────────────────────── */}
+        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+          <div className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-background p-5 sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-3">
+                  <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-xl transition-colors">
+                    <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                    <AcademicCapIcon className="w-3.5 h-3.5" />
+                    My Class Workspace
+                  </span>
+                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
+                    cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' :
+                    cls.status === 'scheduled' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
+                    'border-border bg-background text-muted-foreground'
+                  }`}>
+                    {cls.status}
+                  </span>
+                </div>
+                <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground">{cls.name}</h1>
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                  {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
+                </p>
+              </div>
+
+              {isStaff && (
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 lg:justify-end">
+                  <Link href={`/dashboard/classes/${id}/edit`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/40 hover:bg-muted">
+                    <PencilIcon className="w-4 h-4 text-primary" /> Setup
+                  </Link>
+                  <button
+                    onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-xs font-black text-emerald-400 transition-colors hover:bg-emerald-500 hover:text-white">
+                    Broadcast
+                  </button>
+                  <Link href={`/dashboard/attendance?class_id=${id}`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5">
+                    <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+                  </Link>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-3xl font-extrabold text-foreground">{cls.name}</h1>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${
-                cls.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                cls.status === 'scheduled' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                'bg-card text-muted-foreground border-border'
-              }`}>{cls.status}</span>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {[
+                { label: 'Active Students', value: currentTermStudents.length, hint: `${cls.max_students ?? '∞'} capacity`, tone: 'text-primary' },
+                { label: 'Historical', value: inactiveTermStudents.length, hint: 'paused / former', tone: 'text-amber-400' },
+                { label: 'Open Work', value: openAssignments + activeExamCount, hint: 'assignments + exams', tone: 'text-emerald-400' },
+                { label: 'Marked Grades', value: gradedSubmissionCount, hint: 'submissions scored', tone: 'text-cyan-400' },
+              ].map(metric => (
+                <div key={metric.label} className="rounded-2xl border border-border bg-background/70 p-4">
+                  <p className={`text-2xl font-black ${metric.tone}`}>{metric.value}</p>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{metric.hint}</p>
+                </div>
+              ))}
             </div>
-            {cls.programs?.name && <p className="text-sm text-muted-foreground">{cls.programs.name}</p>}
           </div>
-          {isStaff && (
-            <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
-              <button 
-                onClick={() => {
-                  setShowBroadcastModal(true);
-                  loadReachableStudents();
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-sm rounded-xl transition-colors shadow-lg">
-                Broadcast (WhatsApp)
-              </button>
-              <Link href={`/dashboard/classes/${id}/edit`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-card shadow-sm hover:bg-muted border border-border rounded-xl text-sm font-bold transition-colors hover:border-primary/50">
-                <PencilIcon className="w-4 h-4 text-primary" /> Edit Class
-              </Link>
-              <Link href={`/dashboard/attendance?class_id=${id}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-primary/30">
-                <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
-              </Link>
+
+          {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
+            <div className="border-b border-rose-500/20 bg-rose-500/10 px-5 py-3 text-sm font-semibold text-rose-400">
+              Class capacity has been reached. Move students to another class or increase capacity before adding more.
             </div>
           )}
-        </div>
 
-        {/* Stats — always visible */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {[
-            {
-              label: 'Active This Term',
-              value: currentTermStudents.length,
-              icon: UserGroupIcon, 
-              color: cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students ? 'text-rose-400' : 'text-primary',
-              bg: cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students ? 'bg-rose-500/10' : 'bg-primary/10',
-              border: cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students ? 'border-rose-500/25' : 'border-border'
-            },
-            {
-              label: 'Paused / Former',
-              value: inactiveTermStudents.length,
-              icon: CloudArrowDownIcon,
-              color: 'text-amber-400',
-              bg: 'bg-amber-500/10',
-              border: 'border-border',
-            },
-            { 
-              label: 'Capacity', 
-              value: cls.max_students ?? '∞', 
-              icon: ChartBarIcon, 
-              color: 'text-primary', 
-              bg: 'bg-primary/10',
-              border: 'border-border'
-            },
-            { 
-              label: 'Sessions', 
-              value: sessions.length, 
-              icon: CalendarIcon, 
-              color: 'text-emerald-400', 
-              bg: 'bg-emerald-500/10',
-              border: 'border-border'
-            },
-            { 
-              label: 'Level', 
-              value: cls.programs?.difficulty_level ?? 'N/A', 
-              icon: BoltIcon, 
-              color: 'text-purple-400', 
-              bg: 'bg-purple-500/10',
-              border: 'border-border'
-            },
-          ].map(s => (
-            <div key={s.label} className={`relative overflow-hidden bg-white/[0.01] backdrop-blur-md border ${s.border} rounded-2xl p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl`}>
-              <div className={`absolute top-0 right-0 w-16 h-16 ${s.bg} rounded-full blur-3xl opacity-20 -mr-6 -mt-6`} />
-              <div className={`w-10 h-10 ${s.bg} flex items-center justify-center mb-3 rounded-xl transition-transform duration-300 hover:scale-110`}>
-                <s.icon className={`w-5 h-5 ${s.color}`} />
+          <div className="grid gap-0 lg:grid-cols-[280px_1fr]">
+            <div className="border-b border-border bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Choose work mode</p>
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+                {operationCards.map(card => (
+                  <button
+                    key={card.id}
+                    onClick={() => setActiveOperation(card.id)}
+                    className={`rounded-2xl border p-3 text-left transition-all ${
+                      activeOperation === card.id
+                        ? 'border-primary/40 bg-primary/10 shadow-sm'
+                        : 'border-border bg-background hover:border-primary/20 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border">
+                        <card.icon className={`h-4 w-4 ${card.tone}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-foreground">{card.title}</p>
+                        <p className="truncate text-[10px] text-muted-foreground">{card.stat}</p>
+                      </div>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-[11px] text-muted-foreground">{card.desc}</p>
+                  </button>
+                ))}
               </div>
-              <p className={`text-2xl font-black ${s.color} tracking-tight`}>{s.value}</p>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1.5">{s.label}</p>
             </div>
-          ))}
+
+            <div className="min-h-[320px] p-5 sm:p-6">
+              <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Operations Canvas</p>
+                  <h2 className="mt-1 text-xl font-black text-foreground">{selectedOperation.title}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{selectedOperation.desc}</p>
+                </div>
+                <span className="rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  {termLabel}
+                </span>
+              </div>
+
+              {activeOperation === 'roster' && (
+                <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                  <div className="rounded-2xl border border-border bg-background p-4">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-black text-foreground">Current Term Roster</h3>
+                        <p className="text-xs text-muted-foreground">Manage only the students active this term.</p>
+                      </div>
+                      {isStaff && (
+                        <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
+                          Add Students
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {currentTermStudents.slice(0, 8).map((student: any) => (
+                        <div key={student.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
+                            {(student.full_name ?? '?')[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
+                            <p className="truncate text-xs text-muted-foreground">{student.email}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {currentTermStudents.length > 8 && (
+                      <p className="mt-3 text-xs text-muted-foreground">Showing 8 of {currentTermStudents.length}. Full roster remains below.</p>
+                    )}
+                    {currentTermStudents.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                        <UserGroupIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                        <p className="text-sm font-semibold text-muted-foreground">No active students for this term yet.</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                    <h3 className="text-sm font-black text-foreground">Reinstate History</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">Paused students keep old reports and can return this term.</p>
+                    <div className="mt-4 space-y-2">
+                      {inactiveTermStudents.slice(0, 5).map((student: any) => (
+                        <div key={`${student.id}-${student.roster_status ?? 'former'}-canvas`} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
+                            <p className="text-[11px] text-muted-foreground">{student.roster_status ?? 'former'}</p>
+                          </div>
+                          {isStaff && (
+                            <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
+                              Reinstate
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {inactiveTermStudents.length === 0 && <p className="text-xs text-muted-foreground">No paused students for this class.</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeOperation === 'teaching' && (
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-background p-4">
+                    <h3 className="text-sm font-black text-foreground">Course Focus</h3>
+                    <p className="mb-3 mt-1 text-xs text-muted-foreground">Choose the course students should see now.</p>
+                    <select
+                      value={cls?.current_course_id || ''}
+                      onChange={(e) => handleSaveCourseFocus(e.target.value || null)}
+                      disabled={!isStaff || updatingCourseFocus || programCourses.length === 0}
+                      className="w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+                    >
+                      <option value="">Show all courses</option>
+                      {programCourses.map((course: any) => <option key={course.id} value={course.id}>{course.title}</option>)}
+                    </select>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-background p-4">
+                    <h3 className="text-sm font-black text-foreground">Next Session</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {latestSession ? `${latestSession.topic ?? 'Session'} · ${new Date(latestSession.session_date).toLocaleDateString()}` : 'No session recorded yet.'}
+                    </p>
+                    {isStaff && (
+                      <button
+                        onClick={() => {
+                          setEditingSession({ id: 'new', class_id: id });
+                          setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
+                        }}
+                        className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground"
+                      >
+                        Record Session
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeOperation === 'assessment' && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {[
+                    { label: 'Assignments', value: items.assignments.length, action: 'New Assignment', href: `/dashboard/assignments/new?class_id=${id}` },
+                    { label: 'CBT Exams', value: items.cbt.length, action: 'New Exam', href: `/dashboard/cbt/new?class_id=${id}${cls?.program_id ? `&program_id=${cls.program_id}` : ''}` },
+                    { label: 'Gradebook', value: gradedSubmissionCount, action: 'Open Gradebook', onClick: () => setActiveTab('gradebook') },
+                  ].map(card => (
+                    <div key={card.label} className="rounded-2xl border border-border bg-background p-4">
+                      <p className="text-3xl font-black text-foreground">{card.value}</p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</p>
+                      {'href' in card ? (
+                        <Link href={card.href as string} className="mt-4 inline-flex rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/40">
+                          {card.action}
+                        </Link>
+                      ) : (
+                        <button onClick={card.onClick} className="mt-4 rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/40">
+                          {card.action}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeOperation === 'communication' && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Link href={`/dashboard/attendance?class_id=${id}`} className="rounded-2xl border border-border bg-background p-5 transition-colors hover:border-primary/40">
+                    <ClipboardDocumentCheckIcon className="mb-4 h-8 w-8 text-primary" />
+                    <h3 className="text-sm font-black text-foreground">Attendance Desk</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">Mark roll call and review term attendance history.</p>
+                  </Link>
+                  <button
+                    onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
+                    className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 text-left transition-colors hover:border-emerald-500/40"
+                  >
+                    <CloudArrowUpIcon className="mb-4 h-8 w-8 text-emerald-400" />
+                    <h3 className="text-sm font-black text-foreground">Broadcast Desk</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">Send class update to reachable students and parents.</p>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Capacity Alert Banner */}
-        {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
-          <div className="flex items-center gap-3.5 p-4 sm:p-5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl shadow-xl shadow-rose-950/20 animate-pulse">
-            <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-black uppercase tracking-wide">Class Capacity Reached</p>
-              <p className="text-xs text-rose-400/80 mt-0.5 font-semibold">
-                "{cls.name}" has reached its maximum enrollment capacity of {cls.max_students} students. Further enrollments are blocked.
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Detailed Records */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Term Focus</p>
-            <h2 className="text-lg font-black text-foreground mt-1">{termLabel}</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              This roster shows students actively offering coding for this term. Removed students remain in history and can be reinstated later.
-            </p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Detailed Records</p>
+            <h2 className="text-xl font-black text-foreground">Review and manage class records</h2>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-xl border border-border bg-background px-4 py-3">
-              <p className="text-xl font-black text-primary">{currentTermStudents.length}</p>
-              <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-black">Current</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background px-4 py-3">
-              <p className="text-xl font-black text-amber-400">{inactiveTermStudents.length}</p>
-              <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-black">Historical</p>
-            </div>
-          </div>
+          <p className="max-w-xl text-xs text-muted-foreground">
+            The canvas above is for daily operations. Use these sections when you need full lists, grade matrices, and historical details.
+          </p>
         </div>
 
         {/* Tabs + Content | Sidebar */}
@@ -1466,34 +1639,6 @@ export default function ClassDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-4">
-
-            {/* Quick Actions */}
-            {isStaff && (
-              <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-border rounded-2xl p-5 space-y-3">
-                <div className="flex items-center gap-2 mb-4">
-                  <BoltIcon className="w-4 h-4 text-primary animate-pulse" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Quick Actions</h3>
-                </div>
-                {([
-                  { label: 'Take Attendance', desc: 'Mark roll call', icon: CheckCircleIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/attendance?class_id=${id}`) },
-                  { label: 'Add Lesson', desc: 'Add curriculum content', icon: BookOpenIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', action: () => router.push(`/dashboard/lessons/add?class_id=${id}`) },
-                  { label: 'New CBT Exam', desc: 'Create online test', icon: AcademicCapIcon, color: 'text-primary', bg: 'bg-primary/10', action: () => router.push(`/dashboard/cbt/new?class_id=${id}${cls?.program_id ? `&program_id=${cls.program_id}` : ''}`) },
-                  { label: 'Grade Submissions', desc: 'Review student work', icon: ChartBarIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', action: () => setActiveTab('gradebook') },
-                ] as const).map(btn => (
-                  <button key={btn.label} onClick={btn.action}
-                    className="flex items-center gap-3 w-full p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-primary/20 rounded-xl text-left transition-all duration-300">
-                    <div className={`w-9 h-9 flex items-center justify-center rounded-xl flex-shrink-0 ${btn.bg}`}>
-                      <btn.icon className={`w-4 h-4 ${btn.color}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">{btn.label}</p>
-                      <p className="text-xs text-muted-foreground font-medium opacity-80">{btn.desc}</p>
-                    </div>
-                    <ArrowRightIcon className="w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform hover:translate-x-0.5" />
-                  </button>
-                ))}
-              </div>
-            )}
 
             {/* Students List */}
             <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-border rounded-2xl overflow-hidden">

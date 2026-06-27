@@ -12,6 +12,16 @@ import {
     BuildingOfficeIcon,
 } from '@/lib/icons';
 
+type AcademicTermOption = {
+    id: string;
+    academic_year: string;
+    term_number: number;
+    term_label: string;
+    start_date: string | null;
+    end_date: string | null;
+    is_current: boolean;
+};
+
 export default function EditClassPage() {
     const router = useRouter();
     const params = useParams();
@@ -21,6 +31,7 @@ export default function EditClassPage() {
     const [programs, setPrograms] = useState<any[]>([]);
     const [teachers, setTeachers] = useState<any[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
+    const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
     const [availableStudents, setAvailableStudents] = useState<any[]>([]);
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [initialStudents, setInitialStudents] = useState<string[]>([]);
@@ -41,9 +52,20 @@ export default function EditClassPage() {
         max_students: '20',
         start_date: '',
         end_date: '',
+        term_id: '',
         schedule: '',
         status: 'scheduled',
     });
+
+    const setTerm = (termId: string) => {
+        const term = academicTerms.find(t => t.id === termId);
+        setForm(f => ({
+            ...f,
+            term_id: termId,
+            start_date: term?.start_date ?? f.start_date,
+            end_date: term?.end_date ?? f.end_date,
+        }));
+    };
 
     useEffect(() => {
         if (authLoading || !profile || !id) return;
@@ -67,15 +89,18 @@ export default function EditClassPage() {
                     max_students: (cls.max_students || 20).toString(),
                     start_date: cls.start_date || '',
                     end_date: cls.end_date || '',
+                    term_id: cls.term_id || '',
                     schedule: cls.schedule || '',
                     status: cls.status || 'scheduled',
                 });
 
                 // 2. Fetch lookups
-                const [programsRes, teachersRes] = await Promise.all([
+                const [programsRes, teachersRes, termsRes] = await Promise.all([
                     db.from('programs').select('id, name').eq('is_active', true).order('name'),
                     db.from('portal_users').select('id, full_name').eq('role', 'teacher').eq('is_active', true).order('full_name'),
+                    fetch('/api/settings/academic-year', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ terms: [] })),
                 ]);
+                const terms = ((termsRes as any).terms ?? []) as AcademicTermOption[];
 
                 // 3. Schools lookup
                 let schoolsQuery = db.from('schools').select('id, name').eq('status', 'approved').order('name');
@@ -101,6 +126,7 @@ export default function EditClassPage() {
                 setPrograms(programsRes.data ?? []);
                 setTeachers(teachersRes.data ?? []);
                 setSchools(sData ?? []);
+                setAcademicTerms(terms);
             } catch (err: any) {
                 setError(err.message || 'Failed to load class details');
             } finally {
@@ -231,6 +257,7 @@ export default function EditClassPage() {
             };
             if (form.start_date) payload.start_date = form.start_date;
             if (form.end_date) payload.end_date = form.end_date;
+            if (form.term_id) payload.term_id = form.term_id;
 
             const patchRes = await fetch(`/api/classes/${id}`, {
                 method: 'PATCH',
@@ -336,6 +363,23 @@ export default function EditClassPage() {
                             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                             placeholder="Optional — brief description of this class"
                             className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none" />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Academic Year / Term</label>
+                        <select value={form.term_id}
+                            onChange={e => setTerm(e.target.value)}
+                            className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                            <option value="">Auto-detect from start date</option>
+                            {academicTerms.map(term => (
+                                <option key={term.id} value={term.id}>
+                                    {term.academic_year} · {term.term_label}{term.is_current ? ' (Current)' : ''}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-muted-foreground mt-1.5">
+                            Changing this affects new roster, attendance, lesson-plan and report activity for this class. Existing historical reports remain preserved.
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -35,18 +35,21 @@ export async function POST(request: Request) {
     const fullName = (body.full_name || body.fullName || '').trim();
     const isForce = body.force === true;
 
-    // 1. Check for duplicate email (Global check)
-    const { data: existingByEmail } = await supabase
-      .from('students')
-      .select('id, full_name, school_name')
-      .or(`student_email.eq.${primaryEmail},parent_email.eq.${primaryEmail}`)
-      .maybeSingle();
-
-    if (existingByEmail) {
-      return NextResponse.json(
-        { error: `A student with this email is already registered as "${existingByEmail.full_name}" at ${existingByEmail.school_name || 'Rillcod'}.` },
-        { status: 400 }
-      );
+    // 1. Check for duplicate email (Global) — only when an email was actually supplied,
+    //    and limit(1) so a stray double-match never throws (maybeSingle errors on >1).
+    if (primaryEmail) {
+      const { data: emailMatches } = await supabase
+        .from('students')
+        .select('id, full_name, school_name')
+        .or(`student_email.eq.${primaryEmail},parent_email.eq.${primaryEmail}`)
+        .limit(1);
+      const existingByEmail = (emailMatches ?? [])[0];
+      if (existingByEmail) {
+        return NextResponse.json(
+          { error: `A student with this email is already registered as "${existingByEmail.full_name}" at ${existingByEmail.school_name || 'Rillcod'}.` },
+          { status: 400 }
+        );
+      }
     }
 
     // 2. Resolve target school and enforce teacher guard
@@ -80,21 +83,27 @@ export async function POST(request: Request) {
       targetSchoolId = caller.school_id;
     }
 
-    // 3. Check for duplicate Name in the same school (Duplicate Avoidance)
-    if (fullName && targetSchoolId && !isForce) {
-      const { data: existingByName } = await supabase
+    // 3. Duplicate Name check — a child shouldn't be registered twice. Look up the name
+    //    EVERYWHERE (not just the target school): a single entry that lands at a different
+    //    school (e.g. fell back to the Online School) was creating a cross-school twin
+    //    (the "stray"). Soft block (requiresVerification) so staff can force it through for
+    //    a genuinely different child who happens to share the name.
+    if (fullName && !isForce) {
+      const { data: nameMatches } = await supabase
         .from('students')
-        .select('id, full_name, grade_level')
-        .eq('school_id', targetSchoolId)
+        .select('id, full_name, grade_level, school_id, school_name')
         .ilike('full_name', fullName)
-        .maybeSingle();
-
-      if (existingByName) {
+        .neq('is_deleted', true);
+      const sameSchool = targetSchoolId ? (nameMatches ?? []).find(m => m.school_id === targetSchoolId) : null;
+      const hit = sameSchool ?? (nameMatches ?? [])[0];
+      if (hit) {
         return NextResponse.json(
-          { 
-            error: 'Duplicate Name Detected', 
-            message: `A student named "${existingByName.full_name}" is already registered in this school (${existingByName.grade_level || 'No Grade'}).`,
-            requiresVerification: true 
+          {
+            error: 'Duplicate Name Detected',
+            message: sameSchool
+              ? `A student named "${hit.full_name}" is already registered in this school (${hit.grade_level || 'No Grade'}).`
+              : `A student named "${hit.full_name}" already exists at ${hit.school_name || 'another school'}. If this is a different child, confirm to proceed.`,
+            requiresVerification: true,
           },
           { status: 409 } // Conflict
         );

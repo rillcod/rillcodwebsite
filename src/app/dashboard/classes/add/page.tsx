@@ -15,12 +15,23 @@ import {
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
 const LABEL = 'block text-xs font-bold text-muted-foreground mb-1.5';
 
+type AcademicTermOption = {
+  id: string;
+  academic_year: string;
+  term_number: number;
+  term_label: string;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+};
+
 export default function AddClassPage() {
   const router = useRouter();
   const { profile, loading: authLoading } = useAuth();
   const [programs, setPrograms] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
+  const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -37,28 +48,51 @@ export default function AddClassPage() {
     max_students: '20',
     start_date: '',
     end_date: '',
+    term_id: '',
     schedule: '',
     status: 'scheduled',
   });
 
   const set = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));
+  const setTerm = (termId: string) => {
+    const term = academicTerms.find(t => t.id === termId);
+    setForm(f => ({
+      ...f,
+      term_id: termId,
+      start_date: term?.start_date ?? f.start_date,
+      end_date: term?.end_date ?? f.end_date,
+      name: f.name || (term ? `${term.term_label} Class` : f.name),
+    }));
+  };
 
   // Load programmes, teachers, schools
   useEffect(() => {
     if (authLoading || !profile) return;
     const p = profile;
     async function loadData() {
-      const [programsRes, teachersRes, schRes] = await Promise.all([
+      const [programsRes, teachersRes, schRes, termsRes] = await Promise.all([
         fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(r => r.json()),
         p.role === 'admin'
           ? fetch('/api/portal-users?role=teacher', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ data: [] }))
           : Promise.resolve({ data: [] }),
         fetch('/api/schools', { cache: 'no-store' }).then(r => r.json()),
+        fetch('/api/settings/academic-year', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ terms: [] })),
       ]);
       const loadedSchools = schRes.data ?? [];
+      const terms = ((termsRes.terms ?? []) as AcademicTermOption[]);
+      const currentTerm = terms.find(t => t.is_current) ?? terms[0];
       setPrograms(programsRes.data ?? []);
       setTeachers(teachersRes.data ?? []);
       setSchools(loadedSchools);
+      setAcademicTerms(terms);
+      if (currentTerm) {
+        setForm(f => ({
+          ...f,
+          term_id: f.term_id || currentTerm.id,
+          start_date: f.start_date || currentTerm.start_date || '',
+          end_date: f.end_date || currentTerm.end_date || '',
+        }));
+      }
       if (p.role === 'teacher') {
         setForm(f => ({
           ...f,
@@ -173,6 +207,7 @@ export default function AddClassPage() {
       };
       if (form.start_date) payload.start_date = form.start_date;
       if (form.end_date) payload.end_date = form.end_date;
+      if (form.term_id) payload.term_id = form.term_id;
 
       const classRes = await fetch('/api/classes', {
         method: 'POST',
@@ -347,6 +382,25 @@ export default function AddClassPage() {
         {/* Schedule & Settings */}
         <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
           <h2 className="text-sm font-bold text-foreground">Schedule & Settings</h2>
+
+          <div>
+            <label className={LABEL}>Academic Year / Term</label>
+            <select
+              value={form.term_id}
+              onChange={e => setTerm(e.target.value)}
+              className={INPUT}
+            >
+              <option value="">Auto-detect from start date</option>
+              {academicTerms.map(term => (
+                <option key={term.id} value={term.id}>
+                  {term.academic_year} · {term.term_label}{term.is_current ? ' (Current)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              Use this to place the class in the correct term. Attendance, rosters, lesson plans, and reports follow this term.
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>

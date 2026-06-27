@@ -10,8 +10,39 @@ function defaultAcademicYear(): string {
   return now.getMonth() >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
 }
 
+const TERM_LABELS: Record<number, string> = {
+  1: 'First Term',
+  2: 'Second Term',
+  3: 'Third Term',
+};
+
+function normalizeTermCalendar(raw: any) {
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    term1: { start: raw.term1?.start || '', end: raw.term1?.end || '' },
+    term2: { start: raw.term2?.start || '', end: raw.term2?.end || '' },
+    term3: { start: raw.term3?.start || '', end: raw.term3?.end || '' },
+  };
+}
+
+async function upsertCanonicalTerms(admin: any, academicYear: string, termCalendar?: Record<string, any> | null) {
+  const rows = [1, 2, 3].map((termNumber) => {
+    const key = `term${termNumber}`;
+    const dates = termCalendar?.[key] ?? {};
+    return {
+      academic_year: academicYear,
+      term_number: termNumber,
+      term_label: TERM_LABELS[termNumber],
+      start_date: dates.start || null,
+      end_date: dates.end || null,
+      updated_at: new Date().toISOString(),
+    };
+  });
+  await admin.from('academic_terms').upsert(rows, { onConflict: 'academic_year,term_number' });
+}
+
 // GET /api/settings/academic-year?school_id=uuid (optional)
-// Returns { platform, school, effective, term_calendar }
+// Returns { platform, school, effective, term_calendar, terms, current_term }
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -60,11 +91,25 @@ export async function GET(req: NextRequest) {
   }
 
   const effective = school ?? platform;
-  return NextResponse.json({ platform, school, effective, term_calendar: termCalendar });
+  const { data: terms } = await admin
+    .from('academic_terms')
+    .select('id, academic_year, term_number, term_label, start_date, end_date, is_current')
+    .order('academic_year', { ascending: false })
+    .order('term_number', { ascending: false });
+  const currentTerm = (terms ?? []).find((term: any) => term.is_current) ?? null;
+
+  return NextResponse.json({
+    platform,
+    school,
+    effective,
+    term_calendar: termCalendar,
+    terms: terms ?? [],
+    current_term: currentTerm,
+  });
 }
 
 // PATCH /api/settings/academic-year
-// Body: { year?: "2025/2026", term_calendar?: {...}, school_id?: "uuid" }
+// Body: { year?: "2025/2026", term_calendar?: {...}, school_id?: "uuid", current_term_id?: "uuid" }
 export async function PATCH(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -82,7 +127,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { year, school_id, term_calendar } = body;
+  const { year, school_id, term_calendar, current_term_id } = body;
 
   const isSchoolLevel = !!school_id;
 
@@ -112,8 +157,30 @@ export async function PATCH(req: NextRequest) {
 
   // Save term calendar
   if (term_calendar && typeof term_calendar === 'object') {
+    const normalized = normalizeTermCalendar(term_calendar);
     const tcKey = isSchoolLevel ? `term_calendar_school_${school_id}` : 'term_calendar';
-    ops.push(admin.from('app_settings').upsert({ key: tcKey, value: term_calendar, updated_at: new Date().toISOString() }, { onConflict: 'key' }));
+    ops.push(admin.from('app_settings').upsert({ key: tcKey, value: normalized, updated_at: new Date().toISOString() }, { onConflict: 'key' }));
+    if (year) {
+      ops.push(upsertCanonicalTerms(admin, year, normalized));
+    }
+  } else if (year) {
+    ops.push(upsertCanonicalTerms(admin, year, null));
+  }
+
+  if (current_term_id) {
+    if (profile.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admins can set the platform current term' }, { status: 403 });
+    }
+    const { data: term } = await admin
+      .from('academic_terms')
+      .select('id, academic_year')
+      .eq('id', current_term_id)
+      .maybeSingle();
+    if (!term) return NextResponse.json({ error: 'Selected academic term was not found' }, { status: 404 });
+    ops.push(admin.from('academic_terms').update({ is_current: false, updated_at: new Date().toISOString() }).neq('id', current_term_id));
+    ops.push(admin.from('academic_terms').update({ is_current: true, updated_at: new Date().toISOString() }).eq('id', current_term_id));
+    const yearKey = isSchoolLevel ? `academic_year_school_${school_id}` : 'academic_year';
+    ops.push(admin.from('app_settings').upsert({ key: yearKey, value: term.academic_year, updated_at: new Date().toISOString() }, { onConflict: 'key' }));
   }
 
   if (ops.length === 0) return NextResponse.json({ error: 'Nothing to save' }, { status: 400 });

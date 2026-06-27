@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
 
     // ── Field whitelist — never trust raw body ────────────────────────────────
     const insertRow: Record<string, unknown> = {};
-    const allowedFields = ['name', 'description', 'program_id', 'max_students', 'status', 'schedule', 'start_date', 'end_date'];
+    const allowedFields = ['name', 'description', 'program_id', 'max_students', 'status', 'schedule', 'start_date', 'end_date', 'term_id'];
     for (const f of allowedFields) {
       if (f in body && body[f] != null) insertRow[f] = body[f];
     }
