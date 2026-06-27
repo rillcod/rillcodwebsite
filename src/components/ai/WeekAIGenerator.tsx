@@ -376,32 +376,42 @@ export default function WeekAIGenerator({
           const deckId = dj.data.id;
           res.deckId = deckId;
           res.deckTitle = dj.data.title;
-          addLog(`🤖 Deck created — generating 15 AI cards…`);
 
-          // Use the dedicated generate endpoint (same as flashcard page)
-          const genRes = await fetch(`/api/flashcards/decks/${deckId}/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              topic: week.topic,
-              count: 15,
-              difficulty: 'medium',
-              // Pass lesson content as extra context if available
-              content: contentLayout.length > 0
-                ? contentLayout
-                    .filter((b: any) => ['text', 'heading', 'key-terms', 'steps-list'].includes(b.type))
-                    .map((b: any) => b.content || b.title || '')
-                    .filter(Boolean)
-                    .join('\n')
-                    .slice(0, 2000)
-                : undefined,
-            }),
-          });
-          const gj = await genRes.json();
-          if (!genRes.ok) throw new Error(gj.error || 'Card generation failed');
-          const cardCount = Array.isArray(gj.data) ? gj.data.length : (gj.count ?? '?');
-          addLog(`✅ ${cardCount} flashcards generated and saved to deck`);
-          setStep('flashcard', 'done');
+          // The API returns deduped:true when this deck already existed (deck create is
+          // now idempotent). Mirror the lesson step: SKIP — don't pile more AI cards onto
+          // an existing deck. This is the fix for "lesson skips but flashcard doesn't".
+          if (dj.deduped) {
+            setStep('flashcard', 'skipped');
+            res.skipped.push('flashcards');
+            addLog('⏭  Flashcard deck already exists — skipped');
+          } else {
+            addLog(`🤖 Deck created — generating 15 AI cards…`);
+
+            // Use the dedicated generate endpoint (same as flashcard page)
+            const genRes = await fetch(`/api/flashcards/decks/${deckId}/generate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                topic: week.topic,
+                count: 15,
+                difficulty: 'medium',
+                // Pass lesson content as extra context if available
+                content: contentLayout.length > 0
+                  ? contentLayout
+                      .filter((b: any) => ['text', 'heading', 'key-terms', 'steps-list'].includes(b.type))
+                      .map((b: any) => b.content || b.title || '')
+                      .filter(Boolean)
+                      .join('\n')
+                      .slice(0, 2000)
+                  : undefined,
+              }),
+            });
+            const gj = await genRes.json();
+            if (!genRes.ok) throw new Error(gj.error || 'Card generation failed');
+            const cardCount = Array.isArray(gj.data) ? gj.data.length : (gj.count ?? '?');
+            addLog(`✅ ${cardCount} flashcards generated and saved to deck`);
+            setStep('flashcard', 'done');
+          }
         } catch (e: any) {
           setStep('flashcard', 'error');
           addLog(`⚠️  Flashcards: ${e.message}`);
