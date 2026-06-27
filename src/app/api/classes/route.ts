@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { buildClassName, parseGrades, formatGradeRange, gradeBand } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -187,8 +188,8 @@ export async function POST(request: NextRequest) {
       if (f in body && body[f] != null) insertRow[f] = body[f];
     }
 
-    if (!insertRow.name) {
-      return NextResponse.json({ error: 'Class name is required' }, { status: 400 });
+    if (!insertRow.name && !insertRow.program_id) {
+      return NextResponse.json({ error: 'A class name, or a programme to auto-name it, is required' }, { status: 400 });
     }
 
     const admin = adminClient();
@@ -233,6 +234,41 @@ export async function POST(request: NextRequest) {
     insertRow.created_at = new Date().toISOString();
     // current_students starts at 0 — set by enroll routes, never by client
     insertRow.current_students = 0;
+
+    // Auto-name from School · Programme · Range when no name is given (or auto_name
+    // requested) — one consistent convention for every class created in the system.
+    if ((!insertRow.name || body.auto_name) && insertRow.school_id && insertRow.program_id) {
+      const [{ data: sch }, { data: prog }] = await Promise.all([
+        admin.from('schools').select('name').eq('id', insertRow.school_id as string).maybeSingle(),
+        admin.from('programs').select('name').eq('id', insertRow.program_id as string).maybeSingle(),
+      ]);
+      const schoolName = (sch as { name?: string } | null)?.name ?? '';
+      const rangeSource = String(body.grade ?? body.section ?? body.range ?? '');
+      const range = gradeBand(rangeSource) || formatGradeRange(parseGrades(rangeSource));
+      const built = buildClassName({ schoolName, programme: (prog as { name?: string } | null)?.name, range, online: /online/i.test(schoolName) });
+      if (built) insertRow.name = built;
+      if (range) insertRow.qa_grade_band = range;
+    }
+    if (!insertRow.name) {
+      return NextResponse.json({ error: 'Class name is required' }, { status: 400 });
+    }
+
+    const { data: existingClass } = await admin
+      .from('classes')
+      .select()
+      .eq('school_id', insertRow.school_id as string)
+      .eq('name', String(insertRow.name))
+      .maybeSingle();
+    if (existingClass) {
+      if (!(existingClass as any).teacher_id && insertRow.teacher_id) {
+        await admin
+          .from('classes')
+          .update({ teacher_id: insertRow.teacher_id, updated_at: new Date().toISOString() })
+          .eq('id', (existingClass as any).id);
+        (existingClass as any).teacher_id = insertRow.teacher_id;
+      }
+      return NextResponse.json({ data: existingClass, reused: true }, { status: 200 });
+    }
 
     const { data, error } = await admin
       .from('classes')

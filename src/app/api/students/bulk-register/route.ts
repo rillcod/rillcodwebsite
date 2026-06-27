@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
+import { buildClassName, gradeBand } from '@/lib/classes/naming';
+import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,6 +17,12 @@ interface StudentEntry {
   class_name?: string; // maps to portal_users.section_class
   gender?: string | null;
 }
+
+type ResolvedClass = {
+  id: string | null;
+  name: string | null;
+  teacherId: string | null;
+};
 
 export async function POST(request: Request) {
   try {
@@ -95,12 +103,71 @@ export async function POST(request: Request) {
     const batchClassName: string | null = (body.class_name as string | undefined) ?? null;
     const allowSameName: boolean = body.allow_same_name === true; // user confirmed different students share a name
 
+    let programName: string | null = null;
+    if (programId) {
+      const { data: program } = await supabaseAdmin
+        .from('programs')
+        .select('name')
+        .eq('id', programId)
+        .maybeSingle();
+      programName = (program as any)?.name ?? null;
+    }
+
     // Resolve the batch class's teacher — used to stamp primary_teacher_id on NEW students only
     let batchClassTeacherId: string | null = null;
     if (batchClassId) {
       const { data: batchCls } = await supabaseAdmin.from('classes').select('teacher_id').eq('id', batchClassId).single();
       batchClassTeacherId = batchCls?.teacher_id ?? null;
     }
+
+    const autoClassCache = new Map<string, ResolvedClass>();
+    const resolveClassForStudent = async (gradeOrClass: string | null | undefined): Promise<ResolvedClass> => {
+      if (batchClassId) {
+        const name = batchClassName || gradeOrClass || null;
+        return { id: batchClassId, name, teacherId: batchClassTeacherId };
+      }
+
+      const placementLabel = (gradeOrClass || batchClassName || '').trim();
+      if (!programName || !placementLabel || !resolvedSchoolName) {
+        return { id: null, name: placementLabel || batchClassName || null, teacherId: null };
+      }
+
+      const band = gradeBand(placementLabel);
+      const standardName = buildClassName({
+        schoolName: resolvedSchoolName,
+        programme: programName,
+        range: band ?? placementLabel,
+      });
+      const cacheKey = `${resolvedSchoolId}::${programId ?? programName}::${band ?? placementLabel}`;
+      const cached = autoClassCache.get(cacheKey);
+      if (cached) return cached;
+
+      const classId = await ensureClassWithTutor(
+        supabaseAdmin as any,
+        resolvedSchoolId,
+        resolvedSchoolName,
+        programName,
+        `${resolvedSchoolName} — ${programName}${band ? ` — ${band}` : ''}`,
+        placementLabel,
+      );
+
+      let teacherId: string | null = null;
+      let className = standardName;
+      if (classId) {
+        const { data: cls } = await supabaseAdmin
+          .from('classes')
+          .select('name, teacher_id')
+          .eq('id', classId)
+          .maybeSingle();
+        teacherId = (cls as any)?.teacher_id ?? null;
+        className = (cls as any)?.name ?? standardName;
+      }
+
+      const resolved = { id: classId, name: className, teacherId };
+      autoClassCache.set(cacheKey, resolved);
+      return resolved;
+    };
+    const touchedClassIds = new Set<string>();
 
     const results: Array<{
       full_name: string;
@@ -261,6 +328,13 @@ export async function POST(request: Request) {
           continue;
         }
 
+        const requestedClassLabel = class_name || batchClassName || null;
+        const resolvedClass = await resolveClassForStudent(requestedClassLabel);
+        const effectiveClassId = resolvedClass.id;
+        const effectiveClassName = resolvedClass.name || requestedClassLabel || null;
+        const effectiveTeacherId = resolvedClass.teacherId || batchClassTeacherId;
+        if (effectiveClassId) touchedClassIds.add(effectiveClassId);
+
         // Ghost-row guard: if portal_users already has a NON-DELETED row with this email
         // but a DIFFERENT id (created outside the auth flow or by a stale import), that row
         // would become an unreachable duplicate. Soft-delete it so the auth user's row wins.
@@ -298,8 +372,8 @@ export async function POST(request: Request) {
             role: 'student',
             school_id: resolvedSchoolId,
             school_name: resolvedSchoolName,
-            section_class: class_name || batchClassName || null,
-            class_id: batchClassId || null,
+            section_class: effectiveClassName,
+            class_id: effectiveClassId,
             enrollment_type: 'in_person',
             is_active: true,
             gender: gender || null,
@@ -318,9 +392,9 @@ export async function POST(request: Request) {
 
         // For NEW students only: stamp primary_teacher_id so the DB trigger protects them
         // going forward. Never do this for existing students (status = 'updated').
-        if (status === 'created' && batchClassTeacherId) {
+        if (status === 'created' && effectiveTeacherId) {
           await supabaseAdmin.from('portal_users')
-            .update({ primary_teacher_id: batchClassTeacherId })
+            .update({ primary_teacher_id: effectiveTeacherId })
             .eq('id', authUserId)
             .is('primary_teacher_id', null); // safety: only if not already set
         }
@@ -335,8 +409,8 @@ export async function POST(request: Request) {
           student_email: email.trim().toLowerCase(),
           school_id: resolvedSchoolId,
           school_name: resolvedSchoolName,
-          current_class: class_name || batchClassName || null,
-          grade_level: class_name || batchClassName || null,
+          current_class: effectiveClassName,
+          grade_level: effectiveClassName,
           enrollment_type: 'in_person',
           status: 'approved', // Bulk-registered students are pre-approved
           gender: gender || null,
@@ -349,7 +423,7 @@ export async function POST(request: Request) {
            // but we log it for admin review.
         }
 
-        const effectiveClass = class_name || batchClassName || undefined;
+        const effectiveClass = effectiveClassName || undefined;
         let cardIssued = false;
         let cardId: string | null = null;
 
@@ -357,7 +431,7 @@ export async function POST(request: Request) {
           const card = await ensureStudentCardIssued(supabaseAdmin as any, {
             holderId: authUserId,
             schoolId: resolvedSchoolId,
-            classId: batchClassId || null,
+            classId: effectiveClassId,
             actorId: user.id,
             metadata: {
               source: 'bulk_register',
@@ -406,20 +480,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // Sync current_students count if class_id was provided
-    if (batchClassId) {
+    // Sync current_students count for every class touched by this import.
+    for (const classId of touchedClassIds) {
       try {
         const { data: studentsInClass } = await supabaseAdmin
           .from('portal_users')
           .select('id', { count: 'exact' })
-          .eq('class_id', batchClassId)
+          .eq('class_id', classId)
           .eq('role', 'student');
         
         const actualCount = studentsInClass?.length || 0;
         await supabaseAdmin
           .from('classes')
           .update({ current_students: actualCount })
-          .eq('id', batchClassId);
+          .eq('id', classId);
       } catch (err) {
         console.error('[BulkRegister] Failed to sync class count:', err);
       }
@@ -438,6 +512,10 @@ export async function POST(request: Request) {
     const batchId = body.batch_id;
     if (batchId) {
       try {
+        const singleTouchedClassId = touchedClassIds.size === 1 ? Array.from(touchedClassIds)[0] : null;
+        const singleTouchedClassName = results.length > 0
+          ? Array.from(new Set(results.map((r) => r.class_name).filter(Boolean)))[0] ?? null
+          : null;
         // 1. Upsert batch metadata
         await supabaseAdmin.from('registration_batches').upsert({
           id: batchId,
@@ -445,8 +523,8 @@ export async function POST(request: Request) {
           school_id: resolvedSchoolId,
           school_name: resolvedSchoolName,
           program_id: programId,
-          class_id: batchClassId,
-          class_name: batchClassName || null,
+          class_id: batchClassId || singleTouchedClassId,
+          class_name: batchClassName || singleTouchedClassName,
         }, { onConflict: 'id' });
 
         // 2. Map results to history entries — only archive registrations that

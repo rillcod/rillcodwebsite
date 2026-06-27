@@ -276,6 +276,7 @@ export default function DashboardNavigation() {
           { name: 'Learning Center', href: '/dashboard/learning', icon: RocketLaunchIcon },
           { name: 'Course Syllabus', href: '/dashboard/curriculum', icon: BookOpenIcon },
           { name: 'My Lessons', href: '/dashboard/lessons', icon: BookOpenIcon },
+          { name: 'Learning Slides', href: '/dashboard/slides', icon: PresentationChartLineIcon },
           { name: 'Flashcards', href: '/dashboard/flashcards', icon: BoltIcon },
           { name: 'Library', href: '/dashboard/library', icon: ArchiveBoxIcon },
           { name: 'Code Playground', href: '/dashboard/playground', icon: CodeBracketIcon },

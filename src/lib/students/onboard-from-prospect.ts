@@ -203,7 +203,7 @@ export async function onboardStudentFromProspect(
   }
   if (!classId) {
     const className = (opts.className?.trim()) || classNameFromProgram(prospect.course_interest, prospect.grade);
-    classId = await ensureClassWithTutor(admin, school.id, school.name, className);
+    classId = await ensureClassWithTutor(admin, school.id, school.name, className, undefined, prospect.grade);
   }
 
   // Student account.

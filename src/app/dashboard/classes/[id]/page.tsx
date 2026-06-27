@@ -65,6 +65,8 @@ export default function ClassDetailPage() {
   const [pathClassMode, setPathClassMode] = useState<'full' | 'milestone'>('full');
   const [pathStudentModes, setPathStudentModes] = useState<Record<string, 'inherit' | 'full' | 'milestone'>>({});
   const [pathVisibilitySaving, setPathVisibilitySaving] = useState<string | null>(null);
+  const [showPathOverrides, setShowPathOverrides] = useState(false);
+  const [showStudentList, setShowStudentList] = useState(false);
 
   const [programCourses, setProgramCourses] = useState<any[]>([]);
   const [updatingCourseFocus, setUpdatingCourseFocus] = useState(false);
@@ -1164,33 +1166,54 @@ export default function ClassDetailPage() {
                     </div>
 
                     <div className="border-t border-border pt-3">
-                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
-                        Per-child override
-                      </p>
-                      {enrollments.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No enrolled students yet.</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {enrollments.slice(0, 20).map((student: any) => (
-                            <div key={student.id} className="flex items-center justify-between gap-3 bg-background border border-border px-3 py-2">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate">{student.full_name ?? 'Student'}</p>
-                                <p className="text-[10px] text-muted-foreground truncate">{student.email ?? ''}</p>
-                              </div>
-                              <select
-                                value={pathStudentModes[student.id] ?? 'inherit'}
-                                onChange={(e) => saveStudentPathMode(student.id, e.target.value as 'inherit' | 'full' | 'milestone')}
-                                disabled={pathVisibilitySaving === student.id}
-                                className="px-2 py-1.5 text-xs bg-card border border-border text-foreground"
-                              >
-                                <option value="inherit">Inherit class default</option>
-                                <option value="full">Full details</option>
-                                <option value="milestone">Milestone only</option>
-                              </select>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {(() => {
+                        const customised = Object.values(pathStudentModes).filter(m => m && m !== 'inherit').length;
+                        return (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setShowPathOverrides(v => !v)}
+                              className="flex items-center justify-between w-full text-left group"
+                            >
+                              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                                Per-child override
+                                {customised > 0 && (
+                                  <span className="ml-2 normal-case tracking-normal text-[10px] text-violet-300 font-semibold">· {customised} customised</span>
+                                )}
+                              </span>
+                              <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-foreground">
+                                {showPathOverrides ? 'Hide ▲' : 'Manage ▾'}
+                              </span>
+                            </button>
+                            {showPathOverrides && (
+                              enrollments.length === 0 ? (
+                                <p className="text-xs text-muted-foreground mt-3">No enrolled students yet.</p>
+                              ) : (
+                                <div className="space-y-2 mt-3 max-h-80 overflow-y-auto pr-1">
+                                  {enrollments.map((student: any) => (
+                                    <div key={student.id} className="flex items-center justify-between gap-3 bg-background border border-border rounded-lg px-3 py-2">
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-foreground truncate">{student.full_name ?? 'Student'}</p>
+                                        <p className="text-[10px] text-muted-foreground truncate">{student.email ?? ''}</p>
+                                      </div>
+                                      <select
+                                        value={pathStudentModes[student.id] ?? 'inherit'}
+                                        onChange={(e) => saveStudentPathMode(student.id, e.target.value as 'inherit' | 'full' | 'milestone')}
+                                        disabled={pathVisibilitySaving === student.id}
+                                        className="px-2 py-1.5 text-xs bg-card border border-border rounded-lg text-foreground flex-shrink-0"
+                                      >
+                                        <option value="inherit">Inherit class default</option>
+                                        <option value="full">Full details</option>
+                                        <option value="milestone">Milestone only</option>
+                                      </select>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}
@@ -1707,9 +1730,16 @@ export default function ClassDetailPage() {
                       </button>
                     </div>
                   )}
+                  <button
+                    onClick={() => setShowStudentList(v => !v)}
+                    title={showStudentList ? 'Hide student list' : 'Show student list'}
+                    className="px-2.5 h-8 bg-white/5 hover:bg-white/10 border border-white/5 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center rounded-xl text-[11px] font-bold"
+                  >
+                    {showStudentList ? 'Hide ▲' : 'Show ▾'}
+                  </button>
                 </div>
               </div>
-              {currentTermStudents.length === 0 ? (
+              {!showStudentList ? null : currentTermStudents.length === 0 ? (
                 <div className="p-10 text-center flex flex-col items-center justify-center">
                   <UserGroupIcon className="w-8 h-8 text-muted-foreground mb-3" />
                   <p className="text-sm text-muted-foreground mb-3">No active students for this term yet.</p>

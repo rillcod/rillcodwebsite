@@ -4,6 +4,7 @@ import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
+import { buildClassName, gradeBand } from '@/lib/classes/naming';
 
 /**
  * Shared Summer-School onboarding — the SINGLE source of truth for turning a
@@ -97,6 +98,7 @@ export async function ensureClassWithTutor(
   schoolName: string,
   className: string,
   description?: string,
+  gradeRange?: string | null,
 ): Promise<string | null> {
   // Resolve a tutor: an existing teacher for this class name globally, then for
   // the school, then any teacher in the system.
@@ -155,12 +157,25 @@ export async function ensureClassWithTutor(
     }
   }
 
-  const { data: existing } = await admin
+  // Standard, auto-derived name: "{School} · {Programme} · {Grade Band}".
+  // Grade band is part of identity: same school + programme can have Basic 1-3,
+  // Basic 4-6, JSS 1-3, SS 1-3 without collapsing into one class.
+  const isOnline = /online/i.test(schoolName);
+  const normalizedBand = gradeBand(gradeRange) || gradeRange || gradeBand(className);
+  const standardName = isOnline
+    ? buildClassName({ programme: className, online: true })
+    : buildClassName({ schoolName, programme: className, range: normalizedBand });
+
+  // Reuse only the exact class identity. Prefix matching wrongly collapsed distinct
+  // ranges, e.g. Basic 1-3 and Basic 4-6 under the same programme.
+  const { data: schoolClasses } = await admin
     .from('classes')
-    .select('id, teacher_id')
-    .eq('school_id', schoolId)
-    .eq('name', className)
-    .maybeSingle();
+    .select('id, teacher_id, name, qa_grade_band')
+    .eq('school_id', schoolId);
+  const existing = (schoolClasses ?? []).find(
+    (c: { id: string; teacher_id: string | null; name: string; qa_grade_band?: string | null }) =>
+      c.name === standardName || (c.name === className && (!normalizedBand || c.qa_grade_band === normalizedBand)),
+  );
 
   if (existing?.id) {
     if (!existing.teacher_id && tutorId) {
@@ -172,10 +187,11 @@ export async function ensureClassWithTutor(
   const { data: created, error } = await admin
     .from('classes')
     .insert({
-      name: className,
+      name: standardName,
       school_id: schoolId,
       teacher_id: tutorId,
       status: 'active',
+      qa_grade_band: normalizedBand ?? null,
       description: description ?? `${schoolName} — ${className}`,
     })
     .select('id')
