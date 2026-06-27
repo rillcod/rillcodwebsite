@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { LearningPathCard } from '@/components/progression/LearningPathCard';
+import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 
 type ChildOption = { id: string; full_name: string; user_id: string | null };
 type PathItem = {
@@ -38,16 +40,21 @@ export default function ParentPathProgressPage() {
     setLoading(true);
     try {
       const qs = childId ? `?child_id=${encodeURIComponent(childId)}` : '';
-      const res = await fetch(`/api/progression/path-view${qs}`);
-      const json = await res.json();
-      if (!res.ok) return;
+      const json = await fetchJsonWithTimeout(
+        `/api/progression/path-view${qs}`,
+        { data: { children: [], paths: [] } },
+        'parent path progress',
+      );
       const c = (json.data?.children ?? []) as ChildOption[];
       setChildren(c);
       if (!childId && c.length > 0) {
         setSelectedChildId(c[0].id);
-        const r2 = await fetch(`/api/progression/path-view?child_id=${encodeURIComponent(c[0].id)}`);
-        const j2 = await r2.json();
-        if (r2.ok) setPaths((j2.data?.paths ?? []) as PathItem[]);
+        const j2 = await fetchJsonWithTimeout(
+          `/api/progression/path-view?child_id=${encodeURIComponent(c[0].id)}`,
+          { data: { paths: [] } },
+          'parent selected child path progress',
+        );
+        setPaths((j2.data?.paths ?? []) as PathItem[]);
       } else {
         setPaths((json.data?.paths ?? []) as PathItem[]);
       }
@@ -88,42 +95,7 @@ export default function ParentPathProgressPage() {
       </div>
 
       {paths.map((p) => (
-        <div key={p.enrollment_id} className="bg-card border border-border rounded-2xl p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-black">{p.course_title}</p>
-              <p className="text-xs text-muted-foreground">{p.program_name} · {p.term_label}</p>
-              <p className="text-xs text-muted-foreground mt-1">{p.status_summary}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">
-                {p.visibility_mode === 'milestone' ? 'Milestone view' : 'Full view'}
-              </p>
-              <p className="text-xs font-bold text-violet-300">Term {p.current_term} · Week {p.current_week}</p>
-              <p className="text-xs text-muted-foreground">Status: {p.enrollment_status}</p>
-            </div>
-          </div>
-          <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary" style={{ width: `${Math.max(2, p.completion_pct)}%` }} />
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Last taught topic: <span className="text-foreground">{p.last_topic ?? 'No topic recorded yet'}</span>
-          </p>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-            <div className="rounded-xl border border-border bg-background p-3">
-              <p className="font-bold text-foreground">{p.assignments_completed ?? 0}/{p.assignments_total ?? 0}</p>
-              <p className="text-muted-foreground">Assignments graded</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background p-3">
-              <p className="font-bold text-foreground">{p.latest_report?.overall_grade ?? 'No report'}</p>
-              <p className="text-muted-foreground">{p.latest_report?.is_published ? 'Published report' : 'Report pending'}</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background p-3">
-              <p className="font-bold text-foreground">{p.is_current_class_course === false ? 'Not current focus' : 'Current path'}</p>
-              <p className="text-muted-foreground">Class course focus</p>
-            </div>
-          </div>
-        </div>
+        <LearningPathCard key={p.enrollment_id} path={p} />
       ))}
 
       {paths.length === 0 && (

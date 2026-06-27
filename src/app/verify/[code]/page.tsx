@@ -85,7 +85,7 @@ export default function VerifyCodePage() {
   }, [code]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col font-sans selection:bg-violet-500/30">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/20">
 
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -94,9 +94,9 @@ export default function VerifyCodePage() {
       </div>
 
       {/* Top bar */}
-      <header className="sticky top-0 z-50 border-b border-border bg-[#0a0a0f]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/verify" className="flex items-center gap-2 group text-white/40 hover:text-white transition-colors">
+          <Link href="/verify" className="flex items-center gap-2 group text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeftIcon className="w-4 h-4" />
             <span className="text-[10px] font-black uppercase tracking-widest">Verification Center</span>
           </Link>
@@ -104,7 +104,7 @@ export default function VerifyCodePage() {
           <Link href="/" className="flex items-center gap-2">
             <img src="/images/logo.png" alt="Rillcod" className="w-6 h-6 object-contain"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            <span className="font-black text-sm tracking-tight text-white/90">Rillcod Technologies</span>
+            <span className="font-black text-sm tracking-tight text-foreground">Rillcod Technologies</span>
           </Link>
 
           <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-emerald-400">
@@ -125,7 +125,7 @@ export default function VerifyCodePage() {
                 <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-violet-500 animate-spin" />
                 <div className="absolute inset-[10px] rounded-full border-[2px] border-transparent border-t-indigo-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.6s' }} />
               </div>
-              <p className="text-white/40 text-[11px] font-black uppercase tracking-[0.2em]">Verifying Authorization Token…</p>
+              <p className="text-muted-foreground text-[11px] font-black uppercase tracking-[0.2em]">Verifying Authorization Token…</p>
             </div>
           )}
 
@@ -136,13 +136,13 @@ export default function VerifyCodePage() {
                 <XCircleIcon className="w-12 h-12 text-rose-400" />
               </div>
               <div className="space-y-3">
-                <h1 className="text-3xl font-black text-white tracking-tight">Record Not Found</h1>
-                <p className="text-white/40 text-sm leading-relaxed">
-                  No published institutional report or certificate matches the verification code <span className="bg-white/10 px-2.5 py-1 rounded-md text-white font-mono font-bold tracking-tight">{code?.toUpperCase()}</span>.
+                <h1 className="text-3xl font-black text-foreground tracking-tight">Record Not Found</h1>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  No published institutional report or certificate matches the verification code <span className="bg-muted px-2.5 py-1 rounded-md text-foreground font-mono font-bold tracking-tight">{code?.toUpperCase()}</span>.
                 </p>
-                <p className="text-white/20 text-xs pt-2">Please verify the code on the printed certificate or QR code URL and try again.</p>
+                <p className="text-muted-foreground text-xs pt-2">Please verify the code on the printed certificate or QR code URL and try again.</p>
               </div>
-              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-white text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-violet-50 transition-all active:scale-95">
+              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-primary/90 transition-all active:scale-95">
                 New Search
               </Link>
             </div>
@@ -155,12 +155,12 @@ export default function VerifyCodePage() {
                 <ClockIcon className="w-12 h-12 text-amber-400" />
               </div>
               <div className="space-y-3">
-                <h1 className="text-3xl font-black text-white tracking-tight">Access Restricted</h1>
-                <p className="text-white/40 text-sm leading-relaxed">
+                <h1 className="text-3xl font-black text-foreground tracking-tight">Access Restricted</h1>
+                <p className="text-muted-foreground text-sm leading-relaxed">
                   This report exists in our database but has not been officially published for public verification by the Rillcod Technologies board.
                 </p>
               </div>
-              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/15 transition-all outline outline-1 outline-white/10">
+              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-muted text-foreground font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-muted/80 transition-all border border-border">
                 Back to Center
               </Link>
             </div>
@@ -173,12 +173,12 @@ export default function VerifyCodePage() {
                 <XCircleIcon className="w-12 h-12 text-rose-400" />
               </div>
               <div className="space-y-3">
-                <h1 className="text-3xl font-black text-white tracking-tight">Card Revoked</h1>
-                <p className="text-white/40 text-sm leading-relaxed">
-                  The access card with verification code <span className="bg-white/10 px-2.5 py-1 rounded-md text-white font-mono font-bold tracking-tight">{code?.toUpperCase()}</span> has been revoked and is no longer valid.
+                <h1 className="text-3xl font-black text-foreground tracking-tight">Card Revoked</h1>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  The access card with verification code <span className="bg-muted px-2.5 py-1 rounded-md text-foreground font-mono font-bold tracking-tight">{code?.toUpperCase()}</span> has been revoked and is no longer valid.
                 </p>
               </div>
-              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/15 transition-all outline outline-1 outline-white/10">
+              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-muted text-foreground font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-muted/80 transition-all border border-border">
                 Verify Another
               </Link>
             </div>
@@ -191,12 +191,12 @@ export default function VerifyCodePage() {
                 <ClockIcon className="w-12 h-12 text-amber-400" />
               </div>
               <div className="space-y-3">
-                <h1 className="text-3xl font-black text-white tracking-tight">Card Expired</h1>
-                <p className="text-white/40 text-sm leading-relaxed">
-                  The access card with verification code <span className="bg-white/10 px-2.5 py-1 rounded-md text-white font-mono font-bold tracking-tight">{code?.toUpperCase()}</span> has expired.
+                <h1 className="text-3xl font-black text-foreground tracking-tight">Card Expired</h1>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  The access card with verification code <span className="bg-muted px-2.5 py-1 rounded-md text-foreground font-mono font-bold tracking-tight">{code?.toUpperCase()}</span> has expired.
                 </p>
               </div>
-              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-white/15 transition-all outline outline-1 outline-white/10">
+              <Link href="/verify" className="inline-flex items-center gap-3 px-8 py-3.5 bg-muted text-foreground font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-muted/80 transition-all border border-border">
                 Verify Another
               </Link>
             </div>
@@ -209,7 +209,7 @@ export default function VerifyCodePage() {
               {/* Success Banner */}
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-[2rem] blur opacity-15" />
-                <div className="relative flex flex-col md:flex-row items-center gap-6 px-8 py-6 bg-[#0d1410] border border-emerald-500/20 rounded-[1.8rem] shadow-2xl">
+                <div className="relative flex flex-col md:flex-row items-center gap-6 px-8 py-6 bg-card border border-emerald-500/20 rounded-[1.8rem] shadow-2xl">
                   <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center flex-shrink-0">
                     <ShieldCheckIcon className="w-10 h-10 text-emerald-400" />
                   </div>

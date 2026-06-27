@@ -5,6 +5,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
+import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 import {
   ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, ClockIcon,
   CheckCircleIcon, EyeIcon, PencilIcon, TrashIcon, CalendarIcon,
@@ -165,8 +166,7 @@ function AssignmentsPageInner() {
   useEffect(() => {
     if (!profile || !isStaff) return;
     let cancelled = false;
-    fetch('/api/lesson-plans')
-      .then(res => res.json())
+    fetchJsonWithTimeout('/api/lesson-plans', { data: [] }, 'assignment lesson plans')
       .then(json => {
         if (!cancelled && json.data) setLessonPlans(json.data);
       })
@@ -186,15 +186,11 @@ function AssignmentsPageInner() {
         let data: any[];
         if (isStaff) {
           const url = filterPlanId ? `/api/assignments?lesson_plan_id=${filterPlanId}` : '/api/assignments';
-          const res = await fetch(url, { cache: 'no-store' });
-          if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load'); }
-          const json = await res.json();
+          const json = await fetchJsonWithTimeout(url, { data: [] }, 'staff assignments');
           data = json.data ?? [];
         } else {
           const url = filterPlanId ? `/api/assignments?lesson_plan_id=${filterPlanId}` : '/api/assignments';
-          const res = await fetch(url, { cache: 'no-store' });
-          if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to load'); }
-          const json = await res.json();
+          const json = await fetchJsonWithTimeout(url, { data: [] }, 'student assignments');
           let rawData = (json.data ?? []).map(toStudentAssignmentItem);
           if (filterPlanId) {
             rawData = rawData.filter((a: any) => {
@@ -373,8 +369,8 @@ function AssignmentsPageInner() {
             </div>
 
             {/* Right: stats + create */}
-            <div className="flex flex-col items-end gap-3 flex-shrink-0">
-              <div className="flex gap-px border border-border">
+            <div className="flex w-full sm:w-auto flex-col items-stretch sm:items-end gap-3 flex-shrink-0">
+              <div className="flex gap-px border border-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {[
                   { label: 'Total', value: totalItems, color: 'text-primary' },
                   { label: isStaff ? 'Pending Review' : 'Submitted', value: pendingCount, color: 'text-primary' },
@@ -386,7 +382,7 @@ function AssignmentsPageInner() {
                     pulse: overdueCount > 0,
                   },
                 ].map((stat, idx) => (
-                  <div key={stat.label} className={`bg-background px-5 py-3 text-center min-w-[72px] ${idx > 0 ? 'border-l border-border' : ''}`}>
+                  <div key={stat.label} className={`bg-background px-4 sm:px-5 py-3 text-center min-w-[76px] ${idx > 0 ? 'border-l border-border' : ''}`}>
                     <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{stat.label}</p>
                     <div className="flex items-center justify-center gap-1.5">
                       {(stat as any).pulse && (
@@ -400,7 +396,7 @@ function AssignmentsPageInner() {
               {isStaff && (
                 <Link
                   href="/dashboard/assignments/new"
-                  className="inline-flex items-center gap-2 bg-primary hover:bg-primary text-white font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary text-primary-foreground font-black text-[10px] uppercase tracking-widest px-5 py-2.5 transition-colors"
                 >
                   <PlusIcon className="w-4 h-4" /> Create Assignment
                 </Link>

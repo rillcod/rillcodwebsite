@@ -162,22 +162,29 @@ const DURATION_OPTIONS = ['4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks
 // they never go stale (replaces a hardcoded preset list).
 const ACADEMIC_YEAR_OPTIONS = academicYearOptions();
 
-const FINAL_CBT_STATUSES = new Set(['completed', 'passed', 'failed']);
+const FINAL_CBT_STATUSES = new Set(['completed', 'passed', 'failed', 'pending_grading']);
 const examMeta = (row: any) => row?.cbt_exams?.metadata && typeof row.cbt_exams.metadata === 'object' ? row.cbt_exams.metadata : {};
 const examTypeOf = (row: any) => String(examMeta(row).exam_type ?? 'examination').toLowerCase();
-const isScoreReadyCbt = (row: any) => row?.score != null && !row?.needs_grading && FINAL_CBT_STATUSES.has(String(row?.status ?? '').toLowerCase());
-const matchesReportExamScope = (row: any, courseId?: string | null, programId?: string | null) => {
+const isScoreReadyCbt = (row: any) => row?.score != null && FINAL_CBT_STATUSES.has(String(row?.status ?? '').toLowerCase());
+const cbtScopeRank = (row: any, courseId?: string | null, programId?: string | null) => {
     const exam = row?.cbt_exams;
-    if (!exam) return !courseId && !programId;
-    if (courseId && exam.course_id && exam.course_id !== courseId) return false;
-    if (programId && exam.program_id && exam.program_id !== programId) return false;
-    if (courseId && !exam.course_id && !exam.program_id) return false;
-    return true;
+    if (!exam) return !courseId && !programId ? 1 : 0;
+    if (courseId && exam.course_id === courseId) return 3;
+    if (programId && exam.program_id === programId) return 2;
+    if (!exam.course_id && !exam.program_id) return 1;
+    if (!courseId && !programId) return 1;
+    return 0;
 };
-const topCbtScore = (rows: any[], kind: 'examination' | 'evaluation') => Math.min(100, rows
+const matchesReportExamScope = (row: any, courseId?: string | null, programId?: string | null) => cbtScopeRank(row, courseId, programId) > 0;
+const topCbtScore = (rows: any[], kind: 'examination' | 'evaluation', courseId?: string | null, programId?: string | null) => Math.min(100, rows
     .filter(isScoreReadyCbt)
     .filter((row) => kind === 'evaluation' ? examTypeOf(row) === 'evaluation' : examTypeOf(row) !== 'evaluation')
-    .sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0))[0]?.score ?? 0);
+    .filter((row) => matchesReportExamScope(row, courseId, programId))
+    .sort((a, b) =>
+        cbtScopeRank(b, courseId, programId) - cbtScopeRank(a, courseId, programId)
+        || Number(b.score ?? 0) - Number(a.score ?? 0)
+        || new Date(b.end_time ?? 0).getTime() - new Date(a.end_time ?? 0).getTime()
+    )[0]?.score ?? 0);
 const assignmentPctOf = (row: any) => {
     const grade = Number(row?.grade ?? 0);
     const max = Number(row?.assignments?.max_points ?? 100) || 100;
@@ -1174,11 +1181,12 @@ function ReportBuilderInner() {
             ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
 
             // 3. Split CBT scores by exam_type stored in metadata
-            const allCbt: any[] = (cbtAllRes.data || []).filter((row: any) =>
+            const allCbt: any[] = cbtAllRes.data || [];
+            const scopedCbt = allCbt.filter((row: any) =>
                 matchesReportExamScope(row, sessionConfig.course_id || null, statsProgramId),
             );
-            const cbtScore = topCbtScore(allCbt, 'examination');
-            const pendingCbt = allCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
+            const cbtScore = topCbtScore(allCbt, 'examination', sessionConfig.course_id || null, statsProgramId);
+            const pendingCbt = scopedCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
             const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
             const assignmentAvg = asgnGrades.length > 0
                 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length)
@@ -1187,7 +1195,7 @@ function ReportBuilderInner() {
             const gradedAsgn = subRes.data?.length || 0;
             const assignmentPct = Math.round((gradedAsgn / totalAsgn) * 100);
             // Evaluation score = best CBT score where exam_type = 'evaluation'
-            const evalScore = topCbtScore(allCbt, 'evaluation');
+            const evalScore = topCbtScore(allCbt, 'evaluation', sessionConfig.course_id || null, statsProgramId);
             const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
             // Project Engagement: every 3 projects = 100% (capped at 100)
             const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));

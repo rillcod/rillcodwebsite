@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import StudentEngagementCard from '@/components/dashboard/StudentEngagementCard';
 import RecommendedForYou from '@/components/dashboard/RecommendedForYou';
 import { RadialRing, GaugeBar, CHART_COLORS } from '@/components/charts';
+import { filterLessonsForClassPlans } from '@/lib/learning/lesson-plan-scope';
 
 const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; text: string; border: string }> = {
   Bronze: { label: 'Bronze', emoji: '🥉', bar: 'bg-amber-700', text: 'text-amber-700', border: 'border-amber-700/40' },
@@ -27,40 +28,6 @@ const LEVEL_COLORS: Record<string, { label: string; emoji: string; bar: string; 
 const NEXT_THRESHOLD: Record<string, number> = { Bronze: 500, Silver: 2000, Gold: 5000, Platinum: 5000 };
 const CUR_THRESHOLD: Record<string, number> = { Bronze: 0, Silver: 500, Gold: 2000, Platinum: 5000 };
 const NEXT_LEVEL: Record<string, string> = { Bronze: 'Silver', Silver: 'Gold', Gold: 'Platinum', Platinum: '∞' };
-
-function lessonPlanIdOf(lesson: any): string | null {
-  const metadata = lesson?.metadata;
-  if (!metadata || typeof metadata !== 'object') return null;
-  const id = metadata.lesson_plan_id;
-  return typeof id === 'string' && id.trim() ? id : null;
-}
-
-async function filterLessonsForClassPlans(
-  db: ReturnType<typeof createClient>,
-  lessons: any[],
-  classId?: string | null,
-  termId?: string | null,
-) {
-  if (!classId || lessons.length === 0) return lessons;
-  const courseIds = Array.from(new Set(lessons.map((lesson) => lesson.course_id).filter(Boolean)));
-  if (courseIds.length === 0) return lessons;
-
-  let planQuery = db
-    .from('lesson_plans')
-    .select('id, course_id, term_id')
-    .eq('class_id', classId)
-    .in('course_id', courseIds);
-  if (termId) planQuery = planQuery.eq('term_id', termId);
-  const { data: plans } = await planQuery;
-  const allowedPlanIds = new Set((plans ?? []).map((plan: any) => plan.id).filter(Boolean));
-  const plannedCourseIds = new Set((plans ?? []).map((plan: any) => plan.course_id).filter(Boolean));
-
-  return lessons.filter((lesson) => {
-    const planId = lessonPlanIdOf(lesson);
-    if (planId) return allowedPlanIds.has(planId);
-    return !plannedCourseIds.has(lesson.course_id);
-  });
-}
 
 export default function StudentDashboard() {
   const { profile } = useAuth();
@@ -288,7 +255,9 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:border-emerald-500/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           ...(data.lmsSettings.lms_gamification_enabled !== 'false' ? [
             { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
@@ -535,7 +504,9 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
           { href: '/dashboard/learning', icon: BookOpenIcon, label: 'Learning Center', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/assignments', icon: ClipboardDocumentListIcon, label: 'Assignments', color: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40' },
           { href: '/dashboard/path-progress', icon: ChartBarIcon, label: 'Path Progress', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
+          { href: '/dashboard/results', icon: CheckBadgeIcon, label: 'Report Card', color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:border-emerald-500/40' },
           { href: '/dashboard/cbt', icon: AcademicCapIcon, label: 'Take a Quiz', color: 'bg-primary/10 border-primary/20 text-primary hover:border-primary/40' },
           { href: '/dashboard/leaderboard', icon: TrophyIcon, label: 'Leaderboard', color: 'bg-amber-600/10 border-amber-600/20 text-amber-400 hover:border-amber-500/40' },
           { href: '/dashboard/activity-hub', icon: SparklesIcon, label: 'Student Hub', color: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-400 hover:border-emerald-500/40' },

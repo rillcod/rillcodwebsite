@@ -401,7 +401,7 @@ export default function DashboardNavigation() {
   const navItems = navEntries.filter((e): e is NavItem => !isDivider(e));
   const BOTTOM_NAV_NAMES = new Set(
     profile?.role === 'student'
-      ? ['Dashboard', 'Learning Center', 'CBT Exams', 'My Report Card', 'WhatsApp Inbox']
+      ? ['Dashboard', 'Learning Center', 'Assignments', 'My Report Card', 'WhatsApp Inbox']
       : profile?.role === 'school'
         ? ['Dashboard', 'My Students', 'Student Reports', 'My Billing', 'WhatsApp Inbox']
         : profile?.role === 'admin'
@@ -445,7 +445,7 @@ export default function DashboardNavigation() {
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 bg-black/70 z-40 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-foreground/35 dark:bg-black/70 z-40 md:hidden backdrop-blur-sm"
           aria-hidden="true"
         />
       )}

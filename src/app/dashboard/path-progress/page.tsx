@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
+import { LearningPathCard } from '@/components/progression/LearningPathCard';
+import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 
 type PathItem = {
   enrollment_id: string;
@@ -44,9 +46,12 @@ export default function StudentPathProgressPage() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/progression/path-view');
-        const json = await res.json();
-        if (res.ok) setPaths((json.data?.paths ?? []) as PathItem[]);
+        const json = await fetchJsonWithTimeout(
+          '/api/progression/path-view',
+          { data: { paths: [] } },
+          'student path progress',
+        );
+        setPaths((json.data?.paths ?? []) as PathItem[]);
       } finally {
         setLoading(false);
       }
@@ -66,52 +71,7 @@ export default function StudentPathProgressPage() {
       </div>
 
       {paths.map((p) => (
-        <div key={p.enrollment_id} className="bg-card border border-border rounded-2xl p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-black">{p.course_title}</p>
-              <p className="text-xs text-muted-foreground">{p.program_name} · {p.term_label}</p>
-              <p className="text-xs text-muted-foreground mt-1">{p.status_summary}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">
-                {p.visibility_mode === 'milestone' ? 'Milestone view' : 'Full view'}
-              </p>
-              <p className="text-xs font-bold text-violet-300">Term {p.current_term} · Week {p.current_week}</p>
-              <p className="text-xs text-muted-foreground">{p.completed_weeks}/{p.total_weeks} weeks completed</p>
-            </div>
-          </div>
-          <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary" style={{ width: `${Math.max(2, p.completion_pct)}%` }} />
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Last taught topic: <span className="text-foreground">{p.last_topic ?? 'No topic recorded yet'}</span>
-          </p>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-            <div className="rounded-xl border border-border bg-background p-3">
-              <p className="font-bold text-foreground">{p.assignments_completed ?? 0}/{p.assignments_total ?? 0}</p>
-              <p className="text-muted-foreground">Assignments graded</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background p-3">
-              <p className="font-bold text-foreground">{p.latest_report?.overall_grade ?? 'No report'}</p>
-              <p className="text-muted-foreground">{p.latest_report?.is_published ? 'Published report' : 'Report pending'}</p>
-            </div>
-            <div className="rounded-xl border border-border bg-background p-3">
-              <p className="font-bold text-foreground">{p.is_current_class_course === false ? 'Not current focus' : 'Current path'}</p>
-              <p className="text-muted-foreground">Class course focus</p>
-            </div>
-          </div>
-          {p.can_view_full && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-[11px] font-bold text-cyan-300">Term status details</summary>
-              <ul className="mt-2 text-xs text-muted-foreground space-y-1">
-                {p.term_statuses.map((s) => (
-                  <li key={s.key}>{s.key}: <span className="text-foreground">{s.status}</span></li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </div>
+        <LearningPathCard key={p.enrollment_id} path={p} showTermDetails />
       ))}
 
       {paths.length === 0 && (

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { withTimeout } from '@/lib/async-timeout';
+import { filterLessonsForClassPlans } from '@/lib/learning/lesson-plan-scope';
 import Link from 'next/link';
 import {
   RocketLaunchIcon, BookOpenIcon, ClockIcon,
@@ -19,35 +20,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const GREETINGS = ['Welcome back', 'Ready to learn?', 'Let\'s continue', 'Great to see you'];
 const KID_GREETINGS = ['Hey there!', 'Ready to learn?', 'Let\'s have fun!', 'Time to explore!'];
-
-function lessonPlanIdOf(lesson: any): string | null {
-  const metadata = lesson?.metadata;
-  if (!metadata || typeof metadata !== 'object') return null;
-  const id = metadata.lesson_plan_id;
-  return typeof id === 'string' && id.trim() ? id : null;
-}
-
-async function filterLessonsForClassPlans(db: ReturnType<typeof createClient>, lessons: any[], classId?: string | null, termId?: string | null) {
-  if (!classId || lessons.length === 0) return lessons;
-  const courseIds = Array.from(new Set(lessons.map((lesson) => lesson.course_id).filter(Boolean)));
-  if (courseIds.length === 0) return lessons;
-
-  let planQuery = db
-    .from('lesson_plans')
-    .select('id, course_id, term_id')
-    .eq('class_id', classId)
-    .in('course_id', courseIds);
-  if (termId) planQuery = planQuery.eq('term_id', termId);
-  const { data: plans } = await planQuery;
-  const allowedPlanIds = new Set((plans ?? []).map((plan: any) => plan.id).filter(Boolean));
-  const plannedCourseIds = new Set((plans ?? []).map((plan: any) => plan.course_id).filter(Boolean));
-
-  return lessons.filter((lesson) => {
-    const planId = lessonPlanIdOf(lesson);
-    if (planId) return allowedPlanIds.has(planId);
-    return !plannedCourseIds.has(lesson.course_id);
-  });
-}
 
 function getLearnerTier(gradeLevel?: string | null, enrollmentType?: string | null): 'kids' | 'secondary' | 'adult' {
   const g = (gradeLevel || enrollmentType || '').toLowerCase().trim();
@@ -133,7 +105,7 @@ export default function StudentLearningPage() {
       );
       setBadges(badgeData || []);
 
-      // 3. Fetch Pending Assignments
+      // 3. Fetch submitted assignments that are waiting for teacher feedback.
       const { count: pendingCount } = await withTimeout(
         db
           .from('assignment_submissions')
@@ -141,7 +113,7 @@ export default function StudentLearningPage() {
           .eq('portal_user_id', profile.id)
           .eq('status', 'submitted'),
         { count: 0, data: null, error: null },
-        'learning pending assignments',
+        'learning submitted assignments',
       );
       setPendingAssignments(pendingCount || 0);
 
@@ -363,9 +335,9 @@ export default function StudentLearningPage() {
     if (pendingAssignments > 0) {
       missions.push({
         id: 'assignment',
-        label: `Submit Homework`,
-        desc: `${pendingAssignments} pending task${pendingAssignments > 1 ? 's' : ''}`,
-        xp: 25,
+        label: 'Awaiting Feedback',
+        desc: `${pendingAssignments} submitted task${pendingAssignments > 1 ? 's' : ''} with teacher`,
+        xp: 10,
         emoji: '📝',
         href: '/dashboard/assignments',
         done: false,
