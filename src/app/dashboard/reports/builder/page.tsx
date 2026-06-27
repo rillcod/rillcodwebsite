@@ -32,6 +32,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 
 import { cn } from '@/lib/utils';
 import { getActivityCap } from '@/lib/grading';
+import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -161,6 +162,28 @@ const DURATION_OPTIONS = ['4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks
 // they never go stale (replaces a hardcoded preset list).
 const ACADEMIC_YEAR_OPTIONS = academicYearOptions();
 
+const FINAL_CBT_STATUSES = new Set(['completed', 'passed', 'failed']);
+const examMeta = (row: any) => row?.cbt_exams?.metadata && typeof row.cbt_exams.metadata === 'object' ? row.cbt_exams.metadata : {};
+const examTypeOf = (row: any) => String(examMeta(row).exam_type ?? 'examination').toLowerCase();
+const isScoreReadyCbt = (row: any) => row?.score != null && !row?.needs_grading && FINAL_CBT_STATUSES.has(String(row?.status ?? '').toLowerCase());
+const matchesReportExamScope = (row: any, courseId?: string | null, programId?: string | null) => {
+    const exam = row?.cbt_exams;
+    if (!exam) return !courseId && !programId;
+    if (courseId && exam.course_id && exam.course_id !== courseId) return false;
+    if (programId && exam.program_id && exam.program_id !== programId) return false;
+    if (courseId && !exam.course_id && !exam.program_id) return false;
+    return true;
+};
+const topCbtScore = (rows: any[], kind: 'examination' | 'evaluation') => Math.min(100, rows
+    .filter(isScoreReadyCbt)
+    .filter((row) => kind === 'evaluation' ? examTypeOf(row) === 'evaluation' : examTypeOf(row) !== 'evaluation')
+    .sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0))[0]?.score ?? 0);
+const assignmentPctOf = (row: any) => {
+    const grade = Number(row?.grade ?? 0);
+    const max = Number(row?.assignments?.max_points ?? 100) || 100;
+    return Math.max(0, Math.min(100, Math.round((grade / max) * 100)));
+};
+
 const MILESTONE_SUGGESTIONS: Record<string, string[]> = {
     default: [
         'Completed all assigned coursework for the term',
@@ -250,53 +273,6 @@ function getMilestoneSuggestions(courseName: string): string[] {
 }
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors';
-const REPORT_BUILDER_TIMEOUT_MS = 12_000;
-
-async function withTimeout(
-    promise: PromiseLike<unknown>,
-    fallback: unknown,
-    label: string,
-    ms = REPORT_BUILDER_TIMEOUT_MS,
-): Promise<any> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-        return await Promise.race([
-            Promise.resolve(promise).catch((err) => {
-                console.warn(`[ReportBuilder] ${label} failed`, err);
-                return fallback;
-            }),
-            new Promise((resolve) => {
-                timer = setTimeout(() => {
-                    console.warn(`[ReportBuilder] ${label} timed out after ${ms}ms`);
-                    resolve(fallback);
-                }, ms);
-            }),
-        ]);
-    } finally {
-        if (timer) clearTimeout(timer);
-    }
-}
-
-async function fetchJsonWithTimeout<T extends Record<string, unknown>>(
-    url: string,
-    fallback: T,
-    label: string,
-    ms = REPORT_BUILDER_TIMEOUT_MS,
-): Promise<T> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ms);
-    try {
-        const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
-        if (!res.ok) return fallback;
-        return await res.json();
-    } catch (err) {
-        console.warn(`[ReportBuilder] ${label} failed`, err);
-        return fallback;
-    } finally {
-        clearTimeout(timer);
-    }
-}
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
@@ -1159,6 +1135,18 @@ function ReportBuilderInner() {
                 ? await withTimeout(sessionQuery, { data: [], error: null }, 'class sessions for stats')
                 : { data: [] };
             const sessionIds = sessions?.map((x: any) => x.id) || [];
+            const selectedCourse = sessionConfig.course_id ? courses.find((c: any) => c.id === sessionConfig.course_id) : null;
+            const statsProgramId = (selectedCourse as any)?.program_id || sessionProgramId || null;
+            const submissionsQuery = sessionConfig.course_id
+                ? db.from('assignment_submissions')
+                    .select('id, grade, status, assignments!inner(course_id, max_points)')
+                    .eq('portal_user_id', s.id)
+                    .eq('status', 'graded')
+                    .eq('assignments.course_id', sessionConfig.course_id)
+                : db.from('assignment_submissions')
+                    .select('id, grade, status, assignments(max_points)')
+                    .eq('portal_user_id', s.id)
+                    .eq('status', 'graded');
 
             // 2. Fetch all 4 data sources in parallel
             const [attRes, subRes, allAssignments, cbtAllRes, labRes, portfolioRes] = await withTimeout(Promise.all([
@@ -1171,13 +1159,13 @@ function ReportBuilderInner() {
                     })()
                     : { data: [] },
                 // Assignment submissions — graded (feeds Assignment + Evaluation)
-                db.from('assignment_submissions').select('id, grade').eq('portal_user_id', s.id).eq('status', 'graded'),
+                submissionsQuery,
                 // Total active assignments for this course (Assignment denominator)
                 sessionConfig.course_id
                     ? db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true)
                     : { data: [] },
                 // All CBT sessions with exam metadata for type splitting
-                db.from('cbt_sessions').select('score, cbt_exams(metadata)').eq('user_id', s.id).order('score', { ascending: false }),
+                db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(title, course_id, program_id, metadata)').eq('user_id', s.id).order('score', { ascending: false }),
                 // Lab projects (feeds Project Engagement)
                 db.from('lab_projects').select('id').eq('user_id', s.id),
                 // Portfolio projects (feeds Project Engagement)
@@ -1185,16 +1173,11 @@ function ReportBuilderInner() {
             ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
 
             // 3. Split CBT scores by exam_type stored in metadata
-            const allCbt: any[] = cbtAllRes.data || [];
-            const examSessions = allCbt.filter(r => {
-                const t = (r.cbt_exams as any)?.metadata?.exam_type;
-                return !t || t === 'examination'; // default = examination
-            });
-            const evalSessions = allCbt.filter(r =>
-                (r.cbt_exams as any)?.metadata?.exam_type === 'evaluation'
+            const allCbt: any[] = (cbtAllRes.data || []).filter((row: any) =>
+                matchesReportExamScope(row, sessionConfig.course_id || null, statsProgramId),
             );
-            const cbtScore = Math.min(100, examSessions[0]?.score || 0);
-            const asgnGrades = subRes.data?.map((x: any) => x.grade).filter((g: any) => g !== null) as number[] || [];
+            const cbtScore = topCbtScore(allCbt, 'examination');
+            const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
             const assignmentAvg = asgnGrades.length > 0
                 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length)
                 : 0;
@@ -1202,7 +1185,7 @@ function ReportBuilderInner() {
             const gradedAsgn = subRes.data?.length || 0;
             const assignmentPct = Math.round((gradedAsgn / totalAsgn) * 100);
             // Evaluation score = best CBT score where exam_type = 'evaluation'
-            const evalScore = Math.min(100, evalSessions[0]?.score || 0);
+            const evalScore = topCbtScore(allCbt, 'evaluation');
             const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
             // Project Engagement: every 3 projects = 100% (capped at 100)
             const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
@@ -1317,6 +1300,16 @@ function ReportBuilderInner() {
                     ? await withTimeout(sessionQuery, { data: [], error: null }, 'bulk class sessions')
                     : { data: [] };
                 const sessionIds = sessions?.map((x: any) => x.id) || [];
+                const bulkSubmissionsQuery = sessionConfig.course_id
+                    ? db.from('assignment_submissions')
+                        .select('id, grade, status, assignments!inner(course_id, max_points)')
+                        .eq('portal_user_id', s.id)
+                        .eq('status', 'graded')
+                        .eq('assignments.course_id', sessionConfig.course_id)
+                    : db.from('assignment_submissions')
+                        .select('id, grade, status, assignments(max_points)')
+                        .eq('portal_user_id', s.id)
+                        .eq('status', 'graded');
 
                 const [attRes, subRes, allAsgn, cbtRes, labRes, portfolioRes] = await withTimeout(Promise.all([
                     sessionIds.length > 0 ? (() => {
@@ -1324,25 +1317,27 @@ function ReportBuilderInner() {
                         if (targetTermId) q = q.eq('term_id', targetTermId);
                         return q;
                     })() : { data: [] },
-                    db.from('assignment_submissions').select('id, grade').eq('portal_user_id', s.id).eq('status', 'graded'),
+                    bulkSubmissionsQuery,
                     sessionConfig.course_id ? db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true) : { data: [] },
-                    programId ? db.from('cbt_sessions').select('score').eq('user_id', s.id).eq('exam_id', programId).order('score', { ascending: false }).limit(1)
-                              : db.from('cbt_sessions').select('score').eq('user_id', s.id).order('score', { ascending: false }).limit(1),
+                    db.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(title, course_id, program_id, metadata)').eq('user_id', s.id).order('score', { ascending: false }),
                     db.from('lab_projects').select('id').eq('user_id', s.id),
                     db.from('portfolio_projects').select('id').eq('user_id', s.id),
                 ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'bulk student stats sources');
 
                 // 2. Compute transparent scores (mirrors fetchStats 6-component mapping)
-                const cbtScore = Math.min(100, cbtRes.data?.[0]?.score || 0);
-                const asgnGrades = subRes.data?.map((x: any) => x.grade).filter((g: any) => g !== null) as number[] || [];
+                const scopedCbt = (cbtRes.data ?? []).filter((row: any) =>
+                    matchesReportExamScope(row, sessionConfig.course_id || null, programId || null),
+                );
+                const cbtScore = topCbtScore(scopedCbt, 'examination');
+                const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
                 const asgnAvg = asgnGrades.length > 0 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length) : 0;
                 const totalAsgn = allAsgn.data?.length || 8;
                 const assigPct = Math.round((subRes.data?.length || 0) / totalAsgn * 100);
                 const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
                 const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
                 const attPct = sessionIds.length > 0 ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 80;
-                // Assessment: blend of lab quality and submission consistency
-                const evalScore = Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4));
+                // Assessment: prefer explicit evaluation CBT, then blend project/submission consistency.
+                const evalScore = topCbtScore(scopedCbt, 'evaluation') || Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4));
 
                 // 3. Map to 6 weighted components
                 const theory      = cbtScore;    // Theory (20%)  — CBT exam score

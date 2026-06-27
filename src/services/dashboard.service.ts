@@ -246,7 +246,7 @@ export async function fetchSubmissionsForGrading(opts: { teacherId?: string, sch
       id, grade, weighted_score, feedback, status, submitted_at, graded_at,
       submission_text, file_url, portal_user_id, user_id,
       assignments (
-        id, title, max_points, weight, due_date, created_by,
+        id, title, max_points, weight, due_date, created_by, course_id,
         courses ( title, teacher_id, programs ( name ) )
       )
     `)
@@ -300,7 +300,7 @@ export async function fetchStudentGrades(portalUserId: string) {
         .select(`
       id, grade, weighted_score, feedback, status, submitted_at, graded_at, portal_user_id, user_id,
       assignments (
-        id, title, max_points, weight, due_date, assignment_type,
+        id, title, max_points, weight, due_date, assignment_type, course_id,
         courses ( title, programs ( name ) )
       )
     `)

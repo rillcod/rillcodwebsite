@@ -124,11 +124,17 @@ export async function GET(req: NextRequest) {
   const { data: studentRows } = uniqueStudentIds.length > 0
     ? await admin
         .from('portal_users')
-        .select('id, class_id')
+        .select('id, class_id, classes:class_id(id, name, term_id, current_course_id)')
         .in('id', uniqueStudentIds)
     : { data: [] };
   const classByStudent: Record<string, string | null> = Object.fromEntries(
     (studentRows ?? []).map((s: any) => [s.id, s.class_id ?? null]),
+  );
+  const classTermByStudent: Record<string, string | null> = Object.fromEntries(
+    (studentRows ?? []).map((s: any) => [s.id, s.classes?.term_id ?? null]),
+  );
+  const currentCourseByStudent: Record<string, string | null> = Object.fromEntries(
+    (studentRows ?? []).map((s: any) => [s.id, s.classes?.current_course_id ?? null]),
   );
 
   const classKeys = Array.from(new Set(Object.values(classByStudent).filter(Boolean))).map(
@@ -177,15 +183,18 @@ export async function GET(req: NextRequest) {
 
     let lessonPlan = null;
     if (pickedCurriculum?.id) {
-      const { data: lp } = await admin
+      const { data: plans } = await admin
         .from('lesson_plans')
-        .select('id, title, plan_data, status, updated_at')
+        .select('id, title, plan_data, status, updated_at, class_id, term_id')
         .eq('course_id', enr.course_id)
         .eq('curriculum_version_id', pickedCurriculum.id)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      lessonPlan = lp ?? null;
+        .order('updated_at', { ascending: false });
+      const classId = classByStudent[enr.student_id] ?? null;
+      const classTermId = classTermByStudent[enr.student_id] ?? null;
+      lessonPlan = (plans ?? []).find((lp: any) => lp.class_id && lp.class_id === classId && (!classTermId || !lp.term_id || lp.term_id === classTermId))
+        ?? (plans ?? []).find((lp: any) => !lp.class_id && (!classTermId || !lp.term_id || lp.term_id === classTermId))
+        ?? (plans ?? [])[0]
+        ?? null;
     }
 
     const progression = asObject(asObject(lessonPlan?.plan_data).progression);
@@ -208,6 +217,8 @@ export async function GET(req: NextRequest) {
         .eq('curriculum_id', pickedCurriculum.id);
       if (enr.school_id) q = q.eq('school_id', enr.school_id);
       else q = q.is('school_id', null);
+      const classId = classByStudent[enr.student_id] ?? null;
+      if (classId) q = q.eq('class_id', classId);
       const { data: trackingRows } = await q;
       const completed = (trackingRows ?? [])
         .filter((t: any) => t.status === 'completed')
@@ -221,6 +232,30 @@ export async function GET(req: NextRequest) {
       }
       completionPct = totalWeeks > 0 ? Math.min(100, Math.round((completedWeeks / totalWeeks) * 100)) : 0;
     }
+
+    const [{ data: assignmentRows }, { data: submissionRows }, { data: latestReport }] = await Promise.all([
+      admin
+        .from('assignments')
+        .select('id')
+        .eq('course_id', enr.course_id)
+        .eq('is_active', true),
+      admin
+        .from('assignment_submissions')
+        .select('id, status, grade, assignments!inner(course_id)')
+        .eq('portal_user_id', enr.student_id)
+        .eq('assignments.course_id', enr.course_id),
+      admin
+        .from('student_progress_reports')
+        .select('id, overall_grade, overall_score, is_published, report_term, report_period, updated_at')
+        .eq('student_id', enr.student_id)
+        .eq('course_id', enr.course_id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    const totalAssignments = assignmentRows?.length ?? 0;
+    const gradedSubmissions = (submissionRows ?? []).filter((s: any) => s.grade != null || s.status === 'graded').length;
+    const assignmentPct = totalAssignments > 0 ? Math.min(100, Math.round((gradedSubmissions / totalAssignments) * 100)) : 0;
 
     const statusSummary =
       enr.status === 'active'
@@ -246,11 +281,25 @@ export async function GET(req: NextRequest) {
       lesson_plan_id: lessonPlan?.id ?? null,
       lesson_plan_status: lessonPlan?.status ?? null,
       term_statuses: termStatuses,
+      class_id: classByStudent[enr.student_id] ?? null,
+      class_term_id: classTermByStudent[enr.student_id] ?? null,
+      is_current_class_course: currentCourseByStudent[enr.student_id] ? currentCourseByStudent[enr.student_id] === enr.course_id : null,
       current_term: currentTerm,
       current_week: currentWeek,
       completed_weeks: completedWeeks,
       total_weeks: totalWeeks,
       completion_pct: completionPct,
+      assignments_completed: gradedSubmissions,
+      assignments_total: totalAssignments,
+      assignment_completion_pct: assignmentPct,
+      latest_report: latestReport ? {
+        id: latestReport.id,
+        overall_grade: latestReport.overall_grade,
+        overall_score: latestReport.overall_score,
+        is_published: latestReport.is_published,
+        report_term: latestReport.report_term,
+        report_period: latestReport.report_period,
+      } : null,
       last_topic: lastTopic,
       status_summary: statusSummary,
       visibility_mode: visibilityMode,

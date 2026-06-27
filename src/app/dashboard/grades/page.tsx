@@ -16,6 +16,7 @@ import {
     PaperClipIcon, TrashIcon
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import { withTimeout } from '@/lib/async-timeout';
 
 // ─── WAEC Grade helpers ───────────────────────────────────────
 import { getWAECGrade } from '@/lib/grading';
@@ -837,7 +838,7 @@ export default function GradesPage() {
             setLoading(true); setError(null);
             try {
                 const db = createClient();
-                const [subData, progData, courseData] = await Promise.all([
+                const [subData, progData, courseData] = await withTimeout(Promise.all([
                     isStaff
                         ? fetchSubmissionsForGrading({
                             teacherId: role === 'teacher' ? profile?.id : undefined,
@@ -847,7 +848,7 @@ export default function GradesPage() {
                         : fetchStudentGrades(profile?.id || ''),
                     db.from('programs').select('id, name').eq('is_active', true).order('name'),
                     db.from('courses').select('id, title, program_id').eq('is_active', true).order('title'),
-                ]);
+                ]), [[], { data: [] }, { data: [] }], 'gradebook startup');
                 if (!cancelled) {
                     setItems(subData);
                     setPrograms(progData.data ?? []);

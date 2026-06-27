@@ -18,6 +18,7 @@ import {
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 import { getWAECGrade } from '@/lib/grading';
+import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 
 
 export default function ClassDetailPage() {
@@ -105,42 +106,42 @@ export default function ClassDetailPage() {
     setLoading(true);
     const supabase = createClient();
     try {
-      const [clsApiRes, sessRes] = await Promise.all([
-        fetch(`/api/classes/${id}`, { cache: 'no-store' }),
-        supabase.from('class_sessions').select('*').eq('class_id', id!).order('session_date', { ascending: false }).limit(10),
+      const [clsJson, sessRes] = await Promise.all([
+        fetchJsonWithTimeout(`/api/classes/${id}`, { data: null, error: 'Class not found' }, 'class detail record'),
+        withTimeout(
+          supabase.from('class_sessions').select('*').eq('class_id', id!).order('session_date', { ascending: false }).limit(10),
+          { data: [], error: null },
+          'class recent sessions',
+        ),
       ]);
 
-      if (!clsApiRes.ok) {
-        let errMsg = 'Class not found';
-        try { const j = await clsApiRes.json(); errMsg = j.error || errMsg; } catch {}
-        throw new Error(errMsg);
-      }
-      const { data: clsData } = await clsApiRes.json();
+      const clsData = clsJson.data as any;
+      if (!clsData) throw new Error(String(clsJson.error || 'Class not found'));
       setCls(clsData);
       setSessions(sessRes.data ?? []);
 
       const program_id = clsData.program_id;
-      const studentsHttpRes = await fetch(`/api/classes/${id}/students`, { cache: 'no-store' });
-      let studentsRes: any = { students: [] };
-      try { studentsRes = await studentsHttpRes.json(); } catch {}
-      if (!studentsHttpRes.ok) {
-        console.error('[students API]', studentsHttpRes.status, studentsRes);
-      }
+      const studentsRes = await fetchJsonWithTimeout(
+        `/api/classes/${id}/students`,
+        { students: [], former_students: [] },
+        'class students',
+      );
       setEnrollments(studentsRes.students ?? []);
       setFormerEnrollments(studentsRes.former_students ?? []);
       if (isStaff) {
-        const visRes = await fetch(`/api/progression/path-visibility?class_id=${id}`, { cache: 'no-store' });
-        if (visRes.ok) {
-          const visJson = await visRes.json();
-          const classMode = (visJson.data?.class_mode ?? 'full') as 'full' | 'milestone';
-          setPathClassMode(classMode);
-          const nextModes: Record<string, 'inherit' | 'full' | 'milestone'> = {};
-          for (const row of (visJson.data?.students ?? [])) {
-            const mode = row.mode === 'full' || row.mode === 'milestone' ? row.mode : 'inherit';
-            nextModes[row.student_id] = mode;
-          }
-          setPathStudentModes(nextModes);
+        const visJson = await fetchJsonWithTimeout(
+          `/api/progression/path-visibility?class_id=${id}`,
+          { data: { class_mode: 'full', students: [] } },
+          'class path visibility',
+        );
+        const classMode = (visJson.data?.class_mode ?? 'full') as 'full' | 'milestone';
+        setPathClassMode(classMode);
+        const nextModes: Record<string, 'inherit' | 'full' | 'milestone'> = {};
+        for (const row of ((visJson.data?.students ?? []) as any[])) {
+          const mode = row.mode === 'full' || row.mode === 'milestone' ? row.mode : 'inherit';
+          nextModes[row.student_id] = mode;
         }
+        setPathStudentModes(nextModes);
       }
 
       // Only fetch program-related data if program_id exists
@@ -155,23 +156,23 @@ export default function ClassDetailPage() {
           cbtQuery = cbtQuery.is('school_id', null);
         }
 
-        const [lessonRes, asgnRes, cbtRes, coursesRes] = await Promise.all([
+        const [lessonRes, asgnRes, cbtRes, coursesRes] = await withTimeout(Promise.all([
           supabase.from('lessons').select('id, title, lesson_type, status, courses!inner(program_id)').eq('courses.program_id', program_id),
           supabase.from('assignments').select('id, title, assignment_type, due_date, max_points, course_id, class_id, metadata, courses!inner(program_id)').eq('courses.program_id', program_id),
           cbtQuery,
           supabase.from('courses').select('id, title').eq('program_id', program_id).eq('is_active', true).order('level_order', { ascending: true })
-        ]);
+        ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }], 'class learning artifacts');
 
         const assignments = (asgnRes.data ?? []).filter((assignment: any) => {
           const targetClassId = assignment.metadata?.target_class_id || assignment.class_id;
           return targetClassId === id;
         });
-        const assignmentIds = assignments.map(a => a.id);
+        const assignmentIds = assignments.map((a: any) => a.id);
         const cbtExams = (cbtRes.data ?? []).filter((exam: any) => {
           const targetClassId = exam.metadata?.target_class_id;
           return !targetClassId || targetClassId === id;
         });
-        const cbtIds = cbtExams.map(e => e.id);
+        const cbtIds = cbtExams.map((e: any) => e.id);
 
         let submissions: any[] = [];
         let cbtSessions: any[] = [];
@@ -184,7 +185,7 @@ export default function ClassDetailPage() {
           subQueries.push(supabase.from('cbt_sessions').select('id, exam_id, user_id, score, status').in('exam_id', cbtIds));
         }
 
-        const subResults = await Promise.all(subQueries);
+        const subResults = await withTimeout(Promise.all(subQueries), [], 'class submission summaries');
         let resIdx = 0;
         if (assignmentIds.length > 0) {
           submissions = subResults[resIdx]?.data ?? [];
@@ -267,17 +268,16 @@ export default function ClassDetailPage() {
     setProcessingStudent('loading');
     setEnrolMode('current');
     try {
-      const [enrollRes, progRes, schRes] = await Promise.all([
-        fetch(`/api/classes/${id}/enroll`, { cache: 'no-store' }),
-        programsList.length === 0 ? fetch('/api/programs?is_active=true', { cache: 'no-store' }) : Promise.resolve(null),
-        schoolsList.length === 0 ? fetch('/api/schools', { cache: 'no-store' }) : Promise.resolve(null),
+      const [enrollJson, progJson, schJson] = await Promise.all([
+        fetchJsonWithTimeout(`/api/classes/${id}/enroll`, { students: [], error: null }, 'class enrollable students'),
+        programsList.length === 0 ? fetchJsonWithTimeout('/api/programs?is_active=true', { data: [] }, 'class enrol programs') : Promise.resolve(null),
+        schoolsList.length === 0 ? fetchJsonWithTimeout('/api/schools', { data: [] }, 'class enrol schools') : Promise.resolve(null),
       ]);
-      const enrollJson = await enrollRes.json();
-      if (!enrollRes.ok) throw new Error(enrollJson.error ?? 'Failed to load students');
+      if (enrollJson.error) throw new Error(String(enrollJson.error));
       setAvailableStudents(enrollJson.students ?? []);
       setSelectedStudentIds(new Set());
-      if (progRes) { const j = await progRes.json(); setProgramsList(j.data ?? []); }
-      if (schRes) { const j = await schRes.json(); setSchoolsList(j.data ?? []); }
+      if (progJson) setProgramsList(progJson.data ?? []);
+      if (schJson) setSchoolsList(schJson.data ?? []);
     } catch (e: any) {
       console.error(e);
       setError(e.message ?? 'Failed to load available students for enrollment.');

@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import PipelineStepper from '@/components/pipeline/PipelineStepper';
 import PlanningBreadcrumb from '@/components/pipeline/PlanningBreadcrumb';
+import { fetchJsonWithTimeout } from '@/lib/async-timeout';
 import {
   DocumentTextIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon,
   MagnifyingGlassIcon, BookOpenIcon, ArrowPathIcon, ClipboardDocumentListIcon,
@@ -256,21 +257,15 @@ function LessonPlansPageInner() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [plansRes, coursesRes, classesRes, programsRes, lessonsRes, assignmentsRes] = await Promise.all([
-        fetch('/api/lesson-plans'),
-        fetch('/api/courses?limit=500'),
+      const [plansJson, coursesJson, classesJson, programsJson, lessonsJson, assignmentsJson] = await Promise.all([
+        fetchJsonWithTimeout('/api/lesson-plans', { data: [] }, 'lesson plans'),
+        fetchJsonWithTimeout('/api/courses?limit=500', { data: [] }, 'lesson plan courses'),
         // Teachers: only fetch their own classes so the form is already scoped
-        fetch(isTeacher ? '/api/classes?mine=true' : '/api/classes'),
-        fetch('/api/programs?is_active=true'),
-        fetch('/api/lessons'),
-        fetch('/api/assignments'),
+        fetchJsonWithTimeout(isTeacher ? '/api/classes?mine=true' : '/api/classes', { data: [] }, 'lesson plan classes'),
+        fetchJsonWithTimeout('/api/programs?is_active=true', { data: [] }, 'lesson plan programs'),
+        fetchJsonWithTimeout('/api/lessons', { data: [] }, 'lesson plan lessons'),
+        fetchJsonWithTimeout('/api/assignments', { data: [] }, 'lesson plan assignments'),
       ]);
-      const plansJson    = await plansRes.json();
-      const coursesJson  = coursesRes.ok  ? await coursesRes.json()  : { data: [] };
-      const classesJson  = classesRes.ok  ? await classesRes.json()  : { data: [] };
-      const programsJson = programsRes.ok ? await programsRes.json() : { data: [] };
-      const lessonsJson  = lessonsRes.ok  ? await lessonsRes.json()  : { data: [] };
-      const assignmentsJson = assignmentsRes.ok ? await assignmentsRes.json() : { data: [] };
 
       setPlans(plansJson.data ?? []);
       setCourses(coursesJson.data ?? []);
@@ -280,16 +275,12 @@ function LessonPlansPageInner() {
       setAllAssignments(assignmentsJson.data ?? []);
 
       if (isAdmin) {
-        const schoolsRes = await fetch('/api/schools');
-        const schoolsJson = schoolsRes.ok ? await schoolsRes.json() : { data: [] };
+        const schoolsJson = await fetchJsonWithTimeout('/api/schools', { data: [] }, 'lesson plan schools');
         setSchools(schoolsJson.data ?? []);
       }
       if (isAdmin || isTeacher) {
-        const debrisRes = await fetch('/api/admin/debris');
-        if (debrisRes.ok) {
-          const debrisJson = await debrisRes.json();
-          setDebrisCount(debrisJson.debris?.total ?? 0);
-        }
+        const debrisJson = await fetchJsonWithTimeout('/api/admin/debris', { debris: { total: 0 } }, 'lesson plan debris');
+        setDebrisCount(debrisJson.debris?.total ?? 0);
       }
     } catch {
       toast.error('Failed to load lesson plans');

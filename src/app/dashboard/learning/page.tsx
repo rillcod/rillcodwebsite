@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { withTimeout } from '@/lib/async-timeout';
 import Link from 'next/link';
 import {
   RocketLaunchIcon, BookOpenIcon, ClockIcon,
@@ -100,15 +101,15 @@ export default function StudentLearningPage() {
     
     try {
       // 1. Fetch Summary Stats using NEW engagement schema
-      const [xpRes, streakRes, progressRes, subsRes] = await Promise.all([
+      const [xpRes, streakRes, progressRes, subsRes] = await withTimeout(Promise.all([
         db.from('student_xp_summary').select('*').eq('student_id', profile.id).maybeSingle(),
         db.from('student_streaks').select('*').eq('student_id', profile.id).maybeSingle(),
         db.from('lesson_progress').select('id', { count: 'exact' }).eq('portal_user_id', profile.id).eq('status', 'completed'),
         db.from('assignment_submissions').select('grade, assignments(max_points)').eq('portal_user_id', profile.id).not('grade', 'is', null)
-      ]);
+      ]), [{ data: null }, { data: null }, { data: [], count: 0 }, { data: [] }], 'learning summary stats');
 
       const avgScore = subsRes.data?.length 
-        ? Math.round(subsRes.data.reduce((s, sub: any) => s + (sub.grade / (sub.assignments?.max_points || 100)) * 100, 0) / subsRes.data.length)
+        ? Math.round((subsRes.data as any[]).reduce((s: number, sub: any) => s + (sub.grade / (sub.assignments?.max_points || 100)) * 100, 0) / subsRes.data.length)
         : 0;
 
       setStats({
@@ -120,50 +121,70 @@ export default function StudentLearningPage() {
       });
 
       // 2. Fetch Badges
-      const { data: badgeData } = await db
-        .from('student_badges')
-        .select('*')
-        .eq('student_id', profile.id)
-        .order('earned_at', { ascending: false })
-        .limit(4);
+      const { data: badgeData } = await withTimeout(
+        db
+          .from('student_badges')
+          .select('*')
+          .eq('student_id', profile.id)
+          .order('earned_at', { ascending: false })
+          .limit(4),
+        { data: [], error: null },
+        'learning badges',
+      );
       setBadges(badgeData || []);
 
       // 3. Fetch Pending Assignments
-      const { count: pendingCount } = await db
-        .from('assignment_submissions')
-        .select('id', { count: 'exact', head: true })
-        .eq('portal_user_id', profile.id)
-        .eq('status', 'submitted');
+      const { count: pendingCount } = await withTimeout(
+        db
+          .from('assignment_submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('portal_user_id', profile.id)
+          .eq('status', 'submitted'),
+        { count: 0, data: null, error: null },
+        'learning pending assignments',
+      );
       setPendingAssignments(pendingCount || 0);
 
       // 3.5 Fetch Due Flashcards reviews count
-      const { data: dueCards } = await db
-        .from('flashcard_reviews')
-        .select('card_id, next_review_at')
-        .eq('student_id', profile.id);
+      const { data: dueCards } = await withTimeout(
+        db
+          .from('flashcard_reviews')
+          .select('card_id, next_review_at')
+          .eq('student_id', profile.id),
+        { data: [], error: null },
+        'learning due flashcards',
+      );
         
       const nowVal = new Date();
       const dueFlashcardsCount = (dueCards ?? []).filter((r: any) => !r.next_review_at || new Date(r.next_review_at) <= nowVal).length;
       setDueFlashcards(dueFlashcardsCount);
 
       // 4. Fetch Enrollments and Programs (sequential levels first)
-      const { data: levelEnr } = await db.from('student_level_enrollments')
-        .select('*, courses!course_id(*, programs(*))')
-        .eq('student_id', profile.id)
-        .eq('status', 'active');
+      const { data: levelEnr } = await withTimeout(
+        db.from('student_level_enrollments')
+          .select('*, courses!course_id(*, programs(*))')
+          .eq('student_id', profile.id)
+          .eq('status', 'active'),
+        { data: [], error: null },
+        'learning level enrollments',
+      );
       
       let enrolledPrograms = [];
       if (levelEnr?.length) {
-        enrolledPrograms = levelEnr.map(le => ({
+        enrolledPrograms = (levelEnr as any[]).map((le: any) => ({
           ...((le as any).courses?.programs || {}),
           status: le.status,
           current_course: (le as any).courses
         }));
       } else {
-        const { data: fallbackEnr } = await db.from('enrollments')
-          .select('*, programs(*)')
-          .eq('user_id', profile.id);
-        enrolledPrograms = fallbackEnr?.map(e => ({
+        const { data: fallbackEnr } = await withTimeout(
+          db.from('enrollments')
+            .select('*, programs(*)')
+            .eq('user_id', profile.id),
+          { data: [], error: null },
+          'learning fallback enrollments',
+        );
+        enrolledPrograms = (fallbackEnr as any[] | null | undefined)?.map((e: any) => ({
           ...(e.programs as any || {}),
           status: e.status
         })) || [];
@@ -171,26 +192,34 @@ export default function StudentLearningPage() {
       
       setPrograms(enrolledPrograms);
 
-      const pIds = Array.from(new Set(enrolledPrograms.map((p: any) => p.id).filter((id: any) => id !== null)));
+      const pIds = Array.from(new Set<string>(enrolledPrograms.map((p: any) => p.id).filter((id: any): id is string => typeof id === 'string' && id.length > 0)));
 
       // 5. Fetch Courses & Lessons (respect admin lock for students, except
       // for our always-public flagship programmes — see lib/courses/visibility)
       if (pIds.length) {
-        const { data: rawCourses } = await db.from('courses')
-          .select('id, title, description, duration_hours, program_id, is_locked, lessons(id), assignments(id), programs(name)')
-          .in('program_id', pIds)
-          .eq('is_active', true)
-          .order('level_order', { ascending: true });
+        const { data: rawCourses } = await withTimeout(
+          db.from('courses')
+            .select('id, title, description, duration_hours, program_id, is_locked, lessons(id), assignments(id), programs(name)')
+            .in('program_id', pIds)
+            .eq('is_active', true)
+            .order('level_order', { ascending: true }),
+          { data: [], error: null },
+          'learning courses',
+        );
 
         // Check if there is a current course focus lock for the student's class
         let currentCourseId: string | null = null;
         let currentClassTermId: string | null = null;
         if (profile?.class_id) {
-          const { data: clsData } = await db
-            .from('classes')
-            .select('current_course_id, term_id')
-            .eq('id', profile.class_id)
-            .maybeSingle();
+          const { data: clsData } = await withTimeout(
+            db
+              .from('classes')
+              .select('current_course_id, term_id')
+              .eq('id', profile.class_id)
+              .maybeSingle(),
+            { data: null, error: null },
+            'learning class focus',
+          );
           if (clsData?.current_course_id) {
             currentCourseId = clsData.current_course_id;
           }
@@ -215,31 +244,43 @@ export default function StudentLearningPage() {
         });
         setCoursesByProgram(cmap);
 
-        const { data: recentLessons } = await db.from('lessons')
-          .select('*, courses(title, programs(name))')
-          .in('course_id', visibleCourses.map((c: any) => c.id))
-          .in('status', ['active', 'published'])
-          .order('created_at', { ascending: false })
-          .limit(30);
+        const { data: recentLessons } = await withTimeout(
+          db.from('lessons')
+            .select('*, courses(title, programs(name))')
+            .in('course_id', visibleCourses.map((c: any) => c.id))
+            .in('status', ['active', 'published'])
+            .order('created_at', { ascending: false })
+            .limit(30),
+          { data: [], error: null },
+          'learning recent lessons',
+        );
         const scopedRecentLessons = await filterLessonsForClassPlans(db, recentLessons ?? [], profile?.class_id, currentClassTermId);
         setLessons(scopedRecentLessons.slice(0, 6));
 
         // 6. Find "Next Up" Lesson
-        const { data: completedIds } = await db
-          .from('lesson_progress')
-          .select('lesson_id')
-          .eq('portal_user_id', profile.id)
-          .eq('status', 'completed');
+        const { data: completedIds } = await withTimeout(
+          db
+            .from('lesson_progress')
+            .select('lesson_id')
+            .eq('portal_user_id', profile.id)
+            .eq('status', 'completed'),
+          { data: [], error: null },
+          'learning completed lessons',
+        );
         
-        const doneSet = new Set(completedIds?.map(c => c.lesson_id).filter((id): id is string => id !== null) || []);
+        const doneSet = new Set<string>(((completedIds ?? []) as any[]).map((c: any) => c.lesson_id).filter((id: any): id is string => typeof id === 'string'));
         setCompletedLessonIds(doneSet);
 
         // Find the first lesson in the first program that isn't done
-        const { data: allLessons } = await db.from('lessons')
-            .select('id, title, course_id, metadata, courses(id, title, level_order)')
-            .in('course_id', coursesToUse.map(c => c.id))
-            .in('status', ['active', 'published'])
-            .order('id', { ascending: true });
+        const { data: allLessons } = await withTimeout(
+          db.from('lessons')
+              .select('id, title, course_id, metadata, courses(id, title, level_order)')
+              .in('course_id', coursesToUse.map((c: any) => c.id))
+              .in('status', ['active', 'published'])
+              .order('id', { ascending: true }),
+          { data: [], error: null },
+          'learning all lessons',
+        );
         const scopedAllLessons = await filterLessonsForClassPlans(db, allLessons ?? [], profile?.class_id, currentClassTermId);
 
         const next = scopedAllLessons?.find(l => !doneSet.has(l.id));

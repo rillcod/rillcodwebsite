@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { compareReportsByPeriodDesc } from '@/lib/reports/academic-period';
+import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -211,14 +212,14 @@ function ResultsPageInner() {
             // Fallback: some reports were created before the student had a portal account
             // and have student_id = null — match by student_name in that case.
             (async () => {
-                const [repRes, orgRes] = await Promise.all([
+                const [repRes, orgRes] = await withTimeout(Promise.all([
                     db.from('student_progress_reports')
                         .select('*')
                         .eq('student_id', profile.id)
                         .eq('is_published', true)
                         .order('updated_at', { ascending: false }),
                     db.from('report_settings').select('*').limit(1).maybeSingle(),
-                ]);
+                ]), [{ data: [] }, { data: null }], 'student results startup');
                 if (aborted) return;
 
                 let reports = (repRes.data ?? []) as StudentReport[];
@@ -233,7 +234,11 @@ function ResultsPageInner() {
                         .eq('is_published', true)
                         .order('updated_at', { ascending: false });
                     if (profile.school_id) fallbackQuery = fallbackQuery.eq('school_id', profile.school_id) as typeof fallbackQuery;
-                    const { data: fallback } = await fallbackQuery;
+                    const { data: fallback } = await withTimeout(
+                        fallbackQuery,
+                        { data: [], error: null },
+                        'student report fallback lookup',
+                    );
                     if (!aborted) reports = (fallback ?? []) as StudentReport[];
                 }
 
@@ -267,16 +272,17 @@ function ResultsPageInner() {
                 } else {
                     // Teacher: fetch assigned schools via API + class-based lookup
                     const [schRes, classRes] = await Promise.all([
-                        fetch('/api/schools', { cache: 'no-store' }),
-                        db.from('classes').select('id, school_id').eq('teacher_id', profile!.id),
+                        fetchJsonWithTimeout('/api/schools', { data: [] }, 'results assigned schools'),
+                        withTimeout(
+                            db.from('classes').select('id, school_id').eq('teacher_id', profile!.id),
+                            { data: [], error: null },
+                            'results teacher classes',
+                        ),
                     ]);
 
-                    if (schRes.ok) {
-                        const schJson = await schRes.json();
-                        const schools = schJson.data ?? [];
-                        assignedSchoolIds = schools.map((s: any) => s.id).filter(Boolean);
-                        assignedSchoolNames = schools.map((s: any) => s.name).filter(Boolean);
-                    }
+                    const schools = schRes.data ?? [];
+                    assignedSchoolIds = schools.map((s: any) => s.id).filter(Boolean);
+                    assignedSchoolNames = schools.map((s: any) => s.name).filter(Boolean);
 
                     // Get class IDs teacher directly teaches — catches students via class_id
                     teacherClassIds = (classRes.data ?? []).map((c: any) => c.id).filter(Boolean);
@@ -314,11 +320,15 @@ function ResultsPageInner() {
                         //   2. Students who have at least one report authored by this teacher
                         //      (covers cases where a student was moved to another class but the
                         //      teacher still owns the report record — e.g. after a class reshuffle)
-                        const { data: ownedReports } = await db
-                            .from('student_progress_reports')
-                            .select('student_id')
-                            .eq('teacher_id', profile!.id)
-                            .not('student_id', 'is', null);
+                        const { data: ownedReports } = await withTimeout(
+                            db
+                                .from('student_progress_reports')
+                                .select('student_id')
+                                .eq('teacher_id', profile!.id)
+                                .not('student_id', 'is', null),
+                            { data: [], error: null },
+                            'results teacher owned reports',
+                        );
                         const reportedStudentIds = [...new Set(
                             (ownedReports ?? []).map((r: any) => r.student_id).filter(Boolean)
                         )];
@@ -350,10 +360,10 @@ function ResultsPageInner() {
                 }
             }
 
-            const [sRes, orgRes] = await Promise.all([
+            const [sRes, orgRes] = await withTimeout(Promise.all([
                 finalQuery.order('full_name').limit(isAdmin ? 10000 : 400),
                 db.from('report_settings').select('*').limit(1).maybeSingle(),
-            ]);
+            ]), [{ data: [], error: null }, { data: null, error: null }], 'results staff roster startup');
 
             if (sRes.error) throw sRes.error;
             if (aborted) return;
@@ -373,9 +383,13 @@ function ResultsPageInner() {
                 }
                 
                 await Promise.all(chunks.map(async (chunk) => {
-                    const { data: gradeRows } = await db.from('students')
-                        .select('user_id, grade_level, parent_email')
-                        .in('user_id', chunk);
+                    const { data: gradeRows } = await withTimeout(
+                        db.from('students')
+                            .select('user_id, grade_level, parent_email')
+                            .in('user_id', chunk),
+                        { data: [], error: null },
+                        'results student grade chunk',
+                    );
                     
                     (gradeRows ?? []).forEach((r: any) => {
                         if (r.user_id && r.grade_level) gradeByUserId[r.user_id] = r.grade_level;
@@ -411,7 +425,11 @@ function ResultsPageInner() {
                         reportsQuery = reportsQuery.eq('teacher_id', profile.id);
                     }
 
-                    const { data, error } = await reportsQuery;
+                    const { data, error } = await withTimeout(
+                        reportsQuery,
+                        { data: [], error: null },
+                        'results report map chunk',
+                    );
                     if (!error && data) {
                         allReports.push(...data);
                     }
@@ -478,7 +496,11 @@ function ResultsPageInner() {
             .order('is_published', { ascending: false })
             .order('updated_at', { ascending: false });
         if (profile?.role === 'teacher') reportQuery = reportQuery.eq('teacher_id', profile.id) as typeof reportQuery;
-        const { data } = await reportQuery;
+        const { data } = await withTimeout(
+            reportQuery,
+            { data: [], error: null },
+            'selected student report history',
+        );
         // Order by academic year + term (newest first) so the term/session switcher is
         // consistent for staff and matches what students/parents see.
         const history = ((data ?? []) as StudentReport[]).slice().sort(compareReportsByPeriodDesc);
@@ -488,8 +510,7 @@ function ResultsPageInner() {
         setLoadingReport(false);
         if (data0?.id) {
             setLoadingEmailEvents(true);
-            fetch(`/api/progress-reports/${data0.id}/email-events`)
-                .then(r => r.json())
+            fetchJsonWithTimeout(`/api/progress-reports/${data0.id}/email-events`, { events: [] }, 'selected report email events')
                 .then(j => { if (j.events) setReportEmailEvents(j.events); })
                 .catch(() => null)
                 .finally(() => setLoadingEmailEvents(false));
@@ -507,8 +528,7 @@ function ResultsPageInner() {
         setSelectedReport(r);
         if (r?.id) {
             setLoadingEmailEvents(true);
-            fetch(`/api/progress-reports/${r.id}/email-events`)
-                .then(res => res.json())
+            fetchJsonWithTimeout(`/api/progress-reports/${r.id}/email-events`, { events: [] }, 'picked report email events')
                 .then(j => { if (j.events) setReportEmailEvents(j.events); else setReportEmailEvents([]); })
                 .catch(() => setReportEmailEvents([]))
                 .finally(() => setLoadingEmailEvents(false));

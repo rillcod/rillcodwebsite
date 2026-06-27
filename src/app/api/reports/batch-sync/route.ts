@@ -37,6 +37,20 @@ async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teach
   return Array.from(ids);
 }
 
+const FINAL_CBT_STATUSES = new Set(['completed', 'passed', 'failed']);
+const cbtExamType = (row: any) => String(row?.cbt_exams?.metadata?.exam_type ?? 'examination').toLowerCase();
+const isReadyCbt = (row: any) => row?.score != null && !row?.needs_grading && FINAL_CBT_STATUSES.has(String(row?.status ?? '').toLowerCase());
+const topCbtScore = (rows: any[], courseId: string, kind: 'examination' | 'evaluation') => Math.min(100, rows
+  .filter(isReadyCbt)
+  .filter((row) => row?.cbt_exams?.course_id === courseId)
+  .filter((row) => kind === 'evaluation' ? cbtExamType(row) === 'evaluation' : cbtExamType(row) !== 'evaluation')
+  .sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0))[0]?.score ?? 0);
+const assignmentPct = (row: any) => {
+  const grade = Number(row?.grade ?? 0);
+  const max = Number(row?.assignments?.max_points ?? 100) || 100;
+  return Math.max(0, Math.min(100, Math.round((grade / max) * 100)));
+};
+
 export async function POST(request: NextRequest) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -125,9 +139,9 @@ export async function POST(request: NextRequest) {
         // Attendance
         admin.from('attendance').select('id, status').eq('user_id', student.id).eq('status', 'present'),
         // Graded Submissions
-        admin.from('assignment_submissions').select('grade, assignment_id, assignments!inner(course_id, assignment_type)').eq('portal_user_id', student.id).eq('status', 'graded').eq('assignments.course_id', course_id),
+        admin.from('assignment_submissions').select('grade, assignment_id, assignments!inner(course_id, assignment_type, max_points)').eq('portal_user_id', student.id).eq('status', 'graded').eq('assignments.course_id', course_id),
         // CBT scores
-        admin.from('cbt_sessions').select('score, cbt_exams(course_id, metadata)').eq('user_id', student.id).order('score', { ascending: false }),
+        admin.from('cbt_sessions').select('score, status, needs_grading, cbt_exams(course_id, metadata)').eq('user_id', student.id).order('score', { ascending: false }),
         // Projects
         admin.from('lab_projects').select('id').eq('user_id', student.id),
         admin.from('portfolio_projects').select('id').eq('user_id', student.id),
@@ -136,15 +150,10 @@ export async function POST(request: NextRequest) {
       // CALCULATION LOGIC (Matching the Report Builder's 6-component WAEC pattern)
       
       // Theory / Written Tests - 20% - Best CBT examination score
-      const examSessions = (cbtRes.data || []).filter(r => {
-        const exam = r.cbt_exams as any;
-        const t = exam?.metadata?.exam_type;
-        return exam?.course_id === course_id && (!t || t === 'examination');
-      });
-      const theoryScore = Math.min(100, examSessions[0]?.score || 0);
+      const theoryScore = topCbtScore(cbtRes.data || [], course_id, 'examination');
 
       // Classwork - 10% - current proxy: graded homework/classwork average
-      const grades = (subRes.data || []).map(s => s.grade).filter(g => g !== null) as number[];
+      const grades = (subRes.data || []).filter((s: any) => s.grade != null).map(assignmentPct) as number[];
       const asgnAvg = grades.length > 0 ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length) : 0;
       const classworkScore = asgnAvg;
       
@@ -162,12 +171,7 @@ export async function POST(request: NextRequest) {
       const attendanceScore = attRes.data?.length ? Math.min(100, attRes.data.length * 10) : 0;
 
       // Mid-term Assessment - 15% - best CBT evaluation score
-      const evalSessions = (cbtRes.data || []).filter(r => {
-        const exam = r.cbt_exams as any;
-        const t = exam?.metadata?.exam_type;
-        return exam?.course_id === course_id && t === 'evaluation';
-      });
-      const assessmentScore = Math.min(100, evalSessions[0]?.score || asgnAvg);
+      const assessmentScore = topCbtScore(cbtRes.data || [], course_id, 'evaluation') || asgnAvg;
 
       const overallScore = computeWeightedScore({
         theory: theoryScore,

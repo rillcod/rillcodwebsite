@@ -13,6 +13,13 @@ type PathItem = {
   current_term: number;
   current_week: number;
   completion_pct: number;
+  assignments_completed?: number;
+  assignments_total?: number;
+  latest_report?: {
+    overall_grade: string | null;
+    is_published: boolean | null;
+  } | null;
+  is_current_class_course?: boolean | null;
   last_topic: string | null;
   enrollment_status: string;
   status_summary: string;
@@ -102,6 +109,20 @@ export default function ParentPathProgressPage() {
           <p className="text-xs text-muted-foreground mt-2">
             Last taught topic: <span className="text-foreground">{p.last_topic ?? 'No topic recorded yet'}</span>
           </p>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <div className="rounded-xl border border-border bg-background p-3">
+              <p className="font-bold text-foreground">{p.assignments_completed ?? 0}/{p.assignments_total ?? 0}</p>
+              <p className="text-muted-foreground">Assignments graded</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-3">
+              <p className="font-bold text-foreground">{p.latest_report?.overall_grade ?? 'No report'}</p>
+              <p className="text-muted-foreground">{p.latest_report?.is_published ? 'Published report' : 'Report pending'}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background p-3">
+              <p className="font-bold text-foreground">{p.is_current_class_course === false ? 'Not current focus' : 'Current path'}</p>
+              <p className="text-muted-foreground">Class course focus</p>
+            </div>
+          </div>
         </div>
       ))}
 

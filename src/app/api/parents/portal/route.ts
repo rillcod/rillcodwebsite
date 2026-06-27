@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getParentLinkScope, syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { withTimeout } from '@/lib/async-timeout';
 
 // ── Auth guard: must be an active parent ─────────────────────────────────────
 async function requireParent(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -108,12 +109,13 @@ export async function GET(req: Request) {
       const userIds = (children as any[]).map((c: any) => c.user_id).filter(Boolean) as string[];
 
       // Batch fetch stats
-      const [attRes, invRes, certRes, gradeRes] = await Promise.all([
+      const [attRes, invRes, certRes, gradeRes, prePortalGradeRes] = await withTimeout(Promise.all([
         userIds.length > 0 ? admin.from('attendance').select('user_id, status').in('user_id', userIds) : Promise.resolve({ data: [] }),
         userIds.length > 0 ? admin.from('invoices').select('portal_user_id, status').in('portal_user_id', userIds).in('status', ['pending', 'sent', 'overdue', 'partially_paid']) : Promise.resolve({ data: [] }),
         userIds.length > 0 ? admin.from('certificates').select('portal_user_id').in('portal_user_id', userIds) : Promise.resolve({ data: [] }),
         userIds.length > 0 ? admin.from('student_progress_reports').select('student_id, overall_grade, report_date').in('student_id', userIds).eq('is_published', true).order('report_date', { ascending: false }) : Promise.resolve({ data: [] }),
-      ]);
+        linkedIds.length > 0 ? admin.from('student_progress_reports').select('student_name, overall_grade, report_date, school_id').is('student_id', null).eq('is_published', true).order('report_date', { ascending: false }) : Promise.resolve({ data: [] }),
+      ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'parent summary stats');
 
       const results = (children as any[]).map((child: any) => {
         const childAtt = (attRes.data ?? []).filter((a: any) => a.user_id === child.user_id);
@@ -134,7 +136,13 @@ export async function GET(req: Request) {
           return gc && (gc === childClass || gc.startsWith(childClass) || childClass.startsWith(gc));
         });
 
-        const latestGrade = (gradeRes.data ?? []).find((g: any) => g.student_id === child.user_id)?.overall_grade ?? null;
+        const latestGrade = (gradeRes.data ?? []).find((g: any) => g.student_id === child.user_id)?.overall_grade
+          ?? (prePortalGradeRes.data ?? []).find((g: any) => {
+            const reportName = String(g.student_name ?? '').trim().toLowerCase();
+            const childName = String(child.full_name ?? child.name ?? '').trim().toLowerCase();
+            return reportName && childName && reportName === childName;
+          })?.overall_grade
+          ?? null;
 
         return {
           ...child,
@@ -178,7 +186,7 @@ export async function GET(req: Request) {
     // Ownership check — the child must belong to this parent
     let childScopeQuery = admin
       .from('students')
-      .select('id, full_name, school_name, user_id')
+      .select('id, full_name, school_id, school_name, user_id')
       .eq('id', childId);
     if (linkedIds.length > 0) {
       childScopeQuery = childScopeQuery.in('id', linkedIds) as typeof childScopeQuery;
@@ -201,28 +209,29 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
 
-      const [asgnRes, cbtRes] = await Promise.all([
+      const [asgnRes, cbtRes] = await withTimeout(Promise.all([
         admin
           .from('assignment_submissions')
-          .select('id, status, grade, feedback, submitted_at, assignments(title, max_points)')
+          .select('id, status, grade, feedback, submitted_at, assignments(title, max_points, course_id, courses(title))')
           .eq('portal_user_id', child.user_id)
           .not('grade', 'is', null)
           .order('submitted_at', { ascending: false })
           .limit(50),
         admin
           .from('cbt_sessions')
-          .select('id, status, score, end_time, cbt_exams(title, total_marks)')
+          .select('id, status, score, end_time, needs_grading, cbt_exams(title, total_marks, course_id, program_id, metadata)')
           .eq('user_id', child.user_id)
           .not('score', 'is', null)
           .order('end_time', { ascending: false })
           .limit(50),
-      ]);
+      ]), [{ data: [] }, { data: [] }], 'parent grades');
 
       const grades = [
         ...(asgnRes.data ?? []).map((r: any) => ({
           id: r.id,
           type: 'assignment' as const,
           title: r.assignments?.title ?? 'Assignment',
+          course_title: r.assignments?.courses?.title ?? null,
           grade: r.grade,
           max_score: r.assignments?.max_points ?? null,
           status: r.status,
@@ -233,11 +242,12 @@ export async function GET(req: Request) {
           id: r.id,
           type: 'exam' as const,
           title: r.cbt_exams?.title ?? 'CBT Exam',
+          exam_type: r.cbt_exams?.metadata?.exam_type ?? 'examination',
           grade: r.score,
           max_score: r.cbt_exams?.total_marks ?? null,
-          status: r.status,
+          status: r.needs_grading ? 'pending_grading' : r.status,
           submitted_at: r.end_time,
-          feedback: null,
+          feedback: r.needs_grading ? 'Awaiting teacher review for subjective answers.' : null,
         })),
       ].sort((a, b) => new Date(b.submitted_at ?? 0).getTime() - new Date(a.submitted_at ?? 0).getTime());
 
@@ -253,15 +263,32 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
 
-      const { data: reports, error } = await admin
+      const { data: reports, error } = await withTimeout(admin
         .from('student_progress_reports')
         .select('id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
         .eq('student_id', child.user_id)
         .eq('is_published', true)
-        .order('report_date', { ascending: false });
+        .order('report_date', { ascending: false }), { data: [], error: null }, 'parent reports by portal id');
 
       if (error) throw error;
-      return NextResponse.json({ success: true, reports: reports ?? [] });
+      let finalReports = reports ?? [];
+      if (finalReports.length === 0) {
+        let fallbackQuery = admin
+          .from('student_progress_reports')
+          .select('id, course_name, report_term, theory_score, practical_score, attendance_score, overall_score, overall_grade, is_published, report_date, instructor_name, learning_milestones, key_strengths, areas_for_growth, participation_score')
+          .is('student_id', null)
+          .eq('student_name', child.full_name)
+          .eq('is_published', true)
+          .order('report_date', { ascending: false });
+        if ((child as any).school_id) fallbackQuery = fallbackQuery.eq('school_id', (child as any).school_id) as typeof fallbackQuery;
+        const { data: fallbackReports } = await withTimeout(fallbackQuery, { data: [], error: null }, 'parent pre-portal reports');
+        finalReports = fallbackReports ?? [];
+      }
+      return NextResponse.json({
+        success: true,
+        reports: finalReports,
+        message: finalReports.length === 0 ? 'No published reports are available for this child yet.' : undefined,
+      });
     }
 
     // ── Invoices & Payments ──────────────────────────────────────────────────
@@ -286,7 +313,11 @@ export async function GET(req: Request) {
             .limit(50)
         : Promise.resolve({ data: [], error: null });
 
-      const [invRes, payRes] = await Promise.all([invoiceQuery, paymentQuery]);
+      const [invRes, payRes] = await withTimeout(
+        Promise.all([invoiceQuery, paymentQuery]),
+        [{ data: [], error: null }, { data: [], error: null }],
+        'parent invoices and payments',
+      );
       if (invRes.error) throw invRes.error;
       if (payRes.error) throw payRes.error;
 
@@ -305,12 +336,12 @@ export async function GET(req: Request) {
       if (!linkedUserIds.includes(child.user_id)) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
-      const { data } = await admin
+      const { data } = await withTimeout(admin
         .from('attendance')
         .select('id, status, notes, created_at, class_sessions(session_date, topic, classes(name))')
         .eq('user_id', child.user_id)
         .order('created_at', { ascending: false })
-        .limit(60);
+        .limit(60), { data: [], error: null }, 'parent attendance');
 
       const records = (data ?? []).map((r: any) => ({
         id: r.id,
@@ -331,11 +362,11 @@ export async function GET(req: Request) {
       if (!linkedUserIds.includes(child.user_id)) {
         return NextResponse.json({ error: 'Child not found or not linked to your account' }, { status: 404 });
       }
-      const { data } = await admin
+      const { data } = await withTimeout(admin
         .from('certificates')
         .select('id, certificate_number, verification_code, issued_date, pdf_url, courses(title)')
         .eq('portal_user_id', child.user_id)
-        .order('issued_date', { ascending: false });
+        .order('issued_date', { ascending: false }), { data: [], error: null }, 'parent certificates');
 
       const certs = (data ?? []).map((c: any) => ({
         id: c.id,
@@ -359,12 +390,12 @@ export async function GET(req: Request) {
       }
       const since = new Date(Date.now() - 90 * 86400000).toISOString(); // last 90 days
 
-      const [attRes, subRes, certRes, cbtRes] = await Promise.all([
+      const [attRes, subRes, certRes, cbtRes] = await withTimeout(Promise.all([
         admin.from('attendance').select('id, status, created_at, class_sessions(session_date, topic, classes(name))').eq('user_id', child.user_id).gte('created_at', since).order('created_at', { ascending: false }).limit(30),
         admin.from('assignment_submissions').select('id, status, grade, submitted_at, assignments(title, max_points)').eq('portal_user_id', child.user_id).gte('submitted_at', since).order('submitted_at', { ascending: false }).limit(20),
         admin.from('certificates').select('id, issued_date, courses(title)').eq('portal_user_id', child.user_id).gte('issued_date', since).order('issued_date', { ascending: false }).limit(10),
-        admin.from('cbt_sessions').select('id, status, score, end_time, cbt_exams(title, total_marks)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(10),
-      ]);
+        admin.from('cbt_sessions').select('id, status, score, end_time, needs_grading, cbt_exams(title, total_marks, metadata)').eq('user_id', child.user_id).gte('end_time', since).not('score', 'is', null).order('end_time', { ascending: false }).limit(10),
+      ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }], 'parent activity');
 
       type FeedEvent = { id: string; type: string; title: string; detail: string | null; date: string; icon: string; color: string };
       const events: FeedEvent[] = [];
