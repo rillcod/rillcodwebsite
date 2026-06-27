@@ -89,7 +89,7 @@ export default function MobileNavigation({ userRole }: MobileNavigationProps) {
                   className={`flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 relative ${
                     isActive
                       ? 'text-primary'
-                      : 'text-muted-foreground hover:text-white'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <item.icon className={`h-5 w-5 mb-1 transition-all duration-200 ${
@@ -128,7 +128,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 text-muted-foreground hover:text-white"
+        className="flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground"
       >
         <PlusIcon className="h-5 w-5 mb-1" />
         <span className="text-[9px] font-black uppercase tracking-widest">More</span>
@@ -139,7 +139,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
         <>
           {/* Backdrop */}
           <div 
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-foreground/35 dark:bg-black/60 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
           
@@ -158,7 +158,7 @@ function MobileMoreMenu({ items }: { items: Array<{ name: string; href: string; 
                   className={`flex items-center px-6 py-4 text-xs font-black uppercase tracking-widest transition-colors duration-200 ${
                     isActive
                       ? 'bg-primary/10 text-primary border-l-2 border-primary'
-                      : 'text-muted-foreground/70 hover:bg-white/5 hover:text-white'
+                      : 'text-muted-foreground/70 hover:bg-muted hover:text-foreground'
                   }`}
                 >
                   <item.icon className="h-4 w-4 mr-4" />

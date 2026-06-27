@@ -2285,7 +2285,7 @@ export default function UnifiedInbox() {
               {showInfo && (
                 <>
                   {/* Mobile backdrop */}
-                  <div className="md:hidden fixed inset-0 z-[54] bg-black/60 backdrop-blur-sm"
+                  <div className="md:hidden fixed inset-0 z-[54] bg-foreground/35 dark:bg-black/60 backdrop-blur-sm"
                     onClick={() => setShowInfo(false)} />
 
                   <div className={[
@@ -2846,7 +2846,7 @@ export default function UnifiedInbox() {
 
       {/* ══ ADD / EDIT CONTACT MODAL ════════════════════════════════════════ */}
       {showAddContact && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-foreground/35 dark:bg-black/60 backdrop-blur-[2px]">
           <div className="w-full max-w-md bg-[#1f2c34] md:rounded-2xl rounded-t-2xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border border-white/[0.07]">
             {/* Modal header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
@@ -2968,7 +2968,7 @@ export default function UnifiedInbox() {
       )}
       {/* ══ SUBJECT DIALOG (replaces window.prompt) ════════════════════════ */}
       {subjectDialog.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 dark:bg-black/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm bg-[#202c33] rounded-2xl overflow-hidden shadow-2xl">
             <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
               <div>
@@ -3149,7 +3149,7 @@ export default function UnifiedInbox() {
 
       {/* ══ PROFILE REQUIRED POPUP ══════════════════════════════════════════ */}
       {showProfilePopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 dark:bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm bg-[#202c33] rounded-2xl overflow-hidden shadow-2xl">
             {/* Header */}
             <div className="px-6 pt-6 pb-4 text-center border-b border-white/[0.08]">

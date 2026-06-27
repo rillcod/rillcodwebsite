@@ -97,8 +97,8 @@ function StepRow({ icon: Icon, label, sub, state, color }: {
       state === 'done'    ? 'bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]' :
       state === 'active'  ? 'bg-primary/10 border-primary/30 shadow-[0_0_20px_rgba(139,92,246,0.1)] animate-[pulse_2s_infinite]' :
       state === 'error'   ? 'bg-rose-500/10 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.05)]' :
-      state === 'skipped' ? 'bg-white/[0.01] border-white/[0.04] opacity-50' :
-                            'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]'
+      state === 'skipped' ? 'bg-muted/20 border-border opacity-60' :
+                            'bg-muted/30 border-border hover:border-primary/30'
     }`}>
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 shadow-inner ${color}`}>
         <Icon className="w-4 h-4 text-white" />
@@ -106,16 +106,16 @@ function StepRow({ icon: Icon, label, sub, state, color }: {
       <div className="flex-1 min-w-0">
         <p className={`text-xs font-black ${
           state === 'done' ? 'text-emerald-300' : state === 'error' ? 'text-rose-300' :
-          state === 'active' ? 'text-white' : 'text-white/50'
+          state === 'active' ? 'text-foreground' : 'text-muted-foreground'
         }`}>{label}</p>
-        <p className="text-[10px] text-white/30">{sub}</p>
+        <p className="text-[10px] text-muted-foreground/80">{sub}</p>
       </div>
       <div className="shrink-0">
         {state === 'done'    && <CheckCircleIcon className="w-5 h-5 text-emerald-400" />}
         {state === 'active'  && <ArrowPathIcon className="w-4 h-4 text-primary animate-spin" />}
         {state === 'error'   && <XMarkIcon className="w-4 h-4 text-rose-400" />}
-        {state === 'skipped' && <span className="text-[9px] font-black text-white/30 uppercase tracking-wider">Exists</span>}
-        {state === 'pending' && <div className="w-2 h-2 rounded-full bg-white/20" />}
+        {state === 'skipped' && <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider">Exists</span>}
+        {state === 'pending' && <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />}
       </div>
     </div>
   );
@@ -585,22 +585,22 @@ export default function WeekAIGenerator({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={!running ? onClose : undefined} />
+      <div className="absolute inset-0 bg-foreground/35 dark:bg-black/70 backdrop-blur-md" onClick={!running ? onClose : undefined} />
 
-      <div className="relative w-full sm:max-w-md bg-[#0B0D13]/90 border border-white/[0.08] backdrop-blur-2xl shadow-[0_0_80px_rgba(139,92,246,0.15)] rounded-t-[2.5rem] sm:rounded-3xl overflow-hidden transition-all duration-300">
+      <div className="relative w-full sm:max-w-md bg-card text-card-foreground border border-border backdrop-blur-2xl shadow-2xl rounded-t-[2.5rem] sm:rounded-3xl overflow-hidden transition-all duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 via-primary to-fuchsia-500 flex items-center justify-center shadow-lg shadow-primary/25">
               <SparklesIcon className="w-5 h-5 text-white animate-pulse" />
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-primary/80">AI Lesson Package</p>
-              <p className="text-sm font-black text-white truncate max-w-[220px]">Week {week.week}: {week.topic}</p>
+              <p className="text-sm font-black text-foreground truncate max-w-[220px]">Week {week.week}: {week.topic}</p>
             </div>
           </div>
           {!running && (
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all duration-200">
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200">
               <XMarkIcon className="w-5 h-5" />
             </button>
           )}
@@ -608,8 +608,8 @@ export default function WeekAIGenerator({
 
         <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
           {!running && !done && !error && (
-            <p className="text-xs text-white/50 leading-relaxed">
-              Generates a <strong className="text-white/80 font-bold">full lesson</strong> (customized visualizer, Blockly logic & Monaco code sync), a <strong className="text-white/80 font-bold">15-card flashcard deck</strong>, an <strong className="text-white/80 font-bold">assignment</strong>, and a <strong className="text-white/80 font-bold">capstone project</strong>. Existing elements are skipped automatically.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Generates a <strong className="text-foreground font-bold">full lesson</strong> (customized visualizer, Blockly logic & Monaco code sync), a <strong className="text-foreground font-bold">15-card flashcard deck</strong>, an <strong className="text-foreground font-bold">assignment</strong>, and a <strong className="text-foreground font-bold">capstone project</strong>. Existing elements are skipped automatically.
             </p>
           )}
 
@@ -621,7 +621,7 @@ export default function WeekAIGenerator({
           </div>
 
           {log.length > 0 && (
-            <div className="bg-black/60 border border-white/[0.05] rounded-2xl p-4 max-h-36 overflow-y-auto space-y-1 font-mono text-[10px] text-violet-300/80 custom-scrollbar shadow-inner">
+            <div className="bg-muted/40 border border-border rounded-2xl p-4 max-h-36 overflow-y-auto space-y-1 font-mono text-[10px] text-primary/80 custom-scrollbar shadow-inner">
               {log.map((l, i) => (
                 <p key={i} className="leading-relaxed border-l-2 border-primary/20 pl-2">{l}</p>
               ))}
@@ -629,9 +629,9 @@ export default function WeekAIGenerator({
           )}
 
           {done && hasResult && (
-            <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+            <div className="space-y-2 pt-2 border-t border-border">
               {result.skipped.length > 0 && (
-                <p className="text-[10px] text-white/30 italic">Skipped (already existed): {result.skipped.join(', ')}</p>
+                <p className="text-[10px] text-muted-foreground italic">Skipped (already existed): {result.skipped.join(', ')}</p>
               )}
               {result.lessonId && (
                 <a href={`/dashboard/lessons/${result.lessonId}`} target="_blank" rel="noreferrer"
@@ -679,7 +679,7 @@ export default function WeekAIGenerator({
           )}
         </div>
 
-        <div className="px-6 pb-6 pt-4 border-t border-white/[0.06] flex gap-3">
+        <div className="px-6 pb-6 pt-4 border-t border-border flex gap-3">
           {!running && !done && (
             <button onClick={run}
               className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-violet-500 via-primary to-fuchsia-600 hover:opacity-95 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/35 transition-all duration-300 transform active:scale-95">
@@ -694,11 +694,11 @@ export default function WeekAIGenerator({
           {(done || error) && (
             <>
               {error && (
-                <button onClick={run} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200">
+                <button onClick={run} className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200">
                   <ArrowPathIcon className="w-4 h-4" /> Retry
                 </button>
               )}
-              <button onClick={onClose} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200">
+              <button onClick={onClose} className="flex-1 py-3.5 bg-muted/40 hover:bg-muted border border-border text-muted-foreground hover:text-foreground text-xs font-black uppercase tracking-widest rounded-2xl transition-all duration-200">
                 {done ? 'Done' : 'Close'}
               </button>
             </>

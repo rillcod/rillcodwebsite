@@ -179,27 +179,27 @@ export default function ClassesPage() {
             placeholder="Search classes by name or programme..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white/[0.01] hover:bg-white/[0.02] border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all font-medium"
+            className="w-full pl-10 pr-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all font-medium"
           />
         </div>
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="px-4 py-2.5 bg-white/[0.01] hover:bg-white/[0.02] border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
+          className="px-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
         >
-          <option value="all" className="bg-[#0b0f19]">All Statuses</option>
-          <option value="active" className="bg-[#0b0f19]">Active</option>
-          <option value="scheduled" className="bg-[#0b0f19]">Scheduled</option>
-          <option value="completed" className="bg-[#0b0f19]">Completed</option>
+          <option value="all">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="completed">Completed</option>
         </select>
         <select
           value={filterTerm}
           onChange={e => setFilterTerm(e.target.value)}
-          className="px-4 py-2.5 bg-white/[0.01] hover:bg-white/[0.02] border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
+          className="px-4 py-2.5 bg-card hover:bg-muted/40 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
         >
-          <option value="all" className="bg-[#0b0f19]">All Terms</option>
+          <option value="all">All Terms</option>
           {termOptions.map(term => (
-            <option key={term} value={term} className="bg-[#0b0f19]">{term}</option>
+            <option key={term} value={term}>{term}</option>
           ))}
         </select>
       </div>

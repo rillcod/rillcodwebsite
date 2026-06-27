@@ -90,7 +90,7 @@ export default function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <div className="bg-background border border-border rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+      <div className="bg-background border border-border rounded-3xl overflow-hidden shadow-2xl">
         <div className="flex items-center border-b border-border px-6 py-4">
           <MagnifyingGlassIcon className="w-5 h-5 text-cyan-400 mr-4 opacity-50" />
           <CommandInput
@@ -105,7 +105,7 @@ export default function CommandPalette() {
 
         <CommandList className="max-h-[70vh] overflow-y-auto p-4 custom-scrollbar">
           <CommandEmpty className="py-20 text-center">
-            <RocketLaunchIcon className="w-12 h-12 text-white/5 mx-auto mb-4" />
+            <RocketLaunchIcon className="w-12 h-12 text-muted-foreground/10 mx-auto mb-4" />
             <p className="text-xs font-black text-muted-foreground uppercase tracking-[0.3em]">No resonance detected</p>
           </CommandEmpty>
 
@@ -176,7 +176,7 @@ export default function CommandPalette() {
           </CommandGroup>
         </CommandList>
         
-        <div className="p-4 bg-black/40 border-t border-border flex items-center justify-between text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+        <div className="p-4 bg-muted/30 border-t border-border flex items-center justify-between text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground">
            <div className="flex gap-4">
              <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-card shadow-sm rounded">↑↓</kbd> Navigate</span>
              <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 bg-card shadow-sm rounded">ENTER</kbd> Activate</span>

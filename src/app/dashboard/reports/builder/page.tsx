@@ -2107,7 +2107,7 @@ function ReportBuilderInner() {
                             {/* Report context */}
                             <div>
                                 <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Context *</label>
-                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                     {(['basic', 'secondary', 'unified', 'bootcamp', 'online'] as const).map(type => (
                                         <button key={type} type="button"
                                             onClick={() => setSessionConfig(s => ({
@@ -2118,7 +2118,7 @@ function ReportBuilderInner() {
                                                     ? { report_term: s.report_term || getCurrentTermLabel(), report_period: s.report_period || getCurrentAcademicYear() }
                                                     : {}),
                                             }))}
-                                            className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-foreground shadow' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
+                                            className={`shrink-0 min-w-[8.5rem] sm:min-w-0 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors border ${sessionConfig.school_section === type ? 'bg-primary border-primary text-primary-foreground shadow' : 'bg-card shadow-sm border-border text-muted-foreground hover:bg-muted'}`}>
                                             {type === 'basic' ? '📚 Basic' : type === 'secondary' ? '🎓 Secondary' : type === 'unified' ? '🏫 Unified' : type === 'bootcamp' ? '💻 Bootcamp' : '🌐 Online'}
                                         </button>
                                     ))}

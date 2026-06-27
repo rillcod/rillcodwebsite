@@ -82,8 +82,8 @@ export default function SummerSchoolPopup({ isOpen, onClose }: SummerSchoolPopup
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-card border border-border w-full max-w-3xl max-h-[90vh] overflow-y-auto relative shadow-2xl border-t-8 border-t-primary">
+    <div className="fixed inset-0 bg-foreground/35 dark:bg-black/70 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-card text-card-foreground border border-border w-full max-w-3xl max-h-[92vh] overflow-y-auto relative shadow-2xl border-t-8 border-t-primary rounded-t-3xl sm:rounded-none">
 
         <button
           onClick={handleClose}

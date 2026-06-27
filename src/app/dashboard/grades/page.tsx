@@ -121,8 +121,8 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
     };
 
     return (
-        <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-[#161628] border border-white/10 w-full max-w-md shadow-2xl p-8 space-y-6">
+        <div className="fixed inset-0 z-[60] bg-foreground/35 dark:bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-card text-card-foreground border border-border w-full sm:max-w-md shadow-2xl p-6 sm:p-8 space-y-6 rounded-t-3xl sm:rounded-xl">
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-xl font-black text-foreground uppercase tracking-tight">Batch-Sync Reports</h3>
@@ -133,26 +133,26 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Programme *</label>
-                        <select value={programId} onChange={e => {setProgramId(e.target.value); setCourseId('');}} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary">
+                        <select value={programId} onChange={e => {setProgramId(e.target.value); setCourseId('');}} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
                             <option value="">Select Programme</option>
                             {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Course *</label>
-                        <select value={courseId} onChange={e => setCourseId(e.target.value)} disabled={!programId} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary disabled:opacity-30">
+                        <select value={courseId} onChange={e => setCourseId(e.target.value)} disabled={!programId} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary disabled:opacity-30">
                             <option value="">Select Course</option>
                             {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Class / Section *</label>
-                        <input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Basic 4" className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary" />
+                        <input value={className} onChange={e => setClassName(e.target.value)} placeholder="e.g. Basic 4" className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Term *</label>
-                            <select value={term} onChange={e => setTerm(e.target.value)} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary">
+                            <select value={term} onChange={e => setTerm(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary">
                                 <option value="First Term">First Term</option>
                                 <option value="Second Term">Second Term</option>
                                 <option value="Third Term">Third Term</option>
@@ -161,7 +161,7 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Report Date *</label>
-                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-white/5 border border-white/10 text-sm p-3.5 focus:outline-none focus:border-primary" />
+                            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-background border border-border text-sm p-3.5 focus:outline-none focus:border-primary" />
                         </div>
                     </div>
                 </div>
@@ -169,8 +169,8 @@ function BatchSyncModal({ programs, allCourses, onClose, onSynced }: {
                 {error && <p className="text-xs text-rose-500 bg-rose-500/10 p-3 border border-rose-500/20">{error}</p>}
 
                 <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3.5 text-xs font-bold text-muted-foreground border border-white/10 hover:bg-white/5 transition-all">Cancel</button>
-                    <button onClick={handleSync} disabled={syncing || !courseId || !className} className="flex-1 py-3.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/40">
+                    <button onClick={onClose} className="flex-1 py-3.5 text-xs font-bold text-muted-foreground border border-border hover:bg-muted transition-all">Cancel</button>
+                    <button onClick={handleSync} disabled={syncing || !courseId || !className} className="flex-1 py-3.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest shadow-lg shadow-primary/40">
                         {syncing ? (
                             <div className="flex items-center justify-center gap-2">
                                 <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
@@ -313,8 +313,8 @@ function GradeModal({ sub, onClose, onSaved }: {
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-            <div className="bg-[#161628] border border-border rounded-t-[32px] rounded-xl w-full sm:max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
+        <div className="fixed inset-0 z-50 bg-foreground/35 dark:bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+            <div className="bg-card text-card-foreground border border-border rounded-t-[32px] sm:rounded-xl w-full sm:max-w-lg shadow-2xl max-h-[92vh] flex flex-col"
                 onClick={e => e.stopPropagation()}>
 
                 {/* Drag handle (mobile) */}
@@ -1014,7 +1014,7 @@ export default function GradesPage() {
                             {isStaff ? 'Grade student work and track class performance' : 'Your scores, feedback and progress'}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                         {items.length > 0 && (
                             <>
                                 <button onClick={() => exportPDF(items, isStaff, profile)}
@@ -1024,9 +1024,10 @@ export default function GradesPage() {
                                 </button>
                                 {isStaff && (
                                     <button onClick={() => setShowSyncModal(true)}
-                                        className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-bold text-foreground transition-all shadow-lg shadow-indigo-900/20 group">
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-bold text-white transition-all shadow-lg shadow-indigo-900/20 group">
                                         <SparklesIcon className="w-4 h-4 group-hover:scale-125 transition-transform" />
-                                        Batch-Sync Reports
+                                        <span className="hidden sm:inline">Batch-Sync Reports</span>
+                                        <span className="sm:hidden">Sync</span>
                                     </button>
                                 )}
                                 <button onClick={() => exportCSV(items, isStaff)}
@@ -1355,7 +1356,7 @@ export default function GradesPage() {
                                                 <button onClick={() => setGrading(s)}
                                                     className={`p-2.5 rounded-xl transition-all flex-shrink-0 ${s.status === 'submitted' || s.status === 'late'
                                                             ? 'bg-emerald-600 hover:bg-emerald-500 text-foreground'
-                                                            : 'bg-card shadow-sm hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100'
+                                                            : 'bg-card shadow-sm hover:bg-muted text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100'
                                                         }`}
                                                     title={info ? 'Edit grade' : 'Grade now'}>
                                                     <PencilSquareIcon className="w-4 h-4" />

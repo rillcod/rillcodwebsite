@@ -1235,7 +1235,7 @@ tbody tr:hover{background:#f3f4f6}
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex w-full sm:w-auto items-center gap-2 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 flex-nowrap sm:flex-wrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {isEditor && (
                             <Link
                                 href="/dashboard/reports/builder"

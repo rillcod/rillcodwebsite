@@ -187,7 +187,13 @@ export function StudentPicker({
       {multi && selectedMulti.length > 0 && (
         <div className="px-3 py-2 bg-primary/5 border border-primary/20 text-[10px] space-y-1">
           <span className="text-primary font-bold">{selectedMulti.length} student{selectedMulti.length !== 1 ? 's' : ''} selected:</span>
-          <p className="text-muted-foreground">{selectedMulti.map(s => s.full_name).join(', ')}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedMulti.map(s => (
+              <span key={s.id} className="max-w-full rounded-full border border-border bg-background px-2 py-1 text-muted-foreground truncate">
+                {s.full_name}
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -368,8 +374,8 @@ export function ParentForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-card border border-border p-5">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Email / Username</p>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-bold text-foreground font-mono break-all">{credentials.email}</span>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
+              <span className="min-w-0 text-sm font-bold text-foreground font-mono break-all">{credentials.email}</span>
               <CopyButton value={credentials.email} />
             </div>
           </div>
@@ -377,8 +383,8 @@ export function ParentForm({
             <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-3 flex items-center gap-1">
               <KeyIcon className="w-3 h-3" /> Generated Password
             </p>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-bold text-primary font-mono tracking-wider">{credentials.password}</span>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-w-0">
+              <span className="min-w-0 text-sm font-bold text-primary font-mono tracking-wider break-all">{credentials.password}</span>
               <CopyButton value={credentials.password} />
             </div>
           </div>

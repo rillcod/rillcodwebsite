@@ -1262,7 +1262,7 @@ export default function ParentsPage() {
 
       {/* Bulk action bar — admin only, shown when items are selected */}
       {isAdmin && selectedIds.size > 0 && (
-        <div className="flex items-center justify-between gap-4 px-4 py-3 bg-rose-500/10 border border-rose-500/30">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 bg-rose-500/10 border border-rose-500/30">
           <div className="flex items-center gap-3">
             <button onClick={toggleSelectAll} className="w-4 h-4 border border-rose-500/50 bg-rose-500/20 flex items-center justify-center text-rose-400 text-[8px] font-black flex-shrink-0">✓</button>
             <span className="text-xs font-black text-rose-400">{selectedIds.size} selected</span>
@@ -1437,27 +1437,27 @@ export default function ParentsPage() {
                   </div>
 
                   {/* Action bar */}
-                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border">
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 pt-3 border-t border-border">
                     {/* Edit */}
                     <button
                       onClick={() => openSlide('edit', parent)}
                       title="Edit parent profile"
-                      className="group flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 border border-border hover:border-white/30 transition-all">
+                      className="group flex items-center justify-center gap-2 px-3 py-2 bg-muted/40 hover:bg-muted border border-border hover:border-foreground/20 transition-all">
                       <span className="w-6 h-6 rounded-sm bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
                         <PencilSquareIcon className="w-3.5 h-3.5 text-primary" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors hidden sm:block">Edit</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">Edit</span>
                     </button>
 
                     {/* Link Student */}
                     <button
                       onClick={async () => { await ensurePickerData(); setLinkTarget(parent); }}
                       title="Link a student to this parent"
-                      className="group flex items-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all">
+                      className="group flex items-center justify-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all">
                       <span className="w-6 h-6 rounded-sm bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
                         <LinkIcon className="w-3.5 h-3.5 text-primary" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hidden sm:block">Link Student</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Link</span>
                     </button>
 
                     {/* Activate / Deactivate */}
@@ -1465,7 +1465,7 @@ export default function ParentsPage() {
                       onClick={() => handleToggleActive(parent)}
                       disabled={toggling === parent.id}
                       title={parent.is_active ? 'Deactivate account' : 'Activate account'}
-                      className={`group flex items-center gap-2 px-3 py-2 border transition-all disabled:opacity-50 ${
+                      className={`group flex items-center justify-center gap-2 px-3 py-2 border transition-all disabled:opacity-50 ${
                         parent.is_active
                           ? 'bg-rose-500/5 hover:bg-rose-500/10 border-rose-500/20 hover:border-rose-500/50'
                           : 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 hover:border-emerald-500/50'
@@ -1477,7 +1477,7 @@ export default function ParentsPage() {
                           ? <XCircleIcon className="w-3.5 h-3.5 text-rose-400" />
                           : <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />}
                       </span>
-                      <span className={`text-[10px] font-black uppercase tracking-widest hidden sm:block ${parent.is_active ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${parent.is_active ? 'text-rose-400' : 'text-emerald-400'}`}>
                         {toggling === parent.id ? '…' : parent.is_active ? 'Deactivate' : 'Activate'}
                       </span>
                     </button>
@@ -1487,11 +1487,11 @@ export default function ParentsPage() {
                       onClick={() => handleResetPassword(parent)}
                       disabled={resetting === parent.id}
                       title="Reset login password"
-                      className="group flex items-center gap-2 px-3 py-2 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/50 transition-all disabled:opacity-50">
+                      className="group flex items-center justify-center gap-2 px-3 py-2 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/50 transition-all disabled:opacity-50">
                       <span className="w-6 h-6 rounded-sm bg-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/30 transition-colors">
                         <KeyIcon className="w-3.5 h-3.5 text-amber-400" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 hidden sm:block">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
                         {resetting === parent.id ? '…' : 'Reset PW'}
                       </span>
                     </button>
@@ -1499,23 +1499,23 @@ export default function ParentsPage() {
                     {/* Message */}
                     <a href={`/dashboard/messages?to=${parent.id}`}
                       title="Send message to parent"
-                      className="group flex items-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all">
+                      className="group flex items-center justify-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all">
                       <span className="w-6 h-6 rounded-sm bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
                         <EnvelopeIcon className="w-3.5 h-3.5 text-primary" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-primary hidden sm:block">Message</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary">Message</span>
                     </a>
 
                     {/* Card Studio shortcut */}
                     <Link
                       href={`/dashboard/card-studio?mode=issuance&type=parent&q=${encodeURIComponent(parent.full_name || parent.email || '')}`}
                       title="Open in card studio"
-                      className="group flex items-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all"
+                      className="group flex items-center justify-center gap-2 px-3 py-2 bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/50 transition-all"
                     >
                       <span className="w-6 h-6 rounded-sm bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
                         <CreditCardIcon className="w-3.5 h-3.5 text-primary" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600 hidden sm:block">Card</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-brand-red-600">Card</span>
                     </Link>
 
                     {/* Delete — pushed right */}
@@ -1523,11 +1523,11 @@ export default function ParentsPage() {
                       onClick={() => setDeleteTarget(parent)}
                       disabled={deleting === parent.id}
                       title="Delete parent account"
-                      className="group flex items-center gap-2 px-3 py-2 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/50 transition-all disabled:opacity-50 ml-auto">
+                      className="group flex items-center justify-center gap-2 px-3 py-2 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/50 transition-all disabled:opacity-50 sm:ml-auto">
                       <span className="w-6 h-6 rounded-sm bg-rose-500/20 flex items-center justify-center group-hover:bg-rose-500/30 transition-colors">
                         <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-rose-400 hidden sm:block">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-rose-400">
                         {deleting === parent.id ? '…' : 'Delete'}
                       </span>
                     </button>
@@ -1621,9 +1621,9 @@ export default function ParentsPage() {
             onClick={() => setShowSlide(false)}
           />
           {/* Panel */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-background border-l border-border shadow-2xl flex flex-col overflow-hidden">
+          <div className="fixed inset-x-0 bottom-0 z-50 max-h-[92vh] w-full bg-background border-t border-border shadow-2xl flex flex-col overflow-hidden rounded-t-3xl sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:max-w-2xl sm:border-l sm:border-t-0 sm:rounded-none">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card flex-shrink-0">
+            <div className="flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-border bg-card flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-sm flex items-center justify-center ${slideMode === 'add' ? 'bg-primary/20' : 'bg-primary/20'}`}>
                   {slideMode === 'add'
@@ -1631,7 +1631,7 @@ export default function ParentsPage() {
                     : <PencilSquareIcon className="w-4 h-4 text-primary" />}
                 </div>
                 <div>
-                  <h2 className="text-sm font-black text-foreground uppercase tracking-widest">
+                  <h2 className="text-xs sm:text-sm font-black text-foreground uppercase tracking-widest">
                     {slideMode === 'add' ? 'Add Parent Account' : `Edit: ${slideParent?.full_name}`}
                   </h2>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -1650,7 +1650,7 @@ export default function ParentsPage() {
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {slidePickerLoading ? (
                 <div className="flex flex-col items-center justify-center h-48 gap-3">
                   <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />

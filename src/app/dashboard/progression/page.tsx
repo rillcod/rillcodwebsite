@@ -577,23 +577,26 @@ export default function ProgressionPage() {
 
       {/* Save decisions button — appears when decisions are ready */}
       {canPromote && decidedCount > 0 && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 z-50 animate-in fade-in slide-in-from-bottom-10 duration-700">
+        <div className="fixed bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-3 sm:px-4 z-50 animate-in fade-in slide-in-from-bottom-10 duration-700">
           <button
             onClick={submitAll}
             disabled={submitting}
-            className="w-full py-6 bg-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 text-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(124,58,237,0.4)] transition-all flex items-center justify-center gap-4 group overflow-hidden relative"
+            className="w-full py-4 sm:py-6 bg-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 text-primary-foreground rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_20px_50px_rgba(124,58,237,0.4)] transition-all flex items-center justify-center gap-3 sm:gap-4 group overflow-hidden relative"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
 
             {submitting ? (
               <>
                 <div className="w-5 h-5 border-3 border-white/60 border-t-white rounded-full animate-spin" />
-                <span className="font-black uppercase tracking-[0.2em] text-xs">Saving…</span>
+                <span className="font-black uppercase tracking-widest sm:tracking-[0.2em] text-[11px] sm:text-xs">Saving…</span>
               </>
             ) : (
               <>
                 <SparklesIcon className="w-5 h-5" />
-                <span className="font-black uppercase tracking-[0.2em] text-xs">Save {decidedCount} decision{decidedCount !== 1 ? 's' : ''} → {nextTerm(filterTerm)}</span>
+                <span className="font-black uppercase tracking-widest sm:tracking-[0.2em] text-[11px] sm:text-xs">
+                  <span className="sm:hidden">Save {decidedCount}</span>
+                  <span className="hidden sm:inline">Save {decidedCount} decision{decidedCount !== 1 ? 's' : ''} → {nextTerm(filterTerm)}</span>
+                </span>
               </>
             )}
           </button>
