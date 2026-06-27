@@ -584,62 +584,27 @@ function ReportBuilderInner() {
         async function loadData() {
             setLoading(true);
             try {
-                // 1. Fetch assigned schools via API (service role — bypasses RLS for teachers)
-                let schoolsList: { id: string; name: string }[] = [];
-
-            // Fetch schools via API (uses service role — bypasses RLS for teachers)
-            const schRes = await fetch('/api/schools', { cache: 'no-store' });
-            if (schRes.ok) {
-                const schJson = await schRes.json();
-                schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
-            }
-
-            // 2. Fetch portal students via API (service_role — bypasses RLS so teachers see their school's students)
-            const portalRes = await fetch(`/api/portal-users?role=student&scoped=true`, { cache: 'no-store' });
-            const portalJson = portalRes.ok ? await portalRes.json() : { data: [] };
-
-            // Build shared school filter parts for the pre-portal students query
-            const schoolIds = schoolsList.map(s => s.id).filter(Boolean);
-            const schoolNames = schoolsList.map(s => s.name).filter(Boolean);
-            const idPart = schoolIds.length > 0 ? `school_id.in.(${schoolIds.join(',')})` : '';
-            const namePart = schoolNames.length > 0
-                ? schoolNames.map(n => `school_name.eq.${JSON.stringify(n)}`).join(',')
-                : '';
-            const orParts = [idPart, namePart].filter(Boolean);
-
-            // Pre-portal students query (students table, user_id is null or not yet linked)
-            let prePortalQuery = db.from('students')
-                .select('id, full_name, email, school_name, school_id, current_class, grade_level, section, status, user_id')
-                .neq('is_deleted', true)
-                .neq('status', 'rejected') as any;
-
-            if (!isAdmin) {
-                if (orParts.length > 0) {
-                    prePortalQuery = prePortalQuery.or(orParts.join(','));
-                } else if (profile?.school_id) {
-                    prePortalQuery = prePortalQuery.or(`school_id.eq.${profile.school_id}`);
-                }
-            }
-
-            // 3. Fetch programs via API (handles role-based visibility correctly)
-            const progRes = await fetch('/api/programs?is_active=true', { cache: 'no-store' });
-            const progJson = progRes.ok ? await progRes.json() : { data: [] };
-
-            // 4. Fetch courses via API (handles role-based visibility and relationships correctly)
-            const coursesRes = await fetch('/api/courses?limit=1000&is_published=true', { cache: 'no-store' });
-            const coursesJson = coursesRes.ok ? await coursesRes.json() : { data: [] };
-
-            // 5. Fetch classes via API — teachers only see their own classes
             const isTeacher = profile?.role === 'teacher';
-            const classesRes = await fetch(isTeacher ? '/api/classes?mine=true' : '/api/classes', { cache: 'no-store' });
-            const classesJson = classesRes.ok ? await classesRes.json() : { data: [] };
-
-            // 6. Fetch pre-portal students via API
-            const prePortalRes = await fetch('/api/students', { cache: 'no-store' });
-            const prePortalJson = prePortalRes.ok ? await prePortalRes.json() : { data: [] };
-
-            // 7. Fetch report settings (direct DB for now)
-            const { data: brandingData } = await db.from('report_settings').select('*').limit(1).maybeSingle();
+            const asJson = async (res: Response) => res.ok ? res.json() : { data: [] };
+            const [
+                schJson,
+                portalJson,
+                progJson,
+                coursesJson,
+                classesJson,
+                prePortalJson,
+                brandingRes,
+            ] = await Promise.all([
+                fetch('/api/schools', { cache: 'no-store' }).then(asJson),
+                fetch('/api/portal-users?role=student&scoped=true&limit=1000', { cache: 'no-store' }).then(asJson),
+                fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(asJson),
+                fetch('/api/courses?limit=1000&is_published=true', { cache: 'no-store' }).then(asJson),
+                fetch(isTeacher ? '/api/classes?mine=true' : '/api/classes', { cache: 'no-store' }).then(asJson),
+                fetch('/api/students?limit=500', { cache: 'no-store' }).then(asJson),
+                db.from('report_settings').select('*').limit(1).maybeSingle(),
+            ]);
+            const schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
+            const brandingData = brandingRes.data;
 
             // Grade lookup for portal students (portal_users has no grade_level; fetch from students shadow table)
             const portalIds = (portalJson.data ?? []).map((u: any) => u.id).filter(Boolean) as string[];
@@ -722,10 +687,12 @@ function ReportBuilderInner() {
                     pendingRestoreStudentId.current = null;
                     const s = processed.find((x: any) => x.id === prefStudentId || x._original_id === prefStudentId);
                     if (s) {
-                        await selectStudent(s as PortalUser, 0, { forceHydrate: true });
-                        setStep('edit');
-                        setSessionDone(true);
-                        setSessionExpanded(false);
+                        setTimeout(() => {
+                            void selectStudent(s as PortalUser, 0, { forceHydrate: true });
+                            setStep('edit');
+                            setSessionDone(true);
+                            setSessionExpanded(false);
+                        }, 0);
                     }
                     return;
                 }
@@ -734,7 +701,10 @@ function ReportBuilderInner() {
                 if (restoreId) {
                     pendingRestoreStudentId.current = null;
                     const s = processed.find((x: any) => x.id === restoreId || x._original_id === restoreId);
-                    if (s) { await selectStudent(s as PortalUser, pendingRestoreStudentIdx.current); return; }
+                    if (s) {
+                        setTimeout(() => { void selectStudent(s as PortalUser, pendingRestoreStudentIdx.current); }, 0);
+                        return;
+                    }
                 }
             } catch (err: any) {
                 console.error('Failed to load builder data:', err);

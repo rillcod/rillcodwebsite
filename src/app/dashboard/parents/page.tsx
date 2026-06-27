@@ -118,7 +118,7 @@ function LinkStudentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
       <div className="w-full max-w-sm bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Link Student</h2>
@@ -205,7 +205,7 @@ function LinkStudentModal({
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2.5 border border-border text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">Cancel</button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+              className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest transition-all">
               {saving ? 'Linking…' : 'Link'}
             </button>
           </div>
@@ -301,7 +301,7 @@ function PrintRegistryModal({ parents, schoolFilter, onClose }: {
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary hover:bg-primary text-primary-foreground text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all"
           >
             <PrinterIcon className="w-4 h-4 shrink-0" /> Print / Save PDF
           </button>
@@ -449,7 +449,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
       <div className="w-full max-w-2xl bg-card border border-border shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-sm font-black uppercase tracking-widest text-foreground">Bulk Import Parents</h2>
@@ -542,7 +542,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
                   Cancel
                 </button>
                 <button onClick={handleImport} disabled={importing}
-                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest transition-all">
                   {importing ? 'Importing…' : `Import ${rows.length} Parent${rows.length !== 1 ? 's' : ''}`}
                 </button>
               </div>
@@ -597,7 +597,7 @@ function BulkImportModal({ onClose, onDone }: { onClose: () => void; onDone: () 
               )}
 
               <button onClick={onClose}
-                className="w-full px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                className="w-full px-4 py-2.5 bg-primary hover:bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest transition-all">
                 Done
               </button>
             </div>
@@ -627,7 +627,7 @@ function AccessCardsModal({ parents, schoolFilter, onClose }: {
           <p className="hidden md:block text-[10px] text-muted-foreground">{filtered.length} cards · Print on A4</p>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-primary-foreground text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
           >
             <PrinterIcon className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Print Cards</span><span className="sm:hidden">Print</span>
           </button>
@@ -1012,7 +1012,7 @@ export default function ParentsPage() {
         <Link href="/dashboard/students" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
           <UserGroupIcon className="w-4 h-4" /> Students
         </Link>
-        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
+        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-black">
           <UserPlusIcon className="w-4 h-4" /> Parents
         </span>
         <Link href="/dashboard/users" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
@@ -1091,7 +1091,7 @@ export default function ParentsPage() {
           )}
           <button
             onClick={() => openSlide('add')}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-foreground text-[10px] font-black uppercase tracking-widest transition-all">
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-[10px] font-black uppercase tracking-widest transition-all">
             <PlusIcon className="w-4 h-4" /> <span className="whitespace-nowrap">Add Parent</span>
           </button>
         </div>
@@ -1257,7 +1257,7 @@ export default function ParentsPage() {
           <button
             onClick={handleBulkDelete}
             disabled={bulkDeleting}
-            className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+            className="flex items-center gap-2 px-4 py-2 bg-destructive hover:bg-destructive/90 disabled:opacity-50 text-destructive-foreground text-[10px] font-black uppercase tracking-widest transition-all">
             <TrashIcon className="w-3.5 h-3.5" />
             {bulkDeleting ? 'Deleting…' : `Delete ${selectedIds.size}`}
           </button>
@@ -1548,7 +1548,7 @@ export default function ParentsPage() {
         />
       )}
       {resetResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-card border border-border shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div className="flex items-center gap-2">
@@ -1578,7 +1578,7 @@ export default function ParentsPage() {
                 </div>
               </div>
               <button onClick={() => setResetResult(null)}
-                className="w-full px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-xs font-black uppercase tracking-widest transition-all">
+                className="w-full px-4 py-2.5 bg-primary hover:bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest transition-all">
                 Done
               </button>
             </div>
@@ -1598,11 +1598,11 @@ export default function ParentsPage() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-foreground/35 backdrop-blur-sm"
             onClick={() => setShowSlide(false)}
           />
           {/* Panel */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-[#0f0f1a] border-l border-border shadow-2xl flex flex-col overflow-hidden">
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-background border-l border-border shadow-2xl flex flex-col overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -1624,7 +1624,7 @@ export default function ParentsPage() {
               </div>
               <button
                 onClick={() => setShowSlide(false)}
-                className="p-2 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-all"
+                className="p-2 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -1663,7 +1663,7 @@ export default function ParentsPage() {
 
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
           <div className="w-full max-w-md bg-card border border-rose-500/40 shadow-2xl overflow-hidden">
             {/* Top accent strip */}
             <div className="h-1 w-full bg-gradient-to-r from-rose-600 to-rose-400" />
@@ -1707,7 +1707,7 @@ export default function ParentsPage() {
                     setDeleteTarget(null);
                   }}
                   disabled={deleting === deleteTarget.id}
-                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 bg-destructive hover:bg-destructive/90 disabled:opacity-50 text-destructive-foreground text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                 >
                   {deleting === deleteTarget.id
                     ? <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> Deleting…</>

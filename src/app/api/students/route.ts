@@ -165,6 +165,8 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const parentEmail = searchParams.get('parentEmail');
+    const limitParam = Number(searchParams.get('limit') ?? 0);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 1000) : null;
 
     // ── Public single-student lookup by parentEmail (registration form) ──
     if (parentEmail) {
@@ -295,6 +297,8 @@ export async function GET(request: Request) {
       }
       query = query.or(orParts.join(',')) as any;
     }
+
+    if (limit) query = query.limit(limit) as any;
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

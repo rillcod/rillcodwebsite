@@ -230,6 +230,7 @@ export default function DashboardNavigation() {
           { name: 'Grading Guide', href: '/dashboard/grades/waec', icon: DocumentTextIcon },
 
           { divider: true, label: 'Students' },
+          { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Resend Credentials', href: '/dashboard/students/resend-credentials', icon: EnvelopeIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
@@ -323,6 +324,7 @@ export default function DashboardNavigation() {
           ...base,
           { divider: true, label: 'My School' },
           { name: 'School Overview', href: '/dashboard/school-overview', icon: ChartBarIcon },
+          { name: 'Records', href: '/dashboard/records', icon: ClipboardDocumentListIcon },
           { name: 'My Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Classes', href: '/dashboard/classes', icon: UserGroupIcon },
           { name: 'Card Studio & ID Cards', href: '/dashboard/card-studio', icon: CreditCardIcon },

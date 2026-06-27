@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { MagnifyingGlassIcon, ArrowDownTrayIcon, ArrowPathIcon, PrinterIcon, RectangleGroupIcon } from '@/lib/icons';
 
@@ -12,9 +12,9 @@ type Rec = {
 };
 type Reg = {
   id: string; name: string; email: string; password: string; klass: string;
-  school: string; status: string; account: string; registered: string | null; batchId: string;
+  school: string; source: string; batchName: string; status: string; account: string; registered: string | null; batchId: string;
 };
-type SortKey = 'registered' | 'name' | 'school' | 'klass' | 'type' | 'status' | 'source' | 'account';
+type SortKey = 'registered' | 'name' | 'school' | 'klass' | 'type' | 'status' | 'source' | 'account' | 'batch';
 
 const INPUT = 'px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary';
 const TYPE_COLOR: Record<string, string> = {
@@ -35,6 +35,7 @@ const SORT_LABELS: Record<SortKey, string> = {
   status: 'Status',
   source: 'Source',
   account: 'Account',
+  batch: 'Batch',
 };
 
 function clean(value?: string | null) {
@@ -66,9 +67,10 @@ function StatCard({ label, value, active, onClick }: { label: string; value: num
 export default function RecordsPage() {
   const { profile, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
-  const [tab, setTab] = useState<'people' | 'registrations'>('people');
+  const [tab, setTab] = useState<'people' | 'registrations'>(() => searchParams.get('tab') === 'registrations' ? 'registrations' : 'people');
   const [rows, setRows] = useState<Rec[]>([]);
   const [regs, setRegs] = useState<Reg[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +84,7 @@ export default function RecordsPage() {
   const [fSource, setFSource] = useState('all');
   const [fStatus, setFStatus] = useState('all');
   const [fAccount, setFAccount] = useState('all');
+  const [fBatch, setFBatch] = useState('all');
   const [showPw, setShowPw] = useState(false);
   const [copied, setCopied] = useState('');
   const [view, setView] = useState<'table' | 'cards'>('table');
@@ -117,6 +120,11 @@ export default function RecordsPage() {
   const uniq = (arr: any[], key: string) => [...new Set(arr.map(r => r[key]).filter(Boolean) as string[])].sort();
   const typeCounts = useMemo(() => { const c: Record<string, number> = {}; for (const r of rows) c[r.type] = (c[r.type] || 0) + 1; return c; }, [rows]);
   const acctCounts = useMemo(() => { const c: Record<string, number> = {}; for (const r of regs) c[r.account] = (c[r.account] || 0) + 1; return c; }, [regs]);
+  const registrationBatches = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const r of regs) if (r.batchId) byId.set(r.batchId, r.batchName || r.batchId);
+    return [...byId.entries()].map(([id, label]) => ({ id, label }));
+  }, [regs]);
 
   const compareRows = (a: Rec | Reg, b: Rec | Reg) => {
     const val = (row: Rec | Reg) => {
@@ -128,6 +136,7 @@ export default function RecordsPage() {
       if (sortKey === 'status') return row.status || '';
       if ('source' in row && sortKey === 'source') return row.source || '';
       if ('account' in row && sortKey === 'account') return row.account || '';
+      if ('batchName' in row && sortKey === 'batch') return row.batchName || row.batchId || '';
       return '';
     };
     const av = val(a);
@@ -149,8 +158,10 @@ export default function RecordsPage() {
   const regsFiltered = useMemo(() => regs.filter(r => {
     const s = q.trim().toLowerCase();
     const mq = !s || r.name.toLowerCase().includes(s) || r.email.toLowerCase().includes(s);
-    return mq && (fSchool === 'all' || r.school === fSchool) && (fClass === 'all' || r.klass === fClass) && (fAccount === 'all' || r.account === fAccount);
-  }).sort(compareRows), [regs, q, fSchool, fClass, fAccount, sortKey, sortDir]);
+    return mq && (fSchool === 'all' || r.school === fSchool) && (fClass === 'all' || r.klass === fClass)
+      && (fSource === 'all' || r.source === fSource) && (fBatch === 'all' || r.batchId === fBatch)
+      && (fAccount === 'all' || r.account === fAccount);
+  }).sort(compareRows), [regs, q, fSchool, fClass, fSource, fBatch, fAccount, sortKey, sortDir]);
 
   async function copy(text: string, id: string) {
     try { await navigator.clipboard.writeText(text); setCopied(id); setTimeout(() => setCopied(''), 1200); } catch { /* ignore */ }
@@ -162,8 +173,8 @@ export default function RecordsPage() {
       head = ['Name', 'Type', 'Email', 'School', 'Class', 'Program', 'Source', 'Status', 'Registered'];
       lines = peopleFiltered.map(r => [r.name, r.type, r.email, r.school, r.klass, r.program, r.source, r.status, r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : ''].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
     } else {
-      head = ['Name', 'Email', 'Password', 'Class', 'School', 'Status', 'Account', 'Registered'];
-      lines = regsFiltered.map(r => [r.name, r.email, r.password, r.klass, r.school, r.status, r.account, r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : ''].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
+      head = ['Name', 'Email', 'Password', 'Class', 'School', 'Registration Type', 'Batch', 'Status', 'Account', 'Registered'];
+      lines = regsFiltered.map(r => [r.name, r.email, r.password, r.klass, r.school, r.source, r.batchName, r.status, r.account, r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : ''].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
     }
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -177,11 +188,11 @@ export default function RecordsPage() {
     const title = isPeople ? 'People Records List' : 'Registration Credentials List';
     const columns = isPeople
       ? ['#', 'Name', 'Type', 'Email', 'School', 'Class', 'Program', 'Source', 'Status', 'Registered']
-      : ['#', 'Name', 'Login Email', 'Password', 'Class', 'School', 'Status', 'Account', 'Registered'];
+      : ['#', 'Name', 'Login Email', 'Password', 'Class', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered'];
     const rowsHtml = data.map((row: any, index) => {
       const cells = isPeople
         ? [index + 1, row.name, row.type, row.email, row.school, row.klass, row.program, row.source, row.status, fmtDate(row.registered)]
-        : [index + 1, row.name, row.email, row.password, row.klass, row.school, row.status, row.account, fmtDate(row.registered)];
+        : [index + 1, row.name, row.email, row.password, row.klass, row.school, row.source, row.batchName, row.status, row.account, fmtDate(row.registered)];
       return `<tr>${cells.map(cell => `<td>${esc(String(cell ?? ''))}</td>`).join('')}</tr>`;
     }).join('');
     const html = `<!doctype html><html><head><title>${esc(title)}</title><style>
@@ -283,6 +294,9 @@ export default function RecordsPage() {
             {['Active', 'Inactive'].map(a => (
               <StatCard key={a} label={a} value={acctCounts[a] ?? 0} active={fAccount === a} onClick={() => setFAccount(fAccount === a ? 'all' : a)} />
             ))}
+            {['Bulk register', 'Single student'].filter(t => regs.some(r => r.source === t)).map(t => (
+              <StatCard key={t} label={t} value={regs.filter(r => r.source === t).length} active={fSource === t} onClick={() => setFSource(fSource === t ? 'all' : t)} />
+            ))}
           </>
         )}
       </div>
@@ -301,7 +315,11 @@ export default function RecordsPage() {
             <Select value={fStatus} onChange={setFStatus}><option value="all">All statuses</option>{uniq(rows, 'status').map(s => <option key={s} value={s}>{s}</option>)}</Select>
           </>
         ) : (
-          <button onClick={() => setShowPw(v => !v)} className={INPUT + ' cursor-pointer text-left lg:col-span-2'}>{showPw ? '🙈 Hide passwords' : '👁 Show passwords'}</button>
+          <>
+            <Select value={fSource} onChange={setFSource}><option value="all">All registration types</option>{uniq(regs, 'source').map(s => <option key={s} value={s}>{s}</option>)}</Select>
+            <Select value={fBatch} onChange={setFBatch}><option value="all">All batches</option>{registrationBatches.map(b => <option key={b.id} value={b.id}>{b.label}</option>)}</Select>
+            <button onClick={() => setShowPw(v => !v)} className={INPUT + ' cursor-pointer text-left lg:col-span-2'}>{showPw ? 'Hide passwords' : 'Show passwords'}</button>
+          </>
         )}
       </div>
 
@@ -311,7 +329,7 @@ export default function RecordsPage() {
           <Select value={sortKey} onChange={setSortKey}>
             {(tab === 'people'
               ? ['registered', 'name', 'type', 'school', 'klass', 'source', 'status']
-              : ['registered', 'name', 'school', 'klass', 'status', 'account']
+              : ['registered', 'name', 'school', 'klass', 'source', 'batch', 'status', 'account']
             ).map(k => <option key={k} value={k}>{SORT_LABELS[k as SortKey]}</option>)}
           </Select>
           <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} className="px-3 py-2 rounded-xl border border-border bg-background text-xs font-black text-foreground">
@@ -348,6 +366,12 @@ export default function RecordsPage() {
               <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
                 <div><p className="text-muted-foreground text-[10px] uppercase font-black">School</p><p className="text-foreground truncate">{row.school || '—'}</p></div>
                 <div><p className="text-muted-foreground text-[10px] uppercase font-black">Class</p><p className="text-foreground truncate">{row.klass || '—'}</p></div>
+                {tab === 'registrations' && (
+                  <>
+                    <div><p className="text-muted-foreground text-[10px] uppercase font-black">Type</p><p className="text-foreground truncate">{row.source || '—'}</p></div>
+                    <div><p className="text-muted-foreground text-[10px] uppercase font-black">Batch</p><p className="text-foreground truncate">{row.batchName || '—'}</p></div>
+                  </>
+                )}
                 <div><p className="text-muted-foreground text-[10px] uppercase font-black">Status</p><p className="text-foreground truncate">{row.status || '—'}</p></div>
                 <div><p className="text-muted-foreground text-[10px] uppercase font-black">Registered</p><p className="text-foreground truncate">{fmtDate(row.registered)}</p></div>
               </div>
@@ -402,7 +426,7 @@ export default function RecordsPage() {
           ) : (
             <table className="w-full text-sm min-w-[860px]">
               <thead className="sticky top-0 z-10 bg-muted text-[10px] uppercase tracking-widest text-muted-foreground shadow-sm">
-                <tr>{['Name', 'Login Email', 'Password', 'Class', 'School', 'Status', 'Account', 'Registered'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
+                <tr>{['Name', 'Login Email', 'Password', 'Class', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {regsFiltered.map(r => (
@@ -412,12 +436,14 @@ export default function RecordsPage() {
                     <td className="px-3 py-2.5 whitespace-nowrap font-mono"><button onClick={() => copy(r.password, r.id + 'p')} className="text-amber-300 hover:text-amber-200" title="Click to copy password">{showPw ? (r.password || '—') : '••••••'}{copied === r.id + 'p' && ' ✓'}</button></td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.klass || '—'}</td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.school || '—'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.source || '—'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.batchName || '—'}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[10px] font-bold text-foreground/80">{r.status}</span></td>
                     <td className="px-3 py-2.5 whitespace-nowrap"><span className={`text-[10px] font-black ${ACCT_COLOR[r.account] ?? 'text-muted-foreground'}`}>{r.account}</span></td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : '—'}</td>
                   </tr>
                 ))}
-                {regsFiltered.length === 0 && <tr><td colSpan={8} className="px-3 py-12 text-center text-muted-foreground text-sm">{regsLoaded ? 'No registrations match your filters.' : 'Loading…'}</td></tr>}
+                {regsFiltered.length === 0 && <tr><td colSpan={10} className="px-3 py-12 text-center text-muted-foreground text-sm">{regsLoaded ? 'No registrations match your filters.' : 'Loading…'}</td></tr>}
               </tbody>
             </table>
           )}

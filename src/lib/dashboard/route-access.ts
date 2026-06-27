@@ -36,6 +36,7 @@ function matchesPathPrefix(path: string, prefixes: readonly string[]): boolean {
  */
 const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/users',
+  '/dashboard/records',
   '/dashboard/schools',
   '/dashboard/teachers',
   '/dashboard/parents',

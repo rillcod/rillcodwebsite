@@ -429,7 +429,7 @@ export default function SchoolsPage() {
 
       {/* ── Sync Result Modal ── */}
       {syncResult && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
           <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -485,7 +485,7 @@ export default function SchoolsPage() {
               )}
             </div>
             <div className="p-4 border-t border-border flex-shrink-0">
-              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-xl text-sm transition-all">
+              <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-primary-foreground font-bold rounded-xl text-sm transition-all">
                 Done
               </button>
             </div>
@@ -497,7 +497,7 @@ export default function SchoolsPage() {
 
         {/* Tab bar — People */}
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
+          <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-black">
             <BuildingOfficeIcon className="w-4 h-4" /> Schools
           </span>
           <Link href="/dashboard/teachers" className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
@@ -540,7 +540,7 @@ export default function SchoolsPage() {
             </button>
             <button
               onClick={() => { setEditingSchool(null); setShowCreate(true); }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-primary-foreground text-sm font-bold rounded-xl transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Add School
             </button>
@@ -718,7 +718,7 @@ export default function SchoolsPage() {
 
         {/* Detail modal */}
         {detail && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                 <div className="flex items-center gap-4">
@@ -742,7 +742,7 @@ export default function SchoolsPage() {
               <div className="flex gap-1 p-3 border-b border-border bg-white/[0.02] flex-shrink-0">
                 {(['info', 'teachers', 'account'] as const).map(t => (
                   <button key={t} onClick={() => setAssignTab(t)}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${assignTab === t ? 'bg-primary text-foreground' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all ${assignTab === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-card shadow-sm hover:text-foreground'
                       }`}>
                     {t === 'teachers' ? `Teachers (${assignedTeachers.length})` : t === 'account' ? 'Portal Account' : 'School Info'}
                   </button>
@@ -895,7 +895,7 @@ export default function SchoolsPage() {
                             placeholder="At least 8 characters" className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary" />
                         </div>
                         <button type="submit" disabled={creatingAcc}
-                          className="w-full flex justify-center items-center gap-2 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-all disabled:opacity-50">
+                          className="w-full flex justify-center items-center gap-2 py-3 bg-primary hover:bg-primary text-primary-foreground font-bold rounded-xl transition-all disabled:opacity-50">
                           {creatingAcc ? 'Creating…' : <><KeyIcon className="w-4 h-4" /> Create Account</>}
                         </button>
                       </form>
@@ -921,7 +921,7 @@ export default function SchoolsPage() {
         )}
 
         {showCreate && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-background border border-border rounded-xl w-full max-w-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
               <div className="flex items-center justify-between p-6 border-b border-border">
                 <div>
@@ -1121,7 +1121,7 @@ export default function SchoolsPage() {
                 <button
                   type="submit"
                   disabled={creatingSchool}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-foreground font-bold rounded-xl transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-primary-foreground font-bold rounded-xl transition-all disabled:opacity-50"
                 >
                   {creatingSchool ? 'Saving…' : <>{editingSchool ? <PencilSquareIcon className="w-4 h-4" /> : <PlusIcon className="w-4 h-4" />} {editingSchool ? 'Update School' : 'Create School'}</>}
                 </button>
@@ -1230,7 +1230,7 @@ function SchoolSelfView() {
           <div className="absolute top-0 right-0 -translate-y-12 translate-x-12 w-64 h-64 bg-card opacity-5 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 translate-y-12 -translate-x-12 w-48 h-48 bg-primary opacity-20 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10">
-            <span className="inline-block px-3 py-1 bg-primary/80 text-foreground text-xs font-bold uppercase tracking-wider rounded-full mb-3">
+            <span className="inline-block px-3 py-1 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-full mb-3">
               School Portal
             </span>
             <h1 className="text-3xl font-extrabold text-foreground">{profile?.school_name ?? 'My School'}</h1>

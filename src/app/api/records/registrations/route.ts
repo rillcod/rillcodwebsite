@@ -50,6 +50,8 @@ export async function GET() {
       klass: r.class_name || b.class_name || '',
       school: b.school_name || '',
       schoolId: b.school_id || null,
+      source: b.class_name === 'Single Student Registrations' ? 'Single student' : 'Bulk register',
+      batchName: b.class_name || 'Registration batch',
       status: r.status,
       // Is this credential still backed by a live account?
       account: live ? (liveByEmail.get(norm(r.email)) ? 'Active' : 'Inactive') : 'Deleted',

@@ -366,7 +366,7 @@ export default function ClassesPage() {
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDeleteTarget(null)}>
+        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDeleteTarget(null)}>
           <div className="bg-card border border-border w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="h-1 w-full bg-rose-600" />
             <div className="p-6 space-y-4">
@@ -387,7 +387,7 @@ export default function ClassesPage() {
                   Cancel
                 </button>
                 <button onClick={handleDelete}
-                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-widest transition-all">
+                  className="flex-1 py-2.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-black uppercase tracking-widest transition-all">
                   Delete Permanently
                 </button>
               </div>

@@ -771,8 +771,8 @@ export default function ResendCredentialsPage() {
 
       {/* Copyable Credentials Modal */}
       {lastCreatedCredentials && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4 z-50 animate-fade-in">
-          <div className="bg-[#141618] border border-border rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4 z-50 animate-fade-in">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-lg font-black text-foreground">Login Details — {lastCreatedCredentials.studentName}</h3>
               <button
@@ -788,14 +788,14 @@ export default function ResendCredentialsPage() {
             </p>
 
             <div className="space-y-3">
-              <div className="bg-[#1c1e22] border border-border rounded-xl p-4 space-y-2">
+              <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">🎓 Student Account Details</p>
                 <div className="text-xs space-y-1">
                   <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
-                  <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded break-all">{lastCreatedCredentials.studentEmail}</p>
+                  <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.studentEmail}</p>
                   <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
                   {lastCreatedCredentials.studentPassword ? (
-                    <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded break-all">{lastCreatedCredentials.studentPassword}</p>
+                    <p className="font-mono text-amber-500 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.studentPassword}</p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground italic">Not stored — click "Resend" to reset &amp; reveal a fresh password.</p>
                   )}
@@ -803,15 +803,15 @@ export default function ResendCredentialsPage() {
               </div>
 
               {lastCreatedCredentials.parentEmail && (
-                <div className="bg-[#1c1e22] border border-border rounded-xl p-4 space-y-2">
+                <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
                   <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">👨‍👩‍👧 Parent Account Details</p>
                   <div className="text-xs space-y-1">
                     <p className="text-muted-foreground"><strong>Username / Email:</strong></p>
-                    <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded break-all">{lastCreatedCredentials.parentEmail}</p>
+                    <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.parentEmail}</p>
                     {lastCreatedCredentials.parentPassword && (
                       <>
                         <p className="text-muted-foreground mt-1"><strong>Temporary Password:</strong></p>
-                        <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded break-all">{lastCreatedCredentials.parentPassword}</p>
+                        <p className="font-mono text-amber-500 select-all bg-background border border-border p-1.5 rounded break-all">{lastCreatedCredentials.parentPassword}</p>
                       </>
                     )}
                   </div>

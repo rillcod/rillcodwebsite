@@ -13,6 +13,7 @@ function adminClient() {
 // Query params:
 //   role=student|teacher|...  — filter by role (optional)
 //   scoped=true               — apply caller's school scoping (for teacher listing own students)
+//   limit=500                 — optional capped list size for heavy pages
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerClient();
@@ -34,6 +35,8 @@ export async function GET(request: NextRequest) {
     const roleFilter = searchParams.get('role');      // e.g. 'student'
     const classFilter = searchParams.get('class_id'); // e.g. UUID
     const scoped = searchParams.get('scoped') === 'true'; // apply school scoping
+    const limitParam = Number(searchParams.get('limit') ?? 0);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 2000) : null;
 
     let query = admin
       .from('portal_users')
@@ -136,6 +139,8 @@ export async function GET(request: NextRequest) {
         }
       }
     }
+
+    if (limit) query = query.limit(limit) as any;
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -36,10 +36,10 @@ async function handle(req: NextRequest) {
   }
 
   const admin = adminClient();
-  const report = { scanned: 0, onboarded: 0, failed: 0, errors: [] as string[] };
+  const report = { scanned: 0, onboarded: 0, repaired: 0, failed: 0, errors: [] as string[] };
 
-  // Paid (or deposit-paid) applicants that were never activated. is_active flips
-  // to true once onboarding completes, so `false` here = still needs onboarding.
+  // Pass 1 — paid (or deposit-paid) applicants that were never activated. is_active
+  // flips to true once onboarding completes, so `false` here = still needs onboarding.
   const { data: pending, error } = await admin
     .from('prospective_students')
     .select('*')
@@ -77,6 +77,52 @@ async function handle(req: NextRequest) {
       report.failed++;
       report.errors.push(`${prospect.id}: ${err?.message ?? 'unknown'}`);
       console.error('[onboarding-sweep] onboarding failed for', prospect.id, err);
+    }
+  }
+
+  // Pass 2 — DRIFT REPAIR: applicants marked active (paid) but missing the student
+  // account — the ghosts left by the old webhook bug that set is_active=true even when
+  // onboarding threw. Pass 1 never sees them (is_active=true), so heal them here.
+  const { data: activeOnes } = await admin
+    .from('prospective_students')
+    .select('*')
+    .in('status', ['paid', 'partially_paid', 'active'])
+    .eq('is_active', true)
+    .neq('is_deleted', true)
+    .order('created_at', { ascending: true })
+    .limit(200);
+
+  for (const prospect of (activeOnes ?? []) as any[]) {
+    const email = (prospect.parent_email || prospect.email || '').trim().toLowerCase();
+    const name = (prospect.full_name || '').trim();
+    if (!email || !name) continue;
+
+    // Already has a real student account? (students row carrying a portal user_id.)
+    const { data: hasAcct } = await admin
+      .from('students')
+      .select('user_id')
+      .ilike('parent_email', email)
+      .ilike('full_name', name)
+      .not('user_id', 'is', null)
+      .limit(1);
+    if (hasAcct && hasAcct.length) continue;
+
+    report.scanned++;
+    try {
+      const onboard = await onboardSummerStudent(admin as any, prospect); // idempotent — creates the missing student, links existing parent
+      try {
+        const { harnessProspectToContactBook } = await import('@/lib/crm/sync-prospect');
+        await harnessProspectToContactBook(prospect.id, onboard.student.id);
+      } catch (crmErr) {
+        console.error('[onboarding-sweep] drift CRM sync failed:', crmErr);
+      }
+      // Only message when we actually created the student account just now.
+      if (onboard.student.created) await sendSummerCredentials(onboard, prospect);
+      report.repaired++;
+    } catch (err: any) {
+      report.failed++;
+      report.errors.push(`drift ${prospect.id}: ${err?.message ?? 'unknown'}`);
+      console.error('[onboarding-sweep] drift repair failed for', prospect.id, err);
     }
   }
 

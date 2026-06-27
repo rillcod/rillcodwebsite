@@ -1606,7 +1606,7 @@ export default function BulkRegisterPage() {
                 Single Student
               </button>
               <Link
-                href="/dashboard/records"
+                href="/dashboard/records?tab=registrations"
                 className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap text-muted-foreground hover:text-foreground"
               >
                 Records
@@ -2317,7 +2317,7 @@ Yusuf Ibrahim SS1A`}
                     Confirm Fixes
                   </button>
 
-                  <Link href="/dashboard/records" className="flex items-center gap-2 px-8 py-4 bg-violet-600/10 hover:bg-violet-600/20 text-violet-300 font-bold border border-violet-500/20 text-[10px] uppercase tracking-widest">
+                  <Link href="/dashboard/records?tab=registrations" className="flex items-center gap-2 px-8 py-4 bg-violet-600/10 hover:bg-violet-600/20 text-violet-300 font-bold border border-violet-500/20 text-[10px] uppercase tracking-widest">
                     <ArchiveBoxIcon className="w-4 h-4" /> Open Records
                   </Link>
 

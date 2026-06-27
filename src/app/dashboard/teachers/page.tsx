@@ -722,8 +722,8 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
     <div className="min-h-screen bg-background text-foreground">
       {/* Credentials Modal */}
       {credentials && (
-        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#161628] border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[60] bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center justify-center">
@@ -766,7 +766,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                   navigator.clipboard.writeText(`Email: ${credentials.email}\nPassword: ${credentials.tempPassword}`);
                   setCredentials(null);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-foreground text-sm font-bold rounded-xl transition-all">
+                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all">
                 <ClipboardIcon className="w-4 h-4" /> Copy & Close
               </button>
             </div>
@@ -809,7 +809,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
             <p className="text-muted-foreground text-sm mt-1">{teachers.length} teacher{teachers.length !== 1 ? 's' : ''} registered</p>
           </div>
           <button onClick={() => { setEditingTeacher(null); setShowInvite(true); }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20">
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-primary-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20">
             <PlusIcon className="w-4 h-4" /> Add Teacher
           </button>
         </div>
@@ -939,7 +939,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       {/* Reset Password Modal */}
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
+          <div className="absolute inset-0 bg-foreground/35 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
           <div className="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <div>
@@ -962,7 +962,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 <input type="password" required minLength={8} value={resetPw} onChange={e => setResetPw(e.target.value)}
                   placeholder="Minimum 8 characters"
                   className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors placeholder-muted-foreground" />
-                <p className="text-xs text-white/25 mt-1.5">Share this new password with the teacher via phone or in person.</p>
+                <p className="text-xs text-muted-foreground mt-1.5">Share this new password with the teacher via phone or in person.</p>
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setResetTarget(null)}
@@ -970,7 +970,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                   Cancel
                 </button>
                 <button type="submit" disabled={resetting || resetPw.length < 8}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50">
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">
                   {resetting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                   {resetting ? 'Updating…' : 'Set Password'}
                 </button>
@@ -983,8 +983,8 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
       {/* ── Add / Edit Teacher Modal ── */}
       {showInvite && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowInvite(false)} />
-          <div className="relative w-full sm:max-w-lg bg-[#0b1020] border border-border rounded-t-3xl rounded-xl shadow-2xl flex flex-col max-h-[92vh]">
+          <div className="absolute inset-0 bg-foreground/35 backdrop-blur-sm" onClick={() => setShowInvite(false)} />
+          <div className="relative w-full sm:max-w-lg bg-card border border-border rounded-t-3xl rounded-xl shadow-2xl flex flex-col max-h-[92vh]">
 
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-border flex-shrink-0">
@@ -1116,8 +1116,8 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                   </p>
                   {schools.length === 0 ? (
                     <div className="px-4 py-6 bg-white/3 border border-border rounded-xl text-center">
-                      <BuildingOfficeIcon className="w-8 h-8 text-white/15 mx-auto mb-2" />
-                      <p className="text-white/25 text-sm">No schools yet — create a school first.</p>
+                      <BuildingOfficeIcon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-muted-foreground text-sm">No schools yet — create a school first.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
@@ -1173,7 +1173,7 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
                 <button
                   type="submit"
                   disabled={inviting}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary hover:bg-primary text-primary-foreground text-sm font-bold rounded-xl transition-all disabled:opacity-50"
                 >
                   {inviting
                     ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Saving…</>

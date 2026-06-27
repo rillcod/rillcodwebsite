@@ -228,6 +228,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // DUPLICATE GUARD — repeated "generate" clicks / double-submits were creating twin
+  // decks (same owner + title for the same lesson/course). Return the existing deck
+  // instead of inserting a second one. Helper so the race-catch below can reuse it.
+  const findExistingDeck = async () => {
+    let q = (adminSupabase as any).from('flashcard_decks').select('*').eq('created_by', user.id);
+    q = lesson_id ? q.eq('lesson_id', lesson_id) : q.is('lesson_id', null);
+    q = course_id ? q.eq('course_id', course_id) : q.is('course_id', null);
+    const { data: scoped } = await q;
+    const wanted = title.trim().toLowerCase();
+    return (scoped ?? []).find((d: any) => (d.title ?? '').trim().toLowerCase() === wanted) ?? null;
+  };
+
+  const dup = await findExistingDeck();
+  if (dup) return NextResponse.json({ data: dup, deduped: true }, { status: 200 });
+
   const insertPayload: FlashcardDeckInsert = {
     title: title.trim(),
     lesson_id: lesson_id || null,
@@ -247,6 +262,13 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // Race: a concurrent request (or the DB unique guard) beat us to it — return theirs.
+    if ((error as any).code === '23505') {
+      const raced = await findExistingDeck();
+      if (raced) return NextResponse.json({ data: raced, deduped: true }, { status: 200 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ data }, { status: 201 });
 }

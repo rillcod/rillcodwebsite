@@ -310,7 +310,7 @@ export default function UsersPage() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => { setShowCreate(true); setCreateErr(''); }}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary text-primary-foreground text-sm font-bold rounded-xl transition-all shadow-lg shadow-primary/20"
                             >
                                 <PlusIcon className="w-4 h-4" /> Create User
                             </button>
@@ -472,7 +472,7 @@ export default function UsersPage() {
                                 onClick={() => setRoleFilter(r.id)}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition-all
                                     ${roleFilter === r.id
-                                        ? 'bg-primary text-foreground border-primary shadow-lg shadow-primary/20'
+                                        ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20'
                                         : 'bg-card shadow-sm text-muted-foreground border-border hover:border-border hover:text-foreground'}`}
                             >
                                 <r.icon className="w-4 h-4" />
@@ -573,7 +573,7 @@ export default function UsersPage() {
 
             {/* ── Sync Result Modal ── */}
             {syncResult && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
                     <div className="bg-background border border-border rounded-xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
                         <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
                             <div className="flex items-center gap-3">
@@ -637,7 +637,7 @@ export default function UsersPage() {
                             )}
                         </div>
                         <div className="p-4 border-t border-border flex-shrink-0">
-                            <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-foreground font-bold rounded-xl text-sm transition-all">
+                            <button onClick={() => setSyncResult(null)} className="w-full py-2.5 bg-primary hover:bg-primary text-primary-foreground font-bold rounded-xl text-sm transition-all">
                                 Done
                             </button>
                         </div>
@@ -647,7 +647,7 @@ export default function UsersPage() {
 
             {/* ── Create User Modal ── */}
             {showCreate && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
                     <div className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <h2 className="text-lg font-extrabold text-foreground">Create User</h2>
@@ -689,7 +689,7 @@ export default function UsersPage() {
                                 Cancel
                             </button>
                             <button onClick={handleCreate} disabled={creating}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary hover:bg-primary text-foreground transition-all disabled:opacity-50">
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary hover:bg-primary text-primary-foreground transition-all disabled:opacity-50">
                                 {creating ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <><CheckIcon className="w-4 h-4" /> Create</>}
                             </button>
                         </div>
@@ -699,7 +699,7 @@ export default function UsersPage() {
 
             {/* ── Edit Modal ── */}
             {editing && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
                     <div className="bg-background border border-border rounded-xl w-full max-w-md shadow-2xl">
                         {/* Modal header */}
                         <div className="flex items-center justify-between p-6 border-b border-border">
@@ -773,7 +773,7 @@ export default function UsersPage() {
                             <button
                                 onClick={saveEdit}
                                 disabled={saving}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary hover:bg-primary text-foreground transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary hover:bg-primary text-primary-foreground transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
                             >
                                 {saving ? (
                                     <ArrowPathIcon className="w-4 h-4 animate-spin" />
@@ -788,7 +788,7 @@ export default function UsersPage() {
             {/* ── Reset Password Modal ── */}
             {resetTarget && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
+                    <div className="absolute inset-0 bg-foreground/35 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
                     <div className="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl">
                         <div className="flex items-center justify-between p-6 border-b border-border">
                             <div>
@@ -811,7 +811,7 @@ export default function UsersPage() {
                                 <input type="password" required minLength={8} value={resetPw} onChange={e => setResetPw(e.target.value)}
                                     placeholder="Minimum 8 characters"
                                     className="w-full px-4 py-3 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-amber-500 transition-colors placeholder-muted-foreground" />
-                                <p className="text-xs text-white/25 mt-1.5">Share this new password with the user directly.</p>
+                                <p className="text-xs text-muted-foreground mt-1.5">Share this new password with the user directly.</p>
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <button type="button" onClick={() => setResetTarget(null)}

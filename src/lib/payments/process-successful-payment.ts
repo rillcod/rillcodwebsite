@@ -235,10 +235,12 @@ export async function processSuccessfulPayment(reference: string, method: string
                 .eq('id', prospectId)
                 .maybeSingle();
 
+            let onboardOk = false;
             if (record) {
                 try {
                     const onboard = await onboardSummerStudent(supabase, record as any);
                     authUserId = onboard.student.id;
+                    onboardOk = true;
                     gatewayResponse.generated_credentials = { email: onboard.student.email, password: onboard.student.password };
                     void sendSummerCredentials(onboard, record as any);
                 } catch (onboardErr) {
@@ -246,6 +248,11 @@ export async function processSuccessfulPayment(reference: string, method: string
                 }
             }
 
+            // CRITICAL: only flip is_active when the student account actually exists.
+            // Marking it active on a swallowed onboarding error left "paid + active but
+            // no student account" ghosts that the onboarding-sweep cron then skipped
+            // (it only retries is_active=false). Keeping it false on failure lets the
+            // cron self-heal — the payment status still records the money received.
             await supabase
                 .from('prospective_students')
                 .update({
@@ -253,7 +260,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                         paymentPlan: gatewayResponse?.payment_plan,
                         balanceDue: gatewayResponse?.balance_due,
                     }),
-                    is_active: true,
+                    is_active: onboardOk,
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', prospectId);
