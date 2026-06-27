@@ -1799,7 +1799,7 @@ function SetupTab({ profile }: { profile: any }) {
 
       {/* Account Form Modal */}
       {showAcctForm && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-50 bg-foreground/35 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-card border-b border-border flex items-center justify-between px-5 py-4 z-10">
               <h3 className="font-black text-foreground">{editAcct ? 'Edit Account' : 'Add Payment Account'}</h3>
@@ -1814,7 +1814,7 @@ function SetupTab({ profile }: { profile: any }) {
                   <div>
                     <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Owner</label>
                     <select value={acctForm.owner_type} onChange={e => setAcctForm(f => ({ ...f, owner_type: e.target.value as any }))}
-                      className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                      className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                       <option value="rillcod">Rillcod Technologies</option>
                       <option value="school">School</option>
                     </select>
@@ -1823,7 +1823,7 @@ function SetupTab({ profile }: { profile: any }) {
                     <div>
                       <label className="block text-xs font-bold text-muted-foreground mb-1.5">School</label>
                       <select value={acctForm.school_id} onChange={e => setAcctForm(f => ({ ...f, school_id: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                         <option value="">Select school…</option>
                         {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
@@ -1838,13 +1838,13 @@ function SetupTab({ profile }: { profile: any }) {
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">Label *</label>
                 <input value={acctForm.label} onChange={e => setAcctForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. School Fees Account"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Bank Name *</label>
                   <select value={acctForm.bank_name} onChange={e => setAcctForm(f => ({ ...f, bank_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option value="">Select bank…</option>
                     {NIGERIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
@@ -1852,7 +1852,7 @@ function SetupTab({ profile }: { profile: any }) {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Type</label>
                   <select value={acctForm.account_type} onChange={e => setAcctForm(f => ({ ...f, account_type: e.target.value as any }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                     <option value="savings">Savings</option>
                     <option value="current">Current</option>
                   </select>
@@ -1860,18 +1860,18 @@ function SetupTab({ profile }: { profile: any }) {
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Number *</label>
                   <input value={acctForm.account_number} onChange={e => setAcctForm(f => ({ ...f, account_number: e.target.value }))} maxLength={10}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-muted-foreground mb-1.5">Account Name *</label>
                   <input value={acctForm.account_name} onChange={e => setAcctForm(f => ({ ...f, account_name: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                    className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted-foreground mb-1.5">Payment Note</label>
                 <input value={acctForm.payment_note} onChange={e => setAcctForm(f => ({ ...f, payment_note: e.target.value }))} placeholder="Optional note shown to payers"
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-foreground font-bold">Active</span>
@@ -1879,11 +1879,11 @@ function SetupTab({ profile }: { profile: any }) {
               </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={saveAccount} disabled={saving}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors">
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground font-bold rounded-xl text-sm transition-colors">
                   {saving ? 'Saving…' : editAcct ? 'Update' : 'Add Account'}
                 </button>
                 <button onClick={() => { setShowAcctForm(false); setEditAcct(null); }}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground rounded-xl text-sm transition-colors">
+                  className="px-4 py-2.5 bg-background hover:bg-muted border border-border text-muted-foreground rounded-xl text-sm transition-colors">
                   Cancel
                 </button>
               </div>

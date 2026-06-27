@@ -298,7 +298,7 @@ export class PaymentsService {
         const supabase = createAdminClient();
         const { data: transaction } = await (supabase as any)
             .from('payment_transactions')
-            .select('*, courses(title), invoices(invoice_number), portal_users(full_name, email), schools(name)')
+            .select('*, courses(title), invoices!payment_transactions_invoice_id_fkey(invoice_number), portal_users(full_name, email), schools(name)')
             .eq('id', transactionId)
             .single();
 

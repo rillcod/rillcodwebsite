@@ -120,9 +120,9 @@ function BillingPaymentModal({
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="Optional note (bank ref, paid by, etc)"
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
+              className="w-full px-3 py-2 bg-background border border-border rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
             />
-            <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:border-primary/50'}`}>
+            <label className={`flex items-center justify-center gap-2 w-full py-3 border rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer transition-all ${uploading ? 'opacity-50 cursor-not-allowed bg-muted border-border text-muted-foreground' : 'bg-background border-border text-foreground hover:bg-muted hover:border-primary/50'}`}>
               {uploading ? <><span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" /> Uploading…</> : <><ArrowUpTrayIcon className="w-4 h-4" /> Upload screenshot / PDF</>}
               <input type="file" accept="image/*,application/pdf" className="hidden" disabled={uploading} onChange={uploadProof} />
             </label>
