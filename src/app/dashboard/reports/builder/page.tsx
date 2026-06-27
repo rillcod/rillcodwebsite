@@ -536,6 +536,7 @@ function ReportBuilderInner() {
         evalScore: 0,
         assignmentPct: 0,
         projects: 0,
+        pendingCbt: 0,
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -1177,6 +1178,7 @@ function ReportBuilderInner() {
                 matchesReportExamScope(row, sessionConfig.course_id || null, statsProgramId),
             );
             const cbtScore = topCbtScore(allCbt, 'examination');
+            const pendingCbt = allCbt.filter((row: any) => !isScoreReadyCbt(row)).length;
             const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
             const assignmentAvg = asgnGrades.length > 0
                 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length)
@@ -1200,6 +1202,7 @@ function ReportBuilderInner() {
                 evalScore,
                 assignmentPct,
                 projects: projectCount,
+                pendingCbt,
             });
 
             // ── Auto-suggest all 6 WAEC components from real platform data ──────
@@ -2734,7 +2737,7 @@ function ReportBuilderInner() {
                                     <div className="bg-indigo-500/5 border border-indigo-500/20 px-2.5 py-2">
                                         <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Theory (20%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.cbtScore > 0 ? `${studentStats.cbtScore}%` : '—'}</p>
-                                        <p className="text-[8px] text-muted-foreground">CBT exam</p>
+                                        <p className="text-[8px] text-muted-foreground">{studentStats.pendingCbt > 0 ? `${studentStats.pendingCbt} CBT pending` : 'CBT exam'}</p>
                                     </div>
                                     <div className="bg-cyan-500/5 border border-cyan-500/20 px-2.5 py-2">
                                         <p className="text-[8px] font-black text-cyan-400 uppercase tracking-widest mb-1">Classwork (10%)</p>
@@ -2759,7 +2762,7 @@ function ReportBuilderInner() {
                                     <div className="bg-rose-500/5 border border-rose-500/20 px-2.5 py-2">
                                         <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">Assessment (15%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.evalScore > 0 ? `${studentStats.evalScore}%` : '—'}</p>
-                                        <p className="text-[8px] text-muted-foreground">CBT evaluation</p>
+                                        <p className="text-[8px] text-muted-foreground">{studentStats.pendingCbt > 0 ? 'Ready scores only' : 'CBT evaluation'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -3008,7 +3011,7 @@ function ReportBuilderInner() {
                                             { key: 'practical_score',    label: 'Practical / Projects',        weight: '25%', color: '#8b5cf6', hint: `${studentStats.projects} project${studentStats.projects !== 1 ? 's' : ''} (lab + portfolio)` },
                                             { key: 'attendance_score',   label: 'Assignments Submitted',       weight: '20%', color: '#10b981', hint: `${studentStats.assignments}/${studentStats.totalAssignments} graded (${studentStats.assignmentPct}%)` },
                                             { key: 'participation_score',label: 'Attendance',                  weight: '10%', color: '#f59e0b', hint: `${studentStats.attendance}/${studentStats.totalSessions} sessions present` },
-                                            { key: 'assessment_score',   label: 'Mid-term Assessment',         weight: '15%', color: '#f43f5e', hint: `CBT evaluation: ${studentStats.assignmentAvg > 0 ? studentStats.assignmentAvg + '%' : '—'}` },
+                                            { key: 'assessment_score',   label: 'Mid-term Assessment',         weight: '15%', color: '#f43f5e', hint: `CBT evaluation: ${studentStats.evalScore > 0 ? studentStats.evalScore + '%' : '—'}${studentStats.pendingCbt > 0 ? ` (${studentStats.pendingCbt} pending)` : ''}` },
                                         ] as { key: keyof typeof form; label: string; weight: string; color: string; hint: string }[]).map(({ key, label, weight, color, hint }) => {
                                             const val = Math.min(100, Math.max(0, parseInt(String(form[key])) || 0));
                                             const nudge = (delta: number) =>

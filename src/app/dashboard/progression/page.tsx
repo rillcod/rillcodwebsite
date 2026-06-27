@@ -85,7 +85,7 @@ export default function ProgressionPage() {
   const [enrollments, setEnrollments]   = useState<StudentLevelEnrollment[]>([]);
   const [loading, setLoading]           = useState(false);
   const [decisions, setDecisions]       = useState<Record<string, PromotionDecision>>({});
-  const [reports, setReports]           = useState<Record<string, { overall_grade: string }>>({});
+  const [reports, setReports]           = useState<Record<string, { overall_grade: string; overall_score?: number | null; is_published?: boolean | null; report_term?: string | null; report_period?: string | null }>>({});
   const [reportsLoading, setReportsLoading] = useState(false);
   const [submitting, setSubmitting]     = useState(false);
   const [submitted, setSubmitted]       = useState<string[]>([]);
@@ -129,7 +129,7 @@ export default function ProgressionPage() {
           await Promise.all(chunks.map(async (chunk) => {
             const { data: reportRows, error } = await db
               .from('student_progress_reports')
-              .select('student_id, overall_grade, is_published, updated_at')
+              .select('student_id, overall_grade, overall_score, is_published, report_term, report_period, updated_at')
               .in('student_id', chunk);
             if (!error && reportRows) {
               allReports.push(...reportRows);
@@ -141,10 +141,16 @@ export default function ProgressionPage() {
             return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
           });
 
-          const rMap: Record<string, { overall_grade: string }> = {};
+          const rMap: Record<string, { overall_grade: string; overall_score?: number | null; is_published?: boolean | null; report_term?: string | null; report_period?: string | null }> = {};
           allReports.forEach(r => {
             if (r.student_id && !rMap[r.student_id]) {
-              rMap[r.student_id] = { overall_grade: r.overall_grade };
+              rMap[r.student_id] = {
+                overall_grade: r.overall_grade,
+                overall_score: r.overall_score,
+                is_published: r.is_published,
+                report_term: r.report_term,
+                report_period: r.report_period,
+              };
             }
           });
           setReports(rMap);
@@ -450,6 +456,14 @@ export default function ProgressionPage() {
                                No Grade Yet
                              </span>
                            )}
+                           {report && (
+                             <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
+                               report.is_published ? 'bg-primary/10 text-primary border-primary/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                             }`} title={report.report_period || report.report_term || 'Latest report'}>
+                               {report.is_published ? 'Published' : 'Draft'}
+                               {typeof report.overall_score === 'number' ? ` · ${Math.round(report.overall_score)}%` : ''}
+                             </span>
+                           )}
                          </div>
                          <div className="flex items-center gap-3">
                            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest shrink-0">Level {course?.level_order ?? '?'}</span>
@@ -473,6 +487,30 @@ export default function ProgressionPage() {
                       <div>
                         <span className="font-black uppercase tracking-wider block text-[9px] mb-0.5">Academic Auditor Suggestion</span>
                         {rec.desc}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="rounded-2xl border border-border bg-background/40 p-3">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Report Evidence</p>
+                        <p className="mt-1 text-[11px] font-bold text-foreground">
+                          {report
+                            ? `${report.is_published ? 'Published' : 'Draft'}${report.report_term ? ` · ${report.report_term}` : ''}`
+                            : 'No report yet'}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-background/40 p-3">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Score Basis</p>
+                        <p className="mt-1 text-[11px] font-bold text-foreground">
+                          {report?.overall_grade || typeof report?.overall_score === 'number'
+                            ? `${report.overall_grade || 'Grade'}${typeof report.overall_score === 'number' ? ` · ${Math.round(report.overall_score)}%` : ''}`
+                            : 'Awaiting grading'}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-border bg-background/40 p-3">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground">Next Step</p>
+                        <p className="mt-1 text-[11px] font-bold text-foreground">
+                          {course?.next_course_id ? `Level ${(course?.level_order ?? 0) + 1}` : 'Complete course'}
+                        </p>
                       </div>
                     </div>
                   </div>

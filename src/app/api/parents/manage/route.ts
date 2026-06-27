@@ -440,7 +440,7 @@ export async function GET(req: Request) {
     let childrenQuery = emails.length > 0
       ? admin
           .from('students')
-          .select('id, full_name, school_name, status, parent_email')
+          .select('id, full_name, school_name, status, parent_email, user_id, current_class, grade_level, section')
           .in('parent_email', emails)
       : null;
     if (childrenQuery && effectiveSchool) {

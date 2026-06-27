@@ -988,6 +988,12 @@ export default function ParentsPage() {
   const visibleParents = statusFilter === 'all'
     ? parents
     : parents.filter(p => statusFilter === 'active' ? p.is_active : !p.is_active);
+  const linkedChildrenCount = parents.reduce((n, p) => n + p.children.length, 0);
+  const unlinkedParentsCount = parents.filter(p => p.children.length === 0).length;
+  const childrenWithoutPortalCount = parents.reduce(
+    (n, p) => n + p.children.filter((c: any) => !c.user_id).length,
+    0,
+  );
 
   if (authLoading) return null;
 
@@ -1200,7 +1206,7 @@ export default function ParentsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="bg-card border border-border p-4">
           <p className="text-2xl font-black text-foreground">{parents.length}</p>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Total Parents</p>
@@ -1210,8 +1216,16 @@ export default function ParentsPage() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Active</p>
         </div>
         <div className="bg-card border border-border p-4">
-          <p className="text-2xl font-black text-primary">{parents.reduce((n, p) => n + p.children.length, 0)}</p>
+          <p className="text-2xl font-black text-primary">{linkedChildrenCount}</p>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Linked Children</p>
+        </div>
+        <div className="bg-card border border-border p-4">
+          <p className={`text-2xl font-black ${unlinkedParentsCount ? 'text-amber-400' : 'text-emerald-400'}`}>{unlinkedParentsCount}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Parents To Link</p>
+        </div>
+        <div className="bg-card border border-border p-4">
+          <p className={`text-2xl font-black ${childrenWithoutPortalCount ? 'text-rose-400' : 'text-emerald-400'}`}>{childrenWithoutPortalCount}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Children No Login</p>
         </div>
       </div>
 
@@ -1393,11 +1407,16 @@ export default function ParentsPage() {
                           <div key={child.id} className="flex items-center justify-between bg-card border border-border px-4 py-3">
                             <div>
                               <p className="text-xs font-bold text-foreground">{child.full_name}</p>
-                              {child.school_name && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5">{child.school_name}</p>
-                              )}
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {[child.school_name, (child as any).current_class || (child as any).grade_level || (child as any).section].filter(Boolean).join(' · ') || 'No school/class context'}
+                              </p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              {!(child as any).user_id && (
+                                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border bg-rose-500/10 border-rose-500/20 text-rose-400" title="Student record is linked, but no portal login is attached yet">
+                                  No Login
+                                </span>
+                              )}
                               <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border ${
                                 child.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
                                 child.status === 'pending' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :

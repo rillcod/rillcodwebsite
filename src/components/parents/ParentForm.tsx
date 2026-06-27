@@ -45,6 +45,10 @@ export interface LinkedChild {
   school_name: string | null;
   status: string;
   parent_email: string;
+  user_id?: string | null;
+  current_class?: string | null;
+  grade_level?: string | null;
+  section?: string | null;
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
