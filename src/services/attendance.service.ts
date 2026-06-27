@@ -15,7 +15,7 @@ export class AttendanceService {
         // verify session and tenant
         const { data: session, error: err } = await supabase
             .from('class_sessions')
-            .select('classes!inner(school_id)')
+            .select('term_id, classes!inner(school_id)')
             .eq('id', sessionId)
             .single();
 
@@ -86,6 +86,7 @@ export class AttendanceService {
             .from('attendance')
             .insert([{
                 ...input,
+                term_id: (session as any).term_id ?? null,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }])
@@ -124,13 +125,13 @@ export class AttendanceService {
         return this.updateAttendance(id, { status }, tenantId);
     }
 
-    async getStudentPercentage(userId: string, classId: string, tenantId?: string) {
+    async getStudentPercentage(userId: string, classId: string, tenantId?: string, termId?: string | null) {
         const supabase = await createClient();
 
         // Verify class
         const { data: cls, error: clsErr } = await supabase
             .from('classes')
-            .select('school_id')
+            .select('school_id, term_id')
             .eq('id', classId)
             .single();
 
@@ -138,10 +139,14 @@ export class AttendanceService {
             throw new AppError('Class not found', 404);
         }
 
-        const { data: sessions, error } = await supabase
+        let sessionQuery = supabase
             .from('class_sessions')
             .select('id')
             .eq('class_id', classId);
+        const effectiveTermId = termId ?? (cls as any).term_id ?? null;
+        if (effectiveTermId) sessionQuery = sessionQuery.eq('term_id', effectiveTermId);
+
+        const { data: sessions, error } = await sessionQuery;
 
         if (error || !sessions || sessions.length === 0) {
             return 0; // No sessions yet
@@ -149,11 +154,14 @@ export class AttendanceService {
 
         const sessionIds = sessions.map(s => s.id);
 
-        const { data: attendances, error: attErr } = await supabase
+        let attendanceQuery = supabase
             .from('attendance')
             .select('status')
             .eq('user_id', userId)
             .in('session_id', sessionIds);
+        if (effectiveTermId) attendanceQuery = attendanceQuery.eq('term_id', effectiveTermId);
+
+        const { data: attendances, error: attErr } = await attendanceQuery;
 
         if (attErr || !attendances) {
             return 0;

@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { compareReportsByPeriodDesc } from '@/lib/reports/academic-period';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -237,8 +238,11 @@ function ResultsPageInner() {
                 }
 
                 if (!aborted) {
-                    setReportHistory(reports);
-                    setSelectedReport(reports[0] ?? null);
+                    // Order by academic year + term (newest first) so the switcher reads
+                    // chronologically for every viewer — not by whichever was last edited.
+                    const ordered = [...reports].sort(compareReportsByPeriodDesc);
+                    setReportHistory(ordered);
+                    setSelectedReport(ordered[0] ?? null);
                     setOrgSettings(orgRes.data);
                     setLoading(false);
                 }
@@ -475,7 +479,9 @@ function ResultsPageInner() {
             .order('updated_at', { ascending: false });
         if (profile?.role === 'teacher') reportQuery = reportQuery.eq('teacher_id', profile.id) as typeof reportQuery;
         const { data } = await reportQuery;
-        const history = (data ?? []) as StudentReport[];
+        // Order by academic year + term (newest first) so the term/session switcher is
+        // consistent for staff and matches what students/parents see.
+        const history = ((data ?? []) as StudentReport[]).slice().sort(compareReportsByPeriodDesc);
         setReportHistory(history);
         const data0 = history[0] ?? null;
         setSelectedReport(data0);

@@ -25,6 +25,7 @@ export default function ClassesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterTerm, setFilterTerm] = useState('all');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -67,12 +68,19 @@ export default function ClassesPage() {
     const q = searchTerm.toLowerCase();
     const matchName = (c.name ?? '').toLowerCase().includes(q) || (c.programs?.name ?? '').toLowerCase().includes(q);
     const matchStatus = filterStatus === 'all' || c.status === filterStatus;
-    return matchName && matchStatus;
+    const classTermKey = c.academic_terms
+      ? `${c.academic_terms.term_label} ${c.academic_terms.academic_year}`
+      : 'No term';
+    const matchTerm = filterTerm === 'all' || classTermKey === filterTerm;
+    return matchName && matchStatus && matchTerm;
   });
 
   const totalStudents = classes.reduce((sum, c) => sum + (c.current_students ?? 0), 0);
   const activeCount = classes.filter(c => c.status === 'active').length;
   const programCount = new Set(classes.map(c => c.program_id).filter(Boolean)).size;
+  const termOptions = Array.from(new Set(classes.map(c =>
+    c.academic_terms ? `${c.academic_terms.term_label} ${c.academic_terms.academic_year}` : 'No term'
+  ))).sort();
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -184,6 +192,16 @@ export default function ClassesPage() {
           <option value="scheduled" className="bg-[#0b0f19]">Scheduled</option>
           <option value="completed" className="bg-[#0b0f19]">Completed</option>
         </select>
+        <select
+          value={filterTerm}
+          onChange={e => setFilterTerm(e.target.value)}
+          className="px-4 py-2.5 bg-white/[0.01] hover:bg-white/[0.02] border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 cursor-pointer transition-all font-bold"
+        >
+          <option value="all" className="bg-[#0b0f19]">All Terms</option>
+          {termOptions.map(term => (
+            <option key={term} value={term} className="bg-[#0b0f19]">{term}</option>
+          ))}
+        </select>
       </div>
 
       {/* Classes list */}
@@ -194,11 +212,11 @@ export default function ClassesPage() {
           </div>
           <h3 className="text-base font-bold text-foreground mb-1">No classes found</h3>
           <p className="text-sm text-muted-foreground max-w-xs">
-            {filterStatus !== 'all' || searchTerm
+            {filterStatus !== 'all' || filterTerm !== 'all' || searchTerm
               ? 'No classes match your search. Try adjusting the filters.'
               : 'No classes yet. Click "Add Class" to create your first one.'}
           </p>
-          {profile?.role !== 'school' && !searchTerm && filterStatus === 'all' && (
+          {profile?.role !== 'school' && !searchTerm && filterStatus === 'all' && filterTerm === 'all' && (
             <Link
               href="/dashboard/classes/add"
               className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors"
@@ -233,6 +251,11 @@ export default function ClassesPage() {
                       {cls.programs?.name && (
                         <p className="text-xs text-muted-foreground mt-0.5 font-medium">{cls.programs.name}</p>
                       )}
+                      <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">
+                        {cls.academic_terms
+                          ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}`
+                          : 'No term assigned'}
+                      </p>
                     </div>
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border capitalize flex-shrink-0 ${
                       STATUS_BADGE[cls.status] ?? 'bg-white/5 text-muted-foreground border-border'

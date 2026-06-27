@@ -19,6 +19,35 @@ import { motion, AnimatePresence } from 'framer-motion';
 const GREETINGS = ['Welcome back', 'Ready to learn?', 'Let\'s continue', 'Great to see you'];
 const KID_GREETINGS = ['Hey there!', 'Ready to learn?', 'Let\'s have fun!', 'Time to explore!'];
 
+function lessonPlanIdOf(lesson: any): string | null {
+  const metadata = lesson?.metadata;
+  if (!metadata || typeof metadata !== 'object') return null;
+  const id = metadata.lesson_plan_id;
+  return typeof id === 'string' && id.trim() ? id : null;
+}
+
+async function filterLessonsForClassPlans(db: ReturnType<typeof createClient>, lessons: any[], classId?: string | null, termId?: string | null) {
+  if (!classId || lessons.length === 0) return lessons;
+  const courseIds = Array.from(new Set(lessons.map((lesson) => lesson.course_id).filter(Boolean)));
+  if (courseIds.length === 0) return lessons;
+
+  let planQuery = db
+    .from('lesson_plans')
+    .select('id, course_id, term_id')
+    .eq('class_id', classId)
+    .in('course_id', courseIds);
+  if (termId) planQuery = planQuery.eq('term_id', termId);
+  const { data: plans } = await planQuery;
+  const allowedPlanIds = new Set((plans ?? []).map((plan: any) => plan.id).filter(Boolean));
+  const plannedCourseIds = new Set((plans ?? []).map((plan: any) => plan.course_id).filter(Boolean));
+
+  return lessons.filter((lesson) => {
+    const planId = lessonPlanIdOf(lesson);
+    if (planId) return allowedPlanIds.has(planId);
+    return !plannedCourseIds.has(lesson.course_id);
+  });
+}
+
 function getLearnerTier(gradeLevel?: string | null, enrollmentType?: string | null): 'kids' | 'secondary' | 'adult' {
   const g = (gradeLevel || enrollmentType || '').toLowerCase().trim();
   if (!g) return 'secondary';
@@ -155,15 +184,17 @@ export default function StudentLearningPage() {
 
         // Check if there is a current course focus lock for the student's class
         let currentCourseId: string | null = null;
+        let currentClassTermId: string | null = null;
         if (profile?.class_id) {
           const { data: clsData } = await db
             .from('classes')
-            .select('current_course_id')
+            .select('current_course_id, term_id')
             .eq('id', profile.class_id)
             .maybeSingle();
           if (clsData?.current_course_id) {
             currentCourseId = clsData.current_course_id;
           }
+          currentClassTermId = clsData?.term_id ?? null;
         }
 
         const coursesToUse = currentCourseId
@@ -187,10 +218,11 @@ export default function StudentLearningPage() {
         const { data: recentLessons } = await db.from('lessons')
           .select('*, courses(title, programs(name))')
           .in('course_id', visibleCourses.map((c: any) => c.id))
-          .eq('status', 'active')
+          .in('status', ['active', 'published'])
           .order('created_at', { ascending: false })
-          .limit(6);
-        setLessons(recentLessons || []);
+          .limit(30);
+        const scopedRecentLessons = await filterLessonsForClassPlans(db, recentLessons ?? [], profile?.class_id, currentClassTermId);
+        setLessons(scopedRecentLessons.slice(0, 6));
 
         // 6. Find "Next Up" Lesson
         const { data: completedIds } = await db
@@ -204,12 +236,14 @@ export default function StudentLearningPage() {
 
         // Find the first lesson in the first program that isn't done
         const { data: allLessons } = await db.from('lessons')
-            .select('id, title, course_id, courses(id, title, level_order)')
+            .select('id, title, course_id, metadata, courses(id, title, level_order)')
             .in('course_id', coursesToUse.map(c => c.id))
+            .in('status', ['active', 'published'])
             .order('id', { ascending: true });
-        
-        const next = allLessons?.find(l => !doneSet.has(l.id));
-        setNextLesson(next || allLessons?.[0]);
+        const scopedAllLessons = await filterLessonsForClassPlans(db, allLessons ?? [], profile?.class_id, currentClassTermId);
+
+        const next = scopedAllLessons?.find(l => !doneSet.has(l.id));
+        setNextLesson(next || scopedAllLessons?.[0]);
       }
 
     } catch (err) {

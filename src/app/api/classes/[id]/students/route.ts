@@ -40,7 +40,7 @@ export async function GET(
     // ── Fetch class ──────────────────────────────────────────────────────────
     const { data: cls, error: clsErr } = await admin
       .from('classes')
-      .select('name, max_students, current_students, program_id, school_id')
+      .select('name, max_students, current_students, program_id, school_id, term_id')
       .eq('id', classId)
       .single();
 
@@ -104,7 +104,7 @@ export async function GET(
       }
     }
 
-    const students = [...(directStudents ?? []), ...sectionStudents];
+    let students = [...(directStudents ?? []), ...sectionStudents];
 
     // Recovery: if this teacher has already entered progress reports for this
     // class, keep those students visible on the roster even if their class_id
@@ -134,6 +134,55 @@ export async function GET(
       }
     }
 
+    let formerStudents: any[] = [];
+    try {
+      let rosterQuery = (admin as any)
+        .from('class_term_rosters')
+        .select('id, student_id, status, started_at, ended_at, reinstated_at, term_id')
+        .eq('class_id', classId);
+      rosterQuery = cls.term_id ? rosterQuery.eq('term_id', cls.term_id) : rosterQuery.is('term_id', null);
+      const { data: rosterRows, error: rosterErr } = await rosterQuery;
+      if (!rosterErr && Array.isArray(rosterRows)) {
+        const rosterByStudent = new Map(rosterRows.map((row: any) => [row.student_id, row]));
+        students = students.map((student: any) => {
+          const roster = rosterByStudent.get(student.id);
+          return {
+            ...student,
+            roster_status: roster?.status ?? 'active',
+            roster_started_at: roster?.started_at ?? null,
+            roster_ended_at: roster?.ended_at ?? null,
+            is_current_term_active: (roster?.status ?? 'active') === 'active',
+          };
+        });
+
+        const currentIds = new Set(students.map((student: any) => student.id));
+        const inactiveIds = rosterRows
+          .filter((row: any) => row.status !== 'active' && !currentIds.has(row.student_id))
+          .map((row: any) => row.student_id)
+          .filter(Boolean);
+        if (inactiveIds.length > 0) {
+          const { data: inactiveProfiles } = await admin
+            .from('portal_users')
+            .select('id, full_name, email, school_id, school_name, section_class, class_id')
+            .in('id', inactiveIds)
+            .eq('role', 'student')
+            .order('full_name');
+          formerStudents = (inactiveProfiles ?? []).map((student: any) => {
+            const roster = rosterByStudent.get(student.id);
+            return {
+              ...student,
+              roster_status: roster?.status ?? 'withdrawn',
+              roster_started_at: roster?.started_at ?? null,
+              roster_ended_at: roster?.ended_at ?? null,
+              is_current_term_active: false,
+            };
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[class_term_rosters] unable to enrich class roster', err);
+    }
+
     // ── Sync current_students count from DB (not from local array) ───────────
     const { count: liveCount } = await admin
       .from('portal_users')
@@ -146,7 +195,17 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { students, max_students: cls.max_students, total: actualCount },
+      {
+        students,
+        former_students: formerStudents,
+        roster: {
+          active: students.filter((student: any) => student.is_current_term_active !== false).length,
+          inactive: formerStudents.length + students.filter((student: any) => student.is_current_term_active === false).length,
+          term_id: cls.term_id ?? null,
+        },
+        max_students: cls.max_students,
+        total: actualCount,
+      },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (err: any) {

@@ -917,7 +917,7 @@ export default function ResponsesPage() {
   function toggleSelect(leadId: string) {
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(leadId) ? next.delete(leadId) : next.add(leadId);
+      if (next.has(leadId)) next.delete(leadId); else next.add(leadId);
       return next;
     });
   }

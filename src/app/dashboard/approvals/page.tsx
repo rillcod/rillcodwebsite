@@ -25,7 +25,7 @@ function parseProspectNotes(notes: string | null) {
     const refMatch = notes.match(/\[Ref:\s*([^\]]+)\]/);
     const trackMatch = notes.match(/\[Track Choice:\s*([^\]]+)\]/);
     
-    let cleanNotes = notes
+    const cleanNotes = notes
         .replace(/\[Student Phone:\s*([^\]]+)\]/g, '')
         .replace(/\[Plan:\s*([^\]]+)\]/g, '')
         .replace(/\[Method:\s*([^\]]+)\]/g, '')

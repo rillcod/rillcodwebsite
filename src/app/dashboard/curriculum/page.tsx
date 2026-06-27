@@ -469,7 +469,7 @@ export default function CurriculumPage() {
     term_end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     sessions_per_week: '5',
   });
-  const [implClasses, setImplClasses] = useState<{ id: string; name: string; school_id: string }[]>([]);
+  const [implClasses, setImplClasses] = useState<{ id: string; name: string; school_id: string; program_id?: string | null }[]>([]);
   const [implError, setImplError] = useState('');
   const [implementationList, setImplementationList] = useState<any[]>([]);
   const [globalImplementationList, setGlobalImplementationList] = useState<any[]>([]);
@@ -1168,11 +1168,14 @@ export default function CurriculumPage() {
         .then(j => {
           const list = j.data || [];
           // Extra safety: scope to the selected school
-          setImplClasses(list.filter((c: any) => !implForm.school_id || c.school_id === implForm.school_id));
+          setImplClasses(list.filter((c: any) =>
+            (!implForm.school_id || c.school_id === implForm.school_id) &&
+            (!selectedCourse?.program_id || !c.program_id || c.program_id === selectedCourse.program_id)
+          ));
         })
         .catch(() => setImplClasses([]));
     }
-  }, [showImplement, implForm.school_id, isTeacher]);
+  }, [showImplement, implForm.school_id, isTeacher, selectedCourse?.program_id]);
 
   const deployToClass = useCallback(async () => {
     if (!curriculum || !selectedCourse) return;
@@ -5104,7 +5107,10 @@ export default function CurriculumPage() {
                             const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
                             setImplError('');
                             setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                            if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
+                            if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) =>
+                              (!sid || c.school_id === sid) &&
+                              (!selectedCourse?.program_id || !c.program_id || c.program_id === selectedCourse.program_id)
+                            )));
                             else setImplClasses([]);
                             setShowImplement(true);
                           }}
@@ -5252,7 +5258,10 @@ export default function CurriculumPage() {
                         const sid = curriculum?.school_id || assignedSchools[0]?.id || '';
                         setImplError('');
                         setImplForm(f => ({ ...f, school_id: sid, class_id: '' }));
-                        if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) => !sid || c.school_id === sid)));
+                        if (sid) fetch(isTeacher ? '/api/classes?mine=true' : `/api/classes?school_id=${sid}`).then(r => r.json()).then(j => setImplClasses((j.data || []).filter((c: any) =>
+                          (!sid || c.school_id === sid) &&
+                          (!selectedCourse?.program_id || !c.program_id || c.program_id === selectedCourse.program_id)
+                        )));
                         else setImplClasses([]);
                         setShowImplement(true);
                       }}
@@ -5843,7 +5852,15 @@ export default function CurriculumPage() {
                     >
                       <option value="">{!implForm.school_id ? 'Select school first…' : implClasses.length === 0 ? 'No classes found' : '— Select Class —'}</option>
                       {(() => {
-                        const usedIds = new Set(implementationList.filter((p: any) => curriculum && p.curriculum_version_id === curriculum.id).map((p: any) => p.class_id).filter(Boolean));
+                        const targetTerm = `${TERM_LABEL[Number(implForm.term)] ?? 'First Term'} ${implForm.academic_year}`;
+                        const usedIds = new Set(implementationList
+                          .filter((p: any) =>
+                            curriculum &&
+                            p.curriculum_version_id === curriculum.id &&
+                            p.term === targetTerm
+                          )
+                          .map((p: any) => p.class_id)
+                          .filter(Boolean));
                         return implClasses.map(c => (
                           <option key={c.id} value={c.id} disabled={usedIds.has(c.id)}>
                             {c.name}{usedIds.has(c.id) ? ' — already assigned' : ''}

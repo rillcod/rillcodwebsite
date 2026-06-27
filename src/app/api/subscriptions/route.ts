@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { syncRosterSubscriptionStatus } from '@/lib/rosters/billing-sync';
 
 async function getUser() {
   const supabase = await createClient();
@@ -68,5 +69,6 @@ export async function POST(request: Request) {
   } as any]).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await syncRosterSubscriptionStatus(db as any, data.id, 'active');
   return NextResponse.json({ data }, { status: 201 });
 }

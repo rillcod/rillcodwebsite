@@ -67,7 +67,7 @@ interface Course {
     tags?: string[];
   } | null;
 }
-interface Class { id: string; name: string; school_id?: string | null; teacher_id?: string | null }
+interface Class { id: string; name: string; school_id?: string | null; teacher_id?: string | null; program_id?: string | null }
 interface School { id: string; name: string }
 interface Program { id: string; name: string }
 interface Curriculum {
@@ -482,20 +482,24 @@ function LessonPlansPageInner() {
       : teacherScoped;
 
     const selectedCourse = courses.find(c => c.id === form.course_id);
+    const courseProgramId = selectedCourse ? getCourseProgramId(selectedCourse) : '';
+    const byProgram = courseProgramId
+      ? bySchool.filter(c => !c.program_id || c.program_id === courseProgramId)
+      : bySchool;
     const grades = (selectedCourse?.metadata?.grade_levels ?? []).filter(Boolean);
-    if (grades.length === 0) return bySchool;
+    if (grades.length === 0) return byProgram;
 
     const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]+/g, '');
     const normGrades = grades.map(norm);
 
-    const matching = bySchool.filter(c => {
+    const matching = byProgram.filter(c => {
       const n = norm(c.name ?? '');
       return normGrades.some(g => n.includes(g));
     });
 
     // If nothing matched (e.g. school hasn't mirrored its class naming yet)
     // fall back to the school-scoped list so the teacher isn't stuck.
-    return matching.length > 0 ? matching : bySchool;
+    return matching.length > 0 ? matching : byProgram;
   }, [allClasses, form.school_id, form.course_id, courses]);
 
   const visibleCurricula = useMemo(() => {

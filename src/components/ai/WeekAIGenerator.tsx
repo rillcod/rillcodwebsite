@@ -181,7 +181,7 @@ export default function WeekAIGenerator({
     const res: Result = { skipped: [] };
     // Content blocks from lesson generation — shared across steps
     let contentLayout: any[] = [];
-    let lessonId = existing?.lessonId;
+    const lessonId = existing?.lessonId;
     let assignmentId = existing?.assignmentId;
 
     try {

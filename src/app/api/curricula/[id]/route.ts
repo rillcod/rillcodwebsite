@@ -181,11 +181,25 @@ export async function DELETE(
   if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   // Cascade delete in order:
-  // 1. Week tracking
+  // 1. Generated lesson-plan artifacts
+  const { data: plans } = await admin
+    .from('lesson_plans')
+    .select('id')
+    .eq('curriculum_version_id', id);
+  const planIds = (plans ?? []).map((plan: any) => plan.id).filter(Boolean);
+  for (const planId of planIds) {
+    await admin.from('lessons')
+      .delete()
+      .filter('metadata->>lesson_plan_id', 'eq', planId);
+    await admin.from('assignments')
+      .delete()
+      .filter('metadata->>lesson_plan_id', 'eq', planId);
+  }
+  // 2. Week tracking
   await admin.from('curriculum_week_tracking').delete().eq('curriculum_id', id);
-  // 2. Lesson plans linked to this curriculum version
+  // 3. Lesson plans linked to this curriculum version
   await admin.from('lesson_plans').delete().eq('curriculum_version_id', id);
-  // 3. The curriculum itself
+  // 4. The curriculum itself
   const { error } = await admin.from('course_curricula').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

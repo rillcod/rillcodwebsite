@@ -1,6 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+// Generic service-role client: the helper works across tables, so the row shapes are
+// typed locally (below) rather than via the full generated Database type.
 type AnySupabase = SupabaseClient<any>;
+
+interface IdRow { id: string }
+interface StudentRefRow { id: string; user_id: string | null }
+interface ParentLinkRow { parent_id: string | null; student_id: string | null }
 
 /**
  * Hard-delete a STUDENT portal account and everything uniquely tied to it.
@@ -18,7 +24,7 @@ export async function hardDeleteStudentAccount(admin: AnySupabase, portalUserId:
   if (!portalUserId) return;
 
   const { data: rows } = await admin.from('students').select('id').eq('user_id', portalUserId);
-  const studentRowIds = (rows ?? []).map((r: any) => r.id).filter(Boolean);
+  const studentRowIds = ((rows ?? []) as IdRow[]).map(r => r.id).filter(Boolean);
   if (studentRowIds.length) {
     // Clear references that are NOT ON DELETE CASCADE, then delete the rows.
     await admin.from('students').delete().in('id', studentRowIds);
@@ -71,32 +77,33 @@ export async function cascadeDeleteLead(admin: AnySupabase, leadId: string): Pro
     .maybeSingle();
   if (!lead) return { ok: false, error: 'Lead not found', deletedStudents: 0, parentDeleted: false };
 
-  const parentId: string | null = (lead as any).matched_parent_id ?? null;
-  const rd = (lead as any).response_data ?? {};
+  const leadRow = lead as { matched_parent_id: string | null; matched_student_id: string | null; response_data: Record<string, unknown> | null };
+  const parentId: string | null = leadRow.matched_parent_id ?? null;
+  const rd = leadRow.response_data ?? {};
   const childMatches: Array<{ studentId?: string }> = Array.isArray(rd.child_matches) ? rd.child_matches : [];
 
   // Collect every student portal account this lead is responsible for.
   const studentPortalIds = new Set<string>();
-  if ((lead as any).matched_student_id) studentPortalIds.add((lead as any).matched_student_id);
+  if (leadRow.matched_student_id) studentPortalIds.add(leadRow.matched_student_id);
   for (const m of childMatches) if (m.studentId) studentPortalIds.add(m.studentId);
   if (parentId) {
     const { data: links } = await admin.from('parent_student_links').select('student_id').eq('parent_id', parentId);
-    const rowIds = (links ?? []).map((l: any) => l.student_id).filter(Boolean);
+    const rowIds = ((links ?? []) as ParentLinkRow[]).map(l => l.student_id).filter(Boolean);
     if (rowIds.length) {
       const { data: srows } = await admin.from('students').select('user_id').in('id', rowIds);
-      for (const s of srows ?? []) if ((s as any).user_id) studentPortalIds.add((s as any).user_id);
+      for (const s of (srows ?? []) as Array<{ user_id: string | null }>) if (s.user_id) studentPortalIds.add(s.user_id);
     }
   }
 
   let deletedStudents = 0;
   for (const su of studentPortalIds) {
     const { data: srows } = await admin.from('students').select('id').eq('user_id', su);
-    const rowIds = (srows ?? []).map((r: any) => r.id);
+    const rowIds = ((srows ?? []) as IdRow[]).map(r => r.id);
     // Is this child shared with a DIFFERENT parent? If so, keep the child — only drop this link.
     let sharedWithOtherParent = false;
     if (rowIds.length) {
       const { data: otherLinks } = await admin.from('parent_student_links').select('parent_id').in('student_id', rowIds);
-      sharedWithOtherParent = (otherLinks ?? []).some((l: any) => l.parent_id && l.parent_id !== parentId);
+      sharedWithOtherParent = ((otherLinks ?? []) as ParentLinkRow[]).some(l => l.parent_id && l.parent_id !== parentId);
     }
     if (sharedWithOtherParent) {
       if (parentId && rowIds.length) await admin.from('parent_student_links').delete().eq('parent_id', parentId).in('student_id', rowIds);
@@ -130,26 +137,30 @@ export async function cascadeDeleteProspect(admin: AnySupabase, prospectId: stri
   let deletedStudent = false;
   let parentDeleted = false;
 
+  const prospect = p as { full_name: string | null; parent_email: string | null; email: string | null; is_active: boolean | null };
+
   // Only chase an account when this prospect was actually onboarded.
-  if ((p as any).is_active) {
+  if (prospect.is_active) {
     const norm = (s: string | null | undefined) => (s || '').trim().toLowerCase();
-    const fullName = norm((p as any).full_name);
-    const parentEmail = norm((p as any).parent_email) || norm((p as any).email);
+    const fullName = norm(prospect.full_name);
+    const parentEmail = norm(prospect.parent_email) || norm(prospect.email);
 
     // Find the student row this prospect produced (same name + parent email).
-    let studentRow: { id: string; user_id: string | null } | null = null;
+    let studentRow: StudentRefRow | null = null;
     if (fullName && parentEmail) {
       const { data: srows } = await admin
         .from('students')
         .select('id, user_id, full_name, parent_email')
         .ilike('parent_email', parentEmail)
-        .ilike('full_name', (p as any).full_name);
-      studentRow = (srows ?? [])[0] ?? null;
+        .ilike('full_name', prospect.full_name ?? '');
+      studentRow = ((srows ?? []) as StudentRefRow[])[0] ?? null;
     }
     if (studentRow?.user_id) {
       // Capture parent links before deleting the student so we can orphan-check the parent.
       const { data: links } = await admin.from('parent_student_links').select('parent_id').eq('student_id', studentRow.id);
-      const parentIds = [...new Set((links ?? []).map((l: any) => l.parent_id).filter(Boolean))];
+      const parentIds: string[] = Array.from(
+        new Set(((links ?? []) as ParentLinkRow[]).map(l => l.parent_id).filter((x): x is string => !!x)),
+      );
       await hardDeleteStudentAccount(admin, studentRow.user_id);
       deletedStudent = true;
       for (const pid of parentIds) {

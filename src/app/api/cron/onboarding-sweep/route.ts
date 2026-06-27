@@ -98,14 +98,16 @@ async function handle(req: NextRequest) {
     if (!email || !name) continue;
 
     // Already has a real student account? (students row carrying a portal user_id.)
-    const { data: hasAcct } = await admin
+    // Match the name whitespace/case-insensitively in JS — a stored trailing space made
+    // an .ilike() miss, so this drift-repair kept re-onboarding the SAME child every run
+    // (15-min cron → duplicate accounts). Compare normalised instead.
+    const { data: acctRows } = await admin
       .from('students')
-      .select('user_id')
+      .select('full_name, user_id')
       .ilike('parent_email', email)
-      .ilike('full_name', name)
-      .not('user_id', 'is', null)
-      .limit(1);
-    if (hasAcct && hasAcct.length) continue;
+      .not('user_id', 'is', null);
+    const wanted = name.replace(/\s+/g, ' ').toLowerCase();
+    if ((acctRows ?? []).some((r: { full_name: string | null }) => (r.full_name || '').trim().replace(/\s+/g, ' ').toLowerCase() === wanted)) continue;
 
     report.scanned++;
     try {

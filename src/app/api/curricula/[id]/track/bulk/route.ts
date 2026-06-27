@@ -60,6 +60,8 @@ export async function POST(
     status: TrackStatus;
     teacher_notes?: string;
     actual_date?: string;
+    class_id?: string | null;
+    lesson_plan_id?: string | null;
   }> = body.weeks ?? [];
 
   if (!Array.isArray(weeks) || weeks.length === 0) {
@@ -96,14 +98,14 @@ export async function POST(
   // Fetch existing records for this curriculum to decide insert vs update
   let existingQuery = admin
     .from('curriculum_week_tracking')
-    .select('id, term_number, week_number')
+    .select('id, term_number, week_number, class_id, lesson_plan_id')
     .eq('curriculum_id', id);
   existingQuery = schoolId
     ? existingQuery.eq('school_id', schoolId)
     : existingQuery.is('school_id', null);
   const { data: existing } = await existingQuery;
   const existingMap = new Map<string, string>(
-    (existing ?? []).map((r: any) => [`${r.term_number}-${r.week_number}`, r.id])
+    (existing ?? []).map((r: any) => [`${r.term_number}-${r.week_number}-${r.class_id ?? 'none'}-${r.lesson_plan_id ?? 'none'}`, r.id])
   );
 
   const toInsert: any[] = [];
@@ -115,6 +117,8 @@ export async function POST(
       school_id: schoolId,
       term_number: w.term_number,
       week_number: w.week_number,
+      class_id: w.class_id ?? null,
+      lesson_plan_id: w.lesson_plan_id ?? null,
       status: w.status,
       teacher_notes: w.teacher_notes || null,
       actual_date: w.actual_date || (w.status === 'completed' ? today : null),
@@ -128,7 +132,7 @@ export async function POST(
       payload.completed_at = null;
     }
 
-    const existingId = existingMap.get(`${w.term_number}-${w.week_number}`);
+    const existingId = existingMap.get(`${w.term_number}-${w.week_number}-${w.class_id ?? 'none'}-${w.lesson_plan_id ?? 'none'}`);
     if (existingId) {
       toUpdate.push({ id: existingId, payload });
     } else {

@@ -29,6 +29,7 @@ export default function ClassDetailPage() {
   const [cls, setCls] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [formerEnrollments, setFormerEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,6 +124,7 @@ export default function ClassDetailPage() {
         console.error('[students API]', studentsHttpRes.status, studentsRes);
       }
       setEnrollments(studentsRes.students ?? []);
+      setFormerEnrollments(studentsRes.former_students ?? []);
       if (isStaff) {
         const visRes = await fetch(`/api/progression/path-visibility?class_id=${id}`, { cache: 'no-store' });
         if (visRes.ok) {
@@ -723,6 +725,17 @@ export default function ClassDetailPage() {
     </div>
   );
 
+  const termLabel = cls.academic_terms
+    ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}`
+    : cls.term_id
+      ? 'Current class term'
+      : 'No term assigned';
+  const currentTermStudents = enrollments.filter((student: any) => student.is_current_term_active !== false);
+  const inactiveTermStudents = [
+    ...enrollments.filter((student: any) => student.is_current_term_active === false),
+    ...formerEnrollments,
+  ];
+
   return (
     <div className="text-foreground">
       <div className="space-y-6 pb-20">
@@ -770,15 +783,23 @@ export default function ClassDetailPage() {
         </div>
 
         {/* Stats — always visible */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {[
-            { 
-              label: 'Enrolled', 
-              value: enrollments.length, 
+            {
+              label: 'Active This Term',
+              value: currentTermStudents.length,
               icon: UserGroupIcon, 
-              color: cls?.max_students > 0 && enrollments.length >= cls?.max_students ? 'text-rose-400' : 'text-primary', 
-              bg: cls?.max_students > 0 && enrollments.length >= cls?.max_students ? 'bg-rose-500/10' : 'bg-primary/10',
-              border: cls?.max_students > 0 && enrollments.length >= cls?.max_students ? 'border-rose-500/25' : 'border-border'
+              color: cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students ? 'text-rose-400' : 'text-primary',
+              bg: cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students ? 'bg-rose-500/10' : 'bg-primary/10',
+              border: cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students ? 'border-rose-500/25' : 'border-border'
+            },
+            {
+              label: 'Paused / Former',
+              value: inactiveTermStudents.length,
+              icon: CloudArrowDownIcon,
+              color: 'text-amber-400',
+              bg: 'bg-amber-500/10',
+              border: 'border-border',
             },
             { 
               label: 'Capacity', 
@@ -817,7 +838,7 @@ export default function ClassDetailPage() {
         </div>
 
         {/* Capacity Alert Banner */}
-        {cls?.max_students > 0 && enrollments.length >= cls?.max_students && (
+        {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
           <div className="flex items-center gap-3.5 p-4 sm:p-5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl shadow-xl shadow-rose-950/20 animate-pulse">
             <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
@@ -828,6 +849,26 @@ export default function ClassDetailPage() {
             </div>
           </div>
         )}
+
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary">Term Focus</p>
+            <h2 className="text-lg font-black text-foreground mt-1">{termLabel}</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              This roster shows students actively offering coding for this term. Removed students remain in history and can be reinstated later.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-center">
+            <div className="rounded-xl border border-border bg-background px-4 py-3">
+              <p className="text-xl font-black text-primary">{currentTermStudents.length}</p>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-black">Current</p>
+            </div>
+            <div className="rounded-xl border border-border bg-background px-4 py-3">
+              <p className="text-xl font-black text-amber-400">{inactiveTermStudents.length}</p>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-black">Historical</p>
+            </div>
+          </div>
+        </div>
 
         {/* Tabs + Content | Sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1458,19 +1499,19 @@ export default function ClassDetailPage() {
             <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-border rounded-2xl overflow-hidden">
               <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between gap-3 bg-white/[0.02]">
                 <div className="flex items-center gap-3 min-w-0">
-                  {canView && enrollments.length > 0 && (
+                  {canView && currentTermStudents.length > 0 && (
                     <input
                       type="checkbox"
                       title="Select all"
-                      checked={checkedEnrollIds.size === enrollments.length}
-                      ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && checkedEnrollIds.size < enrollments.length; }}
-                      onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(enrollments.map((enr: any) => enr.id)) : new Set())}
+                      checked={checkedEnrollIds.size === currentTermStudents.length}
+                      ref={el => { if (el) el.indeterminate = checkedEnrollIds.size > 0 && checkedEnrollIds.size < currentTermStudents.length; }}
+                      onChange={e => setCheckedEnrollIds(e.target.checked ? new Set(currentTermStudents.map((enr: any) => enr.id)) : new Set())}
                       className="w-4 h-4 accent-primary cursor-pointer flex-shrink-0 rounded border-border"
                     />
                   )}
                   <div>
-                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Enrolled Students</h3>
-                    <p className="text-xs text-primary font-bold mt-0.5">{enrollments.length} / {cls.max_students ?? '∞'} enrolled</p>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Current Term Students</h3>
+                    <p className="text-xs text-primary font-bold mt-0.5">{currentTermStudents.length} / {cls.max_students ?? '∞'} active</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -1478,7 +1519,7 @@ export default function ClassDetailPage() {
                     <button
                       disabled={bulkRemoving}
                       onClick={async () => {
-                        const names = enrollments
+                        const names = currentTermStudents
                           .filter((e: any) => checkedEnrollIds.has(e.id))
                           .map((e: any) => e.full_name)
                           .join(', ');
@@ -1491,7 +1532,7 @@ export default function ClassDetailPage() {
                             body: JSON.stringify({ studentIds: [...checkedEnrollIds] }),
                           });
                           if (!res.ok) { const j = await res.json(); alert(j.error || 'Unenrol failed'); return; }
-                          setEnrollments(prev => prev.filter((e: any) => !checkedEnrollIds.has(e.id)));
+                          await fetchData();
                           setCheckedEnrollIds(new Set());
                         } finally {
                           setBulkRemoving(false);
@@ -1523,15 +1564,15 @@ export default function ClassDetailPage() {
                   )}
                 </div>
               </div>
-              {enrollments.length === 0 ? (
+              {currentTermStudents.length === 0 ? (
                 <div className="p-10 text-center flex flex-col items-center justify-center">
                   <UserGroupIcon className="w-8 h-8 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground mb-3">No students enrolled yet.</p>
+                  <p className="text-sm text-muted-foreground mb-3">No active students for this term yet.</p>
                   {isStaff && <Link href={`/dashboard/classes/${id}/edit`} className="text-xs font-bold text-primary hover:text-primary transition-colors">Edit class to add students →</Link>}
                 </div>
               ) : (
                 <div className="divide-y divide-white/5 max-h-[400px] overflow-y-auto custom-scrollbar">
-                  {enrollments.map((enr: any) => {
+                  {currentTermStudents.map((enr: any) => {
                     const isChecked = checkedEnrollIds.has(enr.id);
                     return (
                       <div
@@ -1569,7 +1610,7 @@ export default function ClassDetailPage() {
                                 body: JSON.stringify({ studentId: enr.id }),
                               });
                               if (!res.ok) { const j = await res.json(); alert(j.error); return; }
-                              setEnrollments(prev => prev.filter((e: any) => e.id !== enr.id));
+                              await fetchData();
                               setCheckedEnrollIds(prev => { const next = new Set(prev); next.delete(enr.id); return next; });
                             }}
                             title="Unenrol from class"
@@ -1584,6 +1625,42 @@ export default function ClassDetailPage() {
                 </div>
               )}
             </div>
+
+            {inactiveTermStudents.length > 0 && (
+              <div className="bg-white/[0.01] backdrop-blur-md shadow-sm border border-amber-500/20 rounded-2xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-amber-500/10 bg-amber-500/5">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-amber-300">Paused / Historical</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    These students keep old results and can be reinstated into this term.
+                  </p>
+                </div>
+                <div className="divide-y divide-white/5 max-h-[260px] overflow-y-auto custom-scrollbar">
+                  {inactiveTermStudents.map((student: any) => (
+                    <div key={`${student.id}-${student.roster_status ?? 'former'}`} className="px-4 py-3 flex items-center gap-3">
+                      <div className="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0 bg-amber-500/10 text-amber-300">
+                        {(student.full_name ?? '?')[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {(student.roster_status ?? 'former').toString().replace('_', ' ')}
+                          {student.roster_ended_at ? ` · left ${new Date(student.roster_ended_at).toLocaleDateString('en-GB')}` : ''}
+                        </p>
+                      </div>
+                      {isStaff && (
+                        <button
+                          onClick={() => assignStudent(student.id)}
+                          disabled={processingStudent === student.id}
+                          className="px-3 py-1.5 bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/20 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors disabled:opacity-50"
+                        >
+                          {processingStudent === student.id ? '...' : 'Reinstate'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {isStaff && (
               <button

@@ -70,7 +70,7 @@ export async function GET(
   // Fetch the class first so we can do a pre-query school check
   const { data, error } = await admin
     .from('classes')
-    .select('*, programs(id, name, difficulty_level), portal_users!classes_teacher_id_fkey(id, full_name), schools(id, name)')
+    .select('*, programs(id, name, difficulty_level), portal_users!classes_teacher_id_fkey(id, full_name), schools(id, name), academic_terms(id, academic_year, term_label, term_number)')
     .eq('id', id)
     .maybeSingle();
 

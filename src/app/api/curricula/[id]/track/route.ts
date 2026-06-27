@@ -40,7 +40,7 @@ async function callerCanManageSchool(
 
 // GET /api/curricula/[id]/track — get all week tracking for this curriculum
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   const auth = await getStaff();
@@ -58,9 +58,15 @@ export async function GET(
   const canSee = await callerCanManageSchool(admin, auth.profile, curriculum.school_id ?? null);
   if (!canSee) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  const url = new URL(req.url);
+  const classId = url.searchParams.get('class_id');
+  const lessonPlanId = url.searchParams.get('lesson_plan_id');
+
   let query = admin.from('curriculum_week_tracking').select('*').eq('curriculum_id', id);
   if (curriculum.school_id) query = query.eq('school_id', curriculum.school_id);
   else query = query.is('school_id', null);
+  if (classId) query = query.eq('class_id', classId);
+  if (lessonPlanId) query = query.eq('lesson_plan_id', lessonPlanId);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -81,7 +87,7 @@ export async function POST(
 
   const { id } = await context.params;
   const body = await req.json();
-  const { term_number, week_number, status, teacher_notes, actual_date } = body;
+  const { term_number, week_number, status, teacher_notes, actual_date, class_id, lesson_plan_id } = body;
 
   const VALID_STATUSES = ['pending', 'in_progress', 'completed', 'skipped'] as const;
   if (!term_number || !week_number || !status) {
@@ -112,6 +118,8 @@ export async function POST(
     term_number,
     week_number,
     status,
+    class_id: class_id || null,
+    lesson_plan_id: lesson_plan_id || null,
     teacher_notes: teacher_notes || null,
     actual_date: actual_date || null,
     updated_at: new Date().toISOString(),
@@ -137,6 +145,10 @@ export async function POST(
   } else {
     matchQuery.is('school_id', null);
   }
+  if (class_id) matchQuery.eq('class_id', class_id);
+  else matchQuery.is('class_id', null);
+  if (lesson_plan_id) matchQuery.eq('lesson_plan_id', lesson_plan_id);
+  else matchQuery.is('lesson_plan_id', null);
 
   const { data: existing } = await matchQuery.maybeSingle();
 
@@ -280,12 +292,16 @@ export async function DELETE(
   const url = new URL(req.url);
   const term = url.searchParams.get('term');
   const week = url.searchParams.get('week');
+  const classId = url.searchParams.get('class_id');
+  const lessonPlanId = url.searchParams.get('lesson_plan_id');
 
   let q = admin.from('curriculum_week_tracking').delete().eq('curriculum_id', id);
   if (curriculum.school_id) q = q.eq('school_id', curriculum.school_id);
   else q = q.is('school_id', null);
   if (term) q = q.eq('term_number', parseInt(term, 10));
   if (week) q = q.eq('week_number', parseInt(week, 10));
+  if (classId) q = q.eq('class_id', classId);
+  if (lessonPlanId) q = q.eq('lesson_plan_id', lessonPlanId);
 
   const { error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (!caller) return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
 
     const body = await request.json();
-    const { class_id, session_date, topic, start_time, end_time } = body;
+    const { class_id, session_date, topic, start_time, end_time, term_id } = body;
 
     if (!class_id || !session_date) {
       return NextResponse.json({ error: 'class_id and session_date are required' }, { status: 400 });
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Verify the class exists and fetch its school for boundary check
     const { data: cls } = await admin
       .from('classes')
-      .select('id, name, school_id')
+      .select('id, name, school_id, term_id')
       .eq('id', class_id)
       .maybeSingle();
 
@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
       .insert({
         class_id,
         session_date,
+        term_id: term_id || cls.term_id || null,
         topic: topic || `Session on ${session_date}`,
         start_time: start_time || null,
         end_time: end_time || null,

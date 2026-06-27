@@ -36,6 +36,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'records array required' }, { status: 400 });
     }
 
+    const uniqueSessionIds = [...new Set(records.map(r => r.session_id).filter(Boolean))];
+    const { data: sessionRows } = await admin
+      .from('class_sessions')
+      .select('id, class_id, term_id, classes(school_id)')
+      .in('id', uniqueSessionIds);
+    const sessionsById = new Map((sessionRows ?? []).map((session: any) => [session.id, session]));
+
+    if (sessionsById.size !== uniqueSessionIds.length) {
+      return NextResponse.json({ error: 'One or more sessions were not found' }, { status: 404 });
+    }
+
     // Teacher: verify all session_ids belong to classes at their assigned schools
     if (caller.role === 'teacher') {
       const { data: tsRows } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', caller.id);
@@ -43,13 +54,7 @@ export async function POST(request: NextRequest) {
       if (caller.school_id) schoolIds.add(caller.school_id);
       for (const r of tsRows ?? []) { if ((r as any).school_id) schoolIds.add((r as any).school_id); }
 
-      const uniqueSessionIds = [...new Set(records.map(r => r.session_id))];
-      const { data: sessions } = await admin
-        .from('class_sessions')
-        .select('id, classes(school_id)')
-        .in('id', uniqueSessionIds);
-
-      const invalidSession = (sessions ?? []).find((s: any) => {
+      const invalidSession = (sessionRows ?? []).find((s: any) => {
         const sSchool = s.classes?.school_id;
         return sSchool && !schoolIds.has(sSchool);
       });
@@ -58,12 +63,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const rosterLookups = records.map(async (record) => {
+      const session = sessionsById.get(record.session_id) as any;
+      if (!session?.class_id || !record.user_id) return { ...record, term_id: session?.term_id ?? null };
+      let rosterQuery = admin
+        .from('class_term_rosters')
+        .select('id')
+        .eq('class_id', session.class_id)
+        .eq('student_id', record.user_id)
+        .order('reinstated_at', { ascending: false, nullsFirst: false })
+        .order('started_at', { ascending: false })
+        .limit(1);
+      rosterQuery = session.term_id ? rosterQuery.eq('term_id', session.term_id) : rosterQuery.is('term_id', null);
+      const { data: roster } = await rosterQuery.maybeSingle();
+      return {
+        ...record,
+        term_id: session.term_id ?? null,
+        class_term_roster_id: roster?.id ?? null,
+      };
+    });
+
+    const scopedRecords = await Promise.all(rosterLookups);
+
     const { error } = await admin
       .from('attendance')
-      .upsert(records, { onConflict: 'session_id,user_id' });
+      .upsert(scopedRecords, { onConflict: 'session_id,user_id' });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ saved: records.length });
+    return NextResponse.json({ saved: scopedRecords.length });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }

@@ -28,6 +28,40 @@ const NEXT_THRESHOLD: Record<string, number> = { Bronze: 500, Silver: 2000, Gold
 const CUR_THRESHOLD: Record<string, number> = { Bronze: 0, Silver: 500, Gold: 2000, Platinum: 5000 };
 const NEXT_LEVEL: Record<string, string> = { Bronze: 'Silver', Silver: 'Gold', Gold: 'Platinum', Platinum: '∞' };
 
+function lessonPlanIdOf(lesson: any): string | null {
+  const metadata = lesson?.metadata;
+  if (!metadata || typeof metadata !== 'object') return null;
+  const id = metadata.lesson_plan_id;
+  return typeof id === 'string' && id.trim() ? id : null;
+}
+
+async function filterLessonsForClassPlans(
+  db: ReturnType<typeof createClient>,
+  lessons: any[],
+  classId?: string | null,
+  termId?: string | null,
+) {
+  if (!classId || lessons.length === 0) return lessons;
+  const courseIds = Array.from(new Set(lessons.map((lesson) => lesson.course_id).filter(Boolean)));
+  if (courseIds.length === 0) return lessons;
+
+  let planQuery = db
+    .from('lesson_plans')
+    .select('id, course_id, term_id')
+    .eq('class_id', classId)
+    .in('course_id', courseIds);
+  if (termId) planQuery = planQuery.eq('term_id', termId);
+  const { data: plans } = await planQuery;
+  const allowedPlanIds = new Set((plans ?? []).map((plan: any) => plan.id).filter(Boolean));
+  const plannedCourseIds = new Set((plans ?? []).map((plan: any) => plan.course_id).filter(Boolean));
+
+  return lessons.filter((lesson) => {
+    const planId = lessonPlanIdOf(lesson);
+    if (planId) return allowedPlanIds.has(planId);
+    return !plannedCourseIds.has(lesson.course_id);
+  });
+}
+
 export default function StudentDashboard() {
   const { profile } = useAuth();
   const [data, setData] = useState<{
@@ -87,7 +121,7 @@ export default function StudentDashboard() {
             .order('submitted_at', { ascending: false }).limit(4),
           db.from('assignment_submissions').select('status, submitted_at, assignments(title)')
             .eq('portal_user_id', profile.id).order('submitted_at', { ascending: false }).limit(3),
-          db.from('enrollments').select('program_id, programs(id, name)').eq('user_id', profile.id).limit(1) as any
+          db.from('enrollments').select('program_id, programs(id, name)').eq('user_id', profile.id).eq('status', 'active').limit(1) as any
         ]);
 
         // Split scoped assignments into "due soon" vs "overdue" — pending (unsubmitted) only.
@@ -122,6 +156,17 @@ export default function StudentDashboard() {
         if (enrollRes.status === 'fulfilled' && enrollRes.value.data?.length) {
           const prog = enrollRes.value.data[0]?.programs;
           if (prog?.id) {
+            let currentClassTermId: string | null = null;
+            let currentCourseId: string | null = null;
+            if (profile.class_id) {
+              const { data: clsData } = await db
+                .from('classes')
+                .select('current_course_id, term_id')
+                .eq('id', profile.class_id)
+                .maybeSingle();
+              currentClassTermId = clsData?.term_id ?? null;
+              currentCourseId = clsData?.current_course_id ?? null;
+            }
             // Mirror the learning-hub visibility rule: only surface
             // courses that are active, not locked (unless flagship)
             // AND have at least one lesson — so the "next lesson"
@@ -132,15 +177,24 @@ export default function StudentDashboard() {
               .eq('program_id', prog.id)
               .eq('is_active', true);
             const { isCourseVisibleToLearners } = await import('@/lib/courses/visibility');
-            const courses = (rawCourses ?? []).filter((c: any) =>
+            const courses = (rawCourses ?? [])
+              .filter((c: any) => !currentCourseId || c.id === currentCourseId)
+              .filter((c: any) =>
               isCourseVisibleToLearners(c, { requireContent: true }),
             );
             if (courses?.length) {
               const cIds = courses.map((c: any) => c.id);
-              const { data: allLessons } = await db.from('lessons').select('id, title').in('course_id', cIds).eq('status', 'active').order('order_index', { ascending: true }).limit(20);
+              const { data: allLessons } = await db
+                .from('lessons')
+                .select('id, title, course_id, metadata')
+                .in('course_id', cIds)
+                .in('status', ['active', 'published'])
+                .order('order_index', { ascending: true })
+                .limit(50);
               const { data: done } = await db.from('lesson_progress').select('lesson_id').eq('portal_user_id', profile.id).eq('status', 'completed');
               const doneSet = new Set((done ?? []).map((d: any) => d.lesson_id));
-              nextLesson = (allLessons ?? []).find((l: any) => !doneSet.has(l.id)) || (allLessons ?? [])[0];
+              const scopedLessons = await filterLessonsForClassPlans(db, allLessons ?? [], profile.class_id, currentClassTermId);
+              nextLesson = scopedLessons.find((l: any) => !doneSet.has(l.id)) || scopedLessons[0];
             }
           }
         }

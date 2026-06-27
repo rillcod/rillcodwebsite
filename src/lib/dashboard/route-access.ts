@@ -41,6 +41,7 @@ const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/teachers',
   '/dashboard/parents',
   '/dashboard/students',
+  '/dashboard/classes',
   '/dashboard/approvals',
   '/dashboard/lesson-plans',
   '/dashboard/lessons/add',

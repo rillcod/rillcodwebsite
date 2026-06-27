@@ -182,6 +182,16 @@ export async function onboardStudentFromProspect(
     name: priorSchoolName ?? prospect.school_name,
   });
 
+  // Classification written to the student record: the generic 'in_person' default (and
+  // an unset type) is derived from the resolved school — a partner school → 'school',
+  // the online school → 'online'. Explicit types (summer_school, bootcamp, online) are
+  // respected. This fixes partner-school students being mislabelled 'in_person'.
+  // NB: the learning-path logic below still receives the original `enrollmentType`, so
+  // tier/track resolution is unchanged.
+  const recordEnrollmentType = (enrollmentType && enrollmentType !== 'in_person')
+    ? enrollmentType
+    : (/online/i.test(school.name) ? 'online' : 'school');
+
   // Class — an already-enrolled child KEEPS their current class (e.g. "Python JSS");
   // a new form never moves them. Only a child with NO class yet gets placed: into
   // the parent's/staff's explicit class (when it belongs to this school), else a
@@ -238,7 +248,7 @@ export async function onboardStudentFromProspect(
     class_id: classId,
     date_of_birth: prospect.age ? `${new Date().getFullYear() - prospect.age}-01-01` : null,
     section_class: prospect.grade || null,
-    enrollment_type: enrollmentType,
+    enrollment_type: recordEnrollmentType,
     phone: prospect.parent_phone || null,
     is_active: true,
     updated_at: new Date().toISOString(),
@@ -264,7 +274,7 @@ export async function onboardStudentFromProspect(
     // class placement is tracked on portal_users (set in the upsert above).
     course_interest: prospect.course_interest || null,
     preferred_schedule: prospect.preferred_schedule ?? null,
-    enrollment_type: enrollmentType,
+    enrollment_type: recordEnrollmentType,
     status: 'approved',
     is_active: true,
     is_deleted: false,

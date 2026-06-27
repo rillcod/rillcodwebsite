@@ -271,16 +271,19 @@ export async function onboardSummerStudent(
   const fullNameTrimmed = (prospect.full_name || '').trim().replace(/\s+/g, ' ');
 
   if (normalizedParentEmail && fullNameTrimmed) {
-    // Robust match: limit 1 (no maybeSingle which errors on >1 row), case/space-
-    // insensitive name, and reuse a prior row even if it has no portal account yet.
+    // Reuse a prior row for this parent+child so re-runs never duplicate. Match the
+    // name in JS with whitespace/case normalisation — a stored trailing space made the
+    // old `.ilike('full_name', trimmed)` miss, so a 15-min cron minted a new account
+    // every run. Fetch this parent's rows (oldest first) and pick the matching child.
     const { data } = await admin
       .from('students')
-      .select('id, user_id, student_email')
+      .select('id, user_id, student_email, full_name')
       .ilike('parent_email', normalizedParentEmail)
-      .ilike('full_name', fullNameTrimmed)
-      .order('created_at', { ascending: true })
-      .limit(1);
-    const priorStudent = (data ?? [])[0];
+      .order('created_at', { ascending: true });
+    const wantedName = fullNameTrimmed.toLowerCase();
+    const priorStudent = (data ?? []).find(
+      (s: { full_name: string | null }) => (s.full_name || '').trim().replace(/\s+/g, ' ').toLowerCase() === wantedName,
+    );
     if (priorStudent) {
       priorRowId = priorStudent.id;
       if (priorStudent.user_id) {

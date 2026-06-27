@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { syncRosterSubscriptionStatus } from '@/lib/rosters/billing-sync';
 
 async function getUser() {
   const supabase = await createClient();
@@ -41,6 +42,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     .eq('id', id).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (typeof body.status === 'string') {
+    await syncRosterSubscriptionStatus(db as any, id, body.status);
+  }
   return NextResponse.json({ data });
 }
 
@@ -57,5 +61,6 @@ export async function DELETE(_req: Request, context: { params: Promise<{ id: str
     .eq('id', id).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await syncRosterSubscriptionStatus(db as any, id, 'cancelled');
   return NextResponse.json({ data });
 }

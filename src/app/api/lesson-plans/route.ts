@@ -110,7 +110,7 @@ export async function POST(request: Request) {
 
   // ── Term-level plan (new flow) ──────────────────────────────────────────
   if (course_id || (!lesson_id && (term_start || term_end))) {
-    const targetSchoolId = school_id || user.school_id || null;
+    let targetSchoolId = school_id || user.school_id || null;
 
     if (!course_id) {
       return NextResponse.json({ error: 'course_id is required for class lesson plans' }, { status: 400 });
@@ -121,13 +121,41 @@ export async function POST(request: Request) {
 
     const { data: course } = await db
       .from('courses')
-      .select('id, school_id')
+      .select('id, school_id, program_id')
       .eq('id', course_id)
       .maybeSingle();
     if (!course) {
       return NextResponse.json({ error: 'Selected course not found' }, { status: 400 });
     }
-    const courseSchoolId = (course as { school_id: string | null }).school_id;
+    const courseRow = course as { school_id: string | null; program_id: string | null };
+    const courseSchoolId = courseRow.school_id;
+
+    // Ensure selected class belongs to the chosen school scope.
+    if (class_id) {
+      const { data: klass } = await db
+        .from('classes')
+        .select('id, school_id, program_id, teacher_id')
+        .eq('id', class_id)
+        .maybeSingle();
+      if (!klass) {
+        return NextResponse.json({ error: 'Selected class not found' }, { status: 400 });
+      }
+      const classRow = klass as { school_id: string | null; program_id: string | null; teacher_id: string | null };
+      const classSchoolId = classRow.school_id;
+      if (!targetSchoolId && classSchoolId) {
+        targetSchoolId = classSchoolId;
+      }
+      if (targetSchoolId && classSchoolId && classSchoolId !== targetSchoolId) {
+        return NextResponse.json({ error: 'Selected class does not belong to the selected school' }, { status: 400 });
+      }
+      if (user.role === 'teacher' && classRow.teacher_id !== user.id) {
+        return NextResponse.json({ error: 'You can only create lesson plans for classes assigned to you' }, { status: 403 });
+      }
+      if (courseRow.program_id && classRow.program_id && courseRow.program_id !== classRow.program_id) {
+        return NextResponse.json({ error: 'Selected class is not assigned to the selected course programme' }, { status: 400 });
+      }
+    }
+
     if (courseSchoolId && targetSchoolId && courseSchoolId !== targetSchoolId) {
       return NextResponse.json({ error: 'Selected course belongs to a different school' }, { status: 400 });
     }
@@ -140,22 +168,6 @@ export async function POST(request: Request) {
       const teacherSchoolIds = await getTeacherSchoolIds(user.id, user.school_id);
       if (targetSchoolId && !teacherSchoolIds.includes(targetSchoolId)) {
         return NextResponse.json({ error: 'You can only create plans for your assigned schools' }, { status: 403 });
-      }
-    }
-
-    // Ensure selected class belongs to the chosen school scope.
-    if (class_id) {
-      const { data: klass } = await db
-        .from('classes')
-        .select('id, school_id')
-        .eq('id', class_id)
-        .maybeSingle();
-      if (!klass) {
-        return NextResponse.json({ error: 'Selected class not found' }, { status: 400 });
-      }
-      const classSchoolId = (klass as { school_id: string | null }).school_id;
-      if (targetSchoolId && classSchoolId && classSchoolId !== targetSchoolId) {
-        return NextResponse.json({ error: 'Selected class does not belong to the selected school' }, { status: 400 });
       }
     }
 

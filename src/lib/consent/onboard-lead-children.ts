@@ -81,7 +81,8 @@ export async function onboardLeadChildren(
         school_id: ctx.lead.school_id ?? ctx.lead.matched_school_id ?? null,
       }, {
         parentId: ctx.parentId,
-        enrollmentType: 'in_person',
+        // Consent-form children always belong to a partner school → classify as 'school'.
+        enrollmentType: 'school',
         approvedBy: ctx.approvedBy,
         classId: ctx.classId,
         className: ctx.className,

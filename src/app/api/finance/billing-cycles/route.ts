@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyInvoicePayment } from '@/lib/payments/verified-payment';
+import { syncRosterBillingForCycle } from '@/lib/rosters/billing-sync';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -167,6 +168,7 @@ export async function PATCH(request: Request) {
         .from('billing_cycles')
         .update({ status: 'paid', updated_at: new Date().toISOString() })
         .eq('id', id);
+      await syncRosterBillingForCycle(db as any, id, 'paid');
       return NextResponse.json({ data: { id, status: 'paid', invoice_id: cycle.invoice_id }, payment });
     } catch (err: any) {
       return NextResponse.json({ error: err.message || 'Failed to verify billing-cycle payment' }, { status: err.statusCode || 500 });
@@ -180,6 +182,9 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (typeof body.status === 'string') {
+    await syncRosterBillingForCycle(db as any, id, body.status);
+  }
   return NextResponse.json({ data });
 }
 

@@ -3,6 +3,7 @@ import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,56 @@ async function callerHasClassAccess(caller: Caller, classSchoolId: string | null
   }
 
   return false;
+}
+
+async function upsertClassTermRoster(
+  admin: ReturnType<typeof adminClient>,
+  cls: { id: string; term_id?: string | null; school_id?: string | null; program_id?: string | null },
+  studentIds: string[],
+  status: 'active' | 'paused' | 'withdrawn' | 'completed',
+  actorId: string,
+) {
+  if (studentIds.length === 0) return;
+  for (const studentId of studentIds) {
+    let lookup = (admin as any)
+      .from('class_term_rosters')
+      .select('id')
+      .eq('class_id', cls.id)
+      .eq('student_id', studentId)
+      .limit(1);
+    lookup = cls.term_id ? lookup.eq('term_id', cls.term_id) : lookup.is('term_id', null);
+    const { data: existing, error: lookupErr } = await lookup.maybeSingle();
+    if (lookupErr?.code === '42P01') return;
+    if (lookupErr) {
+      console.warn('[class_term_rosters] lookup failed', lookupErr);
+      continue;
+    }
+
+    const active = status === 'active';
+    const billingPayload = active ? await defaultRosterBillingPayload(admin as any, cls) : {};
+    const payload = {
+      class_id: cls.id,
+      student_id: studentId,
+      term_id: cls.term_id ?? null,
+      school_id: cls.school_id ?? null,
+      program_id: cls.program_id ?? null,
+      status,
+      ended_at: active ? null : new Date().toISOString(),
+      reinstated_at: active ? new Date().toISOString() : null,
+      ...billingPayload,
+      updated_by: actorId,
+    };
+
+    const { error } = existing?.id
+      ? await (admin as any).from('class_term_rosters').update(payload).eq('id', existing.id)
+      : await (admin as any).from('class_term_rosters').insert({
+          ...payload,
+          started_at: new Date().toISOString(),
+          created_by: actorId,
+        });
+    if (error?.code === '42P01') return;
+    if (error) console.warn('[class_term_rosters] upsert failed', error);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,7 +214,7 @@ export async function POST(
   // Fetch class — include max_students for the capacity guard
   const { data: cls, error: clsErr } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id')
+    .select('id, name, program_id, max_students, school_id, term_id')
     .eq('id', classId)
     .single();
 
@@ -256,6 +307,8 @@ export async function POST(
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
+  await upsertClassTermRoster(admin, cls, [studentId], 'active', caller.id);
+
   // Resync new class count (exact — never drift)
   const { count: newCount } = await admin
     .from('portal_users')
@@ -278,7 +331,7 @@ export async function POST(
   if (cls.program_id) {
     const { data: existing } = await admin
       .from('enrollments')
-      .select('id')
+      .select('id, status')
       .eq('user_id', studentId)
       .eq('program_id', cls.program_id)
       .maybeSingle();
@@ -289,6 +342,11 @@ export async function POST(
         role: 'student',
         status: 'active',
       });
+    } else if (existing.status !== 'active') {
+      await admin
+        .from('enrollments')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
     }
   }
 
@@ -343,7 +401,7 @@ export async function PUT(
   // Fetch class — include max_students for the capacity guard
   const { data: cls } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id')
+    .select('id, name, program_id, max_students, school_id, term_id')
     .eq('id', classId)
     .single();
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -491,6 +549,8 @@ export async function PUT(
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
+  await upsertClassTermRoster(admin, cls, allowedIds, 'active', caller.id);
+
   // Resync new class count (exact — never drift)
   const { count } = await admin
     .from('portal_users')
@@ -514,7 +574,7 @@ export async function PUT(
     for (const sid of allowedIds) {
       const { data: existing } = await admin
         .from('enrollments')
-        .select('id')
+        .select('id, status')
         .eq('user_id', sid)
         .eq('program_id', cls.program_id)
         .maybeSingle();
@@ -525,6 +585,11 @@ export async function PUT(
           role: 'student',
           status: 'active',
         });
+      } else if (existing.status !== 'active') {
+        await admin
+          .from('enrollments')
+          .update({ status: 'active', updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
       }
     }
   }
@@ -580,7 +645,7 @@ export async function DELETE(
   const admin = adminClient();
 
   // Fetch class school for the access guard
-  const { data: cls } = await admin.from('classes').select('school_id').eq('id', classId).single();
+  const { data: cls } = await admin.from('classes').select('id, school_id, program_id, term_id').eq('id', classId).single();
 
   // ── Caller school/class access guard ─────────────────────────────────────
   const hasAccess = await callerHasClassAccess(caller, cls?.school_id ?? null);
@@ -609,6 +674,20 @@ export async function DELETE(
     .eq('role', 'student'); // safety: only remove students actually in this class
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (cls) await upsertClassTermRoster(admin, cls, ids, 'withdrawn', caller.id);
+
+  if (cls?.program_id) {
+    await admin
+      .from('enrollments')
+      .update({
+        status: 'suspended',
+        updated_at: new Date().toISOString(),
+        notes: 'Paused from current term class roster; history and reports preserved.',
+      })
+      .in('user_id', ids)
+      .eq('program_id', cls.program_id);
+  }
 
   // Resync class count (exact — never drift)
   const { count: afterCount } = await admin

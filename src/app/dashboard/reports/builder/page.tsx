@@ -11,6 +11,7 @@ import ReportCard from '@/components/reports/ReportCard';
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { generateReportPDF, ScaledReportCard, shareReportCard, printElement } from '@/lib/pdf-utils';
+import { ACADEMIC_TERM_OPTIONS, getCurrentTermLabel, getCurrentAcademicYear, academicYearOptions } from '@/lib/reports/academic-period';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
@@ -142,38 +143,23 @@ const CLASS_PRESETS = [
     'SS 1', 'SS 2', 'SS 3',
     'Cohort A', 'Cohort B', 'Cohort C',
 ];
-const TERM_OPTIONS = ['Termly', 'Mid-Term', 'First Term', 'Second Term', 'Third Term', 'Annual'];
+// Term dropdown — calendar-ordered (First → Second → Third …), shared with the
+// results switcher so ordering is consistent everywhere. (See @/lib/reports/academic-period.)
+const TERM_OPTIONS = ACADEMIC_TERM_OPTIONS;
 
 // Report contexts that follow the Nigerian school calendar (Term + Academic Year).
 // Online / bootcamp are cohort-based and use Duration instead.
 const SCHOOL_SECTIONS = ['basic', 'secondary', 'unified', 'school'];
 const isSchoolSection = (s: string | null | undefined) => SCHOOL_SECTIONS.includes(s ?? '');
 
-// Current Nigerian term from the calendar month: Sept–Dec → First, Jan–Apr →
-// Second, May–Aug → Third. Used to default the term so staff aren't silently left
-// on "First Term" when it's actually Third Term.
-function getCurrentTermLabel(): string {
-    const m = new Date().getMonth() + 1; // 1-12
-    if (m >= 9) return 'First Term';
-    if (m >= 5) return 'Third Term';
-    return 'Second Term';
-}
-
-// Current academic session string on the Sept–Aug calendar (e.g. "2025/2026").
-function getCurrentAcademicYear(): string {
-    const now = new Date();
-    return now.getMonth() + 1 >= 9
-        ? `${now.getFullYear()}/${now.getFullYear() + 1}`
-        : `${now.getFullYear() - 1}/${now.getFullYear()}`;
-}
 const PROFICIENCY_OPTIONS = ['beginner', 'intermediate', 'advanced'];
-const DURATION_OPTIONS = ['First Term', 'Second Term', 'Third Term', 'Termly', 'Mid-Term', '4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
-const PERIOD_PRESETS = ['2024/2025 First Term', '2024/2025 Second Term', '2024/2025 Third Term', '2025/2026 First Term', '2025/2026 Second Term', '2025/2026 Third Term'];
-// Academic-year choices for the Reporting Period selector — current session ± a few.
-const ACADEMIC_YEAR_OPTIONS = (() => {
-    const base = new Date().getMonth() + 1 >= 9 ? new Date().getFullYear() : new Date().getFullYear() - 1;
-    return [base - 1, base, base + 1, base + 2, base + 3].map(y => `${y}/${y + 1}`);
-})();
+// Duration is for cohort-based reports (online / bootcamp); school terms live in the
+// Term selector instead, so they're no longer mixed in here. An existing out-of-list
+// value is preserved by the selects below.
+const DURATION_OPTIONS = ['4 weeks', '6 weeks', '8 weeks', '10 weeks', '12 weeks', '3 months', '6 months', 'Full Year'];
+// Academic-year choices for the Reporting Period selector — generated from today so
+// they never go stale (replaces a hardcoded preset list).
+const ACADEMIC_YEAR_OPTIONS = academicYearOptions();
 
 const MILESTONE_SUGGESTIONS: Record<string, string[]> = {
     default: [
@@ -283,6 +269,140 @@ function Section({ title, icon, children }: { title: string; icon: string; child
             </div>
             <div className="p-5 space-y-4">{children}</div>
         </div>
+    );
+}
+
+// ── Shared reporting-period selectors ──────────────────────────────────────────
+// Term + Academic Year for school sections; Duration for cohort (online/bootcamp).
+// Extracted so the (previously 2×) term/year and (4×) duration selects live in ONE
+// place — every selector stays calendar-ordered and preserves an out-of-list value.
+const PROMINENT_INPUT = INPUT + ' !text-base !font-bold !py-3';
+
+function TermYearFields({ term, period, set, prominent = false }: {
+    term: string;
+    period: string;
+    set: React.Dispatch<React.SetStateAction<SessionConfig>>;
+    prominent?: boolean;
+}) {
+    const cls = prominent ? PROMINENT_INPUT : INPUT;
+    const star = prominent ? ' *' : '';
+    return (
+        <>
+            <Field label={`Term${star}`}>
+                <select value={term} onChange={e => set(s => ({ ...s, report_term: e.target.value }))} className={cls}>
+                    {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+            </Field>
+            <Field label={`Academic Year${star}`}>
+                <select value={period} onChange={e => set(s => ({ ...s, report_period: e.target.value }))} className={cls}>
+                    {period && !ACADEMIC_YEAR_OPTIONS.includes(period) && <option value={period}>{period}</option>}
+                    {ACADEMIC_YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+            </Field>
+        </>
+    );
+}
+
+function DurationField({ value, set, prominent = false, placeholder = false, alsoSetTerm = false }: {
+    value: string;
+    set: React.Dispatch<React.SetStateAction<SessionConfig>>;
+    prominent?: boolean;
+    placeholder?: boolean;
+    alsoSetTerm?: boolean;
+}) {
+    return (
+        <Field label={`Duration${prominent ? ' *' : ''}`}>
+            <select
+                value={value}
+                onChange={e => set(s => ({ ...s, course_duration: e.target.value, ...(alsoSetTerm ? { report_term: e.target.value } : {}) }))}
+                className={prominent ? PROMINENT_INPUT : INPUT}>
+                {placeholder && <option value="">— Select cohort duration —</option>}
+                {value && !DURATION_OPTIONS.includes(value) && <option value={value}>{value}</option>}
+                {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+        </Field>
+    );
+}
+
+// Current + Next Module datalist inputs (auto-fills Next from the suggestion map).
+// Was duplicated verbatim in the session bar and the session step form.
+function SessionModuleFields({ config, set, idPrefix }: {
+    config: SessionConfig;
+    set: React.Dispatch<React.SetStateAction<SessionConfig>>;
+    idPrefix: string;
+}) {
+    const sugg = getModuleSuggestions(config.course_name);
+    return (
+        <>
+            <Field label="Current Module">
+                <input list={`${idPrefix}-cur`} value={config.current_module}
+                    onChange={e => {
+                        const val = e.target.value;
+                        const idx = sugg.modules.indexOf(val);
+                        const autoNext = idx >= 0 ? sugg.next[idx] : '';
+                        set(s => ({ ...s, current_module: val, ...(autoNext && !s.next_module ? { next_module: autoNext } : {}) }));
+                    }}
+                    className={INPUT} placeholder="e.g. Control Statements" />
+                <datalist id={`${idPrefix}-cur`}>
+                    {sugg.modules.map(m => <option key={m} value={m} />)}
+                </datalist>
+            </Field>
+            <Field label="Next Module">
+                <input list={`${idPrefix}-nxt`} value={config.next_module}
+                    onChange={e => set(s => ({ ...s, next_module: e.target.value }))}
+                    className={INPUT} placeholder="e.g. Loops & Automation" />
+                <datalist id={`${idPrefix}-nxt`}>
+                    {sugg.next.map(m => <option key={m} value={m} />)}
+                </datalist>
+            </Field>
+        </>
+    );
+}
+
+// Programme + Course selects (course resets when its programme changes). Was
+// duplicated in the session bar and the session step form.
+function ProgramCourseFields({ programs, courses, programId, setProgramId, courseId, set, prominent = false }: {
+    programs: { id: string; name: string }[];
+    courses: Course[];
+    programId: string;
+    setProgramId: (v: string) => void;
+    courseId: string;
+    set: React.Dispatch<React.SetStateAction<SessionConfig>>;
+    prominent?: boolean;
+}) {
+    const star = prominent ? ' *' : '';
+    return (
+        <>
+            <Field label={`Programme${star}`}>
+                <select
+                    value={programId}
+                    onChange={e => {
+                        const pid = e.target.value;
+                        setProgramId(pid);
+                        // Reset course if it no longer belongs to the new programme
+                        const currentCourse = courses.find(c => c.id === courseId);
+                        if (currentCourse?.program_id !== pid) set(s => ({ ...s, course_id: '', course_name: '' }));
+                    }}
+                    className={INPUT}>
+                    <option value="">Select a programme…</option>
+                    {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+            </Field>
+            <Field label={`Course${star}`}>
+                <select
+                    value={courseId}
+                    disabled={!programId}
+                    onChange={e => {
+                        const cId = e.target.value;
+                        const c = courses.find(x => x.id === cId);
+                        set(s => ({ ...s, course_id: cId, course_name: c?.title ?? '' }));
+                    }}
+                    className={INPUT + (programId ? '' : ' opacity-40')}>
+                    <option value="">{programId ? 'Select a course…' : '— pick a programme first —'}</option>
+                    {courses.filter(c => c.program_id === programId).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+            </Field>
+        </>
     );
 }
 
@@ -951,22 +1071,33 @@ function ReportBuilderInner() {
             const studentSchoolId = s.school_id;
             const studentClassName = (s as any).section_class;
             let targetClassId = (s as any).class_id;
+            let targetTermId: string | null = null;
             if (!targetClassId && studentClassName) {
                 const { data: clsData } = await db.from('classes')
-                    .select('id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle();
+                    .select('id, term_id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle();
                 targetClassId = clsData?.id;
+                targetTermId = (clsData as any)?.term_id ?? null;
+            } else if (targetClassId) {
+                const { data: clsData } = await db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle();
+                targetTermId = (clsData as any)?.term_id ?? null;
             }
 
-            const { data: sessions } = targetClassId
-                ? await db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true)
-                : { data: [] };
+            let sessionQuery = targetClassId
+                ? db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true)
+                : null;
+            if (sessionQuery && targetTermId) sessionQuery = sessionQuery.eq('term_id', targetTermId);
+            const { data: sessions } = sessionQuery ? await sessionQuery : { data: [] };
             const sessionIds = sessions?.map(x => x.id) || [];
 
             // 2. Fetch all 4 data sources in parallel
             const [attRes, subRes, allAssignments, cbtAllRes, labRes, portfolioRes] = await Promise.all([
                 // Attendance (for reference)
                 sessionIds.length > 0
-                    ? db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present')
+                    ? (() => {
+                        let q = db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present');
+                        if (targetTermId) q = q.eq('term_id', targetTermId);
+                        return q;
+                    })()
                     : { data: [] },
                 // Assignment submissions — graded (feeds Assignment + Evaluation)
                 db.from('assignment_submissions').select('id, grade').eq('portal_user_id', s.id).eq('status', 'graded'),
@@ -1091,15 +1222,26 @@ function ReportBuilderInner() {
                 const studentSchoolId = s.school_id;
                 const studentClassName = (s as any).section_class;
                 let targetClassId = (s as any).class_id;
+                let targetTermId: string | null = null;
                 if (!targetClassId && studentClassName) {
-                    const { data: clsData } = await db.from('classes').select('id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle();
+                    const { data: clsData } = await db.from('classes').select('id, term_id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle();
                     targetClassId = clsData?.id;
+                    targetTermId = (clsData as any)?.term_id ?? null;
+                } else if (targetClassId) {
+                    const { data: clsData } = await db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle();
+                    targetTermId = (clsData as any)?.term_id ?? null;
                 }
-                const { data: sessions } = targetClassId ? await db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true) : { data: [] };
+                let sessionQuery = targetClassId ? db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true) : null;
+                if (sessionQuery && targetTermId) sessionQuery = sessionQuery.eq('term_id', targetTermId);
+                const { data: sessions } = sessionQuery ? await sessionQuery : { data: [] };
                 const sessionIds = sessions?.map(x => x.id) || [];
 
                 const [attRes, subRes, allAsgn, cbtRes, labRes, portfolioRes] = await Promise.all([
-                    sessionIds.length > 0 ? db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present') : { data: [] },
+                    sessionIds.length > 0 ? (() => {
+                        let q = db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present');
+                        if (targetTermId) q = q.eq('term_id', targetTermId);
+                        return q;
+                    })() : { data: [] },
                     db.from('assignment_submissions').select('id, grade').eq('portal_user_id', s.id).eq('status', 'graded'),
                     sessionConfig.course_id ? db.from('assignments').select('id').eq('course_id', sessionConfig.course_id).eq('is_active', true) : { data: [] },
                     programId ? db.from('cbt_sessions').select('score').eq('user_id', s.id).eq('exam_id', programId).order('score', { ascending: false }).limit(1)
@@ -1603,65 +1745,11 @@ function ReportBuilderInner() {
                                 className={INPUT} />
                         </Field>
                         {isSchoolSection(sessionConfig.school_section) ? (
-                            <>
-                                <Field label="Term">
-                                    <select value={sessionConfig.report_term}
-                                        onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
-                                        className={INPUT}>
-                                        {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Academic Year">
-                                    <select value={sessionConfig.report_period}
-                                        onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
-                                        className={INPUT}>
-                                        {sessionConfig.report_period && !ACADEMIC_YEAR_OPTIONS.includes(sessionConfig.report_period) && (
-                                            <option value={sessionConfig.report_period}>{sessionConfig.report_period}</option>
-                                        )}
-                                        {ACADEMIC_YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
-                                    </select>
-                                </Field>
-                            </>
+                            <TermYearFields term={sessionConfig.report_term} period={sessionConfig.report_period} set={setSessionConfig} />
                         ) : (
-                            <Field label="Duration">
-                                <select value={sessionConfig.course_duration}
-                                    onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
-                                    className={INPUT}>
-                                    {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                                </select>
-                            </Field>
+                            <DurationField value={sessionConfig.course_duration} set={setSessionConfig} alsoSetTerm />
                         )}
-                        <Field label="Programme">
-                            <select
-                                value={sessionProgramId}
-                                onChange={e => {
-                                    const pid = e.target.value;
-                                    setSessionProgramId(pid);
-                                    const currentCourse = courses.find(c => c.id === sessionConfig.course_id);
-                                    if (currentCourse?.program_id !== pid) {
-                                        setSessionConfig(s => ({ ...s, course_id: '', course_name: '' }));
-                                    }
-                                }}
-                                className={INPUT}>
-                                <option value="">Select a programme…</option>
-                                {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                        </Field>
-                        <Field label="Course">
-                            <select
-                                value={sessionConfig.course_id}
-                                disabled={!sessionProgramId}
-                                onChange={e => {
-                                    const cId = e.target.value;
-                                    const c = courses.find(x => x.id === cId);
-                                    setSessionConfig(s => ({ ...s, course_id: cId, course_name: c?.title ?? '' }));
-                                }}
-                                className={INPUT + (sessionProgramId ? '' : ' opacity-40')}>
-                                <option value="">{sessionProgramId ? 'Select a course…' : '— pick a programme first —'}</option>
-                                {courses.filter(c => c.program_id === sessionProgramId)
-                                    .map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                            </select>
-                        </Field>
+                        <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} />
                         <Field label="School">
                             <select
                                 value={sessionConfig.school_name}
@@ -1681,40 +1769,9 @@ function ReportBuilderInner() {
                                 {CLASS_PRESETS.filter(c => !distinctClasses.includes(c)).map(c => <option key={`preset-${c}`} value={c}>{c}</option>)}
                             </select>
                         </Field>
-                        <Field label="Current Module">
-                            <input list="mod-cur-bar" value={sessionConfig.current_module}
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    const sugg = getModuleSuggestions(sessionConfig.course_name);
-                                    const idx = sugg.modules.indexOf(val);
-                                    const autoNext = idx >= 0 ? sugg.next[idx] : '';
-                                    setSessionConfig(s => ({
-                                        ...s,
-                                        current_module: val,
-                                        ...(autoNext && !s.next_module ? { next_module: autoNext } : {}),
-                                    }));
-                                }}
-                                className={INPUT} placeholder="e.g. Control Statements" />
-                            <datalist id="mod-cur-bar">
-                                {getModuleSuggestions(sessionConfig.course_name).modules.map(m => <option key={m} value={m} />)}
-                            </datalist>
-                        </Field>
-                        <Field label="Next Module">
-                            <input list="mod-nxt-bar" value={sessionConfig.next_module}
-                                onChange={e => setSessionConfig(s => ({ ...s, next_module: e.target.value }))}
-                                className={INPUT} placeholder="e.g. Loops & Automation" />
-                            <datalist id="mod-nxt-bar">
-                                {getModuleSuggestions(sessionConfig.course_name).next.map(m => <option key={m} value={m} />)}
-                            </datalist>
-                        </Field>
+                        <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-bar" />
                         {['basic', 'secondary', 'unified', 'school'].includes(sessionConfig.school_section) && (
-                            <Field label="Duration">
-                                <select value={sessionConfig.course_duration}
-                                    onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
-                                    className={INPUT}>
-                                    {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                                </select>
-                            </Field>
+                            <DurationField value={sessionConfig.course_duration} set={setSessionConfig} />
                         )}
                     </div>
 
@@ -1996,23 +2053,7 @@ function ReportBuilderInner() {
                             ) : isSchoolSection(sessionConfig.school_section) ? (
                                 <>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <Field label="Term *">
-                                            <select value={sessionConfig.report_term}
-                                                onChange={e => setSessionConfig(s => ({ ...s, report_term: e.target.value }))}
-                                                className={INPUT + ' !text-base !font-bold !py-3'}>
-                                                {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                                            </select>
-                                        </Field>
-                                        <Field label="Academic Year *">
-                                            <select value={sessionConfig.report_period}
-                                                onChange={e => setSessionConfig(s => ({ ...s, report_period: e.target.value }))}
-                                                className={INPUT + ' !text-base !font-bold !py-3'}>
-                                                {sessionConfig.report_period && !ACADEMIC_YEAR_OPTIONS.includes(sessionConfig.report_period) && (
-                                                    <option value={sessionConfig.report_period}>{sessionConfig.report_period}</option>
-                                                )}
-                                                {ACADEMIC_YEAR_OPTIONS.map(y => <option key={y} value={y}>{y}</option>)}
-                                            </select>
-                                        </Field>
+                                        <TermYearFields term={sessionConfig.report_term} period={sessionConfig.report_period} set={setSessionConfig} prominent />
                                     </div>
                                     <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-2.5">
                                         <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -2023,14 +2064,7 @@ function ReportBuilderInner() {
                                 </>
                             ) : (
                                 <>
-                                    <Field label="Duration *">
-                                        <select value={sessionConfig.course_duration}
-                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value, report_term: e.target.value }))}
-                                            className={INPUT + ' !text-base !font-bold !py-3'}>
-                                            <option value="">— Select cohort duration —</option>
-                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                                        </select>
-                                    </Field>
+                                    <DurationField value={sessionConfig.course_duration} set={setSessionConfig} prominent placeholder alsoSetTerm />
                                     <div className="flex items-center gap-2 bg-sky-500/10 border border-sky-500/25 rounded-xl px-4 py-2.5">
                                         <CheckCircleIcon className="w-4 h-4 text-sky-400 flex-shrink-0" />
                                         <p className="text-[11px] text-sky-300 font-bold">
@@ -2146,77 +2180,11 @@ function ReportBuilderInner() {
                                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Course Details</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Field label="Programme *">
-                                    <select
-                                        value={sessionProgramId}
-                                        onChange={e => {
-                                            const pid = e.target.value;
-                                            setSessionProgramId(pid);
-                                            // Reset course if it no longer belongs to the new programme
-                                            const currentCourse = courses.find(c => c.id === sessionConfig.course_id);
-                                            if (currentCourse?.program_id !== pid) {
-                                                setSessionConfig(s => ({ ...s, course_id: '', course_name: '' }));
-                                            }
-                                        }}
-                                        className={INPUT}>
-                                        <option value="">Select a programme…</option>
-                                        {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </select>
-                                </Field>
-                                <Field label="Course *">
-                                    <select
-                                        value={sessionConfig.course_id}
-                                        disabled={!sessionProgramId}
-                                        onChange={e => {
-                                            const cId = e.target.value;
-                                            const c = courses.find(x => x.id === cId);
-                                            setSessionConfig(s => ({ ...s, course_id: cId, course_name: c?.title ?? '' }));
-                                        }}
-                                        className={INPUT + (sessionProgramId ? '' : ' opacity-40')}>
-                                        <option value="">{sessionProgramId ? 'Select a course…' : '— pick a programme first —'}</option>
-                                        {courses.filter(c => c.program_id === sessionProgramId)
-                                            .map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                                    </select>
-                                </Field>
+                                <ProgramCourseFields programs={programs} courses={courses} programId={sessionProgramId} setProgramId={setSessionProgramId} courseId={sessionConfig.course_id} set={setSessionConfig} prominent />
                                 {['basic', 'secondary', 'unified', 'school'].includes(sessionConfig.school_section) && (
-                                    <Field label="Duration">
-                                        <select value={sessionConfig.course_duration}
-                                            onChange={e => setSessionConfig(s => ({ ...s, course_duration: e.target.value }))}
-                                            className={INPUT}>
-                                            {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                                        </select>
-                                    </Field>
+                                    <DurationField value={sessionConfig.course_duration} set={setSessionConfig} />
                                 )}
-                                <Field label="Current Module">
-                                    <input
-                                        list="module-current-list"
-                                        value={sessionConfig.current_module}
-                                        onChange={e => {
-                                            const val = e.target.value;
-                                            const sugg = getModuleSuggestions(sessionConfig.course_name);
-                                            const idx = sugg.modules.indexOf(val);
-                                            const autoNext = idx >= 0 ? sugg.next[idx] : '';
-                                            setSessionConfig(s => ({
-                                                ...s,
-                                                current_module: val,
-                                                ...(autoNext && !s.next_module ? { next_module: autoNext } : {}),
-                                            }));
-                                        }}
-                                        className={INPUT} placeholder="e.g. Control Statements" />
-                                    <datalist id="module-current-list">
-                                        {getModuleSuggestions(sessionConfig.course_name).modules.map(m => <option key={m} value={m} />)}
-                                    </datalist>
-                                </Field>
-                                <Field label="Next Module">
-                                    <input
-                                        list="module-next-list"
-                                        value={sessionConfig.next_module}
-                                        onChange={e => setSessionConfig(s => ({ ...s, next_module: e.target.value }))}
-                                        className={INPUT} placeholder="e.g. Loops & Automation" />
-                                    <datalist id="module-next-list">
-                                        {getModuleSuggestions(sessionConfig.course_name).next.map(m => <option key={m} value={m} />)}
-                                    </datalist>
-                                </Field>
+                                <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-step" />
                             </div>
                         </div>
 

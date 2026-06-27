@@ -3,6 +3,7 @@ import { buildRillcodTransactionalEmailHtml, buildPaymentConfirmationEmail } fro
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
 import { getSummerProspectStatusForPayment } from '@/lib/registration/payment-state';
 import { env } from '@/config/env';
+import { syncRosterBillingForCycle, syncRosterBillingForInvoice } from '@/lib/rosters/billing-sync';
 
 function isValidEmail(email: string | null | undefined) {
     return !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email);
@@ -348,6 +349,7 @@ export async function processSuccessfulPayment(reference: string, method: string
             .update({ status: 'paid', updated_at: new Date().toISOString() })
             .eq('id', billingCycleId)
             .neq('status', 'paid');
+        await syncRosterBillingForCycle(supabase as any, billingCycleId, 'paid');
 
         if (cycle?.sticky_notice_id) {
             await (supabase as any)
@@ -398,6 +400,7 @@ export async function processSuccessfulPayment(reference: string, method: string
             console.error('Failed to mark invoice paid:', invUpdateErr);
             return;
         }
+        await syncRosterBillingForInvoice(supabase as any, invoice.id, 'paid');
     }
 
     // 4. Generate Receipt automatically + notify

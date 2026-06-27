@@ -79,6 +79,7 @@ function AttendanceContent() {
   const hasBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+  const selectedClassTermId = classes.find((cls) => cls.id === selectedClass)?.term_id ?? null;
 
   useEffect(() => {
     if (authLoading || profileLoading || !profile) return;
@@ -92,7 +93,7 @@ function AttendanceContent() {
           const schoolIds: string[] = (tsRes.data ?? []).map((r: any) => r.school_id).filter(Boolean);
           if (profile.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
 
-          let q = db.from('classes').select('id, name, programs(name)');
+          let q = db.from('classes').select('id, name, term_id, programs(name), academic_terms(term_label, academic_year)');
           if (schoolIds.length > 0) {
             // teacher's own classes OR any class in their assigned schools
             q = (q as any).or(`teacher_id.eq.${profile.id},school_id.in.(${schoolIds.join(',')})`);
@@ -104,8 +105,8 @@ function AttendanceContent() {
         });
       } else {
         const q = profile.role === 'school' && profile.school_id
-          ? db.from('classes').select('id, name, programs(name)').eq('school_id', profile.school_id).order('name')
-          : db.from('classes').select('id, name, programs(name)').order('name');
+          ? db.from('classes').select('id, name, term_id, programs(name), academic_terms(term_label, academic_year)').eq('school_id', profile.school_id).order('name')
+          : db.from('classes').select('id, name, term_id, programs(name), academic_terms(term_label, academic_year)').order('name');
         q.then(({ data }) => setClasses(data ?? []));
       }
     } else {
@@ -129,10 +130,12 @@ function AttendanceContent() {
     if (!selectedClass) return;
     setLoading(true);
     const db = createClient();
-    db.from('class_sessions')
+    let sessionQuery = db.from('class_sessions')
       .select('*')
       .eq('class_id', selectedClass)
-      .order('session_date', { ascending: false })
+      .order('session_date', { ascending: false });
+    if (selectedClassTermId) sessionQuery = sessionQuery.eq('term_id', selectedClassTermId);
+    sessionQuery
       .then(({ data }) => {
         const sess = data ?? [];
         setSessions(sess);
@@ -147,7 +150,7 @@ function AttendanceContent() {
            setLoading(false);
         }
       });
-  }, [selectedClass]);
+  }, [selectedClass, selectedClassTermId]);
 
   // Load attendance when session selected
   useEffect(() => {
@@ -201,15 +204,17 @@ function AttendanceContent() {
     if (activeTab !== 'log' || !selectedClass) return;
     setLoading(true);
     const db = createClient();
-    db.from('attendance')
+    let logQuery = db.from('attendance')
       .select('*, class_sessions!inner(*)')
       .eq('class_sessions.class_id', selectedClass)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (selectedClassTermId) logQuery = logQuery.eq('term_id', selectedClassTermId);
+    logQuery
       .then(({ data }) => {
         setFullAttendanceData(data ?? []);
         setLoading(false);
       });
-  }, [activeTab, selectedClass]);
+  }, [activeTab, selectedClass, selectedClassTermId]);
 
   const handlePrintLog = () => {
     const clsName = classes.find(c => c.id === selectedClass)?.name || 'Class';
@@ -366,11 +371,12 @@ function AttendanceContent() {
     const today = new Date().toISOString().split('T')[0];
 
     // Check if today's session already exists (read-only — OK for teachers)
-    const { data: existing } = await db.from('class_sessions')
+    let todaySessionQuery = db.from('class_sessions')
       .select('*')
       .eq('class_id', selectedClass)
-      .eq('session_date', today)
-      .maybeSingle();
+      .eq('session_date', today);
+    if (selectedClassTermId) todaySessionQuery = todaySessionQuery.eq('term_id', selectedClassTermId);
+    const { data: existing } = await todaySessionQuery.maybeSingle();
 
     if (existing) {
       setSelectedSession(existing.id);
@@ -379,7 +385,7 @@ function AttendanceContent() {
       const res = await fetch('/api/class-sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ class_id: selectedClass, session_date: today, topic: `Session on ${new Date().toLocaleDateString()}` }),
+        body: JSON.stringify({ class_id: selectedClass, term_id: selectedClassTermId, session_date: today, topic: `Session on ${new Date().toLocaleDateString()}` }),
       });
       if (!res.ok) {
         const j = await res.json();

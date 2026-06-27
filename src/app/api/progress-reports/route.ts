@@ -112,15 +112,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // SERVER-SIDE DEDUP: a student has at most ONE report per
-  // (course · term · academic year · teacher). If the client didn't pass an
-  // existing_id but a matching report already exists, update it instead of
-  // inserting a duplicate — the database is the source of truth, not the client.
+  // SERVER-SIDE DEDUP: a student has at most ONE report per (course · term · academic
+  // year) — teacher-INDEPENDENT, matched on course_name (course_id was inconsistently
+  // NULL, and per-teacher scoping let two teachers create twin reports). If the client
+  // didn't pass an existing_id but a matching report exists, update it instead of
+  // inserting a duplicate. The DB unique index uq_spr_student_term_course is the backstop.
   if (!targetId && insertPayload.student_id) {
-    let q = admin.from('student_progress_reports').select('id')
-      .eq('student_id', String(insertPayload.student_id))
-      .eq('teacher_id', caller.id);
-    q = insertPayload.course_id ? q.eq('course_id', String(insertPayload.course_id)) : q.is('course_id', null);
+    let q = admin.from('student_progress_reports').select('id, teacher_id')
+      .eq('student_id', String(insertPayload.student_id));
+    q = insertPayload.course_name ? q.ilike('course_name', String(insertPayload.course_name)) : q;
     q = insertPayload.report_term ? q.eq('report_term', String(insertPayload.report_term)) : q.is('report_term', null);
     q = insertPayload.report_period ? q.eq('report_period', String(insertPayload.report_period)) : q.is('report_period', null);
     const { data: found } = await q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
@@ -136,9 +136,11 @@ export async function POST(request: NextRequest) {
     if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
 
     if (caller.role !== 'admin') {
-      // Non-admin teachers can only edit their own reports
+      // Non-admin teachers can only edit their own reports. When the existing report
+      // belongs to another teacher this is a duplicate attempt — block it clearly
+      // (rather than silently creating a twin) so one report per student/term/course holds.
       if ((existingReport as any).teacher_id !== caller.id) {
-        return NextResponse.json({ error: 'You can only edit your own reports' }, { status: 403 });
+        return NextResponse.json({ error: 'A progress report for this student already exists for this term and course (created by another teacher). Ask an admin to update it.' }, { status: 409 });
       }
     } else {
       // Admin editing: preserve original authorship — never overwrite teacher_id or instructor_name
@@ -175,7 +177,14 @@ export async function POST(request: NextRequest) {
       .insert(insertPayload)
       .select('id')
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      // Hard backstop: the unique index caught a duplicate the app dedup missed (race
+      // or a course-name normalisation edge). Return a clear conflict, not a 500.
+      if ((error as { code?: string }).code === '23505') {
+        return NextResponse.json({ error: 'A progress report for this student already exists for this term and course.' }, { status: 409 });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     // Sync corrected fields back to student profile
     const insGender = (insertPayload as any).gender;

@@ -3,6 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 
+function normalizeCardCode(raw: string) {
+  return decodeURIComponent(raw || '')
+    .trim()
+    .replace(/^RC-/i, '')
+    .toLowerCase();
+}
+
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -20,8 +27,9 @@ export async function GET(
   }
 
   const { id } = await context.params;
+  const code = normalizeCardCode(id);
 
-  if (!id) {
+  if (!code || code.length < 8) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
 
@@ -31,18 +39,19 @@ export async function GET(
   const { data: portalData } = await db
     .from('portal_users')
     .select('id, full_name, school_name, is_active, enrollment_type, avatar_url, section_class, class_id, created_at')
-    .eq('id', id)
+    .ilike('id', `${code}%`)
     .eq('role', 'student')
-    .maybeSingle();
+    .limit(2);
 
-  if (portalData) {
+  if (portalData && portalData.length === 1) {
+    const portalStudent = portalData[0];
     // Get class info if class_id exists
-    let className: string | null = portalData.section_class;
-    if (portalData.class_id && !className) {
+    let className: string | null = portalStudent.section_class;
+    if (portalStudent.class_id && !className) {
       const { data: classData } = await db
         .from('classes')
         .select('name')
-        .eq('id', portalData.class_id)
+        .eq('id', portalStudent.class_id)
         .maybeSingle();
       className = classData?.name ?? null;
     }
@@ -50,15 +59,15 @@ export async function GET(
     const schoolLogo: string | null = null;
 
     return NextResponse.json({
-      id: portalData.id,
-      full_name: portalData.full_name,
-      school_name: portalData.school_name,
-      is_active: portalData.is_active,
-      enrollment_type: portalData.enrollment_type,
-      avatar_url: portalData.avatar_url ?? null,
+      id: portalStudent.id,
+      full_name: portalStudent.full_name,
+      school_name: portalStudent.school_name,
+      is_active: portalStudent.is_active,
+      enrollment_type: portalStudent.enrollment_type,
+      avatar_url: portalStudent.avatar_url ?? null,
       class_name: className,
       school_logo: schoolLogo,
-      enrolled_at: portalData.created_at,
+      enrolled_at: portalStudent.created_at,
       source: 'portal',
     });
   }
@@ -67,20 +76,21 @@ export async function GET(
   const { data: studentData } = await db
     .from('students')
     .select('id, full_name, school_name, status, grade_level, created_at')
-    .eq('id', id)
-    .maybeSingle();
+    .ilike('id', `${code}%`)
+    .limit(2);
 
-  if (studentData) {
+  if (studentData && studentData.length === 1) {
+    const rawStudent = studentData[0];
     return NextResponse.json({
-      id: studentData.id,
-      full_name: studentData.full_name,
-      school_name: studentData.school_name,
-      is_active: studentData.status === 'active',
+      id: rawStudent.id,
+      full_name: rawStudent.full_name,
+      school_name: rawStudent.school_name,
+      is_active: rawStudent.status === 'active',
       enrollment_type: null,
       avatar_url: null,
-      class_name: studentData.grade_level,
+      class_name: rawStudent.grade_level,
       school_logo: null,
-      enrolled_at: studentData.created_at,
+      enrolled_at: rawStudent.created_at,
       source: 'students',
     });
   }
