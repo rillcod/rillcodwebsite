@@ -250,6 +250,52 @@ function getMilestoneSuggestions(courseName: string): string[] {
 }
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors';
+const REPORT_BUILDER_TIMEOUT_MS = 12_000;
+
+async function withTimeout(
+    promise: PromiseLike<unknown>,
+    fallback: unknown,
+    label: string,
+    ms = REPORT_BUILDER_TIMEOUT_MS,
+): Promise<any> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            Promise.resolve(promise).catch((err) => {
+                console.warn(`[ReportBuilder] ${label} failed`, err);
+                return fallback;
+            }),
+            new Promise((resolve) => {
+                timer = setTimeout(() => {
+                    console.warn(`[ReportBuilder] ${label} timed out after ${ms}ms`);
+                    resolve(fallback);
+                }, ms);
+            }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
+    }
+}
+
+async function fetchJsonWithTimeout<T extends Record<string, unknown>>(
+    url: string,
+    fallback: T,
+    label: string,
+    ms = REPORT_BUILDER_TIMEOUT_MS,
+): Promise<T> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+        const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+        if (!res.ok) return fallback;
+        return await res.json();
+    } catch (err) {
+        console.warn(`[ReportBuilder] ${label} failed`, err);
+        return fallback;
+    } finally {
+        clearTimeout(timer);
+    }
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
@@ -705,7 +751,6 @@ function ReportBuilderInner() {
             setLoading(true);
             try {
             const isTeacher = profile?.role === 'teacher';
-            const asJson = async (res: Response) => res.ok ? res.json() : { data: [] };
             const [
                 schJson,
                 portalJson,
@@ -715,13 +760,13 @@ function ReportBuilderInner() {
                 prePortalJson,
                 brandingRes,
             ] = await Promise.all([
-                fetch('/api/schools', { cache: 'no-store' }).then(asJson),
-                fetch('/api/portal-users?role=student&scoped=true&limit=1000', { cache: 'no-store' }).then(asJson),
-                fetch('/api/programs?is_active=true', { cache: 'no-store' }).then(asJson),
-                fetch('/api/courses?limit=1000&is_published=true', { cache: 'no-store' }).then(asJson),
-                fetch(isTeacher ? '/api/classes?mine=true' : '/api/classes', { cache: 'no-store' }).then(asJson),
-                fetch('/api/students?limit=500', { cache: 'no-store' }).then(asJson),
-                db.from('report_settings').select('*').limit(1).maybeSingle(),
+                fetchJsonWithTimeout('/api/schools', { data: [] }, 'schools'),
+                fetchJsonWithTimeout('/api/portal-users?role=student&scoped=true&limit=1000', { data: [] }, 'portal students'),
+                fetchJsonWithTimeout('/api/programs?is_active=true', { data: [] }, 'programs'),
+                fetchJsonWithTimeout('/api/courses?limit=1000&is_published=true', { data: [] }, 'courses'),
+                fetchJsonWithTimeout(isTeacher ? '/api/classes?mine=true' : '/api/classes', { data: [] }, 'classes'),
+                fetchJsonWithTimeout('/api/students?limit=500', { data: [] }, 'pre-portal students'),
+                withTimeout(db.from('report_settings').select('*').limit(1).maybeSingle(), { data: null, error: null }, 'report settings'),
             ]);
             const schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
             const brandingData = brandingRes.data;
@@ -729,7 +774,11 @@ function ReportBuilderInner() {
             // Grade lookup for portal students (portal_users has no grade_level; fetch from students shadow table)
             const portalIds = (portalJson.data ?? []).map((u: any) => u.id).filter(Boolean) as string[];
             const { data: gradeRowsBR } = portalIds.length > 0
-                ? await db.from('students').select('user_id, grade_level').in('user_id', portalIds)
+                ? await withTimeout(
+                    db.from('students').select('user_id, grade_level').in('user_id', portalIds),
+                    { data: [], error: null },
+                    'student grade lookup',
+                )
                 : { data: [] };
             const gradeByUserId: Record<string, string | null> = {};
             (gradeRowsBR ?? []).forEach((r: any) => { if (r.user_id) gradeByUserId[r.user_id] = r.grade_level ?? null; });
@@ -915,8 +964,11 @@ function ReportBuilderInner() {
 
         // Most-recent report of ANY term — drives Edit-link hydration, the
         // module-advance suggestion, and the cross-session hint.
-        const { data: latestReport } = await baseSelect()
-            .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+        const { data: latestReport } = await withTimeout(
+            baseSelect().order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+            { data: null, error: null },
+            'latest report lookup',
+        );
 
         // The report THIS grading session edits/creates — scoped to the current
         // term + academic year (school) / duration (online·bootcamp) + course, so a
@@ -928,8 +980,11 @@ function ReportBuilderInner() {
         if (sessionConfig.report_term)   scoped = scoped.eq('report_term', sessionConfig.report_term) as typeof scoped;
         if (sessionConfig.report_period) scoped = scoped.eq('report_period', sessionConfig.report_period) as typeof scoped;
         if (sessionConfig.course_id)     scoped = scoped.eq('course_id', sessionConfig.course_id) as typeof scoped;
-        const { data: scopedReport } = await scoped
-            .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+        const { data: scopedReport } = await withTimeout(
+            scoped.order('updated_at', { ascending: false }).limit(1).maybeSingle(),
+            { data: null, error: null },
+            'scoped report lookup',
+        );
 
         // Edit link → edit the latest report (adopt its term/year); normal grading
         // session → the report for the current term/year/course (or none → insert).
@@ -961,13 +1016,17 @@ function ReportBuilderInner() {
         // If the student has a previous report and its next_module != the current session
         // module, show an "advance to next module?" hint for this individual student.
         if (!isPrePortal && s.id) {
-            const { data: prevReport } = await db
-                .from('student_progress_reports')
-                .select('current_module, next_module')
-                .eq('student_id', s.id)
-                .order('updated_at', { ascending: false })
-                .range(1, 1)          // second-most-recent report
-                .maybeSingle();
+            const { data: prevReport } = await withTimeout(
+                db
+                    .from('student_progress_reports')
+                    .select('current_module, next_module')
+                    .eq('student_id', s.id)
+                    .order('updated_at', { ascending: false })
+                    .range(1, 1)          // second-most-recent report
+                    .maybeSingle(),
+                { data: null, error: null },
+                'previous report lookup',
+            );
             if (!prevReport && latestReport?.next_module) {
                 // Only one report found — suggest advancing from its next_module
                 const sugg = getModuleSuggestions(latestReport.course_name ?? '');
@@ -1063,6 +1122,8 @@ function ReportBuilderInner() {
         snapForm.current = JSON.parse(JSON.stringify(loadedFormValues));
         setIsDirty(false);
         setTimeout(() => { isHydrating.current = false; }, 100);
+        setStep('edit');
+        setSessionExpanded(false);
 
         // ── Fetch transparent stats for all 4 score categories ───────────────
         setFetchingStats(true);
@@ -1073,12 +1134,20 @@ function ReportBuilderInner() {
             let targetClassId = (s as any).class_id;
             let targetTermId: string | null = null;
             if (!targetClassId && studentClassName) {
-                const { data: clsData } = await db.from('classes')
-                    .select('id, term_id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle();
+                const { data: clsData } = await withTimeout(
+                    db.from('classes')
+                        .select('id, term_id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle(),
+                    { data: null, error: null },
+                    'class lookup for stats',
+                );
                 targetClassId = clsData?.id;
                 targetTermId = (clsData as any)?.term_id ?? null;
             } else if (targetClassId) {
-                const { data: clsData } = await db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle();
+                const { data: clsData } = await withTimeout(
+                    db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle(),
+                    { data: null, error: null },
+                    'class term lookup for stats',
+                );
                 targetTermId = (clsData as any)?.term_id ?? null;
             }
 
@@ -1086,11 +1155,13 @@ function ReportBuilderInner() {
                 ? db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true)
                 : null;
             if (sessionQuery && targetTermId) sessionQuery = sessionQuery.eq('term_id', targetTermId);
-            const { data: sessions } = sessionQuery ? await sessionQuery : { data: [] };
-            const sessionIds = sessions?.map(x => x.id) || [];
+            const { data: sessions } = sessionQuery
+                ? await withTimeout(sessionQuery, { data: [], error: null }, 'class sessions for stats')
+                : { data: [] };
+            const sessionIds = sessions?.map((x: any) => x.id) || [];
 
             // 2. Fetch all 4 data sources in parallel
-            const [attRes, subRes, allAssignments, cbtAllRes, labRes, portfolioRes] = await Promise.all([
+            const [attRes, subRes, allAssignments, cbtAllRes, labRes, portfolioRes] = await withTimeout(Promise.all([
                 // Attendance (for reference)
                 sessionIds.length > 0
                     ? (() => {
@@ -1111,7 +1182,7 @@ function ReportBuilderInner() {
                 db.from('lab_projects').select('id').eq('user_id', s.id),
                 // Portfolio projects (feeds Project Engagement)
                 db.from('portfolio_projects').select('id').eq('user_id', s.id),
-            ]);
+            ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'student stats sources');
 
             // 3. Split CBT scores by exam_type stored in metadata
             const allCbt: any[] = cbtAllRes.data || [];
@@ -1166,9 +1237,6 @@ function ReportBuilderInner() {
         } catch { /* silent fail */ } finally {
             setFetchingStats(false);
         }
-
-        setStep('edit');
-        setSessionExpanded(false);
     }
 
     // ── WAEC weighted overall (6 components, mirrors grading.ts SCORE_WEIGHTS) ──
@@ -1211,7 +1279,11 @@ function ReportBuilderInner() {
 
         try {
             // Find current program ID from course
-            const { data: courseData } = await db.from('courses').select('program_id').eq('id', sessionConfig.course_id).single();
+            const { data: courseData } = await withTimeout(
+                db.from('courses').select('program_id').eq('id', sessionConfig.course_id).single(),
+                { data: null, error: null },
+                'bulk course lookup',
+            );
             const programId = courseData?.program_id;
 
             for (let i = 0; i < filteredStudents.length; i++) {
@@ -1224,19 +1296,29 @@ function ReportBuilderInner() {
                 let targetClassId = (s as any).class_id;
                 let targetTermId: string | null = null;
                 if (!targetClassId && studentClassName) {
-                    const { data: clsData } = await db.from('classes').select('id, term_id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle();
+                    const { data: clsData } = await withTimeout(
+                        db.from('classes').select('id, term_id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle(),
+                        { data: null, error: null },
+                        'bulk class lookup',
+                    );
                     targetClassId = clsData?.id;
                     targetTermId = (clsData as any)?.term_id ?? null;
                 } else if (targetClassId) {
-                    const { data: clsData } = await db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle();
+                    const { data: clsData } = await withTimeout(
+                        db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle(),
+                        { data: null, error: null },
+                        'bulk class term lookup',
+                    );
                     targetTermId = (clsData as any)?.term_id ?? null;
                 }
                 let sessionQuery = targetClassId ? db.from('class_sessions').select('id').eq('class_id', targetClassId).eq('is_active', true) : null;
                 if (sessionQuery && targetTermId) sessionQuery = sessionQuery.eq('term_id', targetTermId);
-                const { data: sessions } = sessionQuery ? await sessionQuery : { data: [] };
-                const sessionIds = sessions?.map(x => x.id) || [];
+                const { data: sessions } = sessionQuery
+                    ? await withTimeout(sessionQuery, { data: [], error: null }, 'bulk class sessions')
+                    : { data: [] };
+                const sessionIds = sessions?.map((x: any) => x.id) || [];
 
-                const [attRes, subRes, allAsgn, cbtRes, labRes, portfolioRes] = await Promise.all([
+                const [attRes, subRes, allAsgn, cbtRes, labRes, portfolioRes] = await withTimeout(Promise.all([
                     sessionIds.length > 0 ? (() => {
                         let q = db.from('attendance').select('id').eq('user_id', s.id).in('session_id', sessionIds).eq('status', 'present');
                         if (targetTermId) q = q.eq('term_id', targetTermId);
@@ -1248,7 +1330,7 @@ function ReportBuilderInner() {
                               : db.from('cbt_sessions').select('score').eq('user_id', s.id).order('score', { ascending: false }).limit(1),
                     db.from('lab_projects').select('id').eq('user_id', s.id),
                     db.from('portfolio_projects').select('id').eq('user_id', s.id),
-                ]);
+                ]), [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }], 'bulk student stats sources');
 
                 // 2. Compute transparent scores (mirrors fetchStats 6-component mapping)
                 const cbtScore = Math.min(100, cbtRes.data?.[0]?.score || 0);
@@ -1275,14 +1357,14 @@ function ReportBuilderInner() {
                 // Scope the existing-report check to term + academic year + course so a
                 // new term/session/cohort inserts a fresh report instead of overwriting
                 // a prior one (school: Term + Academic Year; online/bootcamp: duration).
-                const { data: existing } = isPrePortal ? { data: null } : await (() => {
+                const { data: existing } = isPrePortal ? { data: null } : await withTimeout((() => {
                     let q = db.from('student_progress_reports').select('id').eq('student_id', s.id);
                     if (sessionConfig.report_term)   q = q.eq('report_term', sessionConfig.report_term) as typeof q;
                     if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period) as typeof q;
                     if (sessionConfig.course_id)     q = q.eq('course_id', sessionConfig.course_id) as typeof q;
                     if (profile?.role === 'teacher' && profile?.id) q = q.eq('teacher_id', profile.id) as typeof q;
                     return q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
-                })();
+                })(), { data: null, error: null }, 'bulk existing report lookup');
 
                 const overall = Math.round(
                     theory      * WAEC_WEIGHTS.theory      +
