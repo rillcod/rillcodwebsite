@@ -56,7 +56,7 @@ interface Summary {
 }
 
 export default function FinanceReconciliationPage() {
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, actualRole, loading: authLoading } = useAuth();
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -185,7 +185,7 @@ export default function FinanceReconciliationPage() {
     );
   }
 
-  if (profile?.role !== 'admin') {
+  if (actualRole !== 'admin') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="rounded-2xl border border-border bg-card p-8 max-w-md text-center">

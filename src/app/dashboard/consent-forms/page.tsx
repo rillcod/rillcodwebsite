@@ -1403,7 +1403,7 @@ export default function ConsentFormsPage() {
           {showCreate && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4"
               onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}
             >
               <motion.div
@@ -1532,7 +1532,7 @@ export default function ConsentFormsPage() {
           {editingForm && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4"
               onClick={e => { if (e.target === e.currentTarget) setEditingForm(null); }}
             >
               <motion.div
@@ -1602,7 +1602,7 @@ export default function ConsentFormsPage() {
           {readModal && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4"
               onClick={e => { if (e.target === e.currentTarget) setReadModalId(null); }}
             >
               <motion.div
@@ -1728,7 +1728,7 @@ export default function ConsentFormsPage() {
           {qrForm && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4"
               onClick={e => { if (e.target === e.currentTarget) setQrFormId(null); }}
             >
               <motion.div
@@ -1825,7 +1825,7 @@ export default function ConsentFormsPage() {
           {confirmDeleteId && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4"
             >
               <motion.div
                 initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -1845,7 +1845,7 @@ export default function ConsentFormsPage() {
                   <button
                     onClick={() => deleteForm(confirmDeleteId)}
                     disabled={deletingId === confirmDeleteId}
-                    className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-black rounded-xl text-sm transition-colors"
+                    className="flex-1 py-2.5 bg-destructive hover:bg-destructive/90 disabled:opacity-50 text-destructive-foreground font-black rounded-xl text-sm transition-colors"
                   >
                     {deletingId === confirmDeleteId ? 'Deleting…' : 'Delete'}
                   </button>
@@ -1860,7 +1860,7 @@ export default function ConsentFormsPage() {
           {cloneModalForm && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4"
               onClick={e => { if (e.target === e.currentTarget) setCloneModalForm(null); }}
             >
               <motion.div

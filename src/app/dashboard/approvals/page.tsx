@@ -567,8 +567,8 @@ export default function ApprovalsPage() {
 
                  {/* ── Credentials modal — shown after approving a student/school ── */}
                  {credentials && (
-                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                         <div className="bg-[#141618] border border-border rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
+                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+                         <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl p-6 space-y-4">
                              <div className="flex items-center gap-3">
                                  <CheckCircleIcon className="w-7 h-7 text-emerald-400 flex-shrink-0" />
                                  <div>
@@ -583,27 +583,27 @@ export default function ApprovalsPage() {
                                      <>
                                          {/* Student Details */}
                                          {credentials.student && (
-                                             <div className="bg-[#1c1e22] border border-border rounded-xl p-4 space-y-2">
+                                             <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
                                                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">🎓 Student Account</p>
                                                  <div className="text-xs space-y-1">
                                                      <p className="text-muted-foreground font-medium">Username / Email:</p>
-                                                     <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{credentials.student.email}</p>
+                                                     <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded">{credentials.student.email}</p>
                                                      <p className="text-muted-foreground font-medium mt-1">Temporary Password:</p>
-                                                     <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{credentials.student.password || 'Existing Account'}</p>
+                                                     <p className="font-mono text-amber-500 select-all bg-background border border-border p-1.5 rounded">{credentials.student.password || 'Existing Account'}</p>
                                                  </div>
                                              </div>
                                          )}
                                          {/* Parent Details */}
                                          {credentials.parent && (
-                                             <div className="bg-[#1c1e22] border border-border rounded-xl p-4 space-y-2">
+                                             <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-2">
                                                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">👨‍👩‍👧 Parent Account</p>
                                                  <div className="text-xs space-y-1">
                                                      <p className="text-muted-foreground font-medium">Username / Email:</p>
-                                                     <p className="font-mono text-foreground select-all bg-black/30 p-1.5 rounded">{credentials.parent.email}</p>
+                                                     <p className="font-mono text-foreground select-all bg-background border border-border p-1.5 rounded">{credentials.parent.email}</p>
                                                      {credentials.parent.password && (
                                                          <>
                                                              <p className="text-muted-foreground font-medium mt-1">Temporary Password:</p>
-                                                             <p className="font-mono text-yellow-500 select-all bg-black/30 p-1.5 rounded">{credentials.parent.password}</p>
+                                                             <p className="font-mono text-amber-500 select-all bg-background border border-border p-1.5 rounded">{credentials.parent.password}</p>
                                                          </>
                                                      )}
                                                  </div>
@@ -660,8 +660,8 @@ export default function ApprovalsPage() {
 
                 {/* ── Manual payment modal — upload offline proof and admit an unpaid applicant ── */}
                 {payModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-                        <div className="bg-[#141618] border border-border rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4 my-8">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm overflow-y-auto">
+                        <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4 my-8">
                             <div className="flex items-center gap-3">
                                 <span className="text-2xl">💵</span>
                                 <div>
@@ -682,7 +682,7 @@ export default function ApprovalsPage() {
                                         type="file"
                                         accept="image/jpeg,image/png,image/webp,application/pdf"
                                         onChange={(e) => setPayFile(e.target.files?.[0] ?? null)}
-                                        className="block w-full text-xs text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-violet-600 file:text-white hover:file:bg-violet-700 cursor-pointer bg-black/20 border border-border rounded-xl p-2"
+                                        className="block w-full text-xs text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer bg-background border border-border rounded-xl p-2"
                                     />
                                     {payFile && <p className="text-[11px] text-emerald-400 mt-1 font-medium truncate">✓ {payFile.name} ({(payFile.size / 1024).toFixed(0)} KB)</p>}
                                     <p className="text-[10px] text-muted-foreground mt-1">Receipt, bank alert or transfer screenshot — JPEG, PNG, WebP or PDF (max 10 MB).</p>
@@ -693,7 +693,7 @@ export default function ApprovalsPage() {
                                     <input
                                         type="number" min="0" inputMode="decimal" value={payAmount}
                                         onChange={(e) => setPayAmount(e.target.value)} placeholder="e.g. 25000"
-                                        className="w-full px-4 py-2.5 bg-black/20 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500"
+                                        className="w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
                                     />
                                 </div>
                                 {/* Method + reference */}
@@ -701,7 +701,7 @@ export default function ApprovalsPage() {
                                     <div>
                                         <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Method</label>
                                         <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
-                                            className="w-full px-3 py-2.5 bg-black/20 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500">
+                                            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary">
                                             <option value="cash">Cash</option>
                                             <option value="bank_transfer">Bank Transfer</option>
                                             <option value="pos">POS</option>
@@ -712,7 +712,7 @@ export default function ApprovalsPage() {
                                     <div>
                                         <label className="text-[11px] font-bold text-foreground uppercase tracking-wider block mb-1.5">Reference</label>
                                         <input type="text" value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="Optional"
-                                            className="w-full px-3 py-2.5 bg-black/20 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-violet-500" />
+                                            className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
                                     </div>
                                 </div>
                             </div>
