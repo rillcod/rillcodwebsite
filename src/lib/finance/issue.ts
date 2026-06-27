@@ -24,14 +24,7 @@ import { classifyReceiptStream, classifyInvoiceStream, splitSchoolAmount, DEFAUL
 import { buildIndividualReceiptDocDef } from './templates/receipt-individual';
 import { buildSchoolReceiptDocDef } from './templates/receipt-school';
 import type { ReceiptTemplateInput } from './templates/types';
-
-// Dynamic require so pdfmake is only loaded server-side and on demand.
-let PdfPrinter: any = null;
-try {
-  PdfPrinter = require('pdfmake');
-} catch {
-  /* pdfmake is optional at build-time */
-}
+import { getPdfPrinter } from '@/lib/pdfmake-server';
 
 const FONTS = {
   Roboto: {
@@ -43,7 +36,7 @@ const FONTS = {
 };
 
 async function pdfToBuffer(docDefinition: any): Promise<Buffer> {
-  if (!PdfPrinter) throw new AppError('pdfmake not installed or failed to load', 500);
+  const PdfPrinter = getPdfPrinter();
   const printer = new PdfPrinter(FONTS);
   const pdfDoc = printer.createPdfKitDocument(docDefinition);
   const chunks: Buffer[] = [];

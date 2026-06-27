@@ -402,34 +402,34 @@ export default function NewProjectActivityPage() {
 
             {/* ── AI Generation Panel ────────────────────────────────────────── */}
             {aiOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                    <div className="w-full max-w-lg bg-[#0d0d18] border border-primary/30 shadow-2xl">
-                        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/[0.06] bg-primary/5">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
+                    <div className="w-full max-w-lg bg-card border border-border shadow-2xl">
+                        <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-primary/5">
                             <div className="w-8 h-8 bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
                                 <SparklesIcon className="w-4 h-4 text-primary" />
                             </div>
                             <div className="flex-1">
-                                <p className="text-sm font-black text-white uppercase tracking-widest">AI Project Generator</p>
-                                <p className="text-[10px] text-white/40">Describe what you want — AI fills in all the details</p>
+                                <p className="text-sm font-black text-foreground uppercase tracking-widest">AI Project Generator</p>
+                                <p className="text-[10px] text-muted-foreground">Describe what you want — AI fills in all the details</p>
                             </div>
-                            <button onClick={() => setAiOpen(false)} className="text-white/30 hover:text-white text-lg leading-none">✕</button>
+                            <button onClick={() => setAiOpen(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">✕</button>
                         </div>
 
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="block text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-2">What project do you want to create?</label>
+                                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-2">What project do you want to create?</label>
                                 <textarea
                                     value={aiPrompt}
                                     onChange={e => setAiPrompt(e.target.value)}
                                     rows={4}
                                     placeholder={"e.g. Build a weather app using Python that fetches data from an API and displays temperature and humidity for Nigerian cities\n\nor: Create a simple HTML/CSS portfolio webpage for JSS3 students\n\nor: Arduino LED traffic light project for beginners"}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 text-sm text-white placeholder-white/20 focus:outline-none focus:border-primary transition-colors resize-none"
+                                    className="w-full px-4 py-3 bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                                     autoFocus
                                 />
                             </div>
 
                             <div className="flex flex-wrap gap-1.5">
-                                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest self-center">Try:</span>
+                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest self-center">Try:</span>
                                 {['Python calculator app', 'HTML portfolio page', 'Arduino LED project', 'AI chatbot with Python', 'Scratch animation story'].map(ex => (
                                     <button key={ex} onClick={() => setAiPrompt(ex)}
                                         className="text-[9px] text-primary/70 border border-primary/20 px-2 py-1 hover:border-primary/50 hover:text-violet-300 transition-all">
@@ -447,11 +447,11 @@ export default function NewProjectActivityPage() {
 
                             <div className="flex items-center gap-3 pt-2">
                                 <button onClick={() => setAiOpen(false)}
-                                    className="flex-1 py-2.5 border border-white/10 text-white/40 text-xs font-black uppercase tracking-widest hover:border-white/20 transition-colors">
+                                    className="flex-1 py-2.5 border border-border text-muted-foreground text-xs font-black uppercase tracking-widest hover:bg-muted transition-colors">
                                     Cancel
                                 </button>
                                 <button onClick={handleAiGenerate} disabled={!aiPrompt.trim() || aiLoading}
-                                    className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                                    className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
                                     {aiLoading
                                         ? <><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Generating...</>
                                         : <><SparklesIcon className="w-3.5 h-3.5" /> Generate Activity</>

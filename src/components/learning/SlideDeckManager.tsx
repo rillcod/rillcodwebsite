@@ -119,25 +119,25 @@ export default function SlideDeckManager({
   };
 
   return (
-    <div className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-card border border-white/10 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
-          <p className="text-sm font-black text-white">Manage Slides</p>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white"><XMarkIcon className="w-5 h-5" /></button>
+    <div className="fixed inset-0 z-[90] bg-foreground/35 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <p className="text-sm font-black text-foreground">Manage Slides</p>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"><XMarkIcon className="w-5 h-5" /></button>
         </div>
 
         <div className="p-5 space-y-4 overflow-y-auto">
           <div>
-            <label className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-1.5">Title</label>
+            <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1.5">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500/50" />
+              className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
           </div>
 
           {isPdf ? (
             <div className="space-y-2">
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">PDF Deck</p>
-              <p className="text-xs text-white/50">{pdfKey ? 'A PDF is attached.' : 'No PDF attached.'} Replace it below.</p>
-              <label className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-violet-600 hover:bg-violet-500 rounded-xl cursor-pointer transition-all">
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">PDF Deck</p>
+              <p className="text-xs text-muted-foreground">{pdfKey ? 'A PDF is attached.' : 'No PDF attached.'} Replace it below.</p>
+              <label className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest text-primary-foreground bg-primary hover:bg-primary rounded-xl cursor-pointer transition-all">
                 Replace PDF
                 <input type="file" className="hidden" accept="application/pdf" onChange={e => { replacePdf(e.target.files?.[0] ?? null); e.currentTarget.value = ''; }} />
               </label>
@@ -145,7 +145,7 @@ export default function SlideDeckManager({
           ) : (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Slides ({slides.length})</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Slides ({slides.length})</p>
                 <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-violet-300 bg-violet-500/10 border border-violet-500/25 rounded-lg cursor-pointer hover:bg-violet-500/20 transition-all">
                   <PlusIcon className="w-3.5 h-3.5" /> Add
                   <input type="file" className="hidden" accept="image/*" multiple onChange={e => { addImages(e.target.files); e.currentTarget.value = ''; }} />
@@ -153,7 +153,7 @@ export default function SlideDeckManager({
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {slides.map((key, i) => (
-                  <div key={`${key}-${i}`} className="relative group border border-white/10 rounded-lg overflow-hidden bg-black/20">
+                  <div key={`${key}-${i}`} className="relative group border border-border rounded-lg overflow-hidden bg-muted/30">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={slideUrl(key)} alt={`Slide ${i + 1}`} className="w-full h-24 object-cover" />
                     <span className="absolute top-1 left-1 text-[9px] font-black text-white bg-black/60 px-1.5 py-0.5 rounded">{i + 1}</span>
@@ -172,9 +172,9 @@ export default function SlideDeckManager({
           {error && <p className="text-xs text-rose-400">{error}</p>}
         </div>
 
-        <div className="flex gap-2 px-5 py-4 border-t border-white/10 shrink-0">
-          <button onClick={onClose} disabled={saving} className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/70 text-xs font-black uppercase tracking-widest rounded-xl transition-all">Cancel</button>
-          <button onClick={save} disabled={saving || !!busy} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all">
+        <div className="flex gap-2 px-5 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} disabled={saving} className="flex-1 py-2.5 bg-background hover:bg-muted border border-border text-muted-foreground text-xs font-black uppercase tracking-widest rounded-xl transition-all">Cancel</button>
+          <button onClick={save} disabled={saving || !!busy} className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-black uppercase tracking-widest rounded-xl transition-all">
             {saving ? 'Saving…' : 'Save Changes'}
           </button>
         </div>

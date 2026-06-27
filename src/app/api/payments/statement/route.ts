@@ -10,12 +10,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { buildStatementDocDef, type StatementLine } from '@/lib/finance/templates/statement';
-import { AppError } from '@/lib/errors';
+import { getPdfPrinter } from '@/lib/pdfmake-server';
 
 export const dynamic = 'force-dynamic';
-
-let PdfPrinter: any = null;
-try { PdfPrinter = require('pdfmake'); } catch { /* optional at build */ }
 
 const FONTS = { Roboto: { normal: 'Helvetica', bold: 'Helvetica-Bold', italics: 'Helvetica-Oblique', bolditalics: 'Helvetica-BoldOblique' } };
 
@@ -28,7 +25,7 @@ function adminClient() {
 }
 
 async function pdfToBuffer(docDefinition: any): Promise<Buffer> {
-  if (!PdfPrinter) throw new AppError('pdfmake not available', 500);
+  const PdfPrinter = getPdfPrinter();
   const printer = new PdfPrinter(FONTS);
   const doc = printer.createPdfKitDocument(docDefinition);
   const chunks: Buffer[] = [];

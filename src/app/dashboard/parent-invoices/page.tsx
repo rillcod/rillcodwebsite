@@ -251,7 +251,7 @@ function PayModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/35 backdrop-blur-sm">
       <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
@@ -278,7 +278,7 @@ function PayModal({
                 </div>
               )}
               <button onClick={initiate} disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary to-primary text-white text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all disabled:opacity-50">
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-primary to-primary text-primary-foreground text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all disabled:opacity-50">
                 {loading ? (
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
@@ -301,7 +301,7 @@ function PayModal({
                       Pay securely with card, bank transfer, or USSD via Paystack. You will be redirected to a secure payment page.
                     </p>
                     <a href={paystackUrl} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-primary to-primary text-white text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all">
+                      className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-primary to-primary text-primary-foreground text-xs font-black uppercase tracking-widest hover:from-primary hover:to-primary transition-all">
                       Pay {formatCurrency(invoice.amount, invoice.currency)} via Paystack
                       <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                     </a>

@@ -1025,7 +1025,7 @@ function LessonPlansPageInner() {
 
       {/* Create Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1095,7 +1095,7 @@ function LessonPlansPageInner() {
               <button
                 onClick={save}
                 disabled={submitting || !form.term || !form.course_id}
-                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all"
+                className="flex-1 py-2.5 bg-primary hover:bg-primary disabled:opacity-50 text-primary-foreground text-xs font-bold rounded-xl transition-all"
               >
                 {submitting ? 'Creating…' : 'Create Plan'}
               </button>
@@ -1106,7 +1106,7 @@ function LessonPlansPageInner() {
 
       {/* Delete Confirmation Modal */}
       {planToDelete && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1158,7 +1158,7 @@ function LessonPlansPageInner() {
               <button
                 onClick={() => deletePlan(planToDelete.id)}
                 disabled={deleting}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all"
+                className="flex-1 py-2.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-bold rounded-xl transition-all"
               >
                 {deleting ? 'Deleting…' : 'Yes, delete'}
               </button>
@@ -1169,7 +1169,7 @@ function LessonPlansPageInner() {
 
       {/* Edit Form Modal */}
       {editingPlan && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-foreground/35 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}

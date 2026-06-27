@@ -3,14 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
 import { paystackInitializeMinorUnits } from '@/lib/payments/paystack-amounts';
+import { getPdfPrinter } from '@/lib/pdfmake-server';
 import Stripe from 'stripe';
 import crypto from 'crypto';
-
-// Dynamically use require for pdfmake so it runs properly
-let PdfPrinter: any = null;
-try {
-    PdfPrinter = require('pdfmake');
-} catch (e) { }
 
 const stripe = env.STRIPE_SECRET_KEY
     ? new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' as any })
@@ -291,9 +286,7 @@ export class PaymentsService {
      */
     // @ts-ignore — intentionally unreachable
     async _legacyGenerateReceipt(transactionId: string) {
-        if (!PdfPrinter) {
-            throw new AppError('pdfmake not installed or failed to load', 500);
-        }
+        const PdfPrinter = getPdfPrinter();
 
         const supabase = createAdminClient();
         const { data: transaction } = await (supabase as any)

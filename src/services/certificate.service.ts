@@ -2,7 +2,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { AppError, NotFoundError } from '@/lib/errors';
 import { filesService } from './files.service';
-import PdfPrinter from 'pdfmake';
+import { getPdfPrinter } from '@/lib/pdfmake-server';
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
 
 function adminClient() {
@@ -199,6 +199,7 @@ export class CertificateService {
                 bolditalics: 'Helvetica-BoldOblique'
             }
         };
+        const PdfPrinter = getPdfPrinter();
         const printer = new PdfPrinter(fonts);
 
         const docDefinition: TDocumentDefinitions = {
