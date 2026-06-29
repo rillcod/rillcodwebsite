@@ -49,6 +49,7 @@ export interface ReportCardData {
     participation_score?: number | null;
     engagement_metrics?: any | null;
     template_id?: 'futuristic' | 'industrial' | 'executive' | string | null;
+    verification_code?: string | null;
 }
 
 export interface OrgSettings {
