@@ -1404,7 +1404,7 @@ function ReportBuilderInner() {
 
     // ── Save report ───────────────────────────────────────────────────────────
     const handleSave = async (publish = false) => {
-        if (!selectedStudent) return;
+        if (!selectedStudent) return false;
         if (publish) setPublishing(true); else setSaving(true);
         setError(''); setSuccess('');
 
@@ -1413,7 +1413,7 @@ function ReportBuilderInner() {
             setError('This student needs a portal account before a progress report can be saved.');
             setSaving(false);
             setPublishing(false);
-            return;
+            return false;
         }
 
         try {
@@ -1479,9 +1479,13 @@ function ReportBuilderInner() {
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to save');
             const savedReportId = j.data?.id ?? existingReport?.id;
-            if (!existingReport) {
-                setExistingReport({ ...payload, id: savedReportId } as unknown as StudentReport);
-            }
+            const savedVerificationCode = j.data?.verification_code ?? existingReport?.verification_code ?? null;
+            setExistingReport(prev => ({
+                ...(prev ?? {}),
+                ...payload,
+                id: savedReportId,
+                verification_code: savedVerificationCode,
+            } as unknown as StudentReport));
 
             if (publish && savedReportId && !isManual) {
                 const publishRes = await fetch(`/api/progress-reports/${savedReportId}`, {
@@ -1528,8 +1532,10 @@ function ReportBuilderInner() {
             setSuccessMsg(publish ? 'Report published — visible to student!' : 'Draft saved!');
             if (publish) setForm(f => ({ ...f, is_published: true }));
             setIsDirty(false);
+            return true;
         } catch (err: any) {
             setError(err.message ?? 'Failed to save');
+            return false;
         } finally {
             setSaving(false); setPublishing(false);
         }
@@ -1537,7 +1543,10 @@ function ReportBuilderInner() {
 
     // ── Save & move to next student ───────────────────────────────────────────
     async function saveAndNext(publish = false) {
-        if (isDirty || publish) await handleSave(publish);
+        if (isDirty || publish) {
+            const saved = await handleSave(publish);
+            if (!saved) return;
+        }
         const navList = sessionStudents.current.length > 0 ? sessionStudents.current : filteredStudents;
         const nextIdx = currentStudentIdx + 1;
         if (nextIdx < navList.length) {
@@ -1729,6 +1738,7 @@ function ReportBuilderInner() {
         ...sessionConfig,
         ...form,
         id: existingReport?.id || 'Preview',
+        verification_code: existingReport?.verification_code || (form as any).verification_code || undefined,
         template_id: modernTemplateId,
         theory_score:        parseFloat(form.theory_score)        || 0,
         practical_score:     parseFloat(form.practical_score)     || 0,

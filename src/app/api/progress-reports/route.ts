@@ -41,7 +41,7 @@ async function generateReportVerificationCode(admin: ReturnType<typeof adminClie
     const code = `RPT-${crypto.randomBytes(9).toString('base64url').toUpperCase()}`;
     const { data } = await admin
       .from('student_progress_reports')
-      .select('id')
+      .select('id, verification_code')
       .eq('verification_code', code)
       .maybeSingle();
     if (!data?.id) return code;
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       .from('student_progress_reports')
       .update(updatePayload)
       .eq('id', targetId)
-      .select('id')
+      .select('id, verification_code')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

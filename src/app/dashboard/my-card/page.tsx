@@ -10,6 +10,7 @@ import {
   UserGroupIcon, ShieldCheckIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import { accessCardCodeForStudent } from '@/lib/access-card-code';
 
 type CardConfig = {
   accentColor: string; orgName: string; orgWebsite: string;
@@ -111,12 +112,12 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
   const [printed, setPrinted] = useState(false);
   const acc = cfg.accentColor;
   const [r,g,b] = hex2rgb(acc);
-  const code = myCard?.card_number ?? `RC-${profile.id.slice(0,8).toUpperCase()}`;
+  const code = myCard?.card_number ?? accessCardCodeForStudent(profile.id);
   const roleLabel = {student:'Student',teacher:'Teacher',admin:'Administrator',school:'School Partner',parent:'Parent'}[profile.role as string] ?? profile.role;
   const idLabel = {student:'Student ID',teacher:'Staff ID',parent:'Parent Card ID',school:'Partner ID'}[profile.role as string] ?? 'Card ID';
   const verifyUrl = myCard?.verification_code
     ? `${window.location.origin}/verify/${myCard.verification_code}`
-    : `${window.location.origin}/verify/${profile.id}`;
+    : `${window.location.origin}/dashboard/profile`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
   const cardStatusLabel = myCard
     ? ({active:'Active',issued:'Issued (Pending Activation)',revoked:'Revoked',expired:'Expired'}[myCard.status] ?? myCard.status)

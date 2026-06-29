@@ -17,6 +17,7 @@ import {
   DocumentTextIcon,
   PrinterIcon,
 } from '@/lib/icons';
+import { accessCardCodeForStudent } from '@/lib/access-card-code';
 
 interface StudentProfile {
   id: string;
@@ -145,7 +146,7 @@ export default function PublicStudentProfilePage() {
     window.print();
   }
 
-  const studentCode = student ? `RC-${student.id.slice(0, 8).toUpperCase()}` : '';
+  const studentCode = student ? accessCardCodeForStudent(student.id) : '';
   const selectedReport = reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null;
   const enrolledDate = student?.enrolled_at
     ? new Date(student.enrolled_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })

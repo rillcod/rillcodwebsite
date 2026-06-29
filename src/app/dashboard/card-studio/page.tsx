@@ -11,6 +11,7 @@ import {
   ChevronDownIcon, ChevronUpIcon, ArrowPathIcon, UserGroupIcon,
   UserPlusIcon, AcademicCapIcon, FunnelIcon, SparklesIcon,
 } from '@/lib/icons';
+import { accessCardCodeForStudent } from '@/lib/access-card-code';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
 
@@ -41,6 +42,14 @@ interface CardConfig {
 type PortalUser = { id: string; full_name: string; email: string | null; role: string; school_name?: string | null; section_class?: string | null; };
 type DbCard = { id: string; card_number: string; verification_code: string; status: string; issued_at: string | null; expires_at: string | null; holder_id: string; holder_type: string; };
 type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; sectionClass: string; profileUrl: string; schoolId: string | null; };
+
+function escHtml(value?: string | null) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -271,8 +280,8 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   const isRevoking = isRevokingIds.has(r.id);
   const acc   = config.accentColor || '#1A3A8F';
   const hStyle = config.headerStyle || 'band';
-  const code  = dbCard?.card_number ?? `RC-${r.id.slice(0,8).toUpperCase()}`;
-  const verifyUrl = dbCard?.verification_code ? `${window.location.origin}/verify/${dbCard.verification_code}` : r.profileUrl;
+  const code  = dbCard?.card_number ?? accessCardCodeForStudent(r.id);
+  const verifyUrl = dbCard?.verification_code ? `${window.location.origin}/verify/${dbCard.verification_code}` : `${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl)}`;
 
   return (
@@ -455,7 +464,11 @@ export default function CardStudioPage() {
   }, [cardType, canAccess]); // eslint-disable-line
 
   const update = (patch: Partial<CardConfig>) => setCfg(prev => ({ ...prev, ...patch }));
-  const toggleSection = (s: string) => setOpenSections(prev => { const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n; });
+  const toggleSection = (s: string) => setOpenSections(prev => {
+    const n = new Set(prev);
+    if (n.has(s)) n.delete(s); else n.add(s);
+    return n;
+  });
   const toggleField = (key: FieldKey) => setCfg(prev => ({ ...prev, fields: prev.fields.map(f => f.key === key ? { ...f, visible: !f.visible } : f) }));
   const updateFieldLabel = (key: FieldKey, label: string) => setCfg(prev => ({ ...prev, fields: prev.fields.map(f => f.key === key ? { ...f, label } : f) }));
   const moveField = (index: number, dir: -1|1) => {
@@ -487,7 +500,7 @@ export default function CardStudioPage() {
     const acc = cfg.accentColor;
     const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
     const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
-    const qUrl = encodeURIComponent('https://rillcod.com/student/sample');
+    const qUrl = encodeURIComponent('https://rillcod.com/result-check/RC-SAMPLE1');
     const expiry = new Date(Date.now()+365*24*60*60*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
     const sampleData: Record<string,string> = { school:SAMPLE.school,email:SAMPLE.email,password:SAMPLE.password,programme:SAMPLE.programme,studentId:SAMPLE.id,className:SAMPLE.className,expiry };
     const logoUrl = window.location.origin + '/images/logo.png';
@@ -586,21 +599,21 @@ export default function CardStudioPage() {
     const vis=(key:string)=>cfg.fields.find(f=>f.key===key)?.visible??false;
     const logo=`${window.location.origin}/images/logo.png`;
     const cardHtml=(s:any)=>{
-      const code=`RC-${s.id.slice(0,8).toUpperCase()}`;
-      const qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}/verify/${s.id}`)}`;
+      const code=accessCardCodeForStudent(s.id);
+      const qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}/result-check/${code}`)}`;
       const hdrClass=hs==='border'?'hdr-border':hs==='minimal'?'hdr-min':'hdr-band';
       const rows=[
-        vis('school')&&s.school_name?`<div class="row"><div class="lbl">${cfg.fields.find(f=>f.key==='school')?.label||'School'}</div><div class="val-a">${s.school_name}</div></div>`:'',
-        vis('className')&&s.section_class?`<div class="row"><div class="lbl">Class</div><div class="val">${s.section_class}</div></div>`:'',
-        vis('email')&&s.email?`<div class="row"><div class="lbl">Email</div><div class="val">${s.email}</div></div>`:'',
+        vis('school')&&s.school_name?`<div class="row"><div class="lbl">${escHtml(cfg.fields.find(f=>f.key==='school')?.label||'School')}</div><div class="val-a">${escHtml(s.school_name)}</div></div>`:'',
+        vis('className')&&s.section_class?`<div class="row"><div class="lbl">Class</div><div class="val">${escHtml(s.section_class)}</div></div>`:'',
+        vis('email')&&s.email?`<div class="row"><div class="lbl">Email</div><div class="val">${escHtml(s.email)}</div></div>`:'',
         vis('studentId')?`<div class="row"><div class="lbl">Student ID</div><div class="val-a">${code}</div></div>`:'',
       ].filter(Boolean).join('');
       return `<div class="card"><div class="${hdrClass}">${cfg.showLogo?`<img class="logo" src="${logo}"/>`:''}
-        <div><div class="org">${cfg.orgName}</div><div class="web">${cfg.orgWebsite}</div></div>
-        <div class="cbadge">${cfg.cardLabel}</div></div>
-        <div class="body"><div class="left"><div class="name">${s.full_name}</div><div class="sep"></div>${rows}</div>
-        ${vis('qr')?`<div class="right"><img class="qr" src="${qrUrl}"/><div class="code">${code}</div></div>`:''}</div>
-        <div class="ftr"><span>${cfg.footerLeft}</span><span>${code}</span></div></div>`;
+        <div><div class="org">${escHtml(cfg.orgName)}</div><div class="web">${escHtml(cfg.orgWebsite)}</div></div>
+        <div class="cbadge">${escHtml(cfg.cardLabel)}</div></div>
+        <div class="body"><div class="left"><div class="name">${escHtml(s.full_name)}</div><div class="sep"></div>${rows}</div>
+        ${vis('qr')?`<div class="right"><img class="qr" src="${qrUrl}" alt="Result check QR"/><div class="qrl">Scan for result</div><div class="code">${code}</div></div>`:''}</div>
+        <div class="ftr"><span>${escHtml(cfg.footerLeft)}</span><span>${code}</span></div></div>`;
     };
     const html=`<!doctype html><html><head><title>Access Cards</title>
     <style>
@@ -621,11 +634,12 @@ export default function CardStudioPage() {
       .val-a{font-size:2mm;font-weight:800;font-family:monospace;color:${acc}}
       .right{width:22mm;background:#fafafa;padding:2mm;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1mm}
       .qr{width:15mm;height:15mm;border:1px solid #e5e7eb}.code{color:${acc};font-size:1.5mm;font-family:monospace;font-weight:900;text-align:center}
+      .qrl{font-size:1.4mm;color:#6b7280;text-transform:uppercase;font-weight:900;text-align:center}
       .ftr{border-top:1px solid #f3f4f6;background:#fafafa;color:#6b7280;display:flex;justify-content:space-between;padding:1.2mm 3mm;font-size:1.5mm}
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
     </style></head><body>
     <div class="grid">${list.map(s=>cardHtml(s)).join('')}</div>
-    <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),500)}</script>
+    <script>window.onload=()=>{const imgs=[...document.images];Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(r=>{img.onload=r;img.onerror=r;}))).then(()=>setTimeout(()=>window.print(),250));}</script>
     </body></html>`;
     const win=window.open('','_blank');
     if(!win){toast.error('Pop-up blocked');return;}
@@ -779,7 +793,11 @@ export default function CardStudioPage() {
     return Array.from(map.entries()).sort(([a],[b])=>a.localeCompare(b));
   },[filtered]);
 
-  const toggleSelected = (id:string) => setSelectedIds(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  const toggleSelected = (id:string) => setSelectedIds(prev=>{
+    const n=new Set(prev);
+    if(n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
 
   const printManageCards = (list: CardRecord[], title: string) => {
     if(!list.length){toast.error('No records to print');return;}
@@ -810,8 +828,8 @@ export default function CardStudioPage() {
 <div class="grid">
 ${list.map(r=>{
   const dbCard=dbCardsMap.get(r.id);
-  const code=dbCard?.card_number??`RC-${r.id.slice(0,8).toUpperCase()}`;
-  const verifyUrl=dbCard?.verification_code?`${window.location.origin}/verify/${dbCard.verification_code}`:r.profileUrl;
+  const code=dbCard?.card_number??accessCardCodeForStudent(r.id);
+  const verifyUrl=dbCard?.verification_code?`${window.location.origin}/verify/${dbCard.verification_code}`:`${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
   const qr=`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verifyUrl)}`;
   const hdrClass=hStyle==='border'?'hdr-border':hStyle==='minimal'?'hdr-min':'hdr-band';
   return `<div class="card"><div class="${hdrClass}"><img class="logo" src="${logo}"/><div><div class="org">${org}</div><div class="web">${site}</div></div></div>
@@ -1128,7 +1146,11 @@ ${list.map(r=>{
                     <div key={cls}>
                       <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/30 border-b border-border sticky top-0 z-10">
                         <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex-1 truncate">{cls}</span>
-                        <button onClick={()=>setDesignSelectedIds(prev=>{const n=new Set(prev);allSel?classIds.forEach(id=>n.delete(id)):classIds.forEach(id=>n.add(id));return n;})}
+                        <button onClick={()=>setDesignSelectedIds(prev=>{
+                          const n=new Set(prev);
+                          if(allSel) classIds.forEach(id=>n.delete(id)); else classIds.forEach(id=>n.add(id));
+                          return n;
+                        })}
                           className="text-[8px] font-bold text-primary hover:text-primary/80 transition-colors whitespace-nowrap">
                           {allSel?'✗ Desel':`✓ ${classStudents.length}`}
                         </button>
@@ -1136,7 +1158,11 @@ ${list.map(r=>{
                       {classStudents.map(s=>{
                         const sel=designSelectedIds.has(s.id);
                         return (
-                          <div key={s.id} onClick={()=>setDesignSelectedIds(prev=>{const n=new Set(prev);n.has(s.id)?n.delete(s.id):n.add(s.id);return n;})}
+                          <div key={s.id} onClick={()=>setDesignSelectedIds(prev=>{
+                            const n=new Set(prev);
+                            if(n.has(s.id)) n.delete(s.id); else n.add(s.id);
+                            return n;
+                          })}
                             className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer transition-all border-b border-border/40 ${sel?'bg-primary/5 border-l-2 border-l-primary':'hover:bg-muted/40 border-l-2 border-l-transparent'}`}>
                             <div className={`w-3.5 h-3.5 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel?'bg-primary border-primary':'border-border'}`}>
                               {sel&&<span className="text-primary-foreground text-[8px]">✓</span>}
@@ -1153,7 +1179,11 @@ ${list.map(r=>{
                   {visibleDesignStudents.map(s=>{
                     const sel=designSelectedIds.has(s.id);
                     return (
-                      <div key={s.id} onClick={()=>setDesignSelectedIds(prev=>{const n=new Set(prev);n.has(s.id)?n.delete(s.id):n.add(s.id);return n;})}
+                      <div key={s.id} onClick={()=>setDesignSelectedIds(prev=>{
+                        const n=new Set(prev);
+                        if(n.has(s.id)) n.delete(s.id); else n.add(s.id);
+                        return n;
+                      })}
                         className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer transition-all ${sel?'bg-primary/5 border-l-2 border-l-primary':'hover:bg-muted/40 border-l-2 border-l-transparent'}`}>
                         <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel?'bg-primary border-primary':'border-border'}`}>
                           {sel&&<span className="text-primary-foreground text-[9px]">✓</span>}

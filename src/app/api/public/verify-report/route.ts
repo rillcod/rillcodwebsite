@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code')?.trim().toUpperCase();
   if (!code) return NextResponse.json({ error: 'code required' }, { status: 400 });
-  if (!/^[A-Z0-9-]{12,80}$/.test(code)) {
+  if (!/^[A-Z0-9_-]{12,80}$/.test(code)) {
     return NextResponse.json({ found: false, reason: 'invalid_code' }, { status: 404 });
   }
 

@@ -94,12 +94,13 @@ export async function getResultConsentAccessStatus(
     .from('form_leads')
     .select('id, status, match_status, matched_parent_id, matched_student_id, response_data')
     .eq('form_id', form.id)
-    .limit(100);
+    .order('created_at', { ascending: false })
+    .limit(1000);
 
   if (error) throw error;
 
-  const validStatuses = new Set(['approved', 'enrolled', 'contacted', 'new', 'submitted', null]);
-  const validMatchStatuses = new Set(['approved', 'auto_matched', 'matched', null]);
+  const validStatuses = new Set(['enrolled', 'contacted', 'new', null]);
+  const validMatchStatuses = new Set(['approved', 'auto_matched', 'matched']);
   const matched = (data ?? []).find((lead: any) => {
     const statusOk = validStatuses.has(lead.status ?? null);
     const matchOk = validMatchStatuses.has(lead.match_status ?? null);

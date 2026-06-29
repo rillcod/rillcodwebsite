@@ -1,6 +1,8 @@
 // Shared card print utilities — single source of truth for card config + HTML generation.
 // Used by: students/page, students/bulk-register, students/card-builder, identity-cards.
 
+import { accessCardCodeForStudent } from '@/lib/access-card-code';
+
 export interface CardFieldConfig {
   key: string;
   visible: boolean;
@@ -65,7 +67,7 @@ export function fieldLabel(cfg: CardConfig, key: string, fallback: string): stri
 }
 
 export function holderCode(id: string): string {
-  return `RC-${id.slice(0, 8).toUpperCase()}`;
+  return accessCardCodeForStudent(id);
 }
 
 // Builds print HTML for a single card (opens in a new window and prints).
@@ -82,7 +84,7 @@ export function buildSingleCardHtml(
   const code = holder.card_number || holderCode(holder.id);
   const qrData = holder.verification_code
     ? `${originUrl}/verify/${holder.verification_code}`
-    : `${originUrl}/verify/${holder.id}`;
+    : `${originUrl}/result-check/${holderCode(holder.id)}`;
   const expiryVal = holder.expires_at
     ? new Date(holder.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
@@ -188,7 +190,10 @@ export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, origi
 
   const cardHtml = (h: CardHolder) => {
     const code = h.card_number || holderCode(h.id);
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${originUrl}/verify/${h.id}`)}`;
+    const qrData = h.verification_code
+      ? `${originUrl}/verify/${h.verification_code}`
+      : `${originUrl}/result-check/${holderCode(h.id)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrData)}`;
     const hdrClass = hs === 'band' ? 'hdr-band' : hs === 'border' ? 'hdr-border' : 'hdr-min';
     const rows = [
       fv('school') && h.school_name ? `<div class="row"><div class="lbl">${fl('school','School')}</div><div class="val-a">${h.school_name}</div></div>` : '',

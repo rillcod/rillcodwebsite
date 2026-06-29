@@ -7913,6 +7913,58 @@ export type Database = {
         }
         Relationships: []
       }
+      result_access_codes: {
+        Row: {
+          access_code: string
+          code_source: string
+          created_at: string
+          id: string
+          school_id: string | null
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          access_code: string
+          code_source?: string
+          created_at?: string
+          id?: string
+          school_id?: string | null
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          access_code?: string
+          code_source?: string
+          created_at?: string
+          id?: string
+          school_id?: string | null
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "result_access_codes_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "result_access_codes_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "result_access_codes_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       school_settlements: {
         Row: {
           amount: number

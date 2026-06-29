@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { MagnifyingGlassIcon, ArrowDownTrayIcon, ArrowPathIcon, PrinterIcon, RectangleGroupIcon } from '@/lib/icons';
+import { accessCardCodeForStudent } from '@/lib/access-card-code';
 
 type Rec = {
   id: string; type: string; name: string; email: string; school: string;
@@ -168,6 +169,10 @@ export default function RecordsPage() {
     try { await navigator.clipboard.writeText(text); setCopied(id); setTimeout(() => setCopied(''), 1200); } catch { /* ignore */ }
   }
 
+  function resultCheckHref(row: Reg) {
+    return row.portalUserId ? `/result-check/${encodeURIComponent(accessCardCodeForStudent(row.portalUserId))}` : '';
+  }
+
   function exportCsv() {
     let head: string[]; let lines: string[];
     if (tab === 'people') {
@@ -216,9 +221,17 @@ export default function RecordsPage() {
 
   function printCards(items: Reg[] = regsFiltered) {
     const valid = items.filter(r => r.portalUserId && r.account !== 'Deleted' && String(r.status || '').toLowerCase() !== 'failed');
-    if (valid.length === 0) return;
+    if (valid.length === 0) {
+      alert('No printable cards found. Cards need a live student portal account and cannot be printed for deleted or failed registrations.');
+      return;
+    }
     const sorted = [...valid].sort((a, b) => (a.klass || '').localeCompare(b.klass || '') || a.name.localeCompare(b.name));
     const origin = window.location.origin;
+    const codes = sorted.map(r => accessCardCodeForStudent(r.portalUserId || r.id));
+    if (new Set(codes).size !== codes.length) {
+      alert('Duplicate result-check codes were detected in this selection. Please print fewer cards or contact admin before issuing them.');
+      return;
+    }
     const html = `<!doctype html><html><head><title>Student Access Cards</title><style>
       @page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0;color:#111827;background:#fff}
       .grid{display:grid;grid-template-columns:80mm 80mm;grid-auto-rows:58mm;gap:7mm;justify-content:center}
@@ -230,7 +243,7 @@ export default function RecordsPage() {
     </style></head><body><div class="grid">
       ${sorted.map(r => {
         const studentId = r.portalUserId || r.id;
-        const code = `RC-${studentId.slice(0, 8).toUpperCase()}`;
+        const code = accessCardCodeForStudent(studentId);
         const checkUrl = `${origin}/result-check/${encodeURIComponent(code)}`;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=1&data=${encodeURIComponent(checkUrl)}`;
         return `<div class="card"><div class="top"><div class="brand">Rillcod Access</div><div class="tag">${esc(r.klass || 'STUDENT')}</div></div><div class="body">
@@ -398,6 +411,9 @@ export default function RecordsPage() {
                   <>
                     <button onClick={() => copy(row.email, row.id + 'ce')} className="px-3 py-1.5 rounded-lg border border-border text-foreground text-[10px] font-black uppercase tracking-widest">Copy Email</button>
                     <button onClick={() => copy(row.password, row.id + 'cp2')} className="px-3 py-1.5 rounded-lg border border-border text-foreground text-[10px] font-black uppercase tracking-widest">Copy Password</button>
+                    {row.portalUserId && (
+                      <button onClick={() => window.open(resultCheckHref(row), '_blank', 'noopener,noreferrer')} className="px-3 py-1.5 rounded-lg border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest">Test Check</button>
+                    )}
                     <button onClick={() => printCards([row])} className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-primary-foreground text-[10px] font-black uppercase tracking-widest">Print Card</button>
                   </>
                 )}
@@ -432,9 +448,9 @@ export default function RecordsPage() {
               </tbody>
             </table>
           ) : (
-            <table className="w-full text-sm min-w-[860px]">
+            <table className="w-full text-sm min-w-[980px]">
               <thead className="sticky top-0 z-10 bg-muted text-[10px] uppercase tracking-widest text-muted-foreground shadow-sm">
-                <tr>{['Name', 'Login Email', 'Password', 'Class', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
+                <tr>{['Name', 'Login Email', 'Password', 'Class', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered', 'Result Check'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {regsFiltered.map(r => (
@@ -449,9 +465,18 @@ export default function RecordsPage() {
                     <td className="px-3 py-2.5 whitespace-nowrap"><span className="text-[10px] font-bold text-foreground/80">{r.status}</span></td>
                     <td className="px-3 py-2.5 whitespace-nowrap"><span className={`text-[10px] font-black ${ACCT_COLOR[r.account] ?? 'text-muted-foreground'}`}>{r.account}</span></td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : '—'}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {r.portalUserId ? (
+                        <button onClick={() => window.open(resultCheckHref(r), '_blank', 'noopener,noreferrer')} className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80">
+                          Test
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-bold text-muted-foreground">No live account</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
-                {regsFiltered.length === 0 && <tr><td colSpan={10} className="px-3 py-12 text-center text-muted-foreground text-sm">{regsLoaded ? 'No registrations match your filters.' : 'Loading…'}</td></tr>}
+                {regsFiltered.length === 0 && <tr><td colSpan={11} className="px-3 py-12 text-center text-muted-foreground text-sm">{regsLoaded ? 'No registrations match your filters.' : 'Loading…'}</td></tr>}
               </tbody>
             </table>
           )}

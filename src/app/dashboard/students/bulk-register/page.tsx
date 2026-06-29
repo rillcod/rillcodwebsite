@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { fetchClasses } from '@/services/dashboard.service';
 import Link from 'next/link';
+import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import {
   UserGroupIcon,
   CheckCircleIcon,
@@ -436,7 +437,7 @@ export default function BulkRegisterPage() {
                 </thead>
                 <tbody>
                   ${classStudents.map((r, idx) => {
-                    const sCode = r.portal_user_id ? 'RC-' + r.portal_user_id.slice(0, 8).toUpperCase() : 'RC-PENDING';
+                    const sCode = r.portal_user_id ? accessCardCodeForStudent(r.portal_user_id) : 'RC-PENDING';
                     return `
                       <tr>
                         <td>${idx + 1}</td>
@@ -530,8 +531,8 @@ export default function BulkRegisterPage() {
       <div class="grid">
         ${sorted.map(r => {
           const pId = r.portal_user_id || '';
-          const sCode = 'RC-' + (pId.slice(0, 8).toUpperCase() || '--------');
-          const qUrl = encodeURIComponent('https://rillcod.com/student/' + pId);
+          const sCode = pId ? accessCardCodeForStudent(pId) : 'RC-PENDING';
+          const qUrl = encodeURIComponent('https://rillcod.com/result-check/' + sCode);
 
           const headerHtml = hStyle === 'band' ? `
             <div class="chdr">
@@ -767,7 +768,7 @@ export default function BulkRegisterPage() {
         fy += 8;
       }
 
-      const sCode = `RC-${(res.portal_user_id || '').slice(0, 8).toUpperCase() || '--------'}`;
+      const sCode = res.portal_user_id ? accessCardCodeForStudent(res.portal_user_id) : 'RC-PENDING';
       if (fieldVis('studentId')) {
         doc.setFontSize(5); doc.setTextColor(hexR(acc), hexG(acc), hexB(acc)); doc.setFont('courier', 'bold');
         doc.text(sCode, ix, y + cardH - 11);
@@ -922,8 +923,8 @@ export default function BulkRegisterPage() {
       <div class="grid">
         ${validResults.map(r => {
       const pId = (r.portal_user_id || '');
-      const sCode = 'RC-' + (pId.slice(0, 8).toUpperCase() || '--------');
-      const qUrl = encodeURIComponent('https://rillcod.com/student/' + pId);
+      const sCode = pId ? accessCardCodeForStudent(pId) : 'RC-PENDING';
+      const qUrl = encodeURIComponent('https://rillcod.com/result-check/' + sCode);
 
       // Build header HTML based on builder style
       const headerHtml = hStyle === 'band' ? `
@@ -2357,7 +2358,7 @@ Yusuf Ibrahim SS1A`}
                             <td className="px-6 py-4 text-muted-foreground font-mono">{String(i + 1).padStart(2, '0')}</td>
                             <td className="px-4 py-4">
                               <span className="font-mono font-black text-primary text-[10px] tracking-wide">
-                                {r.portal_user_id ? `RC-${r.portal_user_id.slice(0, 8).toUpperCase()}` : '—'}
+                                {r.portal_user_id ? accessCardCodeForStudent(r.portal_user_id) : '—'}
                               </span>
                             </td>
                             <td className="px-4 py-4">
@@ -3037,7 +3038,7 @@ Yusuf Ibrahim SS1A`}
                         </thead>
                         <tbody className="divide-y divide-white/5">
                           {filteredUnifiedResults.map((r, i) => {
-                            const sCode = r.portal_user_id ? `RC-${r.portal_user_id.slice(0, 8).toUpperCase()}` : '—';
+                            const sCode = r.portal_user_id ? accessCardCodeForStudent(r.portal_user_id) : '—';
                             return (
                               <tr key={r.id} className="hover:bg-white/[0.02] transition-colors group">
                                 <td className="px-4 py-3 text-muted-foreground font-mono">{i + 1}</td>
