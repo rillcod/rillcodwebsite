@@ -5,7 +5,6 @@ import {
   canAccessLiveSession,
   canCreateLiveSessionForTarget,
   getStudentProgramIds,
-  getTeacherSchoolIds,
 } from '@/lib/live-sessions/authz';
 
 function adminClient() {
@@ -28,7 +27,7 @@ async function requireAuth() {
 }
 
 // GET /api/live-sessions — list all sessions (role-filtered)
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const caller = await requireAuth();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -39,22 +38,20 @@ export async function GET(request: NextRequest) {
     .order('scheduled_at', { ascending: true });
 
   if (caller.role === 'teacher') {
-    const schoolIds = await getTeacherSchoolIds(admin as any, caller.id, caller.school_id);
-    const filters = [`host_id.eq.${caller.id}`];
-    if (schoolIds.length > 0) filters.push(`school_id.in.(${schoolIds.join(',')})`);
-    query = query.or(filters.join(','));
+    query = query.eq('host_id', caller.id);
   } else if (caller.role === 'school') {
     if (!caller.school_id) return NextResponse.json({ data: [] });
     query = query.eq('school_id', caller.school_id);
   } else if (caller.role === 'student') {
-    const filters: string[] = [];
+    const filters: string[] = ['school_id.is.null'];
     if (caller.school_id) filters.push(`school_id.eq.${caller.school_id}`);
     const programIds = await getStudentProgramIds(admin as any, caller.id);
     if (programIds.length > 0) filters.push(`program_id.in.(${programIds.join(',')})`);
-    if (filters.length === 0) return NextResponse.json({ data: [] });
     query = query.or(filters.join(','));
-  } else if (caller.role !== 'admin') {
+  } else if (caller.role === 'parent' || !caller.role) {
     return NextResponse.json({ data: [] });
+  } else if (caller.role !== 'admin') {
+    query = query.eq('host_id', caller.id);
   }
 
   const { data, error } = await query;
@@ -69,7 +66,7 @@ export async function GET(request: NextRequest) {
 // POST /api/live-sessions — create session (staff only)
 export async function POST(request: NextRequest) {
   const caller = await requireAuth();
-  if (!caller || !['admin', 'teacher'].includes(caller.role))
+  if (!caller || ['student', 'parent'].includes(caller.role ?? ''))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
@@ -82,7 +79,10 @@ export async function POST(request: NextRequest) {
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
   const admin = adminClient();
-  const canCreate = await canCreateLiveSessionForTarget(admin as any, caller, school_id || null, program_id || null);
+  const resolvedSchoolId = caller.role === 'school'
+    ? caller.school_id
+    : school_id || null;
+  const canCreate = await canCreateLiveSessionForTarget(admin as any, caller, resolvedSchoolId, program_id || null);
   if (!canCreate) {
     return NextResponse.json({ error: 'You cannot create a live session for that school or programme.' }, { status: 403 });
   }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       session_url: session_url?.trim() || null,
       scheduled_at,
       duration_minutes: Number(duration_minutes) || 60,
-      school_id: school_id || null,
+      school_id: resolvedSchoolId,
       program_id: program_id || null,
       status: status ?? 'scheduled',
       recording_url: recording_url?.trim() || null,

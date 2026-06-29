@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendPushNotification, buildNotificationUrl } from '@/lib/push';
+import { sendPushNotification } from '@/lib/push';
 import { notificationsService } from '@/services/notifications.service';
 import {
   canCreateLiveSessionForTarget,
@@ -26,7 +26,7 @@ async function requireStaff() {
     .select('id, role, full_name, school_id')
     .eq('id', user.id)
     .single();
-  if (!profile || profile.role === 'student' || profile.role === 'school') return null;
+  if (!profile || ['student', 'parent'].includes(profile.role ?? '')) return null;
   return profile;
 }
 
@@ -244,6 +244,9 @@ export async function PATCH(
   for (const f of fields) {
     if (body[f] !== undefined) allowed[f] = body[f];
   }
+  if (caller.role === 'school') {
+    allowed.school_id = caller.school_id;
+  }
 
   const admin = adminClient();
 
@@ -258,7 +261,7 @@ export async function PATCH(
       const canTarget = await canCreateLiveSessionForTarget(
         admin as any,
         caller,
-        body.school_id ?? before.school_id,
+        allowed.school_id ?? before.school_id,
         body.program_id ?? before.program_id,
       );
       if (!canTarget) {

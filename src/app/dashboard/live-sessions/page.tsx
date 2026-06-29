@@ -7,7 +7,6 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Room,
   RoomEvent,
   Track,
 } from 'livekit-client';
@@ -1438,7 +1437,8 @@ export default function LiveSessionsPage() {
   const [attendanceSession, setAttendanceSession] = useState<LiveSession | null>(null);
   const [qaSession, setQaSession] = useState<LiveSession | null>(null);
 
-  const canManage = profile?.role === 'admin' || profile?.role === 'teacher';
+  const canCreateSession = !!profile?.role && !['student', 'parent'].includes(profile.role);
+  const canManage = canCreateSession;
   const isAdmin   = profile?.role === 'admin';
 
   // ── Data loading ────────────────────────────────────────────────────────────
@@ -1447,29 +1447,10 @@ export default function LiveSessionsPage() {
     setLoading(true); setError(null);
     try {
       const supabase = createClient();
-      let query = supabase
-        .from('live_sessions')
-        .select('*, program:programs(name)')
-        .order('scheduled_at', { ascending: true });
-
-      if ((profile.role === 'school' || profile.role === 'student') && profile.school_id)
-        query = query.or(`school_id.eq.${profile.school_id},school_id.is.null`);
-
-      const { data: rawSessions, error: sessErr } = await query;
-      if (sessErr) throw sessErr;
-
-      const rows = (rawSessions ?? []) as unknown as LiveSession[];
-
-      // Batch-fetch hosts
-      const hostIds = [...new Set(rows.map(r => r.host_id).filter(Boolean))];
-      const hostsMap: Record<string, { full_name: string; role: string }> = {};
-      if (hostIds.length > 0) {
-        const { data: hosts } = await supabase
-          .from('portal_users').select('id, full_name, role').in('id', hostIds);
-        if (hosts) hosts.forEach(h => { hostsMap[h.id] = { full_name: h.full_name, role: h.role }; });
-      }
-
-      setSessions(rows.map(r => ({ ...r, host: hostsMap[r.host_id] ?? undefined })));
+      const res = await fetch('/api/live-sessions', { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load sessions');
+      setSessions((json.data ?? []) as LiveSession[]);
 
       if (isAdmin) {
         const { data: sc } = await supabase.from('schools').select('id, name').order('name');
@@ -1734,7 +1715,7 @@ export default function LiveSessionsPage() {
                 </div>
               ))}
             </div>
-            {canManage && (
+            {canCreateSession && (
               <button
                 onClick={openCreate}
                 className="group/btn flex items-center gap-4 px-10 py-5 bg-primary hover:bg-primary text-white text-[11px] font-black uppercase tracking-[0.25em] transition-all shadow-2xl shadow-primary/30 relative overflow-hidden"
@@ -1794,7 +1775,7 @@ export default function LiveSessionsPage() {
 
         {/* ── Session Grid ── */}
         {filtered.length === 0 ? (
-          <EmptyState tab={filter} canManage={canManage} onAdd={openCreate} />
+          <EmptyState tab={filter} canManage={canCreateSession} onAdd={openCreate} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence>
