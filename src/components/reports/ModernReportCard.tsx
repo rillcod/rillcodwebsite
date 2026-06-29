@@ -379,18 +379,18 @@ export default function ModernReportCard({ report, orgSettings }: {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, flex: 1, minHeight: 0 }}>
                     <div style={{ background: isExecutive ? '#FFFDF7' : '#f0fdf4', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #bbf7d0', borderRadius: radius, padding: '10px 14px', display: 'flex', flexDirection: 'column' }}>
                         <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#059669', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
-                            <SparklesIcon className="w-3 h-3 shrink-0" /> Precision Strengths
+                            <SparklesIcon className="w-3 h-3 shrink-0" /> Key Strengths
                         </p>
                         <p style={{ fontSize: 11, lineHeight: 1.55, color: '#166534', fontWeight: 500, fontStyle: 'italic', flex: 1 }}>
-                            {report.key_strengths || 'Cognitive patterns indicate high analytical precision and rapid assimilation of core technical logic.'}
+                            {report.key_strengths || 'The student shows steady effort, good understanding, and positive engagement during learning activities.'}
                         </p>
                     </div>
                     <div style={{ background: isExecutive ? '#FFFDF7' : '#fff7ed', border: isIndustrial ? '2px solid #000' : isExecutive ? '1px solid #C5A059' : '1px solid #fed7aa', borderRadius: radius, padding: '10px 14px', display: 'flex', flexDirection: 'column' }}>
                         <p style={{ fontSize: 8, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.3em', color: '#dc2626', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 4, fontStyle: 'italic' }}>
-                            <BoltIcon className="w-3 h-3 shrink-0" /> Growth Vectors
+                            <BoltIcon className="w-3 h-3 shrink-0" /> Areas for Growth
                         </p>
                         <p style={{ fontSize: 11, lineHeight: 1.55, color: '#7c2d12', fontWeight: 500, fontStyle: 'italic', flex: 1 }}>
-                            {report.areas_for_growth || 'Transition to complex architectural modeling is required to optimize deployment competence.'}
+                            {report.areas_for_growth || 'Regular practice, careful revision, and active participation will help the student make stronger progress.'}
                         </p>
                     </div>
                 </div>

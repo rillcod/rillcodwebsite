@@ -116,6 +116,7 @@ export interface ReportCardData {
     show_payment_notice?: boolean | null;
     participation_score?: number | null;
     engagement_metrics?: any | null;
+    verification_code?: string | null;
 }
 
 export interface OrgSettings {

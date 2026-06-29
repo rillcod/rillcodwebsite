@@ -559,6 +559,7 @@ function ReportBuilderInner() {
         successTimerRef.current = setTimeout(() => setSuccess(''), 4000);
     };
     const [showPreview, setShowPreview] = useState(false);
+    const [hasPreviewedCurrentReport, setHasPreviewedCurrentReport] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [isSharingPdf, setIsSharingPdf] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -566,6 +567,7 @@ function ReportBuilderInner() {
     const [showMilestoneSuggestions, setShowMilestoneSuggestions] = useState(false);
     const [forceCertificate, setForceCertificate] = useState(false);
     const [isBulkBuilding, setIsBulkBuilding] = useState(false);
+    const [showValuesPhraseBank, setShowValuesPhraseBank] = useState(false);
     const [reportStyle, setReportStyle] = useState<'standard'|'modern'|'printable'>('modern');
     const [modernTemplateId, setModernTemplateId] = useState<'industrial'|'executive'|'futuristic'>('industrial');
     const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
@@ -664,7 +666,9 @@ function ReportBuilderInner() {
     // ── Dirty: compare current form to snapshot captured at student load ────────
     useEffect(() => {
         if (isHydrating.current || !snapForm.current) return;
-        setIsDirty(JSON.stringify(form) !== JSON.stringify(snapForm.current));
+        const dirty = JSON.stringify(form) !== JSON.stringify(snapForm.current);
+        setIsDirty(dirty);
+        if (dirty) setHasPreviewedCurrentReport(false);
     }, [form]);
 
     // ── Auto-save after 20 s of inactivity when changes are pending ───────────
@@ -885,6 +889,7 @@ function ReportBuilderInner() {
         setSuggestedModule(null);
         setDuplicateWarning(null);
         setDuplicateDetail('');
+        setHasPreviewedCurrentReport(false);
 
         // Manual entry: skip DB lookup, go straight to empty form
         const isManual = s.id?.startsWith('manual-');
@@ -1230,6 +1235,38 @@ function ReportBuilderInner() {
     }
     const waecCode = localWaecCode(overallScore);
 
+    const scoreValue = (value: string) => Number.parseFloat(value);
+    const scoreReady = (value: string) => Number.isFinite(scoreValue(value)) && scoreValue(value) >= 0 && scoreValue(value) <= 100;
+    const publishQualityIssues = (() => {
+        const issues: string[] = [];
+        const isManual = selectedStudent?.id?.startsWith('manual-') || selectedStudent?.id?.startsWith('students-');
+        const hasSchoolPeriod = isSchoolSection(sessionConfig.school_section)
+            ? !!(sessionConfig.report_term && sessionConfig.report_period)
+            : !!sessionConfig.course_duration;
+
+        if (!selectedStudent) issues.push('Select a portal student.');
+        if (isManual) issues.push('Use a portal-linked student, not a manual/pre-portal entry.');
+        if (!form.student_name.trim()) issues.push('Student name is required.');
+        if (!(form.section_class || sessionConfig.section_class || selectedStudent?.section_class)) issues.push('Class/section is required.');
+        if (!sessionConfig.school_section) issues.push('Choose a report context.');
+        if (!hasSchoolPeriod) issues.push(isSchoolSection(sessionConfig.school_section) ? 'Term and academic year are required.' : 'Cohort duration is required.');
+        if (!sessionConfig.course_name.trim()) issues.push('Course is required.');
+        if (!sessionConfig.instructor_name.trim()) issues.push('Instructor name is required.');
+        if (!sessionConfig.report_date) issues.push('Report date is required.');
+        if (!scoreReady(form.theory_score)) issues.push('Theory score must be 0-100.');
+        if (!scoreReady(form.classwork_score)) issues.push('Classwork score must be 0-100.');
+        if (!scoreReady(form.practical_score)) issues.push('Practical score must be 0-100.');
+        if (!scoreReady(form.attendance_score)) issues.push('Assignment score must be 0-100.');
+        if (!scoreReady(form.participation_score)) issues.push('Attendance score must be 0-100.');
+        if (!scoreReady(form.assessment_score)) issues.push('Assessment score must be 0-100.');
+        if (!form.key_strengths.trim()) issues.push('Key strengths comment is required.');
+        if (!form.areas_for_growth.trim()) issues.push('Areas for growth comment is required.');
+        if (duplicateWarning === 'published') issues.push('A published report already exists for this term/course.');
+        if (!hasPreviewedCurrentReport) issues.push('Preview the latest report before publishing.');
+        return issues;
+    })();
+    const canPublishReport = publishQualityIssues.length === 0;
+
     // ── Bulk Build: Process all students in current view ─────────────────────
     const handleBulkBuild = async () => {
         if (filteredStudents.length === 0) return;
@@ -1415,6 +1452,12 @@ function ReportBuilderInner() {
             setPublishing(false);
             return false;
         }
+        if (publish && publishQualityIssues.length > 0) {
+            setError(`Cannot publish yet: ${publishQualityIssues[0]}`);
+            setSaving(false);
+            setPublishing(false);
+            return false;
+        }
 
         try {
             const payload = {
@@ -1532,6 +1575,7 @@ function ReportBuilderInner() {
             setSuccessMsg(publish ? 'Report published — visible to student!' : 'Draft saved!');
             if (publish) setForm(f => ({ ...f, is_published: true }));
             setIsDirty(false);
+            if (publish) setHasPreviewedCurrentReport(true);
             return true;
         } catch (err: any) {
             setError(err.message ?? 'Failed to save');
@@ -1562,8 +1606,8 @@ function ReportBuilderInner() {
         setError('');
         try {
             const { attendance, totalSessions, assignments, totalAssignments } = studentStats;
-            const attPct = (attendance / totalSessions) * 100;
-            const assigPct = (assignments / totalAssignments) * 100;
+            const attPct = totalSessions > 0 ? (attendance / totalSessions) * 100 : 0;
+            const assigPct = totalAssignments > 0 ? (assignments / totalAssignments) * 100 : 0;
 
             // Technical qualifiers are logic-based for accuracy
             if (['participation_grade', 'projects_grade', 'homework_grade'].includes(field)) {
@@ -1588,6 +1632,7 @@ function ReportBuilderInner() {
             }
 
             // Qualitative evaluation uses actual AI with a concise fallback system
+            const evaluationField = field as 'key_strengths' | 'areas_for_growth';
             const topic = sessionConfig.current_module || sessionConfig.course_name || 'the course';
             const perfWord = overallScore >= 80 ? 'excellent' : overallScore >= 65 ? 'very good' : overallScore >= 50 ? 'satisfactory' : 'fair';
             const fallbackThemes = {
@@ -1645,20 +1690,15 @@ function ReportBuilderInner() {
                 const result = await res.json();
                 const aiData = result.data || {};
 
-                setForm(f => ({
-                    ...f,
-                    key_strengths: aiData.key_strengths || getRandomFallback('key_strengths'),
-                    areas_for_growth: aiData.areas_for_growth || getRandomFallback('areas_for_growth')
-                }));
-                setSuccessMsg('AI-assisted evaluation ready!');
+                const generatedText = evaluationField === 'key_strengths'
+                    ? aiData.key_strengths || getRandomFallback('key_strengths')
+                    : aiData.areas_for_growth || getRandomFallback('areas_for_growth');
+                setForm(f => ({ ...f, [evaluationField]: generatedText }));
+                setSuccessMsg(`${evaluationField === 'key_strengths' ? 'Strengths' : 'Growth'} comment drafted. Review before publishing.`);
             } catch (err) {
                 console.warn('AI failed, using high-quality fallback:', err);
-                setForm(f => ({
-                    ...f,
-                    key_strengths: f.key_strengths || getRandomFallback('key_strengths'),
-                    areas_for_growth: f.areas_for_growth || getRandomFallback('areas_for_growth')
-                }));
-                setSuccessMsg('Generated detailed report insights (Fallback System Activated).');
+                setForm(f => ({ ...f, [evaluationField]: f[evaluationField] || getRandomFallback(evaluationField) }));
+                setSuccessMsg(`${evaluationField === 'key_strengths' ? 'Strengths' : 'Growth'} comment drafted from fallback bank.`);
             }
         } catch (err: any) {
             setError(err.message ?? 'Generation failed');
@@ -2045,7 +2085,7 @@ function ReportBuilderInner() {
                         </button>
                         {step === 'edit' && selectedStudent && (
                             <>
-                                <button onClick={() => setShowPreview(true)}
+                                <button onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
                                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl transition-colors">
                                     <SparklesIcon className="w-3.5 h-3.5" /> Preview
                                 </button>
@@ -2061,6 +2101,7 @@ function ReportBuilderInner() {
                                 <button
                                     onClick={async () => {
                                         if (isDirty) await handleSave(false);
+                                        setHasPreviewedCurrentReport(true);
                                         setShowPreview(true);
                                     }}
                                     disabled={saving || publishing}
@@ -3104,7 +3145,7 @@ function ReportBuilderInner() {
                                                         <button onClick={() => handleAIGenerate(key as any)} disabled={!!generating}
                                                             className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:text-primary disabled:opacity-50 transition-all">
                                                             {generating === key ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <SparklesIcon className="w-3 h-3" />}
-                                                            AI Draft
+                                                            Draft Text
                                                         </button>
                                                     </div>
                                                     {/* Quick-pick chips */}
@@ -3167,8 +3208,11 @@ function ReportBuilderInner() {
                                 </Section>
 
                                 {/* Evaluation */}
-                                <Section title="Instructor Evaluation" icon="✍️">
+                                <Section title="Report-Visible Evaluation" icon="✍️">
                                     <div className="space-y-5">
+                                        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground leading-relaxed">
+                                            These two comments are printed on the report card and shown to parents. Use <span className="font-black text-primary">Draft Text</span> for a starting point, then review and edit it in your own voice before publishing.
+                                        </div>
                                         {(['key_strengths', 'areas_for_growth'] as const).map(field => {
                                             const labels: Record<string, string> = {
                                                 key_strengths: 'Key Strengths',
@@ -3183,12 +3227,12 @@ function ReportBuilderInner() {
                                                             {generating === field
                                                                 ? <ArrowPathIcon className="w-3 h-3 animate-spin" />
                                                                 : <SparklesIcon className="w-3 h-3" />}
-                                                            {generating === field ? 'Thinking...' : 'AI Draft'}
+                                                            {generating === field ? 'Drafting...' : 'Draft Text'}
                                                         </button>
                                                     </div>
                                                     <textarea rows={5} value={(form as any)[field]}
                                                         onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-                                                        placeholder={`Detailed observations...`}
+                                                        placeholder={field === 'key_strengths' ? 'Visible on report: what the student did well...' : 'Visible on report: what the student should improve next...'}
                                                         className={`${INPUT} resize-none text-sm leading-relaxed`} />
                                                 </div>
                                             );
@@ -3198,32 +3242,10 @@ function ReportBuilderInner() {
                                     {/* Smart Comments Phrase Bank Quick-Picks */}
                                     <div className="bg-card/50 border border-border p-4 rounded-xl mt-3 space-y-3">
                                         <div>
-                                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
-                                                <SparklesIcon className="w-3.5 h-3.5 animate-pulse" /> Faith & STEM Analogies Phrase Bank
+                                            <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
+                                                <SparklesIcon className="w-3.5 h-3.5" /> Optional Phrase Bank
                                             </p>
-                                            <p className="text-[9px] text-muted-foreground mt-0.5">Quick-insert rich faith-based computer science metaphors into Strengths:</p>
-                                        </div>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {[
-                                                { text: "Exhibits a Nehemiah-builder spirit in constructing robust codebase frameworks.", label: "🧱 Nehemiah Builder" },
-                                                { text: "Shows Solomon's wisdom in drafting clean, modular, and optimized class structures.", label: "👑 Solomon's Clean Code" },
-                                                { text: "Demonstrated great Joshua-style courage and patience in walking through complex debugging cycles.", label: "🛡️ Joshua Debugger" },
-                                                { text: "Approaches logic design with the precision and focus of David defeating algorithmic challenges.", label: "🏹 David-like Precision" },
-                                                { text: "Understands protocol integration deeply, avoiding Babel-like coordination gaps.", label: "🔌 Tower Unified Protocol" }
-                                            ].map((item, i) => (
-                                                <button
-                                                    key={i}
-                                                    type="button"
-                                                    onClick={() => setForm(f => {
-                                                        const current = f.key_strengths ? f.key_strengths.trim() : '';
-                                                        const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
-                                                        return { ...f, key_strengths: `${current}${divider}${item.text}` };
-                                                    })}
-                                                    className="px-2 py-1 text-[9px] font-bold bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl transition-all"
-                                                >
-                                                    + {item.label}
-                                                </button>
-                                            ))}
+                                            <p className="text-[9px] text-muted-foreground mt-0.5">Only phrases inserted into the two comment boxes above will appear on the report.</p>
                                         </div>
                                         <div className="w-full h-px bg-border/40" />
                                         <div>
@@ -3253,6 +3275,46 @@ function ReportBuilderInner() {
                                                 </button>
                                             ))}
                                         </div>
+                                        <div className="w-full h-px bg-border/40" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowValuesPhraseBank(v => !v)}
+                                            className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors"
+                                        >
+                                            {showValuesPhraseBank ? 'Hide' : 'Show'} optional faith/value analogies
+                                        </button>
+                                        {showValuesPhraseBank && (
+                                            <>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                                                        <SparklesIcon className="w-3.5 h-3.5 animate-pulse" /> Faith / Values Analogies
+                                                    </p>
+                                                    <p className="text-[9px] text-muted-foreground mt-0.5">Use only where the school/client wants values-based wording. These insert into Strengths.</p>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {[
+                                                        { text: "Shows a builder's discipline in constructing clear and reliable code structures.", label: "Builder Discipline" },
+                                                        { text: "Demonstrates wisdom and patience when breaking complex problems into simple logical steps.", label: "Wisdom & Patience" },
+                                                        { text: "Shows courage and resilience when debugging difficult tasks.", label: "Resilient Debugger" },
+                                                        { text: "Approaches logic design with focus, precision, and consistent effort.", label: "Focused Precision" },
+                                                        { text: "Collaborates well and helps reduce confusion during group technical tasks.", label: "Team Unity" }
+                                                    ].map((item, i) => (
+                                                        <button
+                                                            key={i}
+                                                            type="button"
+                                                            onClick={() => setForm(f => {
+                                                                const current = f.key_strengths ? f.key_strengths.trim() : '';
+                                                                const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
+                                                                return { ...f, key_strengths: `${current}${divider}${item.text}` };
+                                                            })}
+                                                            className="px-2 py-1 text-[9px] font-bold bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl transition-all"
+                                                        >
+                                                            + {item.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
                                         <div className="w-full h-px bg-border/40" />
                                         <div>
                                             <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1">
@@ -3340,12 +3402,13 @@ function ReportBuilderInner() {
                                         {saving ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <CloudArrowUpIcon className="w-3.5 h-3.5" />}
                                         <span>{saving ? 'Saving…' : 'Draft'}</span>
                                     </button>
-                                    <button onClick={() => saveAndNext(true)} disabled={saving || publishing}
+                                    <button onClick={() => saveAndNext(true)} disabled={saving || publishing || !canPublishReport}
+                                        title={!canPublishReport ? publishQualityIssues[0] : 'Publish this report'}
                                         className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20 flex-shrink-0">
                                         {publishing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <RocketLaunchIcon className="w-3.5 h-3.5" />}
                                         <span>{publishing ? 'Publishing…' : 'Publish'}</span>
                                     </button>
-                                    <button onClick={() => setShowPreview(true)}
+                                    <button onClick={() => { setHasPreviewedCurrentReport(true); setShowPreview(true); }}
                                         className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 bg-primary hover:bg-primary text-white text-[10px] sm:text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/40 flex-shrink-0">
                                         <EyeIcon className="w-3.5 h-3.5" />
                                         <span className="hidden sm:inline">Preview</span>
@@ -3390,6 +3453,25 @@ function ReportBuilderInner() {
                                             </button>
                                         )}
                                     </div>
+                                </div>
+                                <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${canPublishReport ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-300'}`}>
+                                    {canPublishReport ? (
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                            <span>Publish quality check passed. This report is ready to go live.</span>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                                <span>{publishQualityIssues.length} item{publishQualityIssues.length === 1 ? '' : 's'} required before publishing.</span>
+                                            </div>
+                                            <ul className="list-disc pl-5 space-y-0.5">
+                                                {publishQualityIssues.slice(0, 4).map((issue) => <li key={issue}>{issue}</li>)}
+                                                {publishQualityIssues.length > 4 && <li>{publishQualityIssues.length - 4} more item(s)</li>}
+                                            </ul>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -3605,7 +3687,7 @@ function ReportBuilderInner() {
                                         const result = await shareReportCard(
                                             pdfRef.current,
                                             `${name}_${term}.pdf`,
-                                            `Progress report for ${form.student_name} — ${sessionConfig.report_term} — Rillcod Academy`,
+                                            `Progress report for ${form.student_name} — ${sessionConfig.report_term} — Rillcod Technologies`,
                                         );
                                         if (result === 'downloaded') {
                                             setError('Web Share not supported on this browser — PDF downloaded instead.');

@@ -17,14 +17,14 @@ export function normalizeAccessCardCode(raw: string | null | undefined) {
 
 function hashUuidToEightChars(studentId: string) {
   const source = String(studentId || '').trim().toLowerCase();
-  let hash = 0xcbf29ce484222325n;
+  let hash = BigInt('0xcbf29ce484222325');
 
   for (let i = 0; i < source.length; i += 1) {
     hash ^= BigInt(source.charCodeAt(i));
-    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+    hash = BigInt.asUintN(64, hash * BigInt('0x100000001b3'));
   }
 
-  const compact = hash % (36n ** 8n);
+  const compact = hash % (BigInt(36) ** BigInt(8));
 
   return compact
     .toString(36)

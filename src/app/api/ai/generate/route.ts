@@ -125,6 +125,12 @@ RULES:
 - Lesson notes: detailed but scannable — ## headers, bullet points, British English.
 - Return ONLY valid JSON.`;
 
+const REPORT_FEEDBACK_SYSTEM_PROMPT = `You are a professional Nigerian school report writer for Rillcod Technologies.
+Write clear, parent-friendly progress report comments using simple British English.
+Do not add religious, biblical, spiritual, or metaphor-heavy wording unless the teacher's provided observation already contains it.
+Do not invent scores, incidents, awards, or personal details.
+Return ONLY valid JSON.`;
+
 type GenerateType = 'lesson' | 'lesson-notes' | 'lesson-plan' | 'library-content' | 'assignment' | 'project' | 'cbt' | 'report-feedback' | 'cbt-grading' | 'newsletter' | 'code-generation' | 'daily-missions' | 'lesson-hook' | 'custom' | 'curriculum' | 'flashcard';
 
 interface GenerateRequest {
@@ -487,6 +493,7 @@ RULES — follow strictly:
 5. Sound like a caring but professional head teacher — warm, honest, and encouraging.
 6. Key Strengths: celebrate what the student genuinely did well, using the strongest component and teacher qualifiers as evidence.
 7. Areas for Growth: give one clear, kind, achievable action the student can take in this specific course, focused on the weakest component and grounded in the teacher's observations.
+8. Do not add religious, faith-based, biblical, or spiritual metaphors unless they are already present in the teacher qualifiers.
 
 Return ONLY this JSON (no extra text):
 {
@@ -1512,6 +1519,7 @@ export async function POST(req: NextRequest) {
 
     // lesson-notes uses plain-text response (no response_format) to avoid malformed JSON errors
     const useJsonFormat = type !== 'lesson-notes';
+    const aiSystemPrompt = type === 'report-feedback' ? REPORT_FEEDBACK_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
     // ── SSE Streaming path — used when client sends ?stream=1 (lesson type only) ──
     const wantsStream = req.nextUrl?.searchParams.get('stream') === '1' && type === 'lesson';
@@ -1547,7 +1555,7 @@ export async function POST(req: NextRequest) {
                 body: JSON.stringify({
                   model: modelId,
                   messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
+                    { role: 'system', content: aiSystemPrompt },
                     { role: 'user', content: prompt },
                   ],
                   max_tokens: Math.min(adaptiveMaxTokens, 16000),
@@ -1598,7 +1606,7 @@ export async function POST(req: NextRequest) {
     // Try free direct Gemini API before spending OpenRouter credits.
     // Skipped ONLY for SSE streaming (handled above) — handles all else including cbt-grading.
     if (process.env.GEMINI_API_KEY && !wantsStream) {
-      const geminiResult = await geminiGenerateText(SYSTEM_PROMPT, prompt, useJsonFormat).catch(() => null);
+      const geminiResult = await geminiGenerateText(aiSystemPrompt, prompt, useJsonFormat).catch(() => null);
       if (geminiResult?.text) {
         if (type === 'lesson-notes') {
           const clean = geminiResult.text.replace(/^```(?:json|markdown)?\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -1633,7 +1641,7 @@ export async function POST(req: NextRequest) {
         const requestBody: any = {
           model: modelId,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: aiSystemPrompt },
             { role: 'user', content: prompt }
           ],
           max_tokens: Math.min(adaptiveMaxTokens, 16000),
