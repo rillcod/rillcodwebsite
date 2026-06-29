@@ -332,10 +332,11 @@ function WelcomeBanner({ profile, now }: { profile: any; now: Date | null }) {
 function transformStatsForAdmin(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'Partner Schools', value: stats.totalSchools || 0, icon: BuildingOfficeIcon, gradient: 'from-primary to-primary' },
+    { label: 'Approved Schools', value: stats.activeSchools || stats.totalSchools || 0, icon: BuildingOfficeIcon, gradient: 'from-primary to-primary' },
+    { label: 'School Accounts', value: stats.totalPartners || 0, icon: ShieldCheckIcon, gradient: 'from-primary to-primary' },
     { label: 'Active Teachers', value: stats.totalTeachers || 0, icon: AcademicCapIcon, gradient: 'from-primary to-primary' },
-    { label: 'Total Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary' },
-    { label: 'Submissions Graded', value: stats.totalGraded || 0, icon: ChartBarIcon, gradient: 'from-primary to-primary' },
+    { label: 'Active Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary' },
+    { label: 'Graded Results', value: stats.totalGraded || 0, icon: ChartBarIcon, gradient: 'from-primary to-primary' },
   ];
 }
 
@@ -352,10 +353,10 @@ function transformStatsForTeacher(stats: any) {
 function transformStatsForSchool(stats: any) {
   if (!stats) return [];
   return [
-    { label: 'Registered Students', value: stats.portalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary' },
+    { label: 'Registered Students', value: stats.totalStudents || 0, icon: UserGroupIcon, gradient: 'from-primary to-primary' },
     { label: 'Assigned Teachers', value: stats.assignedTeachers || 0, icon: AcademicCapIcon, gradient: 'from-primary to-primary' },
     { label: 'Student Perf. Avg', value: `${stats.avgPerformance || 0}%`, icon: ChartBarIcon, gradient: 'from-primary to-primary' },
-    { label: 'Submissions Count', value: stats.submissionsCount || 0, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary' },
+    { label: 'Graded Results', value: stats.submissionsCount || 0, icon: ClipboardDocumentListIcon, gradient: 'from-primary to-primary' },
   ];
 }
 

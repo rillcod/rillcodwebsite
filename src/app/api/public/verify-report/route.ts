@@ -1,21 +1,35 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
+import { RateLimitError } from '@/lib/errors';
 
 // Public endpoint — no auth required. Uses service role to bypass RLS.
 // Only returns published reports so drafts stay private.
 export async function GET(request: Request) {
+  try {
+    await checkCustomRateLimit({ key: `public-report-verify:${getClientIp(request as any)}`, max: 20, window: 60 });
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please wait before trying again.', retryAfter: (err as any).retryAfter ?? 60 },
+        { status: 429 },
+      );
+    }
+  }
+
   const { searchParams } = new URL(request.url);
-  const code = searchParams.get('code')?.trim();
+  const code = searchParams.get('code')?.trim().toUpperCase();
   if (!code) return NextResponse.json({ error: 'code required' }, { status: 400 });
+  if (!/^[A-Z0-9-]{12,80}$/.test(code)) {
+    return NextResponse.json({ found: false, reason: 'invalid_code' }, { status: 404 });
+  }
 
   const admin = createAdminClient();
 
-  // Match by UUID prefix (case-insensitive) — QR codes embed first 8 chars or full UUID
   const { data: report, error } = await (admin as any)
     .from('student_progress_reports')
     .select('*')
-    .ilike('id', `${code.toLowerCase()}%`)
-    .limit(1)
+    .eq('verification_code', code)
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

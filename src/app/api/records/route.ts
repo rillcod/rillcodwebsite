@@ -42,17 +42,38 @@ export async function GET() {
     scopeSchoolIds = [...ids];
   }
   const inScope = (schoolId?: string | null) => !scopeSchoolIds || (schoolId != null && scopeSchoolIds.includes(schoolId));
+  if (scopeSchoolIds && scopeSchoolIds.length === 0) {
+    return NextResponse.json({ records: [], count: 0, scope: profile.role });
+  }
 
   // ── Pull the source tables ──
+  let usersQuery = sb
+    .from('portal_users')
+    .select('id, email, full_name, role, school_id, school_name, section_class, enrollment_type, is_active, created_at')
+    .neq('is_deleted', true);
+  let leadsQuery = sb
+    .from('form_leads')
+    .select('id, email, response_data, child_current_school, school_id, status, match_status, submitted_at');
+  let prospectsQuery = sb
+    .from('prospective_students')
+    .select('id, full_name, email, parent_email, school_id, school_name, grade, course_interest, status, created_at')
+    .eq('is_deleted', false);
+
+  if (scopeSchoolIds) {
+    usersQuery = usersQuery.in('school_id', scopeSchoolIds);
+    leadsQuery = leadsQuery.in('school_id', scopeSchoolIds);
+    prospectsQuery = prospectsQuery.in('school_id', scopeSchoolIds);
+  }
+
   const [users, leads, prospects, regResults] = await Promise.all([
-    fetchAll(sb.from('portal_users').select('id, email, full_name, role, school_id, school_name, section_class, enrollment_type, is_active, created_at').neq('is_deleted', true)),
-    fetchAll(sb.from('form_leads').select('id, email, response_data, child_current_school, school_id, status, match_status, submitted_at')),
-    fetchAll(sb.from('prospective_students').select('id, full_name, email, parent_email, school_id, school_name, grade, course_interest, status, created_at').eq('is_deleted', false)),
-    fetchAll(sb.from('registration_results').select('email, status')),
+    fetchAll(usersQuery),
+    fetchAll(leadsQuery),
+    fetchAll(prospectsQuery),
+    fetchAll(sb.from('registration_results').select('email, status').in('status', ['created', 'updated', 'success', 'registered'])),
   ]);
 
   const leadEmails = new Set(leads.map((l: any) => norm(l.email)).filter(Boolean));
-  const bulkEmails = new Set(regResults.filter((r: any) => ['created', 'success', 'registered'].includes(String(r.status || '').toLowerCase())).map((r: any) => norm(r.email)));
+  const bulkEmails = new Set(regResults.map((r: any) => norm(r.email)).filter(Boolean));
   const accountEmails = new Set(users.map((u: any) => norm(u.email)).filter(Boolean));
 
   const sourceFor = (u: any): string => {

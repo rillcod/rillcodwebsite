@@ -4,6 +4,7 @@ import type { Database, TablesUpdate } from '@/types/supabase';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildReportEmail, buildEmailTrackingPixelUrl, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
+import crypto from 'crypto';
 
 function adminClient() {
   return createClient<Database>(
@@ -34,6 +35,19 @@ async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teach
     if (sid) ids.add(sid);
   }
   return Array.from(ids);
+}
+
+async function generateReportVerificationCode(admin: ReturnType<typeof adminClient>) {
+  for (let i = 0; i < 8; i += 1) {
+    const code = `RPT-${crypto.randomBytes(9).toString('base64url').toUpperCase()}`;
+    const { data } = await admin
+      .from('student_progress_reports')
+      .select('id')
+      .eq('verification_code', code)
+      .maybeSingle();
+    if (!data?.id) return code;
+  }
+  return `RPT-${crypto.randomUUID().replace(/-/g, '').toUpperCase()}`;
 }
 
 async function syncStudentProfile(
@@ -132,6 +146,16 @@ export async function PATCH(
   allowed.updated_at = new Date().toISOString();
 
   const admin = adminClient();
+  if (allowed.is_published === true) {
+    const { data: currentCode } = await admin
+      .from('student_progress_reports')
+      .select('verification_code')
+      .eq('id', id)
+      .maybeSingle();
+    if (!(currentCode as any)?.verification_code) {
+      allowed.verification_code = await generateReportVerificationCode(admin);
+    }
+  }
   const { data, error } = await admin
     .from('student_progress_reports')
     .update(allowed as TablesUpdate<'student_progress_reports'>)

@@ -45,6 +45,7 @@ type ContentItem = {
     public_url?: string | null;
     file_type?: string | null;
     thumbnail_url?: string | null;
+    file_size?: number | null;
   } | null;
   programs?: {
     name: string;
@@ -53,14 +54,14 @@ type ContentItem = {
 
 type SortKey = 'newest' | 'most_used' | 'top_rated';
 
-const CATEGORIES = ['All', 'Videos', 'Guides', 'Projects', 'Interactive', 'Assets'];
+const CATEGORIES = ['All', 'Videos', 'Documents', 'Presentations', 'Interactive', 'Quizzes'];
 
 const CATEGORY_TO_TYPE: Record<string, string[]> = {
   'Videos': ['video'],
-  'Guides': ['document', 'guide'],
-  'Projects': ['project'],
-  'Interactive': ['interactive', 'quiz'],
-  'Assets': ['presentation', 'asset'],
+  'Documents': ['document'],
+  'Presentations': ['presentation'],
+  'Interactive': ['interactive'],
+  'Quizzes': ['quiz'],
 };
 
 // In-App Canvas Viewer Component
@@ -154,7 +155,7 @@ function InAppViewer({ item, onClose, onDelete }: {
               <h3 className="font-black text-foreground tracking-tight">{item.title}</h3>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{item.content_type} • {item.subject || 'Syllabus Aligned'}</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{item.content_type} • {item.subject || 'General resource'}</p>
               </div>
             </div>
           </div>
@@ -268,7 +269,7 @@ function InAppViewer({ item, onClose, onDelete }: {
                 </div>
                 {fileUrl && (
                   <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 px-8 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-xl hover:-translate-y-1 transition-all">
-                    <ArrowDownTrayIcon className="w-4 h-4" /> Download Intelligence
+                    <ArrowDownTrayIcon className="w-4 h-4" /> Download
                   </a>
                 )}
               </div>
@@ -291,7 +292,9 @@ function UploadModal({ onClose, onCreated }: {
   const [gradeLevel, setGradeLevel] = useState('');
   const [tags, setTags] = useState('');
   const [url, setUrl] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [activePrograms, setActivePrograms] = useState<{ id: string; name: string }[]>([]);
   const [programId, setProgramId] = useState<string>('');
@@ -307,16 +310,30 @@ function UploadModal({ onClose, onCreated }: {
     setSubmitting(true); setErr(null);
     try {
       const typeMap: Record<string, string> = {
-        document: 'document', guide: 'document', project: 'interactive',
+        document: 'document',
         video: 'video', interactive: 'interactive',
-        presentation: 'presentation', quiz: 'quiz', asset: 'document',
+        presentation: 'presentation', quiz: 'quiz',
       };
       const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
       if (url.trim()) tagList.push(`url:${url.trim()}`);
+      let uploadedFile: any = null;
+      if (file) {
+        setUploadingFile(true);
+        const fd = new FormData();
+        fd.append('file', file);
+        const uploadRes = await fetch('/api/content-library/upload', {
+          method: 'POST',
+          body: fd,
+        });
+        const uploadJson = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok) throw new Error(uploadJson?.error ?? 'File upload failed');
+        uploadedFile = uploadJson.data;
+      }
       const payload = {
         title: title.trim(),
         description: description.trim() || undefined,
         contentType: typeMap[contentType] ?? 'document',
+        fileId: uploadedFile?.id,
         subject: subject.trim() || undefined,
         gradeLevel: gradeLevel.trim() || undefined,
         tags: tagList,
@@ -329,10 +346,22 @@ function UploadModal({ onClose, onCreated }: {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error ?? 'Upload failed');
-      onCreated(json.data as ContentItem);
+      const created = {
+        ...json.data,
+        files: uploadedFile
+          ? {
+            public_url: uploadedFile.public_url,
+            file_type: uploadedFile.file_type || uploadedFile.mime_type,
+            thumbnail_url: uploadedFile.thumbnail_url,
+            file_size: uploadedFile.file_size,
+          }
+          : json.data?.files,
+      } as ContentItem;
+      onCreated(created);
     } catch (e: any) {
       setErr(e.message || 'Upload failed');
     } finally {
+      setUploadingFile(false);
       setSubmitting(false);
     }
   }
@@ -359,7 +388,7 @@ function UploadModal({ onClose, onCreated }: {
               </div>
               <div>
                 <h2 className="text-2xl font-black text-foreground tracking-tight">New Resource</h2>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Deployment Pipeline</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Library catalog</p>
               </div>
             </div>
             <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-muted flex items-center justify-center transition-colors">
@@ -370,7 +399,7 @@ function UploadModal({ onClose, onCreated }: {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar max-h-[60vh]">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Asset Title</label>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Resource Title</label>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -381,13 +410,13 @@ function UploadModal({ onClose, onCreated }: {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Knowledge Context (Description)</label>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Description</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
               className="w-full bg-muted/50 border-2 border-transparent focus:border-primary/30 focus:bg-background rounded-3xl px-6 py-4 text-sm font-medium transition-all outline-none resize-none"
-              placeholder="Synthesize the key learning outcomes..."
+              placeholder="Describe the learning outcomes and how this resource should be used..."
             />
           </div>
 
@@ -399,13 +428,11 @@ function UploadModal({ onClose, onCreated }: {
                 onChange={e => setContentType(e.target.value)}
                 className="select-premium w-full p-4 text-sm font-bold transition-all outline-none appearance-none cursor-pointer"
               >
-                <option value="document">Digital Document</option>
-                <option value="video">Cinema Video</option>
-                <option value="guide">Technical Guide</option>
-                <option value="project">Interactive Project</option>
+                <option value="document">Document</option>
+                <option value="video">Video</option>
                 <option value="interactive">Simulation</option>
                 <option value="presentation">Presentation</option>
-                <option value="asset">3D / Asset</option>
+                <option value="quiz">Quiz</option>
               </select>
             </div>
             <div className="space-y-2">
@@ -441,7 +468,7 @@ function UploadModal({ onClose, onCreated }: {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Deployment URL (Remote Asset)</label>
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Resource URL</label>
             <div className="relative">
               <GlobeAltIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input
@@ -452,6 +479,47 @@ function UploadModal({ onClose, onCreated }: {
                 placeholder="https://cloud.rillcod.com/..."
               />
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] ml-1">Upload File</label>
+            <label className="block border-2 border-dashed border-border hover:border-primary/40 bg-muted/30 rounded-3xl p-6 cursor-pointer transition-all">
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.mp3,.jpg,.jpeg,.png,.webp,.zip,.txt,.csv,application/pdf,image/*,video/mp4,audio/mpeg,text/plain,text/csv"
+                onChange={(e) => {
+                  const selected = e.target.files?.[0] ?? null;
+                  setFile(selected);
+                  if (selected?.type.startsWith('video/')) setContentType('video');
+                  else if (selected?.name.toLowerCase().match(/\.(ppt|pptx)$/)) setContentType('presentation');
+                  else if (selected?.name.toLowerCase().match(/\.(pdf|doc|docx)$/)) setContentType('document');
+                }}
+              />
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <ArrowDownTrayIcon className="w-5 h-5 text-primary rotate-180" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-foreground truncate">
+                    {file ? file.name : 'Choose a file from your device'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
+                    PDF, Word, PowerPoint, video, audio, image, or ZIP
+                    {file ? ` • ${(file.size / 1024 / 1024).toFixed(1)} MB` : ''}
+                  </p>
+                </div>
+              </div>
+            </label>
+            {file && (
+              <button
+                type="button"
+                onClick={() => setFile(null)}
+                className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-rose-500 transition-colors"
+              >
+                Remove selected file
+              </button>
+            )}
           </div>
 
           {activePrograms.length > 0 && (
@@ -499,8 +567,8 @@ function UploadModal({ onClose, onCreated }: {
             className="flex-[2] py-5 bg-primary text-white text-xs font-black uppercase tracking-[0.3em] rounded-3xl shadow-[0_20px_40px_rgba(234,88,12,0.3)] hover:-translate-y-1 transition-all flex items-center justify-center gap-3 disabled:opacity-40"
           >
             {submitting ? (
-              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Finalizing...</>
-            ) : (<><PlusIcon className="w-4 h-4" /> Deploy Resource</>)}
+              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> {uploadingFile ? 'Uploading file...' : 'Finalizing...'}</>
+            ) : (<><PlusIcon className="w-4 h-4" /> Add Resource</>)}
           </button>
         </div>
       </motion.div>
@@ -530,16 +598,27 @@ export default function ContentLibraryPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const isStaff = ['admin', 'teacher', 'school'].includes(profile?.role ?? '');
-  const isLearner = ['student', 'parent'].includes(profile?.role ?? '');
+  const isLearner = profile?.role === 'student';
   const canAccess = isStaff || isLearner;
   const canMutateLibrary = profile?.role === "admin" || profile?.role === "teacher";
   const canUpload = canMutateLibrary;
 
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/content-library`);
+      const params = new URLSearchParams({ pageSize: '100' });
+      if (search.trim()) params.set('query', search.trim());
+      if (activeCategory !== 'All') {
+        const type = CATEGORY_TO_TYPE[activeCategory]?.[0];
+        if (type) params.set('type', type);
+      }
+      if (subjectFilter !== 'All') params.set('subject', subjectFilter);
+      if (sortKey === 'most_used') params.set('sort', 'usage_count');
+      if (sortKey === 'top_rated') params.set('sort', 'rating_average');
+      if (sortKey !== 'newest') params.set('order', 'desc');
+
+      const res = await fetch(`/api/content-library?${params.toString()}`);
       const payload = await res.json();
       if (!res.ok) throw new Error(payload?.error ?? "Failed to load library");
       setItems(payload.data ?? []);
@@ -548,7 +627,7 @@ export default function ContentLibraryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, activeCategory, subjectFilter, sortKey]);
 
   const deleteItem = async (e: React.MouseEvent, id: string) => {
     e.preventDefault(); e.stopPropagation();
@@ -569,8 +648,12 @@ export default function ContentLibraryPage() {
   };
 
   useEffect(() => {
-    if (authLoading || !profile) return;
+    if (authLoading || !profile || !canAccess) return;
     loadItems();
+  }, [authLoading, profile?.id, canAccess, loadItems]);
+
+  useEffect(() => {
+    if (authLoading || !profile || !canAccess) return;
     const courseId = searchParams.get('course_id');
     if (courseId) {
       createClient().from("courses").select("id, title, metadata").eq("id", courseId).single()
@@ -607,7 +690,7 @@ export default function ContentLibraryPage() {
           }
         });
     }
-  }, [profile?.id, authLoading, canMutateLibrary, searchParams]);
+  }, [profile?.id, authLoading, canAccess, canMutateLibrary, searchParams]);
 
   const subjects = useMemo(() => {
     const set = new Set<string>();
@@ -677,13 +760,37 @@ export default function ContentLibraryPage() {
     }
   };
 
-  if (authLoading || loading) return (
+  if (authLoading) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
       <div className="relative w-24 h-24">
         <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
         <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(234,88,12,0.5)]" />
       </div>
-      <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">Initializing Knowledge Base...</p>
+      <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">Loading content library...</p>
+    </div>
+  );
+
+  if (!canAccess) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="max-w-md text-center bg-card border border-border rounded-3xl p-8">
+          <ExclamationTriangleIcon className="w-10 h-10 text-amber-400 mx-auto mb-4" />
+          <h1 className="text-xl font-black text-foreground mb-2">Library Unavailable</h1>
+          <p className="text-sm text-muted-foreground">
+            This content library is available to students, teachers, schools, and admins.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
+      <div className="relative w-24 h-24">
+        <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
+        <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(234,88,12,0.5)]" />
+      </div>
+      <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] animate-pulse">Loading content library...</p>
     </div>
   );
 
@@ -710,7 +817,7 @@ export default function ContentLibraryPage() {
                   <BookOpenIcon className="w-6 h-6 text-primary" />
                 </div>
                 <span className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">
-                  {selectedCourse ? `Intelligence Stream: ${selectedCourse.title}` : 'Knowledge Repository'}
+                  {selectedCourse ? `Course resources: ${selectedCourse.title}` : 'Content Library'}
                 </span>
               </motion.div>
               <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-5xl lg:text-7xl font-black text-foreground tracking-tight mb-8">
@@ -731,7 +838,7 @@ export default function ContentLibraryPage() {
               )}
               {canUpload && (
                 <button onClick={() => setShowUpload(true)} className="w-full sm:w-auto flex items-center justify-center gap-4 px-12 py-5 bg-primary hover:brightness-110 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-3xl transition-all shadow-[0_20px_60px_rgba(234,88,12,0.4)] hover:-translate-y-2">
-                  <PlusIcon className="w-5 h-5" /> Deploy Asset
+                  <PlusIcon className="w-5 h-5" /> Add Resource
                 </button>
               )}
             </motion.div>
@@ -770,7 +877,7 @@ export default function ContentLibraryPage() {
                 ))}
                 {items.filter(i => (selectedCourse.subject && i.subject === selectedCourse.subject) || i.title.toLowerCase().includes(selectedCourse.title.toLowerCase())).length === 0 && (
                   <div className="col-span-full py-12 text-center text-[10px] font-black text-muted-foreground/30 uppercase tracking-[0.4em] border-2 border-dashed border-border rounded-3xl">
-                    Seeking Neural Matches...
+                    No recommended resources yet.
                   </div>
                 )}
               </div>
@@ -874,7 +981,7 @@ export default function ContentLibraryPage() {
             <div className="absolute inset-0 z-30 bg-background/50 backdrop-blur-sm rounded-[40px] flex items-center justify-center">
               <div className="bg-card border border-border p-10 rounded-[32px] shadow-2xl flex flex-col items-center gap-6">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-foreground">Synchronizing Node...</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-foreground">Saving changes...</p>
               </div>
             </div>
           )}
@@ -884,9 +991,9 @@ export default function ContentLibraryPage() {
               <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mx-auto mb-8 border border-border">
                 <BookOpenIcon className="w-12 h-12 text-muted-foreground/30" />
               </div>
-              <h3 className="text-3xl font-black text-foreground mb-4 tracking-tight">Intelligence Void Detected</h3>
+              <h3 className="text-3xl font-black text-foreground mb-4 tracking-tight">No Resources Found</h3>
               <p className="text-muted-foreground text-base mb-10 max-w-md mx-auto leading-relaxed">
-                {search ? 'Your parameters returned zero neural matches. Try recalibrating your filters.' : 'This node is currently empty. Initialize your first asset deployment.'}
+                {search ? 'No resources match your current search and filters.' : 'This library is currently empty. Add the first resource to get started.'}
               </p>
               {canUpload && !search && (
                 <button onClick={() => setShowUpload(true)} className="px-10 py-5 bg-primary text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-[24px] shadow-2xl hover:-translate-y-1 transition-all">
@@ -909,7 +1016,7 @@ export default function ContentLibraryPage() {
                       {item.is_approved && <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-500"><CheckCircleIcon className="w-4 h-4" /> Validated</div>}
                     </div>
                     <div className="flex items-center gap-6 text-[10px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">
-                      <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-primary" /> {item.subject || 'Syllabus Aligned'}</span>
+                      <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-primary" /> {item.subject || 'General resource'}</span>
                       <span className="opacity-20">•</span>
                       <span>Target: {item.grade_level || 'All Levels'}</span>
                       <span className="opacity-20">•</span>
@@ -951,7 +1058,7 @@ export default function ContentLibraryPage() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="w-2 h-2 rounded-full bg-primary" />
-                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{item.subject || 'Syllabus Aligned'}</span>
+                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">{item.subject || 'General resource'}</span>
                         {item.programs?.name && <span className="text-[9px] font-black uppercase tracking-[0.15em] px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">{item.programs.name}</span>}
                       </div>
                       <h3 className="text-xl font-black text-foreground leading-tight line-clamp-2 tracking-tight group-hover:text-primary transition-colors">{item.title}</h3>

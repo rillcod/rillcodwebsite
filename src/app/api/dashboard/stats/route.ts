@@ -58,33 +58,71 @@ export async function GET(req: NextRequest) {
     const role = profile.role;
     let stats: any = {};
 
-    // Use optimized RPC functions based on role
     if (role === 'admin') {
-      // Use materialized view for admin stats
-      const { data: adminStats } = await supabase
-        .from('admin_dashboard_stats')
-        .select('*')
-        .single();
-
       // Get recent school payments
-      const { data: payments } = await supabase
-        .from('invoices')
-        .select('id, invoice_number, amount, currency, status, due_date, created_at, schools(name)')
-        .not('school_id', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const [
+        approvedSchools,
+        schoolAccounts,
+        activeTeachers,
+        activePortalStudents,
+        studentRegistrations,
+        gradedAssignments,
+        gradedCbt,
+        paymentsRes,
+      ] = await Promise.all([
+        supabase
+          .from('schools')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['approved', 'active'])
+          .neq('is_deleted', true),
+        supabase
+          .from('portal_users')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'school')
+          .eq('is_active', true)
+          .neq('is_deleted', true),
+        supabase
+          .from('portal_users')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'teacher')
+          .eq('is_active', true)
+          .neq('is_deleted', true),
+        supabase
+          .from('portal_users')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'student')
+          .eq('is_active', true)
+          .neq('is_deleted', true),
+        supabase
+          .from('students')
+          .select('id', { count: 'exact', head: true })
+          .or('status.is.null,status.neq.rejected'),
+        supabase
+          .from('assignment_submissions')
+          .select('id', { count: 'exact', head: true })
+          .not('grade', 'is', null),
+        supabase
+          .from('cbt_sessions')
+          .select('id', { count: 'exact', head: true })
+          .not('score', 'is', null),
+        supabase
+          .from('invoices')
+          .select('id, invoice_number, amount, currency, status, due_date, created_at, schools(name)')
+          .not('school_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(10),
+      ]);
 
-      if (adminStats) {
-        stats = {
-          totalSchools: adminStats.total_schools,
-          activeSchools: adminStats.active_schools,
-          totalTeachers: adminStats.total_teachers,
-          totalStudents: adminStats.total_students,
-          totalPartners: adminStats.total_partners,
-          totalGraded: (adminStats.graded_assignments || 0) + (adminStats.graded_cbt || 0),
-          schoolPayments: payments || [],
-        };
-      }
+      stats = {
+        totalSchools: approvedSchools.count || 0,
+        activeSchools: approvedSchools.count || 0,
+        totalTeachers: activeTeachers.count || 0,
+        totalStudents: activePortalStudents.count || 0,
+        studentRegistrations: studentRegistrations.count || 0,
+        totalPartners: schoolAccounts.count || 0,
+        totalGraded: (gradedAssignments.count || 0) + (gradedCbt.count || 0),
+        schoolPayments: paymentsRes.data || [],
+      };
     } else if (role === 'teacher') {
       const { data, error } = await supabase.rpc('get_teacher_dashboard_stats', {
         teacher_uuid: profile.id,

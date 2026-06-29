@@ -63,7 +63,7 @@ export default function MarkerIntegrityPage() {
       {/* Guardian Header */}
       <div className="relative overflow-hidden bg-card border border-border rounded-[2.5rem] p-8 sm:p-14 shadow-2xl">
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
-        <Link href="/dashboard/progression/settings" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-8 transition-colors">
+        <Link href="/dashboard/settings?tab=academic-rules" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-8 transition-colors">
           <ArrowLeftIcon className="w-4 h-4" /> Back to Controls
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-10 relative z-10">

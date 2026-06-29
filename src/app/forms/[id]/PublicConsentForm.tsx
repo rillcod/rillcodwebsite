@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import QRCode from 'react-qr-code';
 
 interface FormData {
@@ -105,6 +106,9 @@ const emptyChild = (): ChildEntry => ({ name: '', gender: '', age: '', class_: '
 export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }: { form: FormData; publicUrl: string; schoolsList?: string[] }) {
   const isAssessment = form.form_type === 'assessment';
   const LS_KEY       = `rillcod_form_${form.id}`;
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
+  const safeReturnTo = returnTo?.startsWith('/') ? returnTo : null;
 
   // ── Fee ─────────────────────────────────────────────────────────────────────
   const bodyHasFee  = /₦[\d,]+/.test(form.body);
@@ -442,6 +446,15 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
           <p className="font-black text-white">+234 811 660 0091</p>
           <p className="text-xs text-[#71717a]">support@rillcod.com · @rillcod</p>
         </div>
+
+        {safeReturnTo && (
+          <a
+            href={safeReturnTo}
+            className="block w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3 rounded-xl transition-colors text-center"
+          >
+            Return to Result Check
+          </a>
+        )}
       </div>
     );
   }

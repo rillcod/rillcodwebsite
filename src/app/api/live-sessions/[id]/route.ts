@@ -4,6 +4,11 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendPushNotification, buildNotificationUrl } from '@/lib/push';
 import { notificationsService } from '@/services/notifications.service';
+import {
+  canCreateLiveSessionForTarget,
+  LiveSessionAuthError,
+  requireLiveSessionManager,
+} from '@/lib/live-sessions/authz';
 
 function adminClient() {
   return createClient(
@@ -18,7 +23,7 @@ async function requireStaff() {
   if (error || !user) return null;
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('id, role, full_name')
+    .select('id, role, full_name, school_id')
     .eq('id', user.id)
     .single();
   if (!profile || profile.role === 'student' || profile.role === 'school') return null;
@@ -242,8 +247,30 @@ export async function PATCH(
 
   const admin = adminClient();
 
-  // Get current session to detect status change → completed
-  const { data: before } = await admin.from('live_sessions').select('*').eq('id', id).single();
+  // Get current session to authorize and detect status changes.
+  const { data: before, error: beforeErr } = await admin.from('live_sessions').select('*').eq('id', id).maybeSingle();
+  if (beforeErr) return NextResponse.json({ error: beforeErr.message }, { status: 500 });
+  if (!before) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+
+  try {
+    await requireLiveSessionManager(admin as any, caller, before);
+    if (body.school_id !== undefined || body.program_id !== undefined) {
+      const canTarget = await canCreateLiveSessionForTarget(
+        admin as any,
+        caller,
+        body.school_id ?? before.school_id,
+        body.program_id ?? before.program_id,
+      );
+      if (!canTarget) {
+        return NextResponse.json({ error: 'You cannot move this session to that school or programme.' }, { status: 403 });
+      }
+    }
+  } catch (err: any) {
+    if (err instanceof LiveSessionAuthError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    throw err;
+  }
 
   const { data, error } = await admin
     .from('live_sessions')
@@ -277,6 +304,19 @@ export async function DELETE(
 
   const { id } = await context.params;
   const admin = adminClient();
+  const { data: session, error: fetchErr } = await admin.from('live_sessions').select('*').eq('id', id).maybeSingle();
+  if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+  if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+
+  try {
+    await requireLiveSessionManager(admin as any, caller, session);
+  } catch (err: any) {
+    if (err instanceof LiveSessionAuthError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    throw err;
+  }
+
   const { error } = await admin.from('live_sessions').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

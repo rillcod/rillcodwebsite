@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AccessToken } from 'livekit-server-sdk';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import {
+  canManageLiveSession,
+  isSessionJoinWindowOpen,
+  LiveSessionAuthError,
+  requireLiveSessionAccess,
+} from '@/lib/live-sessions/authz';
 
-const API_KEY    = process.env.LIVEKIT_API_KEY!;
-const API_SECRET = process.env.LIVEKIT_API_SECRET!;
+function adminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 // POST /api/live-sessions/livekit-token
 // Body: { sessionId: string }
@@ -17,13 +28,48 @@ export async function POST(req: NextRequest) {
     const { sessionId } = await req.json();
     if (!sessionId) return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
 
+    const API_KEY = process.env.LIVEKIT_API_KEY;
+    const API_SECRET = process.env.LIVEKIT_API_SECRET;
+    const LIVEKIT_URL = process.env.LIVEKIT_URL;
+    if (!API_KEY || !API_SECRET || !LIVEKIT_URL) {
+      return NextResponse.json({ error: 'LiveKit is not configured on this server.' }, { status: 500 });
+    }
+
     const { data: profile } = await supabase
       .from('portal_users')
-      .select('full_name, role')
+      .select('id, full_name, role, school_id')
       .eq('id', user.id)
       .single();
 
-    const isModerator = profile?.role === 'admin' || profile?.role === 'teacher';
+    if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+
+    const admin = adminClient();
+    const { data: session, error: sessionErr } = await admin
+      .from('live_sessions')
+      .select('id, host_id, school_id, program_id, status, scheduled_at, duration_minutes')
+      .eq('id', sessionId)
+      .maybeSingle();
+
+    if (sessionErr) return NextResponse.json({ error: sessionErr.message }, { status: 500 });
+    if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+
+    try {
+      await requireLiveSessionAccess(admin as any, profile, session);
+    } catch (err: any) {
+      if (err instanceof LiveSessionAuthError) {
+        return NextResponse.json({ error: err.message }, { status: err.status });
+      }
+      throw err;
+    }
+
+    const isModerator = await canManageLiveSession(admin as any, profile, session);
+    if (!isModerator && !isSessionJoinWindowOpen(session)) {
+      return NextResponse.json({ error: 'This session is not open for joining yet.' }, { status: 403 });
+    }
+    if (isModerator && ['completed', 'cancelled'].includes(String(session.status))) {
+      return NextResponse.json({ error: 'This session is no longer active.' }, { status: 400 });
+    }
+
     const displayName = profile?.full_name ?? 'Participant';
     const roomName    = `rillcod-${sessionId.slice(0, 12)}`;
     const identity    = user.id;
@@ -49,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       token,
-      url:      process.env.LIVEKIT_URL,
+      url:      LIVEKIT_URL,
       roomName,
       isModerator,
       displayName,

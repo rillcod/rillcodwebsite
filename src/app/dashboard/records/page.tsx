@@ -13,6 +13,7 @@ type Rec = {
 type Reg = {
   id: string; name: string; email: string; password: string; klass: string;
   school: string; source: string; batchName: string; status: string; account: string; registered: string | null; batchId: string;
+  portalUserId?: string | null;
 };
 type SortKey = 'registered' | 'name' | 'school' | 'klass' | 'type' | 'status' | 'source' | 'account' | 'batch';
 
@@ -214,28 +215,35 @@ export default function RecordsPage() {
   }
 
   function printCards(items: Reg[] = regsFiltered) {
-    const valid = items.filter(r => r.account !== 'Deleted' && String(r.status || '').toLowerCase() !== 'failed');
+    const valid = items.filter(r => r.portalUserId && r.account !== 'Deleted' && String(r.status || '').toLowerCase() !== 'failed');
     if (valid.length === 0) return;
     const sorted = [...valid].sort((a, b) => (a.klass || '').localeCompare(b.klass || '') || a.name.localeCompare(b.name));
+    const origin = window.location.origin;
     const html = `<!doctype html><html><head><title>Student Access Cards</title><style>
       @page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0;color:#111827;background:#fff}
       .grid{display:grid;grid-template-columns:80mm 80mm;grid-auto-rows:58mm;gap:7mm;justify-content:center}
       .card{border:1px solid #d1d5db;border-left:5px solid #7c3aed;border-radius:8px;overflow:hidden;break-inside:avoid;display:flex;flex-direction:column;background:#fff}
       .top{background:#7c3aed;color:#fff;padding:8px 10px;display:flex;align-items:center;justify-content:space-between}.brand{font-weight:900;font-size:12px;text-transform:uppercase}.tag{font-size:8px;font-weight:900;background:rgba(0,0,0,.2);padding:3px 6px;border-radius:999px}
-      .body{padding:10px}.name{font-size:14px;font-weight:900;text-transform:uppercase;line-height:1.1;margin-bottom:7px}.line{font-size:9px;color:#6b7280;text-transform:uppercase;font-weight:800;margin-top:5px}.val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#111827;font-weight:800;word-break:break-word}
+      .body{padding:9px 10px;display:grid;grid-template-columns:1fr 24mm;gap:8px;align-items:start}.name{font-size:13px;font-weight:900;text-transform:uppercase;line-height:1.1;margin-bottom:6px}.line{font-size:8px;color:#6b7280;text-transform:uppercase;font-weight:800;margin-top:4px}.val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#111827;font-weight:800;word-break:break-word}.qr{width:24mm;height:24mm;border:1px solid #e5e7eb;border-radius:6px;padding:2px;background:#fff}.hint{font-size:7px;font-weight:900;color:#6b7280;text-align:center;text-transform:uppercase;line-height:1.15;margin-top:3px}.code{font-size:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#4c1d95;text-align:center;font-weight:900;word-break:break-all;letter-spacing:.03em}
       .foot{margin-top:auto;border-top:1px dashed #e5e7eb;padding:6px 10px;font-size:8px;color:#6b7280;font-weight:800;display:flex;justify-content:space-between}
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
     </style></head><body><div class="grid">
       ${sorted.map(r => {
-        const code = `RC-${r.id.slice(0, 8).toUpperCase()}`;
+        const studentId = r.portalUserId || r.id;
+        const code = `RC-${studentId.slice(0, 8).toUpperCase()}`;
+        const checkUrl = `${origin}/result-check/${encodeURIComponent(code)}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=1&data=${encodeURIComponent(checkUrl)}`;
         return `<div class="card"><div class="top"><div class="brand">Rillcod Access</div><div class="tag">${esc(r.klass || 'STUDENT')}</div></div><div class="body">
-          <div class="name">${esc(r.name)}</div>
+          <div><div class="name">${esc(r.name)}</div>
           <div class="line">Login Email</div><div class="val">${esc(r.email)}</div>
           <div class="line">Password</div><div class="val" style="color:#7c2d12">${esc(r.password || '—')}</div>
-          <div class="line">School</div><div class="val" style="font-size:9px">${esc(r.school || 'Rillcod Academy')}</div>
-        </div><div class="foot"><span>rillcod.com/login</span><span>${esc(code)}</span></div></div>`;
+          <div class="line">School</div><div class="val" style="font-size:8px">${esc(r.school || 'Rillcod Academy')}</div></div>
+          <div><img class="qr" src="${qrUrl}" alt="Result QR for ${esc(r.name)}"/><div class="hint">Scan to check result<br/>Consent is one-time</div><div class="code">${esc(code)}</div></div>
+        </div><div class="foot"><span>rillcod.com/result-check</span><span>${esc(code)}</span></div></div>`;
       }).join('')}
-      </div><script>window.onload=()=>window.print()</script></body></html>`;
+      </div><script>
+        window.onload=()=>{const imgs=[...document.images];Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(r=>{img.onload=r;img.onerror=r;}))).then(()=>setTimeout(()=>window.print(),250));};
+      </script></body></html>`;
     const win = window.open('', '_blank');
     win?.document.write(html);
     win?.document.close();

@@ -24,6 +24,94 @@ type ResolvedClass = {
   teacherId: string | null;
 };
 
+type CallerProfile = {
+  role: string | null;
+  school_id?: string | null;
+  school_name?: string | null;
+};
+
+class HttpError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+const normalizeEmail = (email?: string | null) => (email || '').trim().toLowerCase();
+
+async function getAssignedSchoolIds(caller: CallerProfile, userId: string) {
+  const assignedIds = new Set<string>();
+  if (caller.school_id) assignedIds.add(caller.school_id);
+
+  if (caller.role === 'teacher') {
+    const { data: rows } = await supabaseAdmin
+      .from('teacher_schools')
+      .select('school_id')
+      .eq('teacher_id', userId);
+
+    for (const row of rows ?? []) {
+      if ((row as any).school_id) assignedIds.add((row as any).school_id);
+    }
+  }
+
+  return assignedIds;
+}
+
+function canAccessSchool(caller: CallerProfile, assignedSchoolIds: Set<string>, schoolId?: string | null) {
+  if (caller.role === 'admin') return true;
+  return !!schoolId && assignedSchoolIds.has(schoolId);
+}
+
+async function requireBatchAccess(batchId: string, caller: CallerProfile, assignedSchoolIds: Set<string>) {
+  const { data: batch, error } = await supabaseAdmin
+    .from('registration_batches')
+    .select('id, school_id, school_name, class_id, class_name')
+    .eq('id', batchId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!batch) throw new HttpError('Registration batch not found', 404);
+  if (!canAccessSchool(caller, assignedSchoolIds, (batch as any).school_id)) {
+    throw new HttpError('You do not have access to this registration batch.', 403);
+  }
+
+  return batch as any;
+}
+
+async function requireClassAccess(classId: string, caller: CallerProfile, assignedSchoolIds: Set<string>, userId: string) {
+  const { data: cls, error } = await supabaseAdmin
+    .from('classes')
+    .select('school_id, name, teacher_id')
+    .eq('id', classId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!cls) throw new HttpError('Class not found', 404);
+  if (!canAccessSchool(caller, assignedSchoolIds, (cls as any).school_id)) {
+    throw new HttpError('You are not assigned to this class school.', 403);
+  }
+  if (caller.role === 'teacher' && (cls as any).teacher_id && (cls as any).teacher_id !== userId) {
+    throw new HttpError('You can only assign students to classes you own.', 403);
+  }
+
+  return cls as any;
+}
+
+async function findAuthUserIdByEmail(email: string) {
+  const target = normalizeEmail(email);
+  const perPage = 1000;
+  for (let page = 1; page <= 25; page += 1) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const match = data?.users?.find((u) => normalizeEmail(u.email) === target);
+    if (match) return match.id;
+    if (!data?.users || data.users.length < perPage) break;
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     // Verify caller is admin or teacher
@@ -65,17 +153,9 @@ export async function POST(request: Request) {
     const resolvedSchoolId: string | null = rId || cId;
 
     // Teachers must be assigned to the school they're registering students under
+    const assignedSchoolIds = await getAssignedSchoolIds(caller, user.id);
     if (caller.role === 'teacher' && rId) {
-      const { data: tsRows } = await supabaseAdmin
-        .from('teacher_schools')
-        .select('school_id')
-        .eq('teacher_id', user.id);
-      const assignedIds = new Set<string>();
-      if (caller.school_id) assignedIds.add(caller.school_id);
-      for (const r of (tsRows ?? [])) {
-        if ((r as any).school_id) assignedIds.add((r as any).school_id);
-      }
-      if (!assignedIds.has(rId)) {
+      if (!assignedSchoolIds.has(rId)) {
         return NextResponse.json(
           { error: 'You are not assigned to the school you selected for registration.' },
           { status: 403 },
@@ -116,7 +196,7 @@ export async function POST(request: Request) {
     // Resolve the batch class's teacher — used to stamp primary_teacher_id on NEW students only
     let batchClassTeacherId: string | null = null;
     if (batchClassId) {
-      const { data: batchCls } = await supabaseAdmin.from('classes').select('teacher_id').eq('id', batchClassId).single();
+      const batchCls = await requireClassAccess(batchClassId, caller, assignedSchoolIds, user.id);
       batchClassTeacherId = batchCls?.teacher_id ?? null;
     }
 
@@ -218,7 +298,7 @@ export async function POST(request: Request) {
       const nameKey = full_name.trim().replace(/\s+/g, ' ').toLowerCase();
 
       // 3. Email Check: Check if email is already in use by a different student or role
-      const emailKey = email.trim().toLowerCase();
+      const emailKey = normalizeEmail(email);
       const { data: userWithEmail } = await supabaseAdmin
         .from('portal_users')
         .select('id, full_name, role, is_deleted')
@@ -296,13 +376,9 @@ export async function POST(request: Request) {
             signupErr.message.toLowerCase().includes('already') ||
             signupErr.message.toLowerCase().includes('exists')
           ) {
-            // User exists — look them up and update their password
-            const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-            const existing = listData?.users?.find(
-              (u) => u.email?.toLowerCase() === email.trim().toLowerCase(),
-            );
-            if (existing) {
-              authUserId = existing.id;
+            // User exists — resolve by portal profile first, then page through auth users.
+            authUserId = (userWithEmail as any)?.id ?? await findAuthUserIdByEmail(email);
+            if (authUserId) {
               await supabaseAdmin.auth.admin.updateUserById(authUserId, {
                 password,
                 user_metadata: { must_change_password: true },
@@ -367,7 +443,7 @@ export async function POST(request: Request) {
         const { error: profileErr } = await supabaseAdmin.from('portal_users').upsert(
           {
             id: authUserId,
-            email: email.trim().toLowerCase(),
+            email: normalizeEmail(email),
             full_name: full_name.trim(),
             role: 'student',
             school_id: resolvedSchoolId,
@@ -383,6 +459,11 @@ export async function POST(request: Request) {
         );
 
         if (profileErr) {
+          if (status === 'created') {
+            await supabaseAdmin.auth.admin.deleteUser(authUserId).catch((deleteErr) => {
+              console.error('[BulkRegister] Failed to rollback auth user after profile error:', deleteErr);
+            });
+          }
           results.push({
             full_name, email, password, class_name, status: 'failed',
             error: `Profile error: ${profileErr.message}`,
@@ -406,7 +487,7 @@ export async function POST(request: Request) {
           user_id: authUserId,
           name: full_name.trim(),
           full_name: full_name.trim(),
-          student_email: email.trim().toLowerCase(),
+          student_email: normalizeEmail(email),
           school_id: resolvedSchoolId,
           school_name: resolvedSchoolName,
           current_class: effectiveClassName,
@@ -418,9 +499,18 @@ export async function POST(request: Request) {
         }, { onConflict: 'user_id' }); // Use user_id as conflict target
 
         if (studentErr) {
-           console.error('[BulkRegister] Student table sync error:', studentErr);
-           // We don't fail the registration if students table sync fails, 
-           // but we log it for admin review.
+          console.error('[BulkRegister] Student table sync error:', studentErr);
+          if (status === 'created') {
+            await supabaseAdmin.from('portal_users').delete().eq('id', authUserId);
+            await supabaseAdmin.auth.admin.deleteUser(authUserId).catch((deleteErr) => {
+              console.error('[BulkRegister] Failed to rollback auth user after student sync error:', deleteErr);
+            });
+          }
+          results.push({
+            full_name, email, password, class_name, status: 'failed',
+            error: `Student sync error: ${studentErr.message}`,
+          });
+          continue;
         }
 
         const effectiveClass = effectiveClassName || undefined;
@@ -475,7 +565,14 @@ export async function POST(request: Request) {
         const enrolledSet = new Set((alreadyEnrolled ?? []).map((e: any) => e.user_id));
         const toInsert = enrollments.filter((e) => !enrolledSet.has(e.user_id));
         if (toInsert.length > 0) {
-          await supabaseAdmin.from('enrollments').insert(toInsert);
+          const { error: enrollmentErr } = await supabaseAdmin.from('enrollments').insert(toInsert);
+          if (enrollmentErr) {
+            for (const result of results) {
+              if (result.userId && successIds.includes(result.userId)) {
+                result.error = `Account created, but programme enrollment failed: ${enrollmentErr.message}`;
+              }
+            }
+          }
         }
       }
     }
@@ -517,7 +614,7 @@ export async function POST(request: Request) {
           ? Array.from(new Set(results.map((r) => r.class_name).filter(Boolean)))[0] ?? null
           : null;
         // 1. Upsert batch metadata
-        await supabaseAdmin.from('registration_batches').upsert({
+        const { error: batchErr } = await supabaseAdmin.from('registration_batches').upsert({
           id: batchId,
           created_by: user.id,
           school_id: resolvedSchoolId,
@@ -526,6 +623,7 @@ export async function POST(request: Request) {
           class_id: batchClassId || singleTouchedClassId,
           class_name: batchClassName || singleTouchedClassName,
         }, { onConflict: 'id' });
+        if (batchErr) throw batchErr;
 
         // 2. Map results to history entries — only archive registrations that
         // actually produced a live account. 'failed' / 'name_swap_conflict' never
@@ -545,13 +643,17 @@ export async function POST(request: Request) {
           }));
 
         // 3. Insert results
-        if (historyEntries.length > 0) await supabaseAdmin.from('registration_results').insert(historyEntries);
+        if (historyEntries.length > 0) {
+          const { error: historyErr } = await supabaseAdmin.from('registration_results').insert(historyEntries);
+          if (historyErr) throw historyErr;
+        }
         
         // 4. Update student count on batch
-        await supabaseAdmin
+        const { error: countErr } = await supabaseAdmin
           .from('registration_batches')
           .update({ student_count: historyEntries.length })
           .eq('id', batchId);
+        if (countErr) throw countErr;
           
       } catch (histErr) {
         console.error('[BulkRegister] Failed to save history:', histErr);
@@ -563,7 +665,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ results: publicResults });
   } catch (err: any) {
     console.error('Bulk register error:', err);
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: err.status || 500 });
   }
 }
 
@@ -573,15 +675,21 @@ export async function PATCH(request: Request) {
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
     if (authErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: patchCaller } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+    const { data: patchCaller } = await supabase.from('portal_users').select('role, school_id, school_name').eq('id', user.id).single();
     if (!patchCaller || !['admin', 'teacher'].includes(patchCaller.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
+    const assignedSchoolIds = await getAssignedSchoolIds(patchCaller, user.id);
 
     if (body.type === 'batch') {
       const { id, class_name, school_id, school_name } = body.data;
+      if (!id) return NextResponse.json({ error: 'Batch id required' }, { status: 400 });
+      await requireBatchAccess(id, patchCaller, assignedSchoolIds);
+      if (patchCaller.role !== 'admin' && school_id && !assignedSchoolIds.has(school_id)) {
+        return NextResponse.json({ error: 'You cannot move this batch to another school.' }, { status: 403 });
+      }
       const { error } = await supabaseAdmin
         .from('registration_batches')
         .update({ class_name: class_name || null, school_id: school_id || null, school_name: school_name || null })
@@ -592,6 +700,16 @@ export async function PATCH(request: Request) {
 
     if (body.type === 'result') {
       const r = body.data;
+      if (!r?.id) return NextResponse.json({ error: 'Result id required' }, { status: 400 });
+      const { data: currentResult, error: currentResultErr } = await supabaseAdmin
+        .from('registration_results')
+        .select('id, batch_id, email')
+        .eq('id', r.id)
+        .maybeSingle();
+      if (currentResultErr) throw currentResultErr;
+      if (!currentResult) return NextResponse.json({ error: 'Registration result not found' }, { status: 404 });
+      await requireBatchAccess((currentResult as any).batch_id, patchCaller, assignedSchoolIds);
+
       const { error: resErr } = await supabaseAdmin
         .from('registration_results')
         .update({ full_name: r.full_name, class_name: r.class_name || null, email: r.email })
@@ -600,8 +718,10 @@ export async function PATCH(request: Request) {
 
       const { data: existingUser } = await supabaseAdmin
         .from('portal_users')
-        .select('id').eq('email', r.email).single();
-      if (existingUser) {
+        .select('id, school_id')
+        .eq('email', (currentResult as any).email)
+        .maybeSingle();
+      if (existingUser && canAccessSchool(patchCaller, assignedSchoolIds, (existingUser as any).school_id)) {
         await supabaseAdmin.from('portal_users')
           .update({ full_name: r.full_name, section_class: r.class_name || null })
           .eq('id', existingUser.id);
@@ -620,8 +740,8 @@ export async function PATCH(request: Request) {
       const { batchId, classId } = body;
       if (!batchId || !classId) return NextResponse.json({ error: 'batchId and classId required' }, { status: 400 });
 
-      const { data: cls } = await supabaseAdmin.from('classes').select('school_id, name, teacher_id').eq('id', classId).single();
-      if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+      await requireBatchAccess(batchId, patchCaller, assignedSchoolIds);
+      const cls = await requireClassAccess(classId, patchCaller, assignedSchoolIds, user.id);
 
       const { data: results } = await supabaseAdmin.from('registration_results').select('email').eq('batch_id', batchId);
       const emails = (results ?? []).map((r: any) => r.email).filter(Boolean);
@@ -629,13 +749,14 @@ export async function PATCH(request: Request) {
 
       const { data: users } = await supabaseAdmin
         .from('portal_users')
-        .select('id, primary_teacher_id')
+        .select('id, primary_teacher_id, school_id')
         .in('email', emails)
         .eq('role', 'student')
         .eq('is_deleted', false);
 
       // Skip students protected by a different teacher
       const allowedIds = (users ?? [])
+        .filter((u: any) => canAccessSchool(patchCaller, assignedSchoolIds, u.school_id))
         .filter((u: any) => !u.primary_teacher_id || u.primary_teacher_id === cls.teacher_id)
         .map((u: any) => u.id);
       const protectedCount = (users ?? []).length - allowedIds.length;
@@ -682,13 +803,16 @@ export async function PATCH(request: Request) {
     if (body.type === 'batch_toggle_active') {
       const { batchId, isActive } = body;
       if (!batchId || typeof isActive !== 'boolean') return NextResponse.json({ error: 'batchId and isActive required' }, { status: 400 });
+      await requireBatchAccess(batchId, patchCaller, assignedSchoolIds);
 
       const { data: results } = await supabaseAdmin.from('registration_results').select('email').eq('batch_id', batchId);
       const emails = (results ?? []).map((r: any) => r.email).filter(Boolean);
       if (emails.length === 0) return NextResponse.json({ updated: 0 });
 
-      const { data: users } = await supabaseAdmin.from('portal_users').select('id').in('email', emails).eq('role', 'student').eq('is_deleted', false);
-      const userIds = (users ?? []).map((u: any) => u.id);
+      const { data: users } = await supabaseAdmin.from('portal_users').select('id, school_id').in('email', emails).eq('role', 'student').eq('is_deleted', false);
+      const userIds = (users ?? [])
+        .filter((u: any) => canAccessSchool(patchCaller, assignedSchoolIds, u.school_id))
+        .map((u: any) => u.id);
       if (userIds.length === 0) return NextResponse.json({ updated: 0 });
 
       const { error } = await supabaseAdmin.from('portal_users').update({
@@ -702,6 +826,8 @@ export async function PATCH(request: Request) {
     const results: any[] = body.results;
     if (Array.isArray(results)) {
        for (const r of results) {
+          if (!r?.batch_id) continue;
+          await requireBatchAccess(r.batch_id, patchCaller, assignedSchoolIds);
           // 1. Update the registration_results history archive
           await supabaseAdmin
             .from('registration_results')
@@ -712,11 +838,11 @@ export async function PATCH(request: Request) {
           // 2. Synchronize active account (portal_users) and shadow profile (students)
           const { data: existingUser } = await supabaseAdmin
             .from('portal_users')
-            .select('id')
+            .select('id, school_id')
             .eq('email', r.email)
-            .single();
+            .maybeSingle();
 
-          if (existingUser) {
+          if (existingUser && canAccessSchool(patchCaller, assignedSchoolIds, (existingUser as any).school_id)) {
             await supabaseAdmin.from('portal_users')
               .update({ full_name: r.full_name, section_class: r.class_name || null })
               .eq('id', existingUser.id);
@@ -730,7 +856,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('Bulk update error:', err);
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: err.status || 500 });
   }
 }
 

@@ -96,7 +96,7 @@ export default function ProgressionAnalyticsPage() {
       <div className="relative overflow-hidden bg-card border border-border rounded-[4rem] p-10 sm:p-16 shadow-2xl">
         <div className="absolute top-0 right-0 w-[50rem] h-[50rem] bg-blue-500/10 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
 
-        <Link href="/dashboard/progression/settings" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
+        <Link href="/dashboard/settings?tab=academic-rules" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
           <ArrowLeftIcon className="w-4 h-4" /> Back to Settings
         </Link>
 

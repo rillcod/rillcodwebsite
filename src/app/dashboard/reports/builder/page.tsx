@@ -455,7 +455,7 @@ function ReportBuilderInner() {
     const { profile, loading: authLoading, profileLoading } = useAuth();
 
     // ── Permissions ──────────────────────────────────────────────────────────
-    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
+    const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
     const isAdmin = profile?.role === 'admin';
 
     // ── Data ──────────────────────────────────────────────────────────────────
@@ -470,7 +470,6 @@ function ReportBuilderInner() {
     const [classFilter, setClassFilter] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
     const [overrideFilters, setOverrideFilters] = useState(false);
-    const [manualName, setManualName] = useState('');
 
     // ── Step: 'session' | 'pick' | 'edit' ────────────────────────────────────
     const [step, setStep] = useState<'session' | 'pick' | 'edit'>('session');
@@ -741,7 +740,6 @@ function ReportBuilderInner() {
                 progJson,
                 coursesJson,
                 classesJson,
-                prePortalJson,
                 brandingRes,
             ] = await Promise.all([
                 fetchJsonWithTimeout('/api/schools', { data: [] }, 'schools'),
@@ -749,7 +747,6 @@ function ReportBuilderInner() {
                 fetchJsonWithTimeout('/api/programs?is_active=true', { data: [] }, 'programs'),
                 fetchJsonWithTimeout('/api/courses?limit=1000&is_published=true', { data: [] }, 'courses'),
                 fetchJsonWithTimeout(isTeacher ? '/api/classes?mine=true' : '/api/classes', { data: [] }, 'classes'),
-                fetchJsonWithTimeout('/api/students?limit=500', { data: [] }, 'pre-portal students'),
                 withTimeout(db.from('report_settings').select('*').limit(1).maybeSingle(), { data: null, error: null }, 'report settings'),
             ]);
             const schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
@@ -776,38 +773,9 @@ function ReportBuilderInner() {
                 _source: 'portal',
             }));
 
-            // Collect portal user_ids to avoid duplicates from students table
-            const portalUserIds = new Set(portalStudents.map((u: any) => u.id));
-            // Also collect portal users that came from linked pre-portal students
-            const linkedUserIds = new Set(portalStudents.map((u: any) => u.students?.[0]?.user_id).filter(Boolean));
-
-            // Normalize pre-portal students — skip any already present as portal users
-            const prePortalStudents = (prePortalJson.data ?? [])
-                .filter((s: any) => {
-                    // Skip if they have a portal account that's already in portalStudents
-                    const uid = s.user_id;
-                    if (uid && portalUserIds.has(uid)) return false;
-                    // Skip if already linked to a portal user we fetched
-                    if (uid && linkedUserIds.has(uid)) return false;
-                    return true;
-                })
-                .map((s: any) => ({
-                    // Shape to match PortalUser enough for the builder to work
-                    id: `students-${s.id}`,  // prefixed ID — signals pre-portal in save handler
-                    full_name: s.full_name ?? s.name ?? '',
-                    email: s.email ?? '',
-                    role: 'student',
-                    school_id: s.school_id ?? null,
-                    school_name: s.school_name ?? null,
-                    section_class: s.grade_level ?? s.current_class ?? '',
-                    class_id: null,
-                    avatar_url: null,
-                    is_deleted: false,
-                    _source: 'students_table',
-                    _original_id: s.id,
-                }));
-
-            const processed = [...portalStudents, ...prePortalStudents];
+            // Reports require a real portal user foreign key. Unlinked rows from
+            // `students` are intentionally excluded until they have portal accounts.
+            const processed = [...portalStudents];
             setStudents(processed as any);
             setCourses(coursesJson.data ?? []);
             setPrograms(progJson.data ?? []);
@@ -1440,13 +1408,17 @@ function ReportBuilderInner() {
         if (publish) setPublishing(true); else setSaving(true);
         setError(''); setSuccess('');
 
-        // For manual entries ('manual-') or pre-portal students ('students-'), id is not a real portal_users UUID.
-        // Save the report without a student_id foreign key in those cases.
         const isManual = selectedStudent.id?.startsWith('manual-') || selectedStudent.id?.startsWith('students-');
+        if (isManual) {
+            setError('This student needs a portal account before a progress report can be saved.');
+            setSaving(false);
+            setPublishing(false);
+            return;
+        }
 
         try {
             const payload = {
-                student_id: isManual ? null : selectedStudent.id,
+                student_id: selectedStudent.id,
                 school_id: sessionConfig.school_id || (selectedStudent as any).school_id || profile?.school_id || null,
                 course_id: sessionConfig.course_id || null,
                 student_name: form.student_name,
@@ -1506,8 +1478,21 @@ function ReportBuilderInner() {
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to save');
+            const savedReportId = j.data?.id ?? existingReport?.id;
             if (!existingReport) {
-                setExistingReport({ ...payload, id: j.data.id } as unknown as StudentReport);
+                setExistingReport({ ...payload, id: savedReportId } as unknown as StudentReport);
+            }
+
+            if (publish && savedReportId && !isManual) {
+                const publishRes = await fetch(`/api/progress-reports/${savedReportId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_published: true }),
+                });
+                const publishJson = await publishRes.json().catch(() => ({}));
+                if (!publishRes.ok) {
+                    throw new Error(publishJson.error || 'Report was saved, but publish notification failed');
+                }
             }
 
             // Propagate ONLY non-identity updates back to the student's root profile.
@@ -2474,25 +2459,11 @@ function ReportBuilderInner() {
                                 if (schoolScopedFiltered.length === 0) {
                                     return (
                                         <div className="py-8 text-center space-y-4">
-                                            <p className="text-muted-foreground text-sm">No students found with current filters.</p>
-                                            <p className="text-muted-foreground text-xs">Try the <strong className="text-amber-400">Override — Show All Students</strong> toggle above, or enter a student manually below.</p>
-                                            {/* Manual entry */}
-                                            <div className="max-w-sm mx-auto space-y-2">
-                                                <input
-                                                    value={manualName}
-                                                    onChange={e => setManualName(e.target.value)}
-                                                    placeholder="Enter student full name manually…"
-                                                    className="w-full px-4 py-2.5 bg-card border border-border text-foreground text-sm rounded-xl placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
-                                                <button
-                                                    disabled={!manualName.trim()}
-                                                    onClick={() => {
-                                                        const fake = { id: `manual-${Date.now()}`, full_name: manualName.trim(), email: '', school_name: sessionConfig.school_name, school_id: sessionConfig.school_id, role: 'student' } as any;
-                                                        selectStudent(fake as PortalUser, -1);
-                                                    }}
-                                                    className="w-full py-2.5 bg-primary hover:bg-primary disabled:opacity-40 text-foreground text-xs font-bold rounded-xl transition-all">
-                                                    Continue with Manual Entry →
-                                                </button>
-                                            </div>
+                                            <p className="text-muted-foreground text-sm">No portal students found with current filters.</p>
+                                            <p className="text-muted-foreground text-xs max-w-md mx-auto">
+                                                Reports require a student portal account so published results can be shown to the right student and parent.
+                                                Try the <strong className="text-amber-400">Override — Show All Students</strong> toggle, or create/import the student first.
+                                            </p>
                                         </div>
                                     );
                                 }

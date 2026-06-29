@@ -37,10 +37,10 @@ export default function OverviewPage() {
       try {
         if (role === 'admin') {
           const [schools, students, teachers, partnerships, programs] = await Promise.allSettled([
-            supabase.from('schools').select('id', { count: 'exact', head: true }),
-            supabase.from('students').select('id', { count: 'exact', head: true }),
-            supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher'),
-            supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'school'),
+            supabase.from('schools').select('id', { count: 'exact', head: true }).in('status', ['approved', 'active']).neq('is_deleted', true),
+            supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('is_active', true).neq('is_deleted', true),
+            supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher').eq('is_active', true).neq('is_deleted', true),
+            supabase.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'school').eq('is_active', true).neq('is_deleted', true),
             supabase.from('programs').select('id', { count: 'exact', head: true }),
           ]);
           const [recStudents] = await Promise.allSettled([
@@ -213,10 +213,10 @@ export default function OverviewPage() {
   }
 
   const adminStats = [
-    { label: 'Partner Schools', value: counts.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/schools' },
-    { label: 'Partner Accounts', value: counts.partners ?? 0, icon: ShieldCheckIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', href: '/dashboard/schools' },
-    { label: 'Total Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
-    { label: 'Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/teachers' },
+    { label: 'Approved Schools', value: counts.schools ?? 0, icon: BuildingOfficeIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/schools' },
+    { label: 'School Accounts', value: counts.partners ?? 0, icon: ShieldCheckIcon, color: 'text-cyan-400', bg: 'bg-cyan-500/10', href: '/dashboard/schools' },
+    { label: 'Active Students', value: counts.students ?? 0, icon: UserGroupIcon, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/students' },
+    { label: 'Active Teachers', value: counts.teachers ?? 0, icon: AcademicCapIcon, color: 'text-emerald-400', bg: 'bg-emerald-500/10', href: '/dashboard/teachers' },
   ];
 
   const teacherStats = [

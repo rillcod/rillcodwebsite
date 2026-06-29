@@ -13,7 +13,7 @@ export interface SessionExpiryState {
   /** True when fewer than 5 minutes remain on the current JWT */
   isExpiringSoon: boolean;
   /** Call this when the user clicks "Stay signed in" */
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<boolean>;
 }
 
 /**
@@ -32,28 +32,40 @@ export function useSessionExpiry(): SessionExpiryState {
   const [isExpiringSoon, setIsExpiringSoon] = useState(false);
   const bannerShownAtRef = useRef<number | null>(null);
   const refreshingRef = useRef(false);
+  const refreshPromiseRef = useRef<Promise<boolean> | null>(null);
   const fetch401PatchedRef = useRef(false);
 
-  const handleExpired = useCallback(async () => {
+  const signOutExpired = useCallback(async () => {
     await supabase.auth.signOut();
     router.push('/login?reason=session_expired');
   }, [router]);
 
-  const refreshSession = useCallback(async () => {
-    if (refreshingRef.current) return;
-    refreshingRef.current = true;
-    try {
-      const { error } = await supabase.auth.refreshSession();
-      if (error) {
-        await handleExpired();
-      } else {
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    if (refreshPromiseRef.current) return refreshPromiseRef.current;
+
+    refreshPromiseRef.current = (async () => {
+      refreshingRef.current = true;
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error || !data.session) {
+          // Do not destroy the local session during transient offline/background
+          // network failures. The next focus/401 pass will try again.
+          if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+          await signOutExpired();
+          return false;
+        }
+
         setIsExpiringSoon(false);
         bannerShownAtRef.current = null;
+        return true;
+      } finally {
+        refreshingRef.current = false;
+        refreshPromiseRef.current = null;
       }
-    } finally {
-      refreshingRef.current = false;
-    }
-  }, [handleExpired]);
+    })();
+
+    return refreshPromiseRef.current;
+  }, [signOutExpired]);
 
   // ── Poll JWT exp every 30 s ───────────────────────────────────────────────
   useEffect(() => {
@@ -72,7 +84,7 @@ export function useSessionExpiry(): SessionExpiryState {
           bannerShownAtRef.current = Date.now();
         }
       } else if (msRemaining <= 0) {
-        await handleExpired();
+        await refreshSession();
       } else {
         setIsExpiringSoon(false);
         bannerShownAtRef.current = null;
@@ -82,7 +94,32 @@ export function useSessionExpiry(): SessionExpiryState {
     checkExpiry();
     const timer = setInterval(checkExpiry, 30_000);
     return () => clearInterval(timer);
-  }, [isExpiringSoon, handleExpired]);
+  }, [isExpiringSoon, refreshSession]);
+
+  // ── Background tabs wake up with stale timers; refresh when visible again ──
+  useEffect(() => {
+    async function refreshIfNeeded() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const expiresAt = session?.expires_at;
+      if (!expiresAt) return;
+
+      const msRemaining = expiresAt * 1000 - Date.now();
+      if (msRemaining <= WARN_BEFORE_MS) {
+        await refreshSession();
+      }
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') void refreshIfNeeded();
+    }
+
+    window.addEventListener('focus', refreshIfNeeded);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', refreshIfNeeded);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [refreshSession]);
 
   // ── User interaction listener — silent refresh within 60 s of banner ──────
   useEffect(() => {
@@ -110,38 +147,20 @@ export function useSessionExpiry(): SessionExpiryState {
 
     const originalFetch = globalThis.fetch;
 
-    let refreshPromise: Promise<void> | null = null;
-
     globalThis.fetch = async function patchedFetch(
       input: RequestInfo | URL,
       init?: RequestInit,
     ): Promise<Response> {
       const response = await originalFetch(input, init);
 
-      if (response.status === 401 && !refreshingRef.current) {
-        // Use Promise-based lock to prevent race conditions
-        if (!refreshPromise) {
-          refreshingRef.current = true;
-          refreshPromise = (async () => {
-            try {
-              const { error } = await supabase.auth.refreshSession();
-              if (error) {
-                await handleExpired();
-              }
-            } finally {
-              refreshingRef.current = false;
-              refreshPromise = null;
-            }
-          })();
-        }
-        
-        // Wait for refresh to complete
-        await refreshPromise;
+      if (response.status === 401) {
+        const ok = await refreshSession();
+        if (!ok) return response;
         
         // Retry original request once
         const retried = await originalFetch(input, init);
         if (retried.status === 401) {
-          await handleExpired();
+          await signOutExpired();
         }
         return retried;
       }
@@ -153,7 +172,7 @@ export function useSessionExpiry(): SessionExpiryState {
       globalThis.fetch = originalFetch;
       fetch401PatchedRef.current = false;
     };
-  }, [handleExpired]);
+  }, [refreshSession, signOutExpired]);
 
   return { isExpiringSoon, refreshSession };
 }

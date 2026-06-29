@@ -177,7 +177,6 @@ function nextId() { return ++_idCounter; }
 
 function buildStudentList(rawLines: string[], fallbackClass?: string): GeneratedStudent[] {
   const usedEmails = new Set<string>();
-  const usedNames = new Map<string, number>(); // track name counts for batch-level uniqueness
   const students: GeneratedStudent[] = [];
   let contextClass: string | null = null;
 
@@ -191,16 +190,8 @@ function buildStudentList(rawLines: string[], fallbackClass?: string): Generated
     }
 
     const inlineClass = detectClass(line);
-    let namePart = inlineClass ? stripClass(line) : line;
+    const namePart = inlineClass ? stripClass(line) : line;
     if (!namePart) continue;
-
-    // Handle duplicate names in the batch by adding a small ID suffix if needed
-    const nameKey = namePart.toLowerCase();
-    const count = usedNames.get(nameKey) || 0;
-    usedNames.set(nameKey, count + 1);
-    if (count > 0) {
-      namePart = `${namePart} #${count + 1}`;
-    }
 
     // Priority: inline class > header context > fallback default class
     const resolvedClass = inlineClass ?? contextClass ?? (fallbackClass ? (detectClass(fallbackClass) || fallbackClass.trim().toUpperCase()) || undefined : undefined);
@@ -999,9 +990,18 @@ export default function BulkRegisterPage() {
       fetch('/api/classes', { cache: 'no-store' }),
     ]);
     if (!batchRes.error && batchRes.data) {
+      const creatorIds = [...new Set(batchRes.data.map((b: any) => b.created_by).filter(Boolean))];
+      const { data: creators } = creatorIds.length > 0
+        ? await (supabase as any)
+          .from('portal_users')
+          .select('id, full_name, role, email')
+          .in('id', creatorIds)
+        : { data: [] };
+      const creatorById = new Map((creators ?? []).map((c: any) => [c.id, c]));
       const hydrated = batchRes.data.map((b: any) => ({
         ...b,
         student_count: b.registration_results?.[0]?.count ?? b.student_count ?? 0,
+        creator: b.created_by ? creatorById.get(b.created_by) ?? null : null,
       }));
       setHistory(hydrated);
     }
@@ -2519,6 +2519,9 @@ Yusuf Ibrahim SS1A`}
                               <div className="w-1 h-1 bg-muted rounded-xl" />
                               <span className="text-[8px] sm:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] italic">{batch.student_count} Students</span>
                             </div>
+                            <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-sky-500/10 text-sky-400 border border-sky-500/20 font-black uppercase tracking-widest">
+                              Created by {batch.creator?.full_name || batch.creator?.email || 'Unknown'}{batch.creator?.role ? ` (${batch.creator.role})` : ''}
+                            </span>
                             {batch.school_name && (
                               <span className="text-[8px] sm:text-[9px] px-2 py-1 bg-primary/10 text-primary border border-primary/20 font-black uppercase tracking-widest">{batch.school_name}</span>
                             )}

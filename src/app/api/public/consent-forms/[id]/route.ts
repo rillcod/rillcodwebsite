@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
 import { buildFormLeadConfirmationEmail, buildLeadNotificationEmail } from '@/lib/email/rillcod-transactional-email';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
+import { resolveStudentRowId, syncExplicitParentStudentLink } from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -422,9 +423,11 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     matchedSchoolId: matched_school_id,
   });
 
-  // Only send medium+ confidence matches for staff review
-  const needsReview = matchResult && matchResult.confidence !== 'low';
-  const matchStatus = needsReview ? 'pending_review' : (matchResult ? 'new_prospect' : 'new_prospect');
+  // High confidence unlocks quick-check immediately; medium confidence still
+  // goes to staff review to avoid linking the wrong child.
+  const autoApproved = matchResult?.confidence === 'high';
+  const needsReview = !!matchResult && matchResult.confidence === 'medium';
+  const matchStatus = autoApproved ? 'approved' : needsReview ? 'pending_review' : 'new_prospect';
 
   let matchNotes: string | null = null;
   if (matchResult) {
@@ -475,6 +478,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     ? { ...response_data, child_matches: childMatchEntries }
     : response_data;
 
+  const parentEmailForMatch = (response_data.parent_email || email || '').trim().toLowerCase();
+  const { data: matchedParent } = parentEmailForMatch
+    ? await (sb as any)
+      .from('portal_users')
+      .select('id')
+      .eq('role', 'parent')
+      .ilike('email', parentEmailForMatch)
+      .maybeSingle()
+    : { data: null };
+
   // ── Save form lead ────────────────────────────────────────────────────────
   const { data: lead, error: insertErr } = await (sb as any)
     .from('form_leads')
@@ -487,6 +500,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       response_data: enrichedResponseData,
       match_status:       matchStatus,
       match_candidate_id: needsReview ? matchResult!.candidate.id : null,
+      matched_student_id: autoApproved ? matchResult!.candidate.id : null,
+      matched_parent_id:  autoApproved ? matchedParent?.id ?? null : null,
       match_confidence:   matchResult?.confidence ?? null,
       match_notes:        matchNotes,
     })
@@ -496,6 +511,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (insertErr) {
     if (insertErr.code === '23505') return NextResponse.json({ success: true, duplicate: true });
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
+  }
+
+  if (autoApproved && matchedParent?.id && matchResult?.candidate.id) {
+    try {
+      const studentRowId = await resolveStudentRowId(sb as any, matchResult.candidate.id);
+      if (studentRowId) await syncExplicitParentStudentLink(sb as any, matchedParent.id, studentRowId);
+    } catch {
+      // Non-fatal: matched_student_id still unlocks quick-check.
+    }
   }
 
   // ── Back-patch child_matches onto the saved lead (post-insert update) ─────

@@ -30,20 +30,63 @@ export async function GET() {
     }
     scopeSchoolIds = [...ids];
   }
+  if (scopeSchoolIds && scopeSchoolIds.length === 0) {
+    return NextResponse.json({ registrations: [], count: 0 });
+  }
 
-  const [results, batches, users] = await Promise.all([
-    fetchAll(sb.from('registration_results').select('id, batch_id, full_name, email, password, class_name, status, created_at')),
-    fetchAll(sb.from('registration_batches').select('id, school_id, school_name, class_name, created_at')),
-    fetchAll(sb.from('portal_users').select('email, is_active').eq('role', 'student').neq('is_deleted', true)),
-  ]);
+  let batchesQuery = sb
+    .from('registration_batches')
+    .select('id, school_id, school_name, class_name, created_by, created_at');
+  if (scopeSchoolIds) {
+    batchesQuery = batchesQuery.in('school_id', scopeSchoolIds);
+  }
+
+  const batches = await fetchAll(batchesQuery);
+  if (batches.length === 0) {
+    return NextResponse.json({ registrations: [], count: 0 });
+  }
+
   const batchById = new Map(batches.map((b: any) => [b.id, b]));
+  const batchIds = batches.map((b: any) => b.id);
+  const creatorIds = [...new Set(batches.map((b: any) => b.created_by).filter(Boolean))];
+  const creators = creatorIds.length > 0
+    ? await fetchAll(
+      sb
+        .from('portal_users')
+        .select('id, full_name, role, email')
+        .in('id', creatorIds),
+    )
+    : [];
+  const creatorById = new Map(creators.map((c: any) => [c.id, c]));
+  const results = await fetchAll(
+    sb
+      .from('registration_results')
+      .select('id, batch_id, full_name, email, password, class_name, status, created_at')
+      .in('batch_id', batchIds),
+  );
+
+  const emails = [...new Set(results.map((r: any) => norm(r.email)).filter(Boolean))];
+  const users = emails.length > 0
+    ? await fetchAll(
+      sb
+        .from('portal_users')
+        .select('id, email, is_active')
+        .eq('role', 'student')
+        .neq('is_deleted', true)
+        .in('email', emails),
+    )
+    : [];
+  const userByEmail = new Map(users.map((u: any) => [norm(u.email), u]));
   const liveByEmail = new Map(users.map((u: any) => [norm(u.email), u.is_active !== false]));
 
   const rows = results.map((r: any) => {
     const b = batchById.get(r.batch_id) || {};
-    const live = liveByEmail.has(norm(r.email));
+    const creator = b.created_by ? creatorById.get(b.created_by) : null;
+    const liveUser = userByEmail.get(norm(r.email)) as any;
+    const live = !!liveUser;
     return {
       id: r.id,
+      portalUserId: liveUser?.id ?? null,
       name: r.full_name,
       email: r.email,
       password: r.password,
@@ -52,6 +95,9 @@ export async function GET() {
       schoolId: b.school_id || null,
       source: b.class_name === 'Single Student Registrations' ? 'Single student' : 'Bulk register',
       batchName: b.class_name || 'Registration batch',
+      creatorName: creator?.full_name || creator?.email || null,
+      creatorRole: creator?.role || null,
+      creatorLabel: creator ? `${creator.full_name || creator.email}${creator.role ? ` (${creator.role})` : ''}` : null,
       status: r.status,
       // Is this credential still backed by a live account?
       account: live ? (liveByEmail.get(norm(r.email)) ? 'Active' : 'Inactive') : 'Deleted',

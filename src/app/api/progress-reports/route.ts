@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database, TablesInsert, TablesUpdate } from '@/types/supabase';
+import crypto from 'crypto';
 
 function adminClient() {
   return createClient<Database>(
@@ -33,6 +34,19 @@ async function getTeacherSchoolIds(admin: ReturnType<typeof adminClient>, teache
     if (sid) ids.add(sid);
   }
   return Array.from(ids);
+}
+
+async function generateReportVerificationCode(admin: ReturnType<typeof adminClient>) {
+  for (let i = 0; i < 8; i += 1) {
+    const code = `RPT-${crypto.randomBytes(9).toString('base64url').toUpperCase()}`;
+    const { data } = await admin
+      .from('student_progress_reports')
+      .select('id')
+      .eq('verification_code', code)
+      .maybeSingle();
+    if (!data?.id) return code;
+  }
+  return `RPT-${crypto.randomUUID().replace(/-/g, '').toUpperCase()}`;
 }
 
 // POST /api/progress-reports — insert or update a student progress report
@@ -134,6 +148,16 @@ export async function POST(request: NextRequest) {
       .eq('id', targetId)
       .maybeSingle();
     if (!existingReport) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+    if (updatePayload.is_published === true) {
+      const { data: currentCode } = await admin
+        .from('student_progress_reports')
+        .select('verification_code')
+        .eq('id', targetId)
+        .maybeSingle();
+      if (!(currentCode as any)?.verification_code) {
+        (updatePayload as any).verification_code = await generateReportVerificationCode(admin);
+      }
+    }
 
     if (caller.role !== 'admin') {
       // Non-admin teachers can only edit their own reports. When the existing report
@@ -172,6 +196,7 @@ export async function POST(request: NextRequest) {
     if (typeof insertPayload.student_id !== 'string' || !insertPayload.student_id.trim()) {
       return NextResponse.json({ error: 'student_id is required' }, { status: 400 });
     }
+    insertPayload.verification_code = await generateReportVerificationCode(admin);
     const { data, error } = await admin
       .from('student_progress_reports')
       .insert(insertPayload)

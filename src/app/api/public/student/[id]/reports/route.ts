@@ -3,36 +3,23 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { compareReportsByPeriodDesc } from '@/lib/reports/academic-period';
+import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
 
-function normalizeCardCode(raw: string) {
-  return decodeURIComponent(raw || '')
-    .trim()
-    .replace(/^RC-/i, '')
-    .toLowerCase();
-}
-
-function normalizeAccessCode(raw: string | null | undefined) {
-  const clean = String(raw || '')
+function normalizeCardAccessCode(raw: string | null | undefined) {
+  const body = decodeURIComponent(String(raw || ''))
     .trim()
     .toUpperCase()
-    .replace(/[^A-Z0-9-]/g, '');
-  if (!clean) return '';
-  return clean.startsWith('RC-') ? clean : `RC-${clean}`;
+    .replace(/[^A-Z0-9]/g, '');
+  const code = body.startsWith('RC') ? body.slice(2) : body;
+  return code ? `RC-${code.slice(0, 8)}` : '';
 }
 
-function schoolAccessCode(schoolName: string | null | undefined) {
-  const words = String(schoolName || 'Rillcod')
-    .toUpperCase()
-    .replace(/[^A-Z0-9 ]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
-  const stopWords = new Set(['THE', 'SCHOOL', 'ACADEMY', 'COLLEGE', 'INTERNATIONAL', 'NURSERY', 'PRIMARY', 'SECONDARY']);
-  const key = words.find((word) => !stopWords.has(word)) || words[0] || 'RILLCOD';
-  return `RC-${key.slice(0, 18)}`;
+function shortCardCode(studentId: string) {
+  return `RC-${studentId.slice(0, 8).toUpperCase()}`;
 }
 
-function publicStudentPayload(student: any) {
-  return {
+function publicStudentPayload(student: any, includeAccessCode = false) {
+  const payload: Record<string, unknown> = {
     id: student.id,
     full_name: student.full_name,
     school_name: student.school_name,
@@ -41,28 +28,52 @@ function publicStudentPayload(student: any) {
     avatar_url: student.avatar_url ?? null,
     class_name: student.section_class ?? null,
     enrolled_at: student.created_at,
-    access_code: `RC-${student.id.slice(0, 8).toUpperCase()}`,
   };
+  if (includeAccessCode) payload.access_code = shortCardCode(student.id);
+  return payload;
 }
 
 async function resolveStudent(db: ReturnType<typeof createAdminClient>, rawId: string) {
-  const code = normalizeCardCode(rawId);
-  if (!code || code.length < 8) return null;
+  const decoded = decodeURIComponent(rawId || '').trim();
+  const decodedUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decoded)
+    ? decoded.toLowerCase()
+    : null;
+  const codeBody = normalizeCardAccessCode(rawId).replace(/^RC-/, '').toLowerCase();
+  if (!decodedUuid && codeBody.length !== 8) return null;
 
-  const select = 'id, full_name, school_name, is_active, enrollment_type, avatar_url, section_class, class_id, created_at';
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code);
+  const select = 'id, full_name, school_name, school_id, is_active, enrollment_type, avatar_url, section_class, class_id, created_at';
 
   const query = db
     .from('portal_users')
     .select(select)
-    .eq('role', 'student');
+    .eq('role', 'student')
+    .neq('is_deleted', true);
 
-  const { data, error } = isUuid
-    ? await query.eq('id', code).limit(1)
-    : await query.ilike('id', `${code}%`).limit(2);
+  if (decodedUuid) {
+    const { data, error } = await query.eq('id', decodedUuid).limit(1);
+    if (error || !data || data.length !== 1) return null;
+    return data[0];
+  }
 
-  if (error || !data || data.length !== 1) return null;
-  return data[0];
+  const matches: any[] = [];
+  for (let from = 0; matches.length < 2; from += 1000) {
+    const { data, error } = await db
+      .from('portal_users')
+      .select(select)
+      .eq('role', 'student')
+      .neq('is_deleted', true)
+      .range(from, from + 999);
+    if (error || !data) return null;
+    for (const student of data as any[]) {
+      const studentId = String(student.id);
+      if (studentId.toLowerCase().startsWith(codeBody)) {
+        matches.push(student);
+      }
+      if (matches.length > 1) break;
+    }
+    if (data.length < 1000) break;
+  }
+  return matches.length === 1 ? matches[0] : null;
 }
 
 export async function GET(
@@ -86,19 +97,43 @@ export async function GET(
   const db = createAdminClient();
   const student = await resolveStudent(db, id);
   if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+  if (student.is_active === false) {
+    return NextResponse.json({ error: 'This student account is not active.' }, { status: 403 });
+  }
 
   const { searchParams } = new URL(req.url);
-  const expectedCode = schoolAccessCode(student.school_name);
-  const providedCode = normalizeAccessCode(searchParams.get('accessCode'));
+  const expectedCode = shortCardCode(student.id);
+  const accessCodeParam = searchParams.get('accessCode');
+  const providedCode = normalizeCardAccessCode(accessCodeParam);
   if (providedCode !== expectedCode) {
     return NextResponse.json(
       {
         accessRequired: true,
-        error: providedCode ? 'Invalid school result access code' : 'School result access code required',
+        error: accessCodeParam ? 'Invalid result access code' : 'Result access code required',
         student: publicStudentPayload(student),
       },
-      { status: providedCode ? 403 : 401 },
+      { status: accessCodeParam ? 403 : 401 },
     );
+  }
+
+  const consent = await getResultConsentAccessStatus(db as any, {
+    studentUserId: student.id,
+    schoolId: student.school_id,
+    classId: student.class_id,
+  });
+
+  if (consent.required && !consent.complete) {
+    return NextResponse.json({
+      accessRequired: false,
+      consentRequired: true,
+      oneTime: true,
+      student: publicStudentPayload(student),
+      form: consent.form,
+      formUrl: consent.formUrl
+        ? `${consent.formUrl}?returnTo=${encodeURIComponent(`/result-check/${encodeURIComponent(id)}`)}`
+        : null,
+      message: 'One-time parent consent and assessment is required before this result is released.',
+    });
   }
 
   const [{ data: reports, error }, { data: orgSettings }] = await Promise.all([
@@ -124,7 +159,8 @@ export async function GET(
 
   return NextResponse.json({
     accessRequired: false,
-    student: publicStudentPayload(student),
+    consentRequired: false,
+    student: publicStudentPayload(student, true),
     reports: ordered,
     terms,
     orgSettings: orgSettings ?? null,

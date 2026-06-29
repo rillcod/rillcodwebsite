@@ -54,6 +54,27 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   if (!allowed && user.role !== 'student') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const db = createAdminClient();
 
+  if (user.role === 'student') {
+    const { data: exam } = await db
+      .from('exams')
+      .select('id, is_active, course_id, courses!course_id(school_id)')
+      .eq('id', id)
+      .maybeSingle();
+    const examSchoolId = (exam as any)?.courses?.school_id as string | null;
+    if (!exam?.is_active || (examSchoolId && user.school_id && examSchoolId !== user.school_id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { data, error } = await db
+      .from('exam_questions')
+      .select('id, exam_id, question_text, question_type, points, options, order_index')
+      .eq('exam_id', id)
+      .order('order_index', { ascending: true });
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data: data ?? [] });
+  }
+
   const { data, error } = await db
     .from('exam_questions')
     .select('*')

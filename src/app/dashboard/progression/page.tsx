@@ -19,12 +19,52 @@ import PipelineStepper from '@/components/pipeline/PipelineStepper';
 
 // ── Term helpers ──────────────────────────────────────────────────────────────
 const CURRENT_YEAR = new Date().getFullYear();
-const TERM_OPTIONS = [
+const FALLBACK_TERM_OPTIONS = [
   `Term 1 ${CURRENT_YEAR}`, `Term 2 ${CURRENT_YEAR}`, `Term 3 ${CURRENT_YEAR}`,
   `Term 1 ${CURRENT_YEAR + 1}`, `Term 2 ${CURRENT_YEAR + 1}`, `Term 3 ${CURRENT_YEAR + 1}`,
-];
+].map((label) => ({ value: label, label, aliases: [label] }));
 
-function nextTerm(label: string): string {
+type TermOption = {
+  value: string;
+  label: string;
+  aliases: string[];
+};
+
+type AcademicTerm = {
+  id: string;
+  academic_year: string;
+  term_number: number;
+  term_label: string;
+  is_current?: boolean | null;
+};
+
+function legacyTermLabel(termNumber: number, academicYear: string): string {
+  const startYear = academicYear.split('/')[0] || String(CURRENT_YEAR);
+  return `Term ${termNumber} ${startYear}`;
+}
+
+function termOptionFromAcademicTerm(term: AcademicTerm): TermOption {
+  const canonical = `${term.term_label} ${term.academic_year}`;
+  const legacy = legacyTermLabel(term.term_number, term.academic_year);
+  return {
+    value: canonical,
+    label: canonical,
+    aliases: [canonical, legacy, term.term_label].filter(Boolean),
+  };
+}
+
+function termMatches(savedLabel: string | null | undefined, selectedTerm: string, options: TermOption[]): boolean {
+  if (!savedLabel) return false;
+  const normalized = savedLabel.trim().toLowerCase();
+  const selected = options.find((option) => option.value === selectedTerm);
+  const aliases = selected?.aliases ?? [selectedTerm];
+  return aliases.some((alias) => alias.trim().toLowerCase() === normalized);
+}
+
+function nextTerm(label: string, options: TermOption[] = FALLBACK_TERM_OPTIONS): string {
+  const idx = options.findIndex((option) => option.value === label || option.aliases.includes(label));
+  if (idx >= 0 && idx < options.length - 1) return options[idx + 1].value;
+
   const [, num, year] = label.match(/Term (\d) (\d{4})/) ?? [];
   if (!num || !year) return label;
   const n = parseInt(num); const y = parseInt(year);
@@ -81,7 +121,8 @@ export default function ProgressionPage() {
   const [programs, setPrograms]         = useState<any[]>([]);
   const [filterProgram, setFilterProg]  = useState('');
   const [filterCourse, setFilterCourse] = useState('');
-  const [filterTerm, setFilterTerm]     = useState(`Term 1 ${CURRENT_YEAR}`);
+  const [termOptions, setTermOptions]   = useState<TermOption[]>(FALLBACK_TERM_OPTIONS);
+  const [filterTerm, setFilterTerm]     = useState(FALLBACK_TERM_OPTIONS[0].value);
   const [enrollments, setEnrollments]   = useState<StudentLevelEnrollment[]>([]);
   const [loading, setLoading]           = useState(false);
   const [decisions, setDecisions]       = useState<Record<string, PromotionDecision>>({});
@@ -97,6 +138,31 @@ export default function ProgressionPage() {
     fetch('/api/programs?is_active=true').then(r => r.json()).then(j => setPrograms(j.data ?? []));
   }, [profile?.id]); // eslint-disable-line
 
+  useEffect(() => {
+    if (!profile || !isStaff) return;
+    const params = new URLSearchParams();
+    if (profile.school_id) params.set('school_id', profile.school_id);
+    fetch(`/api/settings/academic-year${params.size ? `?${params}` : ''}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(j => {
+        const terms = Array.isArray(j.terms) ? j.terms as AcademicTerm[] : [];
+        if (terms.length === 0) return;
+        const options = terms
+          .slice()
+          .sort((a, b) => {
+            if (a.academic_year !== b.academic_year) return a.academic_year.localeCompare(b.academic_year);
+            return a.term_number - b.term_number;
+          })
+          .map(termOptionFromAcademicTerm);
+        setTermOptions(options);
+        const current = terms.find(t => t.is_current) ?? terms[0];
+        setFilterTerm(termOptionFromAcademicTerm(current).value);
+      })
+      .catch(() => {
+        setTermOptions(FALLBACK_TERM_OPTIONS);
+      });
+  }, [profile?.id, profile?.school_id, isStaff]);
+
   // Load enrollments when filters change
   useEffect(() => {
     if (!profile || !isStaff || !filterTerm) return;
@@ -109,7 +175,7 @@ export default function ProgressionPage() {
       .then(r => r.json())
       .then(async j => {
         const rows: StudentLevelEnrollment[] = (j.data ?? []).filter(
-          (e: StudentLevelEnrollment) => e.term_label === filterTerm
+          (e: StudentLevelEnrollment) => termMatches(e.term_label, filterTerm, termOptions)
         );
         setEnrollments(rows);
         setDecisions({});
@@ -136,7 +202,20 @@ export default function ProgressionPage() {
             }
           }));
 
+          const selectedTermAliases = new Set(
+            (termOptions.find(option => option.value === filterTerm)?.aliases ?? [filterTerm])
+              .map(alias => alias.trim().toLowerCase()),
+          );
+          const reportMatchesSelectedTerm = (report: any) => {
+            const reportTerm = String(report.report_term ?? '').trim().toLowerCase();
+            const reportPeriod = String(report.report_period ?? '').trim().toLowerCase();
+            return selectedTermAliases.has(reportTerm) || selectedTermAliases.has(reportPeriod);
+          };
+
           allReports.sort((a, b) => {
+            const aTermMatch = reportMatchesSelectedTerm(a);
+            const bTermMatch = reportMatchesSelectedTerm(b);
+            if (aTermMatch !== bTermMatch) return aTermMatch ? -1 : 1;
             if (a.is_published !== b.is_published) return a.is_published ? -1 : 1;
             return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
           });
@@ -160,7 +239,7 @@ export default function ProgressionPage() {
         }
       })
       .finally(() => setLoading(false));
-  }, [filterProgram, filterCourse, filterTerm, profile?.id]); // eslint-disable-line
+  }, [filterProgram, filterCourse, filterTerm, termOptions, profile?.id]); // eslint-disable-line
 
   const selectedProgram  = programs.find(p => p.id === filterProgram);
   const availableCourses: any[] = selectedProgram?.courses?.filter((c: any) => c.is_active !== false) ?? [];
@@ -178,7 +257,7 @@ export default function ProgressionPage() {
     if (toProcess.length === 0) { setError('Set a decision for at least one student'); return; }
     setSubmitting(true);
     setError('');
-    const next   = nextTerm(filterTerm);
+    const next   = nextTerm(filterTerm, termOptions);
     const failed: string[] = [];
 
     for (const enroll of toProcess) {
@@ -323,7 +402,7 @@ export default function ProgressionPage() {
               onChange={e => setFilterTerm(e.target.value)}
               className="bg-background/50 border border-border px-4 py-3 text-[11px] font-black uppercase tracking-widest rounded-xl focus:border-primary outline-none transition-all"
             >
-              {TERM_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              {termOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
         </div>
@@ -595,7 +674,7 @@ export default function ProgressionPage() {
                 <SparklesIcon className="w-5 h-5" />
                 <span className="font-black uppercase tracking-widest sm:tracking-[0.2em] text-[11px] sm:text-xs">
                   <span className="sm:hidden">Save {decidedCount}</span>
-                  <span className="hidden sm:inline">Save {decidedCount} decision{decidedCount !== 1 ? 's' : ''} → {nextTerm(filterTerm)}</span>
+                  <span className="hidden sm:inline">Save {decidedCount} decision{decidedCount !== 1 ? 's' : ''} → {nextTerm(filterTerm, termOptions)}</span>
                 </span>
               </>
             )}

@@ -77,7 +77,7 @@ function AuditTrailContent() {
       <div className="relative overflow-hidden bg-card border border-border rounded-[3.5rem] p-10 sm:p-16 shadow-2xl">
         <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-slate-500/10 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
 
-        <Link href="/dashboard/progression/settings" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
+        <Link href="/dashboard/settings?tab=academic-rules" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-primary mb-10 transition-colors relative z-10">
           <ArrowLeftIcon className="w-4 h-4" /> Back to Settings
         </Link>
 

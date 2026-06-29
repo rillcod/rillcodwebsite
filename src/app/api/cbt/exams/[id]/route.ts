@@ -17,6 +17,7 @@ function adminClient() {
 }
 
 type Caller = { role: string; id: string; school_id: string | null };
+const FINAL_CBT_STATUSES = new Set(['completed', 'passed', 'failed', 'pending_grading']);
 
 function sanitizeQuestionMetadataForStudent(metadata: any) {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
@@ -112,11 +113,11 @@ export async function GET(
 
     const { data: existingSession } = await admin
       .from('cbt_sessions')
-      .select('id')
+      .select('id, status')
       .eq('exam_id', id)
       .eq('user_id', caller.id)
       .maybeSingle();
-    studentHasSubmitted = !!existingSession;
+    studentHasSubmitted = FINAL_CBT_STATUSES.has(String(existingSession?.status ?? '').toLowerCase());
   }
 
   // Staff school-boundary check

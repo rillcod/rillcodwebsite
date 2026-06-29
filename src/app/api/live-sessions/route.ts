@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import {
+  canAccessLiveSession,
+  canCreateLiveSessionForTarget,
+  getStudentProgramIds,
+  getTeacherSchoolIds,
+} from '@/lib/live-sessions/authz';
 
 function adminClient() {
   return createClient(
@@ -32,13 +38,32 @@ export async function GET(request: NextRequest) {
     .select('*, program:programs(name), host:portal_users!live_sessions_host_id_fkey(full_name, role)')
     .order('scheduled_at', { ascending: true });
 
-  if ((caller.role === 'school' || caller.role === 'student') && caller.school_id) {
-    query = query.or(`school_id.eq.${caller.school_id},school_id.is.null`);
+  if (caller.role === 'teacher') {
+    const schoolIds = await getTeacherSchoolIds(admin as any, caller.id, caller.school_id);
+    const filters = [`host_id.eq.${caller.id}`];
+    if (schoolIds.length > 0) filters.push(`school_id.in.(${schoolIds.join(',')})`);
+    query = query.or(filters.join(','));
+  } else if (caller.role === 'school') {
+    if (!caller.school_id) return NextResponse.json({ data: [] });
+    query = query.eq('school_id', caller.school_id);
+  } else if (caller.role === 'student') {
+    const filters: string[] = [];
+    if (caller.school_id) filters.push(`school_id.eq.${caller.school_id}`);
+    const programIds = await getStudentProgramIds(admin as any, caller.id);
+    if (programIds.length > 0) filters.push(`program_id.in.(${programIds.join(',')})`);
+    if (filters.length === 0) return NextResponse.json({ data: [] });
+    query = query.or(filters.join(','));
+  } else if (caller.role !== 'admin') {
+    return NextResponse.json({ data: [] });
   }
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  const scoped = [];
+  for (const session of data ?? []) {
+    if (await canAccessLiveSession(admin as any, caller, session)) scoped.push(session);
+  }
+  return NextResponse.json({ data: scoped });
 }
 
 // POST /api/live-sessions — create session (staff only)
@@ -57,6 +82,11 @@ export async function POST(request: NextRequest) {
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
   const admin = adminClient();
+  const canCreate = await canCreateLiveSessionForTarget(admin as any, caller, school_id || null, program_id || null);
+  if (!canCreate) {
+    return NextResponse.json({ error: 'You cannot create a live session for that school or programme.' }, { status: 403 });
+  }
+
   const { data, error } = await admin
     .from('live_sessions')
     .insert({

@@ -8,7 +8,7 @@ import {
   AcademicCapIcon, PlusIcon, PencilIcon, TrashIcon, EyeIcon,
   ClockIcon, CheckCircleIcon, MagnifyingGlassIcon, ArrowPathIcon,
   DocumentTextIcon, ChartBarIcon, UserGroupIcon, LockClosedIcon,
-  LockOpenIcon, PlayIcon, InformationCircleIcon, DocumentCheckIcon,
+  LockOpenIcon, InformationCircleIcon, DocumentCheckIcon,
   CommandLineIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
@@ -119,7 +119,7 @@ export default function ExamsPage() {
             Written Exams
           </h1>
           <p className="text-card-foreground/50 text-sm mt-0.5">
-            {isStudent ? 'View available written exams' : 'Manage traditional exams — essays, matching, short answer'}
+            {isStudent ? 'Written exams are managed by instructors. Use CBT Exams for online tests.' : 'Manage traditional exams — essays, matching, short answer'}
           </p>
         </div>
         {canManage && (
@@ -154,7 +154,7 @@ export default function ExamsPage() {
         <div className="text-sm">
           <p className="font-bold text-blue-300">Written Exams vs CBT Exams</p>
           <p className="text-blue-300/70 mt-0.5">
-            <strong>Written Exams</strong> (this page) support essay, matching, and short-answer questions — graded manually with attempt tracking.
+            <strong>Written Exams</strong> are staff-managed and used for manual grading workflows.
             {' '}<Link href="/dashboard/cbt" className="underline underline-offset-2 hover:text-blue-200">CBT Exams</Link> are auto-graded computer-based tests with coding blocks, best for quick assessment.
           </p>
         </div>
@@ -225,9 +225,9 @@ export default function ExamsPage() {
                   {canManage ? 'Manage' : 'View'}
                 </Link>
                 {isStudent && exam.is_active && (
-                  <Link href={`/dashboard/exams/${exam.id}/take`}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-xl transition-all">
-                    <PlayIcon className="w-3.5 h-3.5" /> Start Exam
+                  <Link href="/dashboard/cbt"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-bold rounded-xl transition-all">
+                    <CommandLineIcon className="w-3.5 h-3.5" /> Open CBT
                   </Link>
                 )}
                 {canManage && (

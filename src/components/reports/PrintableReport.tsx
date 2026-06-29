@@ -367,7 +367,7 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                 {/* Right — QR */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <div style={{ padding: '12px', background: C.white, border: `1px solid ${C.slate200}` }}>
-                        <QRCode value={`https://rillcod.com/verify/${report.id?.slice(0, 8) || 'preview'}`} size={64} fgColor={C.black} />
+                        <QRCode value={`https://rillcod.com/verify/${report.verification_code || 'preview'}`} size={64} fgColor={C.black} />
                     </div>
                     <p style={{ fontSize: '9px', fontWeight: 900, color: C.slate400, textTransform: 'uppercase', letterSpacing: '0.4em' }}>Verify Online</p>
                 </div>

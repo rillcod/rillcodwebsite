@@ -18,7 +18,7 @@ export interface FileMetadata {
     school_id?: string;
 }
 
-const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'mp4', 'mp3', 'jpg', 'jpeg', 'png', 'zip'];
+const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'mp4', 'mp3', 'jpg', 'jpeg', 'png', 'webp', 'zip', 'txt', 'csv'];
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 export class FilesService {

@@ -128,7 +128,10 @@ export class LibraryService {
         if (filters.subject) query = query.eq('subject', filters.subject);
         if (filters.gradeLevel) query = query.eq('grade_level', filters.gradeLevel);
         if (filters.query) {
-            query = query.ilike('title', `%${filters.query}%`);
+            const q = filters.query.replace(/[^a-zA-Z0-9 _.-]/g, '').trim();
+            if (q) {
+                query = query.or(`title.ilike.%${q}%,subject.ilike.%${q}%,description.ilike.%${q}%`);
+            }
         }
 
         // Programme scoping. Explicit dropdown filter wins; otherwise students only see
