@@ -6,6 +6,7 @@ import {
   canCreateLiveSessionForTarget,
   getStudentProgramIds,
 } from '@/lib/live-sessions/authz';
+import { notifySessionScheduled } from '@/lib/live-sessions/notify';
 
 function adminClient() {
   return createClient(
@@ -107,5 +108,9 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Notify the targeted students that a session has been scheduled (fire-and-forget).
+  if (data && data.status === 'scheduled') void notifySessionScheduled(data);
+
   return NextResponse.json({ data });
 }
