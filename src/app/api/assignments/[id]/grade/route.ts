@@ -3,8 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import type { Database, TablesUpdate } from '@/types/supabase';
-import { normalizeGradeValue } from '@/lib/api-guards';
+import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import {
+  assignmentVisibleToStudent,
+  resolveStudentProgramScope,
+  type AssignmentStudentScope,
+} from '@/lib/assignments/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +32,16 @@ async function getCaller(): Promise<Caller | null> {
     .eq('id', user.id)
     .single();
   return (caller as Caller) ?? null;
+}
+
+async function getStudentClassTeacherId(admin: ReturnType<typeof adminClient>, classId: string | null): Promise<string | null> {
+  if (!classId) return null;
+  const { data } = await admin
+    .from('classes')
+    .select('teacher_id')
+    .eq('id', classId)
+    .maybeSingle();
+  return data?.teacher_id ?? null;
 }
 
 async function sendGradeNotifications(
@@ -100,7 +115,7 @@ export async function POST(
     // Fetch assignment to verify access + get weight/max_points
     const { data: assignment } = await admin
       .from('assignments')
-      .select('weight, max_points, school_id, created_by, title, metadata, class_id')
+      .select('weight, max_points, school_id, school_name, course_id, program_id, created_by, title, metadata, class_id')
       .eq('id', assignment_id)
       .maybeSingle();
 
@@ -145,7 +160,7 @@ export async function POST(
         );
       }
     }
-    if (caller.role === 'school' && assignment.school_id && assignment.school_id !== caller.school_id) {
+    if (caller.role === 'school' && (!caller.school_id || assignment.school_id !== caller.school_id)) {
       return NextResponse.json(
         { error: 'Access denied: assignment belongs to a different school' },
         { status: 403 },
@@ -154,10 +169,21 @@ export async function POST(
 
     const body = await request.json();
     const { submission_id, student_id, grade, feedback, status, submission_text } = body;
-    const normalizedGrade = normalizeGradeValue(grade);
 
     const assignWeight = assignment.weight ?? 0;
     const assignMax    = assignment.max_points ?? 100;
+    const gradeResult = normalizeGradeValueWithMax(grade, assignMax);
+    if ('grade' in body && gradeResult.error) {
+      return NextResponse.json({ error: gradeResult.error, field: 'grade' }, { status: 400 });
+    }
+    if ('grade' in body && gradeResult.value === undefined) {
+      return NextResponse.json({ error: 'grade must be a number or null', field: 'grade' }, { status: 400 });
+    }
+    const statusResult = normalizeSubmissionStatus(status);
+    if ('status' in body && statusResult.error) {
+      return NextResponse.json({ error: statusResult.error, field: 'status' }, { status: 400 });
+    }
+    const normalizedGrade = gradeResult.value;
 
     function computeWeightedScore(g: number | null | undefined): number | null {
       if (g == null || assignWeight === 0 || assignMax === 0) return null;
@@ -184,31 +210,49 @@ export async function POST(
       existingSub = data;
     }
 
+    if (student_id && caller.role !== 'admin') {
+      const { data: targetStudent } = await admin
+        .from('portal_users')
+        .select('role, id, school_id, school_name, class_id, section_class, primary_teacher_id, enrollment_type')
+        .eq('id', student_id)
+        .maybeSingle();
+
+      if (!targetStudent || targetStudent.role !== 'student') {
+        return NextResponse.json({ error: 'student_id must point to a valid student account' }, { status: 400 });
+      }
+
+      const scope = await resolveStudentProgramScope(admin, student_id, targetStudent.class_id);
+      const classTeacherId = await getStudentClassTeacherId(admin, targetStudent.class_id);
+      const creatorRoles: Record<string, string> = {};
+      if (assignment.created_by) {
+        const { data: creatorUser } = await admin
+          .from('portal_users')
+          .select('role')
+          .eq('id', assignment.created_by)
+          .maybeSingle();
+        if (creatorUser?.role) creatorRoles[assignment.created_by] = creatorUser.role;
+      }
+
+      if (!assignmentVisibleToStudent(assignment, targetStudent as unknown as AssignmentStudentScope, scope, creatorRoles, classTeacherId)) {
+        return NextResponse.json({ error: 'Target student is not in this assignment audience' }, { status: 403 });
+      }
+    }
+
     if (submission_id) {
       const updatePayload: TablesUpdate<'assignment_submissions'> = {
         updated_at: new Date().toISOString(),
       };
       if (normalizedGrade !== undefined) updatePayload.grade = normalizedGrade;
       if (feedback !== undefined) updatePayload.feedback = feedback ?? null;
-      if (status !== undefined) updatePayload.status = status;
+      if (status !== undefined) updatePayload.status = statusResult.value;
       if (submission_text !== undefined) updatePayload.submission_text = submission_text ?? null;
-      if (status === 'graded' || normalizedGrade !== undefined) {
+      if (statusResult.value === 'graded' || normalizedGrade !== undefined) {
         updatePayload.graded_by = caller.id;
         updatePayload.graded_at = new Date().toISOString();
         updatePayload.weighted_score = computeWeightedScore(normalizedGrade);
 
-        // Delete image file from storage if marking as graded
-        if (existingSub?.file_url && /\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(existingSub.file_url)) {
-          const marker = '/object/public/assignments/';
-          const markerIdx = existingSub.file_url.indexOf(marker);
-          if (markerIdx !== -1) {
-            const storagePath = decodeURIComponent(
-              existingSub.file_url.slice(markerIdx + marker.length).split('?')[0]
-            );
-            await admin.storage.from('assignments').remove([storagePath]);
-          }
-          updatePayload.file_url = null;
-        }
+        // Keep submitted files attached after grading so teachers, students, and
+        // parents can still review the evidence behind the mark.
       }
 
       const { data, error } = await admin
@@ -246,7 +290,7 @@ export async function POST(
         portal_user_id:  student_id,
         grade:           normalizedGrade ?? null,
         feedback:        feedback ?? null,
-        status:          status ?? 'graded',
+        status:          statusResult.value ?? 'graded',
         submission_text: submission_text ?? null,
         graded_by:       caller.id,
         graded_at:       new Date().toISOString(),
@@ -255,20 +299,7 @@ export async function POST(
         weighted_score:  computeWeightedScore(normalizedGrade),
       };
 
-      // Delete image file from storage if marking as graded
-      if (insertPayload.status === 'graded' && existingSub?.file_url) {
-        if (/\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(existingSub.file_url)) {
-          const marker = '/object/public/assignments/';
-          const markerIdx = existingSub.file_url.indexOf(marker);
-          if (markerIdx !== -1) {
-            const storagePath = decodeURIComponent(
-              existingSub.file_url.slice(markerIdx + marker.length).split('?')[0]
-            );
-            await admin.storage.from('assignments').remove([storagePath]);
-          }
-          insertPayload.file_url = null;
-        }
-      }
+      // Keep submitted files attached after grading so the grade remains auditable.
 
       const { data, error } = await admin
         .from('assignment_submissions')

@@ -40,25 +40,14 @@ async function getCaller(): Promise<Caller | null> {
   return (caller as Caller) ?? null;
 }
 
-/** Returns true if the caller can manage (write) an exam at the given school. */
-async function callerCanManageExam(caller: Caller, examSchoolId: string | null, examCreatedBy: string | null): Promise<boolean> {
+/** Returns true if the caller can manage/write this exam. */
+async function callerCanManageExam(caller: Caller, examCreatedBy: string | null): Promise<boolean> {
   if (caller.role === 'admin') return true;
   if (caller.role !== 'teacher') return false;
 
   // Teacher can always manage exams they personally created
   if (examCreatedBy === caller.id) return true;
-
-  // Or if they're assigned to the exam's school
-  if (!examSchoolId) return false;
-  if (caller.school_id === examSchoolId) return true;
-
-  const { data: ts } = await adminClient()
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', caller.id)
-    .eq('school_id', examSchoolId)
-    .maybeSingle();
-  return !!ts;
+  return false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -125,7 +114,7 @@ export async function GET(
     return NextResponse.json({ error: 'Access denied: exam is outside your school scope' }, { status: 403 });
   }
   if (caller.role === 'teacher') {
-    const canAccess = await callerCanManageExam(caller, examMeta.school_id, examMeta.created_by);
+    const canAccess = await callerCanManageExam(caller, examMeta.created_by);
     if (!canAccess) {
       return NextResponse.json({ error: 'Access denied: exam is outside your school scope' }, { status: 403 });
     }
@@ -183,7 +172,7 @@ export async function PATCH(
 
   if (!examMeta) return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
 
-  const canManage = await callerCanManageExam(caller, examMeta.school_id, examMeta.created_by);
+  const canManage = await callerCanManageExam(caller, examMeta.created_by);
   if (!canManage) {
     return NextResponse.json({ error: 'Access denied: you did not create this exam and are not assigned to its school' }, { status: 403 });
   }
@@ -289,7 +278,7 @@ export async function DELETE(
 
     if (!examMeta) return NextResponse.json({ error: 'Exam not found' }, { status: 404 });
 
-    const canManage = await callerCanManageExam(caller, examMeta.school_id, examMeta.created_by);
+    const canManage = await callerCanManageExam(caller, examMeta.created_by);
     if (!canManage) {
       return NextResponse.json({ error: 'Access denied: you did not create this exam and are not assigned to its school' }, { status: 403 });
     }

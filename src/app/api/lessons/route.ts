@@ -71,10 +71,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (caller.role === 'teacher') {
-      const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-      const filters = [`created_by.eq.${caller.id}`];
-      if (scopedIds.length > 0) filters.push(`school_id.in.(${scopedIds.join(',')})`);
-      query = query.or(filters.join(',')) as any;
+      query = query.eq('created_by', caller.id) as any;
     } else if (caller.role === 'school') {
       if (!caller.school_id) {
         return NextResponse.json({ error: 'School context required: account must be linked to a school.' }, { status: 403 });

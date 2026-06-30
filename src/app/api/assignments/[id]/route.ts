@@ -14,6 +14,43 @@ function adminClient() {
 
 type Caller = { role: string; id: string; school_id: string | null };
 
+const ALLOWED_GRADING_MODES = new Set(['manual', 'auto', 'ai_suggested']);
+
+function validateAssignmentInput(body: Record<string, any>, partial = false): { error: string; field: string } | null {
+  if ((!partial || 'title' in body) && typeof body.title !== 'string') {
+    return { error: 'title is required', field: 'title' };
+  }
+  if ('title' in body) {
+    body.title = String(body.title).trim();
+    if (!body.title) return { error: 'title is required', field: 'title' };
+  }
+  if ('max_points' in body && body.max_points != null) {
+    const maxPoints = Number(body.max_points);
+    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
+      return { error: 'max_points must be a positive number', field: 'max_points' };
+    }
+    body.max_points = maxPoints;
+  }
+  if ('weight' in body && body.weight != null) {
+    const weight = Number(body.weight);
+    if (!Number.isFinite(weight) || weight < 0) {
+      return { error: 'weight must be zero or a positive number', field: 'weight' };
+    }
+    body.weight = weight;
+  }
+  if ('due_date' in body && body.due_date) {
+    const dueDate = new Date(body.due_date);
+    if (Number.isNaN(dueDate.getTime())) {
+      return { error: 'due_date must be a valid date', field: 'due_date' };
+    }
+    body.due_date = dueDate.toISOString();
+  }
+  if ('grading_mode' in body && body.grading_mode && !ALLOWED_GRADING_MODES.has(String(body.grading_mode))) {
+    return { error: 'grading_mode must be manual, auto, or ai_suggested', field: 'grading_mode' };
+  }
+  return null;
+}
+
 async function getCaller(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -146,6 +183,9 @@ export async function PATCH(
   }
 
   const body = await request.json();
+  const inputIssue = validateAssignmentInput(body, true);
+  if (inputIssue) return NextResponse.json(inputIssue, { status: 400 });
+
   const allowed: Record<string, unknown> = {};
   const allowedFields = [
     'title', 'description', 'instructions', 'course_id', 'program_id',

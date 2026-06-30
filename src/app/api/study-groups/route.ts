@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +10,7 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
+  const { data: profile } = await supabase.from('portal_users').select('role, school_id, class_id').eq('id', user.id).single();
   const url = new URL(req.url);
   const cursor = url.searchParams.get('cursor');
   const courseId = url.searchParams.get('course_id');
@@ -27,8 +29,14 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const nextCursor = data && data.length === 20 ? data[data.length - 1].created_at : null;
-  return NextResponse.json({ data, nextCursor });
+  let rows = data ?? [];
+  if (profile?.role === 'student') {
+    const scope = await resolveStudentProgramScope(createAdminClient() as any, user.id, profile.class_id);
+    rows = rows.filter((group: any) => !group.course_id || scope.courseIds.has(group.course_id));
+  }
+
+  const nextCursor = rows.length === 20 ? rows[rows.length - 1].created_at : null;
+  return NextResponse.json({ data: rows, nextCursor });
 }
 
 export async function POST(req: NextRequest) {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 
 async function getUser() {
   const supabase = await createClient();
@@ -63,6 +64,12 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
     const examSchoolId = (exam as any)?.courses?.school_id as string | null;
     if (!exam?.is_active || (examSchoolId && user.school_id && examSchoolId !== user.school_id)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (exam.course_id) {
+      const scope = await resolveStudentProgramScope(db as any, user.id);
+      if (!scope.courseIds.has(exam.course_id)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     const { data, error } = await db

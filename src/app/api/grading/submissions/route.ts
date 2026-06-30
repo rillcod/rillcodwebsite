@@ -10,6 +10,12 @@ export async function GET(req: NextRequest) {
 
   const { data: profile } = await supabase.from('portal_users').select('role, school_id').eq('id', user.id).single();
   const role = profile?.role;
+  if (!['admin', 'teacher', 'school'].includes(String(role))) {
+    return NextResponse.json({ error: 'Staff access required' }, { status: 403 });
+  }
+  if (role === 'school' && !profile?.school_id) {
+    return NextResponse.json({ error: 'School account is missing school scope' }, { status: 403 });
+  }
 
   const url = new URL(req.url);
   const cursor = url.searchParams.get('cursor');

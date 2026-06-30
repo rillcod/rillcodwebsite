@@ -103,6 +103,9 @@ export async function POST(
 
     // Only admin/teacher may submit on behalf of another student
     const isStaff = ['admin', 'teacher'].includes(caller.role);
+    if (isStaff && !portal_user_id) {
+      return NextResponse.json({ error: 'portal_user_id is required when staff submit on behalf of a student' }, { status: 400 });
+    }
     const effectiveUserId = isStaff ? (portal_user_id ?? caller.id) : caller.id;
 
     // Fetch assignment to validate access
@@ -114,7 +117,38 @@ export async function POST(
 
     if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
 
+    if (isStaff) {
+      const { data: targetStudent } = await admin
+        .from('portal_users')
+        .select('role, id, school_id, school_name, class_id, section_class, primary_teacher_id, enrollment_type')
+        .eq('id', effectiveUserId)
+        .maybeSingle();
+
+      if (!targetStudent || targetStudent.role !== 'student') {
+        return NextResponse.json({ error: 'Staff submissions must target a valid student account' }, { status: 400 });
+      }
+
+      if (caller.role !== 'admin') {
+        const scope = await resolveStudentProgramScope(admin, effectiveUserId, targetStudent.class_id);
+        const classTeacherId = await getStudentClassTeacherId(admin, targetStudent.class_id);
+        const creatorRoles: Record<string, string> = {};
+        if (assignment.created_by) {
+          const { data: creatorUser } = await admin
+            .from('portal_users')
+            .select('role')
+            .eq('id', assignment.created_by)
+            .maybeSingle();
+          if (creatorUser?.role) creatorRoles[assignment.created_by] = creatorUser.role;
+        }
+
+        if (!assignmentVisibleToStudent(assignment, targetStudent as unknown as AssignmentStudentScope, scope, creatorRoles, classTeacherId)) {
+          return NextResponse.json({ error: 'Target student is not in this assignment audience' }, { status: 403 });
+        }
+      }
+    }
+
     // Fetch existing submission to check if already graded (students only)
+    let existingSubmissionStatus: string | null = null;
     if (!isStaff) {
       const { data: existingSub } = await admin
         .from('assignment_submissions')
@@ -123,6 +157,7 @@ export async function POST(
         .eq('portal_user_id', effectiveUserId)
         .maybeSingle();
 
+      existingSubmissionStatus = existingSub?.status ?? null;
       if (existingSub && existingSub.status === 'graded') {
         return NextResponse.json({ error: 'This assignment has already been graded and cannot be resubmitted' }, { status: 403 });
       }
@@ -138,7 +173,7 @@ export async function POST(
       const scope = await resolveStudentProgramScope(admin, effectiveUserId, caller.class_id);
       const classTeacherId = await getStudentClassTeacherId(admin, caller.class_id);
 
-      let creatorRoles: Record<string, string> = {};
+        const creatorRoles: Record<string, string> = {};
       if (assignment.created_by) {
         const { data: creatorUser } = await admin
           .from('portal_users')
@@ -303,7 +338,7 @@ export async function POST(
     }
 
     // ── Auto-award XP on student submission ───────────────────────────────────
-    if (!isStaff) {
+    if (!isStaff && !existingSubmissionStatus) {
       const engAdmin = createEngagementAdminClient();
       awardSubmissionXP(engAdmin, effectiveUserId, assignment_id, assignment).catch(console.error);
     }

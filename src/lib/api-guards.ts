@@ -9,6 +9,34 @@ export function normalizeGradeValue(grade: unknown): number | null | undefined {
   return typeof grade === 'number' && Number.isFinite(grade) ? grade : grade === null ? null : undefined;
 }
 
+export function normalizeGradeValueWithMax(
+  grade: unknown,
+  maxPoints: number | null | undefined,
+): { value: number | null | undefined; error?: string } {
+  const value = normalizeGradeValue(grade);
+  if (value == null) return { value };
+
+  const max = typeof maxPoints === 'number' && Number.isFinite(maxPoints) && maxPoints > 0
+    ? maxPoints
+    : 100;
+
+  if (value < 0 || value > max) {
+    return { value: undefined, error: `Grade must be between 0 and ${max}.` };
+  }
+
+  return { value };
+}
+
+const ALLOWED_SUBMISSION_STATUSES = new Set(['submitted', 'late', 'pending_review', 'graded']);
+
+export function normalizeSubmissionStatus(status: unknown): { value: string | undefined; error?: string } {
+  if (status === undefined) return { value: undefined };
+  if (typeof status !== 'string' || !ALLOWED_SUBMISSION_STATUSES.has(status)) {
+    return { value: undefined, error: 'status must be submitted, late, pending_review, or graded' };
+  }
+  return { value: status };
+}
+
 export function hasPlanBindings(plan: { course_id?: string | null; school_id?: string | null }) {
   return Boolean(plan.course_id && plan.school_id);
 }

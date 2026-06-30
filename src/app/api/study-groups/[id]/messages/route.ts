@@ -3,11 +3,24 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+async function requireGroupMembership(supabase: Awaited<ReturnType<typeof createClient>>, groupId: string, userId: string) {
+  const { data } = await supabase
+    .from('study_group_members')
+    .select('id')
+    .eq('group_id', groupId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return !!data;
+}
+
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!await requireGroupMembership(supabase, id, user.id)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const url = new URL(req.url);
   const cursor = url.searchParams.get('cursor');
@@ -32,6 +45,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!await requireGroupMembership(supabase, id, user.id)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
 
   const { content } = await req.json();

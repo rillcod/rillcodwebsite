@@ -24,6 +24,43 @@ type Caller = {
   enrollment_type: string | null;
 };
 
+const ALLOWED_GRADING_MODES = new Set(['manual', 'auto', 'ai_suggested']);
+
+function validateAssignmentInput(body: Record<string, any>, partial = false): { error: string; field: string } | null {
+  if ((!partial || 'title' in body) && typeof body.title !== 'string') {
+    return { error: 'title is required', field: 'title' };
+  }
+  if ('title' in body) {
+    body.title = String(body.title).trim();
+    if (!body.title) return { error: 'title is required', field: 'title' };
+  }
+  if ('max_points' in body && body.max_points != null) {
+    const maxPoints = Number(body.max_points);
+    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
+      return { error: 'max_points must be a positive number', field: 'max_points' };
+    }
+    body.max_points = maxPoints;
+  }
+  if ('weight' in body && body.weight != null) {
+    const weight = Number(body.weight);
+    if (!Number.isFinite(weight) || weight < 0) {
+      return { error: 'weight must be zero or a positive number', field: 'weight' };
+    }
+    body.weight = weight;
+  }
+  if ('due_date' in body && body.due_date) {
+    const dueDate = new Date(body.due_date);
+    if (Number.isNaN(dueDate.getTime())) {
+      return { error: 'due_date must be a valid date', field: 'due_date' };
+    }
+    body.due_date = dueDate.toISOString();
+  }
+  if ('grading_mode' in body && body.grading_mode && !ALLOWED_GRADING_MODES.has(String(body.grading_mode))) {
+    return { error: 'grading_mode must be manual, auto, or ai_suggested', field: 'grading_mode' };
+  }
+  return null;
+}
+
 async function requireAuth(): Promise<Caller | null> {
   const supabase = await createServerClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -105,6 +142,7 @@ export async function GET(request: NextRequest) {
       if (caller.school_id) orParts.push(`school_id.eq.${caller.school_id}`);
       if (caller.school_name) orParts.push(`school_name.eq.${caller.school_name}`);
       if (orParts.length > 0) query = query.or(orParts.join(',')) as any;
+      else return NextResponse.json({ error: 'School account is missing school scope' }, { status: 403 });
     } else if (caller.role === 'student') {
       // All active assignments in the student's broad scope; precise visibility filtering done below.
       query = query.eq('is_active', true) as any;
@@ -124,14 +162,15 @@ export async function GET(request: NextRequest) {
 
     let rows = data ?? [];
 
-    // Teacher post-filter: the DB query fetched own + school assignments.
-    // Strip out class-targeted assignments that belong to other teachers —
-    // those are private to their creator (only visible via direct assignment view).
+    // Teacher post-filter: teachers see their own assignments plus admin/school
+    // assignments explicitly targeted to a class they own. Broad school-wide work
+    // stays with admin/school accounts so teachers are not flooded with work they
+    // did not create.
     if (caller.role === 'teacher') {
       const classIds = Array.from(new Set(rows
         .map((a: any) => (a.metadata || {}).target_class_id || a.class_id)
         .filter(Boolean) as string[]));
-      let classOwners: Record<string, string> = {};
+      const classOwners: Record<string, string> = {};
       if (classIds.length > 0) {
         const { data: classes } = await admin
           .from('classes')
@@ -143,9 +182,7 @@ export async function GET(request: NextRequest) {
         if (a.created_by === caller.id) return true;
         const targetClassId = (a.metadata || {}).target_class_id || a.class_id;
         if (targetClassId) return classOwners[targetClassId] === caller.id;
-        // Platform / admin school-wide assignment: visible if NOT class-scoped
-        const vis = (a.metadata || {}).visibility;
-        return vis !== 'class';
+        return false;
       });
     }
 
@@ -167,7 +204,7 @@ export async function GET(request: NextRequest) {
 
       // Fetch roles of all creators of these assignments to distinguish admin-assigned vs teacher-assigned.
       const creatorIds = Array.from(new Set(rows.map((r: any) => r.created_by).filter(Boolean)));
-      let creatorRoles: Record<string, string> = {};
+      const creatorRoles: Record<string, string> = {};
       if (creatorIds.length > 0) {
         const { data: users } = await admin
           .from('portal_users')
@@ -179,7 +216,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (currentCourseId) {
-        rows = rows.filter((a: any) => a.course_id === currentCourseId);
+        rows = rows.filter((a: any) => !a.course_id || a.course_id === currentCourseId);
       }
 
       rows = rows
@@ -209,8 +246,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-
-    if (!body.title) return NextResponse.json({ error: 'title is required' }, { status: 400 });
+    const inputIssue = validateAssignmentInput(body);
+    if (inputIssue) return NextResponse.json(inputIssue, { status: 400 });
 
     const admin = adminClient();
 

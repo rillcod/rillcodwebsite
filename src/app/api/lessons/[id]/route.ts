@@ -52,10 +52,7 @@ async function callerCanManageLesson(
   }
   if (caller.role === 'teacher') {
     if (lessonCreatedBy === caller.id) return true;
-    if (!lessonSchoolId) return false;
-    if (caller.school_id === lessonSchoolId) return true;
-    const scopedIds = await getTeacherSchoolIds(caller.id, caller.school_id);
-    return scopedIds.includes(lessonSchoolId);
+    return false;
   }
   return false;
 }

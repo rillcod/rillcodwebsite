@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { normalizeGradeValueWithMax, normalizeSubmissionStatus } from '@/lib/api-guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,7 +71,6 @@ async function callerCanManageSubmission(
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/assignment-submissions/[id]
 // Update grade, feedback, status, submission_text on a submission.
-// When status becomes 'graded', optionally cleans up the uploaded image file.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function PATCH(
   request: NextRequest,
@@ -102,16 +102,42 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    const assignMax = assignment?.max_points ?? 100;
+    const assignWeight = assignment?.weight ?? 0;
+    const gradeResult = normalizeGradeValueWithMax(body.grade, assignMax);
+    if ('grade' in body && gradeResult.error) {
+      return NextResponse.json({ error: gradeResult.error, field: 'grade' }, { status: 400 });
+    }
+    if ('grade' in body && gradeResult.value === undefined) {
+      return NextResponse.json({ error: 'grade must be a number or null', field: 'grade' }, { status: 400 });
+    }
+    const statusResult = normalizeSubmissionStatus(body.status);
+    if ('status' in body && statusResult.error) {
+      return NextResponse.json({ error: statusResult.error, field: 'status' }, { status: 400 });
+    }
 
     // ── Whitelisted update fields ──────────────────────────────────────────
     // graded_by and graded_at are NOT client-settable — always set server-side
     const allowed: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if ('grade'           in body) allowed.grade           = body.grade           ?? null;
+    if ('grade'           in body) allowed.grade           = gradeResult.value    ?? null;
     if ('feedback'        in body) allowed.feedback        = body.feedback        ?? null;
-    if ('status'          in body) allowed.status          = body.status;
+    if ('status'          in body) allowed.status          = statusResult.value;
     if ('submission_text' in body) allowed.submission_text = body.submission_text ?? null;
-    // Allow explicit weighted_score override from GradeCanvas
-    if ('weighted_score'  in body) allowed.weighted_score  = body.weighted_score  ?? null;
+    // Allow explicit weighted_score override from GradeCanvas, bounded by assignment weight.
+    if ('weighted_score' in body) {
+      if (body.weighted_score == null) {
+        allowed.weighted_score = null;
+      } else {
+        const weightedScore = Number(body.weighted_score);
+        if (!Number.isFinite(weightedScore) || weightedScore < 0 || (assignWeight > 0 && weightedScore > assignWeight)) {
+          return NextResponse.json(
+            { error: `weighted_score must be between 0 and ${assignWeight > 0 ? assignWeight : 'the assignment weight'}.`, field: 'weighted_score' },
+            { status: 400 },
+          );
+        }
+        allowed.weighted_score = weightedScore;
+      }
+    }
 
     if (body.status === 'graded' || 'grade' in body) {
       // Always use server-determined grader identity — never trust the body
@@ -119,29 +145,14 @@ export async function PATCH(
       allowed.graded_at = new Date().toISOString();
 
       // Auto-compute weighted_score only when not explicitly provided
-      if (body.grade != null && !('weighted_score' in body)) {
-        const w  = assignment?.weight     ?? 0;
-        const mp = assignment?.max_points ?? 100;
-        allowed.weighted_score = (w > 0 && mp > 0)
-          ? Math.round((Number(body.grade) / mp) * w)
+      if (gradeResult.value != null && !('weighted_score' in body)) {
+        allowed.weighted_score = (assignWeight > 0 && assignMax > 0)
+          ? Math.round((gradeResult.value / assignMax) * assignWeight)
           : null;
       }
     }
 
-    // When marking as graded, delete image files from storage to free space
-    if (body.status === 'graded' && sub.file_url) {
-      if (/\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(sub.file_url)) {
-        const marker    = '/object/public/assignments/';
-        const markerIdx = sub.file_url.indexOf(marker);
-        if (markerIdx !== -1) {
-          const storagePath = decodeURIComponent(
-            sub.file_url.slice(markerIdx + marker.length).split('?')[0],
-          );
-          await admin.storage.from('assignments').remove([storagePath]);
-        }
-        allowed.file_url = null;
-      }
-    }
+    // Keep submitted files after grading so the grade remains auditable.
 
     const { data, error } = await admin
       .from('assignment_submissions')

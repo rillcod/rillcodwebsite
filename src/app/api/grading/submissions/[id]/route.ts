@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
+import { normalizeGradeValueWithMax } from '@/lib/api-guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,7 @@ async function callerCanManageSubmission(
 ): Promise<boolean> {
   if (caller.role === 'admin') return true;
   if (caller.role === 'school') {
-    return !assignmentSchoolId || assignmentSchoolId === caller.school_id;
+    return !!caller.school_id && assignmentSchoolId === caller.school_id;
   }
   if (caller.role === 'teacher') {
     if (assignmentCreatedBy === caller.id) return true;
@@ -67,7 +68,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     // Fetch existing submission and assignment details
     const { data: submission } = await admin
       .from('assignment_submissions')
-      .select('id, grade, ai_suggested_grade, grading_mode, file_url, portal_user_id, assignments(title, school_id, created_by, weight, max_points)')
+      .select('id, grade, ai_suggested_grade, ai_suggested_feedback, grading_mode, file_url, portal_user_id, assignments(title, school_id, created_by, weight, max_points)')
       .eq('id', id)
       .maybeSingle();
 
@@ -92,15 +93,27 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     let auditAction = '';
 
     if (action === 'accept_ai') {
-      updateData.grade = submission.ai_suggested_grade;
+      const gradeResult = normalizeGradeValueWithMax(submission.ai_suggested_grade, assignMax);
+      if (gradeResult.error || gradeResult.value == null) {
+        return NextResponse.json(
+          { error: gradeResult.error || 'AI suggested grade is missing or invalid', field: 'ai_suggested_grade' },
+          { status: 400 },
+        );
+      }
+      updateData.grade = gradeResult.value;
+      updateData.feedback = submission.ai_suggested_feedback ?? null;
       updateData.grading_mode = 'auto';
       updateData.status = 'graded';
       updateData.graded_at = new Date().toISOString();
       updateData.graded_by = caller.id;
       auditAction = 'accept_ai_grade';
     } else if (action === 'override') {
-      if (grade == null) return NextResponse.json({ error: 'grade is required for override', field: 'grade' }, { status: 400 });
-      updateData.grade = grade;
+      const gradeResult = normalizeGradeValueWithMax(grade, assignMax);
+      if (gradeResult.error) {
+        return NextResponse.json({ error: gradeResult.error, field: 'grade' }, { status: 400 });
+      }
+      if (gradeResult.value == null) return NextResponse.json({ error: 'grade is required for override', field: 'grade' }, { status: 400 });
+      updateData.grade = gradeResult.value;
       updateData.feedback = feedback || null;
       updateData.grading_mode = 'manual';
       updateData.status = 'graded';
@@ -118,20 +131,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         : null;
     }
 
-    // When marking as graded, delete image files from storage to free space
-    if (submission.file_url) {
-      if (/\.(png|jpe?g|gif|webp|bmp|heic)(\?|$)/i.test(submission.file_url)) {
-        const marker    = '/object/public/assignments/';
-        const markerIdx = submission.file_url.indexOf(marker);
-        if (markerIdx !== -1) {
-          const storagePath = decodeURIComponent(
-            submission.file_url.slice(markerIdx + marker.length).split('?')[0],
-          );
-          await admin.storage.from('assignments').remove([storagePath]);
-        }
-        updateData.file_url = null;
-      }
-    }
+    // Keep submitted files after grading so AI/manual decisions remain auditable.
 
     const { error } = await admin.from('assignment_submissions').update(updateData as any).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

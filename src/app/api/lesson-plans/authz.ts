@@ -25,7 +25,7 @@ export type LessonScope = {
 export function canAccessLessonScope(
   user: LessonPlanAccessUser,
   lesson: LessonScope,
-  teacherSchoolIds: string[] = [],
+  _teacherSchoolIds: string[] = [],
 ): boolean {
   if (user.role === 'admin') return true;
 
@@ -36,8 +36,6 @@ export function canAccessLessonScope(
   if (user.role === 'teacher') {
     // Always show plans created by this teacher, regardless of school scope.
     if (lesson.created_by && lesson.created_by === user.id) return true;
-    // Show school-scoped plans for schools the teacher belongs to.
-    if (lesson.school_id && teacherSchoolIds.includes(lesson.school_id)) return true;
     return false;
   }
 

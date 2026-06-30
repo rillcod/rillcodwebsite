@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveStudentProgramScope } from '@/lib/assignments/visibility';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +11,32 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('role, school_id, class_id')
+    .eq('id', user.id)
+    .single();
+
+  const admin = createAdminClient();
+  const { data: group } = await admin
+    .from('study_groups')
+    .select('id, school_id, course_id, status')
+    .eq('id', id)
+    .maybeSingle();
+  if (!group || group.status !== 'active') return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+
+  if (profile?.role === 'student') {
+    if (group.school_id && group.school_id !== profile.school_id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (group.course_id) {
+      const scope = await resolveStudentProgramScope(admin as any, user.id, profile.class_id);
+      if (!scope.courseIds.has(group.course_id)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+  }
 
   // Check member count cap (20)
   const { count } = await supabase

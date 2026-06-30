@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
-async function teacherCanManageProject(teacherId: string, teacherSchoolId: string | null, projectId: string) {
+async function teacherCanManageProject(teacherId: string, projectId: string) {
   const admin = createAdminClient();
   const { data: project } = await admin.from('lab_projects').select('user_id').eq('id', projectId).maybeSingle();
   if (!project?.user_id) return false;
-  const schoolIds = await getTeacherSchoolIds(teacherId, teacherSchoolId);
-  if (schoolIds.length === 0) return false;
-  const { data: student } = await admin
+
+  const { data: classes } = await admin
+    .from('classes')
+    .select('id')
+    .eq('teacher_id', teacherId);
+  const classIds = (classes ?? []).map((row: any) => row.id).filter(Boolean);
+
+  let studentQuery = admin
     .from('portal_users')
     .select('id')
     .eq('id', project.user_id)
-    .eq('role', 'student')
-    .in('school_id', schoolIds)
-    .maybeSingle();
+    .eq('role', 'student');
+  const scopeParts = [`primary_teacher_id.eq.${teacherId}`];
+  if (classIds.length > 0) scopeParts.push(`class_id.in.(${classIds.join(',')})`);
+  studentQuery = studentQuery.or(scopeParts.join(',')) as typeof studentQuery;
+
+  const { data: student } = await studentQuery.maybeSingle();
   return !!student;
 }
 
@@ -49,7 +56,7 @@ export async function PATCH(
 
   const isStaff = ['admin', 'teacher'].includes(profile?.role || '');
   if (profile?.role === 'teacher') {
-    const allowed = await teacherCanManageProject(profile.id, profile.school_id ?? null, id);
+    const allowed = await teacherCanManageProject(profile.id, id);
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -87,7 +94,7 @@ export async function DELETE(
 
   const isStaff = ['admin', 'teacher'].includes(profile?.role || '');
   if (profile?.role === 'teacher') {
-    const allowed = await teacherCanManageProject(profile.id, profile.school_id ?? null, id);
+    const allowed = await teacherCanManageProject(profile.id, id);
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

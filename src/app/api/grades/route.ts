@@ -27,6 +27,9 @@ async function getHandler(req: Request, ctx: ApiContext) {
     if (!studentId) {
         throw new AppError('student_id is required', 400);
     }
+    if (ctx.user?.role === 'student' && studentId !== ctx.user.id) {
+        throw new AppError('Students can only view their own grades', 403, true);
+    }
 
     const tenantId = ctx.user?.tenantId;
     const data = await gradesService.listGrades(studentId, url.searchParams.get('program_id') || undefined, tenantId);

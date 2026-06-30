@@ -23,19 +23,6 @@ async function requireStaff() {
   return profile;
 }
 
-async function teacherSchoolIds(teacherId: string, fallbackSchoolId?: string | null) {
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const { data } = await adminClient()
-    .from('teacher_schools')
-    .select('school_id')
-    .eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    if (row.school_id) ids.add(row.school_id);
-  }
-  return ids;
-}
-
 // GET /api/progress-reports/[id]/email-events
 // Returns all email_events rows for a report, newest first.
 export async function GET(
@@ -68,10 +55,8 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   } else if (caller.role === 'teacher') {
-    const schoolIds = await teacherSchoolIds(caller.id, caller.school_id);
     const ownsReport = report.teacher_id === caller.id;
-    const scopedToReportSchool = !!report.school_id && schoolIds.has(report.school_id);
-    if (!ownsReport && !scopedToReportSchool) {
+    if (!ownsReport) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

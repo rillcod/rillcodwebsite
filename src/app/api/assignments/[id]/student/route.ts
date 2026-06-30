@@ -120,11 +120,11 @@ export async function GET(
       currentCourseId = clsData?.current_course_id ?? null;
     }
 
-    if (currentCourseId && asgn.course_id !== currentCourseId) {
+    if (currentCourseId && asgn.course_id && asgn.course_id !== currentCourseId) {
       return NextResponse.json({ error: 'You do not have access to this assignment' }, { status: 403 });
     }
 
-    let creatorRoles: Record<string, string> = {};
+    const creatorRoles: Record<string, string> = {};
     if (asgn.created_by) {
       const { data: creatorUser } = await admin
         .from('portal_users')

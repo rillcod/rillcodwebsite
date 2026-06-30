@@ -32,7 +32,7 @@ function extractJSON(raw: string): any | null {
 }
 
 const SYSTEM_PROMPT =
-  'You are a fair, encouraging STEM/coding teacher at Rillcod Academy grading a student\'s open-ended submission. ' +
+  'You are a fair, encouraging STEM/coding teacher at Rillcod Technologies grading a student\'s open-ended submission. ' +
   'Grade strictly against the assignment instructions, award partial credit for partial understanding, and be constructive. ' +
   'Return ONLY valid JSON — no markdown, no prose outside the JSON.';
 
@@ -99,7 +99,7 @@ export async function POST(
 
     const { data: assignment } = await admin
       .from('assignments')
-      .select('id, title, instructions, max_points, school_id, created_by, metadata')
+      .select('id, title, instructions, max_points, school_id, created_by, class_id, metadata')
       .eq('id', assignment_id)
       .maybeSingle();
     if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
@@ -107,7 +107,7 @@ export async function POST(
     // Access: creator always; teacher must own the target class or be at the school;
     // school role must match school. (Mirrors the manual grade route.)
     if (caller.role === 'teacher' && assignment.created_by !== caller.id) {
-      const targetClassId = (assignment as any).metadata?.target_class_id;
+      const targetClassId = (assignment as any).metadata?.target_class_id || (assignment as any).class_id;
       let allowed = false;
       if (targetClassId) {
         const { data: cls } = await admin.from('classes').select('teacher_id').eq('id', targetClassId).maybeSingle();
@@ -121,7 +121,7 @@ export async function POST(
       }
       if (!allowed) return NextResponse.json({ error: 'Access denied: not your assignment' }, { status: 403 });
     }
-    if (caller.role === 'school' && assignment.school_id && assignment.school_id !== caller.school_id) {
+    if (caller.role === 'school' && (!caller.school_id || assignment.school_id !== caller.school_id)) {
       return NextResponse.json({ error: 'Access denied: different school' }, { status: 403 });
     }
 

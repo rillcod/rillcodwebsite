@@ -15,7 +15,7 @@ async function getCallerProfile() {
   if (error || !user) return null;
   const { data: profile } = await supabase
     .from('portal_users')
-    .select('id, role, school_id')
+    .select('id, role, school_id, class_id')
     .eq('id', user.id)
     .single();
   return profile ?? null;
@@ -85,7 +85,20 @@ export async function GET(request: NextRequest) {
 
   if (status) q = q.eq('status', status) as any;
 
-  if (caller.role !== 'admin') {
+  if (caller.role === 'student') {
+    const now = new Date().toISOString();
+    q = q
+      .eq('status', 'published')
+      .eq('is_active', true)
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
+      .or('target_audience.eq.all,target_audience.eq.students,target_audience.eq.class') as any;
+    if ((caller as any).school_id) q = q.eq('school_id', (caller as any).school_id) as any;
+    if ((caller as any).class_id) {
+      q = q.or(`class_id.is.null,class_id.eq.${(caller as any).class_id}`) as any;
+    } else {
+      q = q.is('class_id', null) as any;
+    }
+  } else if (caller.role !== 'admin') {
     if (caller.role === 'teacher') {
       const { data: tsRows } = await admin
         .from('teacher_schools')

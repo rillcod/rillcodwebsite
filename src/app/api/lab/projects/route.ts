@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 async function allowedStudentIdsForStaff(profile: any, targetUserId?: string | null) {
   if (profile?.role === 'admin') return targetUserId ? [targetUserId] : null;
   if (profile?.role !== 'teacher') return [];
   const admin = createAdminClient();
-  const schoolIds = await getTeacherSchoolIds(profile.id, profile.school_id ?? null);
-  if (schoolIds.length === 0) return [];
-  let q = admin.from('portal_users').select('id').eq('role', 'student').in('school_id', schoolIds);
+  const { data: classes } = await admin
+    .from('classes')
+    .select('id')
+    .eq('teacher_id', profile.id);
+  const classIds = (classes ?? []).map((row: any) => row.id).filter(Boolean);
+
+  let q = admin
+    .from('portal_users')
+    .select('id')
+    .eq('role', 'student');
+
+  const scopeParts = [`primary_teacher_id.eq.${profile.id}`];
+  if (classIds.length > 0) scopeParts.push(`class_id.in.(${classIds.join(',')})`);
+  q = q.or(scopeParts.join(',')) as typeof q;
+
   if (targetUserId) q = q.eq('id', targetUserId);
   const { data } = await q;
   return (data ?? []).map((row: any) => row.id);
