@@ -1105,9 +1105,9 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
 
 // ─── Session Form Modal ───────────────────────────────────────────────────────
 
-function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, error, onClose, onSave }: {
+function SessionModal({ initial, isEdit, schools, programs, canGlobal, saving, error, onClose, onSave }: {
   initial: SessionForm; isEdit: boolean; schools: School[]; programs: Program[];
-  isAdmin: boolean; saving: boolean; error: string | null;
+  canGlobal: boolean; saving: boolean; error: string | null;
   onClose: () => void; onSave: (form: SessionForm) => void;
 }) {
   const [form, setForm] = useState<SessionForm>(initial);
@@ -1271,12 +1271,16 @@ function SessionModal({ initial, isEdit, schools, programs, isAdmin, saving, err
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {isAdmin && (
+            {(canGlobal || schools.length > 0) && (
               <div>
-                <label className={labelCls}>School (optional)</label>
+                <label className={labelCls}>
+                  School {canGlobal ? '(optional)' : <span className="text-primary">*</span>}
+                </label>
                 <select value={form.school_id} onChange={e => set('school_id', e.target.value)}
                   className={`${fieldCls} appearance-none`}>
-                  <option value="" className="bg-[#0a0a0a]">All schools (global)</option>
+                  {canGlobal
+                    ? <option value="" className="bg-[#0a0a0a]">All schools (global)</option>
+                    : !form.school_id && <option value="" className="bg-[#0a0a0a]">Select a school…</option>}
                   {schools.map(s => <option key={s.id} value={s.id} className="bg-[#0a0a0a]">{s.name}</option>)}
                 </select>
               </div>
@@ -1480,9 +1484,13 @@ export default function LiveSessionsPage() {
       if (!res.ok) throw new Error(json.error || 'Failed to load sessions');
       setSessions((json.data ?? []) as LiveSession[]);
 
-      if (isAdmin) {
-        const { data: sc } = await supabase.from('schools').select('id, name').order('name');
-        setSchools(sc ?? []);
+      // Which schools this user may scope a session to (admin → all, teacher → assigned,
+      // school → none). Resolved server-side so teacher_schools/RLS never blocks it.
+      if (canCreateSession) {
+        try {
+          const sr = await fetch('/api/live-sessions/assignable-schools', { cache: 'no-store' });
+          if (sr.ok) { const sj = await sr.json(); setSchools((sj.schools ?? []) as School[]); }
+        } catch { /* non-fatal — modal simply won't show a school picker */ }
       }
       const { data: progs } = await supabase.from('programs').select('id, name').order('name');
       setPrograms(progs ?? []);
@@ -1556,7 +1564,12 @@ export default function LiveSessionsPage() {
 
   // ── CRUD handlers ───────────────────────────────────────────────────────────
   function openCreate() {
-    setEditingSession(null); setModalForm(blankForm()); setModalError(null); setShowModal(true);
+    setEditingSession(null);
+    const base = blankForm();
+    // Non-admins can't broadcast globally — preselect their (first) assigned school so
+    // the picker is never empty. Admins keep the "All schools (global)" default.
+    if (!isAdmin && schools.length > 0) base.school_id = schools[0].id;
+    setModalForm(base); setModalError(null); setShowModal(true);
   }
 
   function openEdit(s: LiveSession) {
@@ -1837,7 +1850,7 @@ export default function LiveSessionsPage() {
           isEdit={!!editingSession}
           schools={schools}
           programs={programs}
-          isAdmin={isAdmin}
+          canGlobal={isAdmin}
           saving={saving}
           error={modalError}
           onClose={() => setShowModal(false)}
