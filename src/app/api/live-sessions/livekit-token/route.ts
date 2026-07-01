@@ -1,29 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AccessToken } from 'livekit-server-sdk';
-import { createClient } from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createEngagementAdminClient } from '@/lib/supabase/admin';
 import {
   canManageLiveSession,
   isSessionJoinWindowOpen,
   LiveSessionAuthError,
   requireLiveSessionAccess,
+  requireLiveSessionUser,
 } from '@/lib/live-sessions/authz';
-
-function adminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
 
 // POST /api/live-sessions/livekit-token
 // Body: { sessionId: string }
 // Returns: { token: string, url: string, roomName: string }
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const profile = await requireLiveSessionUser();
+    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { sessionId } = await req.json();
     if (!sessionId) return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
@@ -35,15 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'LiveKit is not configured on this server.' }, { status: 500 });
     }
 
-    const { data: profile } = await supabase
-      .from('portal_users')
-      .select('id, full_name, role, school_id')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-
-    const admin = adminClient();
+    const admin = createEngagementAdminClient();
     const { data: session, error: sessionErr } = await admin
       .from('live_sessions')
       .select('id, host_id, school_id, program_id, status, scheduled_at, duration_minutes')
@@ -72,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const displayName = profile?.full_name ?? 'Participant';
     const roomName    = `rillcod-${sessionId.slice(0, 12)}`;
-    const identity    = user.id;
+    const identity    = profile.id;
 
     const at = new AccessToken(API_KEY, API_SECRET, {
       identity,

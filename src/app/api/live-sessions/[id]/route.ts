@@ -1,33 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient, createEngagementAdminClient as adminClient } from '@/lib/supabase/admin';
 import {
   canCreateLiveSessionForTarget,
   LiveSessionAuthError,
   requireLiveSessionManager,
+  requireLiveSessionStaff as requireStaff,
 } from '@/lib/live-sessions/authz';
 import { notifySessionLive } from '@/lib/live-sessions/notify';
-
-function adminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
-
-async function requireStaff() {
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
-  const { data: profile } = await supabase
-    .from('portal_users')
-    .select('id, role, full_name, school_id')
-    .eq('id', user.id)
-    .single();
-  if (!profile || ['student', 'parent'].includes(profile.role ?? '')) return null;
-  return profile;
-}
 
 // Auto-log a completed session to CRM interactions for the school and attendees
 async function autoLogCRM(session: any, staffName: string) {

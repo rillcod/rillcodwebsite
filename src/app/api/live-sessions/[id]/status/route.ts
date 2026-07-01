@@ -1,28 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { requireLiveSessionAccess, LiveSessionAuthError } from '@/lib/live-sessions/authz';
-
-function adminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+import { createEngagementAdminClient } from '@/lib/supabase/admin';
+import {
+  requireLiveSessionUser,
+  requireLiveSessionAccess,
+  LiveSessionAuthError,
+} from '@/lib/live-sessions/authz';
 
 // GET /api/live-sessions/[id]/status — lightweight status poll for in-call clients so
 // participants leave the room when the host ends/cancels the session.
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const caller = await requireLiveSessionUser();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: profile } = await supabase
-    .from('portal_users').select('id, role, school_id').eq('id', user.id).maybeSingle();
-  if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-
-  const admin = adminClient();
+  const admin = createEngagementAdminClient();
   const { data: session } = await admin
     .from('live_sessions')
     .select('id, host_id, school_id, program_id, status')
@@ -31,7 +22,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
   if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
   try {
-    await requireLiveSessionAccess(admin as any, profile, session);
+    await requireLiveSessionAccess(admin as any, caller, session);
   } catch (err) {
     if (err instanceof LiveSessionAuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

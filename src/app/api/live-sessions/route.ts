@@ -1,31 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
+import { createEngagementAdminClient as adminClient } from '@/lib/supabase/admin';
 import {
   canAccessLiveSession,
   canCreateLiveSessionForTarget,
   getStudentProgramIds,
+  requireLiveSessionUser as requireAuth,
 } from '@/lib/live-sessions/authz';
 import { notifySessionScheduled } from '@/lib/live-sessions/notify';
-
-function adminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
-
-async function requireAuth() {
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
-  const { data: profile } = await supabase
-    .from('portal_users')
-    .select('id, role, school_id')
-    .eq('id', user.id)
-    .single();
-  return profile;
-}
 
 // GET /api/live-sessions — list all sessions (role-filtered)
 export async function GET(_request: NextRequest) {

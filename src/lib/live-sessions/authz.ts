@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 export type LiveSessionCaller = {
   id: string;
@@ -193,4 +194,26 @@ export async function canCreateLiveSessionForTarget(
 
 export function isSessionJoinWindowOpen(session: LiveSessionScope) {
   return session.status === 'live' || session.status === 'scheduled';
+}
+
+// ── Shared caller resolution (one implementation for every live-session route) ──
+
+/** Authenticated caller + profile, or null. Used by all live-session routes. */
+export async function requireLiveSessionUser(): Promise<LiveSessionCaller | null> {
+  const supabase = await createServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  const { data: profile } = await supabase
+    .from('portal_users')
+    .select('id, role, school_id, full_name')
+    .eq('id', user.id)
+    .single();
+  return (profile as LiveSessionCaller | null) ?? null;
+}
+
+/** As above but rejects students/parents — for create/update/manage routes. */
+export async function requireLiveSessionStaff(): Promise<LiveSessionCaller | null> {
+  const caller = await requireLiveSessionUser();
+  if (!caller || ['student', 'parent'].includes(caller.role ?? '')) return null;
+  return caller;
 }
