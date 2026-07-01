@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { LiveKitRoom, VideoConference, ConnectionStateToast } from '@livekit/components-react';
-import { DisconnectReason } from 'livekit-client';
 import '@livekit/components-styles';
 import '@livekit/components-styles/prefabs';
 
@@ -142,6 +141,11 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-[#0a0a0a]" data-lk-theme="default">
+      {/* Leave is deliberate: hide LiveKit's own control-bar leave button so the only exit
+          is our labelled "Leave" above — this removes the accidental-tap that was ejecting
+          students with a CLIENT_INITIATED disconnect. */}
+      <style>{`.lk-disconnect-button{display:none !important}`}</style>
+
       {/* Title bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-black/80 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-2">
@@ -168,10 +172,14 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
           video={true}
           audio={true}
           // #1 — LiveKit auto-reconnects transient drops (ConnectionStateToast shows the
-          // "Reconnecting…" state). onDisconnected only fires on a TERMINAL drop: if the
-          // user left, close; otherwise show the Rejoin screen instead of dumping them out.
-          onDisconnected={(reason) => {
-            if (leftRef.current || reason === DisconnectReason.CLIENT_INITIATED) handleClose();
+          // "Reconnecting…" state). onDisconnected only fires on a TERMINAL drop. We NEVER
+          // kick a student out on a stray disconnect: only our own top-bar Leave button
+          // (which sets leftRef) fully closes the meeting, and staff ending the session is
+          // handled separately by the status poll -> 'ended'. Everything else — a network
+          // blip, a reconnect that gave up, even a CLIENT_INITIATED event we didn't trigger
+          // — drops to the Rejoin screen so the student can come straight back.
+          onDisconnected={() => {
+            if (leftRef.current) handleClose();
             else setPhase('dropped');
           }}
           onError={(e) => setError(e.message)}
