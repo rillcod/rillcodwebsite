@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendPushNotification } from '@/lib/push';
-import { notificationsService } from '@/services/notifications.service';
 import {
   canCreateLiveSessionForTarget,
   LiveSessionAuthError,
   requireLiveSessionManager,
 } from '@/lib/live-sessions/authz';
+import { notifySessionLive } from '@/lib/live-sessions/notify';
 
 function adminClient() {
   return createClient(
@@ -28,90 +27,6 @@ async function requireStaff() {
     .single();
   if (!profile || ['student', 'parent'].includes(profile.role ?? '')) return null;
   return profile;
-}
-
-// Notify all relevant students when a session goes live
-async function notifySessionLive(session: any) {
-  try {
-    const db = createAdminClient() as any;
-    let recipients: { id: string; email: string; full_name: string }[] = [];
-
-    if (session.program_id) {
-      const { data: enrollments } = await db
-        .from('enrollments')
-        .select('portal_users(id, email, full_name)')
-        .eq('program_id', session.program_id)
-        .eq('status', 'active');
-      recipients = (enrollments ?? [])
-        .map((e: any) => Array.isArray(e.portal_users) ? e.portal_users[0] : e.portal_users)
-        .filter((u: any) => u?.id && u?.email);
-    } else if (session.school_id) {
-      const { data: users } = await db
-        .from('portal_users')
-        .select('id, email, full_name')
-        .eq('school_id', session.school_id)
-        .eq('role', 'student')
-        .eq('is_active', true);
-      recipients = (users ?? []).filter((u: any) => u?.email);
-    }
-
-    if (recipients.length === 0) return;
-
-    const joinUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/live-sessions`;
-    const sessionUrl = session.session_url || joinUrl;
-
-    for (const user of recipients) {
-      // In-app notification
-      await notificationsService.logNotification(
-        user.id,
-        '🔴 Session is Live Now!',
-        `"${session.title}" has started. Join now.`,
-        'info',
-      );
-      // Push notification
-      await sendPushNotification(user.id, {
-        title: '🔴 Session is Live Now!',
-        body: `"${session.title}" has started. Tap to join.`,
-        url: joinUrl,
-      });
-      // Email via SendPulse
-      if (user.email) {
-        notificationsService.sendEmail(user.id, {
-          to: user.email,
-          subject: `🔴 Live Now: ${session.title}`,
-          html: buildLiveEmail({ name: user.full_name, title: session.title, joinUrl: sessionUrl }),
-          fromName: 'Rillcod Technologies',
-          fromEmail: 'no-reply@rillcod.com',
-        }).catch(() => {});
-      }
-    }
-  } catch (e) {
-    console.error('[live-session] notifySessionLive error:', e);
-  }
-}
-
-// ── Email templates ───────────────────────────────────────────────────────────
-
-function buildLiveEmail({ name, title, joinUrl }: { name: string; title: string; joinUrl: string }) {
-  return `
-<!DOCTYPE html><html><body style="margin:0;padding:0;background:#0a0a0a;font-family:sans-serif;">
-<div style="max-width:560px;margin:40px auto;background:#111;border:1px solid #222;border-top:4px solid #10b981;">
-  <div style="padding:32px;">
-    <div style="display:inline-block;background:#10b98120;border:1px solid #10b98140;padding:6px 14px;border-radius:4px;margin-bottom:20px;">
-      <span style="color:#10b981;font-size:11px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;">● Live Now</span>
-    </div>
-    <h1 style="color:#fff;font-size:22px;font-weight:900;margin:0 0 8px;">${title}</h1>
-    <p style="color:#888;font-size:14px;margin:0 0 28px;">Hi ${name}, your session is live right now. Join immediately.</p>
-    <a href="${joinUrl}" style="display:inline-block;background:#10b981;color:#fff;text-decoration:none;padding:14px 32px;font-size:12px;font-weight:900;letter-spacing:0.15em;text-transform:uppercase;">
-      Join Session Now →
-    </a>
-    <p style="color:#444;font-size:11px;margin:28px 0 0;">If the button doesn't work, copy this link: <a href="${joinUrl}" style="color:#10b981;">${joinUrl}</a></p>
-  </div>
-  <div style="padding:16px 32px;border-top:1px solid #222;">
-    <p style="color:#333;font-size:11px;margin:0;">Rillcod Technologies · <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="color:#444;">Dashboard</a></p>
-  </div>
-</div>
-</body></html>`;
 }
 
 // Auto-log a completed session to CRM interactions for the school and attendees

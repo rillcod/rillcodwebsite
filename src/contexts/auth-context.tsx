@@ -94,6 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Prevents INITIAL_SESSION from double-fetching when storedUser fast-path runs first.
   const profileFetchStartedRef = useRef(false);
 
+  // The user id whose profile is already loaded. Supabase re-fires SIGNED_IN /
+  // TOKEN_REFRESHED when a tab regains focus or another tab refreshes the token; when
+  // the user is UNCHANGED we must NOT clear the profile or toggle loading — doing so
+  // caused a "flash logout / settings reset" and tore down live components (screen share).
+  const processedUserIdRef = useRef<string | null>(storedUser.current?.id ?? null);
+
   // ── Profile fetch via API (service role — bypasses RLS) ───
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     const cached = profileCache.get(userId);
@@ -222,61 +228,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mountedRef.current) setIsLoading(false);
 
         if (s?.user) {
+          const uid = s.user.id;
+
+          // A DIFFERENT user replaced the session in the background (not on the login
+          // page, which handles its own navigation) → hard reload to clear stale state.
           if (event === 'SIGNED_IN') {
-            // If a DIFFERENT user signed in while we're NOT on the login page
-            // (e.g. session replaced in background), reload so all stale
-            // component state is cleared. The login page handles its own
-            // navigation after sign-in so skip the reload there.
             const prevId = storedUser.current?.id;
             const onLoginPage = typeof window !== 'undefined' &&
               window.location.pathname.startsWith('/login');
-            if (prevId && prevId !== s.user.id && !onLoginPage) {
+            if (prevId && prevId !== uid && !onLoginPage) {
               window.location.reload();
               return;
             }
+          }
 
-            // Fresh sign-in — clear ALL cached profiles so no stale data
-            // from the previous user is ever served during the transition
+          // SAME user re-firing (tab regained focus, token refreshed here or in another
+          // tab, INITIAL_SESSION after the fast-path). The session token is already
+          // updated above — do NOT clear the profile, toggle loading, or refetch. This
+          // is what stops the flash-logout and keeps live components (screen share) alive.
+          if (processedUserIdRef.current === uid && profileFetchStartedRef.current) {
+            return;
+          }
+
+          // New user / first load → fetch the profile once.
+          if (event === 'SIGNED_IN') {
             setProfile(null);
             invalidateCache();
-            profileFetchStartedRef.current = true;
-            setProfileLoading(true);
-            const p = await fetchProfile(s.user.id);
-            if (mountedRef.current) {
-              setProfile(p);
-              setProfileLoading(false);
-            }
-          } else if (!profileFetchStartedRef.current) {
-            // INITIAL_SESSION (or any other event) when storedUser fast-path
-            // has NOT already started a fetch — fetch now.
-            profileFetchStartedRef.current = true;
-            setProfileLoading(true);
-            const p = await fetchProfile(s.user.id);
-            if (mountedRef.current) {
-              setProfile(p);
-              setProfileLoading(false);
-            }
           }
-          // else: storedUser fast-path is already handling the fetch — skip.
+          processedUserIdRef.current = uid;
+          profileFetchStartedRef.current = true;
+          setProfileLoading(true);
+          const p = await fetchProfile(uid);
+          if (mountedRef.current) {
+            setProfile(p);
+            setProfileLoading(false);
+          }
         } else {
           // Signed out
           setProfile(null);
           setProfileLoading(false);
           profileFetchStartedRef.current = false;
+          processedUserIdRef.current = null;
           invalidateCache();
         }
       }
     );
 
     const handleStorage = () => {
-      // If a different user's session appeared in localStorage (e.g. another
-      // tab logged in as someone else), reload the page completely so all
-      // component state is cleared and the new user's data loads fresh.
+      // Only react to a genuine user SWITCH in another tab (logged in as someone else)
+      // → hard reload so no stale state leaks. For the SAME user we do nothing: Supabase
+      // fires storage on every token refresh, and calling refreshProfile() here caused a
+      // constant flicker / apparent re-login when other tabs were open.
       const stored = getStoredUser();
       if (stored?.id && stored.id !== storedUser.current?.id) {
         window.location.reload();
-      } else {
-        refreshProfile();
       }
     };
     window.addEventListener('storage', handleStorage);

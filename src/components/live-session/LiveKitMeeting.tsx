@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { LiveKitRoom, VideoConference } from '@livekit/components-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { LiveKitRoom, VideoConference, ConnectionStateToast } from '@livekit/components-react';
+import { DisconnectReason } from 'livekit-client';
 import '@livekit/components-styles';
 import '@livekit/components-styles/prefabs';
 
@@ -11,51 +12,131 @@ interface LiveKitMeetingProps {
   onClose: () => void;
 }
 
+type Phase = 'loading' | 'live' | 'dropped' | 'ended';
+
+const BTN_PRIMARY = 'px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest transition-colors';
+const BTN_GHOST   = 'px-6 py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-widest transition-colors';
+
+function Overlay({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-[#0a0a0a] gap-4">
+      {children}
+    </div>
+  );
+}
+
 export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProps) {
-  const [token, setToken]     = useState<string | null>(null);
+  const [token, setToken]         = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError]         = useState<string | null>(null);
+  const [phase, setPhase]         = useState<Phase>('loading');
+  const leftRef   = useRef(false);
+  const closedRef = useRef(false);
 
-  const handleClose = useCallback(async () => {
-    try { await fetch(`/api/live-sessions/${sessionId}/leave`, { method: 'POST' }); } catch { /* silent */ }
-    onClose();
-  }, [sessionId, onClose]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/live-sessions/livekit-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId }),
-        });
-        const j = await res.json();
-        if (!res.ok) throw new Error(j.error ?? 'Token error');
-        setToken(j.token);
-        setServerUrl(j.url);
-      } catch (e: any) {
-        setError(e.message ?? 'Failed to connect');
-      }
-    })();
+  // Fetch a fresh LiveKit token (also used to Rejoin / Retry).
+  const loadToken = useCallback(async () => {
+    setError(null);
+    setToken(null);
+    setPhase('loading');
+    try {
+      const res = await fetch('/api/live-sessions/livekit-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? 'Token error');
+      setToken(j.token);
+      setServerUrl(j.url);
+      setPhase('live');
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to connect');
+    }
   }, [sessionId]);
 
+  useEffect(() => { void loadToken(); }, [loadToken]);
+
+  // Record leaving exactly once — used by explicit Leave AND the tab-close beacon,
+  // so attendance is accurate even when the browser/tab is closed abruptly.
+  const recordLeave = useCallback(() => {
+    if (leftRef.current) return;
+    leftRef.current = true;
+    try {
+      if (navigator.sendBeacon) navigator.sendBeacon(`/api/live-sessions/${sessionId}/leave`);
+      else fetch(`/api/live-sessions/${sessionId}/leave`, { method: 'POST', keepalive: true }).catch(() => {});
+    } catch { /* best-effort */ }
+  }, [sessionId]);
+
+  const handleClose = useCallback(() => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    recordLeave();
+    onClose();
+  }, [recordLeave, onClose]);
+
+  // #5 — flush a leave only on a REAL unload (tab/browser close). Skip when the page is
+  // entering the back-forward cache (persisted=true, e.g. a mobile tab switch) so we don't
+  // prematurely mark the user as gone when they may return in a moment.
+  useEffect(() => {
+    const onHide = (e: PageTransitionEvent) => { if (!e.persisted) recordLeave(); };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, [recordLeave]);
+
+  // #4 — poll session status; if the host ends/cancels it, release participants.
+  useEffect(() => {
+    if (phase !== 'live') return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/live-sessions/${sessionId}/status`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const j = await res.json();
+        if (['completed', 'cancelled'].includes(j.status)) setPhase('ended');
+      } catch { /* transient — keep polling */ }
+    }, 30_000);
+    return () => clearInterval(iv);
+  }, [phase, sessionId]);
+
+  // ── UI states ──────────────────────────────────────────────────────────────
   if (error) {
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-[#0a0a0a] gap-4">
+      <Overlay>
         <p className="text-rose-400 text-sm font-bold">{error}</p>
-        <button onClick={handleClose} className="px-6 py-3 bg-white/10 text-white text-xs font-black uppercase tracking-widest">
-          Close
-        </button>
-      </div>
+        <div className="flex gap-2">
+          <button onClick={() => void loadToken()} className={BTN_PRIMARY}>Retry</button>
+          <button onClick={handleClose} className={BTN_GHOST}>Close</button>
+        </div>
+      </Overlay>
+    );
+  }
+
+  if (phase === 'ended') {
+    return (
+      <Overlay>
+        <p className="text-white/70 text-sm font-bold">This session has been ended by the host.</p>
+        <button onClick={handleClose} className={BTN_PRIMARY}>Close</button>
+      </Overlay>
+    );
+  }
+
+  if (phase === 'dropped') {
+    return (
+      <Overlay>
+        <p className="text-amber-400 text-sm font-bold">Connection lost — you can rejoin.</p>
+        <div className="flex gap-2">
+          <button onClick={() => void loadToken()} className={BTN_PRIMARY}>Rejoin</button>
+          <button onClick={handleClose} className={BTN_GHOST}>Leave</button>
+        </div>
+      </Overlay>
     );
   }
 
   if (!token || !serverUrl) {
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-[#0a0a0a] gap-3">
+      <Overlay>
         <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent animate-spin" />
         <p className="text-white/40 text-xs font-bold uppercase tracking-widest">Starting meeting…</p>
-      </div>
+      </Overlay>
     );
   }
 
@@ -78,7 +159,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
         </button>
       </div>
 
-      {/* LiveKit VideoConference — handles camera, mic, layout, chat, screen share */}
+      {/* LiveKit VideoConference — camera, mic, layout, chat, screen share */}
       <div className="flex-1 min-h-0">
         <LiveKitRoom
           token={token}
@@ -86,11 +167,19 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
           connect={true}
           video={true}
           audio={true}
-          onDisconnected={handleClose}
+          // #1 — LiveKit auto-reconnects transient drops (ConnectionStateToast shows the
+          // "Reconnecting…" state). onDisconnected only fires on a TERMINAL drop: if the
+          // user left, close; otherwise show the Rejoin screen instead of dumping them out.
+          onDisconnected={(reason) => {
+            if (leftRef.current || reason === DisconnectReason.CLIENT_INITIATED) handleClose();
+            else setPhase('dropped');
+          }}
+          onError={(e) => setError(e.message)}
           options={{ adaptiveStream: true, dynacast: true }}
           style={{ height: '100%' }}
         >
           <VideoConference />
+          <ConnectionStateToast />
         </LiveKitRoom>
       </div>
     </div>

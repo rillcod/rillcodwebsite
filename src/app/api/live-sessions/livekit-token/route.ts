@@ -77,7 +77,9 @@ export async function POST(req: NextRequest) {
     const at = new AccessToken(API_KEY, API_SECRET, {
       identity,
       name: displayName,
-      ttl: '4h',
+      // Generous TTL so a long session (or a device that sleeps and wakes) can still
+      // reconnect on the same token; a terminal drop re-issues a fresh one on rejoin.
+      ttl: '12h',
     });
 
     at.addGrant({
