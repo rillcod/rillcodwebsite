@@ -4,6 +4,7 @@ import {
   canAccessLiveSession,
   canCreateLiveSessionForTarget,
   getStudentProgramIds,
+  getTeacherSchoolIds,
   requireLiveSessionUser as requireAuth,
 } from '@/lib/live-sessions/authz';
 import { notifySessionScheduled } from '@/lib/live-sessions/notify';
@@ -20,7 +21,14 @@ export async function GET(_request: NextRequest) {
     .order('scheduled_at', { ascending: true });
 
   if (caller.role === 'teacher') {
-    query = query.eq('host_id', caller.id);
+    // A teacher sees sessions they host PLUS sessions belonging to any school they're
+    // assigned to (teacher_schools) — this is how the online-school teacher reaches
+    // sessions the admin scheduled for the online school. canAccessLiveSession below
+    // still gates each row, so this only widens the candidate set, never over-grants.
+    const schoolIds = await getTeacherSchoolIds(admin as any, caller.id, caller.school_id);
+    const filters: string[] = [`host_id.eq.${caller.id}`];
+    if (schoolIds.length > 0) filters.push(`school_id.in.(${schoolIds.join(',')})`);
+    query = query.or(filters.join(','));
   } else if (caller.role === 'school') {
     if (!caller.school_id) return NextResponse.json({ data: [] });
     query = query.eq('school_id', caller.school_id);

@@ -100,6 +100,24 @@ interface SessionForm {
 }
 type FilterTab = 'upcoming' | 'past' | 'all';
 
+// Whether the current viewer can manage (edit / delete / moderate) a given session.
+// Mirrors the server-side canManageLiveSession(): an admin, the session host, or the
+// owning school. Teachers who aren't the host cannot manage (server rejects them too),
+// so hiding the controls from them is correct — the previous gate wrongly hid Edit
+// from school accounts as well.
+function canManageSession(
+  profile: { id?: string | null; role?: string | null; school_id?: string | null } | null | undefined,
+  session: { host_id?: string | null; school_id?: string | null },
+) {
+  if (!profile?.role) return false;
+  if (profile.role === 'admin') return true;
+  if (session.host_id && session.host_id === profile.id) return true;
+  if (profile.role === 'school') {
+    return !!profile.school_id && !!session.school_id && profile.school_id === session.school_id;
+  }
+  return false;
+}
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const PLATFORM_CONFIG: Record<LiveSession['platform'] | 'jitsi', {
@@ -948,10 +966,20 @@ function SessionCard({ session, canManage, userId, onEdit, onDelete, onJoin, onS
 
           {canManage && (
             <div className="flex items-center gap-1.5 flex-shrink-0 transition-all duration-300">
-              <button onClick={() => onEdit(session)} className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/40 hover:text-white transition-all rounded-sm">
+              <button
+                onClick={() => onEdit(session)}
+                title="Edit session"
+                aria-label="Edit session"
+                className="p-2.5 bg-muted hover:bg-primary/15 border border-border hover:border-primary/40 text-muted-foreground hover:text-primary transition-all rounded-sm"
+              >
                 <PencilIcon className="w-4 h-4" />
               </button>
-              <button onClick={() => onDelete(session.id)} className="p-2.5 bg-white/5 hover:bg-rose-600/20 hover:border-rose-500/30 text-white/40 hover:text-rose-400 transition-all rounded-sm">
+              <button
+                onClick={() => onDelete(session.id)}
+                title="Delete session"
+                aria-label="Delete session"
+                className="p-2.5 bg-muted hover:bg-rose-500/15 border border-border hover:border-rose-500/40 text-muted-foreground hover:text-rose-500 transition-all rounded-sm"
+              >
                 <TrashIcon className="w-4 h-4" />
               </button>
             </div>
@@ -1784,7 +1812,7 @@ export default function LiveSessionsPage() {
                   key={s.id}
                   session={s}
                   userId={profile?.id ?? ''}
-                  canManage={canManage && (isAdmin || s.host_id === profile?.id)}
+                  canManage={canManageSession(profile, s)}
                   onEdit={openEdit}
                   onDelete={handleDelete}
                   onJoin={handleJoin}
@@ -1819,7 +1847,7 @@ export default function LiveSessionsPage() {
       {pollsSession && (
         <PollsModal
           session={pollsSession}
-          canManage={canManage && (isAdmin || pollsSession.host_id === profile?.id)}
+          canManage={canManageSession(profile, pollsSession)}
           userId={profile?.id ?? ''}
           onClose={() => setPollsSession(null)}
         />
@@ -1827,7 +1855,7 @@ export default function LiveSessionsPage() {
       {roomsSession && (
         <RoomsModal
           session={roomsSession}
-          canManage={canManage && (isAdmin || roomsSession.host_id === profile?.id)}
+          canManage={canManageSession(profile, roomsSession)}
           onClose={() => setRoomsSession(null)}
         />
       )}
@@ -1840,7 +1868,7 @@ export default function LiveSessionsPage() {
       {qaSession && (
         <QAModal
           session={qaSession}
-          canManage={canManage && (isAdmin || qaSession.host_id === profile?.id)}
+          canManage={canManageSession(profile, qaSession)}
           userId={profile?.id ?? ''}
           onClose={() => setQaSession(null)}
         />
