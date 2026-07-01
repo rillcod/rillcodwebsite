@@ -161,6 +161,9 @@ export async function canCreateLiveSessionForTarget(
   }
   if (caller.role !== 'teacher') {
     if (!caller.role || ['student', 'parent'].includes(caller.role)) return false;
+    // Non-admin staff are regulated: they must scope to a school or a programme —
+    // broadcasting to all schools (no school, no programme) is admin-only.
+    if (!schoolId && !programId) return false;
     if (caller.school_id && schoolId && schoolId !== caller.school_id) return false;
     if (programId && caller.school_id) {
       const { data: program, error } = await admin
@@ -189,7 +192,9 @@ export async function canCreateLiveSessionForTarget(
     if (programSchoolId && !teacherSchoolIds.includes(programSchoolId)) return false;
   }
 
-  return schoolId ? teacherSchoolIds.includes(schoolId) : true;
+  // Regulated like other non-admin staff: a teacher must scope to one of their
+  // schools or an in-scope programme — they cannot broadcast to all schools.
+  return schoolId ? teacherSchoolIds.includes(schoolId) : !!programId;
 }
 
 export function isSessionJoinWindowOpen(session: LiveSessionScope) {

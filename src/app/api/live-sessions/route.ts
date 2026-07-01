@@ -69,9 +69,39 @@ export async function POST(request: NextRequest) {
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
   const admin = adminClient();
-  const resolvedSchoolId = caller.role === 'school'
-    ? caller.school_id
-    : school_id || null;
+
+  // ── Creation scope regulation ──────────────────────────────────────────────
+  // Admin is dominant: may target any school or broadcast globally (school_id null).
+  // Every other role is regulated to a school they belong to (or an in-scope
+  // programme); only an admin can create an all-schools / global session.
+  let resolvedSchoolId: string | null;
+  if (caller.role === 'admin') {
+    resolvedSchoolId = school_id || null;
+  } else if (caller.role === 'school') {
+    resolvedSchoolId = caller.school_id || null;
+  } else {
+    // teacher / other staff — pin to an assigned school when one isn't chosen,
+    // so they can't accidentally broadcast to every school.
+    const schoolIds = await getTeacherSchoolIds(admin as any, caller.id, caller.school_id);
+    if (school_id && schoolIds.includes(school_id)) {
+      resolvedSchoolId = school_id;                       // an assigned school they picked
+    } else if (program_id) {
+      resolvedSchoolId = null;                            // programme-scoped (validated below)
+    } else if (caller.school_id && schoolIds.includes(caller.school_id)) {
+      resolvedSchoolId = caller.school_id;                // their primary school
+    } else {
+      resolvedSchoolId = schoolIds[0] ?? null;            // any assigned school, else none
+    }
+  }
+
+  // A non-admin cannot create a fully-global session (no school AND no programme).
+  if (caller.role !== 'admin' && !resolvedSchoolId && !program_id) {
+    return NextResponse.json(
+      { error: 'Only an administrator can broadcast to all schools. Choose a school or programme.' },
+      { status: 403 },
+    );
+  }
+
   const canCreate = await canCreateLiveSessionForTarget(admin as any, caller, resolvedSchoolId, program_id || null);
   if (!canCreate) {
     return NextResponse.json({ error: 'You cannot create a live session for that school or programme.' }, { status: 403 });
