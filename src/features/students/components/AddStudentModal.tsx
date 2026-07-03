@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/auth-context';
+import { suggestEmailFix } from '@/lib/email-typo';
 import {
     XMarkIcon, UserIcon, EnvelopeIcon, PhoneIcon,
     BuildingOfficeIcon, BookOpenIcon, CheckIcon, ArrowPathIcon,
@@ -108,6 +109,9 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
         setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+
+    // Gentle "did you mean …?" hint for obvious student-email typos (gmial.com, .con …).
+    const studentEmailFix = suggestEmailFix(form.student_email);
 
     const [requiresVerification, setRequiresVerification] = useState<{ message: string } | null>(null);
 
@@ -443,6 +447,15 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                         <Field label="Student Email" required>
                             <IconInput icon={EnvelopeIcon} name="student_email" type="email" placeholder="student@email.com"
                                 value={form.student_email} onChange={handleChange} required />
+                            {studentEmailFix && (
+                                <button
+                                    type="button"
+                                    onClick={() => setForm(prev => ({ ...prev, student_email: studentEmailFix }))}
+                                    className="mt-1.5 text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors"
+                                >
+                                    Did you mean <span className="underline">{studentEmailFix}</span>? — tap to fix
+                                </button>
+                            )}
                         </Field>
                     </div>
 

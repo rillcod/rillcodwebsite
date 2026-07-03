@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { suggestEmailFix } from '@/lib/email-typo';
 import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
@@ -463,6 +464,9 @@ export function ParentForm({
     ? teachers.filter(t => t.school_name === selectedSchool && (profile?.role !== 'teacher' || t.id === profile?.id))
     : teachers.filter(t => profile?.role !== 'teacher' || t.id === profile?.id);
 
+  // Gentle "did you mean …?" hint for obvious email typos (e.g. gmial.com, .con).
+  const emailSuggestion = suggestEmailFix(form.email);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
@@ -487,6 +491,15 @@ export function ParentForm({
               placeholder="parent@example.com"
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
             />
+            {emailSuggestion && (
+              <button
+                type="button"
+                onClick={() => setForm(f => ({ ...f, email: emailSuggestion }))}
+                className="mt-1.5 text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors"
+              >
+                Did you mean <span className="underline">{emailSuggestion}</span>? — tap to fix
+              </button>
+            )}
           </div>
 
           <div>
