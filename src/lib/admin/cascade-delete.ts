@@ -80,29 +80,48 @@ async function deleteLeadDerivedAccounts(
   admin: AnySupabase,
   leadRow: LeadAccountRow,
   leadId: string,
-): Promise<{ deletedStudents: number; parentDeleted: boolean }> {
+): Promise<{ deletedStudents: number; unlinkedExisting: number; parentDeleted: boolean }> {
   const parentId: string | null = leadRow.matched_parent_id ?? null;
   const rd = leadRow.response_data ?? {};
   const childMatches: Array<{ studentId?: string }> = Array.isArray(rd.child_matches) ? rd.child_matches : [];
 
-  // Collect every student portal account this lead is responsible for.
-  const studentPortalIds = new Set<string>();
-  if (leadRow.matched_student_id) studentPortalIds.add(leadRow.matched_student_id);
-  for (const m of childMatches) if (m.studentId) studentPortalIds.add(m.studentId);
+  // Students that were MATCHED to a PRE-EXISTING account (matched_student_id +
+  // child_matches). These already existed on the system before this lead — they must
+  // NEVER be deleted, only unlinked from the lead's parent.
+  const matchedExisting = new Set<string>();
+  if (leadRow.matched_student_id) matchedExisting.add(leadRow.matched_student_id);
+  for (const m of childMatches) if (m.studentId) matchedExisting.add(m.studentId);
+
+  // Students the lead CREATED = children linked to its parent via the junction,
+  // EXCLUDING the matched pre-existing ones. Only these are eligible for deletion.
+  const created = new Set<string>();
   if (parentId) {
     const { data: links } = await admin.from('parent_student_links').select('student_id').eq('parent_id', parentId);
     const rowIds = ((links ?? []) as ParentLinkRow[]).map(l => l.student_id).filter(Boolean);
     if (rowIds.length) {
       const { data: srows } = await admin.from('students').select('user_id').in('id', rowIds);
-      for (const s of (srows ?? []) as Array<{ user_id: string | null }>) if (s.user_id) studentPortalIds.add(s.user_id);
+      for (const s of (srows ?? []) as Array<{ user_id: string | null }>) {
+        if (s.user_id && !matchedExisting.has(s.user_id)) created.add(s.user_id);
+      }
     }
   }
 
+  // 1. Pre-existing matched students: unlink from this lead's parent, keep the account.
+  let unlinkedExisting = 0;
+  if (parentId && matchedExisting.size) {
+    const { data: srows } = await admin.from('students').select('id, user_id').in('user_id', [...matchedExisting]);
+    const rowIds = ((srows ?? []) as StudentRefRow[]).map(r => r.id);
+    if (rowIds.length) {
+      await admin.from('parent_student_links').delete().eq('parent_id', parentId).in('student_id', rowIds);
+      unlinkedExisting = rowIds.length;
+    }
+  }
+
+  // 2. Lead-created students: hard-delete (orphan-aware — keep if shared with another parent).
   let deletedStudents = 0;
-  for (const su of studentPortalIds) {
+  for (const su of created) {
     const { data: srows } = await admin.from('students').select('id').eq('user_id', su);
     const rowIds = ((srows ?? []) as IdRow[]).map(r => r.id);
-    // Is this child shared with a DIFFERENT parent? If so, keep the child — only drop this link.
     let sharedWithOtherParent = false;
     if (rowIds.length) {
       const { data: otherLinks } = await admin.from('parent_student_links').select('parent_id').in('student_id', rowIds);
@@ -116,10 +135,11 @@ async function deleteLeadDerivedAccounts(
     deletedStudents++;
   }
 
+  // 3. Parent: delete only if orphaned (shared/pre-existing parents are preserved, link removed).
   let parentDeleted = false;
   if (parentId) parentDeleted = await hardDeleteParentIfOrphan(admin, parentId, leadId);
 
-  return { deletedStudents, parentDeleted };
+  return { deletedStudents, unlinkedExisting, parentDeleted };
 }
 
 /**
