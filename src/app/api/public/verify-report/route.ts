@@ -43,5 +43,20 @@ export async function GET(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  return NextResponse.json({ found: true, report, orgSettings: orgData ?? null });
+  // Also return this student's OTHER published reports so the verifier (e.g. a school)
+  // can switch academic year / term instead of being stuck on the single scanned term.
+  // Only published reports, and only reachable via a valid code for this student.
+  let otherReports: any[] = [];
+  if (report.student_id) {
+    const { data: others } = await (admin as any)
+      .from('student_progress_reports')
+      .select('id, report_term, report_period, course_name, verification_code, report_date, overall_grade, is_published')
+      .eq('student_id', report.student_id)
+      .eq('is_published', true)
+      .not('verification_code', 'is', null)
+      .order('report_date', { ascending: false });
+    otherReports = others ?? [];
+  }
+
+  return NextResponse.json({ found: true, report, orgSettings: orgData ?? null, otherReports });
 }

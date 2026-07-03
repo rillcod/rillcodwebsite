@@ -19,6 +19,9 @@ export default function VerifyCodePage() {
 
   const [report, setReport] = useState<any | null>(null);
   const [orgSettings, setOrgSettings] = useState<any | null>(null);
+  const [otherReports, setOtherReports] = useState<any[]>([]);
+  const [activeCode, setActiveCode] = useState<string>('');
+  const [switching, setSwitching] = useState(false);
   const [certificate, setCertificate] = useState<any | null>(null);
   const [card, setCard] = useState<any | null>(null);
   const [mode, setMode] = useState<'report' | 'certificate' | 'card' | null>(null);
@@ -38,6 +41,8 @@ export default function VerifyCodePage() {
           if (reportJson.found && reportJson.report) {
             setReport(reportJson.report);
             setOrgSettings(reportJson.orgSettings);
+            setOtherReports(reportJson.otherReports ?? []);
+            setActiveCode(reportJson.report.verification_code ?? String(code).toUpperCase());
             setMode('report');
             setStatus('found');
             return;
@@ -83,6 +88,23 @@ export default function VerifyCodePage() {
 
     fetchData();
   }, [code]);
+
+  // Switch to another published term/year for the SAME student (school use case).
+  async function loadReportByCode(vcode: string) {
+    if (!vcode || vcode === activeCode) return;
+    setSwitching(true);
+    try {
+      const res = await fetch(`/api/public/verify-report?code=${encodeURIComponent(vcode)}`);
+      const json = await res.json();
+      if (res.ok && json.found && json.report) {
+        setReport(json.report);
+        setOrgSettings(json.orgSettings);
+        if (json.otherReports?.length) setOtherReports(json.otherReports);
+        setActiveCode(json.report.verification_code ?? vcode);
+      }
+    } catch { /* keep current report on failure */ }
+    finally { setSwitching(false); }
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/20">
@@ -229,6 +251,33 @@ export default function VerifyCodePage() {
               {/* MODE: Report Display */}
               {mode === 'report' && report && (
                 <div className="space-y-12">
+                  {/* Academic year / term selector — lets a school view this student's
+                      other published terms instead of only the scanned one. */}
+                  {otherReports.length > 1 && (
+                    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex items-center gap-2 text-muted-foreground flex-shrink-0">
+                        <CalendarIcon className="w-4 h-4 text-primary" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Academic Year / Term</span>
+                      </div>
+                      <select
+                        value={activeCode}
+                        onChange={e => loadReportByCode(e.target.value)}
+                        disabled={switching}
+                        className="flex-1 px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-60 cursor-pointer"
+                      >
+                        {otherReports.map(r => (
+                          <option key={r.id} value={r.verification_code ?? ''}>
+                            {[r.report_period, r.report_term, r.course_name].filter(Boolean).join(' — ') || 'Report'}
+                            {r.overall_grade ? ` (${r.overall_grade})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {switching && (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary animate-pulse flex-shrink-0">Loading…</span>
+                      )}
+                    </div>
+                  )}
+
                   {/* The Actual Report Card */}
                   <div className="relative">
                     <div className="absolute -inset-4 bg-white/5 rounded-[3rem] blur-2xl -z-10" />
