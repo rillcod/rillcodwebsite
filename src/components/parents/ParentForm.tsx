@@ -9,6 +9,7 @@ import {
   KeyIcon,
   EyeIcon,
   EyeSlashIcon,
+  LockClosedIcon,
 } from '@/lib/icons';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -148,30 +149,52 @@ export function StudentPicker({
             {q ? 'No students match your search.' : classFilter ? 'No students in this class — try clearing the teacher filter.' : schoolFilter ? 'No students in this school.' : 'Select a school to see students.'}
           </p>
         ) : (
-          filtered.map(s => {
-            const isSelected = multi ? (values?.includes(s.id) ?? false) : value === s.id;
-            return (
-              <button
-                type="button"
-                key={s.id}
-                onClick={() => handleClick(s)}
-                className={`w-full text-left px-4 py-2.5 hover:bg-primary/5 transition-all border-b border-border last:border-b-0 flex items-center gap-2 ${isSelected ? 'bg-primary/10' : ''}`}
-              >
-                {multi && (
-                  <span className={`w-3.5 h-3.5 border rounded-xl flex-shrink-0 flex items-center justify-center text-[8px] font-black ${isSelected ? 'bg-primary border-primary text-white' : 'border-border'}`}>
-                    {isSelected ? '✓' : ''}
+          // Show selectable (unlinked) students first; already-linked ones sink to the
+          // bottom, greyed out, so an existing link (e.g. a consent form) always wins.
+          [...filtered]
+            .sort((a, b) => (a.parent_email ? 1 : 0) - (b.parent_email ? 1 : 0))
+            .map(s => {
+              const isSelected = multi ? (values?.includes(s.id) ?? false) : value === s.id;
+              const isLinked = !!s.parent_email;
+              // Linked students are locked from re-linking (consent/existing link takes
+              // priority). A student already picked in this session stays toggle-able.
+              const isLocked = isLinked && !isSelected;
+              return (
+                <button
+                  type="button"
+                  key={s.id}
+                  disabled={isLocked}
+                  aria-disabled={isLocked}
+                  title={isLocked ? 'Already linked to a parent — the existing link takes priority' : undefined}
+                  onClick={() => { if (!isLocked) handleClick(s); }}
+                  className={`w-full text-left px-4 py-2.5 transition-all border-b border-border last:border-b-0 flex items-center gap-2
+                    ${isLocked ? 'cursor-not-allowed bg-muted/30' : 'hover:bg-primary/5'}
+                    ${isSelected ? 'bg-primary/10' : ''}`}
+                >
+                  {multi && (
+                    <span className={`w-3.5 h-3.5 border rounded-md flex-shrink-0 flex items-center justify-center text-[8px] font-black
+                      ${isLocked ? 'bg-muted border-border' : isSelected ? 'bg-primary border-primary text-white' : 'border-border'}`}>
+                      {isSelected ? '✓' : ''}
+                    </span>
+                  )}
+                  <span className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate">
+                      <span className={`text-xs font-bold ${isLocked ? 'text-muted-foreground/60' : isSelected ? 'text-primary' : 'text-foreground'}`}>
+                        {s.full_name}
+                      </span>
+                      {s.grade_level && (
+                        <span className={`text-[10px] ml-2 ${isLocked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>{s.grade_level}</span>
+                      )}
+                    </span>
+                    {isLinked && (
+                      <span className="flex-shrink-0 inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border border-border bg-muted text-muted-foreground">
+                        <LockClosedIcon className="w-2.5 h-2.5" /> Linked
+                      </span>
+                    )}
                   </span>
-                )}
-                <span className="flex-1 min-w-0">
-                  <span className={`text-xs font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>{s.full_name}</span>
-                  <span className="text-[10px] text-muted-foreground ml-2">
-                    {s.grade_level ?? ''}
-                    {s.parent_email ? <span className="text-amber-500"> · parent linked</span> : null}
-                  </span>
-                </span>
-              </button>
-            );
-          })
+                </button>
+              );
+            })
         )}
       </div>
       {!multi && selected && (
@@ -179,18 +202,26 @@ export function StudentPicker({
           <span className="text-primary font-bold">Selected: {selected.full_name}</span>
           {selected.school_name && <span className="text-muted-foreground ml-1">({selected.school_name})</span>}
           {selected.grade_level && <span className="text-muted-foreground ml-1">· {selected.grade_level}</span>}
-          {selected.parent_email && (
-            <p className="text-primary mt-0.5">ℹ Already has a parent ({selected.parent_email}). New parent will become primary contact.</p>
-          )}
         </div>
       )}
       {multi && selectedMulti.length > 0 && (
-        <div className="px-3 py-2 bg-primary/5 border border-primary/20 text-[10px] space-y-1">
-          <span className="text-primary font-bold">{selectedMulti.length} student{selectedMulti.length !== 1 ? 's' : ''} selected:</span>
+        <div className="px-3 py-2 bg-primary/5 border border-primary/20 text-[10px] space-y-1.5">
+          <span className="text-primary font-bold">
+            {selectedMulti.length} student{selectedMulti.length !== 1 ? 's' : ''} selected
+            <span className="text-muted-foreground font-normal"> — children in different classes can be linked to the same parent</span>
+          </span>
           <div className="flex flex-wrap gap-1.5">
             {selectedMulti.map(s => (
-              <span key={s.id} className="max-w-full rounded-full border border-border bg-background px-2 py-1 text-muted-foreground truncate">
-                {s.full_name}
+              <span key={s.id} className="inline-flex items-center gap-1.5 max-w-full rounded-full border border-primary/30 bg-background px-2 py-1 text-foreground">
+                <span className="truncate">{s.full_name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleClick(s)}
+                  title="Remove"
+                  className="flex-shrink-0 text-muted-foreground hover:text-rose-500 font-black leading-none"
+                >
+                  ×
+                </button>
               </span>
             ))}
           </div>
@@ -576,7 +607,7 @@ export function ParentForm({
             </label>
             <select
               value={selectedClass}
-              onChange={e => { setSelectedClass(e.target.value); setForm(f => ({ ...f, student_id: '', student_ids: [] })); }}
+              onChange={e => setSelectedClass(e.target.value)}
               className="w-full px-4 py-2.5 bg-background border border-border text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
             >
               <option value="">— All Students in School —</option>
@@ -584,6 +615,11 @@ export function ParentForm({
             </select>
             {!selectedClass && selectedSchool && (
               <p className="text-[10px] text-muted-foreground mt-1.5">Showing all students for this school. Pick a class to narrow down.</p>
+            )}
+            {!isEdit && (
+              <p className="text-[10px] text-primary/80 mt-1.5 font-bold">
+                Tip: the class filter only narrows the list — switching it keeps your picks, so you can link children who are in different classes to the same parent.
+              </p>
             )}
           </div>
         </div>

@@ -57,9 +57,26 @@ export async function GET(req: NextRequest, context: { params: Promise<{ leadId:
     return { ...s, _score: overlap };
   }).sort((a: any, b: any) => (b._score - a._score) || a.full_name.localeCompare(b.full_name));
 
+  // Flag candidates that are already linked to a parent so the picker can grey them
+  // (an existing link — e.g. from a consent form — is shown, not silently overwritten).
+  const candidateIds = ranked.map((s: any) => s.id);
+  const linkedParent = new Map<string, string>();
+  if (candidateIds.length > 0) {
+    const { data: linkedRows } = await (sb as any)
+      .from('students')
+      .select('user_id, parent_email, parent_name')
+      .in('user_id', candidateIds)
+      .not('parent_email', 'is', null);
+    for (const r of linkedRows ?? []) {
+      if (r.user_id) linkedParent.set(r.user_id, r.parent_name || r.parent_email);
+    }
+  }
+
   const students = ranked.map((s: any) => ({
     id: s.id, full_name: s.full_name, section_class: s.section_class || null,
     school_name: s.school_name || null, suggested: s._score > 0,
+    already_linked: linkedParent.has(s.id),
+    linked_parent: linkedParent.get(s.id) ?? null,
   }));
 
   return NextResponse.json({ students, childName, childClass, count: students.length });

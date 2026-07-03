@@ -544,7 +544,7 @@ export default function ResponsesPage() {
   const [linkChildIndex, setLinkChildIndex]      = useState(0);
   const [additionalLinks, setAdditionalLinks]    = useState<Record<string, Array<{ childIndex: number; studentId: string; studentName: string }>>>({});
   const [studentSearch, setStudentSearch]        = useState('');
-  type StudentOpt = { id: string; full_name: string; section_class: string | null; school_name?: string | null; suggested?: boolean };
+  type StudentOpt = { id: string; full_name: string; section_class: string | null; school_name?: string | null; suggested?: boolean; already_linked?: boolean; linked_parent?: string | null };
   const [studentOptions, setStudentOptions]      = useState<StudentOpt[]>([]);
   const [allStudentOptions, setAllStudentOptions] = useState<StudentOpt[]>([]);
   const [studentsLoading, setStudentsLoading]    = useState(false);
@@ -2111,11 +2111,22 @@ export default function ResponsesPage() {
                       >
                         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs shrink-0">👤</div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-foreground truncate flex items-center gap-1.5">
+                          <p className={`text-sm font-bold truncate flex items-center gap-1.5 ${s.already_linked ? 'text-muted-foreground/70' : 'text-foreground'}`}>
                             {s.full_name}
                             {s.suggested && <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full shrink-0">Likely match</span>}
+                            {s.already_linked && (
+                              <span
+                                title={s.linked_parent ? `Already linked to ${s.linked_parent}` : 'Already linked to a parent'}
+                                className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded-full shrink-0"
+                              >
+                                🔒 Linked
+                              </span>
+                            )}
                           </p>
-                          <p className="text-[10px] text-muted-foreground truncate">{[s.section_class, s.school_name].filter(Boolean).join(' · ') || '—'}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {[s.section_class, s.school_name].filter(Boolean).join(' · ') || '—'}
+                            {s.already_linked && s.linked_parent && <span className="text-amber-500"> · linking here reassigns from {s.linked_parent}</span>}
+                          </p>
                         </div>
                         <span className={`text-[9px] font-black text-primary transition-opacity shrink-0 flex items-center gap-1 ${linkingStudentId === s.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                           {linkingStudentId === s.id ? (
