@@ -44,13 +44,13 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   // Also return this student's OTHER published reports so the verifier (e.g. a school)
-  // can switch academic year / term instead of being stuck on the single scanned term.
-  // Only published reports, and only reachable via a valid code for this student.
+  // can switch academic year / term, see progress across terms, and view an annual
+  // summary. Only published reports, only reachable via a valid code for this student.
   let otherReports: any[] = [];
   if (report.student_id) {
     const { data: others } = await (admin as any)
       .from('student_progress_reports')
-      .select('id, report_term, report_period, course_name, verification_code, report_date, overall_grade, is_published')
+      .select('id, report_term, report_period, course_name, verification_code, report_date, overall_grade, overall_score, theory_score, practical_score, attendance_score, section_class, is_published')
       .eq('student_id', report.student_id)
       .eq('is_published', true)
       .not('verification_code', 'is', null)
@@ -58,5 +58,32 @@ export async function GET(request: Request) {
     otherReports = others ?? [];
   }
 
-  return NextResponse.json({ found: true, report, orgSettings: orgData ?? null, otherReports });
+  // Best-effort class position for the SCANNED term: rank by overall_score among the
+  // same school + class + term + session (published only). Returns just the position &
+  // class size — never any other student's data.
+  let classRank: { position: number; classSize: number } | null = null;
+  try {
+    const myScore = typeof report.overall_score === 'number' ? report.overall_score : null;
+    if (myScore !== null && report.school_id && report.section_class && (report.report_term || report.term_id)) {
+      let q = (admin as any)
+        .from('student_progress_reports')
+        .select('overall_score')
+        .eq('school_id', report.school_id)
+        .eq('section_class', report.section_class)
+        .eq('is_published', true)
+        .not('overall_score', 'is', null);
+      q = report.term_id ? q.eq('term_id', report.term_id) : q.eq('report_term', report.report_term);
+      if (report.report_period) q = q.eq('report_period', report.report_period);
+      if (report.course_name) q = q.eq('course_name', report.course_name);
+      const { data: peers } = await q;
+      const scores = ((peers ?? []) as Array<{ overall_score: number | null }>)
+        .map(p => p.overall_score).filter((s): s is number => typeof s === 'number');
+      if (scores.length >= 2) {
+        const higher = scores.filter(s => s > myScore).length;
+        classRank = { position: higher + 1, classSize: scores.length };
+      }
+    }
+  } catch { /* rank is best-effort — never block verification */ }
+
+  return NextResponse.json({ found: true, report, orgSettings: orgData ?? null, otherReports, classRank });
 }

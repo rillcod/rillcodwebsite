@@ -9,10 +9,120 @@ import {
   ShieldCheckIcon, XCircleIcon, ClockIcon,
   ArrowLeftIcon, CheckBadgeIcon,
   AcademicCapIcon, CalendarIcon, DocumentTextIcon,
-  ArrowDownTrayIcon, CreditCardIcon,
+  ArrowDownTrayIcon, CreditCardIcon, ChartBarIcon,
 } from '@/lib/icons';
 import { ScaledReportCard } from '@/lib/pdf-utils';
 import ReportCard from '@/components/reports/ReportCard';
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+// Data-driven academic insights shown above the scanned report: class position,
+// score, fee clearance, a progress trend across terms, and a per-session summary.
+function ResultInsights({ report, otherReports, classRank }: {
+  report: any; otherReports: any[]; classRank: { position: number; classSize: number } | null;
+}) {
+  const trend = [...otherReports]
+    .filter(r => typeof r.overall_score === 'number')
+    .sort((a, b) => new Date(a.report_date || 0).getTime() - new Date(b.report_date || 0).getTime());
+  const maxScore = Math.max(1, ...trend.map(r => r.overall_score));
+
+  const sessions: Record<string, any[]> = {};
+  for (const r of otherReports) {
+    const key = r.report_period || 'Session';
+    (sessions[key] ||= []).push(r);
+  }
+  const currentSession = report.report_period || null;
+
+  const feeStatus = (report.fee_status || '').toString().toLowerCase();
+  const feeCleared = feeStatus.includes('paid') || feeStatus.includes('clear');
+  const hasFee = !!report.fee_status;
+
+  if (!classRank && !hasFee && trend.length <= 1 && Object.keys(sessions).length === 0) return null;
+
+  return (
+    <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
+      <div className="flex items-center gap-2">
+        <ChartBarIcon className="w-4 h-4 text-primary" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Academic Insights</span>
+      </div>
+
+      {/* Badges */}
+      <div className="flex flex-wrap gap-2">
+        {classRank && (
+          <span className="px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-black">
+            Class Position: {ordinal(classRank.position)} of {classRank.classSize}
+          </span>
+        )}
+        {typeof report.overall_score === 'number' && (
+          <span className="px-3 py-1.5 rounded-xl bg-muted border border-border text-foreground text-xs font-black">
+            Overall: {report.overall_score}{report.overall_grade ? ` · ${report.overall_grade}` : ''}
+          </span>
+        )}
+        {hasFee && (
+          <span className={`px-3 py-1.5 rounded-xl text-xs font-black border ${feeCleared ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+            {feeCleared ? 'Fees Cleared' : `Fees: ${report.fee_status}`}
+          </span>
+        )}
+      </div>
+
+      {/* Progress trend across terms */}
+      {trend.length > 1 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Progress Across Terms</p>
+          <div className="space-y-2">
+            {trend.map((r, i) => {
+              const prev = i > 0 ? trend[i - 1].overall_score : null;
+              const delta = prev != null ? r.overall_score - prev : null;
+              const pct = Math.round((r.overall_score / maxScore) * 100);
+              const isCurrent = r.verification_code === report.verification_code;
+              return (
+                <div key={r.id} className="flex items-center gap-3">
+                  <span className={`w-36 sm:w-44 flex-shrink-0 truncate text-[11px] font-bold ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {[r.report_term, r.report_period].filter(Boolean).join(' · ') || 'Term'}
+                  </span>
+                  <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
+                    <div className={`h-full rounded-full ${isCurrent ? 'bg-primary' : 'bg-primary/50'}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-16 flex-shrink-0 text-right text-[11px] font-black text-foreground">
+                    {r.overall_score}{r.overall_grade ? ` ${r.overall_grade}` : ''}
+                  </span>
+                  <span className={`w-5 flex-shrink-0 text-[11px] font-black ${delta == null ? 'text-transparent' : delta > 0 ? 'text-emerald-400' : delta < 0 ? 'text-rose-400' : 'text-muted-foreground'}`}>
+                    {delta == null ? '' : delta > 0 ? '▲' : delta < 0 ? '▼' : '—'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Per-session (annual) summary */}
+      {Object.keys(sessions).length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Session Summary</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {Object.entries(sessions).map(([period, rs]) => {
+              const scored = rs.filter(r => typeof r.overall_score === 'number');
+              const avg = scored.length ? Math.round(scored.reduce((s, r) => s + r.overall_score, 0) / scored.length) : null;
+              return (
+                <div key={period} className={`p-4 rounded-xl border ${period === currentSession ? 'border-primary/30 bg-primary/5' : 'border-border bg-background'}`}>
+                  <p className="text-xs font-black text-foreground">{period}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {rs.length} term{rs.length !== 1 ? 's' : ''}{avg != null ? ` · session average ${avg}` : ''}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function VerifyCodePage() {
   const { code } = useParams<{ code: string }>();
@@ -22,6 +132,7 @@ export default function VerifyCodePage() {
   const [otherReports, setOtherReports] = useState<any[]>([]);
   const [activeCode, setActiveCode] = useState<string>('');
   const [switching, setSwitching] = useState(false);
+  const [classRank, setClassRank] = useState<{ position: number; classSize: number } | null>(null);
   const [certificate, setCertificate] = useState<any | null>(null);
   const [card, setCard] = useState<any | null>(null);
   const [mode, setMode] = useState<'report' | 'certificate' | 'card' | null>(null);
@@ -42,6 +153,7 @@ export default function VerifyCodePage() {
             setReport(reportJson.report);
             setOrgSettings(reportJson.orgSettings);
             setOtherReports(reportJson.otherReports ?? []);
+            setClassRank(reportJson.classRank ?? null);
             setActiveCode(reportJson.report.verification_code ?? String(code).toUpperCase());
             setMode('report');
             setStatus('found');
@@ -100,6 +212,7 @@ export default function VerifyCodePage() {
         setReport(json.report);
         setOrgSettings(json.orgSettings);
         if (json.otherReports?.length) setOtherReports(json.otherReports);
+        setClassRank(json.classRank ?? null);
         setActiveCode(json.report.verification_code ?? vcode);
       }
     } catch { /* keep current report on failure */ }
@@ -277,6 +390,9 @@ export default function VerifyCodePage() {
                       )}
                     </div>
                   )}
+
+                  {/* Academic insights — class position, progress trend, session summary */}
+                  <ResultInsights report={report} otherReports={otherReports} classRank={classRank} />
 
                   {/* The Actual Report Card */}
                   <div className="relative">
