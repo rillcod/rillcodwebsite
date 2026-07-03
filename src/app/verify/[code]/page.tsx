@@ -13,6 +13,7 @@ import {
 } from '@/lib/icons';
 import { ScaledReportCard } from '@/lib/pdf-utils';
 import ReportCard from '@/components/reports/ReportCard';
+import ParentClaim from '@/components/verify/ParentClaim';
 
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -418,6 +419,9 @@ export default function VerifyCodePage() {
                       New Verification
                     </Link>
                   </div>
+
+                  {/* Self-service: link this child to a parent account */}
+                  <ParentClaim code={activeCode || String(code)} />
                 </div>
               )}
 
@@ -580,6 +584,9 @@ export default function VerifyCodePage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Self-service: link this child to a parent account */}
+                  <ParentClaim code={String(code)} />
 
                   <div className="flex flex-col md:flex-row items-center justify-center gap-4">
                     <Link
