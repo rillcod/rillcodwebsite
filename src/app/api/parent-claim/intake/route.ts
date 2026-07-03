@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendWhatsApp } from '@/lib/whatsapp/send';
-import { notificationsService } from '@/services/notifications.service';
 import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { provisionParentAndLinkChild, autoLinkSiblings } from '@/lib/parent-claim/provision';
 import { ensureResultIntakeForm } from '@/lib/parent-claim/intake-form';
 import { looseNameMatch } from '@/lib/parent-claim/name-match';
+import { deliverParentLogin } from '@/lib/parents/deliver-login';
+import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 
@@ -68,54 +68,54 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: prov.error ?? 'Could not link your account.' }, { status: prov.status ?? 500 });
   }
 
-  // ── Auto-link siblings on file at the same school ───────────────────────────
+  // ── Auto-link siblings on file at the same school (with full parent info) ───
   const siblingNames = await autoLinkSiblings(admin, {
-    parentId: prov.parentId, email, phone, schoolName: prov.schoolName ?? null, studentId,
+    parentId: prov.parentId, email, phone, fullName, relationship, schoolName: prov.schoolName ?? null, studentId,
   });
 
-  // ── Record it the consent-form way (per-school intake lead) — best-effort ───
+  // ── Record it the consent-form way + mine the parent into the CRM ───────────
   if (prov.schoolId) {
     try {
       const formId = await ensureResultIntakeForm(admin, prov.schoolId);
       if (formId) {
-        await admin.from('form_leads').insert({
-          form_id: formId,
-          school_id: prov.schoolId,
-          email,
-          response_data: {
-            parent_name: fullName, parent_email: email, parent_whatsapp: phone,
-            relationship, child_name: prov.childName, source: 'result_checker', _auto_linked: true,
-          },
-          matched_student_id: studentId,
-          matched_parent_id: prov.parentId,
-          match_status: 'approved',
-          match_confidence: 'high',
-          match_notes: 'Auto-linked via result/ID-card scan (exact child).',
-        } as any);
+        // De-dup: one intake lead per child on this form (re-scans don't pile up).
+        const { data: dupe } = await admin
+          .from('form_leads').select('id')
+          .eq('form_id', formId).eq('matched_student_id', studentId).maybeSingle();
+        if (!dupe) {
+          await admin.from('form_leads').insert({
+            form_id: formId,
+            school_id: prov.schoolId,
+            email,
+            response_data: {
+              parent_name: fullName, parent_email: email, parent_whatsapp: phone,
+              relationship, child_name: prov.childName, source: 'result_checker', _auto_linked: true,
+            },
+            matched_student_id: studentId,
+            matched_parent_id: prov.parentId,
+            match_status: 'approved',
+            match_confidence: 'high',
+            match_notes: 'Auto-linked via result/ID-card scan (exact child).',
+          });
+        }
+        // Mine the parent into the CRM contact book + prospect + pipeline (same as consent).
+        await reconcileLeadWithCrm(admin, {
+          parentName: fullName, parentEmail: email, parentWhatsapp: phone ?? '',
+          childName: prov.childName ?? '', childAge: '', childClass: '',
+          programCategory: '', currentSchool: prov.schoolName ?? null,
+          matchedSchoolId: prov.schoolId, schoolId: prov.schoolId,
+          schoolName: prov.schoolName ?? 'Rillcod Technologies',
+          formId, formTitle: 'Result Checker Intake',
+        });
       }
     } catch (e) {
-      console.error('[parent-claim/intake] lead record failed:', e);
+      console.error('[parent-claim/intake] CRM capture failed:', e);
     }
   }
 
   // ── Deliver the parent login on both channels (new accounts only) ───────────
   if (prov.accountCreated && prov.generatedPassword) {
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://academy.rillcod.com').replace(/\/$/, '');
-    const loginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(email)}`;
-    const waMsg = `Rillcod parent account created for ${fullName}.\nLogin: ${email}\nPassword: ${prov.generatedPassword}\nSign in: ${loginUrl}`;
-    if (phone) await sendWhatsApp(phone, waMsg);
-    try {
-      await notificationsService.sendExternalEmail({
-        to: email, subject: 'Your Rillcod parent account',
-        html: `<div style="font-family:Arial,sans-serif;font-size:15px;color:#111;line-height:1.6">
-          <p>Hello ${fullName}, your Rillcod parent account is ready and linked to your child.</p>
-          <p><strong>Email:</strong> ${email}<br/><strong>Password:</strong> ${prov.generatedPassword}</p>
-          <p><a href="${loginUrl}">Sign in to your parent portal</a></p>
-          <p style="color:#666;font-size:13px">You can change your password after signing in.</p>
-        </div>`,
-        fromName: 'Rillcod Technologies', fromEmail: 'support@rillcod.com',
-      });
-    } catch (e) { console.error('[parent-claim/intake] credentials email failed:', e); }
+    await deliverParentLogin({ email, phone, fullName, password: prov.generatedPassword, schoolName: prov.schoolName });
   }
 
   return NextResponse.json({

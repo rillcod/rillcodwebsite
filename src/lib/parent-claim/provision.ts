@@ -56,10 +56,15 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
       return { ok: false, status: 500, error: 'Could not create your parent account. Please try again.' };
     }
     parentId = created.user.id;
-    await admin.from('portal_users').upsert({
+    const { error: upsertErr } = await admin.from('portal_users').upsert({
       id: parentId, email, full_name: fullName, phone, role: 'parent',
       is_active: true, updated_at: new Date().toISOString(),
     }, { onConflict: 'id' });
+    if (upsertErr) {
+      // Roll back the auth user so a failed profile never leaves an orphan login.
+      try { await admin.auth.admin.deleteUser(parentId); } catch { /* best-effort */ }
+      return { ok: false, status: 500, error: 'Could not set up your parent account. Please try again.' };
+    }
   }
 
   const { data: childPU } = await admin
@@ -91,9 +96,9 @@ export async function provisionParentAndLinkChild(admin: Db, input: ProvisionInp
  */
 export async function autoLinkSiblings(
   admin: Db,
-  input: { parentId: string; email: string; phone: string | null; schoolName: string | null; studentId: string },
+  input: { parentId: string; email: string; phone: string | null; fullName: string; relationship?: string | null; schoolName: string | null; studentId: string },
 ): Promise<string[]> {
-  const { parentId, email, phone, schoolName, studentId } = input;
+  const { parentId, email, phone, fullName, relationship, schoolName, studentId } = input;
   const cols = 'id, user_id, full_name, school_name';
   const byId = new Map<string, { id: string; user_id: string | null; full_name: string }>();
 
@@ -119,7 +124,10 @@ export async function autoLinkSiblings(
   for (const s of byId.values()) {
     if (s.id === scannedRowId || s.user_id === studentId || linked.has(s.id)) continue;
     await admin.from('students')
-      .update({ parent_email: email, parent_phone: phone, updated_at: new Date().toISOString() })
+      .update({
+        parent_email: email, parent_phone: phone, parent_name: fullName,
+        parent_relationship: relationship ?? 'Guardian', updated_at: new Date().toISOString(),
+      })
       .eq('id', s.id);
     await syncExplicitParentStudentLink(admin, parentId, s.id);
     names.push(s.full_name);
