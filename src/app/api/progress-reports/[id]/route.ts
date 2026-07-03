@@ -4,6 +4,7 @@ import type { Database, TablesUpdate } from '@/types/supabase';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildReportEmail, buildEmailTrackingPixelUrl, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
+import { sendWhatsApp } from '@/lib/whatsapp/send';
 import crypto from 'crypto';
 
 function adminClient() {
@@ -199,7 +200,7 @@ export async function PATCH(
     .from('student_progress_reports')
     .update(allowed as TablesUpdate<'student_progress_reports'>)
     .eq('id', id)
-    .select('id, student_id, course_name, overall_score, overall_grade, is_published')
+    .select('id, student_id, course_name, overall_score, overall_grade, is_published, verification_code')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -220,6 +221,9 @@ export async function PATCH(
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
       const studentPortalUrl = `${appUrl}/dashboard/results?student=${data.student_id}`;
       const parentPortalUrl  = `${appUrl}/dashboard/parent-results`;
+      // Public QR/verify link — opens the full result hub with NO login required, so a
+      // parent can view (and verify) the result straight from the message.
+      const verifyUrl = data.verification_code ? `${appUrl}/verify/${data.verification_code}` : parentPortalUrl;
       const subject   = `Progress Report Published — Rillcod Technologies`;
       const grade     = data.overall_grade ?? (data.overall_score !== null ? `${data.overall_score}%` : undefined);
       const term      = data.course_name || 'Current Term';
@@ -266,20 +270,21 @@ export async function PATCH(
         });
       }
 
-      // 3 — Collect parent emails from two sources and deduplicate
-      const parentEmails = new Map<string, string>(); // email → name
+      // 3 — Collect parent contacts (email + phone) from two sources and deduplicate
+      const parentEmails = new Map<string, string>();          // email → name
+      const parentPhones = new Map<string, string>();          // phone → name
 
-      // 3a — students table parent_email (non-portal parents)
+      // 3a — students table parent_email / parent_phone (non-portal parents)
       const { data: studentRow } = await db
         .from('students')
-        .select('parent_email, parent_name')
+        .select('parent_email, parent_name, parent_phone')
         .eq('user_id', data.student_id)
         .maybeSingle();
       if (studentRow?.parent_email) {
-        parentEmails.set(
-          studentRow.parent_email.toLowerCase(),
-          studentRow.parent_name || 'Parent/Guardian',
-        );
+        parentEmails.set(studentRow.parent_email.toLowerCase(), studentRow.parent_name || 'Parent/Guardian');
+      }
+      if (studentRow?.parent_phone) {
+        parentPhones.set(studentRow.parent_phone, studentRow.parent_name || 'Parent/Guardian');
       }
 
       // 3b — portal parents linked via parent_student_links
@@ -291,15 +296,16 @@ export async function PATCH(
         const parentIds = links.map((l: any) => l.parent_id);
         const { data: portalParents } = await db
           .from('portal_users')
-          .select('id, email, full_name')
-          .in('id', parentIds)
-          .not('email', 'is', null);
+          .select('id, email, full_name, phone')
+          .in('id', parentIds);
         for (const p of portalParents ?? []) {
           if (p.email) parentEmails.set(p.email.toLowerCase(), p.full_name || 'Parent/Guardian');
+          if (p.phone) parentPhones.set(p.phone, p.full_name || 'Parent/Guardian');
         }
       }
 
-      // 4 — Email each parent (external addresses only — skip @rillcod.com in-app handles)
+      // 4 — Email each parent (external addresses only) — button opens the public verify
+      //     result page (no login), so parents see the result straight away.
       const { notificationsService } = await import('@/services/notifications.service');
       for (const [email, parentName] of parentEmails) {
         if (isInAppEmail(email)) continue; // in-app handle — no SMTP mailbox
@@ -309,7 +315,7 @@ export async function PATCH(
           studentName,
           term,
           overallGrade: grade,
-          portalUrl: parentPortalUrl,
+          portalUrl: verifyUrl,
           appUrl,
           trackingPixelUrl,
         });
@@ -320,6 +326,15 @@ export async function PATCH(
           fromEmail: 'support@rillcod.com',
           html,
         }).catch(console.error);
+      }
+
+      // 5 — WhatsApp each parent the same result link (best-effort; no-ops if unconfigured)
+      for (const [phone, parentName] of parentPhones) {
+        const waMessage =
+          `Hello ${parentName}, ${studentName}'s ${term} progress report has been published` +
+          `${grade ? ` (Overall: ${grade})` : ''}.\n\n` +
+          `View & verify it here: ${verifyUrl}\n\n— Rillcod Technologies`;
+        await sendWhatsApp(phone, waMessage);
       }
     })().catch(console.error);
   }
