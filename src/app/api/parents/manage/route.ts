@@ -315,9 +315,20 @@ export async function DELETE(req: Request) {
     const admin = createAdminClient();
 
     if (student_id) {
-      // Use admin client for the RPC to bypass RLS
+      // 1. Clear the denormalised parent fields on the student row (legacy path).
       const { error } = await (admin.rpc as any)('unlink_parent_from_student', { p_student_id: student_id });
       if (error) throw error;
+
+      // 2. Remove the EXPLICIT junction link too. The RPC only clears
+      //    students.parent_email, so without this the child stays linked on the
+      //    parent's own dashboard (getParentLinkScope reads parent_student_links) —
+      //    i.e. an "unlinked" child that never actually goes away. Scope to the given
+      //    parent when provided (co-parent safe); otherwise drop all links for the student.
+      let linkDel = admin.from('parent_student_links').delete().eq('student_id', student_id);
+      if (parent_id) linkDel = linkDel.eq('parent_id', parent_id);
+      const { error: linkErr } = await linkDel;
+      // Ignore "relation does not exist" (table not migrated); surface anything else.
+      if (linkErr && (linkErr as any).code !== '42P01') throw linkErr;
     }
 
     if (deactivate && parent_id) {
@@ -435,27 +446,51 @@ export async function GET(req: Request) {
       parents = parentsData ?? [];
     }
 
-    // Fetch linked children for each parent
+    // Fetch linked children for each parent — from BOTH the explicit junction table
+    // (parent_student_links, the source of truth the parent's own dashboard reads) and
+    // the legacy denormalised students.parent_email. Merging both guarantees a wrongly
+    // linked child always shows in staff view so it can be unlinked.
     const emails = parents.map(p => p.email);
+    const parentIds = parents.map(p => p.id);
+    const studentCols = 'id, full_name, school_name, status, parent_email, user_id, current_class, grade_level, section';
+
+    // Email-based (legacy) children
     let childrenQuery = emails.length > 0
-      ? admin
-          .from('students')
-          .select('id, full_name, school_name, status, parent_email, user_id, current_class, grade_level, section')
-          .in('parent_email', emails)
+      ? admin.from('students').select(studentCols).in('parent_email', emails)
       : null;
     if (childrenQuery && effectiveSchool) {
       childrenQuery = childrenQuery.ilike('school_name', effectiveSchool);
     }
     const { data: linkedStudents } = childrenQuery ? await childrenQuery : { data: [] };
 
-    const childrenMap: Record<string, any[]> = {};
+    const childrenByEmail: Record<string, any[]> = {};
     for (const s of linkedStudents ?? []) {
       if (!s.parent_email) continue;
-      if (!childrenMap[s.parent_email]) childrenMap[s.parent_email] = [];
-      childrenMap[s.parent_email].push(s);
+      (childrenByEmail[s.parent_email] ||= []).push(s);
     }
 
-    const data = parents.map(p => ({ ...p, children: childrenMap[p.email] ?? [] }));
+    // Explicit junction children (keyed by parent id, school-scoped for teachers).
+    const childrenByParentId: Record<string, any[]> = {};
+    if (parentIds.length > 0) {
+      const { data: links, error: linkErr } = await admin
+        .from('parent_student_links')
+        .select(`parent_id, students(${studentCols})`)
+        .in('parent_id', parentIds);
+      if (linkErr && (linkErr as any).code !== '42P01') throw linkErr; // ignore missing table only
+      for (const l of (links ?? []) as any[]) {
+        const stu = Array.isArray(l.students) ? l.students[0] : l.students;
+        if (!stu) continue;
+        if (effectiveSchool && (stu.school_name ?? '').toLowerCase() !== effectiveSchool.toLowerCase()) continue;
+        (childrenByParentId[l.parent_id] ||= []).push(stu);
+      }
+    }
+
+    const data = parents.map(p => {
+      const seen = new Set<string>();
+      const children = [...(childrenByParentId[p.id] ?? []), ...(childrenByEmail[p.email] ?? [])]
+        .filter((c: any) => c?.id && !seen.has(c.id) && seen.add(c.id));
+      return { ...p, children };
+    });
 
     if (!includePickerData) {
       return NextResponse.json({

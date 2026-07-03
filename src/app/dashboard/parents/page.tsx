@@ -886,11 +886,11 @@ export default function ParentsPage() {
     }
   }, [authLoading, profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleUnlink = async (studentId: string) => {
-    if (!confirm('Remove parent link from this student?')) return;
+  const handleUnlink = async (studentId: string, parentId: string, childName?: string, parentName?: string) => {
+    if (!confirm(`Unlink ${childName ?? 'this child'} from ${parentName ?? 'this parent'}?\n\nThis removes the child from the parent's account (both the staff view and the parent's own login). It does not delete the student.`)) return;
     setUnlinking(studentId);
     try {
-      const res = await fetch(`/api/parents/manage?student_id=${studentId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/parents/manage?student_id=${studentId}&parent_id=${parentId}`, { method: 'DELETE' });
       if (!res.ok) { const j = await res.json(); alert(j.error || 'Failed'); return; }
       load();
     } catch { alert('Failed to unlink'); } finally { setUnlinking(null); }
@@ -1423,9 +1423,9 @@ export default function ParentsPage() {
                                 'bg-muted border-border text-muted-foreground'
                               }`}>{child.status}</span>
                               <button
-                                onClick={() => handleUnlink(child.id)}
+                                onClick={() => handleUnlink(child.id, parent.id, child.full_name, parent.full_name)}
                                 disabled={unlinking === child.id}
-                                title="Unlink parent from this student"
+                                title="Unlink this child from the parent"
                                 className="text-muted-foreground hover:text-rose-400 transition-colors disabled:opacity-50">
                                 <XMarkIcon className="w-4 h-4" />
                               </button>
