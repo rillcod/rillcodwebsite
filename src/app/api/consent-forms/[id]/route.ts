@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     const { data: formCheck } = await supabase.from('consent_forms').select('school_id').eq('id', id).single();
     if (!formCheck) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    let allowedSchoolIds: string[] = [];
+    const allowedSchoolIds: string[] = [];
     if (profile?.school_id) allowedSchoolIds.push(profile.school_id);
     if (profile?.role === 'teacher') {
       const { data: ts } = await (admin as any).from('teacher_schools').select('school_id').eq('teacher_id', user.id);

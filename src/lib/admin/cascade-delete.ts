@@ -63,21 +63,24 @@ async function hardDeleteParentIfOrphan(admin: AnySupabase, parentId: string, ex
   return true;
 }
 
-/**
- * CASCADE-delete a consent-form lead AND every account uniquely created from it:
- * the matched/child student accounts (unless shared with another parent) and the
- * parent account (unless shared with another child/lead). Shared records survive
- * with only the relevant link removed, so cleanup never nukes a real family.
- */
-export async function cascadeDeleteLead(admin: AnySupabase, leadId: string): Promise<{ ok: boolean; error?: string; deletedStudents: number; parentDeleted: boolean }> {
-  const { data: lead } = await admin
-    .from('form_leads')
-    .select('id, matched_parent_id, matched_student_id, response_data')
-    .eq('id', leadId)
-    .maybeSingle();
-  if (!lead) return { ok: false, error: 'Lead not found', deletedStudents: 0, parentDeleted: false };
+type LeadAccountRow = {
+  matched_parent_id: string | null;
+  matched_student_id: string | null;
+  response_data: Record<string, unknown> | null;
+};
 
-  const leadRow = lead as { matched_parent_id: string | null; matched_student_id: string | null; response_data: Record<string, unknown> | null };
+/**
+ * Shared engine: hard-delete every account UNIQUELY created from a lead — the
+ * matched/child student accounts (unless shared with another parent) and the parent
+ * account (unless shared with another child/lead). Shared records survive with only
+ * the relevant link removed, so it never nukes a real family. Does NOT touch the
+ * form_leads row itself — the caller decides whether to delete or reset it.
+ */
+async function deleteLeadDerivedAccounts(
+  admin: AnySupabase,
+  leadRow: LeadAccountRow,
+  leadId: string,
+): Promise<{ deletedStudents: number; parentDeleted: boolean }> {
   const parentId: string | null = leadRow.matched_parent_id ?? null;
   const rd = leadRow.response_data ?? {};
   const childMatches: Array<{ studentId?: string }> = Array.isArray(rd.child_matches) ? rd.child_matches : [];
@@ -115,6 +118,55 @@ export async function cascadeDeleteLead(admin: AnySupabase, leadId: string): Pro
 
   let parentDeleted = false;
   if (parentId) parentDeleted = await hardDeleteParentIfOrphan(admin, parentId, leadId);
+
+  return { deletedStudents, parentDeleted };
+}
+
+/**
+ * REVERT (undo) — delete every account this lead created (parent + student, orphan
+ * aware) but KEEP the form_leads row and its submitted response_data, clearing the
+ * match/link fields and status so the lead is back to "just submitted" and can be
+ * processed again. The reversible first step before a permanent delete.
+ */
+export async function revertLeadAccounts(admin: AnySupabase, leadId: string): Promise<{ ok: boolean; error?: string; deletedStudents: number; parentDeleted: boolean }> {
+  const { data: lead } = await admin
+    .from('form_leads')
+    .select('id, matched_parent_id, matched_student_id, response_data')
+    .eq('id', leadId)
+    .maybeSingle();
+  if (!lead) return { ok: false, error: 'Lead not found', deletedStudents: 0, parentDeleted: false };
+
+  const leadRow = lead as LeadAccountRow;
+  const { deletedStudents, parentDeleted } = await deleteLeadDerivedAccounts(admin, leadRow, leadId);
+
+  // Reset to the just-submitted state: keep the submission, drop the derived links.
+  const rd: Record<string, unknown> = { ...(leadRow.response_data ?? {}) };
+  delete rd.child_matches;
+  await admin.from('form_leads').update({
+    matched_student_id: null,
+    matched_parent_id: null,
+    match_candidate_id: null,
+    match_status: null,
+    status: 'new',
+    response_data: rd,
+  }).eq('id', leadId);
+
+  return { ok: true, deletedStudents, parentDeleted };
+}
+
+/**
+ * PERMANENT delete — the stronger action: remove every account uniquely created from
+ * the lead AND the form_leads row itself (the submission is gone for good).
+ */
+export async function cascadeDeleteLead(admin: AnySupabase, leadId: string): Promise<{ ok: boolean; error?: string; deletedStudents: number; parentDeleted: boolean }> {
+  const { data: lead } = await admin
+    .from('form_leads')
+    .select('id, matched_parent_id, matched_student_id, response_data')
+    .eq('id', leadId)
+    .maybeSingle();
+  if (!lead) return { ok: false, error: 'Lead not found', deletedStudents: 0, parentDeleted: false };
+
+  const { deletedStudents, parentDeleted } = await deleteLeadDerivedAccounts(admin, lead as LeadAccountRow, leadId);
 
   await admin.from('form_leads').delete().eq('id', leadId);
   return { ok: true, deletedStudents, parentDeleted };

@@ -530,6 +530,7 @@ export default function ResponsesPage() {
   const [creatingPortalId, setCreatingPortalId] = useState<string | null>(null);
   const [deletingPortalId, setDeletingPortalId] = useState<string | null>(null);
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
+  const [revertingLeadId, setRevertingLeadId] = useState<string | null>(null);
   const [portalStatus, setPortalStatus] = useState<Record<string, 'created' | 'exists'>>({});
   const [credsModal, setCredsModal] = useState<{ email: string; password: string; parentName: string } | null>(null);
 
@@ -714,9 +715,27 @@ export default function ResponsesPage() {
     }
   }
 
-  // ── Delete the lead row entirely (junk / duplicate / discarded) ──────────
+  // ── Revert: undo account creation, keep the submission for re-processing ──
+  async function revertLead(leadId: string, who: string) {
+    if (!confirm(`Undo account creation for ${who}?\n\nThis deletes the parent and student login(s) created from this submission (orphan-aware) and returns the lead to "just submitted" so you can process it again. The submitted response is kept.`)) return;
+    setRevertingLeadId(leadId);
+    try {
+      const res = await fetch(`/api/consent-forms/leads/${leadId}/revert`, { method: 'POST' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(json.error ?? 'Failed to revert'); return; }
+      // Reset the lead in place — back to a fresh, processable submission.
+      setLeads(prev => prev.map(l => l.id === leadId ? {
+        ...l, matched_student_id: null, matched_parent_id: null, match_candidate_id: null, status: 'new',
+      } : l));
+      setPortalStatus(prev => { const next = { ...prev }; delete next[leadId]; return next; });
+    } finally {
+      setRevertingLeadId(null);
+    }
+  }
+
+  // ── Permanent delete: the stronger action — wipes accounts AND the submission ──
   async function deleteLead(leadId: string, who: string) {
-    if (!confirm(`Permanently delete this lead (${who})? This removes the submission row. Any portal account already created from it is NOT affected — remove that separately if needed.`)) return;
+    if (!confirm(`PERMANENTLY delete this lead (${who})?\n\nThis erases the submitted response AND hard-deletes every account uniquely created from it (parent + student logins). Shared records are kept. This cannot be undone.\n\nTo only undo the account creation and keep the submission, use "Revert" instead.`)) return;
     setDeletingLeadId(leadId);
     try {
       const res = await fetch(`/api/consent-forms/leads/${leadId}`, { method: 'DELETE' });
@@ -1651,14 +1670,26 @@ export default function ResponsesPage() {
                                 );
                               })()}
 
-                              {/* Discard the whole lead (junk / duplicate) — hard cascade delete */}
+                              {/* Revert — undo account creation, keep the submission (only when an account exists) */}
+                              {(lead.matched_parent_id || lead.matched_student_id) && (
+                                <button
+                                  disabled={revertingLeadId === lead.id}
+                                  onClick={() => revertLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
+                                  className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/5 hover:bg-amber-500/20 text-amber-500/90 hover:text-amber-400 border border-amber-500/20 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
+                                  title="Undo the account creation (delete parent + student logins) but keep the submission so you can process it again"
+                                >
+                                  {revertingLeadId === lead.id ? 'Reverting…' : '↺ Revert account'}
+                                </button>
+                              )}
+
+                              {/* Permanent delete — erases the submission AND the accounts (stronger) */}
                               <button
                                 disabled={deletingLeadId === lead.id}
                                 onClick={() => deleteLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
                                 className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500/5 hover:bg-rose-500/20 text-rose-400/80 hover:text-rose-400 border border-rose-500/15 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
-                                title="Permanently delete this lead and any account created from it (cascade)"
+                                title="Permanently delete the submission AND any account created from it (cannot be undone)"
                               >
-                                {deletingLeadId === lead.id ? 'Deleting…' : '🗑 Delete lead'}
+                                {deletingLeadId === lead.id ? 'Deleting…' : '🗑 Delete permanently'}
                               </button>
 
                               {/* Child link status — handles single and multi-child */}
