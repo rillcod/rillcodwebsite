@@ -6,7 +6,7 @@ import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enroll
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import { logAudit } from '@/lib/audit/log';
-import crypto from 'crypto';
+import { generateTempPassword } from '@/lib/utils/password';
 
 function adminClient() {
   return createClient(
@@ -355,7 +355,7 @@ export async function POST(request: Request) {
   }
 
   // Generate a random 10-char password
-  const password = crypto.randomBytes(8).toString('base64url').slice(0, 10);
+  const password = generateTempPassword();
   const normalizedEmail = loginEmail.trim().toLowerCase();
 
   // ── Resolve school — every student must belong to one (shared resolver) ───

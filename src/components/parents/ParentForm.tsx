@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { suggestEmailFix } from '@/lib/email-typo';
+import { generateTempPassword } from '@/lib/utils/password';
 import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
@@ -54,10 +55,7 @@ export interface LinkedChild {
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
-function genPassword() {
-  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789@#$!';
-  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-}
+const genPassword = generateTempPassword;
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);

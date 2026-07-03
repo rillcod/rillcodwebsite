@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { generateTempPassword as genPassword } from '@/lib/utils/password';
 
 async function requireStaff(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -17,10 +18,6 @@ async function requireStaff(supabase: Awaited<ReturnType<typeof createClient>>) 
   return { profile };
 }
 
-function genPassword() {
-  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789@#$!';
-  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-}
 
 // POST — Bulk import parents
 // Body: { rows: Array<{ full_name, email, phone?, student_name?, relationship? }> }

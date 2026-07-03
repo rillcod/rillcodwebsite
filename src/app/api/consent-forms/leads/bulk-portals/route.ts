@@ -7,6 +7,7 @@ import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
+import { generateTempPassword } from '@/lib/utils/password';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,13 +19,6 @@ function adminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false } },
   );
-}
-
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let random = '';
-  for (let i = 0; i < 8; i++) random += chars[Math.floor(Math.random() * chars.length)];
-  return `Rc@${random}`;
 }
 
 // POST /api/consent-forms/leads/bulk-portals

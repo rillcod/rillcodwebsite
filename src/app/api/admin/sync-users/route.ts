@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import crypto from 'crypto';
+import { generateTempPassword } from '@/lib/utils/password';
 
 function adminClient() {
   return createClient(
@@ -35,7 +35,7 @@ async function requireAdmin() {
 }
 
 function makePassword() {
-  return crypto.randomBytes(8).toString('base64url').slice(0, 10);
+  return generateTempPassword();
 }
 
 async function runAudit(admin: ReturnType<typeof adminClient>) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isCrmPlatformRole } from '@/lib/server/api-rbac';
+import { generateTempPassword } from '@/lib/utils/password';
 
 async function requireCrmStaff() {
   const supabase = await createClient();
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch pipeline stages in one query
     const ids = (portalUsers || []).map((u: any) => u.id);
-    let stageMap: Record<string, string> = {};
+    const stageMap: Record<string, string> = {};
     if (ids.length > 0) {
       const { data: pipes } = await db
         .from('crm_pipeline')
@@ -223,7 +224,7 @@ export async function POST(req: NextRequest) {
     // Create auth user only if email provided
     let authId: string | null = null;
     if (email) {
-      const tempPw = `Rc@${Math.random().toString(36).slice(2, 10)}`;
+      const tempPw = generateTempPassword();
       const { data: authUser, error: authErr } = await db.auth.admin.createUser({
         email: email.trim().toLowerCase(),
         password: tempPw,

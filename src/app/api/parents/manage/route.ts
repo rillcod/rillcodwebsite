@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { generateTempPassword } from '@/lib/utils/password';
 
 type PortalUserUpdate = Database['public']['Tables']['portal_users']['Update'];
 
@@ -174,8 +175,7 @@ export async function PATCH(req: Request) {
 
     // Password reset shortcut
     if (reset_password) {
-      const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789@#$!';
-      const newPw = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+      const newPw = generateTempPassword();
       const { error: pwErr } = await admin.auth.admin.updateUserById(parent_id, {
         password: newPw,
         user_metadata: { must_change_password: true },
