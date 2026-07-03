@@ -3,12 +3,20 @@
 import { useState } from 'react';
 import { suggestEmailFix } from '@/lib/email-typo';
 
-// Self-service parent intake shown on the public verify page. A parent enters their
-// details once and their account is created + linked to the scanned child (and any
-// siblings on file) automatically — the login is sent to their email + WhatsApp.
+// Verification is on by default; set NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP=true to use the
+// frictionless (no-code) flow instead — the toggle between "verified" and "fast".
+const SKIP_OTP = process.env.NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP === 'true';
+
+type Step = 'cta' | 'form' | 'otp' | 'done';
+
+// Self-service parent link shown on the verify page. Default: enter details → 6-digit
+// code by email + WhatsApp → verify → account auto-created + child (and siblings) linked.
 export default function ParentClaim({ code }: { code: string }) {
-  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<Step>('cta');
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '' });
+  const [claimId, setClaimId] = useState('');
+  const [otp, setOtp] = useState('');
+  const [sentVia, setSentVia] = useState<{ email: boolean; whatsapp: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ childName: string | null; accountCreated: boolean; siblingsLinked: number } | null>(null);
@@ -16,29 +24,55 @@ export default function ParentClaim({ code }: { code: string }) {
   const emailFix = suggestEmailFix(form.email);
   const isParent = form.relationship === 'Father' || form.relationship === 'Mother';
   const field = 'w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors';
+  const box = 'bg-card border border-border rounded-2xl p-6 space-y-4';
 
-  async function submit() {
+  function applyDone(j: any) {
+    setDone({ childName: j.childName ?? null, accountCreated: !!j.accountCreated, siblingsLinked: j.siblingsLinked ?? 0 });
+    setStep('done');
+  }
+
+  async function startOrSubmit() {
     setError(null); setLoading(true);
     try {
-      const res = await fetch('/api/parent-claim/intake', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, ...form }),
-      });
-      const j = await res.json();
-      if (!res.ok) { setError(j.error || 'Something went wrong'); return; }
-      setDone({ childName: j.childName ?? null, accountCreated: !!j.accountCreated, siblingsLinked: j.siblingsLinked ?? 0 });
+      if (SKIP_OTP) {
+        const res = await fetch('/api/parent-claim/intake', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, ...form }),
+        });
+        const j = await res.json();
+        if (!res.ok) { setError(j.error || 'Something went wrong'); return; }
+        applyDone(j);
+      } else {
+        const res = await fetch('/api/parent-claim/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, ...form }),
+        });
+        const j = await res.json();
+        if (!res.ok) { setError(j.error || 'Could not send code'); return; }
+        setClaimId(j.claimId); setSentVia(j.sentVia || null); setStep('otp');
+      }
     } catch { setError('Network error — please try again.'); }
     finally { setLoading(false); }
   }
 
-  const box = 'bg-card border border-border rounded-2xl p-6 space-y-4';
+  async function verify() {
+    setError(null); setLoading(true);
+    try {
+      const res = await fetch('/api/parent-claim/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimId, otp }),
+      });
+      const j = await res.json();
+      if (!res.ok) { setError(j.error || 'Verification failed'); return; }
+      applyDone(j);
+    } catch { setError('Network error — please try again.'); }
+    finally { setLoading(false); }
+  }
 
-  if (done) {
+  if (step === 'done' && done) {
     return (
       <div className={box}>
-        <p className="text-sm font-black text-emerald-400">
-          ✓ Done{done.childName ? ` — ${done.childName} is linked to your account` : ''}.
-        </p>
+        <p className="text-sm font-black text-emerald-400">✓ Done{done.childName ? ` — ${done.childName} is linked to your account` : ''}.</p>
         {done.siblingsLinked > 0 && (
           <p className="text-xs text-foreground">We also linked {done.siblingsLinked} sibling{done.siblingsLinked !== 1 ? 's' : ''} on record with your contact.</p>
         )}
@@ -49,20 +83,46 @@ export default function ParentClaim({ code }: { code: string }) {
     );
   }
 
-  if (!open) {
+  if (step === 'cta') {
     return (
       <div className={box}>
         <div className="space-y-1">
           <p className="text-sm font-black text-foreground">Are you the parent / guardian?</p>
-          <p className="text-xs text-muted-foreground">Enter your details once — we’ll create &amp; link your parent account automatically and text/email you the login.</p>
+          <p className="text-xs text-muted-foreground">
+            {SKIP_OTP
+              ? 'Enter your details once — we’ll create & link your parent account automatically.'
+              : 'Verify your email & phone with a quick code, and we’ll create & link your parent account automatically.'}
+          </p>
         </div>
-        <button onClick={() => setOpen(true)} className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all">
+        <button onClick={() => setStep('form')} className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all">
           Link this child to my account
         </button>
       </div>
     );
   }
 
+  if (step === 'otp') {
+    return (
+      <div className={box}>
+        <p className="text-sm font-black text-foreground">Enter your code</p>
+        <p className="text-xs text-muted-foreground">
+          We sent a 6-digit code{sentVia?.whatsapp ? ' via WhatsApp' : ''}{sentVia?.whatsapp && sentVia?.email ? ' and' : ''}{sentVia?.email ? ' by email' : ''} to confirm they’re yours.
+        </p>
+        {error && <p className="text-xs text-rose-400 font-bold">{error}</p>}
+        <input className={`${field} tracking-[0.5em] text-center text-lg font-black`} inputMode="numeric" maxLength={6}
+          placeholder="••••••" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+        <div className="flex gap-2">
+          <button onClick={() => setStep('form')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
+          <button onClick={verify} disabled={loading || otp.length !== 6}
+            className="flex-1 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50">
+            {loading ? 'Verifying…' : 'Verify & link'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // step === 'form'
   return (
     <div className={box}>
       <p className="text-sm font-black text-foreground">Your details</p>
@@ -95,10 +155,10 @@ export default function ParentClaim({ code }: { code: string }) {
         <p className="text-[10px] text-muted-foreground">As a guardian, your role is enough — no name needed.</p>
       )}
       <div className="flex gap-2">
-        <button onClick={() => setOpen(false)} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
-        <button onClick={submit} disabled={loading || !form.fullName || !form.email || !form.phone || (isParent && !form.childName)}
+        <button onClick={() => setStep('cta')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
+        <button onClick={startOrSubmit} disabled={loading || !form.fullName || !form.email || !form.phone || (isParent && !form.childName)}
           className="flex-1 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50">
-          {loading ? 'Linking…' : 'Create & link my account'}
+          {loading ? (SKIP_OTP ? 'Linking…' : 'Sending…') : (SKIP_OTP ? 'Create & link my account' : 'Send verification code')}
         </button>
       </div>
     </div>
