@@ -549,6 +549,38 @@ export default function VerifyCodePage() {
                     </div>
                   </div>
 
+                  {/* Unified hub — a student card links straight to their published results */}
+                  {Array.isArray(card.reports) && card.reports.length > 0 && (
+                    <div className="bg-card border border-border rounded-[2rem] p-8 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <AcademicCapIcon className="w-5 h-5 text-violet-400" />
+                        <p className="text-sm font-black text-foreground uppercase tracking-widest">Academic Results</p>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {card.reports.length} published report{card.reports.length !== 1 ? 's' : ''} on record for this student — tap to view &amp; verify.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {card.reports.map((r: any) => (
+                          <Link
+                            key={r.id}
+                            href={`/verify/${r.verification_code}`}
+                            className="flex items-center justify-between gap-3 p-4 rounded-xl bg-muted border border-border hover:border-violet-500/40 hover:bg-muted/70 transition-all group"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-foreground truncate">
+                                {[r.report_period, r.report_term].filter(Boolean).join(' · ') || 'Report'}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {[r.course_name, r.overall_grade].filter(Boolean).join(' · ') || '—'}
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-black text-violet-400 uppercase tracking-widest flex-shrink-0 group-hover:translate-x-0.5 transition-transform">View →</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex flex-col md:flex-row items-center justify-center gap-4">
                     <Link
                       href="/verify"

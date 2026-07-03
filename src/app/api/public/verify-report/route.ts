@@ -80,7 +80,13 @@ export async function GET(request: Request) {
         .map(p => p.overall_score).filter((s): s is number => typeof s === 'number');
       if (scores.length >= 2) {
         const higher = scores.filter(s => s > myScore).length;
-        classRank = { position: higher + 1, classSize: scores.length };
+        const position = higher + 1;
+        // Only reveal class position to TOP-HALF students. A student ranked in the
+        // lower half sees just their own percentage — we never publicly broadcast a
+        // weak position. (top half = position within the first ceil(classSize/2)).
+        if (position <= Math.ceil(scores.length / 2)) {
+          classRank = { position, classSize: scores.length };
+        }
       }
     }
   } catch { /* rank is best-effort — never block verification */ }
