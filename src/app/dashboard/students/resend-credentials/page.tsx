@@ -47,6 +47,33 @@ export default function ResendCredentialsPage() {
   const [bulkRunning, setBulkRunning] = useState(false);
   const [sendingReceipt, setSendingReceipt] = useState<Record<string, boolean>>({});
   const [sendingBalance, setSendingBalance] = useState<Record<string, boolean>>({});
+  const [sendingWa, setSendingWa] = useState<Record<string, boolean>>({});
+
+  // Send the EXISTING student/parent login to the parent by WhatsApp + email.
+  // Does NOT reset the password (unlike "Resend") — the stored password still stands.
+  const handleWhatsApp = async (s: StudentRow) => {
+    setSendingWa(p => ({ ...p, [s.id]: true }));
+    try {
+      const res = await fetch('/api/students/send-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentEmail: s.student_email || undefined,
+          studentPassword: s.credEmail?.password || undefined,
+          parentEmail: s.parent_email || undefined,
+          parentPassword: (s as any).parentCred?.password || undefined,
+          fullName: s.full_name || undefined,
+          schoolName: s.school_name || undefined,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) { alert(j.error || 'Failed to send'); return; }
+      const via = [j.whatsapp ? 'WhatsApp' : null, j.email ? 'Email' : null].filter(Boolean).join(' + ');
+      alert(via ? `Login sent via ${via} — password unchanged.` : 'Login sent — password unchanged.');
+    } catch { alert('Failed to send'); } finally {
+      setSendingWa(p => ({ ...p, [s.id]: false }));
+    }
+  };
   const [lastCreatedCredentials, setLastCreatedCredentials] = useState<{
     studentId?: string;
     studentName: string;
@@ -710,6 +737,17 @@ export default function ResendCredentialsPage() {
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-muted/80 border border-border text-foreground rounded-lg text-xs font-semibold transition-colors"
                             >
                               <EyeIcon className="w-3.5 h-3.5" /> View
+                            </button>
+                          )}
+                          {isActivated && (s.credEmail?.password || (s as any).parentCred?.password) && (
+                            <button
+                              onClick={() => handleWhatsApp(s)}
+                              disabled={sendingWa[s.id]}
+                              title="Send the EXISTING login to the parent by WhatsApp + email — does NOT reset the password"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-emerald-600/20 border border-border hover:border-emerald-500/40 text-foreground rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                            >
+                              {sendingWa[s.id] ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <span aria-hidden>💬</span>}
+                              WhatsApp
                             </button>
                           )}
                           {isDone ? (
