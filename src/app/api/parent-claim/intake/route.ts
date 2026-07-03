@@ -5,6 +5,7 @@ import { notificationsService } from '@/services/notifications.service';
 import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { provisionParentAndLinkChild, autoLinkSiblings } from '@/lib/parent-claim/provision';
 import { ensureResultIntakeForm } from '@/lib/parent-claim/intake-form';
+import { looseNameMatch } from '@/lib/parent-claim/name-match';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
   const email = String(body.email ?? '').trim().toLowerCase();
   const phone = String(body.phone ?? '').trim() || null;
   const relationship = String(body.relationship ?? '').trim() || null;
+  const childName = String(body.childName ?? '').trim();
 
   if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 });
   if (!fullName) return NextResponse.json({ error: 'Your full name is required' }, { status: 400 });
@@ -44,6 +46,21 @@ export async function POST(request: Request) {
 
   const studentId = await resolveStudentFromCode(admin, code);
   if (!studentId) return NextResponse.json({ error: 'No student record matches this code.' }, { status: 404 });
+
+  // Light sanity check: a DIRECT parent (Father/Mother) should roughly match the
+  // child's name (lenient — first OR last name, small typos allowed, since kids' names
+  // are often mis-spelled). A GUARDIAN just confirms their role and proceeds — no gate.
+  const isDirectParent = ['father', 'mother'].includes((relationship ?? '').toLowerCase());
+  if (isDirectParent && childName) {
+    const { data: childRow } = await admin
+      .from('portal_users').select('full_name').eq('id', studentId).maybeSingle();
+    if (!looseNameMatch(childName, childRow?.full_name ?? '')) {
+      return NextResponse.json(
+        { error: 'That name doesn’t match this card. Please check the child’s name — or select “Guardian” if you’re not the parent.' },
+        { status: 400 },
+      );
+    }
+  }
 
   // ── Auto-provision the parent + link the scanned child ──────────────────────
   const prov = await provisionParentAndLinkChild(admin, { email, phone, fullName, relationship, studentId });

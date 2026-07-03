@@ -8,12 +8,13 @@ import { suggestEmailFix } from '@/lib/email-typo';
 // siblings on file) automatically — the login is sent to their email + WhatsApp.
 export default function ParentClaim({ code }: { code: string }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ fullName: '', email: '', phone: '', relationship: 'Guardian' });
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ childName: string | null; accountCreated: boolean; siblingsLinked: number } | null>(null);
 
   const emailFix = suggestEmailFix(form.email);
+  const isParent = form.relationship === 'Father' || form.relationship === 'Mother';
   const field = 'w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors';
 
   async function submit() {
@@ -84,9 +85,18 @@ export default function ParentClaim({ code }: { code: string }) {
         onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))}>
         {['Guardian', 'Father', 'Mother', 'Other'].map(r => <option key={r} value={r}>{r}</option>)}
       </select>
+      {isParent ? (
+        <div>
+          <input className={field} placeholder="Child’s name (as on the card)" value={form.childName}
+            onChange={e => setForm(f => ({ ...f, childName: e.target.value }))} />
+          <p className="text-[10px] text-muted-foreground mt-1">A rough spelling is fine — we just confirm it’s the right child.</p>
+        </div>
+      ) : (
+        <p className="text-[10px] text-muted-foreground">As a guardian, your role is enough — no name needed.</p>
+      )}
       <div className="flex gap-2">
         <button onClick={() => setOpen(false)} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
-        <button onClick={submit} disabled={loading || !form.fullName || !form.email || !form.phone}
+        <button onClick={submit} disabled={loading || !form.fullName || !form.email || !form.phone || (isParent && !form.childName)}
           className="flex-1 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50">
           {loading ? 'Linking…' : 'Create & link my account'}
         </button>
