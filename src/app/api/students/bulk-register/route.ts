@@ -261,14 +261,29 @@ export async function POST(request: Request) {
       cardId?: string | null;
     }> = [];
 
-    // ── Duplicate barricade: fetch existing students at this school OR any school with same name ──
-    // Rule: same full_name + same school_name = strict duplicate, even across different school_ids
-    const { data: existingStudents } = await supabaseAdmin
-      .from('portal_users')
-      .select('id, full_name, email, school_id, school_name')
-      .eq('role', 'student')
-      .eq('is_deleted', false)
-      .or(`school_id.eq.${resolvedSchoolId},school_name.ilike.${resolvedSchoolName ?? ''}`);
+    // ── Duplicate barricade: existing students at this school (by id AND by name) ──
+    // Rule: same full_name + same school = strict duplicate, even across different
+    // school_ids. We match on school_id and, as a safety net, school_name — using
+    // SEPARATE typed filters. (The old single .or() string-interpolated the school
+    // name, so a name containing a comma/parenthesis broke the filter and let
+    // duplicates slip through; a null school_id also became a literal `eq.null`.)
+    const dupCols = 'id, full_name, email, school_id, school_name';
+    const existingStudentsMap = new Map<string, { id: string; full_name: string; email: string }>();
+    if (resolvedSchoolId) {
+      const { data } = await supabaseAdmin
+        .from('portal_users').select(dupCols)
+        .eq('role', 'student').eq('is_deleted', false)
+        .eq('school_id', resolvedSchoolId);
+      for (const s of data ?? []) existingStudentsMap.set(s.id, s as any);
+    }
+    if (resolvedSchoolName) {
+      const { data } = await supabaseAdmin
+        .from('portal_users').select(dupCols)
+        .eq('role', 'student').eq('is_deleted', false)
+        .ilike('school_name', resolvedSchoolName);
+      for (const s of data ?? []) existingStudentsMap.set(s.id, s as any);
+    }
+    const existingStudents = [...existingStudentsMap.values()];
 
     // Build lookup maps for exact name AND reversed-name (first/last swapped)
     const existingByName = new Map<string, { id: string; email: string; full_name: string }>();

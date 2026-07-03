@@ -431,6 +431,43 @@ const bodySchema = z.object({
   forceResend: z.boolean().optional(),
 });
 
+// Archive a parent's generated login into registration_results (the credentials vault),
+// under a per-school "Single Student Parent Account" batch. Extracted so the two
+// parent-activation paths (new parent / existing parent) share one implementation.
+async function archiveParentCredential(
+  admin: any,
+  schoolId: string,
+  schoolName: string | null,
+  parentName: string,
+  email: string,
+  password: string,
+): Promise<void> {
+  try {
+    const batchName = 'Single Student Parent Account';
+    const { data: existingBatch } = await admin
+      .from('registration_batches').select('id')
+      .eq('school_id', schoolId).eq('class_name', batchName).maybeSingle();
+    let batchId: string | undefined = existingBatch?.id;
+    if (!batchId) {
+      batchId = crypto.randomUUID();
+      await admin.from('registration_batches').insert({
+        id: batchId, school_id: schoolId, school_name: schoolName,
+        class_name: batchName, student_count: 1,
+      });
+    }
+    await admin.from('registration_results').insert({
+      batch_id: batchId,
+      full_name: parentName || 'Parent/Guardian',
+      email,
+      password,
+      class_name: 'Parent Account',
+      status: 'created',
+    });
+  } catch (archiveErr) {
+    console.error('[ActivateParent] credential archive failed:', archiveErr);
+  }
+}
+
 // POST /api/students/activate
 // Body: { studentId: string }
 // Admin/Teacher only — creates a portal_users account for an approved student
@@ -483,8 +520,8 @@ export async function POST(req: NextRequest) {
       id: student.school_id,
       name: student.school_name,
     });
-    let resolvedSchoolId: string | null = resolvedSchool.id;
-    let resolvedSchoolName: string | null = resolvedSchool.name;
+    const resolvedSchoolId: string | null = resolvedSchool.id;
+    const resolvedSchoolName: string | null = resolvedSchool.name;
 
     if (!resolvedSchoolId) {
       return NextResponse.json({
@@ -721,7 +758,7 @@ export async function POST(req: NextRequest) {
     try {
       const singleBatchName = 'Single Student Registrations';
       // Check if a dedicated batch for single student registrations exists for this school and creator
-      let { data: existingBatch } = await supabaseAdmin
+      const { data: existingBatch } = await supabaseAdmin
         .from('registration_batches')
         .select('id, student_count')
         .eq('school_id', resolvedSchoolId)
@@ -830,36 +867,10 @@ export async function POST(req: NextRequest) {
           parentLogin = { email: normParentEmail, password: parentPw };
 
           // Also archive parent credentials in registration_results!
-          try {
-            const batchName = 'Single Student Parent Account';
-            let { data: existingBatch } = await supabaseAdmin
-              .from('registration_batches')
-              .select('id')
-              .eq('school_id', resolvedSchoolId)
-              .eq('class_name', batchName)
-              .maybeSingle();
-            let batchId = existingBatch?.id;
-            if (!batchId) {
-              batchId = crypto.randomUUID();
-              await supabaseAdmin.from('registration_batches').insert({
-                id: batchId,
-                school_id: resolvedSchoolId,
-                school_name: resolvedSchoolName,
-                class_name: batchName,
-                student_count: 1,
-              });
-            }
-            await supabaseAdmin.from('registration_results').insert({
-              batch_id: batchId,
-              full_name: student.parent_name || 'Parent/Guardian',
-              email: normParentEmail,
-              password: parentPw,
-              class_name: 'Parent Account',
-              status: 'created',
-            });
-          } catch (archiveErr) {
-            console.error('[ActivateParent] credential archive failed:', archiveErr);
-          }
+          await archiveParentCredential(
+            supabaseAdmin, resolvedSchoolId, resolvedSchoolName,
+            student.parent_name || 'Parent/Guardian', normParentEmail, parentPw,
+          );
         }
       } else if (parentUserId) {
         const { data: parentUser } = await supabaseAdmin
@@ -872,38 +883,12 @@ export async function POST(req: NextRequest) {
           const { error: resetErr } = await supabaseAdmin.auth.admin.updateUserById(parentUserId, { password: parentPw });
           if (!resetErr) {
             parentLogin = { email: parentUser.email.trim().toLowerCase(), password: parentPw };
-            
+
             // Update/insert into registration_results for the parent too!
-            try {
-              const batchName = 'Single Student Parent Account';
-              let { data: existingBatch } = await supabaseAdmin
-                .from('registration_batches')
-                .select('id')
-                .eq('school_id', resolvedSchoolId)
-                .eq('class_name', batchName)
-                .maybeSingle();
-              let batchId = existingBatch?.id;
-              if (!batchId) {
-                batchId = crypto.randomUUID();
-                await supabaseAdmin.from('registration_batches').insert({
-                  id: batchId,
-                  school_id: resolvedSchoolId,
-                  school_name: resolvedSchoolName,
-                  class_name: batchName,
-                  student_count: 1,
-                });
-              }
-              await supabaseAdmin.from('registration_results').insert({
-                batch_id: batchId,
-                full_name: student.parent_name || 'Parent/Guardian',
-                email: parentUser.email.trim().toLowerCase(),
-                password: parentPw,
-                class_name: 'Parent Account',
-                status: 'created',
-              });
-            } catch (archiveErr) {
-              console.error('[ActivateParent] credential archive failed:', archiveErr);
-            }
+            await archiveParentCredential(
+              supabaseAdmin, resolvedSchoolId, resolvedSchoolName,
+              student.parent_name || 'Parent/Guardian', parentUser.email.trim().toLowerCase(), parentPw,
+            );
           }
         }
       }
