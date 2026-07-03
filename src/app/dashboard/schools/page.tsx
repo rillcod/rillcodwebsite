@@ -288,7 +288,7 @@ export default function SchoolsPage() {
   };
 
   const handleDeleteSchool = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this school? This will permanently delete the record and its associated portal accounts.')) return;
+    if (!confirm('Archive this school? It will be removed from all lists but its records (students, staff, finance, reports) are preserved and it can be restored later.')) return;
     setDeleting(id);
     try {
       const res = await fetch(`/api/schools/${id}`, { method: 'DELETE' });

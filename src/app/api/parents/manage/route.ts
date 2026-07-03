@@ -535,7 +535,9 @@ export async function GET(req: Request) {
       schoolsList = allowedSchools;
     } else {
       const { data: allSchools } = await admin
-        .from('schools').select('name').eq('status', 'approved').order('name');
+        .from('schools').select('name').eq('status', 'approved')
+        .or('is_deleted.eq.false,is_deleted.is.null')
+        .order('name');
       schoolsList = (allSchools ?? []).map((s: any) => s.name).filter(Boolean);
     }
 

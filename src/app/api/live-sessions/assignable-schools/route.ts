@@ -18,7 +18,11 @@ export async function GET() {
   const admin = createEngagementAdminClient();
 
   if (caller.role === 'admin') {
-    const { data } = await admin.from('schools').select('id, name').order('name');
+    const { data } = await admin
+      .from('schools')
+      .select('id, name')
+      .or('is_deleted.eq.false,is_deleted.is.null')
+      .order('name');
     return NextResponse.json({ schools: data ?? [] });
   }
 

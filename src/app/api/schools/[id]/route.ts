@@ -97,7 +97,12 @@ export async function PATCH(
   return NextResponse.json({ data });
 }
 
-// DELETE /api/schools/[id] — force delete
+// DELETE /api/schools/[id] — archive (soft-delete)
+// Non-destructive on purpose: a school is the root of ~55 related tables (students,
+// finance, reports, live sessions…). A hard delete either violates FK constraints or
+// cascades away records you may still need (e.g. settlements). Archiving flips the
+// `is_deleted` flag the school lists already respect — the school disappears from every
+// picker, all data is preserved, and it can be restored by clearing the flag.
 export async function DELETE(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -110,31 +115,11 @@ export async function DELETE(
   const { id } = await context.params;
   const admin = adminClient();
 
-  // 1. Delete teacher assignments
-  await admin.from('teacher_schools').delete().eq('school_id', id);
-
-  // 2. Find and delete all portal_users + their auth accounts
-  const { data: portalUsers } = await admin.from('portal_users').select('id').eq('school_id', id);
-  if (portalUsers && portalUsers.length > 0) {
-    const puIds = portalUsers.map((pu) => pu.id);
-    // Nullify file references and delete students rows before portal_users delete
-    await admin.from('files').update({ uploaded_by: null }).in('uploaded_by', puIds);
-    await admin.from('study_group_messages').update({ sender_id: null }).in('sender_id', puIds);
-    await admin.from('study_group_members').delete().in('user_id', puIds);
-    await admin.from('study_groups').update({ created_by: null }).in('created_by', puIds);
-    await admin.from('students').delete().in('user_id', puIds);
-    for (const pu of portalUsers) {
-      await admin.auth.admin.deleteUser(pu.id);
-      await admin.from('portal_users').delete().eq('id', pu.id);
-    }
-  }
-
-  // 3. Unlink remaining students (those without portal accounts) — just remove the school link
-  await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', id);
-
-  // 4. Hard delete the school row itself
-  const { error } = await admin.from('schools').delete().eq('id', id);
+  const { error } = await admin
+    .from('schools')
+    .update({ is_deleted: true, is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, archived: true });
 }
