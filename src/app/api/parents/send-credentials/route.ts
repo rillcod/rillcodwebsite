@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
 import { buildWelcomeEmail } from '@/lib/email/rillcod-transactional-email';
+import { sendWhatsApp } from '@/lib/whatsapp/send';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,13 +24,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { email, full_name, password, school_name } = await req.json();
+    const { email, full_name, password, school_name, phone } = await req.json();
     if (!email || !full_name || !password) {
       return NextResponse.json({ error: 'email, full_name and password are required' }, { status: 400 });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://academy.rillcod.com').replace(/\/$/, '');
-    const loginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(email.trim().toLowerCase())}&pw=${encodeURIComponent(password)}`;
+    const loginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(cleanEmail)}&pw=${encodeURIComponent(password)}`;
 
     const html = buildWelcomeEmail({
       recipientName: full_name,
@@ -69,17 +71,45 @@ export async function POST(req: Request) {
 
     const finalHtml = html.replace('</body>', `${credentialsBlock}</body>`);
 
-    await notificationsService.sendExternalEmail({
-      to: email.trim().toLowerCase(),
-      subject: `Your Rillcod Parent Portal Access${school_name ? ` — ${school_name}` : ''}`,
-      html: finalHtml,
-      fromName: school_name ? `${school_name} via Rillcod Technologies` : 'Rillcod Technologies',
-      fromEmail: 'support@rillcod.com',
-    });
+    // Attempt both channels independently so one failing never blocks the other —
+    // the whole point is that the parent (our target) actually receives their login.
+    let emailSent = false;
+    try {
+      await notificationsService.sendExternalEmail({
+        to: cleanEmail,
+        subject: `Your Rillcod Parent Portal Access${school_name ? ` — ${school_name}` : ''}`,
+        html: finalHtml,
+        fromName: school_name ? `${school_name} via Rillcod Technologies` : 'Rillcod Technologies',
+        fromEmail: 'support@rillcod.com',
+      });
+      emailSent = true;
+    } catch (e) {
+      console.error('[parents/send-credentials] email failed:', e);
+    }
 
-    return NextResponse.json({ success: true });
+    // WhatsApp fallback — best-effort; sendWhatsApp() no-ops safely if unconfigured.
+    let whatsappSent = false;
+    if (phone) {
+      const waMessage =
+        `Hello ${full_name}, here is your Rillcod parent portal login` +
+        `${school_name ? ` for ${school_name}` : ''}:\n\n` +
+        `Username (email): ${cleanEmail}\n` +
+        `Password: ${password}\n\n` +
+        `Sign in here: ${loginUrl}\n\n` +
+        `Please keep this safe. You can change your password after signing in.`;
+      whatsappSent = await sendWhatsApp(phone, waMessage);
+    }
+
+    if (!emailSent && !whatsappSent) {
+      return NextResponse.json(
+        { error: 'Could not deliver the login by email or WhatsApp. Check the address/phone and try again.' },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json({ success: true, email: emailSent, whatsapp: whatsappSent });
   } catch (err: any) {
     console.error('[parents/send-credentials] error:', err);
-    return NextResponse.json({ error: err.message ?? 'Failed to send email' }, { status: 500 });
+    return NextResponse.json({ error: err.message ?? 'Failed to send credentials' }, { status: 500 });
   }
 }

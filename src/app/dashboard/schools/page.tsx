@@ -73,6 +73,8 @@ export default function SchoolsPage() {
   const [accCreated, setAccCreated] = useState<{ email: string; pw: string } | null>(null);
   const [editingSchool, setEditingSchool] = useState<any | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [gapCount, setGapCount] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any | null>(null);
@@ -99,7 +101,7 @@ export default function SchoolsPage() {
     async function load() {
       setLoading(true); setError(null);
       try {
-        const res = await fetch('/api/schools');
+        const res = await fetch(`/api/schools${showArchived ? '?archived=true' : ''}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Failed to load schools');
         if (!cancelled) setSchools(json.data ?? []);
@@ -112,7 +114,7 @@ export default function SchoolsPage() {
     load();
     checkGaps();
     return () => { cancelled = true; };
-  }, [profile?.id, isAdmin, authLoading]); // eslint-disable-line
+  }, [profile?.id, isAdmin, authLoading, showArchived]); // eslint-disable-line
 
   const checkGaps = async () => {
     try {
@@ -284,6 +286,27 @@ export default function SchoolsPage() {
       setError(e.message ?? 'Failed to save school');
     } finally {
       setCreatingSchool(false);
+    }
+  };
+
+  const handleRestore = async (id: string) => {
+    setRestoring(id);
+    try {
+      const res = await fetch(`/api/schools/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore' }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error ?? 'Failed to restore school');
+      }
+      // Restored school leaves the archived list
+      setSchools(prev => prev.filter(s => s.id !== id));
+    } catch (e: any) {
+      alert(e.message ?? 'Failed to restore school');
+    } finally {
+      setRestoring(null);
     }
   };
 
@@ -606,7 +629,25 @@ export default function SchoolsPage() {
             </select>
             <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           </div>
+          <button
+            type="button"
+            onClick={() => setShowArchived(v => !v)}
+            className={`px-4 py-3 rounded-xl text-sm font-bold border transition-colors whitespace-nowrap ${
+              showArchived
+                ? 'bg-amber-500/15 border-amber-500/40 text-amber-500'
+                : 'bg-card border-border text-muted-foreground hover:text-foreground'
+            }`}
+            title={showArchived ? 'Back to active schools' : 'View archived schools'}
+          >
+            {showArchived ? '← Active Schools' : '🗄 Archived'}
+          </button>
         </div>
+
+        {showArchived && (
+          <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-500 font-semibold">
+            Viewing archived schools. Their records are preserved — click <strong>Restore</strong> to bring one back.
+          </div>
+        )}
 
         {/* Empty */}
         {filtered.length === 0 && !error && (
@@ -671,19 +712,28 @@ export default function SchoolsPage() {
                           className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border">
                           <EyeIcon className="w-3.5 h-3.5" /> View
                         </button>
-                        <button onClick={() => startEdit(s)}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border">
-                          <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
-                        </button>
-                        <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/15">
-                          <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
-                        </button>
-                        {(s.status === 'pending' || !s.status) && (
-                          <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
-                            <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
+                        {showArchived ? (
+                          <button onClick={() => handleRestore(s.id)} disabled={restoring === s.id}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-emerald-500/20">
+                            <CheckCircleIcon className="w-3.5 h-3.5" /> {restoring === s.id ? '…' : 'Restore'}
                           </button>
+                        ) : (
+                          <>
+                            <button onClick={() => startEdit(s)}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border">
+                              <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                            </button>
+                            <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/15">
+                              <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
+                            </button>
+                            {(s.status === 'pending' || !s.status) && (
+                              <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
+                                <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -694,19 +744,28 @@ export default function SchoolsPage() {
                         className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border whitespace-nowrap">
                         <EyeIcon className="w-3.5 h-3.5" /> View
                       </button>
-                      <button onClick={() => startEdit(s)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border whitespace-nowrap">
-                        <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
-                      </button>
-                      <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/15 whitespace-nowrap">
-                        <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
-                      </button>
-                      {(s.status === 'pending' || !s.status) && (
-                        <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 whitespace-nowrap shadow-lg shadow-emerald-900/20">
-                          <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
+                      {showArchived ? (
+                        <button onClick={() => handleRestore(s.id)} disabled={restoring === s.id}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-emerald-500/20 whitespace-nowrap">
+                          <CheckCircleIcon className="w-3.5 h-3.5" /> {restoring === s.id ? '…' : 'Restore'}
                         </button>
+                      ) : (
+                        <>
+                          <button onClick={() => startEdit(s)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-card shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground text-[10px] font-black uppercase rounded-xl transition-all border border-border whitespace-nowrap">
+                            <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/15 whitespace-nowrap">
+                            <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
+                          </button>
+                          {(s.status === 'pending' || !s.status) && (
+                            <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 whitespace-nowrap shadow-lg shadow-emerald-900/20">
+                              <CheckCircleIcon className="w-3.5 h-3.5" /> Approve
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

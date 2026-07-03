@@ -324,6 +324,7 @@ export function ParentForm({
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [deliveredVia, setDeliveredVia] = useState<{ email: boolean; whatsapp: boolean } | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -384,13 +385,15 @@ export function ParentForm({
           full_name: form.full_name,
           password: credentials.password,
           school_name: selectedSchool || undefined,
+          phone: form.phone || undefined,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to send');
+      setDeliveredVia({ email: json.email ?? true, whatsapp: json.whatsapp ?? false });
       setEmailSent(true);
     } catch (err: any) {
-      setEmailError(err.message ?? 'Failed to send email');
+      setEmailError(err.message ?? 'Failed to send login');
     } finally {
       setEmailSending(false);
     }
@@ -426,11 +429,19 @@ export function ParentForm({
           <span>Store this password securely — it cannot be retrieved after closing this window.</span>
         </div>
 
-        {/* Send login email */}
+        {/* Send login — email + WhatsApp so the parent (our target) actually gets it */}
         {emailSent ? (
-          <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
-            <CheckCircleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-            Login credentials emailed to <strong>{credentials.email}</strong>. The link will open the login page with their email pre-filled.
+          <div className="flex items-start gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
+            <CheckCircleIcon className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <span>
+              Login sent to <strong>{credentials.email}</strong>
+              {deliveredVia && (
+                <> — {deliveredVia.email ? 'Email ✓' : 'Email ✕'}{form.phone ? ` · ${deliveredVia.whatsapp ? 'WhatsApp ✓' : 'WhatsApp ✕'}` : ''}</>
+              )}. The link opens the login page with their email pre-filled.
+              {deliveredVia && !deliveredVia.email && deliveredVia.whatsapp && (
+                <span className="block text-amber-400 mt-1">Email didn’t go through — check the address, but WhatsApp was delivered.</span>
+              )}
+            </span>
           </div>
         ) : (
           <div className="space-y-2">
@@ -441,12 +452,15 @@ export function ParentForm({
               className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black uppercase tracking-widest transition-all"
             >
               {emailSending && <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-              {emailSending ? 'Sending…' : 'Send Login Email to Parent'}
+              {emailSending ? 'Sending…' : form.phone ? 'Send Login (Email + WhatsApp)' : 'Send Login Email to Parent'}
             </button>
             {emailError && (
               <p className="text-[10px] text-rose-400 font-bold">{emailError}</p>
             )}
-            <p className="text-[10px] text-muted-foreground">Email includes their username, password, and a direct link to the login page with their email pre-filled.</p>
+            <p className="text-[10px] text-muted-foreground">
+              Sends their username, password and a direct login link by email{form.phone ? ' and WhatsApp' : ''}.
+              {!form.phone && ' Add a phone number above to also send via WhatsApp.'}
+            </p>
           </div>
         )}
 

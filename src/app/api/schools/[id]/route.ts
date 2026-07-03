@@ -67,6 +67,17 @@ export async function PATCH(
     return NextResponse.json({ data });
   }
 
+  if (action === 'restore') {
+    const { data, error } = await adminClient()
+      .from('schools')
+      .update({ is_deleted: false, is_active: true, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('id, name')
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ data, restored: true });
+  }
+
   if (action === 'remove_teacher') {
     const { assignment_id } = rest;
     if (!assignment_id) return NextResponse.json({ error: 'assignment_id required' }, { status: 400 });

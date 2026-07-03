@@ -14,6 +14,7 @@ function adminClient() {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const email = searchParams.get('email');
+  const archived = searchParams.get('archived') === 'true';
 
   // Public: email status check — returns only name, status, created_at (no sensitive data)
   if (email) {
@@ -66,11 +67,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: data ?? [] });
   }
 
-  const { data, error } = await admin
+  // Admins can view the archived (soft-deleted) list via ?archived=true so a school can
+  // be restored; the default list continues to exclude archived schools.
+  let listQuery = admin
     .from('schools')
     .select('*, portal_users(id, email, full_name), teacher_schools(id, teacher_id, portal_users:teacher_id(id, full_name, email))')
-    .or('is_deleted.eq.false,is_deleted.is.null')
     .order('created_at', { ascending: false });
+  listQuery = archived
+    ? listQuery.eq('is_deleted', true)
+    : listQuery.or('is_deleted.eq.false,is_deleted.is.null');
+
+  const { data, error } = await listQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data: data ?? [] });
 }
