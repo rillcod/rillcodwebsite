@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { suggestEmailFix } from '@/lib/email-typo';
+import { PortalAccessBar } from './PortalAccessBar';
 
 const RESEND_COOLDOWN = 30; // seconds before a code can be resent
 
@@ -192,27 +193,23 @@ export default function ParentClaim({
 
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <a
-            href={creds?.parentLoginUrl ?? `/login?type=parent&email=${encodeURIComponent(form.email)}`}
-            className="flex-1 text-center px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all"
-          >
-            Open parent portal
-          </a>
-          {creds?.studentEmail && (
-            <a
-              href={creds.studentLoginUrl ?? `/login?type=student&email=${encodeURIComponent(creds.studentEmail)}`}
-              className="flex-1 text-center px-6 py-2.5 border border-primary/40 bg-primary/5 text-primary rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/10 transition-all"
-            >
-              Open student portal
-            </a>
-          )}
-        </div>
         {(creds?.parentPasswordSent || creds?.studentPasswordSent) && (
           <p className="text-[10px] text-muted-foreground text-center">
-            Buttons open login with your temporary password pre-filled — change it after first sign-in.
+            Temporary passwords were included — use the buttons below (pre-filled) or resend to email/WhatsApp.
           </p>
         )}
+
+        <PortalAccessBar
+          scanCode={code}
+          access={{
+            parentLoginUrl: creds?.parentLoginUrl ?? `/login?type=parent&email=${encodeURIComponent(form.email)}`,
+            studentLoginUrl: creds?.studentLoginUrl ?? (creds?.studentEmail ? `/login?type=student&email=${encodeURIComponent(creds.studentEmail)}` : null),
+            parentEmail: creds?.parentEmail ?? form.email,
+            studentEmail: creds?.studentEmail,
+          }}
+          parentEmailForResend={form.email}
+          showResend
+        />
       </div>
     );
   }

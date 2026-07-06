@@ -31,9 +31,24 @@ const ACTION_STYLE: Record<string, string> = {
   code_sent: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
 };
 
+type UnlinkedRow = {
+  studentUserId: string;
+  fullName: string;
+  schoolName: string | null;
+  className: string | null;
+  parentEmail: string | null;
+  parentPhone: string | null;
+  scanCode: string;
+  scanUrl: string;
+};
+
 export default function ParentClaimsAuditPage() {
   const { profile, loading: authLoading } = useAuth();
+  const [tab, setTab] = useState<'audit' | 'unlinked'>('audit');
   const [rows, setRows] = useState<AuditRow[]>([]);
+  const [unlinked, setUnlinked] = useState<UnlinkedRow[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [inviting, setInviting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [action, setAction] = useState('');
@@ -59,9 +74,56 @@ export default function ParentClaimsAuditPage() {
     }
   }, [page, search, action]);
 
+  const loadUnlinked = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/parent-claim/unlinked?limit=100');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load');
+      setUnlinked(json.rows ?? []);
+      setSelected(new Set());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not load unlinked students');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!authLoading && profile && isStaffRole(profile.role)) void load();
-  }, [authLoading, profile, load]);
+    if (!authLoading && profile && isStaffRole(profile.role)) {
+      if (tab === 'audit') void load();
+      else void loadUnlinked();
+    }
+  }, [authLoading, profile, tab, load, loadUnlinked]);
+
+  useEffect(() => {
+    if (!authLoading && profile && isStaffRole(profile.role)) {
+      fetch('/api/parent-claim/unlinked?limit=100')
+        .then(r => r.ok ? r.json() : { rows: [] })
+        .then(j => setUnlinked(j.rows ?? []))
+        .catch(() => {});
+    }
+  }, [authLoading, profile]);
+
+  async function sendInvites(ids: string[]) {
+    if (ids.length === 0) return;
+    setInviting(true);
+    try {
+      const res = await fetch('/api/parent-claim/unlinked', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentUserIds: ids }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Invite failed');
+      toast.success(`Sent ${json.sent} invite(s)${json.failed ? ` · ${json.failed} failed` : ''}`);
+      void loadUnlinked();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not send invites');
+    } finally {
+      setInviting(false);
+    }
+  }
 
   if (authLoading) {
     return <div className="p-8 text-center text-muted-foreground text-sm">Loading…</div>;
@@ -88,7 +150,7 @@ export default function ParentClaimsAuditPage() {
         </div>
         <button
           type="button"
-          onClick={() => void load()}
+          onClick={() => { if (tab === 'audit') void load(); else void loadUnlinked(); }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-xs font-black uppercase tracking-widest hover:bg-muted"
         >
           <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -96,6 +158,107 @@ export default function ParentClaimsAuditPage() {
         </button>
       </header>
 
+      <div className="flex gap-2 border-b border-border pb-1">
+        {(['audit', 'unlinked'] as const).map(t => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-widest rounded-t-lg ${tab === t ? 'bg-card border border-border border-b-transparent text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            {t === 'audit' ? 'Claim activity' : `Unlinked (${unlinked.length || '…'})`}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'unlinked' ? (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Students with a portal account but no verified parent link. Send a scan link so parents can self-link and get logins.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={inviting || selected.size === 0}
+                onClick={() => void sendInvites([...selected])}
+                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-black uppercase tracking-widest disabled:opacity-50"
+              >
+                {inviting ? 'Sending…' : `Invite selected (${selected.size})`}
+              </button>
+              <button
+                type="button"
+                disabled={inviting || unlinked.filter(u => u.parentEmail).length === 0}
+                onClick={() => void sendInvites(unlinked.filter(u => u.parentEmail).map(u => u.studentUserId))}
+                className="px-4 py-2 rounded-xl border border-border text-xs font-black uppercase tracking-widest hover:bg-muted disabled:opacity-50"
+              >
+                Invite all with email
+              </button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            {loading ? (
+              <div className="p-12 text-center text-muted-foreground text-sm">Loading unlinked students…</div>
+            ) : unlinked.length === 0 ? (
+              <div className="p-12 text-center text-muted-foreground text-sm">All students in scope have a linked parent — great!</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      <th className="px-4 py-3 w-10"><span className="sr-only">Select</span></th>
+                      <th className="text-left px-4 py-3">Student</th>
+                      <th className="text-left px-4 py-3">Parent contact</th>
+                      <th className="text-left px-4 py-3">Scan link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unlinked.map(row => (
+                      <tr key={row.studentUserId} className="border-b border-border/60 hover:bg-muted/20">
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            disabled={!row.parentEmail}
+                            checked={selected.has(row.studentUserId)}
+                            onChange={e => {
+                              setSelected(prev => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(row.studentUserId);
+                                else next.delete(row.studentUserId);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-bold">{row.fullName}</p>
+                          <p className="text-xs text-muted-foreground">{[row.className, row.schoolName].filter(Boolean).join(' · ')}</p>
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          {row.parentEmail ? (
+                            <>
+                              <p className="font-mono">{row.parentEmail}</p>
+                              {row.parentPhone && <p className="text-muted-foreground">{row.parentPhone}</p>}
+                            </>
+                          ) : (
+                            <span className="text-rose-400 font-bold">No email — add in Students first</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <a href={row.scanUrl} target="_blank" rel="noreferrer" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">
+                            {row.scanCode}
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -194,9 +357,11 @@ export default function ParentClaimsAuditPage() {
         <ShieldCheckIcon className="w-5 h-5 text-primary flex-shrink-0" />
         <p className="text-xs text-muted-foreground leading-relaxed">
           <strong className="text-foreground">Blocked</strong> means a stranger tried to claim a child already linked to another parent.
-          Use <strong className="text-foreground">Parents</strong> in the dashboard to add a second guardian when both parents need access.
+          Use <strong className="text-foreground">Unlinked</strong> to email scan invites to parents who aren&apos;t linked yet.
         </p>
       </div>
+        </>
+      )}
     </div>
   );
 }

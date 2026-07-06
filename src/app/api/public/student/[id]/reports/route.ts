@@ -8,6 +8,7 @@ import { isParentCaptured } from '@/lib/parent-claim/captured';
 import { backfillParentLinkFromConsent } from '@/lib/parent-claim/consent-backfill';
 import { getStudentRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
+import { resolveLinkedPortalAccess, resendPortalLoginsForScan } from '@/lib/parent-claim/portal-access';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
 import type { Database, Json } from '@/types/supabase';
 
@@ -300,6 +301,7 @@ export async function GET(
   // form but the junction row was never written — keeps gate + response in sync.
   const parentCaptured = await isParentCaptured(db, student.id);
   const recordGaps = await getStudentRecordGaps(db, student.id);
+  const portalAccess = parentCaptured ? await resolveLinkedPortalAccess(db, student.id) : null;
 
   await logResultAccessEvent(db, req, {
     action: 'result_check_verified',
@@ -318,6 +320,7 @@ export async function GET(
     consentPending: consent.required && !consent.complete,
     consentComplete: consent.required && consent.complete,
     parentCaptured,
+    portalAccess,
     recordGaps,
     needsGender: recordGaps.needsGender,
     student: publicStudentPayload(student, true),
@@ -351,7 +354,7 @@ export async function POST(
 
   const body = await req.json().catch(() => ({}));
   const action = String(body?.action || '').trim().toLowerCase();
-  if (!['print', 'download'].includes(action)) {
+  if (!['print', 'download', 'resend_logins'].includes(action)) {
     return NextResponse.json({ error: 'Unsupported result action' }, { status: 400 });
   }
 
@@ -377,6 +380,38 @@ export async function POST(
       details: { result: student.is_active === false ? 'inactive_student' : 'invalid_access_code' },
     });
     return NextResponse.json({ error: 'Result access not verified' }, { status: 403 });
+  }
+
+  if (action === 'resend_logins') {
+    try {
+      await checkCustomRateLimit({ key: `result-resend-logins:${getClientIp(req)}:${student.id}`, max: 5, window: 3600 });
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        return NextResponse.json({ error: 'Too many resend attempts. Please wait an hour and try again.' }, { status: 429 });
+      }
+    }
+    const email = String(body?.email ?? '').trim().toLowerCase();
+    if (!email) return NextResponse.json({ error: 'Parent email is required.' }, { status: 400 });
+
+    const result = await resendPortalLoginsForScan(db, {
+      studentUserId: student.id,
+      parentEmail: email,
+      accessAuthorized: true,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status ?? 400 });
+    }
+    await logResultAccessEvent(db, req, {
+      action: 'result_check_resend_logins',
+      studentId: student.id,
+      schoolId: student.school_id,
+      rawCode: accessCodeParam,
+      details: {
+        email_sent: result.credentials?.email ?? false,
+        whatsapp_sent: result.credentials?.whatsapp ?? false,
+      },
+    });
+    return NextResponse.json({ ok: true, credentials: result.credentials ?? null });
   }
 
   const reportId = typeof body?.reportId === 'string' ? body.reportId : null;

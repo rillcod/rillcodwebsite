@@ -47,6 +47,12 @@ type QuickCheckResponse = {
   accessRequired?: boolean;
   consentPending?: boolean;
   parentCaptured?: boolean;
+  portalAccess?: {
+    parentLoginUrl: string;
+    studentLoginUrl?: string | null;
+    parentEmail?: string;
+    studentEmail?: string | null;
+  } | null;
   consentComplete?: boolean;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
   needsGender?: boolean;
@@ -304,6 +310,7 @@ export default function ResultQuickCheckPage() {
                 code={code}
                 captured={!!data.parentCaptured}
                 recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
+                portalAccess={data.portalAccess ?? null}
                 onClaimLinked={() => void loadResultCheck()}
               >
                 {reports.length === 0 ? (
