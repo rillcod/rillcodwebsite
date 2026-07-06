@@ -47,6 +47,18 @@ export async function POST(request: Request) {
     .from('portal_users').select('full_name').eq('id', guard.studentId).maybeSingle();
   const scannedChildName = student?.full_name || 'your child';
 
+  // Anti-abuse: don't let the endpoint be used to email-bomb an address — cap codes
+  // sent to the same email in a short window (in addition to the per-IP rate limit).
+  const cutoff = new Date(Date.now() - 45_000).toISOString();
+  const { count: recent } = await (admin as any)
+    .from('parent_claim_otps')
+    .select('id', { count: 'exact', head: true })
+    .eq('email', email)
+    .gte('created_at', cutoff);
+  if ((recent ?? 0) >= 2) {
+    return NextResponse.json({ error: 'A code was just sent. Please check your inbox/WhatsApp and wait a moment before requesting another.' }, { status: 429 });
+  }
+
   const otp = generateOtp();
   // parent_claim_otps is created by migration but not yet in the generated types.
   const { data: claim, error: insErr } = await (admin as any)
