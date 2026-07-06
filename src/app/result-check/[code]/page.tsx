@@ -17,6 +17,7 @@ import {
 import ModernReportCard from '@/components/reports/ModernReportCard';
 import type { OrgSettings, ReportCardData } from '@/components/reports/ModernReportCard';
 import { generateReportPDF, printElement, ScaledReportCard } from '@/lib/pdf-utils';
+import ResultGate from '@/components/verify/ResultGate';
 
 type QuickStudent = {
   id: string;
@@ -34,6 +35,7 @@ type QuickReport = ReportCardData & {
 type QuickCheckResponse = {
   accessRequired?: boolean;
   consentRequired?: boolean;
+  parentCaptured?: boolean;
   oneTime?: boolean;
   error?: string;
   message?: string;
@@ -231,10 +233,11 @@ export default function ResultQuickCheckPage() {
                   <CheckCircleIcon className="w-6 h-6 text-emerald-400 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-black text-foreground">Verified by Rillcod Technologies</p>
-                    <p className="text-xs text-muted-foreground mt-1">Code and consent checks passed. The official published report is shown below.</p>
+                    <p className="text-xs text-muted-foreground mt-1">This is a genuine Rillcod result access code.</p>
                   </div>
                 </div>
 
+                <ResultGate code={code} captured={!!data.parentCaptured}>
                 {reports.length === 0 ? (
                   <div className="rounded-[1.5rem] border border-border bg-background p-8 text-center">
                     <DocumentChartBarIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -305,6 +308,7 @@ export default function ResultQuickCheckPage() {
                     )}
                   </>
                 )}
+                </ResultGate>
               </div>
             )}
             <div className="pt-2 border-t border-border">

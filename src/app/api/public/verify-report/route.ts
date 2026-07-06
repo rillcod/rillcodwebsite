@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
+import { isParentCaptured } from '@/lib/parent-claim/captured';
 
 // Public endpoint — no auth required. Uses service role to bypass RLS.
 // Only returns published reports so drafts stay private.
@@ -91,20 +92,8 @@ export async function GET(request: Request) {
     }
   } catch { /* rank is best-effort — never block verification */ }
 
-  // Has this student's parent data already been mined/linked (consent form, staff link,
-  // or a prior claim)? If so the result is shown straight away; if not, the verify page
-  // gates it behind the parent claim so we capture the parent's real details first.
-  let parentCaptured = false;
-  if (report.student_id) {
-    const { data: sRow } = await (admin as any)
-      .from('students').select('id, parent_email').eq('user_id', report.student_id).maybeSingle();
-    if (sRow?.parent_email) parentCaptured = true;
-    if (!parentCaptured && sRow?.id) {
-      const { data: link } = await (admin as any)
-        .from('parent_student_links').select('id').eq('student_id', sRow.id).limit(1).maybeSingle();
-      if (link) parentCaptured = true;
-    }
-  }
+  // Has this student's REAL parent been captured (verified link)? Same rule everywhere.
+  const parentCaptured = report.student_id ? await isParentCaptured(admin as any, report.student_id) : false;
 
   return NextResponse.json({ found: true, report, orgSettings: orgData ?? null, otherReports, classRank, parentCaptured });
 }

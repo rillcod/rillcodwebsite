@@ -4,6 +4,7 @@ import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 import { compareReportsByPeriodDesc } from '@/lib/reports/academic-period';
 import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
+import { isParentCaptured } from '@/lib/parent-claim/captured';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
 import type { Database, Json } from '@/types/supabase';
 
@@ -286,6 +287,9 @@ export async function GET(
     published_at: report.updated_at,
   }));
 
+  // Has a REAL parent been captured (verified linked account, not just a bulk email)?
+  const parentCaptured = await isParentCaptured(db, student.id);
+
   await logResultAccessEvent(db, req, {
     action: 'result_check_verified',
     studentId: student.id,
@@ -301,6 +305,7 @@ export async function GET(
   return NextResponse.json({
     accessRequired: false,
     consentRequired: false,
+    parentCaptured,
     student: publicStudentPayload(student, true),
     reports: ordered,
     terms,

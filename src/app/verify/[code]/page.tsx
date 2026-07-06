@@ -13,7 +13,7 @@ import {
 } from '@/lib/icons';
 import { ScaledReportCard } from '@/lib/pdf-utils';
 import ReportCard from '@/components/reports/ReportCard';
-import ParentClaim from '@/components/verify/ParentClaim';
+import ResultGate from '@/components/verify/ResultGate';
 
 function ordinal(n: number): string {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -135,22 +135,6 @@ export default function VerifyCodePage() {
   const [switching, setSwitching] = useState(false);
   const [classRank, setClassRank] = useState<{ position: number; classSize: number } | null>(null);
   const [parentCaptured, setParentCaptured] = useState(false);
-  const [claimUnlocked, setClaimUnlocked] = useState(false);
-  const [staffUnlocked, setStaffUnlocked] = useState(false);
-
-  // Logged-in staff (admin/teacher/school) bypass the parent gate — verified server-side
-  // via their session, not a client guess. Parents on the public page are unaffected.
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/auth/me')
-      .then(r => (r.ok ? r.json() : null))
-      .then(j => {
-        const role = j?.profile?.role;
-        if (!cancelled && role && ['admin', 'teacher', 'school'].includes(role)) setStaffUnlocked(true);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
   const [certificate, setCertificate] = useState<any | null>(null);
   const [card, setCard] = useState<any | null>(null);
   const [mode, setMode] = useState<'report' | 'certificate' | 'card' | null>(null);
@@ -384,13 +368,7 @@ export default function VerifyCodePage() {
               {/* MODE: Report Display */}
               {mode === 'report' && report && (
                 <div className="space-y-12">
-                  {staffUnlocked && !parentCaptured && (
-                    <div className="bg-primary/5 border border-primary/20 rounded-2xl px-5 py-3 text-center">
-                      <p className="text-[11px] font-black uppercase tracking-widest text-primary">Staff view — result shown without the parent gate</p>
-                    </div>
-                  )}
-                  {(parentCaptured || claimUnlocked || staffUnlocked) ? (
-                  <>
+                  <ResultGate code={activeCode || String(code)} captured={parentCaptured}>
                   {/* Academic year / term selector — lets a school view this student's
                       other published terms instead of only the scanned one. */}
                   {otherReports.length > 1 && (
@@ -445,34 +423,7 @@ export default function VerifyCodePage() {
                       New Verification
                     </Link>
                   </div>
-                  </>
-                  ) : (
-                    <div className="bg-card border border-amber-500/30 rounded-2xl p-6 text-center space-y-2">
-                      <p className="text-sm font-black text-foreground">🔒 This result is protected</p>
-                      <p className="text-xs text-muted-foreground">
-                        Confirm you’re the parent or guardian below to view the full report. Once verified, it opens instantly every time.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Self-service parent link — also the gate that unlocks the result.
-                      Shown only while the child isn't yet captured (or just claimed);
-                      hidden for staff and for already-linked children (anti-hijack). */}
-                  {!staffUnlocked && (!parentCaptured || claimUnlocked) && (
-                    <ParentClaim
-                      code={activeCode || String(code)}
-                      onLinked={() => { setClaimUnlocked(true); setParentCaptured(true); }}
-                    />
-                  )}
-                  {!staffUnlocked && parentCaptured && !claimUnlocked && (
-                    <div className="bg-card border border-border rounded-2xl p-5 text-center">
-                      <p className="text-xs text-muted-foreground">
-                        Are you the parent/guardian?{' '}
-                        <a href="/login?type=parent" className="text-primary font-bold underline">Sign in to your portal</a>{' '}
-                        to manage results. To be added to this child’s account, contact the school.
-                      </p>
-                    </div>
-                  )}
+                  </ResultGate>
                 </div>
               )}
 
@@ -635,9 +586,6 @@ export default function VerifyCodePage() {
                       </div>
                     </div>
                   )}
-
-                  {/* Self-service: link this child to a parent account */}
-                  <ParentClaim code={String(code)} />
 
                   <div className="flex flex-col md:flex-row items-center justify-center gap-4">
                     <Link
