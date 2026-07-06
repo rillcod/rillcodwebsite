@@ -34,7 +34,7 @@ interface CardConfig {
   cornerRadius: 'sharp' | 'rounded' | 'pill';
   bgColor: string; showLogo: boolean; showPhotoSlot: boolean;
   cardOrientation: 'portrait' | 'landscape';
-  width: string; height: string; fields: FieldConfig[];
+  width: string; height: string; qrScale?: number; fields: FieldConfig[];
   typo: {
     orgName: TypoStyle; orgWebsite: TypoStyle; studentName: TypoStyle;
     school: TypoStyle; fieldLabel: TypoStyle; fieldValue: TypoStyle;
@@ -252,7 +252,7 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
         </div>
         {vis('qr') && (
           <div style={{width:'30%',minWidth:'25mm',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,padding:'10px 8px',background:'#fafafa',flexShrink:0}}>
-            <QrPlaceholder size={54} color={acc}/>
+            <QrPlaceholder size={Math.round(54*(cfg.qrScale??1))} color={acc}/>
             <div style={ts(t.footer,{textTransform:'uppercase',letterSpacing:0.5,textAlign:'center'})}>Scan to verify</div>
             <div style={ts(t.accentValue,{textAlign:'center'})}>{SAMPLE.id}</div>
           </div>
@@ -283,8 +283,10 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   const isRevoking = isRevokingIds.has(r.id);
   const acc   = config.accentColor || '#1A3A8F';
   const hStyle = config.headerStyle || 'band';
-  const code  = dbCard?.card_number ?? accessCardCodeForStudent(r.id);
-  const verifyUrl = dbCard?.verification_code ? `${window.location.origin}/result-check/${dbCard.verification_code}` : `${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
+  // RC-XXXXXXXX is the one canonical card code — students use the deterministic student
+  // code, others use their card's RC verification_code. Never CARD-…/card_number.
+  const code  = r.roleLabel==='Student' ? accessCardCodeForStudent(r.id) : (dbCard?.verification_code ?? accessCardCodeForStudent(r.id));
+  const verifyUrl = `${window.location.origin}/result-check/${code}`;
 
   return (
     <div className={`flex flex-col rounded-xl overflow-hidden border transition-all bg-card ${isSelected?'border-primary ring-1 ring-primary/40':'border-border hover:border-muted-foreground/30'}`}>
@@ -326,10 +328,10 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             {r.sectionClass&&<div><div style={{fontSize:6,color:'#9ca3af',textTransform:'uppercase',fontWeight:700}}>Class</div>
               <div style={{fontSize:8,fontWeight:700,color:'#111'}}>{r.sectionClass}</div>
             </div>}
-            <div style={{marginTop:2,display:'inline-block',background:`${acc}18`,border:`1px solid ${acc}40`,color:acc,fontSize:6,fontWeight:800,padding:'1px 5px',textTransform:'uppercase'}}>{r.badge}</div>
+            {r.badge&&r.badge!==r.sectionClass&&<div style={{marginTop:2,display:'inline-block',background:`${acc}18`,border:`1px solid ${acc}40`,color:acc,fontSize:6,fontWeight:800,padding:'1px 5px',textTransform:'uppercase'}}>{r.badge}</div>}
           </div>
-          <div style={{width:60,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 4px',background:'#fafafa',flexShrink:0}}>
-            <LocalQr data={verifyUrl} size={120} style={{width:42,height:42,border:'1px solid #e5e7eb'}}/>
+          <div style={{width:Math.max(60,Math.round(42*(config.qrScale??1))+18),display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 4px',background:'#fafafa',flexShrink:0}}>
+            <LocalQr data={verifyUrl} size={160} style={{width:Math.round(42*(config.qrScale??1)),height:Math.round(42*(config.qrScale??1)),border:'1px solid #e5e7eb'}}/>
             <div style={{fontSize:6,fontWeight:900,fontFamily:'monospace',color:acc,textAlign:'center',wordBreak:'break-all'}}>{code}</div>
           </div>
         </div>
@@ -509,7 +511,9 @@ export default function CardStudioPage() {
     const acc = cfg.accentColor;
     const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
     const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
-    const sampleQr = await qrDataUrl('https://rillcod.com/result-check/RC-SAMPLE1', 200);
+    const qrScale = cfg.qrScale ?? 1;
+    const qrMm = (25 * qrScale).toFixed(1);
+    const sampleQr = await qrDataUrl('https://rillcod.com/result-check/RC-SAMPLE1', 420);
     const expiry = new Date(Date.now()+365*24*60*60*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
     const sampleData: Record<string,string> = { school:SAMPLE.school,email:SAMPLE.email,password:SAMPLE.password,programme:SAMPLE.programme,studentId:SAMPLE.id,className:SAMPLE.className,expiry };
     const logoUrl = window.location.origin + '/images/logo.png';
@@ -543,8 +547,8 @@ export default function CardStudioPage() {
       .lbl{font-size:6px;font-weight:700;color:${cfg.typo.fieldLabel.color};text-transform:uppercase;letter-spacing:.5px}
       .val{font-size:10px;font-weight:700;font-family:monospace;color:${cfg.typo.fieldValue.color};word-break:break-all}
       .val-a{font-size:10px;font-weight:800;font-family:monospace;color:${cfg.typo.accentValue.color};word-break:break-all}
-      .qrp{width:25%;min-width:20mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 10px;background:#fafafa;flex-shrink:0}
-      .qr{width:100%;max-width:25mm;height:auto;aspect-ratio:1;border:1px solid #e5e7eb}
+      .qrp{width:30%;min-width:${qrMm}mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 8px;background:#fafafa;flex-shrink:0}
+      .qr{width:100%;max-width:${qrMm}mm;height:auto;aspect-ratio:1;border:1px solid #e5e7eb}
       .qrl{font-size:6px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;text-align:center;font-weight:600}
       .qrc{font-size:7px;font-weight:900;font-family:monospace;color:${acc};text-align:center}
       .cftr{display:flex;justify-content:space-between;align-items:center;padding:6px 14px;border-top:1px solid #f3f4f6;font-size:7px;color:#9ca3af;font-weight:600;background:#fafafa}
@@ -805,8 +809,13 @@ export default function CardStudioPage() {
         card_number: dbCard?.card_number??null,
         verification_code: dbCard?.verification_code??null,
         expires_at: dbCard?.expires_at??null,
+        // RC-XXXXXXXX only: students use the deterministic student code (resolves to
+        // their results); others use their card's RC verification_code (resolves to
+        // identity). card_number (CARD-…) is never printed.
+        card_code: r.roleLabel==='Student' ? accessCardCodeForStudent(r.id) : (dbCard?.verification_code ?? accessCardCodeForStudent(r.id)),
         role_label: r.roleLabel,
-        badge: r.badge,
+        // Don't repeat the class as a badge — it's already shown as the Class field.
+        badge: r.badge === r.sectionClass ? null : r.badge,
       };
     });
     const html = await buildBulkPrintHtml(holders, manageConfig as PrintCardConfig, window.location.origin, { fixedSize:true, qrHint:'Scan to verify' });
@@ -906,6 +915,20 @@ export default function CardStudioPage() {
                   {s.label}
                 </button>
               ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">QR Size</div>
+            <div className="flex gap-1.5 mb-2">
+              {([{label:'Compact',v:0.85},{label:'Standard',v:1},{label:'Large',v:1.35}]).map(s=>{
+                const active=(cfg.qrScale??1)===s.v;
+                return (
+                  <button key={s.label} onClick={()=>update({qrScale:s.v})}
+                    className={`flex-1 py-1.5 text-[8px] font-bold uppercase border transition-all truncate rounded-md ${active?'border-primary bg-primary/10 text-primary':'border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                    {s.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div>

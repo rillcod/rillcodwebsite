@@ -113,16 +113,14 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
   const [printed, setPrinted] = useState(false);
   const acc = cfg.accentColor;
   const [r,g,b] = hex2rgb(acc);
-  const code = myCard?.card_number ?? accessCardCodeForStudent(profile.id);
+  // RC-XXXXXXXX only — students use the deterministic student code (resolves to results),
+  // others use their card's RC verification_code. card_number (CARD-…) is never shown.
+  const code = profile.role === 'student'
+    ? accessCardCodeForStudent(profile.id)
+    : (myCard?.verification_code ?? accessCardCodeForStudent(profile.id));
   const roleLabel = {student:'Student',teacher:'Teacher',admin:'Administrator',school:'School Partner',parent:'Parent'}[profile.role as string] ?? profile.role;
   const idLabel = {student:'Student ID',teacher:'Staff ID',parent:'Parent Card ID',school:'Partner ID'}[profile.role as string] ?? 'Card ID';
-  // Fallback for students without an issued card: the deterministic RC- access code
-  // still resolves on /result-check, so the QR is useful instead of a dead profile link.
-  const verifyUrl = myCard?.verification_code
-    ? `${window.location.origin}/result-check/${myCard.verification_code}`
-    : profile.role === 'student'
-      ? `${window.location.origin}/result-check/${accessCardCodeForStudent(profile.id)}`
-      : `${window.location.origin}/dashboard/profile`;
+  const verifyUrl = `${window.location.origin}/result-check/${code}`;
   const [qrUrl, setQrUrl] = useState('');
   useEffect(() => { qrDataUrl(verifyUrl, 200).then(setQrUrl); }, [verifyUrl]);
 
@@ -136,6 +134,7 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
       school_name: profile.school_name ?? null,
       card_number: myCard?.card_number ?? null,
       verification_code: myCard?.verification_code ?? null,
+      card_code: code,
       expires_at: myCard?.expires_at ?? null,
       role_label: roleLabel,
       avatar_url: profile.avatar_url ?? null,
@@ -245,10 +244,8 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
     (async () => {
       const map = new Map<string,string>();
       for (const child of children) {
-        const card = childCardsMap.get(child.id);
-        if (card?.verification_code) {
-          map.set(child.id, await qrDataUrl(`${window.location.origin}/result-check/${card.verification_code}`, 160));
-        }
+        // Deterministic RC-XXXXXXXX (the student's canonical code) — always resolves.
+        map.set(child.id, await qrDataUrl(`${window.location.origin}/result-check/${accessCardCodeForStudent(child.id)}`, 220));
       }
       if (!cancelled) setChildQrMap(map);
     })();
@@ -284,6 +281,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
       section_class: child.section_class,
       card_number: dbCard?.card_number ?? null,
       verification_code: dbCard?.verification_code ?? null,
+      card_code: accessCardCodeForStudent(child.id),
       expires_at: dbCard?.expires_at ?? null,
       role_label: 'Student',
     };
@@ -318,7 +316,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {children.map(child => {
             const dbCard = childCardsMap.get(child.id);
-            const code = dbCard?.card_number??'PENDING';
+            const code = accessCardCodeForStudent(child.id);
             const statusLabel = dbCard?({active:'Active',issued:'Issued',revoked:'Revoked',expired:'Expired'}[dbCard.status]??dbCard.status):'Not Issued';
             const statusColor = dbCard?({active:'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',issued:'bg-primary/15 text-primary border-primary/30',revoked:'bg-rose-500/20 text-rose-400 border-rose-500/30',expired:'bg-amber-500/20 text-amber-400 border-amber-500/30'}[dbCard.status]??'bg-muted/50 text-muted-foreground border-border'):'bg-muted/50 text-muted-foreground border-border';
             const qrUrl = childQrMap.get(child.id) ?? null;

@@ -32,6 +32,8 @@ export interface CardConfig {
   /** CR80 dimensions from Card Studio (e.g. '54mm' × '85.6mm'). */
   width?: string;
   height?: string;
+  /** QR size regulator from Card Studio (0.85 = compact, 1 = standard, 1.35 = large). */
+  qrScale?: number;
   /** Typography from the Card Studio design tab — colors are applied to prints. */
   typo?: Record<string, CardTypoStyle>;
   fields: CardFieldConfig[];
@@ -55,6 +57,8 @@ export interface CardHolder {
   card_number?: string | null;
   expires_at?: string | null;
   verification_code?: string | null;
+  /** The RC-XXXXXXXX code to print/encode. Defaults to the deterministic student code. */
+  card_code?: string | null;
   avatar_url?: string | null;
   /** Actual temp password to print (login slips); omitted → "Set on first login". */
   temp_password?: string | null;
@@ -114,12 +118,17 @@ export async function buildSingleCardHtml(
   const fl = (k: string, fb: string) => fieldLabel(cfg, k, fb);
   const tc = (k: string, fb: string) => typoColor(cfg, k, fb);
 
-  const code = holder.card_number || holderCode(holder.id);
-  // ID cards resolve on the single result surface (/result-check), which accepts the
-  // card verification_code as well as the RC- access code.
-  const verifyCode = holder.verification_code || holderCode(holder.id);
+  // RC-XXXXXXXX is the single canonical card code — deterministically derived from the
+  // student's unique id (accessCardCodeForStudent). It is the default student ID and the
+  // only source of uniqueness we print/encode; card_number (CARD-…) and the random
+  // verification_code are never used on the card.
+  const code = holder.card_code || holderCode(holder.id);
+  const verifyCode = code;
   const qrData = `${originUrl}/result-check/${verifyCode}`;
-  const qrSrc = fv('qr') ? await qrDataUrl(qrData, 260) : '';
+  const qrSrc = fv('qr') ? await qrDataUrl(qrData, 480) : '';
+  const qrScale = cfg.qrScale ?? 1;
+  const qrPx = Math.round(150 * qrScale);
+  const qrpPx = qrPx + 34;
   const expiryVal = holder.expires_at
     ? new Date(holder.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
@@ -189,8 +198,8 @@ export async function buildSingleCardHtml(
     .lbl { font-size:7.5px; font-weight:700; color:${tc('fieldLabel','#9ca3af')}; text-transform:uppercase; letter-spacing:1px; }
     .val { font-size:13px; font-weight:700; font-family:monospace; color:${tc('fieldValue','#111')}; word-break:break-all; }
     .val-a { font-size:13px; font-weight:800; font-family:monospace; color:${tc('accentValue', acc)}; word-break:break-all; }
-    .qrp { width:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:18px 16px; background:#fafafa; flex-shrink:0; }
-    .qr  { width:130px; height:130px; border:1px solid #e5e7eb; display:block; }
+    .qrp { width:${qrpPx}px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:18px 14px; background:#fafafa; flex-shrink:0; }
+    .qr  { width:${qrPx}px; height:${qrPx}px; border:1px solid #e5e7eb; display:block; }
     .qrl { font-size:7px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; text-align:center; font-weight:600; }
     .qrc { font-size:9px; font-weight:900; font-family:monospace; color:${acc}; text-align:center; word-break:break-all; }
     .photo { width:64px; height:80px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; flex-shrink:0; }
@@ -253,12 +262,14 @@ export async function buildBulkPrintHtml(
   const tc = (k: string, fb: string) => typoColor(cfg, k, fb);
   const logoUrl = `${originUrl}/logo.png`;
 
-  const qrPayload = (h: CardHolder) => `${originUrl}/result-check/${h.verification_code || holderCode(h.id)}`;
-  const qrMap = fv('qr') ? await qrDataUrls(holders.map(qrPayload), 200) : new Map<string, string>();
+  // RC-XXXXXXXX is the single code we encode/print (per-holder card_code, else the
+  // deterministic student code).
+  const qrPayload = (h: CardHolder) => `${originUrl}/result-check/${h.card_code || holderCode(h.id)}`;
+  const qrMap = fv('qr') ? await qrDataUrls(holders.map(qrPayload), 420) : new Map<string, string>();
 
   const cardHtml = (h: CardHolder) => {
-    const code = h.card_number || holderCode(h.id);
-    const verifyCode = h.verification_code || holderCode(h.id);
+    const code = h.card_code || holderCode(h.id);
+    const verifyCode = code;
     const qrSrc = qrMap.get(qrPayload(h)) || '';
     const hdrClass = hs === 'band' ? 'hdr-band' : hs === 'border' ? 'hdr-border' : 'hdr-min';
     const rows = [
@@ -282,13 +293,17 @@ export async function buildBulkPrintHtml(
           ${h.role_label ? `<div class="role">${h.role_label}</div>` : ''}
           <div class="sep"></div>
           ${rows}
-          ${h.badge ? `<div class="hbadge">${h.badge}</div>` : ''}
+          ${h.badge && h.badge !== h.section_class ? `<div class="hbadge">${h.badge}</div>` : ''}
         </div>
         ${fv('qr') ? `<div class="right"><img class="qr" src="${qrSrc}" />${opts.qrHint ? `<div class="qrhint">${opts.qrHint}</div>` : ''}<div class="code">${verifyCode}</div></div>` : ''}
       </div>
       <div class="ftr"><span>${cfg.footerLeft}</span><span>${code}</span></div>
     </div>`;
   };
+
+  const qrScale = cfg.qrScale ?? 1;
+  const qrMm = (20 * qrScale).toFixed(1);
+  const rightMm = (parseFloat(qrMm) + 6).toFixed(1);
 
   const fixed = opts.fixedSize && cfg.width && cfg.height;
   const gridCss = fixed
@@ -320,8 +335,8 @@ export async function buildBulkPrintHtml(
     .val  { font-size:2mm; font-weight:700; color:${tc('fieldValue','#111827')}; word-break:break-word; }
     .val-a { font-size:2mm; font-weight:800; font-family:monospace; color:${tc('accentValue', acc)}; word-break:break-word; }
     .hbadge { display:inline-block; background:${acc}15; border:1px solid ${acc}40; color:${acc}; font-size:1.7mm; font-weight:800; padding:.6mm 1.4mm; margin-top:1mm; }
-    .right { width:22mm; background:#fafafa; padding:2mm; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:1mm; }
-    .qr   { width:15mm; height:15mm; border:1px solid #e5e7eb; }
+    .right { width:${rightMm}mm; background:#fafafa; padding:2mm; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:1mm; }
+    .qr   { width:${qrMm}mm; height:${qrMm}mm; border:1px solid #e5e7eb; }
     .qrhint { font-size:1.4mm; color:#6b7280; text-transform:uppercase; font-weight:900; text-align:center; line-height:1.2; }
     .code { color:${acc}; font-size:1.5mm; font-family:monospace; font-weight:900; text-align:center; word-break:break-all; }
     .ftr  { border-top:1px solid #f3f4f6; background:#fafafa; color:#6b7280; display:flex; justify-content:space-between; padding:1.2mm 3mm; font-size:1.5mm; }
