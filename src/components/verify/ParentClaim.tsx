@@ -31,6 +31,12 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
     return () => clearTimeout(t);
   }, [cooldown]);
 
+  // Seamless: auto-verify as soon as all 6 digits are in — no extra tap.
+  useEffect(() => {
+    if (step === 'otp' && otp.length === 6 && !loading) void verify();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otp, step]);
+
   const emailFix = suggestEmailFix(form.email);
   const isParent = form.relationship === 'Father' || form.relationship === 'Mother';
   const field = 'w-full px-4 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors';
@@ -119,8 +125,8 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
           <p className="text-sm font-black text-foreground">Are you the parent / guardian?</p>
           <p className="text-xs text-muted-foreground">
             {SKIP_OTP
-              ? 'Enter your details once — we’ll create & link your parent account automatically.'
-              : 'Verify your email & phone with a quick code, and we’ll create & link your parent account automatically.'}
+              ? 'Enter your details once to unlock the full result — we’ll create & link your parent account automatically.'
+              : 'Confirm it’s you with a quick code to unlock the full result — your parent account is then created & linked automatically.'}
           </p>
         </div>
         <button onClick={() => setStep('form')} className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all">
@@ -135,10 +141,10 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
       <div className={box}>
         <p className="text-sm font-black text-foreground">Enter your code</p>
         <p className="text-xs text-muted-foreground">
-          We sent a 6-digit code{sentVia?.whatsapp ? ' via WhatsApp' : ''}{sentVia?.whatsapp && sentVia?.email ? ' and' : ''}{sentVia?.email ? ' by email' : ''} to confirm they’re yours.
+          We sent a 6-digit code{sentVia?.whatsapp ? ' via WhatsApp' : ''}{sentVia?.whatsapp && sentVia?.email ? ' and' : ''}{sentVia?.email ? ' by email' : ''}. Enter it to unlock the result — it links automatically.
         </p>
         {error && <p className="text-xs text-rose-400 font-bold">{error}</p>}
-        <input className={`${field} tracking-[0.5em] text-center text-lg font-black`} inputMode="numeric" maxLength={6}
+        <input autoFocus className={`${field} tracking-[0.5em] text-center text-lg font-black`} inputMode="numeric" maxLength={6}
           placeholder="••••••" value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} />
         <div className="flex gap-2">
           <button onClick={() => setStep('form')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>

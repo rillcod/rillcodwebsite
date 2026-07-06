@@ -53,6 +53,40 @@ export async function resolveAndGuardChild(
   return { studentId };
 }
 
+/** Best-effort accountability log for the claim (never blocks the flow). */
+async function logClaimAudit(admin: Db, row: {
+  student_id: string; parent_id?: string | null; email: string; phone: string | null;
+  action: 'linked' | 'blocked'; siblings_linked?: number; note?: string;
+}): Promise<void> {
+  try {
+    await (admin as any).from('parent_claim_audit').insert({
+      student_id: row.student_id, parent_id: row.parent_id ?? null,
+      email: row.email, phone: row.phone, action: row.action,
+      siblings_linked: row.siblings_linked ?? 0, note: row.note ?? null,
+    });
+  } catch { /* best-effort */ }
+}
+
+/** In-app notification to the school's staff + admins when a parent self-links via QR. */
+async function notifyStaffOfClaim(admin: Db, schoolId: string | null, childName: string | null, parentName: string): Promise<void> {
+  if (!schoolId) return;
+  try {
+    const [{ data: schoolStaff }, { data: admins }] = await Promise.all([
+      admin.from('portal_users').select('id').in('role', ['teacher', 'school']).eq('school_id', schoolId).eq('is_active', true),
+      admin.from('portal_users').select('id').eq('role', 'admin').eq('is_active', true),
+    ]);
+    const users = [...(schoolStaff ?? []), ...(admins ?? [])];
+    if (users.length === 0) return;
+    const now = new Date().toISOString();
+    await (admin as any).from('notifications').insert(users.map((u: { id: string }) => ({
+      user_id: u.id,
+      title: 'Parent self-registered via result QR',
+      message: `${parentName} linked to ${childName ?? 'a student'} by scanning a result / ID card.`,
+      type: 'info', is_read: false, created_at: now, updated_at: now,
+    })));
+  } catch { /* best-effort */ }
+}
+
 /**
  * The full self-service completion: create/link the parent + scanned child, auto-link
  * siblings (full parent info), record the consent-form lead, mine the parent into the
@@ -80,6 +114,7 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     }
     const matchesExisting = (!!exEmail && exEmail === email) || (!!exPhone && !!inPhone && exPhone === inPhone);
     if (hasParent && !matchesExisting) {
+      await logClaimAudit(admin, { student_id: studentId, email, phone, action: 'blocked', note: 'child already linked to a different parent' });
       return {
         ok: false,
         status: 409,
@@ -137,6 +172,13 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
   if (prov.accountCreated && prov.generatedPassword) {
     await deliverParentLogin({ email, phone, fullName, password: prov.generatedPassword, schoolName: prov.schoolName });
   }
+
+  // Accountability + staff visibility (both best-effort).
+  await logClaimAudit(admin, {
+    student_id: studentId, parent_id: prov.parentId, email, phone,
+    action: 'linked', siblings_linked: siblingNames.length,
+  });
+  await notifyStaffOfClaim(admin, prov.schoolId ?? null, prov.childName ?? null, fullName);
 
   return {
     ok: true,

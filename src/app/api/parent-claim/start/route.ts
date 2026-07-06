@@ -73,6 +73,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Could not start verification. Please try again.' }, { status: 500 });
   }
 
+  // Housekeeping (drop expired codes) + audit (code requested) — best-effort, non-blocking.
+  (admin as any).from('parent_claim_otps').delete().lt('expires_at', new Date().toISOString()).then(() => {}).catch(() => {});
+  (admin as any).from('parent_claim_audit')
+    .insert({ student_id: guard.studentId, email, phone, action: 'code_sent', ip: getClientIp(request as any) })
+    .then(() => {}).catch(() => {});
+
   const message =
     `Rillcod: your verification code is ${otp}. Enter it to view ${scannedChildName}'s results and link ` +
     `your parent account. It expires in ${OTP_TTL_MINUTES} minutes.`;
