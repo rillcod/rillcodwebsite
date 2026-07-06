@@ -660,7 +660,7 @@ export default function CardStudioPage() {
 
   const loadDbCards = useCallback(async (type: CardType) => {
     try {
-      const res = await fetch(`/api/cards?holder_type=${type}`,{cache:'no-store'});
+      const res = await fetch(`/api/cards?holder_type=${type}&slim=true`,{cache:'no-store'});
       if(!res.ok) return;
       const json = await res.json();
       const map = new Map<string,DbCard>();
@@ -743,21 +743,21 @@ export default function CardStudioPage() {
   };
 
   const bulkIssueList = async (list: CardRecord[]) => {
-    const unissued = list.filter(r=>!dbCardsMap.has(r.id));
-    if(!unissued.length) return;
-    setBulkIssuing(true); setBulkProgress({done:0,total:unissued.length}); let done=0;
-    const results = await Promise.allSettled(unissued.map(async r=>{
-      const res=await fetch('/api/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holder_type:cardType,holder_id:r.id,school_id:r.schoolId,expires_at:issueExpiresAt()})});
-      if(!res.ok){const j=await res.json();throw new Error(j.error||'Failed');}
-      done++; setBulkProgress({done,total:unissued.length});
-    }));
-    const rejected=results.filter(r=>r.status==='rejected') as PromiseRejectedResult[];
-    const succeeded=results.filter(r=>r.status==='fulfilled').length;
-    if(rejected.length){
-      const reason=rejected[0]?.reason?.message||'Failed';
-      toast.error(`${rejected.length} card(s) failed — ${reason}`);
-    }
-    if(succeeded) toast.success(`${succeeded} card(s) issued`);
+    if(!list.length) return;
+    setBulkIssuing(true); setBulkProgress(null);
+    try {
+      // The server decides who is actually missing a card and issues only those — we just
+      // hand it the holder ids, so the browser never loads the full card set.
+      const res = await fetch('/api/cards/issue-missing',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({holder_type:cardType,holder_ids:list.map(r=>r.id),expires_at:issueExpiresAt()})});
+      const j = await res.json().catch(()=>({}));
+      if(!res.ok){ toast.error(j.error||'Failed to issue cards'); }
+      else {
+        if(j.issued) toast.success(`${j.issued} card(s) issued`);
+        if(j.failed) toast.error(`${j.failed} failed${j.failures?.[0]?.error?` — ${j.failures[0].error}`:''}`);
+        if(!j.issued && !j.failed) toast.success('All cards already issued');
+      }
+    } catch(e:any){ toast.error(e?.message||'Failed to issue cards'); }
     await loadDbCards(cardType); setBulkIssuing(false); setBulkProgress(null);
   };
 
