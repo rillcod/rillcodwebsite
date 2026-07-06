@@ -82,8 +82,10 @@ export function buildSingleCardHtml(
   const fl = (k: string, fb: string) => fieldLabel(cfg, k, fb);
 
   const code = holder.card_number || holderCode(holder.id);
+  // ID cards resolve on the single result surface (/result-check), which accepts the
+  // card verification_code as well as the RC- access code.
   const qrData = holder.verification_code
-    ? `${originUrl}/verify/${holder.verification_code}`
+    ? `${originUrl}/result-check/${holder.verification_code}`
     : `${originUrl}/result-check/${holderCode(holder.id)}`;
   const expiryVal = holder.expires_at
     ? new Date(holder.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -191,7 +193,7 @@ export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, origi
   const cardHtml = (h: CardHolder) => {
     const code = h.card_number || holderCode(h.id);
     const qrData = h.verification_code
-      ? `${originUrl}/verify/${h.verification_code}`
+      ? `${originUrl}/result-check/${h.verification_code}`
       : `${originUrl}/result-check/${holderCode(h.id)}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrData)}`;
     const hdrClass = hs === 'band' ? 'hdr-band' : hs === 'border' ? 'hdr-border' : 'hdr-min';

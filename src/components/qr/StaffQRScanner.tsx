@@ -30,9 +30,9 @@ function extractStudentId(raw: string): string | null {
   return match ? match[1] : null;
 }
 
-/** Resolve a /verify/{code} QR value to a portal user UUID */
+/** Resolve a /verify/{code} or /result-check/{code} card QR value to a portal user UUID */
 async function resolveVerifyCode(raw: string): Promise<string | null> {
-  const verifyMatch = raw.match(/\/verify\/([^/?#\s]+)/i);
+  const verifyMatch = raw.match(/\/(?:verify|result-check)\/([^/?#\s]+)/i);
   if (!verifyMatch) return null;
   const code = verifyMatch[1];
   // Fallback path: no card issued, QR encodes the profile UUID directly

@@ -32,10 +32,22 @@ type QuickReport = ReportCardData & {
   published_at?: string | null;
 };
 
+type CardIdentity = {
+  holder_name?: string | null;
+  holder_type?: string | null;
+  school_name?: string | null;
+  section_class?: string | null;
+  card_number?: string | null;
+  issued_at?: string | null;
+  expires_at?: string | null;
+  status?: string | null;
+};
+
 type QuickCheckResponse = {
   accessRequired?: boolean;
   consentRequired?: boolean;
   parentCaptured?: boolean;
+  consentComplete?: boolean;
   oneTime?: boolean;
   error?: string;
   message?: string;
@@ -45,6 +57,11 @@ type QuickCheckResponse = {
   orgSettings?: OrgSettings | null;
   formUrl?: string | null;
   form?: { title?: string | null } | null;
+  // Set when the scanned code is a non-student ID card (teacher/parent/school) — those
+  // have no results, so we show an identity panel instead. /result-check is the single
+  // home for ID-card + result verification.
+  card?: CardIdentity;
+  cardResult?: 'ok' | 'revoked' | 'expired' | string;
 };
 
 export default function ResultQuickCheckPage() {
@@ -84,7 +101,19 @@ export default function ResultQuickCheckPage() {
           setSelectedReportId(json?.reports?.[0]?.id ?? null);
         }
       })
-      .catch((err) => {
+      .catch(async (err) => {
+        // Not a student result — the code may be a non-student ID card (teacher/parent/
+        // school). Fall back to card identity so those QRs still verify here.
+        try {
+          const cres = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(code)}`, { cache: 'no-store' });
+          const cjson = await cres.json().catch(() => ({}));
+          if (!cancelled && cres.ok && cjson?.card) {
+            setData({ card: cjson.card, cardResult: cjson.result });
+            return;
+          }
+        } catch {
+          /* fall through to the generic error below */
+        }
         if (!cancelled) setData({ error: err.message || 'Result check failed.' });
       })
       .finally(() => {
@@ -182,6 +211,60 @@ export default function ResultQuickCheckPage() {
           </div>
         )}
 
+        {!loading && data?.card && !data.student && (
+          <section className="rounded-[2rem] border border-border bg-card p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <ShieldCheckIcon className="w-7 h-7 text-primary" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    {data.card.holder_type ? `${data.card.holder_type.charAt(0).toUpperCase()}${data.card.holder_type.slice(1)} ID Card` : 'Identity Card'}
+                  </p>
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{data.card.holder_name || 'Card Holder'}</h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {[data.card.school_name, data.card.section_class].filter(Boolean).join(' · ') || 'Rillcod Technologies'}
+                  </p>
+                </div>
+              </div>
+              <div className="px-3 py-2 rounded-xl bg-muted text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Code: {displayCode}
+              </div>
+            </div>
+
+            <div className={`rounded-[1.5rem] border p-5 flex items-start gap-3 ${
+              data.cardResult === 'ok'
+                ? 'border-emerald-500/20 bg-emerald-500/10'
+                : 'border-rose-500/20 bg-rose-500/10'
+            }`}>
+              {data.cardResult === 'ok'
+                ? <CheckCircleIcon className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+                : <ExclamationTriangleIcon className="w-6 h-6 text-rose-400 flex-shrink-0" />}
+              <div>
+                <p className="text-sm font-black text-foreground">
+                  {data.cardResult === 'ok' ? 'Valid Access Card' : data.cardResult === 'revoked' ? 'Card Revoked' : data.cardResult === 'expired' ? 'Card Expired' : 'Card Status Unknown'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Verified against the Rillcod Technologies card ledger.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { label: 'Card Number', value: data.card.card_number || '—' },
+                { label: 'Role', value: data.card.holder_type ? `${data.card.holder_type.charAt(0).toUpperCase()}${data.card.holder_type.slice(1)}` : '—' },
+                { label: 'Issue Date', value: data.card.issued_at ? new Date(data.card.issued_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '—' },
+                { label: 'Expiry Date', value: data.card.expires_at ? new Date(data.card.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '—' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border border-border bg-background p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</p>
+                  <p className="text-sm font-bold text-foreground mt-1">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {!loading && data?.student && (
           <section className="rounded-[2rem] border border-border bg-card p-6 sm:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -237,7 +320,7 @@ export default function ResultQuickCheckPage() {
                   </div>
                 </div>
 
-                <ResultGate code={code} captured={!!data.parentCaptured}>
+                <ResultGate code={code} captured={!!data.parentCaptured || !!data.consentComplete}>
                 {reports.length === 0 ? (
                   <div className="rounded-[1.5rem] border border-border bg-background p-8 text-center">
                     <DocumentChartBarIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />

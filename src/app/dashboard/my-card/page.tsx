@@ -116,7 +116,7 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
   const roleLabel = {student:'Student',teacher:'Teacher',admin:'Administrator',school:'School Partner',parent:'Parent'}[profile.role as string] ?? profile.role;
   const idLabel = {student:'Student ID',teacher:'Staff ID',parent:'Parent Card ID',school:'Partner ID'}[profile.role as string] ?? 'Card ID';
   const verifyUrl = myCard?.verification_code
-    ? `${window.location.origin}/verify/${myCard.verification_code}`
+    ? `${window.location.origin}/result-check/${myCard.verification_code}`
     : `${window.location.origin}/dashboard/profile`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
   const cardStatusLabel = myCard
@@ -313,7 +313,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
     const dbCard = childCardsMap.get(child.id);
     const code = dbCard?.card_number??'PENDING';
     const verifyUrl = dbCard?.verification_code
-      ? `${window.location.origin}/verify/${dbCard.verification_code}`
+      ? `${window.location.origin}/result-check/${dbCard.verification_code}`
       : `${window.location.origin}/dashboard/profile`;
     const logo = `${window.location.origin}/images/logo.png`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
@@ -414,7 +414,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
             const code = dbCard?.card_number??'PENDING';
             const statusLabel = dbCard?({active:'Active',issued:'Issued',revoked:'Revoked',expired:'Expired'}[dbCard.status]??dbCard.status):'Not Issued';
             const statusColor = dbCard?({active:'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',issued:'bg-primary/15 text-primary border-primary/30',revoked:'bg-rose-500/20 text-rose-400 border-rose-500/30',expired:'bg-amber-500/20 text-amber-400 border-amber-500/30'}[dbCard.status]??'bg-muted/50 text-muted-foreground border-border'):'bg-muted/50 text-muted-foreground border-border';
-            const verifyUrl = dbCard?.verification_code?`${window.location.origin}/verify/${dbCard.verification_code}`:null;
+            const verifyUrl = dbCard?.verification_code?`${window.location.origin}/result-check/${dbCard.verification_code}`:null;
             const qrUrl = verifyUrl?`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(verifyUrl)}`:null;
             return (
               <div key={child.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 space-y-4">

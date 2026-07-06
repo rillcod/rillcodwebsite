@@ -5,6 +5,7 @@ import { RateLimitError } from '@/lib/errors';
 import { compareReportsByPeriodDesc } from '@/lib/reports/academic-period';
 import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
 import { isParentCaptured } from '@/lib/parent-claim/captured';
+import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
 import type { Database, Json } from '@/types/supabase';
 
@@ -122,6 +123,26 @@ async function cacheStudentAccessCode(db: AdminDb, student: StudentAccessRow) {
   }
 }
 
+// Resolve the student behind a report code or ID-card code (student_progress_reports /
+// identity_cards verification_code) — the "dual purpose" path so /result-check serves
+// ID-card + result scans, not only RC- access codes.
+async function resolveStudentByCredential(db: AdminDb, rawId: string): Promise<StudentAccessRow | null> {
+  const viaCredential = await resolveStudentFromCode(db as any, rawId);
+  if (!viaCredential) return null;
+  const { data } = await db
+    .from('portal_users')
+    .select(STUDENT_SELECT)
+    .eq('role', 'student')
+    .neq('is_deleted', true)
+    .eq('id', viaCredential)
+    .limit(1);
+  if (data && data.length === 1) {
+    await cacheStudentAccessCode(db, data[0]);
+    return data[0];
+  }
+  return null;
+}
+
 async function resolveStudent(db: AdminDb, rawId: string): Promise<StudentAccessRow | null> {
   let decoded = rawId || '';
   try {
@@ -133,7 +154,8 @@ async function resolveStudent(db: AdminDb, rawId: string): Promise<StudentAccess
     ? decoded.toLowerCase()
     : null;
   const codeBody = accessCardCodeBody(rawId);
-  if (!decodedUuid && codeBody.length !== 8) return null;
+  // Not a UUID and not an 8-char RC body → treat it as a report/ID-card credential code.
+  if (!decodedUuid && codeBody.length !== 8) return resolveStudentByCredential(db, rawId);
 
   const normalizedCode = normalizeAccessCardCode(rawId);
   if (!decodedUuid && normalizedCode) {
@@ -219,7 +241,14 @@ export async function GET(
 
   const expectedCode = accessCardCodeForStudent(student.id);
   const providedCode = normalizeAccessCardCode(accessCodeParam);
-  if (providedCode !== expectedCode) {
+  let authorized = providedCode === expectedCode;
+  if (!authorized) {
+    // A valid report code or ID-card code for THIS student authorizes too — that's what
+    // makes /result-check the single home for both ID-card and result scans.
+    const viaCredential = await resolveStudentFromCode(db as any, accessCodeParam ?? id);
+    if (viaCredential && viaCredential === student.id) authorized = true;
+  }
+  if (!authorized) {
     await logResultAccessEvent(db, req, {
       action: 'result_check_blocked',
       studentId: student.id,
@@ -306,6 +335,7 @@ export async function GET(
     accessRequired: false,
     consentRequired: false,
     parentCaptured,
+    consentComplete: consent.required && consent.complete,
     student: publicStudentPayload(student, true),
     reports: ordered,
     terms,
@@ -345,7 +375,12 @@ export async function POST(
 
   const expectedCode = accessCardCodeForStudent(student.id);
   const providedCode = normalizeAccessCardCode(accessCodeParam);
-  if (student.is_active === false || providedCode !== expectedCode) {
+  let authorized = providedCode === expectedCode;
+  if (!authorized) {
+    const viaCredential = await resolveStudentFromCode(db as any, accessCodeParam ?? id);
+    if (viaCredential && viaCredential === student.id) authorized = true;
+  }
+  if (student.is_active === false || !authorized) {
     await logResultAccessEvent(db, req, {
       action: `result_check_${action}_blocked`,
       studentId: student.id,

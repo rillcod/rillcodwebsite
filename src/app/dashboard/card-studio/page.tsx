@@ -281,7 +281,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   const acc   = config.accentColor || '#1A3A8F';
   const hStyle = config.headerStyle || 'band';
   const code  = dbCard?.card_number ?? accessCardCodeForStudent(r.id);
-  const verifyUrl = dbCard?.verification_code ? `${window.location.origin}/verify/${dbCard.verification_code}` : `${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
+  const verifyUrl = dbCard?.verification_code ? `${window.location.origin}/result-check/${dbCard.verification_code}` : `${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl)}`;
 
   return (
@@ -829,7 +829,7 @@ export default function CardStudioPage() {
 ${list.map(r=>{
   const dbCard=dbCardsMap.get(r.id);
   const code=dbCard?.card_number??accessCardCodeForStudent(r.id);
-  const verifyUrl=dbCard?.verification_code?`${window.location.origin}/verify/${dbCard.verification_code}`:`${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
+  const verifyUrl=dbCard?.verification_code?`${window.location.origin}/result-check/${dbCard.verification_code}`:`${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
   const qr=`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verifyUrl)}`;
   const hdrClass=hStyle==='border'?'hdr-border':hStyle==='minimal'?'hdr-min':'hdr-band';
   return `<div class="card"><div class="${hdrClass}"><img class="logo" src="${logo}"/><div><div class="org">${org}</div><div class="web">${site}</div></div></div>

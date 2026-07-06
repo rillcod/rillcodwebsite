@@ -23,10 +23,18 @@
       "PowerShell(npx eslint \"src/app/api/crm/contacts/route.ts\" \"src/app/api/admin/sync-users/route.ts\" \"src/app/api/approvals/students/route.ts\" \"src/app/api/parents/bulk-import/route.ts\" 2>&1 | Select-String -Pattern \": error|  error \" | Select-Object -First 10; Write-Output \"=== eslint exit $LASTEXITCODE ===\")",
       "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 15; Write-Output \"=== tsc exit $LASTEXITCODE ===\"; npx eslint \"src/app/api/cards/verify-public/route.ts\" \"src/app/api/public/verify-report/route.ts\" \"src/app/verify/[code]/page.tsx\" 2>&1 | Select-String -Pattern \": error|  error \" | Select-Object -First 10; Write-Output \"=== eslint exit $LASTEXITCODE ===\")",
       "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 15; Write-Output \"=== tsc exit $LASTEXITCODE ===\"; npx eslint \"src/app/api/progress-reports/[id]/route.ts\" 2>&1 | Select-String -Pattern \": error|  error \" | Select-Object -First 10; Write-Output \"=== eslint exit $LASTEXITCODE ===\")",
-      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 20; Write-Output \"=== tsc exit $LASTEXITCODE ===\"; npx eslint \"src/lib/parent-claim/otp.ts\" \"src/app/api/parent-claim/start/route.ts\" \"src/app/api/parent-claim/verify/route.ts\" \"src/app/api/parent-claim/link-siblings/route.ts\" 2>&1 | Select-String -Pattern \": error|  error \" | Select-Object -First 15; Write-Output \"=== eslint exit $LASTEXITCODE ===\")"
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 20; Write-Output \"=== tsc exit $LASTEXITCODE ===\"; npx eslint \"src/lib/parent-claim/otp.ts\" \"src/app/api/parent-claim/start/route.ts\" \"src/app/api/parent-claim/verify/route.ts\" \"src/app/api/parent-claim/link-siblings/route.ts\" 2>&1 | Select-String -Pattern \": error|  error \" | Select-Object -First 15; Write-Output \"=== eslint exit $LASTEXITCODE ===\")",
+      "Bash(awk '/^      consent_forms: \\\\{/{f=1} f&&/Insert: \\\\{/{i=1} i&&/^        \\\\}/{if\\(i\\){exit}} i{print}' src/types/supabase.ts)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 25; Write-Output \"=== tsc exit $LASTEXITCODE ===\")",
+      "PowerShell(npx eslint \"src/lib/parent-claim/resolve.ts\" \"src/lib/parent-claim/provision.ts\" \"src/lib/parent-claim/intake-form.ts\" \"src/app/api/parent-claim/intake/route.ts\" \"src/components/verify/ParentClaim.tsx\" \"src/app/verify/[code]/page.tsx\" 2>&1 | Select-String -Pattern \": error|  error \" | Select-Object -First 15; Write-Output \"=== eslint exit $LASTEXITCODE ===\")",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 10; Write-Output \"=== tsc exit $LASTEXITCODE ===\"; git push origin main 2>&1 | Select-Object -Last 3)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 15; Write-Output \"=== tsc exit $LASTEXITCODE ===\"; npx eslint \"src/lib/parent-claim/name-match.ts\" \"src/app/api/parent-claim/intake/route.ts\" \"src/components/verify/ParentClaim.tsx\" 2>&1 | Select-String -Pattern \": error|  error \" | Select-Object -First 10; Write-Output \"=== eslint exit $LASTEXITCODE ===\")",
+      "Bash(Select-Object -Last 1)",
+      "Bash(cd \"c:/Users/USER/Downloads/rillcod-academy-main/rillcod-academy-main\" && sed -i '169,317d' \"src/app/api/public/consent-forms/[id]/route.ts\" && echo \"deleted 169-317\" && sed -n '166,172p' \"src/app/api/public/consent-forms/[id]/route.ts\")"
     ],
     "additionalDirectories": [
-      "C:\\Users\\USER\\.claude"
+      "C:\\Users\\USER\\.claude",
+      "c:\\Users\\USER\\Downloads\\rillcod-academy-main\\rillcod-academy-main\\src\\app\\api\\public\\consent-forms\\[id]"
     ]
   }
 }

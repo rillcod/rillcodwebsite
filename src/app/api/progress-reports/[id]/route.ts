@@ -223,7 +223,7 @@ export async function PATCH(
       const parentPortalUrl  = `${appUrl}/dashboard/parent-results`;
       // Public QR/verify link — opens the full result hub with NO login required, so a
       // parent can view (and verify) the result straight from the message.
-      const verifyUrl = data.verification_code ? `${appUrl}/verify/${data.verification_code}` : parentPortalUrl;
+      const verifyUrl = data.verification_code ? `${appUrl}/result-check/${data.verification_code}` : parentPortalUrl;
       const subject   = `Progress Report Published — Rillcod Technologies`;
       const grade     = data.overall_grade ?? (data.overall_score !== null ? `${data.overall_score}%` : undefined);
       const term      = data.course_name || 'Current Term';
