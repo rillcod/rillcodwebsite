@@ -134,6 +134,8 @@ export default function VerifyCodePage() {
   const [activeCode, setActiveCode] = useState<string>('');
   const [switching, setSwitching] = useState(false);
   const [classRank, setClassRank] = useState<{ position: number; classSize: number } | null>(null);
+  const [parentCaptured, setParentCaptured] = useState(false);
+  const [claimUnlocked, setClaimUnlocked] = useState(false);
   const [certificate, setCertificate] = useState<any | null>(null);
   const [card, setCard] = useState<any | null>(null);
   const [mode, setMode] = useState<'report' | 'certificate' | 'card' | null>(null);
@@ -155,6 +157,7 @@ export default function VerifyCodePage() {
             setOrgSettings(reportJson.orgSettings);
             setOtherReports(reportJson.otherReports ?? []);
             setClassRank(reportJson.classRank ?? null);
+            setParentCaptured(!!reportJson.parentCaptured);
             setActiveCode(reportJson.report.verification_code ?? String(code).toUpperCase());
             setMode('report');
             setStatus('found');
@@ -214,6 +217,7 @@ export default function VerifyCodePage() {
         setOrgSettings(json.orgSettings);
         if (json.otherReports?.length) setOtherReports(json.otherReports);
         setClassRank(json.classRank ?? null);
+        setParentCaptured(!!json.parentCaptured);
         setActiveCode(json.report.verification_code ?? vcode);
       }
     } catch { /* keep current report on failure */ }
@@ -365,6 +369,8 @@ export default function VerifyCodePage() {
               {/* MODE: Report Display */}
               {mode === 'report' && report && (
                 <div className="space-y-12">
+                  {(parentCaptured || claimUnlocked) ? (
+                  <>
                   {/* Academic year / term selector — lets a school view this student's
                       other published terms instead of only the scanned one. */}
                   {otherReports.length > 1 && (
@@ -419,9 +425,21 @@ export default function VerifyCodePage() {
                       New Verification
                     </Link>
                   </div>
+                  </>
+                  ) : (
+                    <div className="bg-card border border-amber-500/30 rounded-2xl p-6 text-center space-y-2">
+                      <p className="text-sm font-black text-foreground">🔒 This result is protected</p>
+                      <p className="text-xs text-muted-foreground">
+                        Confirm you’re the parent or guardian below to view the full report. Once verified, it opens instantly every time.
+                      </p>
+                    </div>
+                  )}
 
-                  {/* Self-service: link this child to a parent account */}
-                  <ParentClaim code={activeCode || String(code)} />
+                  {/* Self-service parent link — also the gate that unlocks the result */}
+                  <ParentClaim
+                    code={activeCode || String(code)}
+                    onLinked={() => { setClaimUnlocked(true); setParentCaptured(true); }}
+                  />
                 </div>
               )}
 

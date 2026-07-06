@@ -91,5 +91,20 @@ export async function GET(request: Request) {
     }
   } catch { /* rank is best-effort — never block verification */ }
 
-  return NextResponse.json({ found: true, report, orgSettings: orgData ?? null, otherReports, classRank });
+  // Has this student's parent data already been mined/linked (consent form, staff link,
+  // or a prior claim)? If so the result is shown straight away; if not, the verify page
+  // gates it behind the parent claim so we capture the parent's real details first.
+  let parentCaptured = false;
+  if (report.student_id) {
+    const { data: sRow } = await (admin as any)
+      .from('students').select('id, parent_email').eq('user_id', report.student_id).maybeSingle();
+    if (sRow?.parent_email) parentCaptured = true;
+    if (!parentCaptured && sRow?.id) {
+      const { data: link } = await (admin as any)
+        .from('parent_student_links').select('id').eq('student_id', sRow.id).limit(1).maybeSingle();
+      if (link) parentCaptured = true;
+    }
+  }
+
+  return NextResponse.json({ found: true, report, orgSettings: orgData ?? null, otherReports, classRank, parentCaptured });
 }

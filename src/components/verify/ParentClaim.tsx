@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { suggestEmailFix } from '@/lib/email-typo';
+
+const RESEND_COOLDOWN = 30; // seconds before a code can be resent
 
 // Verification is on by default; set NEXT_PUBLIC_PARENT_CLAIM_SKIP_OTP=true to use the
 // frictionless (no-code) flow instead — the toggle between "verified" and "fast".
@@ -11,15 +13,23 @@ type Step = 'cta' | 'form' | 'otp' | 'done';
 
 // Self-service parent link shown on the verify page. Default: enter details → 6-digit
 // code by email + WhatsApp → verify → account auto-created + child (and siblings) linked.
-export default function ParentClaim({ code }: { code: string }) {
+export default function ParentClaim({ code, onLinked }: { code: string; onLinked?: () => void }) {
   const [step, setStep] = useState<Step>('cta');
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '' });
   const [claimId, setClaimId] = useState('');
   const [otp, setOtp] = useState('');
   const [sentVia, setSentVia] = useState<{ email: boolean; whatsapp: boolean } | null>(null);
+  const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ childName: string | null; accountCreated: boolean; siblingsLinked: number } | null>(null);
+
+  // Resend cooldown ticker.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const emailFix = suggestEmailFix(form.email);
   const isParent = form.relationship === 'Father' || form.relationship === 'Mother';
@@ -29,6 +39,25 @@ export default function ParentClaim({ code }: { code: string }) {
   function applyDone(j: any) {
     setDone({ childName: j.childName ?? null, accountCreated: !!j.accountCreated, siblingsLinked: j.siblingsLinked ?? 0 });
     setStep('done');
+    onLinked?.(); // unlock the gated result on the verify page
+  }
+
+  async function sendCode(): Promise<boolean> {
+    const res = await fetch('/api/parent-claim/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, ...form }),
+    });
+    const j = await res.json();
+    if (!res.ok) { setError(j.error || 'Could not send code'); return false; }
+    setClaimId(j.claimId); setSentVia(j.sentVia || null); setCooldown(RESEND_COOLDOWN);
+    return true;
+  }
+
+  async function resend() {
+    if (cooldown > 0) return;
+    setError(null); setLoading(true);
+    try { await sendCode(); } catch { setError('Network error — please try again.'); }
+    finally { setLoading(false); }
   }
 
   async function startOrSubmit() {
@@ -43,13 +72,7 @@ export default function ParentClaim({ code }: { code: string }) {
         if (!res.ok) { setError(j.error || 'Something went wrong'); return; }
         applyDone(j);
       } else {
-        const res = await fetch('/api/parent-claim/start', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, ...form }),
-        });
-        const j = await res.json();
-        if (!res.ok) { setError(j.error || 'Could not send code'); return; }
-        setClaimId(j.claimId); setSentVia(j.sentVia || null); setStep('otp');
+        if (await sendCode()) setStep('otp');
       }
     } catch { setError('Network error — please try again.'); }
     finally { setLoading(false); }
@@ -118,6 +141,10 @@ export default function ParentClaim({ code }: { code: string }) {
             {loading ? 'Verifying…' : 'Verify & link'}
           </button>
         </div>
+        <button onClick={resend} disabled={loading || cooldown > 0}
+          className="text-[11px] font-bold text-primary hover:text-primary/80 disabled:text-muted-foreground disabled:cursor-default transition-colors">
+          {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Didn’t get it? Resend code'}
+        </button>
       </div>
     );
   }
