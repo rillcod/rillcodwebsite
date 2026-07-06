@@ -273,36 +273,7 @@ export async function GET(
     classId: student.class_id,
   });
 
-  if (consent.required && !consent.complete) {
-    await backfillParentLinkFromConsent(db, student.id, consent);
-    const parentCaptured = await isParentCaptured(db, student.id);
-    const recordGaps = await getStudentRecordGaps(db, student.id);
-    await logResultAccessEvent(db, req, {
-      action: 'result_check_consent_required',
-      studentId: student.id,
-      schoolId: student.school_id,
-      rawCode: accessCodeParam,
-      details: {
-        result: 'consent_required',
-        form_id: consent.form?.id ?? null,
-      },
-    });
-    return NextResponse.json({
-      accessRequired: false,
-      consentRequired: true,
-      consentComplete: false,
-      oneTime: true,
-      parentCaptured,
-      recordGaps,
-      needsGender: recordGaps.needsGender,
-      student: publicStudentPayload(student),
-      form: consent.form,
-      formUrl: consent.formUrl
-        ? `${consent.formUrl}?returnTo=${encodeURIComponent(`/result-check/${encodeURIComponent(id)}`)}`
-        : null,
-      message: 'One-time parent consent and assessment is required before this result is released.',
-    });
-  }
+  await backfillParentLinkFromConsent(db, student.id, consent);
 
   const [{ data: reports, error }, { data: orgSettings }] = await Promise.all([
     db
@@ -327,9 +298,6 @@ export async function GET(
 
   // Backfill parent_student_links from a completed consent lead when staff matched the
   // form but the junction row was never written — keeps gate + response in sync.
-  await backfillParentLinkFromConsent(db, student.id, consent);
-
-  // Has a REAL parent been captured (verified linked account, not just a bulk email)?
   const parentCaptured = await isParentCaptured(db, student.id);
   const recordGaps = await getStudentRecordGaps(db, student.id);
 
@@ -347,15 +315,19 @@ export async function GET(
 
   return NextResponse.json({
     accessRequired: false,
-    consentRequired: false,
-    parentCaptured,
+    consentPending: consent.required && !consent.complete,
     consentComplete: consent.required && consent.complete,
+    parentCaptured,
     recordGaps,
     needsGender: recordGaps.needsGender,
     student: publicStudentPayload(student, true),
     reports: ordered,
     terms,
     orgSettings: orgSettings ?? null,
+    form: consent.form,
+    formUrl: consent.formUrl
+      ? `${consent.formUrl}?returnTo=${encodeURIComponent(`/result-check/${encodeURIComponent(id)}`)}`
+      : null,
   });
 }
 
@@ -405,22 +377,6 @@ export async function POST(
       details: { result: student.is_active === false ? 'inactive_student' : 'invalid_access_code' },
     });
     return NextResponse.json({ error: 'Result access not verified' }, { status: 403 });
-  }
-
-  const consent = await getResultConsentAccessStatus(db, {
-    studentUserId: student.id,
-    schoolId: student.school_id,
-    classId: student.class_id,
-  });
-  if (consent.required && !consent.complete) {
-    await logResultAccessEvent(db, req, {
-      action: `result_check_${action}_blocked`,
-      studentId: student.id,
-      schoolId: student.school_id,
-      rawCode: accessCodeParam,
-      details: { result: 'consent_required' },
-    });
-    return NextResponse.json({ error: 'Consent is required before this report can be used.' }, { status: 403 });
   }
 
   const reportId = typeof body?.reportId === 'string' ? body.reportId : null;

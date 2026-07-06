@@ -187,13 +187,13 @@ export default function MyChildrenPage() {
       </div>
 
       {pendingConsent.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
           <div className="flex items-start gap-3">
-            <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <ExclamationTriangleIcon className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
             <div className="space-y-2 flex-1">
-              <p className="text-sm font-black text-foreground">School form(s) still needed</p>
+              <p className="text-sm font-black text-foreground">Optional school forms</p>
               <p className="text-xs text-muted-foreground">
-                Complete the one-time consent/assessment form so full results and report cards unlock for your child.
+                Your school has forms you can fill in if you wish — they are not required for results or portal access.
               </p>
               <ul className="space-y-2">
                 {pendingConsent.map(item => (
@@ -206,7 +206,7 @@ export default function MyChildrenPage() {
                         href={item.formUrl}
                         className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline whitespace-nowrap"
                       >
-                        Complete {item.formTitle || 'form'} →
+                        Open {item.formTitle || 'form'} →
                       </a>
                     ) : (
                       <span className="text-[10px] text-muted-foreground">Contact the school for the form link</span>

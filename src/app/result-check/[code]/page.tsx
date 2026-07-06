@@ -45,7 +45,7 @@ type CardIdentity = {
 
 type QuickCheckResponse = {
   accessRequired?: boolean;
-  consentRequired?: boolean;
+  consentPending?: boolean;
   parentCaptured?: boolean;
   consentComplete?: boolean;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
@@ -91,7 +91,7 @@ export default function ResultQuickCheckPage() {
         cache: 'no-store',
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok && !json?.consentRequired) {
+      if (!res.ok) {
         throw new Error(json?.error || 'Result check failed.');
       }
       setData(json);
@@ -277,49 +277,33 @@ export default function ResultQuickCheckPage() {
               </div>
             </div>
 
-            {data.consentRequired && !data.consentComplete && (
-              <div className="rounded-[1.5rem] border border-amber-500/30 bg-amber-500/10 p-6 space-y-4">
-                <div className="flex items-start gap-3">
-                  <ExclamationTriangleIcon className="w-6 h-6 text-amber-400 flex-shrink-0" />
-                  <div>
-                    <h2 className="text-lg font-black text-foreground">One-Time Parent Consent Required</h2>
-                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                      Complete the school consent form once to view the full result. You can still link your parent account below and receive portal logins while you finish the form.
-                    </p>
-                  </div>
-                </div>
-                {data.formUrl ? (
-                  <a
-                    href={data.formUrl}
-                    className="inline-flex w-full sm:w-auto justify-center items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-colors"
-                  >
-                    Complete One-Time Form
-                  </a>
-                ) : (
-                  <p className="text-xs text-amber-200 font-bold">
-                    Consent is required, but no public form is currently available. Please contact the school administrator.
-                  </p>
-                )}
+            <div className="rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/10 p-5 flex items-start gap-3">
+              <CheckCircleIcon className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-black text-foreground">Verified by Rillcod Technologies</p>
+                <p className="text-xs text-muted-foreground mt-1">This is a genuine Rillcod result access code.</p>
               </div>
-            )}
+            </div>
 
-            {(!data.consentRequired || data.consentComplete) && (
-              <div className="rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/10 p-5 flex items-start gap-3">
-                <CheckCircleIcon className="w-6 h-6 text-emerald-400 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-black text-foreground">Verified by Rillcod Technologies</p>
-                  <p className="text-xs text-muted-foreground mt-1">This is a genuine Rillcod result access code.</p>
-                </div>
+            {data.consentPending && data.formUrl && (
+              <div className="rounded-[1.5rem] border border-border bg-muted/30 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Your school has an optional form you can complete — not required to view results.
+                </p>
+                <a
+                  href={data.formUrl}
+                  className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline whitespace-nowrap"
+                >
+                  Open {data.form?.title || 'school form'} →
+                </a>
               </div>
             )}
 
             <div className="space-y-5">
               <ResultGate
                 code={code}
-                captured={!!data.parentCaptured || !!data.consentComplete}
+                captured={!!data.parentCaptured}
                 recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
-                consentNudge={data.consentRequired && !data.consentComplete ? { formUrl: data.formUrl, formTitle: data.form?.title } : undefined}
-                resultsLocked={!!data.consentRequired && !data.consentComplete}
                 onClaimLinked={() => void loadResultCheck()}
               >
                 {reports.length === 0 ? (
