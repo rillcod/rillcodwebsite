@@ -751,9 +751,12 @@ export default function CardStudioPage() {
       if(!res.ok){const j=await res.json();throw new Error(j.error||'Failed');}
       done++; setBulkProgress({done,total:unissued.length});
     }));
-    const failed=results.filter(r=>r.status==='rejected').length;
+    const rejected=results.filter(r=>r.status==='rejected') as PromiseRejectedResult[];
     const succeeded=results.filter(r=>r.status==='fulfilled').length;
-    if(failed) toast.error(`${failed} card(s) failed`);
+    if(rejected.length){
+      const reason=rejected[0]?.reason?.message||'Failed';
+      toast.error(`${rejected.length} card(s) failed — ${reason}`);
+    }
     if(succeeded) toast.success(`${succeeded} card(s) issued`);
     await loadDbCards(cardType); setBulkIssuing(false); setBulkProgress(null);
   };

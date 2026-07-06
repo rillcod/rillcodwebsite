@@ -12,6 +12,43 @@ async function generateUniqueCode(db: ReturnType<typeof createAdminClient>, colu
   return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 12).toUpperCase()}`;
 }
 
+// Everyone on a card must belong to a school. Resolve a student's/teacher's school from
+// their portal profile → class → school_name (in that order of confidence).
+async function resolveSchoolIdForUser(db: ReturnType<typeof createAdminClient>, userId: string): Promise<string | null> {
+  const { data: u } = await (db as any)
+    .from('portal_users').select('school_id, school_name, class_id').eq('id', userId).maybeSingle();
+  if (u?.school_id) return u.school_id as string;
+  if (u?.class_id) {
+    const { data: cls } = await (db as any).from('classes').select('school_id').eq('id', u.class_id).maybeSingle();
+    if (cls?.school_id) return cls.school_id as string;
+  }
+  if (u?.school_name) {
+    const { data: sch } = await (db as any).from('schools').select('id').ilike('name', u.school_name).maybeSingle();
+    if (sch?.id) return sch.id as string;
+  }
+  return null;
+}
+
+// A parent inherits the school of their linked child (parent_student_links → students →
+// the child's portal profile), falling back to the parent's own recorded school.
+async function resolveSchoolIdForParent(db: ReturnType<typeof createAdminClient>, parentId: string): Promise<string | null> {
+  const { data: links } = await (db as any)
+    .from('parent_student_links').select('student_id').eq('parent_id', parentId);
+  for (const l of (links ?? [])) {
+    const { data: st } = await (db as any)
+      .from('students').select('user_id, school_name').eq('id', l.student_id).maybeSingle();
+    if (st?.user_id) {
+      const sid = await resolveSchoolIdForUser(db, st.user_id);
+      if (sid) return sid;
+    }
+    if (st?.school_name) {
+      const { data: sch } = await (db as any).from('schools').select('id').ilike('name', st.school_name).maybeSingle();
+      if (sch?.id) return sch.id as string;
+    }
+  }
+  return resolveSchoolIdForUser(db, parentId);
+}
+
 export async function GET(request: Request) {
   const ctx = await getStaffContext();
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -85,27 +122,50 @@ export async function POST(request: Request) {
     metadata = {},
   } = body || {};
 
-  // Resolve school_id: use body value, or fall back to staff's own school for parent cards
-  const school_id: string | null = body.school_id || (holder_type === 'parent' ? (ctx.school_ids[0] ?? null) : null);
-
   if (!holder_type || !holder_id) {
     return NextResponse.json({ error: 'holder_type and holder_id are required' }, { status: 400 });
   }
   if (!['student', 'parent', 'teacher'].includes(holder_type)) {
     return NextResponse.json({ error: 'Invalid holder_type' }, { status: 400 });
   }
-  if (holder_type !== 'parent' && !school_id) {
-    return NextResponse.json({ error: 'school_id is required for student and teacher cards' }, { status: 400 });
-  }
+
   if (holder_type === 'teacher' && ctx.role !== 'admin') {
     return NextResponse.json({ error: 'Teacher cards can only be issued by admin' }, { status: 403 });
   }
-  if (school_id && !canAccessSchool(ctx, school_id)) {
+
+  const db = createAdminClient();
+
+  // Everyone on a card belongs to a real school. Resolve it: explicit body value, else the
+  // holder's own school (student/teacher), else the child's school (parent). The Online
+  // School is NOT a fallback here — it only ever applies to genuinely online students, who
+  // already carry its school_id. If none resolves, the holder simply has no school on file.
+  let school_id: string | null = body.school_id ?? null;
+  if (!school_id) {
+    school_id = holder_type === 'parent'
+      ? await resolveSchoolIdForParent(db, holder_id)
+      : await resolveSchoolIdForUser(db, holder_id);
+  }
+  if (!school_id) {
+    return NextResponse.json(
+      { error: `No school is on record for this ${holder_type}. Assign them to a school first, then issue the card.` },
+      { status: 400 },
+    );
+  }
+
+  if (!canAccessSchool(ctx, school_id)) {
     return NextResponse.json({ error: 'Forbidden for this school scope' }, { status: 403 });
   }
 
+  // Backfill the holder's own school_id when it was simply un-denormalised (we resolved it
+  // from their class / school name) — never overwrites a school already on file, and never
+  // writes the Online School as a guess.
+  if (holder_type !== 'parent') {
+    try {
+      await (db as any).from('portal_users').update({ school_id }).eq('id', holder_id).is('school_id', null);
+    } catch { /* non-fatal */ }
+  }
+
   // Check for existing active/expired card — prevent duplicates (revoked cards allow re-issue)
-  const db = createAdminClient();
   const { data: existing } = await (db as any)
     .from('identity_cards')
     .select('id, status')
