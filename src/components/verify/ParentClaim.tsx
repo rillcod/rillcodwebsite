@@ -13,9 +13,9 @@ type Step = 'cta' | 'form' | 'otp' | 'done';
 
 // Self-service parent link shown on the verify page. Default: enter details → 6-digit
 // code by email + WhatsApp → verify → account auto-created + child (and siblings) linked.
-export default function ParentClaim({ code, onLinked }: { code: string; onLinked?: () => void }) {
+export default function ParentClaim({ code, needsGender, onLinked }: { code: string; needsGender?: boolean; onLinked?: () => void }) {
   const [step, setStep] = useState<Step>('cta');
-  const [form, setForm] = useState({ fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '' });
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '', childGender: '' as '' | 'male' | 'female' });
   const [claimId, setClaimId] = useState('');
   const [otp, setOtp] = useState('');
   const [sentVia, setSentVia] = useState<{ email: boolean; whatsapp: boolean } | null>(null);
@@ -34,6 +34,7 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
       parentEmail?: string;
       studentEmail?: string;
     } | null;
+    genderRecorded?: boolean;
   } | null>(null);
 
   // Resend cooldown ticker.
@@ -60,6 +61,7 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
       accountCreated: !!j.accountCreated,
       siblingsLinked: j.siblingsLinked ?? 0,
       credentials: j.credentials ?? null,
+      genderRecorded: !!j.genderRecorded,
     });
     setStep('done');
     onLinked?.(); // unlock the gated result on the verify page
@@ -115,6 +117,9 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
     finally { setLoading(false); }
   }
 
+  const genderRequired = !!needsGender;
+  const formValid = form.fullName && form.email && form.phone && (isParent ? form.childName : true) && (!genderRequired || form.childGender);
+
   if (step === 'done' && done) {
     const creds = done.credentials;
     const deliveryNote = creds?.email || creds?.whatsapp
@@ -126,6 +131,10 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
         <p className="text-sm font-black text-emerald-400">✓ Done{done.childName ? ` — ${done.childName} is linked to your account` : ''}.</p>
         {done.siblingsLinked > 0 && (
           <p className="text-xs text-foreground">We also linked {done.siblingsLinked} sibling{done.siblingsLinked !== 1 ? 's' : ''} on record with your contact.</p>
+        )}
+
+        {done.genderRecorded && (
+          <p className="text-xs text-muted-foreground">Child&apos;s gender was saved to their school record — thank you.</p>
         )}
 
         <div className="rounded-xl border border-border bg-background p-4 space-y-3">
@@ -243,9 +252,23 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
       ) : (
         <p className="text-[10px] text-muted-foreground">As a guardian, your role is enough — no name needed.</p>
       )}
+      {genderRequired && (
+        <div>
+          <select
+            className={field}
+            value={form.childGender}
+            onChange={e => setForm(f => ({ ...f, childGender: e.target.value as '' | 'male' | 'female' }))}
+          >
+            <option value="">Child&apos;s gender (required for records)</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+          <p className="text-[10px] text-muted-foreground mt-1">Helps us keep accurate school records — same as the consent form.</p>
+        </div>
+      )}
       <div className="flex gap-2">
         <button onClick={() => setStep('cta')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
-        <button onClick={startOrSubmit} disabled={loading || !form.fullName || !form.email || !form.phone || (isParent && !form.childName)}
+        <button onClick={startOrSubmit} disabled={loading || !formValid}
           className="flex-1 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50">
           {loading ? (SKIP_OTP ? 'Linking…' : 'Sending…') : (SKIP_OTP ? 'Create & link my account' : 'Send verification code')}
         </button>

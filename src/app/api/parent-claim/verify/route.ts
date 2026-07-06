@@ -49,6 +49,7 @@ export async function POST(request: Request) {
   const result = await completeParentClaim(admin, claim.student_id, {
     fullName: claim.full_name, email: claim.email, phone: claim.phone,
     relationship: claim.relationship, childName: claim.child_name ?? undefined,
+    childGender: claim.child_gender ?? undefined,
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
 
@@ -59,5 +60,6 @@ export async function POST(request: Request) {
     siblingsLinked: result.siblingsLinked ?? 0,
     siblingNames: result.siblingNames ?? [],
     credentials: result.credentials ?? null,
+    genderRecorded: !!result.genderRecorded,
   });
 }

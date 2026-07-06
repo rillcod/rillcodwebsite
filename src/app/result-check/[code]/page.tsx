@@ -48,6 +48,7 @@ type QuickCheckResponse = {
   consentRequired?: boolean;
   parentCaptured?: boolean;
   consentComplete?: boolean;
+  needsGender?: boolean;
   oneTime?: boolean;
   error?: string;
   message?: string;
@@ -310,7 +311,12 @@ export default function ResultQuickCheckPage() {
                   </div>
                 </div>
 
-                <ResultGate code={code} captured={!!data.parentCaptured || !!data.consentComplete} onClaimLinked={() => void loadResultCheck()}>
+                <ResultGate
+                  code={code}
+                  captured={!!data.parentCaptured || !!data.consentComplete}
+                  needsGender={!!data.needsGender}
+                  onClaimLinked={() => void loadResultCheck()}
+                >
                 {reports.length === 0 ? (
                   <div className="rounded-[1.5rem] border border-border bg-background p-8 text-center">
                     <DocumentChartBarIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />

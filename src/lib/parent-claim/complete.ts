@@ -6,6 +6,7 @@ import { provisionParentAndLinkChild, autoLinkSiblings } from './provision';
 import { ensureResultIntakeForm } from './intake-form';
 import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
 import { deliverResultCheckerCredentials, type CredentialDelivery } from '@/lib/parent-claim/deliver-credentials';
+import { applyParentSuppliedChildGender } from '@/lib/parent-claim/record-enrichment';
 
 type Db = SupabaseClient<Database>;
 
@@ -15,6 +16,7 @@ export interface ClaimDetails {
   phone: string | null;
   relationship: string | null;
   childName?: string;
+  childGender?: string | null;
 }
 
 export interface ClaimResult {
@@ -26,6 +28,7 @@ export interface ClaimResult {
   siblingsLinked?: number;
   siblingNames?: string[];
   credentials?: CredentialDelivery;
+  genderRecorded?: boolean;
 }
 
 /**
@@ -95,7 +98,7 @@ async function notifyStaffOfClaim(admin: Db, schoolId: string | null, childName:
  * verification — one implementation so both paths behave identically.
  */
 export async function completeParentClaim(admin: Db, studentId: string, details: ClaimDetails): Promise<ClaimResult> {
-  const { fullName, email, phone, relationship } = details;
+  const { fullName, email, phone, relationship, childGender } = details;
 
   // Anti-hijack: if this child is ALREADY linked to a parent whose contact differs from
   // the claimant, don't silently attach a stranger (possession of the QR + owning your
@@ -133,6 +136,8 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     parentId: prov.parentId, email, phone, fullName, relationship, schoolName: prov.schoolName ?? null, studentId,
   });
 
+  const genderRecorded = await applyParentSuppliedChildGender(admin, studentId, childGender);
+
   if (prov.schoolId) {
     try {
       const formId = await ensureResultIntakeForm(admin, prov.schoolId);
@@ -148,6 +153,7 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
             response_data: {
               parent_name: fullName, parent_email: email, parent_whatsapp: phone,
               relationship, child_name: prov.childName, source: 'result_checker', _auto_linked: true,
+              ...(childGender ? { child_gender: childGender } : {}),
             },
             matched_student_id: studentId,
             matched_parent_id: prov.parentId,
@@ -195,5 +201,6 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     siblingsLinked: siblingNames.length,
     siblingNames,
     credentials,
+    genderRecorded,
   };
 }

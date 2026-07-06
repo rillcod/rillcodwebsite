@@ -31,6 +31,7 @@ export async function POST(request: Request) {
   const phone = String(body.phone ?? '').trim() || null;
   const relationship = String(body.relationship ?? '').trim() || null;
   const childName = String(body.childName ?? '').trim();
+  const childGender = String(body.childGender ?? '').trim() || null;
 
   if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 });
   if (!fullName) return NextResponse.json({ error: 'Your full name is required' }, { status: 400 });
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
     .from('parent_claim_otps')
     .insert({
       student_id: guard.studentId, full_name: fullName, email, phone, relationship,
-      child_name: childName || null, code_hash: hashOtp(otp), expires_at: otpExpiry(),
+      child_name: childName || null, child_gender: childGender, code_hash: hashOtp(otp), expires_at: otpExpiry(),
     })
     .select('id')
     .single();

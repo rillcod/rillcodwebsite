@@ -6,6 +6,7 @@ import { compareReportsByPeriodDesc } from '@/lib/reports/academic-period';
 import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
 import { isParentCaptured } from '@/lib/parent-claim/captured';
 import { backfillParentLinkFromConsent } from '@/lib/parent-claim/consent-backfill';
+import { studentNeedsGender } from '@/lib/parent-claim/record-enrichment';
 import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
 import type { Database, Json } from '@/types/supabase';
@@ -323,6 +324,7 @@ export async function GET(
 
   // Has a REAL parent been captured (verified linked account, not just a bulk email)?
   const parentCaptured = await isParentCaptured(db, student.id);
+  const needsGender = await studentNeedsGender(db, student.id);
 
   await logResultAccessEvent(db, req, {
     action: 'result_check_verified',
@@ -341,6 +343,7 @@ export async function GET(
     consentRequired: false,
     parentCaptured,
     consentComplete: consent.required && consent.complete,
+    needsGender,
     student: publicStudentPayload(student, true),
     reports: ordered,
     terms,
