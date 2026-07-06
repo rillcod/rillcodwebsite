@@ -48,6 +48,7 @@ type QuickCheckResponse = {
   consentRequired?: boolean;
   parentCaptured?: boolean;
   consentComplete?: boolean;
+  recordGaps?: { needsGender?: boolean; needsAge?: boolean };
   needsGender?: boolean;
   oneTime?: boolean;
   error?: string;
@@ -314,7 +315,7 @@ export default function ResultQuickCheckPage() {
                 <ResultGate
                   code={code}
                   captured={!!data.parentCaptured || !!data.consentComplete}
-                  needsGender={!!data.needsGender}
+                  recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
                   onClaimLinked={() => void loadResultCheck()}
                 >
                 {reports.length === 0 ? (

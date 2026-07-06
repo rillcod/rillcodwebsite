@@ -3,10 +3,10 @@ import type { Database } from '@/types/supabase';
 import { resolveStudentFromCode } from './resolve';
 import { looseNameMatch } from './name-match';
 import { provisionParentAndLinkChild, autoLinkSiblings } from './provision';
-import { ensureResultIntakeForm } from './intake-form';
 import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
 import { deliverResultCheckerCredentials, type CredentialDelivery } from '@/lib/parent-claim/deliver-credentials';
-import { applyParentSuppliedChildGender } from '@/lib/parent-claim/record-enrichment';
+import { applyParentRecordEnrichment, normaliseChildAge, type RecordEnrichmentResult } from '@/lib/parent-claim/record-enrichment';
+import { upsertResultCheckerLead } from '@/lib/parent-claim/upsert-lead';
 
 type Db = SupabaseClient<Database>;
 
@@ -17,6 +17,8 @@ export interface ClaimDetails {
   relationship: string | null;
   childName?: string;
   childGender?: string | null;
+  childAge?: string | number | null;
+  whatsappOptIn?: boolean;
 }
 
 export interface ClaimResult {
@@ -28,7 +30,7 @@ export interface ClaimResult {
   siblingsLinked?: number;
   siblingNames?: string[];
   credentials?: CredentialDelivery;
-  genderRecorded?: boolean;
+  enrichment?: RecordEnrichmentResult;
 }
 
 /**
@@ -98,12 +100,9 @@ async function notifyStaffOfClaim(admin: Db, schoolId: string | null, childName:
  * verification — one implementation so both paths behave identically.
  */
 export async function completeParentClaim(admin: Db, studentId: string, details: ClaimDetails): Promise<ClaimResult> {
-  const { fullName, email, phone, relationship, childGender } = details;
+  const { fullName, email, phone, relationship, childGender, childAge, whatsappOptIn } = details;
+  const parsedAge = normaliseChildAge(childAge);
 
-  // Anti-hijack: if this child is ALREADY linked to a parent whose contact differs from
-  // the claimant, don't silently attach a stranger (possession of the QR + owning your
-  // own email doesn't make you the parent). Route them to the school instead. A matching
-  // contact (the same parent re-claiming, or a co-parent already on file) still passes.
   const { data: childStudent } = await admin
     .from('students').select('id, parent_email, parent_phone').eq('user_id', studentId).maybeSingle();
   if (childStudent) {
@@ -136,43 +135,42 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     parentId: prov.parentId, email, phone, fullName, relationship, schoolName: prov.schoolName ?? null, studentId,
   });
 
-  const genderRecorded = await applyParentSuppliedChildGender(admin, studentId, childGender);
+  const enrichment = await applyParentRecordEnrichment(admin, {
+    studentUserId: studentId,
+    parentId: prov.parentId,
+    phone,
+    childGender,
+    childAge: parsedAge,
+    whatsappOptIn,
+  });
 
   if (prov.schoolId) {
     try {
-      const formId = await ensureResultIntakeForm(admin, prov.schoolId);
-      if (formId) {
-        const { data: dupe } = await admin
-          .from('form_leads').select('id')
-          .eq('form_id', formId).eq('matched_student_id', studentId).maybeSingle();
-        if (!dupe) {
-          await admin.from('form_leads').insert({
-            form_id: formId,
-            school_id: prov.schoolId,
-            email,
-            response_data: {
-              parent_name: fullName, parent_email: email, parent_whatsapp: phone,
-              relationship, child_name: prov.childName, source: 'result_checker', _auto_linked: true,
-              ...(childGender ? { child_gender: childGender } : {}),
-            },
-            matched_student_id: studentId,
-            matched_parent_id: prov.parentId,
-            match_status: 'approved',
-            match_confidence: 'high',
-            match_notes: 'Auto-linked via result/ID-card scan (exact child).',
-          });
-        }
-        await reconcileLeadWithCrm(admin, {
-          parentName: fullName, parentEmail: email, parentWhatsapp: phone ?? '',
-          childName: prov.childName ?? '', childAge: '', childClass: '',
-          programCategory: '', currentSchool: prov.schoolName ?? null,
-          matchedSchoolId: prov.schoolId, schoolId: prov.schoolId,
-          schoolName: prov.schoolName ?? 'Rillcod Technologies',
-          formId, formTitle: 'Result Checker Intake',
-        });
-      }
+      const leadId = await upsertResultCheckerLead(admin, {
+        schoolId: prov.schoolId,
+        studentUserId: studentId,
+        parentId: prov.parentId,
+        email,
+        fullName,
+        phone,
+        relationship,
+        childName: prov.childName ?? null,
+        childGender: childGender ?? null,
+        childAge: parsedAge,
+        whatsappOptIn,
+      });
+      const formId = leadId ? (await admin.from('form_leads').select('form_id').eq('id', leadId).maybeSingle()).data?.form_id : null;
+      await reconcileLeadWithCrm(admin, {
+        parentName: fullName, parentEmail: email, parentWhatsapp: phone ?? '',
+        childName: prov.childName ?? '', childAge: parsedAge != null ? String(parsedAge) : '',
+        childClass: '', programCategory: '', currentSchool: prov.schoolName ?? null,
+        matchedSchoolId: prov.schoolId, schoolId: prov.schoolId,
+        schoolName: prov.schoolName ?? 'Rillcod Technologies',
+        formId: formId ?? `result-check-${prov.schoolId}`,
+        formTitle: 'Result Checker Intake',
+      });
     } catch (e) {
-      console.error('[parent-claim] CRM capture failed:', e);
+      console.error('[parent-claim] CRM/lead capture failed:', e);
     }
   }
 
@@ -187,10 +185,16 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     newParentPassword: prov.generatedPassword ?? null,
   });
 
-  // Accountability + staff visibility (both best-effort).
+  const enrichNote = [
+    enrichment.genderRecorded && 'gender',
+    enrichment.ageRecorded && 'age',
+    enrichment.whatsappOptInSet && 'whatsapp_opt_in',
+  ].filter(Boolean).join(', ');
+
   await logClaimAudit(admin, {
     student_id: studentId, parent_id: prov.parentId, email, phone,
     action: 'linked', siblings_linked: siblingNames.length,
+    note: enrichNote ? `enriched: ${enrichNote}` : undefined,
   });
   await notifyStaffOfClaim(admin, prov.schoolId ?? null, prov.childName ?? null, fullName);
 
@@ -201,6 +205,6 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     siblingsLinked: siblingNames.length,
     siblingNames,
     credentials,
-    genderRecorded,
+    enrichment,
   };
 }

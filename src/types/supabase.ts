@@ -743,6 +743,36 @@ export type Database = {
           },
         ]
       }
+      balance_reminder_settings: {
+        Row: {
+          channel_email: boolean
+          channel_whatsapp: boolean
+          enabled: boolean
+          every_days: number
+          id: number
+          max_reminders: number
+          updated_at: string
+        }
+        Insert: {
+          channel_email?: boolean
+          channel_whatsapp?: boolean
+          enabled?: boolean
+          every_days?: number
+          id?: number
+          max_reminders?: number
+          updated_at?: string
+        }
+        Update: {
+          channel_email?: boolean
+          channel_whatsapp?: boolean
+          enabled?: boolean
+          every_days?: number
+          id?: number
+          max_reminders?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       billing_contacts: {
         Row: {
           created_at: string
@@ -6409,6 +6439,114 @@ export type Database = {
           {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      parent_claim_audit: {
+        Row: {
+          action: string
+          created_at: string
+          email: string | null
+          id: string
+          ip: string | null
+          note: string | null
+          parent_id: string | null
+          phone: string | null
+          siblings_linked: number
+          student_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip?: string | null
+          note?: string | null
+          parent_id?: string | null
+          phone?: string | null
+          siblings_linked?: number
+          student_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip?: string | null
+          note?: string | null
+          parent_id?: string | null
+          phone?: string | null
+          siblings_linked?: number
+          student_id?: string | null
+        }
+        Relationships: []
+      }
+      parent_claim_otps: {
+        Row: {
+          attempts: number
+          child_age: number | null
+          child_gender: string | null
+          child_name: string | null
+          code_hash: string
+          created_at: string
+          email: string
+          expires_at: string
+          full_name: string
+          id: string
+          phone: string | null
+          relationship: string | null
+          student_id: string
+          verified: boolean
+          whatsapp_opt_in: boolean
+        }
+        Insert: {
+          attempts?: number
+          child_age?: number | null
+          child_gender?: string | null
+          child_name?: string | null
+          code_hash: string
+          created_at?: string
+          email: string
+          expires_at: string
+          full_name: string
+          id?: string
+          phone?: string | null
+          relationship?: string | null
+          student_id: string
+          verified?: boolean
+          whatsapp_opt_in?: boolean
+        }
+        Update: {
+          attempts?: number
+          child_age?: number | null
+          child_gender?: string | null
+          child_name?: string | null
+          code_hash?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          relationship?: string | null
+          student_id?: string
+          verified?: boolean
+          whatsapp_opt_in?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parent_claim_otps_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parent_claim_otps_student_id_fkey"
+            columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]

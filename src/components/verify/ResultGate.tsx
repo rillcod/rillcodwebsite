@@ -10,10 +10,10 @@ import ParentClaim from './ParentClaim';
  * result behind the self-service parent claim. Consolidates what used to be copy-pasted
  * per page (staff bypass, unlock state, protected notice, ParentClaim).
  */
-export default function ResultGate({ code, captured, needsGender, onClaimLinked, children }: {
+export default function ResultGate({ code, captured, recordGaps, onClaimLinked, children }: {
   code: string;
   captured: boolean;
-  needsGender?: boolean;
+  recordGaps?: { needsGender?: boolean; needsAge?: boolean };
   onClaimLinked?: () => void;
   children: ReactNode;
 }) {
@@ -54,7 +54,7 @@ export default function ResultGate({ code, captured, needsGender, onClaimLinked,
           Confirm you’re the parent or guardian below to unlock this result. Once verified, it opens instantly every time.
         </p>
       </div>
-      <ParentClaim code={code} needsGender={needsGender} onLinked={() => { setClaimUnlocked(true); onClaimLinked?.(); }} />
+      <ParentClaim code={code} recordGaps={recordGaps} onLinked={() => { setClaimUnlocked(true); onClaimLinked?.(); }} />
     </div>
   );
 }

@@ -13,9 +13,20 @@ type Step = 'cta' | 'form' | 'otp' | 'done';
 
 // Self-service parent link shown on the verify page. Default: enter details → 6-digit
 // code by email + WhatsApp → verify → account auto-created + child (and siblings) linked.
-export default function ParentClaim({ code, needsGender, onLinked }: { code: string; needsGender?: boolean; onLinked?: () => void }) {
+export default function ParentClaim({
+  code,
+  recordGaps,
+  onLinked,
+}: {
+  code: string;
+  recordGaps?: { needsGender?: boolean; needsAge?: boolean };
+  onLinked?: () => void;
+}) {
   const [step, setStep] = useState<Step>('cta');
-  const [form, setForm] = useState({ fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '', childGender: '' as '' | 'male' | 'female' });
+  const [form, setForm] = useState({
+    fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '',
+    childGender: '' as '' | 'male' | 'female', childAge: '', whatsappOptIn: true,
+  });
   const [claimId, setClaimId] = useState('');
   const [otp, setOtp] = useState('');
   const [sentVia, setSentVia] = useState<{ email: boolean; whatsapp: boolean } | null>(null);
@@ -35,6 +46,7 @@ export default function ParentClaim({ code, needsGender, onLinked }: { code: str
       studentEmail?: string;
     } | null;
     genderRecorded?: boolean;
+    enrichment?: { genderRecorded?: boolean; ageRecorded?: boolean; whatsappOptInSet?: boolean } | null;
   } | null>(null);
 
   // Resend cooldown ticker.
@@ -61,7 +73,8 @@ export default function ParentClaim({ code, needsGender, onLinked }: { code: str
       accountCreated: !!j.accountCreated,
       siblingsLinked: j.siblingsLinked ?? 0,
       credentials: j.credentials ?? null,
-      genderRecorded: !!j.genderRecorded,
+      genderRecorded: !!j.enrichment?.genderRecorded,
+      enrichment: j.enrichment ?? null,
     });
     setStep('done');
     onLinked?.(); // unlock the gated result on the verify page
@@ -117,8 +130,12 @@ export default function ParentClaim({ code, needsGender, onLinked }: { code: str
     finally { setLoading(false); }
   }
 
-  const genderRequired = !!needsGender;
-  const formValid = form.fullName && form.email && form.phone && (isParent ? form.childName : true) && (!genderRequired || form.childGender);
+  const genderRequired = !!recordGaps?.needsGender;
+  const ageRequired = !!recordGaps?.needsAge;
+  const formValid = form.fullName && form.email && form.phone
+    && (isParent ? form.childName : true)
+    && (!genderRequired || form.childGender)
+    && (!ageRequired || (form.childAge && parseInt(form.childAge, 10) >= 3));
 
   if (step === 'done' && done) {
     const creds = done.credentials;
@@ -133,8 +150,13 @@ export default function ParentClaim({ code, needsGender, onLinked }: { code: str
           <p className="text-xs text-foreground">We also linked {done.siblingsLinked} sibling{done.siblingsLinked !== 1 ? 's' : ''} on record with your contact.</p>
         )}
 
-        {done.genderRecorded && (
-          <p className="text-xs text-muted-foreground">Child&apos;s gender was saved to their school record — thank you.</p>
+        {(done.enrichment?.genderRecorded || done.enrichment?.ageRecorded) && (
+          <p className="text-xs text-muted-foreground">
+            {[
+              done.enrichment.genderRecorded && 'Gender',
+              done.enrichment.ageRecorded && 'Age',
+            ].filter(Boolean).join(' and ')} saved to your child&apos;s school record — thank you.
+          </p>
         )}
 
         <div className="rounded-xl border border-border bg-background p-4 space-y-3">
@@ -266,6 +288,31 @@ export default function ParentClaim({ code, needsGender, onLinked }: { code: str
           <p className="text-[10px] text-muted-foreground mt-1">Helps us keep accurate school records — same as the consent form.</p>
         </div>
       )}
+      {ageRequired && (
+        <div>
+          <input
+            className={field}
+            type="number"
+            min={3}
+            max={25}
+            placeholder="Child&apos;s age (required for records)"
+            value={form.childAge}
+            onChange={e => setForm(f => ({ ...f, childAge: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">Approximate age is fine — used for class records and reports.</p>
+        </div>
+      )}
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.whatsappOptIn}
+          onChange={e => setForm(f => ({ ...f, whatsappOptIn: e.target.checked }))}
+          className="mt-1 rounded border-border"
+        />
+        <span className="text-[11px] text-muted-foreground leading-relaxed">
+          Send me class updates and reminders on WhatsApp (recommended).
+        </span>
+      </label>
       <div className="flex gap-2">
         <button onClick={() => setStep('cta')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
         <button onClick={startOrSubmit} disabled={loading || !formValid}

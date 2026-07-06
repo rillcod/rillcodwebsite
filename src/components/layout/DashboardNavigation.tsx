@@ -195,6 +195,7 @@ export default function DashboardNavigation() {
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
+          { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Feedback & Support', href: '/dashboard/feedback', icon: ChatBubbleLeftEllipsisIcon },
@@ -255,6 +256,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'More' },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
+          { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
@@ -353,6 +355,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'More' },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
+          { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'WhatsApp Groups', href: '/dashboard/whatsapp-groups', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
@@ -386,6 +389,7 @@ export default function DashboardNavigation() {
           { name: 'Share Feedback', href: '/dashboard/parent-feedback', icon: ChatBubbleLeftEllipsisIcon },
           { name: 'Support', href: '/dashboard/support', icon: QuestionMarkCircleIcon },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
+          { name: 'Parent QR Claims', href: '/dashboard/parent-claims', icon: ShieldCheckIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
           { name: 'Profile', href: '/dashboard/profile', icon: UserIcon },

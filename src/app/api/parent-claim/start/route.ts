@@ -32,6 +32,9 @@ export async function POST(request: Request) {
   const relationship = String(body.relationship ?? '').trim() || null;
   const childName = String(body.childName ?? '').trim();
   const childGender = String(body.childGender ?? '').trim() || null;
+  const childAgeRaw = String(body.childAge ?? '').trim();
+  const childAge = childAgeRaw ? parseInt(childAgeRaw, 10) : null;
+  const whatsappOptIn = body.whatsappOptIn === true || body.whatsappOptIn === 'true';
 
   if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 });
   if (!fullName) return NextResponse.json({ error: 'Your full name is required' }, { status: 400 });
@@ -66,7 +69,10 @@ export async function POST(request: Request) {
     .from('parent_claim_otps')
     .insert({
       student_id: guard.studentId, full_name: fullName, email, phone, relationship,
-      child_name: childName || null, child_gender: childGender, code_hash: hashOtp(otp), expires_at: otpExpiry(),
+      child_name: childName || null, child_gender: childGender,
+      child_age: Number.isFinite(childAge) ? childAge : null,
+      whatsapp_opt_in: whatsappOptIn,
+      code_hash: hashOtp(otp), expires_at: otpExpiry(),
     })
     .select('id')
     .single();

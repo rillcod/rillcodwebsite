@@ -67,6 +67,7 @@ const STAFF_ONLY_PREFIXES: string[] = [
   '/dashboard/moderation',
   '/dashboard/crm',
   '/dashboard/activity-logs',
+  '/dashboard/parent-claims',
   '/dashboard/reports',
   '/dashboard/billing',
   '/dashboard/billing-automation',
@@ -184,6 +185,7 @@ const PARENT_ALLOWED_PREFIXES: string[] = [
   '/dashboard/notifications',
   '/dashboard/newsletters',
   '/dashboard/consent-forms',
+  '/dashboard/parent-claims',
   '/dashboard/inbox',
   '/dashboard/curriculum',
 ];

@@ -28,6 +28,8 @@ export async function POST(request: Request) {
   const relationship = String(body.relationship ?? '').trim() || null;
   const childName = String(body.childName ?? '').trim();
   const childGender = String(body.childGender ?? '').trim() || null;
+  const childAge = String(body.childAge ?? '').trim() || null;
+  const whatsappOptIn = body.whatsappOptIn === true || body.whatsappOptIn === 'true';
 
   if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 });
   if (!fullName) return NextResponse.json({ error: 'Your full name is required' }, { status: 400 });
@@ -40,7 +42,9 @@ export async function POST(request: Request) {
   const guard = await resolveAndGuardChild(admin, code, { relationship, childName });
   if (!guard.studentId) return NextResponse.json({ error: guard.error }, { status: guard.status ?? 400 });
 
-  const result = await completeParentClaim(admin, guard.studentId, { fullName, email, phone, relationship, childName, childGender });
+  const result = await completeParentClaim(admin, guard.studentId, {
+    fullName, email, phone, relationship, childName, childGender, childAge, whatsappOptIn,
+  });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
 
   return NextResponse.json({
@@ -50,6 +54,6 @@ export async function POST(request: Request) {
     siblingsLinked: result.siblingsLinked ?? 0,
     siblingNames: result.siblingNames ?? [],
     credentials: result.credentials ?? null,
-    genderRecorded: !!result.genderRecorded,
+    enrichment: result.enrichment ?? null,
   });
 }
