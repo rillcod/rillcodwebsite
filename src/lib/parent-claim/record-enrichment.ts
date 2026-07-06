@@ -177,6 +177,22 @@ export async function applyParentWhatsappOptIn(
   return true;
 }
 
+/** Reject claim submissions that omit required fill-only record fields. */
+export async function validateParentSuppliedRecordGaps(
+  admin: AnySupabase,
+  studentUserId: string,
+  input: { childGender?: string | null; childAge?: string | number | null; childDob?: string | null },
+): Promise<string | null> {
+  const gaps = await getStudentRecordGaps(admin, studentUserId);
+  if (gaps.needsGender && !normaliseChildGender(input.childGender)) {
+    return "Please select your child's gender for school records.";
+  }
+  if (gaps.needsAge && normaliseChildAge(input.childAge) == null) {
+    return "Please enter your child's age for school records.";
+  }
+  return null;
+}
+
 /** Run all fill-only enrichments from a parent claim in one place. */
 export async function applyParentRecordEnrichment(
   admin: AnySupabase,

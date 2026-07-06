@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveAndGuardChild, completeParentClaim } from '@/lib/parent-claim/complete';
+import { validateParentSuppliedRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
 
@@ -42,6 +43,11 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const guard = await resolveAndGuardChild(admin, code, { relationship, childName });
   if (!guard.studentId) return NextResponse.json({ error: guard.error }, { status: guard.status ?? 400 });
+
+  const gapError = await validateParentSuppliedRecordGaps(admin, guard.studentId, {
+    childGender, childAge, childDob,
+  });
+  if (gapError) return NextResponse.json({ error: gapError }, { status: 400 });
 
   const result = await completeParentClaim(admin, guard.studentId, {
     fullName, email, phone, relationship, childName, childGender, childAge, childDob, whatsappOptIn,

@@ -5,7 +5,7 @@ import { looseNameMatch } from './name-match';
 import { provisionParentAndLinkChild, autoLinkSiblings } from './provision';
 import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
 import { deliverResultCheckerCredentials, type CredentialDelivery } from '@/lib/parent-claim/deliver-credentials';
-import { applyParentRecordEnrichment, normaliseChildAge, type RecordEnrichmentResult } from '@/lib/parent-claim/record-enrichment';
+import { applyParentRecordEnrichment, normaliseChildAge, validateParentSuppliedRecordGaps, type RecordEnrichmentResult } from '@/lib/parent-claim/record-enrichment';
 import { upsertResultCheckerLead } from '@/lib/parent-claim/upsert-lead';
 
 type Db = SupabaseClient<Database>;
@@ -103,6 +103,11 @@ async function notifyStaffOfClaim(admin: Db, schoolId: string | null, childName:
 export async function completeParentClaim(admin: Db, studentId: string, details: ClaimDetails): Promise<ClaimResult> {
   const { fullName, email, phone, relationship, childGender, childAge, childDob, whatsappOptIn } = details;
   const parsedAge = normaliseChildAge(childAge);
+
+  const gapError = await validateParentSuppliedRecordGaps(admin, studentId, {
+    childGender, childAge, childDob,
+  });
+  if (gapError) return { ok: false, error: gapError, status: 400 };
 
   const { data: childStudent } = await admin
     .from('students').select('id, parent_email, parent_phone').eq('user_id', studentId).maybeSingle();

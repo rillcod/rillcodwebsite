@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { resolveAndGuardChild } from '@/lib/parent-claim/complete';
+import { validateParentSuppliedRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { generateOtp, hashOtp, otpExpiry, OTP_TTL_MINUTES } from '@/lib/parent-claim/otp';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
@@ -47,6 +48,11 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const guard = await resolveAndGuardChild(admin, code, { relationship, childName });
   if (!guard.studentId) return NextResponse.json({ error: guard.error }, { status: guard.status ?? 400 });
+
+  const gapError = await validateParentSuppliedRecordGaps(admin, guard.studentId, {
+    childGender, childAge, childDob,
+  });
+  if (gapError) return NextResponse.json({ error: gapError }, { status: 400 });
 
   const { data: student } = await admin
     .from('portal_users').select('full_name').eq('id', guard.studentId).maybeSingle();
