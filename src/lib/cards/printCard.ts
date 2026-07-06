@@ -2,11 +2,19 @@
 // Used by: students/page, students/bulk-register, students/card-builder, identity-cards.
 
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
+import { qrDataUrl, qrDataUrls } from '@/lib/cards/qr';
 
 export interface CardFieldConfig {
   key: string;
   visible: boolean;
   label?: string;
+}
+
+export interface CardTypoStyle {
+  fontSize?: number;
+  fontWeight?: string;
+  color?: string;
+  fontFamily?: string;
 }
 
 export interface CardConfig {
@@ -21,7 +29,17 @@ export interface CardConfig {
   showLogo?: boolean;
   showPhotoSlot?: boolean;
   cornerRadius?: 'sharp' | 'rounded' | 'pill';
+  /** CR80 dimensions from Card Studio (e.g. '54mm' × '85.6mm'). */
+  width?: string;
+  height?: string;
+  /** Typography from the Card Studio design tab — colors are applied to prints. */
+  typo?: Record<string, CardTypoStyle>;
   fields: CardFieldConfig[];
+}
+
+/** Color chosen in the Card Studio typography panel, with a safe fallback. */
+export function typoColor(cfg: CardConfig, key: string, fallback: string): string {
+  return cfg.typo?.[key]?.color || fallback;
 }
 
 export function cardRadiusPx(cfg: CardConfig): number {
@@ -40,6 +58,10 @@ export interface CardHolder {
   avatar_url?: string | null;
   /** Actual temp password to print (login slips); omitted → "Set on first login". */
   temp_password?: string | null;
+  /** e.g. Student / Teacher / Parent — shown under the name when provided. */
+  role_label?: string | null;
+  /** Small accent badge (e.g. "3 children", class name) for manage prints. */
+  badge?: string | null;
 }
 
 const FALLBACK_CONFIG: CardConfig = {
@@ -80,21 +102,24 @@ export function holderCode(id: string): string {
 }
 
 // Builds print HTML for a single card (opens in a new window and prints).
-export function buildSingleCardHtml(
+// Async: QR codes are generated locally as data URLs (offline-safe).
+export async function buildSingleCardHtml(
   holder: CardHolder,
   cfg: CardConfig,
   originUrl: string,
-): string {
+): Promise<string> {
   const acc = cfg.accentColor;
   const hs = cfg.headerStyle;
   const fv = (k: string) => fieldVisible(cfg, k);
   const fl = (k: string, fb: string) => fieldLabel(cfg, k, fb);
+  const tc = (k: string, fb: string) => typoColor(cfg, k, fb);
 
   const code = holder.card_number || holderCode(holder.id);
   // ID cards resolve on the single result surface (/result-check), which accepts the
   // card verification_code as well as the RC- access code.
   const verifyCode = holder.verification_code || holderCode(holder.id);
   const qrData = `${originUrl}/result-check/${verifyCode}`;
+  const qrSrc = fv('qr') ? await qrDataUrl(qrData, 260) : '';
   const expiryVal = holder.expires_at
     ? new Date(holder.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
@@ -160,9 +185,10 @@ export function buildSingleCardHtml(
     .sname { font-size:22px; font-weight:900; color:#111; text-transform:uppercase; line-height:1.15; }
     .sep { height:1px; background:#f3f4f6; }
     .field { display:flex; flex-direction:column; gap:3px; }
-    .lbl { font-size:7.5px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; }
-    .val { font-size:13px; font-weight:700; font-family:monospace; color:#111; word-break:break-all; }
-    .val-a { font-size:13px; font-weight:800; font-family:monospace; color:${acc}; word-break:break-all; }
+    .srole { font-size:10px; font-weight:700; color:${acc}; text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+    .lbl { font-size:7.5px; font-weight:700; color:${tc('fieldLabel','#9ca3af')}; text-transform:uppercase; letter-spacing:1px; }
+    .val { font-size:13px; font-weight:700; font-family:monospace; color:${tc('fieldValue','#111')}; word-break:break-all; }
+    .val-a { font-size:13px; font-weight:800; font-family:monospace; color:${tc('accentValue', acc)}; word-break:break-all; }
     .qrp { width:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:18px 16px; background:#fafafa; flex-shrink:0; }
     .qr  { width:130px; height:130px; border:1px solid #e5e7eb; display:block; }
     .qrl { font-size:7px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; text-align:center; font-weight:600; }
@@ -181,14 +207,17 @@ export function buildSingleCardHtml(
       <div class="info">
         <div class="name-row">
           ${photoHtml}
-          <div class="sname">${holder.full_name}</div>
+          <div>
+            <div class="sname">${holder.full_name}</div>
+            ${holder.role_label ? `<div class="srole">${holder.role_label}</div>` : ''}
+          </div>
         </div>
         <div class="sep"></div>
         ${infoRows}
       </div>
       ${fv('qr') ? `
       <div class="qrp">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}" class="qr" crossorigin="anonymous" />
+        <img src="${qrSrc}" class="qr" />
         <div class="qrl">Scan or type this code at rillcod.com/result-check</div>
         <div class="qrc">${verifyCode}</div>
       </div>` : ''}
@@ -202,19 +231,35 @@ export function buildSingleCardHtml(
   </body></html>`;
 }
 
+export interface BulkPrintOptions {
+  /** Use the exact card dimensions from the config (Card Studio manage prints). */
+  fixedSize?: boolean;
+  /** Small hint line under the QR (e.g. "Scan to check result"). */
+  qrHint?: string;
+}
+
 // Builds print HTML for a batch of cards (2-up grid, A4).
-export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, originUrl: string): string {
+// Async: QR codes are generated locally as data URLs (offline-safe).
+export async function buildBulkPrintHtml(
+  holders: CardHolder[],
+  cfg: CardConfig,
+  originUrl: string,
+  opts: BulkPrintOptions = {},
+): Promise<string> {
   const acc = cfg.accentColor;
   const hs = cfg.headerStyle;
   const fv = (k: string) => fieldVisible(cfg, k);
   const fl = (k: string, fb: string) => fieldLabel(cfg, k, fb);
+  const tc = (k: string, fb: string) => typoColor(cfg, k, fb);
   const logoUrl = `${originUrl}/logo.png`;
+
+  const qrPayload = (h: CardHolder) => `${originUrl}/result-check/${h.verification_code || holderCode(h.id)}`;
+  const qrMap = fv('qr') ? await qrDataUrls(holders.map(qrPayload), 200) : new Map<string, string>();
 
   const cardHtml = (h: CardHolder) => {
     const code = h.card_number || holderCode(h.id);
     const verifyCode = h.verification_code || holderCode(h.id);
-    const qrData = `${originUrl}/result-check/${verifyCode}`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrData)}`;
+    const qrSrc = qrMap.get(qrPayload(h)) || '';
     const hdrClass = hs === 'band' ? 'hdr-band' : hs === 'border' ? 'hdr-border' : 'hdr-min';
     const rows = [
       fv('school') && h.school_name ? `<div class="row"><div class="lbl">${fl('school','School')}</div><div class="val-a">${h.school_name}</div></div>` : '',
@@ -234,22 +279,30 @@ export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, origi
       <div class="body">
         <div class="left">
           <div class="name">${h.full_name}</div>
+          ${h.role_label ? `<div class="role">${h.role_label}</div>` : ''}
           <div class="sep"></div>
           ${rows}
+          ${h.badge ? `<div class="hbadge">${h.badge}</div>` : ''}
         </div>
-        ${fv('qr') ? `<div class="right"><img class="qr" src="${qrUrl}" /><div class="code">${verifyCode}</div></div>` : ''}
+        ${fv('qr') ? `<div class="right"><img class="qr" src="${qrSrc}" />${opts.qrHint ? `<div class="qrhint">${opts.qrHint}</div>` : ''}<div class="code">${verifyCode}</div></div>` : ''}
       </div>
       <div class="ftr"><span>${cfg.footerLeft}</span><span>${code}</span></div>
     </div>`;
   };
+
+  const fixed = opts.fixedSize && cfg.width && cfg.height;
+  const gridCss = fixed
+    ? `display:grid; grid-template-columns:repeat(auto-fill,${cfg.width}); gap:6mm; justify-content:start;`
+    : `display:grid; grid-template-columns:repeat(2,1fr); gap:8mm;`;
+  const cardSizeCss = fixed ? `width:${cfg.width}; height:${cfg.height};` : '';
 
   return `<!DOCTYPE html><html><head><title>Access Cards</title>
   <style>
     @page { size: A4 portrait; margin: 8mm; }
     * { box-sizing:border-box; }
     body { margin:0; font-family:Inter,system-ui,sans-serif; color:#111827; background:#fff; }
-    .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8mm; }
-    .card { border:1px solid #e5e7eb; ${hs === 'border' ? `border-left:3mm solid ${acc};` : ''} border-radius:${cardRadiusPx(cfg)}px; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; page-break-inside:avoid; margin-bottom:8mm; }
+    .grid { ${gridCss} }
+    .card { ${cardSizeCss} border:1px solid #e5e7eb; ${hs === 'border' ? `border-left:3mm solid ${acc};` : ''} border-radius:${cardRadiusPx(cfg)}px; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; page-break-inside:avoid; margin-bottom:8mm; }
     .hdr-band   { background:${acc}; color:#fff; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
     .hdr-border { padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; border-bottom:1px solid #f3f4f6; }
     .hdr-min    { border-bottom:2px solid ${acc}; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
@@ -257,17 +310,20 @@ export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, origi
     .org  { font-weight:900; font-size:2.5mm; text-transform:uppercase; line-height:1; }
     .web  { font-size:1.8mm; opacity:.8; margin-top:.5mm; }
     .cbadge { margin-left:auto; background:rgba(0,0,0,.22); color:#fff; padding:.5mm 1.5mm; font-size:1.6mm; font-weight:900; text-transform:uppercase; }
-    .body { display:flex; flex:1; }
-    .left { flex:1; padding:2.5mm 3mm; border-right:1px solid #f3f4f6; }
-    .name { font-size:3.5mm; font-weight:900; text-transform:uppercase; line-height:1.2; margin-bottom:1.5mm; }
+    .body { display:flex; flex:1; overflow:hidden; }
+    .left { flex:1; padding:2.5mm 3mm; border-right:1px solid #f3f4f6; overflow:hidden; }
+    .name { font-size:3.5mm; font-weight:900; text-transform:uppercase; line-height:1.2; margin-bottom:.5mm; }
+    .role { font-size:1.8mm; font-weight:800; color:${acc}; text-transform:uppercase; letter-spacing:.2mm; margin-bottom:1mm; }
     .sep  { height:.3mm; background:#f3f4f6; margin-bottom:1.5mm; }
     .row  { margin:.6mm 0; }
-    .lbl  { color:#9ca3af; font-size:1.5mm; text-transform:uppercase; }
-    .val  { font-size:2mm; font-weight:700; }
-    .val-a { font-size:2mm; font-weight:800; font-family:monospace; color:${acc}; }
+    .lbl  { color:${tc('fieldLabel','#9ca3af')}; font-size:1.5mm; text-transform:uppercase; }
+    .val  { font-size:2mm; font-weight:700; color:${tc('fieldValue','#111827')}; word-break:break-word; }
+    .val-a { font-size:2mm; font-weight:800; font-family:monospace; color:${tc('accentValue', acc)}; word-break:break-word; }
+    .hbadge { display:inline-block; background:${acc}15; border:1px solid ${acc}40; color:${acc}; font-size:1.7mm; font-weight:800; padding:.6mm 1.4mm; margin-top:1mm; }
     .right { width:22mm; background:#fafafa; padding:2mm; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:1mm; }
     .qr   { width:15mm; height:15mm; border:1px solid #e5e7eb; }
-    .code { color:${acc}; font-size:1.5mm; font-family:monospace; font-weight:900; text-align:center; }
+    .qrhint { font-size:1.4mm; color:#6b7280; text-transform:uppercase; font-weight:900; text-align:center; line-height:1.2; }
+    .code { color:${acc}; font-size:1.5mm; font-family:monospace; font-weight:900; text-align:center; word-break:break-all; }
     .ftr  { border-top:1px solid #f3f4f6; background:#fafafa; color:#6b7280; display:flex; justify-content:space-between; padding:1.2mm 3mm; font-size:1.5mm; }
     @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
   </style></head><body>

@@ -12,6 +12,9 @@ import {
   UserPlusIcon, AcademicCapIcon, FunnelIcon, SparklesIcon,
 } from '@/lib/icons';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
+import { buildBulkPrintHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
+import { qrDataUrl } from '@/lib/cards/qr';
+import { LocalQr } from '@/components/cards/LocalQr';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
 
@@ -42,14 +45,6 @@ interface CardConfig {
 type PortalUser = { id: string; full_name: string; email: string | null; role: string; school_name?: string | null; section_class?: string | null; };
 type DbCard = { id: string; card_number: string; verification_code: string; status: string; issued_at: string | null; expires_at: string | null; holder_id: string; holder_type: string; };
 type CardRecord = { id: string; name: string; email: string; roleLabel: string; school: string; badge: string; sectionClass: string; profileUrl: string; schoolId: string | null; };
-
-function escHtml(value?: string | null) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -290,7 +285,6 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   const hStyle = config.headerStyle || 'band';
   const code  = dbCard?.card_number ?? accessCardCodeForStudent(r.id);
   const verifyUrl = dbCard?.verification_code ? `${window.location.origin}/result-check/${dbCard.verification_code}` : `${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(verifyUrl)}`;
 
   return (
     <div className={`flex flex-col rounded-xl overflow-hidden border transition-all bg-card ${isSelected?'border-primary ring-1 ring-primary/40':'border-border hover:border-muted-foreground/30'}`}>
@@ -335,8 +329,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             <div style={{marginTop:2,display:'inline-block',background:`${acc}18`,border:`1px solid ${acc}40`,color:acc,fontSize:6,fontWeight:800,padding:'1px 5px',textTransform:'uppercase'}}>{r.badge}</div>
           </div>
           <div style={{width:60,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,padding:'6px 4px',background:'#fafafa',flexShrink:0}}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qr} alt="" style={{width:42,height:42,border:'1px solid #e5e7eb'}}/>
+            <LocalQr data={verifyUrl} size={120} style={{width:42,height:42,border:'1px solid #e5e7eb'}}/>
             <div style={{fontSize:6,fontWeight:900,fontFamily:'monospace',color:acc,textAlign:'center',wordBreak:'break-all'}}>{code}</div>
           </div>
         </div>
@@ -512,11 +505,11 @@ export default function CardStudioPage() {
     catch { /* ignore */ }
   };
 
-  const handlePrintSample = () => {
+  const handlePrintSample = async () => {
     const acc = cfg.accentColor;
     const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
     const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
-    const qUrl = encodeURIComponent('https://rillcod.com/result-check/RC-SAMPLE1');
+    const sampleQr = await qrDataUrl('https://rillcod.com/result-check/RC-SAMPLE1', 200);
     const expiry = new Date(Date.now()+365*24*60*60*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
     const sampleData: Record<string,string> = { school:SAMPLE.school,email:SAMPLE.email,password:SAMPLE.password,programme:SAMPLE.programme,studentId:SAMPLE.id,className:SAMPLE.className,expiry };
     const logoUrl = window.location.origin + '/images/logo.png';
@@ -564,7 +557,7 @@ export default function CardStudioPage() {
           <div class="sname">${SAMPLE.name}</div><div class="sep"></div>
           ${infoFields.map(f => {const val=sampleData[f.key]??'';const accent=['password','studentId','programme','school','expiry'].includes(f.key);return `<div class="field"><div class="lbl">${f.label}</div><div class="${accent?'val-a':'val'}">${val}</div></div>`;}).join('')}
         </div>
-        ${vis('qr')?`<div class="qrp"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qUrl}" class="qr" crossorigin="anonymous"/><div class="qrl">Scan to verify</div><div class="qrc">${SAMPLE.id}</div></div>`:''}
+        ${vis('qr')?`<div class="qrp"><img src="${sampleQr}" class="qr"/><div class="qrl">Scan to verify</div><div class="qrc">${SAMPLE.id}</div></div>`:''}
       </div>
       <div class="cftr"><span>${cfg.footerLeft}</span><span style="font-family:monospace;color:#374151;font-weight:900">${cfg.footerRight==='Student ID'?SAMPLE.id:cfg.footerRight}</span></div>
     </div>
@@ -609,57 +602,19 @@ export default function CardStudioPage() {
     return Array.from(groups.entries()).sort(([a],[b])=>a.localeCompare(b));
   },[visibleDesignStudents]);
 
-  const printDesignCards = (list: any[]) => {
+  // Consolidated: design-tab bulk prints go through the shared card builder
+  // (one template for the whole app; QR codes are generated locally).
+  const printDesignCards = async (list: any[]) => {
     if(!list.length) return;
-    const acc=cfg.accentColor; const hs=cfg.headerStyle;
-    const vis=(key:string)=>cfg.fields.find(f=>f.key===key)?.visible??false;
-    const logo=`${window.location.origin}/images/logo.png`;
-    const cardHtml=(s:any)=>{
-      const code=accessCardCodeForStudent(s.id);
-      const qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${window.location.origin}/result-check/${code}`)}`;
-      const hdrClass=hs==='border'?'hdr-border':hs==='minimal'?'hdr-min':'hdr-band';
-      const rows=[
-        vis('school')&&s.school_name?`<div class="row"><div class="lbl">${escHtml(cfg.fields.find(f=>f.key==='school')?.label||'School')}</div><div class="val-a">${escHtml(s.school_name)}</div></div>`:'',
-        vis('className')&&s.section_class?`<div class="row"><div class="lbl">Class</div><div class="val">${escHtml(s.section_class)}</div></div>`:'',
-        vis('email')&&s.email?`<div class="row"><div class="lbl">Email</div><div class="val">${escHtml(s.email)}</div></div>`:'',
-        vis('studentId')?`<div class="row"><div class="lbl">Student ID</div><div class="val-a">${code}</div></div>`:'',
-      ].filter(Boolean).join('');
-      return `<div class="card"><div class="${hdrClass}">${cfg.showLogo?`<img class="logo" src="${logo}"/>`:''}
-        <div><div class="org">${escHtml(cfg.orgName)}</div><div class="web">${escHtml(cfg.orgWebsite)}</div></div>
-        <div class="cbadge">${escHtml(cfg.cardLabel)}</div></div>
-        <div class="body"><div class="left"><div class="name">${escHtml(s.full_name)}</div><div class="sep"></div>${rows}</div>
-        ${vis('qr')?`<div class="right"><img class="qr" src="${qrUrl}" alt="Result check QR"/><div class="qrl">Scan for result</div><div class="code">${code}</div></div>`:''}</div>
-        <div class="ftr"><span>${escHtml(cfg.footerLeft)}</span><span>${code}</span></div></div>`;
-    };
-    const html=`<!doctype html><html><head><title>Access Cards</title>
-    <style>
-      @page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}
-      body{margin:0;font-family:Inter,system-ui,sans-serif;color:#111827;background:#fff}
-      .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm}
-      .card{border:1px solid #e5e7eb;display:flex;flex-direction:column;overflow:hidden;background:${cfg.bgColor||'#fff'}}
-      .hdr-band{background:${acc};color:#fff;padding:2.2mm 3mm;display:flex;align-items:center;gap:2mm}
-      .hdr-border{border-left:2.5mm solid ${acc};padding:2.2mm 3mm;display:flex;align-items:center;gap:2mm}
-      .hdr-min{border-bottom:1px solid #e5e7eb;padding:2.2mm 3mm;display:flex;align-items:center;gap:2mm}
-      .logo{width:5mm;height:5mm;object-fit:contain}.org{font-weight:900;font-size:2.5mm;text-transform:uppercase;line-height:1}
-      .web{font-size:1.8mm;opacity:.8;margin-top:.5mm}
-      .cbadge{margin-left:auto;background:rgba(0,0,0,.22);color:#fff;padding:.5mm 1.5mm;font-size:1.6mm;font-weight:900;text-transform:uppercase}
-      .body{display:flex;flex:1}.left{flex:1;padding:2.5mm 3mm;border-right:1px solid #f3f4f6}
-      .name{font-size:3.5mm;font-weight:900;margin:.8mm 0 1.2mm;text-transform:uppercase;line-height:1.2}
-      .sep{height:.3mm;background:#f3f4f6;margin-bottom:1mm}.row{margin:.6mm 0}
-      .lbl{color:${cfg.typo.fieldLabel.color};font-size:1.5mm;text-transform:uppercase}.val{font-size:2mm;font-weight:700}
-      .val-a{font-size:2mm;font-weight:800;font-family:monospace;color:${acc}}
-      .right{width:22mm;background:#fafafa;padding:2mm;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1mm}
-      .qr{width:15mm;height:15mm;border:1px solid #e5e7eb}.code{color:${acc};font-size:1.5mm;font-family:monospace;font-weight:900;text-align:center}
-      .qrl{font-size:1.4mm;color:#6b7280;text-transform:uppercase;font-weight:900;text-align:center}
-      .ftr{border-top:1px solid #f3f4f6;background:#fafafa;color:#6b7280;display:flex;justify-content:space-between;padding:1.2mm 3mm;font-size:1.5mm}
-      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-    </style></head><body>
-    <div class="grid">${list.map(s=>cardHtml(s)).join('')}</div>
-    <script>window.onload=()=>{const imgs=[...document.images];Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(r=>{img.onload=r;img.onerror=r;}))).then(()=>setTimeout(()=>window.print(),250));}</script>
-    </body></html>`;
-    const win=window.open('','_blank');
-    if(!win){toast.error('Pop-up blocked');return;}
-    win.document.write(html);win.document.close();
+    const holders: PrintCardHolder[] = list.map((s:any) => ({
+      id: s.id,
+      full_name: s.full_name || 'Unknown',
+      email: s.email ?? null,
+      school_name: s.school_name ?? null,
+      section_class: s.section_class ?? null,
+    }));
+    const html = await buildBulkPrintHtml(holders, cfg as unknown as PrintCardConfig, window.location.origin, { qrHint: 'Scan for result' });
+    openPrintWindow(html);
   };
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -681,6 +636,15 @@ export default function CardStudioPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [groupMode, setGroupMode] = useState<GroupMode>('none');
   const [showFilters, setShowFilters] = useState(false);
+  // Card validity applied when issuing (0 = no expiry)
+  const [issueValidityMonths, setIssueValidityMonths] = useState(0);
+
+  const issueExpiresAt = useCallback((): string | null => {
+    if (!issueValidityMonths) return null;
+    const d = new Date();
+    d.setMonth(d.getMonth() + issueValidityMonths);
+    return d.toISOString();
+  }, [issueValidityMonths]);
 
   const loadManageConfig = useCallback(async (type: CardType) => {
     try {
@@ -745,7 +709,7 @@ export default function CardStudioPage() {
   const issueCard = async (record: CardRecord) => {
     setIsIssuingIds(prev=>new Set(prev).add(record.id));
     try {
-      const res = await fetch('/api/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holder_type:cardType,holder_id:record.id,school_id:record.schoolId})});
+      const res = await fetch('/api/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holder_type:cardType,holder_id:record.id,school_id:record.schoolId,expires_at:issueExpiresAt()})});
       if(!res.ok){const j=await res.json();toast.error(j.error||'Failed to issue card');return;}
       toast.success(`Card issued for ${record.name}`); await loadDbCards(cardType);
     } catch(e:any){toast.error(e.message||'Error issuing card');}
@@ -779,7 +743,7 @@ export default function CardStudioPage() {
     if(!unissued.length) return;
     setBulkIssuing(true); setBulkProgress({done:0,total:unissued.length}); let done=0;
     const results = await Promise.allSettled(unissued.map(async r=>{
-      const res=await fetch('/api/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holder_type:cardType,holder_id:r.id,school_id:r.schoolId})});
+      const res=await fetch('/api/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({holder_type:cardType,holder_id:r.id,school_id:r.schoolId,expires_at:issueExpiresAt()})});
       if(!res.ok){const j=await res.json();throw new Error(j.error||'Failed');}
       done++; setBulkProgress({done,total:unissued.length});
     }));
@@ -826,56 +790,27 @@ export default function CardStudioPage() {
     return n;
   });
 
-  const printManageCards = (list: CardRecord[], title: string) => {
+  // Consolidated: manage-tab prints go through the shared card builder at the
+  // exact card size from the saved design (QR codes generated locally).
+  const printManageCards = async (list: CardRecord[], _title: string) => {
     if(!list.length){toast.error('No records to print');return;}
-    const {accentColor:acc,orgName:org,orgWebsite:site,footerLeft:foot,headerStyle:hStyle,cardLabel,width:cardW,height:cardH,bgColor:bgCol} = manageConfig;
-    const logo=`${window.location.origin}/images/logo.png`;
-    const showExpiry=manageConfig.fields?.find((f:any)=>f.key==='expiry')?.visible??false;
-    const expiryLabel=manageConfig.fields?.find((f:any)=>f.key==='expiry')?.label||'Expiry';
-    const html=`<!doctype html><html><head><title>${title}</title>
-<style>
-  @page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}
-  body{margin:0;font-family:Inter,system-ui,sans-serif;color:#111827;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,${cardW});gap:6mm;justify-content:start}
-  .card{width:${cardW};height:${cardH};border:1px solid #e5e7eb;display:flex;flex-direction:column;overflow:hidden;background:${bgCol}}
-  .hdr-band{background:${acc};color:#fff;padding:2.2mm 3mm;display:flex;align-items:center;gap:2mm}
-  .hdr-border{border-left:2.5mm solid ${acc};padding:2.2mm 3mm;display:flex;align-items:center;gap:2mm}
-  .hdr-min{border-bottom:1px solid #e5e7eb;padding:2.2mm 3mm;display:flex;align-items:center;gap:2mm}
-  .logo{width:5mm;height:5mm;object-fit:contain}.org{font-weight:900;font-size:2.5mm;text-transform:uppercase;line-height:1}
-  .web{font-size:1.8mm;opacity:.8;margin-top:.5mm}
-  .body{display:flex;flex:1}.left{flex:1;padding:2.5mm 3mm;border-right:1px solid #f3f4f6}
-  .school{color:${acc};font-size:1.8mm;font-weight:900;text-transform:uppercase;letter-spacing:.2mm}
-  .name{font-size:4mm;font-weight:900;margin:.8mm 0 1.2mm;text-transform:uppercase;line-height:1.2}
-  .row{margin:.8mm 0}.lbl{color:#9ca3af;font-size:1.6mm;text-transform:uppercase;letter-spacing:.15mm}.val{font-size:2.2mm;font-weight:700}
-  .badge{display:inline-block;background:${acc}15;border:1px solid ${acc}40;color:${acc};font-size:1.7mm;font-weight:800;padding:.6mm 1.4mm;margin-top:1mm}
-  .right{width:23mm;background:#fafafa;padding:2mm;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1mm}
-  .qr{width:16mm;height:16mm;border:1px solid #e5e7eb}.code{color:${acc};font-size:1.6mm;font-family:monospace;font-weight:900;text-align:center}
-  .ftr{border-top:1px solid #f3f4f6;background:#fafafa;color:#6b7280;display:flex;justify-content:space-between;padding:1.3mm 3mm;font-size:1.6mm}
-</style></head><body>
-<div class="grid">
-${list.map(r=>{
-  const dbCard=dbCardsMap.get(r.id);
-  // Show the code the QR actually encodes so typing what's printed always verifies.
-  const code=dbCard?.verification_code??accessCardCodeForStudent(r.id);
-  const verifyUrl=`${window.location.origin}/result-check/${code}`;
-  const qr=`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verifyUrl)}`;
-  const hdrClass=hStyle==='border'?'hdr-border':hStyle==='minimal'?'hdr-min':'hdr-band';
-  return `<div class="card"><div class="${hdrClass}"><img class="logo" src="${logo}"/><div><div class="org">${org}</div><div class="web">${site}</div></div></div>
-  <div class="body"><div class="left"><div class="school">${r.school}</div><div class="name">${r.name}</div>
-  <div class="row"><div class="lbl">Role</div><div class="val">${r.roleLabel}</div></div>
-  <div class="row"><div class="lbl">Email</div><div class="val">${r.email}</div></div>
-  ${r.sectionClass?`<div class="row"><div class="lbl">Class</div><div class="val">${r.sectionClass}</div></div>`:''}
-  ${showExpiry&&dbCard?.expires_at?`<div class="row"><div class="lbl">${expiryLabel}</div><div class="val" style="color:${acc}">${new Date(dbCard.expires_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>`:''}
-  <div class="badge">${r.badge}</div></div>
-  <div class="right"><img class="qr" src="${qr}"/><div class="code">${code}</div></div></div>
-  <div class="ftr"><span>${foot}</span><span>${cardLabel}</span></div></div>`;
-}).join('')}
-</div>
-<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),500)}</script>
-</body></html>`;
-    const win=window.open('','_blank');
-    if(!win){toast.error('Pop-up blocked');return;}
-    win.document.write(html);win.document.close();
+    const holders: PrintCardHolder[] = list.map(r=>{
+      const dbCard=dbCardsMap.get(r.id);
+      return {
+        id: r.id,
+        full_name: r.name,
+        email: r.email==='N/A'?null:r.email,
+        school_name: r.school,
+        section_class: r.sectionClass||null,
+        card_number: dbCard?.card_number??null,
+        verification_code: dbCard?.verification_code??null,
+        expires_at: dbCard?.expires_at??null,
+        role_label: r.roleLabel,
+        badge: r.badge,
+      };
+    });
+    const html = await buildBulkPrintHtml(holders, manageConfig as PrintCardConfig, window.location.origin, { fixedSize:true, qrHint:'Scan to verify' });
+    openPrintWindow(html);
   };
 
   // ── Guards ────────────────────────────────────────────────────────────────
@@ -1304,12 +1239,21 @@ ${list.map(r=>{
                 <PrinterIcon className="w-3 h-3"/> Print ({selectedIds.size})
               </button>
             </>)}
-            {filtered.some(r=>!dbCardsMap.has(r.id))&&(
+            {filtered.some(r=>!dbCardsMap.has(r.id))&&(<>
+              <select value={issueValidityMonths} onChange={e=>setIssueValidityMonths(Number(e.target.value))}
+                title="How long newly issued cards stay valid"
+                className="text-[10px] font-black uppercase tracking-wide bg-background border border-border rounded-lg px-2 py-1.5 text-muted-foreground focus:outline-none focus:border-primary cursor-pointer">
+                <option value={0}>No expiry</option>
+                <option value={6}>Valid 6 months</option>
+                <option value={12}>Valid 1 year</option>
+                <option value={24}>Valid 2 years</option>
+                <option value={36}>Valid 3 years</option>
+              </select>
               <button disabled={bulkIssuing} onClick={()=>bulkIssueList(filtered)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-primary/30 text-primary hover:bg-primary/5 rounded-lg disabled:opacity-50 transition-colors bg-background">
                 {bulkIssuing?<><span className="w-2.5 h-2.5 border border-primary border-t-transparent rounded-full animate-spin"/>{bulkProgress?`${bulkProgress.done}/${bulkProgress.total}`:'…'}</>:`Issue Missing (${filtered.filter(r=>!dbCardsMap.has(r.id)).length})`}
               </button>
-            )}
+            </>)}
             <button onClick={()=>printManageCards(filtered,`${cardType} access cards`)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-emerald-600 hover:border-emerald-500/30 rounded-lg transition-colors bg-background hover:bg-muted">
               <PrinterIcon className="w-3 h-3"/> Print All

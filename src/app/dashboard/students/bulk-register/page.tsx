@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { fetchClasses } from '@/services/dashboard.service';
 import Link from 'next/link';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
+import { qrDataUrls } from '@/lib/cards/qr';
 import {
   UserGroupIcon,
   CheckCircleIcon,
@@ -495,6 +496,11 @@ export default function BulkRegisterPage() {
       return a.full_name.localeCompare(b.full_name);
     });
 
+    // QR codes generated locally (offline-safe)
+    const qrMap = await qrDataUrls(sorted
+      .filter(r => r.portal_user_id)
+      .map(r => 'https://rillcod.com/result-check/' + accessCardCodeForStudent(r.portal_user_id)), 150);
+
     const html = `
       <!DOCTYPE html><html><head><title>Unified Student Slips — ${schoolNameStr}</title>
       <style>
@@ -532,7 +538,7 @@ export default function BulkRegisterPage() {
         ${sorted.map(r => {
           const pId = r.portal_user_id || '';
           const sCode = pId ? accessCardCodeForStudent(pId) : 'RC-PENDING';
-          const qUrl = encodeURIComponent('https://rillcod.com/result-check/' + sCode);
+          const qrSrc = qrMap.get('https://rillcod.com/result-check/' + sCode) || '';
 
           const headerHtml = hStyle === 'band' ? `
             <div class="chdr">
@@ -563,9 +569,9 @@ export default function BulkRegisterPage() {
                   ${fieldVis('password') ? `<div class="field"><div class="lbl">Temporary Password</div><div class="val-a">${r.password || 'Contact Admin'}</div></div>` : ''}
                   ${fieldVis('studentId') ? `<div class="field"><div class="lbl">Student ID</div><div class="val-a">${sCode}</div></div>` : ''}
                 </div>
-                ${fieldVis('qr') ? `
+                ${fieldVis('qr') && qrSrc ? `
                 <div class="qrp">
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qUrl}" class="qr" crossorigin="anonymous" />
+                  <img src="${qrSrc}" class="qr" />
                   <div class="qrl">Scan to verify</div>
                   <div class="qrc">${sCode}</div>
                 </div>` : ''}
@@ -887,6 +893,11 @@ export default function BulkRegisterPage() {
     const logoUrl = window.location.origin + '/logo.png';
     const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
+    // QR codes generated locally (offline-safe)
+    const massQrMap = await qrDataUrls(validResults
+      .filter(r => r.portal_user_id)
+      .map(r => 'https://rillcod.com/result-check/' + accessCardCodeForStudent(r.portal_user_id)), 150);
+
     const html = `
       <!DOCTYPE html><html><head><title>Access Cards — ${dateStr}</title>
       <style>
@@ -924,7 +935,7 @@ export default function BulkRegisterPage() {
         ${validResults.map(r => {
       const pId = (r.portal_user_id || '');
       const sCode = pId ? accessCardCodeForStudent(pId) : 'RC-PENDING';
-      const qUrl = encodeURIComponent('https://rillcod.com/result-check/' + sCode);
+      const qrSrc = massQrMap.get('https://rillcod.com/result-check/' + sCode) || '';
 
       // Build header HTML based on builder style
       const headerHtml = hStyle === 'band' ? `
@@ -956,9 +967,9 @@ export default function BulkRegisterPage() {
                 ${fieldVis('password') ? `<div class="field"><div class="lbl">Temporary Password</div><div class="val-a">${r.password || 'Contact Admin'}</div></div>` : ''}
                 ${fieldVis('studentId') ? `<div class="field"><div class="lbl">Student ID</div><div class="val-a">${sCode}</div></div>` : ''}
               </div>
-              ${fieldVis('qr') ? `
+              ${fieldVis('qr') && qrSrc ? `
               <div class="qrp">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qUrl}" class="qr" crossorigin="anonymous" />
+                <img src="${qrSrc}" class="qr" />
                 <div class="qrl">Scan to verify</div>
                 <div class="qrc">${sCode}</div>
               </div>` : ''}

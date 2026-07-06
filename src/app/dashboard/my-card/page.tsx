@@ -11,6 +11,8 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
+import { buildSingleCardHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig, type CardFieldConfig } from '@/lib/cards/printCard';
+import { qrDataUrl } from '@/lib/cards/qr';
 
 type CardConfig = {
   accentColor: string; orgName: string; orgWebsite: string;
@@ -30,18 +32,17 @@ function hex2rgb(hex: string): [number,number,number] {
   return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
 }
 
-async function toDataUrl(url: string): Promise<string|null> {
-  try {
-    const res = await fetch(url, {cache:'no-store'});
-    if(!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise<string>((resolve,reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error('failed'));
-      reader.readAsDataURL(blob);
-    });
-  } catch { return null; }
+// Print config for self-service reprints: honor the saved design but never
+// print the password row, and label the code field per role.
+function printableCfg(cfg: CardConfig, idLabel: string): PrintCardConfig {
+  const saved = (cfg as any).fields as CardFieldConfig[] | undefined;
+  const base: CardFieldConfig[] = saved?.length
+    ? saved
+    : [{key:'school',visible:true},{key:'email',visible:true},{key:'studentId',visible:true},{key:'qr',visible:true}];
+  const fields = base
+    .map(f => f.key === 'password' ? { ...f, visible:false } : f)
+    .map(f => f.key === 'studentId' ? { ...f, label: idLabel } : f);
+  return { ...(cfg as any), fields } as PrintCardConfig;
 }
 
 function CardHeader({ cfg, acc }: { cfg: CardConfig; acc: string }) {
@@ -122,82 +123,24 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
     : profile.role === 'student'
       ? `${window.location.origin}/result-check/${accessCardCodeForStudent(profile.id)}`
       : `${window.location.origin}/dashboard/profile`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
-  const cardStatusLabel = myCard
-    ? ({active:'Active',issued:'Issued (Pending Activation)',revoked:'Revoked',expired:'Expired'}[myCard.status] ?? myCard.status)
-    : 'Not Issued';
+  const [qrUrl, setQrUrl] = useState('');
+  useEffect(() => { qrDataUrl(verifyUrl, 200).then(setQrUrl); }, [verifyUrl]);
 
-  const buildPrintHtml = () => {
-    const logo = `${window.location.origin}/images/logo.png`;
-    const hdrBand = `<div class="chdr"><img src="${logo}" class="logo"/><div><div class="org">${cfg.orgName}</div><div class="web">${cfg.orgWebsite}</div></div><div class="cbadge">${cfg.cardLabel}</div></div>`;
-    const hdrBorder = `<div class="bhdr"><img src="${logo}" class="logo"/><div><div class="org-b">${cfg.orgName}</div><div class="web-b">${cfg.orgWebsite}</div></div><div class="bbadge">${cfg.cardLabel}</div></div>`;
-    const hdrMin = `<div class="mhdr"><img src="${logo}" class="logo"/><div class="org-m">${cfg.orgName}</div><div class="mbadge">${cfg.cardLabel}</div></div>`;
-    const hdr = cfg.headerStyle==='band'?hdrBand:cfg.headerStyle==='border'?hdrBorder:hdrMin;
-    return `<!doctype html><html><head><title>My Access Card — ${profile.full_name}</title>
-    <style>
-      @page{size:A4 portrait;margin:20mm}*{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Inter','Segoe UI',system-ui,sans-serif;background:#fff;display:flex;flex-direction:column;align-items:center;gap:12mm}
-      .card{border:1px solid #d1d5db;${cfg.headerStyle==='border'?`border-left:4px solid ${acc};`:''} width:100%;max-width:480px;display:flex;flex-direction:column;overflow:hidden}
-      .chdr{background:${acc};padding:12px 18px;display:flex;align-items:center;gap:10px}
-      .cbadge{margin-left:auto;background:rgba(0,0,0,0.22);color:#fff;padding:5px 12px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1px;flex-shrink:0}
-      .org{font-size:14px;font-weight:900;color:#fff;text-transform:uppercase;line-height:1}
-      .web{font-size:9px;color:rgba(255,255,255,0.8);font-weight:700;margin-top:3px}
-      .bhdr{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #f3f4f6}
-      .org-b{font-size:13px;font-weight:900;color:#111;text-transform:uppercase;line-height:1}
-      .web-b{font-size:8px;color:${acc};font-weight:700;margin-top:2px}
-      .bbadge{margin-left:auto;background:${acc};color:#fff;padding:4px 10px;font-size:9px;font-weight:900;text-transform:uppercase;flex-shrink:0}
-      .mhdr{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:2px solid ${acc}}
-      .org-m{font-size:11px;font-weight:900;color:#111;text-transform:uppercase;flex:1}
-      .mbadge{font-size:9px;font-weight:900;color:${acc};text-transform:uppercase}
-      .logo{width:32px;height:32px;object-fit:contain;flex-shrink:0}
-      .cbody{display:flex;min-height:160px}
-      .info{flex:1;padding:18px 20px;display:flex;flex-direction:column;gap:8px;border-right:1px solid #f3f4f6;overflow:hidden}
-      .sname{font-size:22px;font-weight:900;color:#111;text-transform:uppercase;line-height:1.15}
-      .srole{font-size:11px;font-weight:700;color:${acc};text-transform:uppercase;letter-spacing:1px;margin-top:2px}
-      .sep{height:1px;background:#f3f4f6;margin:4px 0}
-      .field{display:flex;flex-direction:column;gap:2px}
-      .lbl{font-size:7.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
-      .val{font-size:12px;font-weight:700;color:#111;word-break:break-all}
-      .val-a{font-size:12px;font-weight:800;font-family:monospace;color:${acc}}
-      .qrp{width:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 16px;background:#fafafa;flex-shrink:0}
-      .qr{width:120px;height:120px;border:1px solid #e5e7eb;display:block}
-      .qrl{font-size:7px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;text-align:center;font-weight:600}
-      .qrc{font-size:9px;font-weight:900;font-family:monospace;color:${acc};text-align:center}
-      .cftr{display:flex;justify-content:space-between;align-items:center;padding:8px 18px;border-top:1px solid #f3f4f6;font-size:7.5px;color:#9ca3af;font-weight:600;background:#fafafa}
-      .cftr-id{font-family:monospace;color:#374151;font-weight:900;font-size:8px}
-      .note{font-size:9px;color:#6b7280;text-align:center;border-top:1px dashed #e5e7eb;padding-top:8mm}
-      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-    </style></head><body>
-    <div class="card">
-      ${hdr}
-      <div class="cbody">
-        <div class="info">
-          <div class="sname">${profile.full_name}</div>
-          <div class="srole">${roleLabel}</div>
-          <div class="sep"></div>
-          ${profile.school_name?`<div class="field"><div class="lbl">School</div><div class="val-a">${profile.school_name}</div></div>`:''}
-          <div class="field"><div class="lbl">Email</div><div class="val">${profile.email||'—'}</div></div>
-          <div class="field"><div class="lbl">${idLabel}</div><div class="val-a">${code}</div></div>
-        </div>
-        <div class="qrp">
-          <img src="${qrUrl}" class="qr" crossorigin="anonymous"/>
-          <div class="qrl">Scan to verify</div>
-          <div class="qrc">${code}</div>
-        </div>
-      </div>
-      <div class="cftr"><span>${cfg.footerLeft}</span><span class="cftr-id">${code}</span></div>
-    </div>
-    <div class="note">This card is valid as issued. Present to school staff for identity verification.</div>
-    <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),500)}</script>
-    </body></html>`;
-  };
-
-  const handlePrint = () => {
-    const win = window.open('', '_blank');
-
-    if(!win){alert('Pop-up blocked. Please allow pop-ups to print.');return;}
-    win.document.write(buildPrintHtml());
-    win.document.close();
+  // Consolidated: self-service reprints use the same shared card template as
+  // Card Studio and staff prints (QR generated locally).
+  const handlePrint = async () => {
+    const holder: PrintCardHolder = {
+      id: profile.id,
+      full_name: profile.full_name,
+      email: profile.email ?? null,
+      school_name: profile.school_name ?? null,
+      card_number: myCard?.card_number ?? null,
+      verification_code: myCard?.verification_code ?? null,
+      expires_at: myCard?.expires_at ?? null,
+      role_label: roleLabel,
+      avatar_url: profile.avatar_url ?? null,
+    };
+    openPrintWindow(await buildSingleCardHtml(holder, printableCfg(cfg, idLabel), window.location.origin));
     setPrinted(true); setTimeout(()=>setPrinted(false),3000);
   };
 
@@ -228,11 +171,11 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
       doc.text(doc.splitTextToSize(f.value,cardW-40)[0],cardX+4,fy+4.5);
       fy+=11;
     });
-    const qrDataUrl = await toDataUrl(qrUrl);
-    if(qrDataUrl){
+    const qrPng = await qrDataUrl(verifyUrl, 300);
+    if(qrPng.startsWith('data:')){
       const qrX=cardX+cardW-28,qrY=bodyY+6;
       doc.setDrawColor(229,231,235);doc.setLineWidth(0.2);doc.rect(qrX-1,qrY-1,24,24);
-      doc.addImage(qrDataUrl,'PNG',qrX,qrY,22,22);
+      doc.addImage(qrPng,'PNG',qrX,qrY,22,22);
       doc.setFontSize(5);doc.setTextColor(156,163,175);doc.setFont('helvetica','normal');doc.text('SCAN TO VERIFY',qrX+11,qrY+25,{align:'center'});
       doc.setFontSize(6);doc.setTextColor(r,g,b);doc.setFont('courier','bold');doc.text(code,qrX+11,qrY+28,{align:'center'});
     }
@@ -291,9 +234,26 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
 function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
   const [children, setChildren] = useState<Child[]>([]);
   const [childCardsMap, setChildCardsMap] = useState<Map<string,DbCard>>(new Map());
+  const [childQrMap, setChildQrMap] = useState<Map<string,string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [printingId, setPrintingId] = useState<string|null>(null);
   const acc = cfg.accentColor;
+
+  // On-screen QRs are generated locally (offline-safe, no external service)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const map = new Map<string,string>();
+      for (const child of children) {
+        const card = childCardsMap.get(child.id);
+        if (card?.verification_code) {
+          map.set(child.id, await qrDataUrl(`${window.location.origin}/result-check/${card.verification_code}`, 160));
+        }
+      }
+      if (!cancelled) setChildQrMap(map);
+    })();
+    return () => { cancelled = true; };
+  }, [children, childCardsMap]);
 
   useEffect(() => {
     Promise.all([
@@ -313,78 +273,21 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
       .finally(()=>setLoading(false));
   }, [profile.id]);
 
-  const printChildCard = (child: Child) => {
+  // Consolidated: parent prints of children's cards use the shared template.
+  const printChildCard = async (child: Child) => {
     const dbCard = childCardsMap.get(child.id);
-    const code = dbCard?.card_number??'PENDING';
-    const verifyUrl = dbCard?.verification_code
-      ? `${window.location.origin}/result-check/${dbCard.verification_code}`
-      : `${window.location.origin}/dashboard/profile`;
-    const logo = `${window.location.origin}/images/logo.png`;
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
-    const hdrBand = `<div class="chdr"><img src="${logo}" class="logo"/><div><div class="org">${cfg.orgName}</div><div class="web">${cfg.orgWebsite}</div></div><div class="cbadge">${cfg.cardLabel}</div></div>`;
-    const hdrBorder = `<div class="bhdr"><img src="${logo}" class="logo"/><div><div class="org-b">${cfg.orgName}</div><div class="web-b">${cfg.orgWebsite}</div></div><div class="bbadge">${cfg.cardLabel}</div></div>`;
-    const hdrMin = `<div class="mhdr"><img src="${logo}" class="logo"/><div class="org-m">${cfg.orgName}</div><div class="mbadge">${cfg.cardLabel}</div></div>`;
-    const hdr = cfg.headerStyle==='band'?hdrBand:cfg.headerStyle==='border'?hdrBorder:hdrMin;
-    const html = `<!doctype html><html><head><title>${child.full_name} — Access Card</title>
-    <style>
-      @page{size:A4 portrait;margin:20mm}*{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Inter','Segoe UI',system-ui,sans-serif;background:#fff;display:flex;flex-direction:column;align-items:center;gap:10mm}
-      .card{border:1px solid #d1d5db;${cfg.headerStyle==='border'?`border-left:4px solid ${acc};`:''} width:100%;max-width:480px;display:flex;flex-direction:column}
-      .chdr{background:${acc};padding:12px 18px;display:flex;align-items:center;gap:10px}
-      .cbadge{margin-left:auto;background:rgba(0,0,0,0.22);color:#fff;padding:5px 12px;font-size:9px;font-weight:900;text-transform:uppercase}
-      .org{font-size:13px;font-weight:900;color:#fff;text-transform:uppercase}
-      .web{font-size:9px;color:rgba(255,255,255,0.8);font-weight:700;margin-top:2px}
-      .bhdr{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #f3f4f6}
-      .org-b{font-size:12px;font-weight:900;color:#111;text-transform:uppercase}
-      .web-b{font-size:8px;color:${acc};font-weight:700;margin-top:2px}
-      .bbadge{margin-left:auto;background:${acc};color:#fff;padding:4px 10px;font-size:9px;font-weight:900;text-transform:uppercase}
-      .mhdr{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:2px solid ${acc}}
-      .org-m{flex:1;font-size:11px;font-weight:900;color:#111;text-transform:uppercase}
-      .mbadge{font-size:9px;font-weight:900;color:${acc};text-transform:uppercase}
-      .logo{width:30px;height:30px;object-fit:contain;flex-shrink:0}
-      .cbody{display:flex;min-height:160px}
-      .info{flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:7px;border-right:1px solid #f3f4f6}
-      .sname{font-size:20px;font-weight:900;color:#111;text-transform:uppercase;line-height:1.2}
-      .srole{font-size:10px;font-weight:700;color:${acc};text-transform:uppercase;letter-spacing:1px}
-      .sep{height:1px;background:#f3f4f6;margin:3px 0}
-      .field{display:flex;flex-direction:column;gap:2px}
-      .lbl{font-size:7px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
-      .val{font-size:11px;font-weight:700;color:#111}
-      .val-a{font-size:11px;font-weight:800;font-family:monospace;color:${acc}}
-      .qrp{width:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 14px;background:#fafafa;flex-shrink:0}
-      .qr{width:110px;height:110px;border:1px solid #e5e7eb}
-      .qrl{font-size:7px;color:#9ca3af;text-transform:uppercase;text-align:center;font-weight:600}
-      .qrc{font-size:8px;font-weight:900;font-family:monospace;color:${acc};text-align:center}
-      .cftr{display:flex;justify-content:space-between;padding:7px 16px;border-top:1px solid #f3f4f6;font-size:7px;color:#9ca3af;font-weight:600;background:#fafafa}
-      .note{font-size:9px;color:#6b7280;text-align:center}
-      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-    </style></head><body>
-    <div class="card">
-      ${hdr}
-      <div class="cbody">
-        <div class="info">
-          <div class="sname">${child.full_name}</div>
-          <div class="srole">Student</div>
-          <div class="sep"></div>
-          ${child.school_name?`<div class="field"><div class="lbl">School</div><div class="val-a">${child.school_name}</div></div>`:''}
-          ${child.section_class?`<div class="field"><div class="lbl">Class</div><div class="val">${child.section_class}</div></div>`:''}
-          ${child.email?`<div class="field"><div class="lbl">Email</div><div class="val">${child.email}</div></div>`:''}
-          <div class="field"><div class="lbl">Card ID</div><div class="val-a">${code}</div></div>
-        </div>
-        <div class="qrp">
-          <img src="${qrUrl}" class="qr" crossorigin="anonymous"/>
-          <div class="qrl">Scan to verify</div>
-          <div class="qrc">${code}</div>
-        </div>
-      </div>
-      <div class="cftr"><span>${cfg.footerLeft}</span><span style="font-family:monospace;color:#374151;font-weight:900">${code}</span></div>
-    </div>
-    <div class="note">This card was printed for parent/guardian use. Please keep this card safe.</div>
-    <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),500)}</script>
-    </body></html>`;
-    const win = window.open('','_blank');
-    if(!win){toast.error('Pop-up blocked');return;}
-    win.document.write(html); win.document.close();
+    const holder: PrintCardHolder = {
+      id: child.id,
+      full_name: child.full_name,
+      email: child.email,
+      school_name: child.school_name,
+      section_class: child.section_class,
+      card_number: dbCard?.card_number ?? null,
+      verification_code: dbCard?.verification_code ?? null,
+      expires_at: dbCard?.expires_at ?? null,
+      role_label: 'Student',
+    };
+    openPrintWindow(await buildSingleCardHtml(holder, printableCfg(cfg, 'Card ID'), window.location.origin));
     setPrintingId(child.id); setTimeout(()=>setPrintingId(null),3000);
   };
 
@@ -418,8 +321,7 @@ function ParentCardsView({ profile, cfg }: { profile: any; cfg: CardConfig }) {
             const code = dbCard?.card_number??'PENDING';
             const statusLabel = dbCard?({active:'Active',issued:'Issued',revoked:'Revoked',expired:'Expired'}[dbCard.status]??dbCard.status):'Not Issued';
             const statusColor = dbCard?({active:'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',issued:'bg-primary/15 text-primary border-primary/30',revoked:'bg-rose-500/20 text-rose-400 border-rose-500/30',expired:'bg-amber-500/20 text-amber-400 border-amber-500/30'}[dbCard.status]??'bg-muted/50 text-muted-foreground border-border'):'bg-muted/50 text-muted-foreground border-border';
-            const verifyUrl = dbCard?.verification_code?`${window.location.origin}/result-check/${dbCard.verification_code}`:null;
-            const qrUrl = verifyUrl?`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(verifyUrl)}`:null;
+            const qrUrl = childQrMap.get(child.id) ?? null;
             return (
               <div key={child.id} className="bg-card border border-white/[0.08] rounded-2xl p-5 space-y-4">
                 <div className="flex items-start justify-between gap-3">

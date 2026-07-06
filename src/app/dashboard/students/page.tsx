@@ -1026,7 +1026,7 @@ export default function StudentsPage() {
       verification_code: dbCard?.verification_code || null,
       avatar_url: s.avatar_url || null,
     };
-    openPrintWindow(buildSingleCardHtml(holder, cfg, window.location.origin));
+    openPrintWindow(await buildSingleCardHtml(holder, cfg, window.location.origin));
   };
 
   const handlePrintAllLoginSlips = async () => {
@@ -1047,7 +1047,7 @@ export default function StudentsPage() {
       };
     });
     const { buildBulkPrintHtml } = await import('@/lib/cards/printCard');
-    openPrintWindow(buildBulkPrintHtml(holders, cfg, window.location.origin));
+    openPrintWindow(await buildBulkPrintHtml(holders, cfg, window.location.origin));
   };
 
   // ── Unified combined list ───────────────────────────────────

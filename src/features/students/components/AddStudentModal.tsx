@@ -11,6 +11,7 @@ import {
     ExclamationTriangleIcon, ClipboardDocumentListIcon,
 } from '@/lib/icons';
 import { toast } from 'sonner';
+import { qrDataUrl } from '@/lib/cards/qr';
 
 const GRADE_LEVELS = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
     'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'] as const;
@@ -228,10 +229,10 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
     // ── Credentials screen ────────────────────────────────────────────────────
     if (credentials) {
-        const handlePrint = () => {
+        const handlePrint = async () => {
             const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             const classLabel = credentials.section_class || credentials.grade_level || '';
-            const qrData = encodeURIComponent('https://rillcod.com/login');
+            const qrSrc = await qrDataUrl('https://rillcod.com/login', 200);
             const html = `
                 <html><head><title>Access Card — ${credentials.name}</title>
                 <style>
@@ -285,7 +286,7 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
                             </div>
                         </div>
                         <div class="qrp">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrData}" class="qr" crossorigin="anonymous" />
+                            <img src="${qrSrc}" class="qr" />
                             <div class="qrl">Scan to login</div>
                         </div>
                     </div>
