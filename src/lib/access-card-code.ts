@@ -15,6 +15,23 @@ export function normalizeAccessCardCode(raw: string | null | undefined) {
   return body.length === 8 ? `RC-${body}` : '';
 }
 
+/** Format as the user types — auto-inserts RC- prefix and hyphen (no manual dash needed). */
+export function formatAccessCardCodeInput(raw: string): string {
+  const alnum = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!alnum) return '';
+  if (alnum === 'R') return 'R';
+
+  let body: string;
+  if (alnum.startsWith('RC')) {
+    if (alnum.length <= 2) return 'RC-';
+    body = alnum.slice(2, 10);
+  } else {
+    body = alnum.slice(0, 8);
+  }
+
+  return `RC-${body}`;
+}
+
 function hashUuidToEightChars(studentId: string) {
   const source = String(studentId || '').trim().toLowerCase();
   let hash = BigInt('0xcbf29ce484222325');

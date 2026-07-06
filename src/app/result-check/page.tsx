@@ -10,7 +10,7 @@ import {
   ExclamationTriangleIcon,
   ShieldCheckIcon,
 } from '@/lib/icons';
-import { normalizeAccessCardCode } from '@/lib/access-card-code';
+import { normalizeAccessCardCode, formatAccessCardCodeInput } from '@/lib/access-card-code';
 
 export default function ResultCheckEntryPage() {
   const router = useRouter();
@@ -67,11 +67,14 @@ export default function ResultCheckEntryPage() {
                 aria-invalid={!!error}
                 value={code}
                 onChange={(event) => {
-                  setCode(event.target.value);
+                  setCode(formatAccessCardCodeInput(event.target.value));
                   setError('');
                 }}
-                placeholder="RC-XXXXXXXX"
-                autoComplete="one-time-code"
+                placeholder="RC then 8 characters — dash added for you"
+                inputMode="text"
+                autoCapitalize="characters"
+                spellCheck={false}
+                maxLength={11}
                 className="w-full rounded-2xl border border-border bg-background px-4 py-4 text-lg font-black tracking-widest uppercase outline-none focus:border-primary"
               />
             </div>
@@ -93,7 +96,8 @@ export default function ResultCheckEntryPage() {
           </form>
 
           <div id="result-code-help" className="rounded-2xl bg-muted p-4 text-xs text-muted-foreground leading-relaxed">
-            Example: if the card shows <strong className="text-foreground">RC-AB12CD34</strong>, enter that code. Spaces are okay.
+            Type <strong className="text-foreground">RC</strong> then the 8 characters from the card — the dash is added automatically.
+            Example: type <strong className="text-foreground">RCAB12CD34</strong> and it becomes <strong className="text-foreground">RC-AB12CD34</strong>.
           </div>
         </section>
       </div>
