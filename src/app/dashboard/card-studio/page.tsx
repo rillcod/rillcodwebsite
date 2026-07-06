@@ -82,12 +82,6 @@ const DEFAULT_CONFIG: CardConfig = {
   fields: DEFAULT_FIELDS, typo: DEFAULT_TYPO,
 };
 
-const FALLBACK_MANAGE: Required<Pick<CardConfig,'accentColor'|'orgName'|'orgWebsite'|'footerLeft'|'footerRight'|'cardLabel'|'headerStyle'|'width'|'height'|'bgColor'|'fields'>> = {
-  accentColor: '#1A3A8F', orgName: 'RILLCOD TECHNOLOGIES', orgWebsite: 'www.rillcod.com',
-  footerLeft: 'rillcod.com/login', footerRight: 'Student ID', cardLabel: 'Access Card',
-  headerStyle: 'band', width: '54mm', height: '85.6mm', bgColor: '#ffffff', fields: [],
-};
-
 const ROLE_PRESETS: Record<'student'|'parent'|'teacher', Partial<CardConfig>> = {
   student: { cardLabel: 'Student Access Card', footerRight: 'Student ID' },
   parent: {
@@ -112,6 +106,29 @@ const ROLE_PRESETS: Record<'student'|'parent'|'teacher', Partial<CardConfig>> = 
     }),
   },
 };
+
+// Single source of truth for turning a saved config (or nothing) into a complete CardConfig.
+// Used by BOTH the Design tab and the Manage tab so their cards render identically — the
+// Manage tab previously used a stripped fallback, which made its cards diverge from Design.
+function buildCardConfig(rawConfig: any, type: CardType): CardConfig {
+  const preset = ROLE_PRESETS[type];
+  if (!rawConfig) {
+    return { ...DEFAULT_CONFIG, ...preset, fields: (preset.fields as FieldConfig[]) ?? DEFAULT_FIELDS };
+  }
+  const parsed: any = { ...rawConfig };
+  if (parsed.fields) {
+    parsed.fields = DEFAULT_FIELDS.map((def) => {
+      const stored = parsed.fields.find((f: FieldConfig) => f.key === def.key);
+      return stored ? { ...def, ...stored } : def;
+    });
+  }
+  if (parsed.typo) parsed.typo = { ...DEFAULT_TYPO, ...parsed.typo };
+  return {
+    ...DEFAULT_CONFIG,
+    ...parsed,
+    ...Object.fromEntries(Object.entries(preset).filter(([k]) => !parsed[k])),
+  } as CardConfig;
+}
 
 const TEMPLATES = [
   { name: 'Navy Band',     color: '#1A3A8F', style: 'band'    as const },
@@ -471,21 +488,7 @@ export default function CardStudioPage() {
     fetch(`/api/admin/settings?type=${cardType}`)
       .then(r => r.json())
       .then(data => {
-        if (data.config) {
-          const parsed = data.config;
-          if (parsed.fields) {
-            parsed.fields = DEFAULT_FIELDS.map((def: FieldConfig) => {
-              const stored = parsed.fields.find((f: FieldConfig) => f.key === def.key);
-              return stored ? { ...def, ...stored } : def;
-            });
-          }
-          if (parsed.typo) parsed.typo = { ...DEFAULT_TYPO, ...parsed.typo };
-          const preset = ROLE_PRESETS[cardType];
-          setCfg({ ...DEFAULT_CONFIG, ...parsed, ...Object.fromEntries(Object.entries(preset).filter(([k]) => !parsed[k])) });
-        } else {
-          const preset = ROLE_PRESETS[cardType];
-          setCfg({ ...DEFAULT_CONFIG, ...preset, fields: preset.fields ?? DEFAULT_FIELDS });
-        }
+        setCfg(buildCardConfig(data?.config, cardType));
       }).catch(() => {});
   }, [cardType, canAccess]); // eslint-disable-line
 
@@ -593,7 +596,7 @@ export default function CardStudioPage() {
   // ══════════════════════════════════════════════════════════════════════════
   // MANAGE TAB STATE
   // ══════════════════════════════════════════════════════════════════════════
-  const [manageConfig, setManageConfig] = useState<any>(FALLBACK_MANAGE);
+  const [manageConfig, setManageConfig] = useState<CardConfig>(() => buildCardConfig(null, 'student'));
   const [records, setRecords] = useState<CardRecord[]>([]);
   const [dbCardsMap, setDbCardsMap] = useState<Map<string,DbCard>>(new Map());
   const [manageLoading, setManageLoading] = useState(false);
@@ -623,8 +626,9 @@ export default function CardStudioPage() {
     try {
       const res = await fetch(`/api/admin/settings?type=${type}`,{cache:'no-store'});
       const json = await res.json();
-      setManageConfig({ ...FALLBACK_MANAGE, ...(json?.config||{}) });
-    } catch { setManageConfig(FALLBACK_MANAGE); }
+      // Same builder as the Design tab → Manage cards render identically to the design.
+      setManageConfig(buildCardConfig(json?.config, type));
+    } catch { setManageConfig(buildCardConfig(null, type)); }
   },[]);
 
   const loadDbCards = useCallback(async (type: CardType) => {
@@ -790,7 +794,7 @@ export default function CardStudioPage() {
         badge: r.badge === r.sectionClass ? null : r.badge,
       };
     });
-    const html = await buildBulkPrintHtml(holders, manageConfig as PrintCardConfig, window.location.origin, { fixedSize:true, qrHint:'Scan to verify' });
+    const html = await buildBulkPrintHtml(holders, manageConfig as unknown as PrintCardConfig, window.location.origin, { fixedSize:true, qrHint:'Scan to verify' });
     openPrintWindow(html);
   };
 
