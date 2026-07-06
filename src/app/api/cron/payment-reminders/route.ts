@@ -21,6 +21,15 @@ export const dynamic = 'force-dynamic';
 //   • BALANCE_REMINDER_EVERY_DAYS env var, else 5.
 const DEFAULT_REMIND_EVERY_DAYS = Number(process.env.BALANCE_REMINDER_EVERY_DAYS) || 5;
 
+// Stop chasing the same parent forever — cap the total reminders sent (configurable via
+// BALANCE_REMINDER_MAX). After the cap they're left alone until staff follow up manually.
+const MAX_REMINDERS = Number(process.env.BALANCE_REMINDER_MAX) || 4;
+
+function remindCount(notes: string | null): number {
+  const m = (notes || '').match(/\[BalanceRemindCount:\s*(\d+)\]/i);
+  return m ? parseInt(m[1], 10) || 0 : 0;
+}
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,7 +57,7 @@ async function handle(req: NextRequest) {
   // Allow ?everyDays=N to override the cadence per scheduler call (clamped 1–60).
   const everyDaysParam = Number(new URL(req.url).searchParams.get('everyDays'));
   const everyDays = Math.min(60, Math.max(1, everyDaysParam || DEFAULT_REMIND_EVERY_DAYS));
-  const report = { scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, everyDays };
+  const report = { scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, capped: 0, everyDays };
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
   const cutoff = Date.now() - everyDays * 86400000;
 
@@ -72,6 +81,10 @@ async function handle(req: NextRequest) {
   for (const p of (prospects ?? []) as any[]) {
     if (Date.now() > DEADLINE) break; // resume on next scheduled run
     report.scanned++;
+
+    // Cap: stop after MAX_REMINDERS so a parent is never chased indefinitely.
+    const sentSoFar = remindCount(p.notes);
+    if (sentSoFar >= MAX_REMINDERS) { report.capped++; continue; }
 
     // De-dupe: skip if reminded within the window.
     const last = lastRemindedAt(p.notes);
@@ -150,10 +163,16 @@ async function handle(req: NextRequest) {
       } catch { /* non-fatal */ }
     }
 
-    // Stamp the de-dupe marker (strip any previous one first).
-    const cleanedNotes = (p.notes || '').replace(/\s*\[BalanceReminded:[^\]]*\]/gi, '').trim();
+    // Stamp the de-dupe marker + running count (strip any previous markers first).
+    const cleanedNotes = (p.notes || '')
+      .replace(/\s*\[BalanceReminded:[^\]]*\]/gi, '')
+      .replace(/\s*\[BalanceRemindCount:[^\]]*\]/gi, '')
+      .trim();
     await admin.from('prospective_students')
-      .update({ notes: `${cleanedNotes} [BalanceReminded: ${new Date().toISOString()}]`.trim(), updated_at: new Date().toISOString() })
+      .update({
+        notes: `${cleanedNotes} [BalanceReminded: ${new Date().toISOString()}] [BalanceRemindCount: ${sentSoFar + 1}]`.trim(),
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', p.id);
   }
 
