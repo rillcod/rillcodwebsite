@@ -28,8 +28,11 @@ export interface CardConfig {
   bgColor?: string;
   showLogo?: boolean;
   showPhotoSlot?: boolean;
-  /** Show the "Student Access Card" badge in the header (default true). */
+  /** Show the header badge (default true). */
   showCardLabel?: boolean;
+  /** What the header badge shows: the card label, the holder's class, or custom text. */
+  badgeMode?: 'class' | 'label' | 'custom';
+  badgeText?: string;
   cornerRadius?: 'sharp' | 'rounded' | 'pill';
   /** CR80 dimensions from Card Studio (e.g. '54mm' × '85.6mm'). */
   width?: string;
@@ -137,23 +140,28 @@ export async function buildSingleCardHtml(
   const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const logoUrl = `${originUrl}/logo.png`;
 
+  const badgeMode = cfg.badgeMode ?? 'label';
+  const badgeVal = badgeMode === 'class' ? (holder.section_class || '') : badgeMode === 'custom' ? (cfg.badgeText || '') : cfg.cardLabel;
+  const showBadge = cfg.showCardLabel !== false && !!badgeVal;
+  const badgeColor = tc('cardLabel', '#fff');
+
   const hdrBand = `
     <div class="chdr">
       <img src="${logoUrl}" class="logo" />
       <div><div class="org-name">${cfg.orgName}</div><div class="org-web">${cfg.orgWebsite}</div></div>
-      ${fv('className') ? `<div class="cbadge">${holder.section_class || 'STUDENT'}</div>` : ''}
+      ${showBadge ? `<div class="cbadge" style="color:${badgeColor}">${badgeVal}</div>` : ''}
     </div>`;
   const hdrBorder = `
     <div class="bhdr">
       <img src="${logoUrl}" class="logo" />
       <div><div class="org-name-b">${cfg.orgName}</div><div class="org-web-b">${cfg.orgWebsite}</div></div>
-      ${fv('className') ? `<div class="bbadge">${holder.section_class || 'STUDENT'}</div>` : ''}
+      ${showBadge ? `<div class="bbadge" style="color:${badgeColor}">${badgeVal}</div>` : ''}
     </div>`;
   const hdrMin = `
     <div class="mhdr">
       <img src="${logoUrl}" class="logo-m" />
       <div class="org-name-m">${cfg.orgName}</div>
-      ${fv('className') ? `<div class="mbadge">${holder.section_class || 'STUDENT'}</div>` : ''}
+      ${showBadge ? `<div class="mbadge" style="color:${badgeColor}">${badgeVal}</div>` : ''}
     </div>`;
 
   const hdr = hs === 'band' ? hdrBand : hs === 'border' ? hdrBorder : hdrMin;
@@ -269,14 +277,17 @@ export async function buildBulkPrintHtml(
   const qrPayload = (h: CardHolder) => `${originUrl}/result-check/${h.card_code || holderCode(h.id)}`;
   const qrMap = fv('qr') ? await qrDataUrls(holders.map(qrPayload), 420) : new Map<string, string>();
 
+  const badgeMode = cfg.badgeMode ?? 'label';
   const cardHtml = (h: CardHolder) => {
     const code = h.card_code || holderCode(h.id);
     const verifyCode = code;
     const qrSrc = qrMap.get(qrPayload(h)) || '';
     const hdrClass = hs === 'band' ? 'hdr-band' : hs === 'border' ? 'hdr-border' : 'hdr-min';
+    const badgeVal = badgeMode === 'class' ? (h.section_class || '') : badgeMode === 'custom' ? (cfg.badgeText || '') : cfg.cardLabel;
+    const showBadge = cfg.showCardLabel !== false && !!badgeVal;
     const rows = [
       fv('school') && h.school_name ? `<div class="row"><div class="lbl">${fl('school','School')}</div><div class="val-a">${h.school_name}</div></div>` : '',
-      fv('className') && h.section_class ? `<div class="row"><div class="lbl">${fl('className','Class')}</div><div class="val">${h.section_class}</div></div>` : '',
+      fv('className') && h.section_class && badgeMode !== 'class' ? `<div class="row"><div class="lbl">${fl('className','Class')}</div><div class="val">${h.section_class}</div></div>` : '',
       fv('email') && h.email ? `<div class="row"><div class="lbl">${fl('email','Email')}</div><div class="val">${h.email}</div></div>` : '',
       fv('password') && h.temp_password ? `<div class="row"><div class="lbl">${fl('password','Password')}</div><div class="val-a">${h.temp_password}</div></div>` : '',
       fv('studentId') ? `<div class="row"><div class="lbl">${fl('studentId','Card No.')}</div><div class="val-a">${code}</div></div>` : '',
@@ -287,7 +298,7 @@ export async function buildBulkPrintHtml(
       <div class="${hdrClass}">
         ${cfg.showLogo !== false ? `<img class="logo" src="${logoUrl}" />` : ''}
         <div><div class="org">${cfg.orgName}</div><div class="web">${cfg.orgWebsite}</div></div>
-        ${cfg.showCardLabel !== false ? `<div class="cbadge" style="color:${tc('cardLabel', '#fff')}">${cfg.cardLabel}</div>` : ''}
+        ${showBadge ? `<div class="cbadge" style="color:${tc('cardLabel', '#fff')}">${badgeVal}</div>` : ''}
       </div>
       <div class="body">
         <div class="left">

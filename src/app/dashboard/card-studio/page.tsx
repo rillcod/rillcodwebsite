@@ -34,7 +34,9 @@ interface CardConfig {
   cornerRadius: 'sharp' | 'rounded' | 'pill';
   bgColor: string; showLogo: boolean; showPhotoSlot: boolean;
   cardOrientation: 'portrait' | 'landscape';
-  width: string; height: string; qrScale?: number; showCardLabel?: boolean; fields: FieldConfig[];
+  width: string; height: string; qrScale?: number; showCardLabel?: boolean;
+  badgeMode?: 'class' | 'label' | 'custom'; badgeText?: string;
+  fields: FieldConfig[];
   typo: {
     orgName: TypoStyle; orgWebsite: TypoStyle; studentName: TypoStyle;
     school: TypoStyle; fieldLabel: TypoStyle; fieldValue: TypoStyle;
@@ -76,6 +78,7 @@ const DEFAULT_CONFIG: CardConfig = {
   orgName: 'RILLCOD TECHNOLOGIES', orgWebsite: 'www.rillcod.com',
   cardLabel: 'Student Access Card', footerLeft: 'rillcod.com/login', footerRight: 'Student ID',
   cornerRadius: 'sharp', bgColor: '#ffffff', showLogo: true, showPhotoSlot: false, showCardLabel: true,
+  badgeMode: 'label', badgeText: '',
   cardOrientation: 'portrait', width: '54mm', height: '85.6mm',
   fields: DEFAULT_FIELDS, typo: DEFAULT_TYPO,
 };
@@ -188,10 +191,16 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
   const acc = cfg.accentColor;
   const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
   const lbl = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.label ?? key;
-  const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
+  // Class shows as a body field to match the printed card — except when the header badge is
+  // already set to Class (avoids showing it twice).
+  const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && !(f.key === 'className' && (cfg.badgeMode ?? 'label') === 'class'));
   const expDate = new Date(Date.now() + 365*24*60*60*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
   const sampleVal = (key: FieldKey): string => ({school:SAMPLE.school,className:SAMPLE.className,email:SAMPLE.email,password:SAMPLE.password,programme:SAMPLE.programme,studentId:SAMPLE.id,qr:'',expiry:expDate}[key]??'');
   const t = cfg.typo;
+  const badgeMode = cfg.badgeMode ?? 'label';
+  const badge = badgeMode==='class' ? SAMPLE.className : badgeMode==='custom' ? (cfg.badgeText||'') : cfg.cardLabel;
+  const showBadge = cfg.showCardLabel!==false && !!badge;
+  const badgeColor = cfg.typo?.cardLabel?.color;
   const ff = (fam: string) => fam === 'mono' ? 'monospace' : "'Inter','Segoe UI',system-ui,sans-serif";
   const ts = (s: TypoStyle, extra?: React.CSSProperties): React.CSSProperties => ({
     fontSize:s.fontSize, fontWeight:parseInt(s.fontWeight), color:s.color, fontFamily:ff(s.fontFamily), ...extra,
@@ -206,7 +215,7 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
           <div style={ts(t.orgName,{textTransform:'uppercase',lineHeight:1})}>{cfg.orgName}</div>
           <div style={ts(t.orgWebsite,{marginTop:2})}>{cfg.orgWebsite}</div>
         </div>
-        {vis('className') && <div style={{marginLeft:'auto',background:'rgba(0,0,0,0.22)',color:'#fff',padding:'2px 7px',fontSize:8,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{SAMPLE.className}</div>}
+        {showBadge && <div style={{marginLeft:'auto',background:'rgba(0,0,0,0.22)',color:badgeColor||'#fff',padding:'2px 7px',fontSize:8,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{badge}</div>}
       </div>
     );
     if (cfg.headerStyle === 'border') return (
@@ -216,14 +225,14 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
           <div style={ts(t.orgName,{textTransform:'uppercase',lineHeight:1,color:'#111'})}>{cfg.orgName}</div>
           <div style={ts(t.orgWebsite,{marginTop:1,color:acc})}>{cfg.orgWebsite}</div>
         </div>
-        {vis('className') && <div style={{marginLeft:'auto',background:acc,color:'#fff',padding:'2px 7px',fontSize:7,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{SAMPLE.className}</div>}
+        {showBadge && <div style={{marginLeft:'auto',background:acc,color:badgeColor||'#fff',padding:'2px 7px',fontSize:7,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{badge}</div>}
       </div>
     );
     return (
       <div style={{display:'flex',alignItems:'center',gap:7,padding:'7px 10px',borderBottom:`2px solid ${acc}`}}>
         <div style={{width:14,height:14,background:'#e5e7eb',borderRadius:2,flexShrink:0}}/>
         <div style={ts(t.orgName,{textTransform:'uppercase',color:'#111'})}>{cfg.orgName}</div>
-        {vis('className') && <div style={{marginLeft:'auto',fontSize:7,fontWeight:900,color:acc,textTransform:'uppercase',flexShrink:0}}>{SAMPLE.className}</div>}
+        {showBadge && <div style={{marginLeft:'auto',fontSize:7,fontWeight:900,color:badgeColor||acc,textTransform:'uppercase',flexShrink:0}}>{badge}</div>}
       </div>
     );
   };
@@ -284,6 +293,10 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   const isRevoking = isRevokingIds.has(r.id);
   const acc   = config.accentColor || '#1A3A8F';
   const hStyle = config.headerStyle || 'band';
+  const badgeMode = config.badgeMode ?? 'label';
+  const badge = badgeMode==='class' ? (r.sectionClass||'') : badgeMode==='custom' ? (config.badgeText||'') : config.cardLabel;
+  const showBadge = config.showCardLabel!==false && !!badge;
+  const badgeColor = config.typo?.cardLabel?.color;
   // RC-XXXXXXXX is the one canonical card code — students use the deterministic student
   // code, others use their card's RC verification_code. Never CARD-…/card_number.
   const code  = r.roleLabel==='Student' ? accessCardCodeForStudent(r.id) : (dbCard?.verification_code ?? accessCardCodeForStudent(r.id));
@@ -300,7 +313,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
               <div style={{fontSize:8,fontWeight:900,color:'#fff',textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{config.orgName}</div>
               <div style={{fontSize:6,color:'rgba(255,255,255,0.8)',fontWeight:700,marginTop:1}}>{config.orgWebsite}</div>
             </div>
-            {config.showCardLabel!==false && <div style={{background:'rgba(0,0,0,0.22)',color:config.typo?.cardLabel?.color||'#fff',padding:'2px 6px',fontSize:6,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>}
+            {showBadge && <div style={{background:'rgba(0,0,0,0.22)',color:badgeColor||'#fff',padding:'2px 6px',fontSize:6,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{badge}</div>}
           </div>
         )}
         {hStyle==='border'&&(
@@ -309,13 +322,13 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
               <div style={{fontSize:8,fontWeight:900,color:'#111',textTransform:'uppercase'}}>{config.orgName}</div>
               <div style={{fontSize:6,color:acc,fontWeight:700,marginTop:1}}>{config.orgWebsite}</div>
             </div>
-            {config.showCardLabel!==false && <div style={{background:acc,color:config.typo?.cardLabel?.color||'#fff',padding:'2px 6px',fontSize:6,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>}
+            {showBadge && <div style={{background:acc,color:badgeColor||'#fff',padding:'2px 6px',fontSize:6,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{badge}</div>}
           </div>
         )}
         {hStyle==='minimal'&&(
           <div style={{borderBottom:`2px solid ${acc}`,padding:'6px 10px',display:'flex',alignItems:'center',gap:6}}>
             <div style={{flex:1,fontSize:8,fontWeight:900,color:'#111',textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{config.orgName}</div>
-            {config.showCardLabel!==false && <div style={{fontSize:7,fontWeight:900,color:config.typo?.cardLabel?.color||acc,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>}
+            {showBadge && <div style={{fontSize:7,fontWeight:900,color:badgeColor||acc,textTransform:'uppercase',flexShrink:0}}>{badge}</div>}
           </div>
         )}
         <div style={{display:'flex',minHeight:80}}>
@@ -513,7 +526,9 @@ export default function CardStudioPage() {
   const handlePrintSample = async () => {
     const acc = cfg.accentColor;
     const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
-    const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && f.key !== 'className');
+    // Class shows as a body field to match the printed card — except when the header badge is
+  // already set to Class (avoids showing it twice).
+  const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && !(f.key === 'className' && (cfg.badgeMode ?? 'label') === 'class'));
     const qrScale = cfg.qrScale ?? 1;
     const qrMm = (25 * qrScale).toFixed(1);
     const sampleQr = await qrDataUrl('https://rillcod.com/result-check/RC-SAMPLE1', 420);
@@ -960,6 +975,31 @@ export default function CardStudioPage() {
             <input type="range" min={0.5} max={2} step={0.05} value={cfg.qrScale??1}
               onChange={e=>update({qrScale:parseFloat(e.target.value)})}
               className="w-full accent-primary cursor-pointer"/>
+          </div>
+          <div>
+            <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">Header Badge</div>
+            <select value={cfg.badgeMode??'label'} onChange={e=>update({badgeMode:e.target.value as CardConfig['badgeMode']})}
+              className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-[11px] focus:outline-none focus:border-primary rounded-md">
+              <option value="label">Access Card label</option>
+              <option value="class">Class</option>
+              <option value="custom">Custom text</option>
+            </select>
+            {(cfg.badgeMode??'label')==='custom' && (
+              <input type="text" value={cfg.badgeText||''} onChange={e=>update({badgeText:e.target.value})} placeholder="Badge text"
+                className="w-full mt-1.5 px-2 py-1.5 bg-background border border-border text-foreground text-[11px] font-mono focus:outline-none focus:border-primary rounded-md"/>
+            )}
+            <p className="text-[9px] text-muted-foreground/60 mt-1">Colour it under Typography → Card Label; hide it with the Card Label toggle.</p>
+          </div>
+          <div>
+            <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">Corners</div>
+            <div className="flex gap-1.5">
+              {([{label:'Sharp',v:'sharp'},{label:'Rounded',v:'rounded'},{label:'Pill',v:'pill'}] as const).map(s=>(
+                <button key={s.v} onClick={()=>update({cornerRadius:s.v})}
+                  className={`flex-1 py-1.5 text-[8px] font-bold uppercase border transition-all rounded-md ${cfg.cornerRadius===s.v?'border-primary bg-primary/10 text-primary':'border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">Background</div>
