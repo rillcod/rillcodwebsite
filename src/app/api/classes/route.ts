@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { buildClassName, parseGrades, formatGradeRange, gradeBand } from '@/lib/classes/naming';
+import { buildClassName, parseGrades, formatGradeRange, gradeBand, bandForGrade, parseBandLabel, canonicalTier } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -235,19 +235,39 @@ export async function POST(request: NextRequest) {
     // current_students starts at 0 — set by enroll routes, never by client
     insertRow.current_students = 0;
 
-    // Auto-name from School · Programme · Range when no name is given (or auto_name
-    // requested) — one consistent convention for every class created in the system.
-    if ((!insertRow.name || body.auto_name) && insertRow.school_id && insertRow.program_id) {
-      const [{ data: sch }, { data: prog }] = await Promise.all([
-        admin.from('schools').select('name').eq('id', insertRow.school_id as string).maybeSingle(),
-        admin.from('programs').select('name').eq('id', insertRow.program_id as string).maybeSingle(),
-      ]);
-      const schoolName = (sch as { name?: string } | null)?.name ?? '';
-      const rangeSource = String(body.grade ?? body.section ?? body.range ?? '');
-      const range = gradeBand(rangeSource) || formatGradeRange(parseGrades(rangeSource));
-      const built = buildClassName({ schoolName, programme: (prog as { name?: string } | null)?.name, range, online: /online/i.test(schoolName) });
-      if (built) insertRow.name = built;
-      if (range) insertRow.qa_grade_band = range;
+    // Canonical placement fields — one consistent convention for EVERY class, whether
+    // auto-named or teacher-named. Derive the tier (from the programme, never age) and a
+    // numeric band (from the grade/range at the chosen granularity) so a manually-created
+    // class participates in placement exactly like an auto-created one.
+    {
+      const rangeSource = String(body.grade ?? body.section ?? body.range ?? insertRow.qa_grade_band ?? '');
+      let progName: string | null = null;
+      if (insertRow.program_id) {
+        const { data: prog } = await admin.from('programs').select('name').eq('id', insertRow.program_id as string).maybeSingle();
+        progName = (prog as { name?: string } | null)?.name ?? null;
+      }
+      // Teacher-chosen granularity: 'single' (one grade) or 'fixed' (banded, default).
+      const granularity = body.band_granularity === 'single' ? 'single' : 'fixed';
+      const band = bandForGrade(rangeSource, granularity) || parseBandLabel(rangeSource);
+      const tier = canonicalTier(progName);
+      if (tier) insertRow.tier = tier;
+      if (band) {
+        insertRow.band_lvl = band.lvl;
+        insertRow.band_low = band.low;
+        insertRow.band_high = band.high;
+        insertRow.qa_grade_band = band.label;
+      } else if (rangeSource) {
+        const legacy = gradeBand(rangeSource) || formatGradeRange(parseGrades(rangeSource));
+        if (legacy) insertRow.qa_grade_band = legacy;
+      }
+
+      // Auto-name from "School · Programme · Band" when no name is given (or auto_name asked).
+      if ((!insertRow.name || body.auto_name) && insertRow.school_id) {
+        const { data: sch } = await admin.from('schools').select('name').eq('id', insertRow.school_id as string).maybeSingle();
+        const schoolName = (sch as { name?: string } | null)?.name ?? '';
+        const built = buildClassName({ schoolName, programme: progName, range: band?.label || (insertRow.qa_grade_band as string) || null, online: /online/i.test(schoolName) });
+        if (built) insertRow.name = built;
+      }
     }
     if (!insertRow.name) {
       return NextResponse.json({ error: 'Class name is required' }, { status: 400 });

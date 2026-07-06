@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { fixedBand, parseBandLabel, canonicalTier, inferProgramme } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -270,11 +271,11 @@ export async function GET(req: NextRequest) {
 
     // Enrich displaced with current class name and its teacher name
     const dispClassIds = [...new Set((displacedStudents ?? []).map((s: any) => s.class_id).filter(Boolean))];
-    let dispClassMap: Record<string, { name: string; teacher_id: string | null; teacher_name: string | null }> = {};
+    const dispClassMap: Record<string, { name: string; teacher_id: string | null; teacher_name: string | null }> = {};
     if (dispClassIds.length > 0) {
       const { data: dispClasses } = await db.from('classes').select('id, name, teacher_id').in('id', dispClassIds);
       const dispTeacherIds = [...new Set((dispClasses ?? []).map((c: any) => c.teacher_id).filter(Boolean))];
-      let dispTeacherNames: Record<string, string> = {};
+      const dispTeacherNames: Record<string, string> = {};
       if (dispTeacherIds.length > 0) {
         const { data: dtRows } = await db.from('portal_users').select('id, full_name').in('id', dispTeacherIds);
         (dtRows ?? []).forEach((t: any) => { dispTeacherNames[t.id] = t.full_name; });
@@ -353,7 +354,7 @@ export async function GET(req: NextRequest) {
       .limit(30);
     // Enrich each student with their class name
     const classIds = [...new Set((students ?? []).map((s: any) => s.class_id).filter(Boolean))];
-    let classNameMap: Record<string, string> = {};
+    const classNameMap: Record<string, string> = {};
     if (classIds.length) {
       const { data: classes } = await db.from('classes').select('id, name').in('id', classIds);
       (classes ?? []).forEach((c: any) => { classNameMap[c.id] = c.name; });
@@ -375,7 +376,7 @@ export async function GET(req: NextRequest) {
 
   // Look up registry records for each no-school student
   const noSchoolIds = (noSchoolRaw ?? []).map((s: any) => s.id);
-  let registryMap: Record<string, { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null }> = {};
+  const registryMap: Record<string, { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null }> = {};
   if (noSchoolIds.length > 0) {
     const { data: regRows } = await db
       .from('students')
@@ -471,7 +472,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch school names for the class school IDs that appear in mismatches
   const mismatchClassSchoolIds = [...new Set(rawMismatched.map((s: any) => classSchoolMap[s.class_id]).filter(Boolean))] as string[];
-  let mismatchSchoolNames: Record<string, string> = {};
+  const mismatchSchoolNames: Record<string, string> = {};
   if (mismatchClassSchoolIds.length > 0) {
     const { data: mSchools } = await db.from('schools').select('id, name').in('id', mismatchClassSchoolIds);
     (mSchools ?? []).forEach((s: any) => { mismatchSchoolNames[s.id] = s.name; });
@@ -511,7 +512,7 @@ export async function GET(req: NextRequest) {
       if (ct) teacherIdSet.add(ct);
       if (rt) teacherIdSet.add(rt);
     });
-    let teacherNameMap: Record<string, string> = {};
+    const teacherNameMap: Record<string, string> = {};
     if (teacherIdSet.size > 0) {
       const { data: teachers } = await db.from('portal_users').select('id, full_name').in('id', Array.from(teacherIdSet));
       (teachers ?? []).forEach((t: any) => { teacherNameMap[t.id] = t.full_name; });
@@ -580,8 +581,8 @@ export async function GET(req: NextRequest) {
 
   // Enrich with teacher and school names
   const missingTs = Object.values(missingTsMap);
-  let teacherSchoolNameMap: Record<string, string> = {};
-  let schoolNameMap2: Record<string, string> = {};
+  const teacherSchoolNameMap: Record<string, string> = {};
+  const schoolNameMap2: Record<string, string> = {};
   if (missingTs.length > 0) {
     const missingTeacherIds = [...new Set(missingTs.map(m => m.teacher_id))];
     const missingSchoolIds = [...new Set(missingTs.map(m => m.school_id))];
@@ -829,6 +830,44 @@ export async function POST(req: NextRequest) {
     const { error } = await db.from('classes').delete().eq('id', deleteClassId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
+  }
+
+  // Backfill placement fields on EXISTING classes so they participate in band-coverage
+  // placement (tier + numeric bounds), for uniformity & compliance. Fills nulls only —
+  // never overwrites an already-set band/tier, and never renames a class.
+  if (action === 'backfill_class_bands') {
+    const { data: classes } = await db
+      .from('classes')
+      .select('id, name, qa_grade_band, tier, band_lvl, band_low, band_high, program_id');
+    const progIds = [...new Set((classes ?? []).map((c: any) => c.program_id).filter(Boolean))] as string[];
+    const progMap: Record<string, string> = {};
+    if (progIds.length) {
+      const { data: progs } = await db.from('programs').select('id, name').in('id', progIds);
+      (progs ?? []).forEach((p: any) => { progMap[p.id] = p.name; });
+    }
+    let updated = 0;
+    const needsReview: Array<{ id: string; name: string }> = [];
+    for (const c of (classes ?? [])) {
+      const patch: Record<string, unknown> = {};
+      // Band from the stored label, else parsed from the class name.
+      const band = parseBandLabel(c.qa_grade_band) || fixedBand(c.name);
+      if (band && c.band_low == null) {
+        patch.band_lvl = band.lvl; patch.band_low = band.low; patch.band_high = band.high;
+        if (!c.qa_grade_band) patch.qa_grade_band = band.label;
+      }
+      // Tier from the linked programme, else inferred from the class name.
+      if (!c.tier) {
+        const tier = canonicalTier(progMap[c.program_id] || inferProgramme(c.name));
+        if (tier) patch.tier = tier;
+      }
+      if (Object.keys(patch).length) {
+        patch.updated_at = new Date().toISOString();
+        await db.from('classes').update(patch).eq('id', c.id);
+        updated++;
+      }
+      if (!band && c.band_low == null) needsReview.push({ id: c.id, name: c.name });
+    }
+    return NextResponse.json({ success: true, updated, needsReview });
   }
 
   // Add missing teacher_schools entries for a specific teacher (or all teachers).

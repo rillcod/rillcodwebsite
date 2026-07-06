@@ -4,7 +4,7 @@ import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
-import { buildClassName, gradeBand } from '@/lib/classes/naming';
+import { buildClassName, gradeBand, bandForGrade, bandCoversGrade, canonicalTier, type BandGranularity } from '@/lib/classes/naming';
 
 /**
  * Shared Summer-School onboarding — the SINGLE source of truth for turning a
@@ -99,6 +99,7 @@ export async function ensureClassWithTutor(
   className: string,
   description?: string,
   gradeRange?: string | null,
+  granularity?: BandGranularity,
 ): Promise<string | null> {
   // Resolve a tutor: an existing teacher for this class name globally, then for
   // the school, then any teacher in the system.
@@ -158,28 +159,58 @@ export async function ensureClassWithTutor(
   }
 
   // Standard, auto-derived name: "{School} · {Programme} · {Grade Band}".
-  // Grade band is part of identity: same school + programme can have Basic 1-3,
-  // Basic 4-6, JSS 1-3, SS 1-3 without collapsing into one class.
+  // The band is part of identity so a school can run Basic 1-3 / Basic 4-6 / JSS 1-3 / SS 1-3
+  // (or teacher-chosen single grades) side by side. Bounds are stored numerically so a grade
+  // is placed into whichever class band COVERS its number, at any granularity.
   const isOnline = /online/i.test(schoolName);
-  const normalizedBand = gradeBand(gradeRange) || gradeRange || gradeBand(className);
+  const tier = canonicalTier(className) || className || null;
+
+  // Granularity: explicit param → the school's default → 'fixed'.
+  let gran: BandGranularity = granularity ?? 'fixed';
+  if (!granularity) {
+    const { data: sch } = await admin.from('schools').select('default_band_granularity').eq('id', schoolId).maybeSingle();
+    const d = (sch as { default_band_granularity?: string } | null)?.default_band_granularity;
+    if (d === 'single' || d === 'fixed') gran = d;
+  }
+
+  const band = isOnline ? null : bandForGrade(gradeRange, gran);
+  const normalizedBand = band?.label || gradeBand(gradeRange) || gradeRange || gradeBand(className);
   const standardName = isOnline
     ? buildClassName({ programme: className, online: true })
     : buildClassName({ schoolName, programme: className, range: normalizedBand });
 
-  // Reuse only the exact class identity. Prefix matching wrongly collapsed distinct
-  // ranges, e.g. Basic 1-3 and Basic 4-6 under the same programme.
   const { data: schoolClasses } = await admin
     .from('classes')
-    .select('id, teacher_id, name, qa_grade_band')
+    .select('id, teacher_id, name, qa_grade_band, tier, band_lvl, band_low, band_high')
     .eq('school_id', schoolId);
-  const existing = (schoolClasses ?? []).find(
-    (c: { id: string; teacher_id: string | null; name: string; qa_grade_band?: string | null }) =>
-      c.name === standardName || (c.name === className && (!normalizedBand || c.qa_grade_band === normalizedBand)),
-  );
+  const classes = (schoolClasses ?? []) as Array<{
+    id: string; teacher_id: string | null; name: string; qa_grade_band?: string | null;
+    tier?: string | null; band_lvl?: string | null; band_low?: number | null; band_high?: number | null;
+  }>;
+
+  // 1) A class of the SAME tier whose band covers this grade (most specific wins) — this is
+  //    what lets a single-grade child land in a fixed band, or vice versa.
+  const covering = band
+    ? classes
+        .filter((c) => c.tier && canonicalTier(c.tier) === tier
+          && bandCoversGrade({ lvl: c.band_lvl ?? '', low: c.band_low ?? 0, high: c.band_high ?? 0 }, gradeRange))
+        .sort((a, b) => ((a.band_high ?? 0) - (a.band_low ?? 0)) - ((b.band_high ?? 0) - (b.band_low ?? 0)))
+    : [];
+  // 2) Else the exact canonical name, or a legacy class with the same band label.
+  const existing = covering[0]
+    ?? classes.find((c) => c.name === standardName || (c.name === className && (!normalizedBand || c.qa_grade_band === normalizedBand)));
 
   if (existing?.id) {
-    if (!existing.teacher_id && tutorId) {
-      await admin.from('classes').update({ teacher_id: tutorId, updated_at: new Date().toISOString() }).eq('id', existing.id);
+    const patch: Record<string, unknown> = {};
+    if (!existing.teacher_id && tutorId) patch.teacher_id = tutorId;
+    // Backfill band/tier on a legacy class we matched by name.
+    if (band && existing.band_low == null) {
+      patch.tier = tier; patch.band_lvl = band.lvl; patch.band_low = band.low; patch.band_high = band.high;
+      if (!existing.qa_grade_band) patch.qa_grade_band = band.label;
+    }
+    if (Object.keys(patch).length) {
+      patch.updated_at = new Date().toISOString();
+      await admin.from('classes').update(patch).eq('id', existing.id);
     }
     return existing.id;
   }
@@ -192,6 +223,10 @@ export async function ensureClassWithTutor(
       teacher_id: tutorId,
       status: 'active',
       qa_grade_band: normalizedBand ?? null,
+      tier: tier ?? null,
+      band_lvl: band?.lvl ?? null,
+      band_low: band?.low ?? null,
+      band_high: band?.high ?? null,
       description: description ?? `${schoolName} — ${className}`,
     })
     .select('id')

@@ -120,3 +120,96 @@ export function buildClassName(opts: {
   }
   return [shortSchoolName(opts.schoolName), prog, opts.range].filter(Boolean).join(' · ');
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Canonical bands with NUMERIC bounds — the foundation for placement. A band is
+// a level + inclusive [low, high] grade range. Storing the bounds (not just the
+// label) lets fixed bands and teacher-chosen single/custom bands coexist: a
+// student's grade is placed into whichever class band covers its number.
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface CanonicalBand {
+  lvl: string;   // 'Basic' | 'Primary' | 'JSS' | 'SS' | 'Grade' | 'Year' | …
+  low: number;
+  high: number;
+  label: string; // e.g. 'Basic 1-3' | 'JSS 1' | 'SS 1-3'
+}
+
+/** First single grade token from any messy string. */
+export function parseGrade(str: string | null | undefined): { lvl: string; n: number } | null {
+  return parseGrades(str)[0] ?? null;
+}
+
+/** Label for a level + inclusive range (collapses low===high to a single grade). */
+export function bandLabel(lvl: string, low: number, high: number): string {
+  return low === high ? `${lvl} ${low}` : `${lvl} ${low}-${high}`;
+}
+
+/** Fixed-band policy (the default): Basic/Primary split 1-3 / 4-6; JSS 1-3; SS 1-3. */
+export function fixedBand(grade: string | null | undefined): CanonicalBand | null {
+  const g = parseGrade(grade);
+  if (!g) return null;
+  const { lvl, n } = g;
+  if (lvl === 'JSS' || lvl === 'JS') return { lvl: 'JSS', low: 1, high: 3, label: 'JSS 1-3' };
+  if (lvl === 'SS' || lvl === 'SSS') return { lvl: 'SS', low: 1, high: 3, label: 'SS 1-3' };
+  const low = n <= 3 ? 1 : 4;
+  const high = n <= 3 ? 3 : 6;
+  return { lvl, low, high, label: bandLabel(lvl, low, high) };
+}
+
+/** Single-grade band ("Basic 2"). */
+export function singleBand(grade: string | null | undefined): CanonicalBand | null {
+  const g = parseGrade(grade);
+  if (!g) return null;
+  const lvl = g.lvl === 'JS' ? 'JSS' : g.lvl === 'SSS' ? 'SS' : g.lvl;
+  return { lvl, low: g.n, high: g.n, label: bandLabel(lvl, g.n, g.n) };
+}
+
+/** Explicit custom range ("Basic 1-2"), clamped so low ≤ high. */
+export function rangeBand(lvl: string, a: number, b: number): CanonicalBand {
+  const low = Math.min(a, b);
+  const high = Math.max(a, b);
+  return { lvl, low, high, label: bandLabel(lvl, low, high) };
+}
+
+export type BandGranularity = 'fixed' | 'single';
+
+/**
+ * The band a grade should map to under a chosen granularity. 'fixed' (default) →
+ * Basic 1-3 / 4-6, JSS 1-3, SS 1-3. 'single' → that exact grade.
+ */
+export function bandForGrade(grade: string | null | undefined, granularity: BandGranularity = 'fixed'): CanonicalBand | null {
+  return granularity === 'single' ? singleBand(grade) : fixedBand(grade);
+}
+
+/** Does a class band cover a given grade string? (same level + number in range) */
+export function bandCoversGrade(band: { lvl: string; low: number; high: number } | null | undefined, grade: string | null | undefined): boolean {
+  if (!band) return false;
+  const g = parseGrade(grade);
+  if (!g) return false;
+  const lvl = g.lvl === 'JS' ? 'JSS' : g.lvl === 'SSS' ? 'SS' : g.lvl;
+  const bl = band.lvl === 'JS' ? 'JSS' : band.lvl === 'SSS' ? 'SS' : band.lvl;
+  return lvl === bl && g.n >= band.low && g.n <= band.high;
+}
+
+/** Parse a band LABEL ("Basic 1-3" / "JSS 2") back into bounds. */
+export function parseBandLabel(label: string | null | undefined): CanonicalBand | null {
+  const m = (label || '').trim().match(/^([A-Za-z]+)\s*0*(\d+)\s*(?:-\s*0*(\d+))?$/);
+  if (!m) return null;
+  const rawLvl = m[1].toUpperCase();
+  const lvl = LVL[rawLvl.toLowerCase()] || (rawLvl === 'JS' ? 'JSS' : rawLvl === 'SSS' ? 'SS' : m[1]);
+  const low = parseInt(m[2], 10);
+  const high = m[3] ? parseInt(m[3], 10) : low;
+  return { lvl, low: Math.min(low, high), high: Math.max(low, high), label: bandLabel(lvl, Math.min(low, high), Math.max(low, high)) };
+}
+
+/** Canonical tier/programme name (explicit choice — NEVER derived from age). */
+export function canonicalTier(programme: string | null | undefined): string | null {
+  const p = (programme || '').toLowerCase().trim();
+  if (!p) return null;
+  if (/young|innovator|scratch|kids|creative/.test(p)) return 'Young Innovators';
+  if (/teen|developer|python/.test(p)) return 'Teen Developers';
+  if (/web\s*dev/.test(p)) return 'Web Development Bootcamp';
+  if (/data analy/.test(p)) return 'Data Analysis with Python';
+  return programme!.trim();
+}
