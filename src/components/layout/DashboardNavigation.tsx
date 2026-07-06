@@ -186,6 +186,7 @@ export default function DashboardNavigation() {
           { divider: true, label: 'Finance' },
           { name: 'Platform Finance', href: '/dashboard/finance', icon: BanknotesIcon },
           { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
+          { name: 'Balance Reminders', href: '/dashboard/balance-reminders', icon: EnvelopeIcon },
 
           { divider: true, label: 'System' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },

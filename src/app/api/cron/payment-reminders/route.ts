@@ -54,9 +54,28 @@ async function handle(req: NextRequest) {
   }
 
   const admin = adminClient();
-  // Allow ?everyDays=N to override the cadence per scheduler call (clamped 1–60).
+
+  // Admin-controllable regulator (dashboard) overrides env defaults. Missing row → defaults.
+  const { data: cfg } = await admin
+    .from('balance_reminder_settings')
+    .select('enabled, every_days, max_reminders, channel_email, channel_whatsapp')
+    .eq('id', 1)
+    .maybeSingle();
+  const settings = {
+    enabled: (cfg as any)?.enabled ?? true,
+    everyDays: (cfg as any)?.every_days ?? DEFAULT_REMIND_EVERY_DAYS,
+    maxReminders: (cfg as any)?.max_reminders ?? MAX_REMINDERS,
+    channelEmail: (cfg as any)?.channel_email ?? true,
+    channelWhatsapp: (cfg as any)?.channel_whatsapp ?? true,
+  };
+  if (!settings.enabled) {
+    return NextResponse.json({ success: true, disabled: true, scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, capped: 0 });
+  }
+
+  // ?everyDays=N still overrides the cadence per scheduler call (clamped 1–60).
   const everyDaysParam = Number(new URL(req.url).searchParams.get('everyDays'));
-  const everyDays = Math.min(60, Math.max(1, everyDaysParam || DEFAULT_REMIND_EVERY_DAYS));
+  const everyDays = Math.min(60, Math.max(1, everyDaysParam || settings.everyDays));
+  const maxReminders = Math.max(1, settings.maxReminders);
   const report = { scanned: 0, remindedEmail: 0, remindedWhatsapp: 0, skipped: 0, capped: 0, everyDays };
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
   const cutoff = Date.now() - everyDays * 86400000;
@@ -82,9 +101,12 @@ async function handle(req: NextRequest) {
     if (Date.now() > DEADLINE) break; // resume on next scheduled run
     report.scanned++;
 
-    // Cap: stop after MAX_REMINDERS so a parent is never chased indefinitely.
+    // Paused by an admin from the control panel → never remind.
+    if (/\[BalanceRemindPaused\]/i.test(p.notes || '')) { report.skipped++; continue; }
+
+    // Cap: stop after the configured max so a parent is never chased indefinitely.
     const sentSoFar = remindCount(p.notes);
-    if (sentSoFar >= MAX_REMINDERS) { report.capped++; continue; }
+    if (sentSoFar >= maxReminders) { report.capped++; continue; }
 
     // De-dupe: skip if reminded within the window.
     const last = lastRemindedAt(p.notes);
@@ -122,7 +144,7 @@ async function handle(req: NextRequest) {
     const payLink = `${baseUrl}/summer-school/pay-balance?email=${encodeURIComponent(to)}`;
     const amountStr = `₦${balanceDue.toLocaleString()}`;
 
-    try {
+    if (settings.channelEmail) try {
       const html = buildRillcodTransactionalEmailHtml({
         eyebrow: 'Summer School',
         title: 'A quick reminder about your balance',
@@ -150,7 +172,7 @@ async function handle(req: NextRequest) {
     }
 
     // WhatsApp (best-effort).
-    if (p.parent_phone) {
+    if (settings.channelWhatsapp && p.parent_phone) {
       try {
         const { sendWhatsApp } = await import('@/lib/whatsapp/send');
         const ok = await sendWhatsApp(p.parent_phone, [
