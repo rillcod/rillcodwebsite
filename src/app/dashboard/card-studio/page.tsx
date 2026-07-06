@@ -340,30 +340,30 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
           <span style={{fontFamily:'monospace',color:'#374151',fontWeight:900}}>{config.cardLabel}</span>
         </div>
       </div>
-      <div className="flex items-center gap-1.5 p-2 bg-muted/50 border-t border-border">
+      <div className="flex flex-wrap items-center gap-1.5 p-2 bg-muted/50 border-t border-border">
         <button onClick={()=>toggleSelected(r.id)} title={isSelected?'Deselect':'Select'}
-          className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${isSelected?'bg-primary border-primary text-primary-foreground':'border-border text-muted-foreground hover:border-primary/50 hover:text-primary bg-background'}`}>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-colors ${isSelected?'bg-primary border-primary text-primary-foreground':'border-border text-muted-foreground hover:border-primary/50 hover:text-primary bg-background'}`}>
+          <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
             {isSelected&&<path d="M2 5l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>}
             {!isSelected&&<rect x="1" y="1" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1"/>}
           </svg>
         </button>
         <button onClick={()=>printSingle(r)} title="Print this card"
-          className="w-7 h-7 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center shrink-0 transition-colors bg-background">
-          <PrinterIcon className="w-3.5 h-3.5"/>
+          className="w-8 h-8 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted flex items-center justify-center shrink-0 transition-colors bg-background">
+          <PrinterIcon className="w-4 h-4"/>
         </button>
-        <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
-          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border truncate shrink-0 ${sm.color}`}>{sm.label}</span>
+        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-1.5 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
+        <div className="flex items-center gap-1.5 ml-auto">
           {!dbCard&&(
             <button onClick={()=>issueCard(r)} disabled={isIssuing}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wide hover:bg-primary/90 disabled:opacity-50 transition-colors shrink-0">
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wide hover:bg-primary/90 disabled:opacity-50 transition-colors shrink-0">
               {isIssuing?<span className="w-2.5 h-2.5 border border-primary-foreground border-t-transparent rounded-full animate-spin"/>:'+'}
               Issue
             </button>
           )}
           {dbCard?.status==='revoked'&&(
             <button onClick={()=>updateCardStatus(r,dbCard,'active')} disabled={isRevoking}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wide hover:bg-emerald-500/25 disabled:opacity-50 transition-colors shrink-0">
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wide hover:bg-emerald-500/25 disabled:opacity-50 transition-colors shrink-0">
               {isRevoking?<span className="w-2.5 h-2.5 border border-emerald-500 border-t-transparent rounded-full animate-spin"/>:'↑'}
               Restore
             </button>
@@ -372,12 +372,12 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             <>
               <button onClick={()=>{if(confirm(`Reissue card for ${r.name}? The current card stops working and a new card number + QR code are generated (e.g. for a lost or damaged card).`))reissueCard(r,dbCard)}} disabled={isRevoking}
                 title="Replace lost/damaged card — old codes stop verifying"
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wide hover:bg-amber-500/20 disabled:opacity-50 transition-colors shrink-0">
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wide hover:bg-amber-500/20 disabled:opacity-50 transition-colors shrink-0">
                 {isRevoking?<span className="w-2.5 h-2.5 border border-amber-500 border-t-transparent rounded-full animate-spin"/>:'↻'}
                 Reissue
               </button>
               <button onClick={()=>{if(confirm(`Revoke card for ${r.name}?`))updateCardStatus(r,dbCard,'revoked')}} disabled={isRevoking}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wide hover:bg-rose-500/20 disabled:opacity-50 transition-colors shrink-0">
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wide hover:bg-rose-500/20 disabled:opacity-50 transition-colors shrink-0">
                 {isRevoking?<span className="w-2.5 h-2.5 border border-rose-500 border-t-transparent rounded-full animate-spin"/>:'×'}
                 Revoke
               </button>
@@ -1166,8 +1166,8 @@ export default function CardStudioPage() {
                             if(n.has(s.id)) n.delete(s.id); else n.add(s.id);
                             return n;
                           })}
-                            className={`flex items-center gap-2.5 px-4 py-2 cursor-pointer transition-all border-b border-border/40 ${sel?'bg-primary/5 border-l-2 border-l-primary':'hover:bg-muted/40 border-l-2 border-l-transparent'}`}>
-                            <div className={`w-3.5 h-3.5 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel?'bg-primary border-primary':'border-border'}`}>
+                            className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer transition-all border-b border-border/40 ${sel?'bg-primary/5 border-l-2 border-l-primary':'hover:bg-muted/40 border-l-2 border-l-transparent'}`}>
+                            <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel?'bg-primary border-primary':'border-border'}`}>
                               {sel&&<span className="text-primary-foreground text-[8px]">✓</span>}
                             </div>
                             <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}</p>
@@ -1187,7 +1187,7 @@ export default function CardStudioPage() {
                         if(n.has(s.id)) n.delete(s.id); else n.add(s.id);
                         return n;
                       })}
-                        className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer transition-all ${sel?'bg-primary/5 border-l-2 border-l-primary':'hover:bg-muted/40 border-l-2 border-l-transparent'}`}>
+                        className={`flex items-center gap-2.5 px-4 py-3 cursor-pointer transition-all ${sel?'bg-primary/5 border-l-2 border-l-primary':'hover:bg-muted/40 border-l-2 border-l-transparent'}`}>
                         <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all rounded ${sel?'bg-primary border-primary':'border-border'}`}>
                           {sel&&<span className="text-primary-foreground text-[9px]">✓</span>}
                         </div>
@@ -1204,8 +1204,13 @@ export default function CardStudioPage() {
           </>
         )}
         {!designStudentsLoaded&&(
-          <div className="flex-1 flex items-center justify-center px-6 py-12">
-            <p className="text-[10px] text-muted-foreground text-center leading-relaxed">Load students to select and print access cards using the saved template.</p>
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+            <UserGroupIcon className="w-9 h-9 text-muted-foreground/30"/>
+            <p className="text-[11px] text-muted-foreground leading-relaxed max-w-[190px]">Load students to select and print access cards using the saved template.</p>
+            <button onClick={()=>loadDesignStudents(false)} disabled={designStudentsLoading}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-lg transition-all disabled:opacity-40">
+              {designStudentsLoading?<><div className="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"/>Loading…</>:<><ArrowDownTrayIcon className="w-3.5 h-3.5"/>Load Students</>}
+            </button>
           </div>
         )}
       </div>
