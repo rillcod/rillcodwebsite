@@ -13,7 +13,6 @@ import {
 } from '@/lib/icons';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { buildBulkPrintHtml, openPrintWindow, type CardHolder as PrintCardHolder, type CardConfig as PrintCardConfig } from '@/lib/cards/printCard';
-import { qrDataUrl } from '@/lib/cards/qr';
 import { LocalQr } from '@/components/cards/LocalQr';
 
 // ─── Shared Types ────────────────────────────────────────────────────────────
@@ -526,69 +525,19 @@ export default function CardStudioPage() {
   };
 
   const handlePrintSample = async () => {
-    const acc = cfg.accentColor;
-    const vis = (key: FieldKey) => cfg.fields.find(f => f.key === key)?.visible ?? false;
-    // Class shows as a body field to match the printed card — except when the header badge is
-  // already set to Class (avoids showing it twice).
-  const infoFields = cfg.fields.filter(f => f.visible && f.key !== 'qr' && !(f.key === 'className' && (cfg.badgeMode ?? 'label') === 'class'));
-    const qrScale = cfg.qrScale ?? 1;
-    const qrMm = (25 * qrScale).toFixed(1);
-    const sampleQr = await qrDataUrl('https://rillcod.com/result-check/RC-SAMPLE1', 420);
-    const expiry = new Date(Date.now()+365*24*60*60*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-    const sampleData: Record<string,string> = { school:SAMPLE.school,email:SAMPLE.email,password:SAMPLE.password,programme:SAMPLE.programme,studentId:SAMPLE.id,className:SAMPLE.className,expiry };
-    const logoUrl = window.location.origin + '/images/logo.png';
-    const hdrHtml = cfg.headerStyle==='band'
-      ? `<div class="chdr"><img src="${logoUrl}" class="logo"/><div><div class="org">${cfg.orgName}</div><div class="web">${cfg.orgWebsite}</div></div>${vis('className')?`<div class="cbadge">${sampleData.className}</div>`:''}</div>`
-      : cfg.headerStyle==='border'
-        ? `<div class="bhdr"><img src="${logoUrl}" class="logo"/><div><div class="org-b">${cfg.orgName}</div><div class="web-b">${cfg.orgWebsite}</div></div>${vis('className')?`<div class="bbadge">${sampleData.className}</div>`:''}</div>`
-        : `<div class="mhdr"><img src="${logoUrl}" class="logo"/><div class="org-m">${cfg.orgName}</div>${vis('className')?`<div class="mbadge">${sampleData.className}</div>`:''}</div>`;
-    const html = `<html><head><title>Sample Card</title>
-    <style>
-      @page{size:A4 portrait;margin:20mm}*{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Inter','Segoe UI',system-ui,sans-serif;background:#fff;display:flex;justify-content:center;padding-top:20mm}
-      .card{border:1px solid #d1d5db;${cfg.headerStyle==='border'?`border-left:4px solid ${acc};`:''}width:${cfg.width};height:${cfg.height};display:flex;flex-direction:column;overflow:hidden;background:${cfg.bgColor}}
-      .chdr{background:${acc};padding:10px 14px;display:flex;align-items:center;gap:8px}
-      .bhdr{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid #f3f4f6}
-      .mhdr{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:2px solid ${acc}}
-      .logo{width:22px;height:22px;object-fit:contain;flex-shrink:0}
-      .org{font-size:11px;font-weight:900;color:#fff;text-transform:uppercase;line-height:1}
-      .web{font-size:7px;color:rgba(255,255,255,.8);font-weight:700;margin-top:2px}
-      .org-b{font-size:10px;font-weight:900;color:#111;text-transform:uppercase}
-      .web-b{font-size:7px;color:${acc};font-weight:700;margin-top:1.5px}
-      .org-m{font-size:10px;font-weight:900;color:#111;text-transform:uppercase}
-      .cbadge{margin-left:auto;background:rgba(0,0,0,.22);color:#fff;padding:.5mm 1.5mm;font-size:7px;font-weight:900;text-transform:uppercase}
-      .bbadge{margin-left:auto;background:${acc};color:#fff;padding:.5mm 1.5mm;font-size:7px;font-weight:900;text-transform:uppercase}
-      .mbadge{margin-left:auto;font-size:8px;font-weight:900;color:${acc};text-transform:uppercase}
-      .cbody{display:flex;flex:1;overflow:hidden}
-      .info{flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:6px;border-right:1px solid #f3f4f6;overflow:hidden}
-      .sname{font-size:16px;font-weight:900;color:#111;text-transform:uppercase;line-height:1.15}
-      .sep{height:1px;background:#f3f4f6}
-      .field{display:flex;flex-direction:column;gap:2px}
-      .lbl{font-size:6px;font-weight:700;color:${cfg.typo.fieldLabel.color};text-transform:uppercase;letter-spacing:.5px}
-      .val{font-size:10px;font-weight:700;font-family:monospace;color:${cfg.typo.fieldValue.color};word-break:break-all}
-      .val-a{font-size:10px;font-weight:800;font-family:monospace;color:${cfg.typo.accentValue.color};word-break:break-all}
-      .qrp{width:30%;min-width:${qrMm}mm;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 8px;background:#fafafa;flex-shrink:0}
-      .qr{width:100%;max-width:${qrMm}mm;height:auto;aspect-ratio:1;border:1px solid #e5e7eb}
-      .qrl{font-size:6px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;text-align:center;font-weight:600}
-      .qrc{font-size:7px;font-weight:900;font-family:monospace;color:${acc};text-align:center}
-      .cftr{display:flex;justify-content:space-between;align-items:center;padding:6px 14px;border-top:1px solid #f3f4f6;font-size:7px;color:#9ca3af;font-weight:600;background:#fafafa}
-      @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-    </style></head><body>
-    <div class="card">
-      ${hdrHtml}
-      <div class="cbody">
-        <div class="info">
-          <div class="sname">${SAMPLE.name}</div><div class="sep"></div>
-          ${infoFields.map(f => {const val=sampleData[f.key]??'';const accent=['password','studentId','programme','school','expiry'].includes(f.key);return `<div class="field"><div class="lbl">${f.label}</div><div class="${accent?'val-a':'val'}">${val}</div></div>`;}).join('')}
-        </div>
-        ${vis('qr')?`<div class="qrp"><img src="${sampleQr}" class="qr"/><div class="qrl">Scan to verify</div><div class="qrc">${SAMPLE.id}</div></div>`:''}
-      </div>
-      <div class="cftr"><span>${cfg.footerLeft}</span><span style="font-family:monospace;color:#374151;font-weight:900">${cfg.footerRight==='Student ID'?SAMPLE.id:cfg.footerRight}</span></div>
-    </div>
-    <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),500)}</script>
-    </body></html>`;
-    const win = window.open('','_blank');
-    win?.document.write(html); win?.document.close();
+    // Use the exact same shared template as real prints so the sample reflects every
+    // setting (badge mode, corners, logo/header/QR scale, card-label colour, etc.).
+    const holder: PrintCardHolder = {
+      id: 'sample',
+      full_name: SAMPLE.name,
+      email: SAMPLE.email,
+      school_name: SAMPLE.school,
+      section_class: SAMPLE.className,
+      temp_password: SAMPLE.password,
+      card_code: SAMPLE.id,
+    };
+    const html = await buildBulkPrintHtml([holder], cfg as unknown as PrintCardConfig, window.location.origin, { qrHint: 'Scan to verify' });
+    openPrintWindow(html);
   };
 
   // Design tab – load students for generate panel
