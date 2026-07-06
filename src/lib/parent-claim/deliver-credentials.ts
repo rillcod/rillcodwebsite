@@ -11,7 +11,6 @@ export type CredentialDelivery = {
   whatsapp: boolean;
   parentPasswordSent: boolean;
   studentPasswordSent: boolean;
-  receiptAttached?: boolean;
   parentEmail?: string;
   studentEmail?: string;
 };
@@ -97,10 +96,17 @@ function buildWaMessage(
 }
 
 /**
- * Deliver parent + student portal credentials after a result-check claim — same
- * concrete summer-school style (branded email + WhatsApp). Sends a temp password
- * for any account that was just created OR has never signed in; returning users
- * get their email + a login link without resetting an active password.
+ * Deliver parent + student portal credentials after a result-check claim.
+ *
+ * Credentials policy:
+ *   • New parent          → create account + send parent + student logins
+ *   • Existing parent, never signed in → reset temp password + send both logins
+ *   • Existing parent, active          → link only; login link, no password reset
+ *   • Existing student, never signed in → reset temp password + include in email
+ *   • Existing student, active         → email only; point to existing password / reset
+ *
+ * No payment receipts here — school-type enrolments collect fees at the school;
+ * receipts stay on the online/summer onboarding paths only.
  */
 export async function deliverResultCheckerCredentials(
   admin: AnySupabase,
@@ -159,51 +165,13 @@ export async function deliverResultCheckerCredentials(
   const firstName = (childName || studentPU?.full_name || 'your child').trim().split(/\s+/)[0];
   const loginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}${parentPw ? `&pw=${encodeURIComponent(parentPw)}` : ''}`;
 
-  // Attach payment receipt when the student has a completed transaction (same as activate/summer).
-  let attachments: Array<{ filename: string; content: string }> | undefined;
-  let receiptUrl = '';
-  try {
-    const { data: tx } = await admin
-      .from('payment_transactions')
-      .select('id')
-      .eq('portal_user_id', studentUserId)
-      .in('payment_status', ['completed', 'success', 'paid'])
-      .order('paid_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (tx?.id) {
-      const { paymentsService } = await import('@/services/payments.service');
-      receiptUrl = (await paymentsService.generateReceipt(tx.id)) || '';
-      if (receiptUrl) {
-        const r = await fetch(receiptUrl);
-        if (r.ok) {
-          const buf = Buffer.from(await r.arrayBuffer());
-          const safeName = (childName || studentPU?.full_name || 'Student').replace(/[^a-z0-9]+/gi, '_');
-          attachments = [{ filename: `Rillcod-Receipt-${safeName}.pdf`, content: buf.toString('base64') }];
-          sent.receiptAttached = true;
-        }
-      }
-    }
-  } catch (receiptErr) {
-    console.error('[deliverResultCheckerCredentials] receipt attachment failed:', receiptErr);
-  }
-
-  const receiptBlock = receiptUrl
-    ? `<div style="margin:0 0 16px;padding:14px 16px;background:#141618;border:1px solid #2a2d33;border-radius:8px;text-align:center;">
-         <p style="margin:0 0 8px;font-size:11px;color:#10b981;text-transform:uppercase;letter-spacing:1px;font-weight:800;">Payment Receipt</p>
-         <p style="margin:0 0 10px;font-size:12px;color:#a1a1aa;">${attachments ? 'Your receipt is attached as a PDF.' : 'Your payment receipt is ready.'}</p>
-         <a href="${receiptUrl}" style="display:inline-block;padding:9px 20px;background:#10b981;color:#fff;font-size:13px;font-weight:800;text-decoration:none;border-radius:8px;">View / Download Receipt →</a>
-       </div>`
-    : '';
-
   const bodyHtml = `
     <p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">
       Dear ${parentName}, ${firstName} is now linked to your Rillcod parent account${schoolName ? ` at ${schoolName}` : ''}.
-      Below are your portal logins — the same format we use for summer school and new enrolments.
+      Below are your portal logins.
     </p>
     ${parentBlock ? credentialsCard(parentBlock.label, parentBlock.accent, parentBlock.email, parentBlock.password) : ''}
     ${studentBlock ? credentialsCard(studentBlock.label, studentBlock.accent, studentBlock.email, studentBlock.password) : ''}
-    ${receiptBlock}
     <p style="margin:0 0 16px;font-size:12px;color:#71717a;">
       Please change any temporary passwords after first login. Keep these details private.
     </p>`;
@@ -223,7 +191,6 @@ export async function deliverResultCheckerCredentials(
       html,
       fromName: schoolName ? `${schoolName} via Rillcod Technologies` : 'Rillcod Technologies',
       fromEmail: 'support@rillcod.com',
-      ...(attachments ? { attachments } : {}),
     });
     sent.email = true;
   } catch (err) {

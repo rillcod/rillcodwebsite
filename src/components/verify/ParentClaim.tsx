@@ -31,7 +31,6 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
       whatsapp?: boolean;
       parentPasswordSent?: boolean;
       studentPasswordSent?: boolean;
-      receiptAttached?: boolean;
       parentEmail?: string;
       studentEmail?: string;
     } | null;
@@ -157,9 +156,6 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
             </div>
           )}
 
-          {creds?.receiptAttached && (
-            <p className="text-[10px] text-emerald-400 font-bold">Payment receipt attached to your email.</p>
-          )}
         </div>
 
         <a
