@@ -23,8 +23,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (error || !card) return NextResponse.json({ error: 'Card not found' }, { status: 404 });
   if (!canAccessSchool(ctx, card.school_id)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard/card-studio?mode=issuance&type=${card.holder_type}&q=${encodeURIComponent(card.card_number)}`;
-  const message = `Hi ${card.portal_users?.full_name || ''}, your ${card.holder_type} access card is ready. Card No: ${card.card_number}. Verify: ${verifyUrl}`;
+  // Public verify link — the same URL the card's QR encodes, usable by the holder
+  // (the old link pointed at the staff-only Card Studio and 403'd for holders).
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
+  const verifyUrl = `${appUrl}/result-check/${encodeURIComponent(card.verification_code)}`;
+  const message = `Hi ${card.portal_users?.full_name || ''}, your ${card.holder_type} access card is ready. Card No: ${card.card_number}. Scan the QR on the card or verify online: ${verifyUrl}`;
 
   let delivery = { channel, sent: false, whatsapp_url: null as string | null };
 

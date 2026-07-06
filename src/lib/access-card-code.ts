@@ -21,6 +21,12 @@ export function formatAccessCardCodeInput(raw: string): string {
   if (!alnum) return '';
   if (alnum === 'R') return 'R';
 
+  // Longer inputs are issued-card / report verification codes — keep the user's
+  // dashes intact (just uppercase + strip spaces) so pasting a full code works.
+  if (alnum.length > 10) {
+    return raw.toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '').slice(0, 32);
+  }
+
   let body: string;
   if (alnum.startsWith('RC')) {
     if (alnum.length <= 2) return 'RC-';

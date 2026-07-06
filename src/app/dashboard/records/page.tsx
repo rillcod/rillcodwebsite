@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { MagnifyingGlassIcon, ArrowDownTrayIcon, ArrowPathIcon, PrinterIcon, RectangleGroupIcon } from '@/lib/icons';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
+import { fetchCardConfig } from '@/lib/cards/printCard';
 
 type Rec = {
   id: string; type: string; name: string; email: string; school: string;
@@ -219,7 +220,7 @@ export default function RecordsPage() {
     win?.document.close();
   }
 
-  function printCards(items: Reg[] = regsFiltered) {
+  async function printCards(items: Reg[] = regsFiltered) {
     const valid = items.filter(r => r.portalUserId && r.account !== 'Deleted' && String(r.status || '').toLowerCase() !== 'failed');
     if (valid.length === 0) {
       alert('No printable cards found. Cards need a live student portal account and cannot be printed for deleted or failed registrations.');
@@ -232,12 +233,17 @@ export default function RecordsPage() {
       alert('Duplicate result-check codes were detected in this selection. Please print fewer cards or contact admin before issuing them.');
       return;
     }
+    // Brand from the saved Card Studio student design so every print path matches.
+    const cfg = await fetchCardConfig('student');
+    const acc = cfg.accentColor || '#7c3aed';
+    const brand = esc(cfg.orgName || 'Rillcod Access');
+    const footLeft = esc(cfg.footerLeft || 'rillcod.com/result-check');
     const html = `<!doctype html><html><head><title>Student Access Cards</title><style>
       @page{size:A4 portrait;margin:8mm}*{box-sizing:border-box}body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0;color:#111827;background:#fff}
       .grid{display:grid;grid-template-columns:80mm 80mm;grid-auto-rows:58mm;gap:7mm;justify-content:center}
-      .card{border:1px solid #d1d5db;border-left:5px solid #7c3aed;border-radius:8px;overflow:hidden;break-inside:avoid;display:flex;flex-direction:column;background:#fff}
-      .top{background:#7c3aed;color:#fff;padding:8px 10px;display:flex;align-items:center;justify-content:space-between}.brand{font-weight:900;font-size:12px;text-transform:uppercase}.tag{font-size:8px;font-weight:900;background:rgba(0,0,0,.2);padding:3px 6px;border-radius:999px}
-      .body{padding:9px 10px;display:grid;grid-template-columns:1fr 24mm;gap:8px;align-items:start}.name{font-size:13px;font-weight:900;text-transform:uppercase;line-height:1.1;margin-bottom:6px}.line{font-size:8px;color:#6b7280;text-transform:uppercase;font-weight:800;margin-top:4px}.val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#111827;font-weight:800;word-break:break-word}.qr{width:24mm;height:24mm;border:1px solid #e5e7eb;border-radius:6px;padding:2px;background:#fff}.hint{font-size:7px;font-weight:900;color:#6b7280;text-align:center;text-transform:uppercase;line-height:1.15;margin-top:3px}.code{font-size:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#4c1d95;text-align:center;font-weight:900;word-break:break-all;letter-spacing:.03em}
+      .card{border:1px solid #d1d5db;border-left:5px solid ${acc};border-radius:8px;overflow:hidden;break-inside:avoid;display:flex;flex-direction:column;background:${cfg.bgColor || '#fff'}}
+      .top{background:${acc};color:#fff;padding:8px 10px;display:flex;align-items:center;justify-content:space-between}.brand{font-weight:900;font-size:12px;text-transform:uppercase}.tag{font-size:8px;font-weight:900;background:rgba(0,0,0,.2);padding:3px 6px;border-radius:999px}
+      .body{padding:9px 10px;display:grid;grid-template-columns:1fr 24mm;gap:8px;align-items:start}.name{font-size:13px;font-weight:900;text-transform:uppercase;line-height:1.1;margin-bottom:6px}.line{font-size:8px;color:#6b7280;text-transform:uppercase;font-weight:800;margin-top:4px}.val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:#111827;font-weight:800;word-break:break-word}.qr{width:24mm;height:24mm;border:1px solid #e5e7eb;border-radius:6px;padding:2px;background:#fff}.hint{font-size:7px;font-weight:900;color:#6b7280;text-align:center;text-transform:uppercase;line-height:1.15;margin-top:3px}.code{font-size:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:${acc};text-align:center;font-weight:900;word-break:break-all;letter-spacing:.03em}
       .foot{margin-top:auto;border-top:1px dashed #e5e7eb;padding:6px 10px;font-size:8px;color:#6b7280;font-weight:800;display:flex;justify-content:space-between}
       @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
     </style></head><body><div class="grid">
@@ -246,13 +252,13 @@ export default function RecordsPage() {
         const code = accessCardCodeForStudent(studentId);
         const checkUrl = `${origin}/result-check/${encodeURIComponent(code)}`;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=1&data=${encodeURIComponent(checkUrl)}`;
-        return `<div class="card"><div class="top"><div class="brand">Rillcod Access</div><div class="tag">${esc(r.klass || 'STUDENT')}</div></div><div class="body">
+        return `<div class="card"><div class="top"><div class="brand">${brand}</div><div class="tag">${esc(r.klass || 'STUDENT')}</div></div><div class="body">
           <div><div class="name">${esc(r.name)}</div>
           <div class="line">Login Email</div><div class="val">${esc(r.email)}</div>
           <div class="line">Password</div><div class="val" style="color:#7c2d12">${esc(r.password || '—')}</div>
           <div class="line">School</div><div class="val" style="font-size:8px">${esc(r.school || 'Rillcod Academy')}</div></div>
-          <div><img class="qr" src="${qrUrl}" alt="Result QR for ${esc(r.name)}"/><div class="hint">Scan to check result<br/>Consent is one-time</div><div class="code">${esc(code)}</div></div>
-        </div><div class="foot"><span>rillcod.com/result-check</span><span>${esc(code)}</span></div></div>`;
+          <div><img class="qr" src="${qrUrl}" alt="Result QR for ${esc(r.name)}"/><div class="hint">Scan or type code at<br/>rillcod.com/result-check</div><div class="code">${esc(code)}</div></div>
+        </div><div class="foot"><span>${footLeft}</span><span>${esc(code)}</span></div></div>`;
       }).join('')}
       </div><script>
         window.onload=()=>{const imgs=[...document.images];Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(r=>{img.onload=r;img.onerror=r;}))).then(()=>setTimeout(()=>window.print(),250));};

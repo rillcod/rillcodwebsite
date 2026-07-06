@@ -115,9 +115,13 @@ function SelfCardView({ profile, cfg, myCard }: { profile: any; cfg: CardConfig;
   const code = myCard?.card_number ?? accessCardCodeForStudent(profile.id);
   const roleLabel = {student:'Student',teacher:'Teacher',admin:'Administrator',school:'School Partner',parent:'Parent'}[profile.role as string] ?? profile.role;
   const idLabel = {student:'Student ID',teacher:'Staff ID',parent:'Parent Card ID',school:'Partner ID'}[profile.role as string] ?? 'Card ID';
+  // Fallback for students without an issued card: the deterministic RC- access code
+  // still resolves on /result-check, so the QR is useful instead of a dead profile link.
   const verifyUrl = myCard?.verification_code
     ? `${window.location.origin}/result-check/${myCard.verification_code}`
-    : `${window.location.origin}/dashboard/profile`;
+    : profile.role === 'student'
+      ? `${window.location.origin}/result-check/${accessCardCodeForStudent(profile.id)}`
+      : `${window.location.origin}/dashboard/profile`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
   const cardStatusLabel = myCard
     ? ({active:'Active',issued:'Issued (Pending Activation)',revoked:'Revoked',expired:'Expired'}[myCard.status] ?? myCard.status)

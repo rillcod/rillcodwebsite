@@ -1024,6 +1024,7 @@ export default function StudentsPage() {
       card_number: dbCard?.card_number || holderCode(portalId),
       expires_at: dbCard?.expires_at || null,
       verification_code: dbCard?.verification_code || null,
+      avatar_url: s.avatar_url || null,
     };
     openPrintWindow(buildSingleCardHtml(holder, cfg, window.location.origin));
   };

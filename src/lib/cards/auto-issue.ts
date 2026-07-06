@@ -27,11 +27,13 @@ export async function ensureStudentCardIssued(
 ) {
   const { holderId, schoolId = null, classId = null, actorId = null, metadata = {} } = args;
 
+  // Same duplicate rule as manual issuance: a revoked card doesn't block a new one.
   const { data: existing } = await db
     .from('identity_cards')
     .select('id, status')
     .eq('holder_type', 'student')
     .eq('holder_id', holderId)
+    .not('status', 'eq', 'revoked')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();

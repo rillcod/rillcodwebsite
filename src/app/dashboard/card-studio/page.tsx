@@ -232,12 +232,19 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
     );
   };
 
+  const radius = cfg.cornerRadius === 'pill' ? 24 : cfg.cornerRadius === 'rounded' ? 12 : 0;
+
   return (
-    <div style={{border:'1px solid #d1d5db',borderLeft:cfg.headerStyle==='border'?`4px solid ${acc}`:'1px solid #d1d5db',width:cfg.width,height:cfg.height,display:'flex',flexDirection:'column',overflow:'hidden',background:cfg.bgColor||'#fff',color:'#111827',boxShadow:'0 20px 40px rgba(0,0,0,0.15)',margin:'0 auto',transform:`scale(${scale})`,transformOrigin:'center center'}}>
+    <div style={{border:'1px solid #d1d5db',borderLeft:cfg.headerStyle==='border'?`4px solid ${acc}`:'1px solid #d1d5db',borderRadius:radius,width:cfg.width,height:cfg.height,display:'flex',flexDirection:'column',overflow:'hidden',background:cfg.bgColor||'#fff',color:'#111827',boxShadow:'0 20px 40px rgba(0,0,0,0.15)',margin:'0 auto',transform:`scale(${scale})`,transformOrigin:'center center'}}>
       <Header />
       <div style={{display:'flex',flex:1,overflow:'hidden'}}>
         <div style={{flex:1,padding:'10px 12px',display:'flex',flexDirection:'column',gap:5,borderRight:vis('qr')?'1px solid #f3f4f6':'none',overflow:'hidden'}}>
-          <div style={ts(t.studentName,{textTransform:'uppercase',lineHeight:1.15})}>{SAMPLE.name}</div>
+          <div style={{display:'flex',alignItems:'flex-start',gap:8}}>
+            {cfg.showPhotoSlot && (
+              <div style={{width:38,height:48,background:'#f3f4f6',border:'1px solid #e5e7eb',borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center',fontSize:6,fontWeight:900,color:'#9ca3af',letterSpacing:0.5,flexShrink:0}}>PHOTO</div>
+            )}
+            <div style={ts(t.studentName,{textTransform:'uppercase',lineHeight:1.15})}>{SAMPLE.name}</div>
+          </div>
           <div style={{height:1,background:'#f3f4f6'}}/>
           <div style={{display:'flex',flexDirection:'column',gap:4,overflow:'hidden'}}>
             {infoFields.map(f => (
@@ -266,10 +273,11 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
 
 // ─── Manage Tab – Mini Card Preview ──────────────────────────────────────────
 
-function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected, issueCard, updateCardStatus, isIssuingIds, isRevokingIds, printSingle }: {
+function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected, issueCard, updateCardStatus, reissueCard, isIssuingIds, isRevokingIds, printSingle }: {
   r: CardRecord; config: any; dbCardsMap: Map<string,DbCard>; selectedIds: Set<string>;
   toggleSelected: (id:string)=>void; issueCard: (r:CardRecord)=>void;
   updateCardStatus: (r:CardRecord,c:DbCard,s:'active'|'revoked')=>void;
+  reissueCard: (r:CardRecord,c:DbCard)=>void;
   isIssuingIds: Set<string>; isRevokingIds: Set<string>; printSingle: (r:CardRecord)=>void;
 }) {
   const dbCard = dbCardsMap.get(r.id);
@@ -366,11 +374,19 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
             </button>
           )}
           {dbCard?.status==='active'&&(
-            <button onClick={()=>{if(confirm(`Revoke card for ${r.name}?`))updateCardStatus(r,dbCard,'revoked')}} disabled={isRevoking}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wide hover:bg-rose-500/20 disabled:opacity-50 transition-colors shrink-0">
-              {isRevoking?<span className="w-2.5 h-2.5 border border-rose-500 border-t-transparent rounded-full animate-spin"/>:'×'}
-              Revoke
-            </button>
+            <>
+              <button onClick={()=>{if(confirm(`Reissue card for ${r.name}? The current card stops working and a new card number + QR code are generated (e.g. for a lost or damaged card).`))reissueCard(r,dbCard)}} disabled={isRevoking}
+                title="Replace lost/damaged card — old codes stop verifying"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wide hover:bg-amber-500/20 disabled:opacity-50 transition-colors shrink-0">
+                {isRevoking?<span className="w-2.5 h-2.5 border border-amber-500 border-t-transparent rounded-full animate-spin"/>:'↻'}
+                Reissue
+              </button>
+              <button onClick={()=>{if(confirm(`Revoke card for ${r.name}?`))updateCardStatus(r,dbCard,'revoked')}} disabled={isRevoking}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wide hover:bg-rose-500/20 disabled:opacity-50 transition-colors shrink-0">
+                {isRevoking?<span className="w-2.5 h-2.5 border border-rose-500 border-t-transparent rounded-full animate-spin"/>:'×'}
+                Revoke
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -747,6 +763,17 @@ export default function CardStudioPage() {
     finally{setIsRevokingIds(prev=>{const s=new Set(prev);s.delete(record.id);return s;});}
   };
 
+  const reissueCard = async (record: CardRecord, dbCard: DbCard) => {
+    setIsRevokingIds(prev=>new Set(prev).add(record.id));
+    try {
+      const res = await fetch(`/api/cards/${dbCard.id}/reissue`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:'reissued via Card Studio'})});
+      if(!res.ok){const j=await res.json();toast.error(j.error||'Failed to reissue card');return;}
+      toast.success(`New card issued for ${record.name} — reprint the card so the QR matches`);
+      await loadDbCards(cardType);
+    } catch(e:any){toast.error(e.message||'Error reissuing card');}
+    finally{setIsRevokingIds(prev=>{const s=new Set(prev);s.delete(record.id);return s;});}
+  };
+
   const bulkIssueList = async (list: CardRecord[]) => {
     const unissued = list.filter(r=>!dbCardsMap.has(r.id));
     if(!unissued.length) return;
@@ -828,8 +855,9 @@ export default function CardStudioPage() {
 <div class="grid">
 ${list.map(r=>{
   const dbCard=dbCardsMap.get(r.id);
-  const code=dbCard?.card_number??accessCardCodeForStudent(r.id);
-  const verifyUrl=dbCard?.verification_code?`${window.location.origin}/result-check/${dbCard.verification_code}`:`${window.location.origin}/result-check/${accessCardCodeForStudent(r.id)}`;
+  // Show the code the QR actually encodes so typing what's printed always verifies.
+  const code=dbCard?.verification_code??accessCardCodeForStudent(r.id);
+  const verifyUrl=`${window.location.origin}/result-check/${code}`;
   const qr=`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(verifyUrl)}`;
   const hdrClass=hStyle==='border'?'hdr-border':hStyle==='minimal'?'hdr-min':'hdr-band';
   return `<div class="card"><div class="${hdrClass}"><img class="logo" src="${logo}"/><div><div class="org">${org}</div><div class="web">${site}</div></div></div>
@@ -1368,14 +1396,14 @@ ${list.map(r=>{
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+                  {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
                 </div>
               </section>
             ))}
           </div>
         ):(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+            {filtered.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
           </div>
         )}
       </div>

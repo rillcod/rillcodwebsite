@@ -19,12 +19,16 @@ export default function ResultCheckEntryPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Standard RC-XXXXXXXX access codes normalize; longer issued-card verification
+    // codes (RC-…-…) and report codes pass through — /result-check resolves them all.
     const normalized = normalizeAccessCardCode(code);
-    if (normalized.length !== 11) {
+    const fallback = code.trim().toUpperCase().replace(/\s+/g, '');
+    const target = normalized || (fallback.length >= 6 ? fallback : '');
+    if (!target) {
       setError('Enter the RC code printed on the child access card.');
       return;
     }
-    router.push(`/result-check/${encodeURIComponent(normalized)}`);
+    router.push(`/result-check/${encodeURIComponent(target)}`);
   }
 
   return (
@@ -74,7 +78,7 @@ export default function ResultCheckEntryPage() {
                 inputMode="text"
                 autoCapitalize="characters"
                 spellCheck={false}
-                maxLength={11}
+                maxLength={32}
                 className="w-full rounded-2xl border border-border bg-background px-4 py-4 text-lg font-black tracking-widest uppercase outline-none focus:border-primary"
               />
             </div>

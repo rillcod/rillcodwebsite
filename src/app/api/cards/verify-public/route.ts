@@ -24,12 +24,20 @@ export async function GET(request: Request) {
     : card.status === 'expired' ? 'expired'
     : 'ok';
 
-  // Fire-and-forget scan log
+  // Lazy auto-expire: flip a stale 'active' card to 'expired' so lists stay accurate.
+  if (result === 'expired' && card.status === 'active') {
+    (admin as any).from('identity_cards')
+      .update({ status: 'expired', updated_at: new Date().toISOString() })
+      .eq('id', card.id)
+      .then(() => {}).catch(() => {});
+  }
+
+  // Fire-and-forget scan log ('qr' is the only public-scan source the CHECK constraint allows)
   (admin as any).from('card_scan_logs').insert({
     card_id: card.id,
     scanned_by: null,
     school_id: card.school_id,
-    source: 'public_verify',
+    source: 'qr',
     scan_result: result,
     metadata: { via: 'public_qr' },
   }).then(() => {}).catch(() => {});

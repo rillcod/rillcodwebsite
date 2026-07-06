@@ -19,7 +19,13 @@ export interface CardConfig {
   footerRight: string;
   bgColor?: string;
   showLogo?: boolean;
+  showPhotoSlot?: boolean;
+  cornerRadius?: 'sharp' | 'rounded' | 'pill';
   fields: CardFieldConfig[];
+}
+
+export function cardRadiusPx(cfg: CardConfig): number {
+  return cfg.cornerRadius === 'pill' ? 24 : cfg.cornerRadius === 'rounded' ? 12 : 0;
 }
 
 export interface CardHolder {
@@ -31,6 +37,9 @@ export interface CardHolder {
   card_number?: string | null;
   expires_at?: string | null;
   verification_code?: string | null;
+  avatar_url?: string | null;
+  /** Actual temp password to print (login slips); omitted → "Set on first login". */
+  temp_password?: string | null;
 }
 
 const FALLBACK_CONFIG: CardConfig = {
@@ -84,9 +93,8 @@ export function buildSingleCardHtml(
   const code = holder.card_number || holderCode(holder.id);
   // ID cards resolve on the single result surface (/result-check), which accepts the
   // card verification_code as well as the RC- access code.
-  const qrData = holder.verification_code
-    ? `${originUrl}/result-check/${holder.verification_code}`
-    : `${originUrl}/result-check/${holderCode(holder.id)}`;
+  const verifyCode = holder.verification_code || holderCode(holder.id);
+  const qrData = `${originUrl}/result-check/${verifyCode}`;
   const expiryVal = holder.expires_at
     ? new Date(holder.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
@@ -117,17 +125,23 @@ export function buildSingleCardHtml(
   const infoRows = [
     fv('school') && holder.school_name ? `<div class="field"><div class="lbl">${fl('school','School')}</div><div class="val-a" style="color:${acc}">${holder.school_name}</div></div>` : '',
     fv('email') && holder.email ? `<div class="field"><div class="lbl">${fl('email','Login Email')}</div><div class="val">${holder.email}</div></div>` : '',
-    fv('password') ? `<div class="field"><div class="lbl">${fl('password','Temp Password')}</div><div class="val-a">Set on first login</div></div>` : '',
+    fv('password') ? `<div class="field"><div class="lbl">${fl('password','Temp Password')}</div><div class="val-a">${holder.temp_password || 'Set on first login'}</div></div>` : '',
     fv('studentId') ? `<div class="field"><div class="lbl">${fl('studentId','Card No.')}</div><div class="val-a">${code}</div></div>` : '',
     fv('expiry') ? `<div class="field"><div class="lbl">${fl('expiry','Expiry Date')}</div><div class="val-a">${expiryVal}</div></div>` : '',
   ].filter(Boolean).join('');
+
+  const photoHtml = cfg.showPhotoSlot
+    ? holder.avatar_url
+      ? `<img src="${holder.avatar_url}" class="photo" crossorigin="anonymous" />`
+      : `<div class="photo photo-empty">PHOTO</div>`
+    : '';
 
   return `<!DOCTYPE html><html><head><title>Access Card — ${holder.full_name}</title>
   <style>
     @page { size: A4 portrait; margin: 20mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family:'Inter','Segoe UI',system-ui,sans-serif; color:#111827; background:#fff; display:flex; align-items:flex-start; justify-content:center; }
-    .card { border:1px solid #d1d5db; ${hs === 'border' ? `border-left:4px solid ${acc};` : ''} width:100%; max-width:480px; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; }
+    .card { border:1px solid #d1d5db; ${hs === 'border' ? `border-left:4px solid ${acc};` : ''} border-radius:${cardRadiusPx(cfg)}px; width:100%; max-width:480px; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; }
     .chdr { background:${acc}; padding:12px 18px; display:flex; align-items:center; gap:10px; }
     .bhdr { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid #f3f4f6; }
     .mhdr { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:2px solid ${acc}; }
@@ -152,7 +166,10 @@ export function buildSingleCardHtml(
     .qrp { width:160px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:18px 16px; background:#fafafa; flex-shrink:0; }
     .qr  { width:130px; height:130px; border:1px solid #e5e7eb; display:block; }
     .qrl { font-size:7px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; text-align:center; font-weight:600; }
-    .qrc { font-size:9px; font-weight:900; font-family:monospace; color:${acc}; text-align:center; }
+    .qrc { font-size:9px; font-weight:900; font-family:monospace; color:${acc}; text-align:center; word-break:break-all; }
+    .photo { width:64px; height:80px; object-fit:cover; border:1px solid #e5e7eb; border-radius:4px; flex-shrink:0; }
+    .photo-empty { display:flex; align-items:center; justify-content:center; background:#f3f4f6; color:#9ca3af; font-size:8px; font-weight:900; letter-spacing:1px; }
+    .name-row { display:flex; align-items:flex-start; gap:12px; }
     .cftr { display:flex; justify-content:space-between; align-items:center; padding:8px 18px; border-top:1px solid #f3f4f6; font-size:7.5px; color:#9ca3af; font-weight:600; background:#fafafa; }
     .cftr-id { font-family:monospace; color:#374151; font-weight:900; font-size:8px; }
     @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
@@ -162,15 +179,18 @@ export function buildSingleCardHtml(
     ${hdr}
     <div class="cbody">
       <div class="info">
-        <div class="sname">${holder.full_name}</div>
+        <div class="name-row">
+          ${photoHtml}
+          <div class="sname">${holder.full_name}</div>
+        </div>
         <div class="sep"></div>
         ${infoRows}
       </div>
       ${fv('qr') ? `
       <div class="qrp">
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}" class="qr" crossorigin="anonymous" />
-        <div class="qrl">Scan to Verify</div>
-        <div class="qrc">${code}</div>
+        <div class="qrl">Scan or type this code at rillcod.com/result-check</div>
+        <div class="qrc">${verifyCode}</div>
       </div>` : ''}
     </div>
     <div class="cftr">
@@ -178,7 +198,7 @@ export function buildSingleCardHtml(
       <span class="cftr-id">Issued: ${dateStr}</span>
     </div>
   </div>
-  <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 500); }</script>
+  <script>window.onload = () => { const imgs=[...document.images]; Promise.all(imgs.map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r;}))).then(()=>{ setTimeout(()=>{ window.print(); setTimeout(()=>window.close(),500); },150); }); }</script>
   </body></html>`;
 }
 
@@ -192,16 +212,17 @@ export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, origi
 
   const cardHtml = (h: CardHolder) => {
     const code = h.card_number || holderCode(h.id);
-    const qrData = h.verification_code
-      ? `${originUrl}/result-check/${h.verification_code}`
-      : `${originUrl}/result-check/${holderCode(h.id)}`;
+    const verifyCode = h.verification_code || holderCode(h.id);
+    const qrData = `${originUrl}/result-check/${verifyCode}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrData)}`;
     const hdrClass = hs === 'band' ? 'hdr-band' : hs === 'border' ? 'hdr-border' : 'hdr-min';
     const rows = [
       fv('school') && h.school_name ? `<div class="row"><div class="lbl">${fl('school','School')}</div><div class="val-a">${h.school_name}</div></div>` : '',
       fv('className') && h.section_class ? `<div class="row"><div class="lbl">${fl('className','Class')}</div><div class="val">${h.section_class}</div></div>` : '',
       fv('email') && h.email ? `<div class="row"><div class="lbl">${fl('email','Email')}</div><div class="val">${h.email}</div></div>` : '',
+      fv('password') && h.temp_password ? `<div class="row"><div class="lbl">${fl('password','Password')}</div><div class="val-a">${h.temp_password}</div></div>` : '',
       fv('studentId') ? `<div class="row"><div class="lbl">${fl('studentId','Card No.')}</div><div class="val-a">${code}</div></div>` : '',
+      fv('expiry') && h.expires_at ? `<div class="row"><div class="lbl">${fl('expiry','Expiry')}</div><div class="val-a">${new Date(h.expires_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>` : '',
     ].filter(Boolean).join('');
 
     return `<div class="card">
@@ -216,7 +237,7 @@ export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, origi
           <div class="sep"></div>
           ${rows}
         </div>
-        ${fv('qr') ? `<div class="right"><img class="qr" src="${qrUrl}" /><div class="code">${code}</div></div>` : ''}
+        ${fv('qr') ? `<div class="right"><img class="qr" src="${qrUrl}" /><div class="code">${verifyCode}</div></div>` : ''}
       </div>
       <div class="ftr"><span>${cfg.footerLeft}</span><span>${code}</span></div>
     </div>`;
@@ -228,7 +249,7 @@ export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, origi
     * { box-sizing:border-box; }
     body { margin:0; font-family:Inter,system-ui,sans-serif; color:#111827; background:#fff; }
     .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8mm; }
-    .card { border:1px solid #e5e7eb; ${hs === 'border' ? `border-left:3mm solid ${acc};` : ''} display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; page-break-inside:avoid; margin-bottom:8mm; }
+    .card { border:1px solid #e5e7eb; ${hs === 'border' ? `border-left:3mm solid ${acc};` : ''} border-radius:${cardRadiusPx(cfg)}px; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; page-break-inside:avoid; margin-bottom:8mm; }
     .hdr-band   { background:${acc}; color:#fff; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
     .hdr-border { padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; border-bottom:1px solid #f3f4f6; }
     .hdr-min    { border-bottom:2px solid ${acc}; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
@@ -251,7 +272,7 @@ export function buildBulkPrintHtml(holders: CardHolder[], cfg: CardConfig, origi
     @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
   </style></head><body>
   <div class="grid">${holders.map(h => cardHtml(h)).join('')}</div>
-  <script>window.onload=()=>{window.print(); setTimeout(()=>window.close(),500);};</script>
+  <script>window.onload=()=>{const imgs=[...document.images];Promise.all(imgs.map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r;}))).then(()=>{setTimeout(()=>{window.print();setTimeout(()=>window.close(),500);},150);});};</script>
   </body></html>`;
 }
 

@@ -23,6 +23,17 @@ export async function GET(request: Request) {
   const holderId = searchParams.get('holder_id');
 
   const db = createAdminClient();
+
+  // Lazy auto-expire: no cron runs for cards, so flip overdue 'active' cards here
+  // (best-effort) before listing so status filters and counts stay truthful.
+  try {
+    await (db as any)
+      .from('identity_cards')
+      .update({ status: 'expired', updated_at: new Date().toISOString() })
+      .eq('status', 'active')
+      .lt('expires_at', new Date().toISOString());
+  } catch { /* non-fatal */ }
+
   let q = (db as any)
     .from('identity_cards')
     .select('*, portal_users!identity_cards_holder_id_fkey(id, full_name, email, school_id, school_name, section_class)', { count: 'exact' })
