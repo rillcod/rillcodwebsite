@@ -4,6 +4,11 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildFormLeadConfirmationEmail, buildLeadNotificationEmail } from '@/lib/email/rillcod-transactional-email';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { resolveStudentRowId, syncExplicitParentStudentLink } from '@/lib/parents/links';
+import {
+  harmonizeStudentParentIdentity,
+  syncParentContactAcrossStores,
+  syncStudentFromLeadResponse,
+} from '@/lib/sync/student-parent-identity';
 import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
 
 export const dynamic = 'force-dynamic';
@@ -369,6 +374,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     try {
       const studentRowId = await resolveStudentRowId(sb as any, matchResult.candidate.id);
       if (studentRowId) await syncExplicitParentStudentLink(sb as any, matchedParent.id, studentRowId);
+      await syncStudentFromLeadResponse(sb as any, matchResult.candidate.id, response_data as Record<string, unknown>, 'fill-only');
+      await syncParentContactAcrossStores(sb as any, matchedParent.id, {
+        full_name: response_data.parent_name || undefined,
+        email: response_data.parent_email || email?.trim() || undefined,
+        phone: response_data.parent_whatsapp || undefined,
+      });
+      await harmonizeStudentParentIdentity(sb as any, {
+        studentUserId: matchResult.candidate.id,
+        parentId: matchedParent.id,
+        parentPhone: response_data.parent_whatsapp || null,
+      });
     } catch {
       // Non-fatal: matched_student_id still unlocks quick-check.
     }
@@ -413,6 +429,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     parentWhatsapp:   response_data.parent_whatsapp || '',
     childName:        response_data.child_name,
     childAge:         response_data.child_age || '',
+    childGender:      response_data.child_gender || undefined,
     childClass:       response_data.child_class || '',
     programCategory:  response_data.program_category || '',
     currentSchool:    child_current_school?.trim() || null,

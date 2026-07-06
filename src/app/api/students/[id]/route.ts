@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
+import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
 
 function adminClient() {
     return createClient(
@@ -65,6 +66,17 @@ export async function PATCH(
 
     const { data, error } = await adminClient().from('students').update(allowed).eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    if (data?.user_id && ('gender' in body || 'date_of_birth' in body || 'full_name' in body || 'section_class' in body || 'grade_level' in body)) {
+        await syncStudentIdentityAcrossStores(adminClient(), data.user_id, {
+            gender: allowed.gender,
+            date_of_birth: allowed.date_of_birth,
+            full_name: allowed.full_name,
+            section_class: allowed.section_class ?? allowed.grade_level,
+        }, 'overwrite');
+        await harmonizeStudentParentIdentity(adminClient(), { studentUserId: data.user_id });
+    }
+
     return NextResponse.json({ data });
 }
 

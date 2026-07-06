@@ -1,9 +1,22 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { resolveOrCreateStudentRowId } from '@/lib/parents/links';
+import {
+  syncParentContactAcrossStores,
+  syncStudentIdentityAcrossStores,
+} from '@/lib/sync/student-parent-identity';
+
+export {
+  normaliseChildGender,
+  normaliseChildAge,
+  normaliseChildDob,
+} from '@/lib/sync/student-parent-identity';
+
+import {
+  normaliseChildGender,
+  normaliseChildAge,
+  normaliseChildDob,
+} from '@/lib/sync/student-parent-identity';
 
 type AnySupabase = SupabaseClient<any>;
-
-const VALID_GENDERS = new Set(['male', 'female']);
 
 export type StudentRecordGaps = {
   needsGender: boolean;
@@ -16,41 +29,6 @@ export type RecordEnrichmentResult = {
   dobRecorded: boolean;
   whatsappOptInSet: boolean;
 };
-
-/** Normalise parent-supplied gender to the values used across consent forms. */
-export function normaliseChildGender(raw: string | null | undefined): 'male' | 'female' | null {
-  const g = String(raw ?? '').trim().toLowerCase();
-  return VALID_GENDERS.has(g) ? (g as 'male' | 'female') : null;
-}
-
-/** Parse parent-supplied age (consent forms use a plain number). */
-export function normaliseChildAge(raw: string | number | null | undefined): number | null {
-  const n = typeof raw === 'number' ? raw : parseInt(String(raw ?? '').trim(), 10);
-  if (!Number.isFinite(n) || n < 3 || n > 25) return null;
-  return n;
-}
-
-/** Parse YYYY-MM-DD; rejects future dates and unreasonably old births. */
-export function normaliseChildDob(raw: string | null | undefined): string | null {
-  const s = String(raw ?? '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-  const d = new Date(`${s}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  if (d > now) return null;
-  const ageYears = (now.getTime() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
-  if (ageYears < 2 || ageYears > 30) return null;
-  return s;
-}
-
-function ageFromDob(dob: string): number {
-  const born = new Date(`${dob}T12:00:00`);
-  const now = new Date();
-  let age = now.getFullYear() - born.getFullYear();
-  const m = now.getMonth() - born.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < born.getDate())) age--;
-  return age;
-}
 
 async function fetchStudentRow(admin: AnySupabase, studentUserId: string) {
   const { data } = await admin
@@ -87,21 +65,8 @@ export async function applyParentSuppliedChildGender(
   studentUserId: string,
   rawGender: string | null | undefined,
 ): Promise<boolean> {
-  const gender = normaliseChildGender(rawGender);
-  if (!gender) return false;
-
-  const childRowId = await resolveOrCreateStudentRowId(admin, studentUserId);
-  if (!childRowId) return false;
-
-  const { data: existing } = await admin.from('students').select('gender').eq('id', childRowId).maybeSingle();
-  if (String(existing?.gender ?? '').trim()) return false;
-
-  const now = new Date().toISOString();
-  await admin.from('students').update({ gender, updated_at: now }).eq('id', childRowId);
-  try {
-    await admin.from('portal_users').update({ gender, updated_at: now }).eq('id', studentUserId);
-  } catch { /* best-effort */ }
-  return true;
+  if (!normaliseChildGender(rawGender)) return false;
+  return syncStudentIdentityAcrossStores(admin, studentUserId, { gender: rawGender }, 'fill-only');
 }
 
 /**
@@ -112,52 +77,20 @@ export async function applyParentSuppliedChildDob(
   studentUserId: string,
   rawDob: string | null | undefined,
 ): Promise<boolean> {
-  const dob = normaliseChildDob(rawDob);
-  if (!dob) return false;
-
-  const childRowId = await resolveOrCreateStudentRowId(admin, studentUserId);
-  if (!childRowId) return false;
-
-  const { data: existing } = await admin
-    .from('students')
-    .select('age, date_of_birth')
-    .eq('id', childRowId)
-    .maybeSingle();
-  if (existing?.age != null || String(existing?.date_of_birth ?? '').trim()) return false;
-
-  const age = ageFromDob(dob);
-  const now = new Date().toISOString();
-  await admin.from('students').update({ date_of_birth: dob, age, updated_at: now }).eq('id', childRowId);
-  return true;
+  if (!normaliseChildDob(rawDob)) return false;
+  return syncStudentIdentityAcrossStores(admin, studentUserId, { date_of_birth: rawDob }, 'fill-only');
 }
 
 /**
  * Fill-only: parent-supplied age when age and date_of_birth are both blank.
- * Also sets an approximate date_of_birth (Jan 1 of birth year) for reporting.
  */
 export async function applyParentSuppliedChildAge(
   admin: AnySupabase,
   studentUserId: string,
   rawAge: string | number | null | undefined,
 ): Promise<boolean> {
-  const age = normaliseChildAge(rawAge);
-  if (age == null) return false;
-
-  const childRowId = await resolveOrCreateStudentRowId(admin, studentUserId);
-  if (!childRowId) return false;
-
-  const { data: existing } = await admin
-    .from('students')
-    .select('age, date_of_birth')
-    .eq('id', childRowId)
-    .maybeSingle();
-  if (existing?.age != null || String(existing?.date_of_birth ?? '').trim()) return false;
-
-  const birthYear = new Date().getFullYear() - age;
-  const approxDob = `${birthYear}-01-01`;
-  const now = new Date().toISOString();
-  await admin.from('students').update({ age, date_of_birth: approxDob, updated_at: now }).eq('id', childRowId);
-  return true;
+  if (normaliseChildAge(rawAge) == null) return false;
+  return syncStudentIdentityAcrossStores(admin, studentUserId, { age: rawAge }, 'fill-only');
 }
 
 /** Opt the parent into WhatsApp updates when they tick the box on the claim form. */
@@ -168,13 +101,7 @@ export async function applyParentWhatsappOptIn(
   optedIn: boolean,
 ): Promise<boolean> {
   if (!optedIn) return false;
-  const now = new Date().toISOString();
-  await admin.from('portal_users').update({
-    whatsapp_opt_in: true,
-    ...(phone ? { phone } : {}),
-    updated_at: now,
-  }).eq('id', parentId);
-  return true;
+  return syncParentContactAcrossStores(admin, parentId, { phone, whatsapp_opt_in: true });
 }
 
 /** Reject claim submissions that omit required fill-only record fields. */

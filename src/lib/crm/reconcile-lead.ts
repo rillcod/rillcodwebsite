@@ -10,6 +10,7 @@ export interface ReconcileResult {
 export interface ReconcileLeadParams {
   parentName: string; parentEmail: string; parentWhatsapp: string;
   childName: string; childAge: string; childClass: string;
+  childGender?: string; childDob?: string; whatsappOptIn?: boolean;
   programCategory: string; currentSchool: string | null;
   matchedSchoolId: string | null; schoolId: string | null; schoolName: string;
   formId: string; formTitle: string;
@@ -28,6 +29,7 @@ export interface ReconcileLeadParams {
 export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLeadParams): Promise<ReconcileResult> {
   const {
     parentName, parentEmail, parentWhatsapp, childName, childAge, childClass,
+    childGender, childDob, whatsappOptIn,
     programCategory, currentSchool, matchedSchoolId, schoolId, schoolName,
     formId, formTitle, referralSource, preferredSchedule, hearAboutUs,
     priorCoding, priorPlatform, devices, learningGoal, specialNotes,
@@ -57,7 +59,10 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
       existing = data;
     }
 
-    const childEntry = { name: childName, age: childAge, class: childClass, program: courseLabel, school: currentSchool };
+    const childEntry = {
+      name: childName, age: childAge, class: childClass, program: courseLabel, school: currentSchool,
+      gender: childGender || undefined, date_of_birth: childDob || undefined,
+    };
 
     if (existing) {
       const meta = (existing.metadata as Record<string, unknown>) ?? {};
@@ -70,14 +75,20 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
       await sb.from('customer_contact_book').update({
         full_name: parentName, phone: phone ?? undefined, email: email ?? undefined,
         last_channel: 'consent_form', updated_at: now,
-        metadata: { ...meta, children, form_leads: formLeads, last_form_title: formTitle, last_form_id: formId },
+        metadata: {
+          ...meta, children, form_leads: formLeads, last_form_title: formTitle, last_form_id: formId,
+          ...(whatsappOptIn ? { whatsapp_opt_in: true } : {}),
+        },
       }).eq('id', existing.id);
       contactId = existing.id;
     } else {
       const { data: newContact } = await sb.from('customer_contact_book').insert({
         full_name: parentName, email, phone, role: 'parent',
         source: 'consent_form', last_channel: 'consent_form', school_name: schoolName,
-        metadata: { children: [childEntry], form_leads: [formId], last_form_title: formTitle, last_form_id: formId },
+        metadata: {
+          children: [childEntry], form_leads: [formId], last_form_title: formTitle, last_form_id: formId,
+          ...(whatsappOptIn ? { whatsapp_opt_in: true } : {}),
+        },
         confirmed_at: now, created_at: now, updated_at: now,
       }).select('id').single();
       contactId = newContact?.id ?? null;
@@ -101,7 +112,9 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
 
     const prospectPayload = {
       full_name: childName, email: email ?? `lead-${formId}@noemail.local`,
-      age: childAge ? parseInt(childAge, 10) : null, grade: childClass || null,
+      age: childAge ? parseInt(childAge, 10) : null,
+      gender: childGender || null,
+      grade: childClass || null,
       course_interest: courseLabel, parent_name: parentName,
       parent_email: email, parent_phone: phone,
       school_id: matchedSchoolId ?? schoolId ?? null,
@@ -144,7 +157,7 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
       await sb.from('crm_interactions').insert({
         contact_id: contactId, contact_name: parentName, contact_type: 'form_lead',
         type: 'form_submission', direction: 'inbound',
-        content: `Submitted public form: "${formTitle}". Child: ${childName}, Age ${childAge}, Class ${childClass}. Programme: ${courseLabel ?? 'not specified'}.`,
+        content: `Submitted public form: "${formTitle}". Child: ${childName}${childGender ? ` (${childGender})` : ''}, Age ${childAge}, Class ${childClass}. Programme: ${courseLabel ?? 'not specified'}.`,
         created_at: now,
       });
     } catch { /* non-fatal */ }

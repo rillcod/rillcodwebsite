@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import { syncParentContactAcrossStores } from '@/lib/sync/student-parent-identity';
 import { generateTempPassword } from '@/lib/utils/password';
 
 type PortalUserUpdate = Database['public']['Tables']['portal_users']['Update'];
@@ -252,6 +253,12 @@ export async function PATCH(req: Request) {
       .eq('id', parent_id)
       .eq('role', 'parent');
     if (updateErr) throw updateErr;
+
+    await syncParentContactAcrossStores(admin as any, parent_id, {
+      full_name: full_name ?? parent.full_name,
+      email: cleanEmail ?? parent.email,
+      phone: phone ?? parent.phone,
+    });
 
     // 5. Link / re-link to a student
     if (student_id) {

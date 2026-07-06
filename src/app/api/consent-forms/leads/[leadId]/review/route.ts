@@ -3,6 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { syncExplicitParentStudentLink, resolveStudentRowId } from '@/lib/parents/links';
 import { canAccessSchool } from '@/lib/auth/school-scope';
+import {
+  harmonizeStudentParentIdentity,
+  syncParentContactAcrossStores,
+  syncStudentFromLeadResponse,
+} from '@/lib/sync/student-parent-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,27 +144,20 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
   if (approveErr) return NextResponse.json({ error: approveErr.message }, { status: 500 });
 
-  // Consent form is source of truth for name, gender, and class (parent knows
-  // the correct current class — e.g. Basic 5 when system shows Basic 1).
-  const childName   = (rd.child_name   as string | undefined)?.trim() || null;
-  const childClass  = (rd.child_class  as string | undefined)?.trim() || null;
-  const childGender = (rd.child_gender as string | undefined)?.trim() || null;
-
-  const studentOverride: Record<string, unknown> = {};
-  if (childName)   studentOverride.full_name     = childName;
-  if (childClass)  studentOverride.section_class = childClass;
-  if (childGender) studentOverride.gender        = childGender;
-
-  if (Object.keys(studentOverride).length > 0) {
-    // portal_users + auth are keyed on the portal id (candidateId); the students
-    // row is keyed on its own PK (candidateStudentRowId), resolved above.
-    await (sb as any).from('portal_users').update(studentOverride).eq('id', candidateId);
-    if (candidateStudentRowId) {
-      await (sb as any).from('students').update({ ...studentOverride, updated_at: now }).eq('id', candidateStudentRowId);
-    }
-    // Keep Supabase auth metadata in sync
-    await sb.auth.admin.updateUserById(candidateId, { user_metadata: studentOverride });
+  // Consent form is source of truth for name, gender, age, and class.
+  await syncStudentFromLeadResponse(sb as any, candidateId, rd as Record<string, unknown>, 'overwrite');
+  if (matchedParentId) {
+    await syncParentContactAcrossStores(sb as any, matchedParentId, {
+      full_name: String(rd.parent_name ?? '').trim() || undefined,
+      email: parentEmail ?? undefined,
+      phone: String(rd.parent_whatsapp ?? '').trim() || undefined,
+    });
   }
+  await harmonizeStudentParentIdentity(sb as any, {
+    studentUserId: candidateId,
+    parentId: matchedParentId,
+    parentPhone: String(rd.parent_whatsapp ?? '').trim() || null,
+  });
 
   // Advance CRM pipeline + log interaction
   const contactId = (lead as any).contact_id as string | null;

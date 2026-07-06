@@ -7,6 +7,7 @@ import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
 import { deliverResultCheckerCredentials, type CredentialDelivery } from '@/lib/parent-claim/deliver-credentials';
 import { applyParentRecordEnrichment, normaliseChildAge, validateParentSuppliedRecordGaps, type RecordEnrichmentResult } from '@/lib/parent-claim/record-enrichment';
 import { upsertResultCheckerLead } from '@/lib/parent-claim/upsert-lead';
+import { harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
 
 type Db = SupabaseClient<Database>;
 
@@ -168,9 +169,19 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
         whatsappOptIn,
       });
       const formId = leadId ? (await admin.from('form_leads').select('form_id').eq('id', leadId).maybeSingle()).data?.form_id : null;
+      const leadSnap = await harmonizeStudentParentIdentity(admin, {
+        studentUserId: studentId,
+        parentId: prov.parentId,
+        parentPhone: phone,
+        parentWhatsappOptIn: whatsappOptIn,
+      });
       await reconcileLeadWithCrm(admin, {
         parentName: fullName, parentEmail: email, parentWhatsapp: phone ?? '',
-        childName: prov.childName ?? '', childAge: parsedAge != null ? String(parsedAge) : '',
+        childName: prov.childName ?? '',
+        childAge: leadSnap?.child_age ?? (parsedAge != null ? String(parsedAge) : ''),
+        childGender: leadSnap?.child_gender ?? childGender ?? undefined,
+        childDob: leadSnap?.child_dob ?? childDob ?? undefined,
+        whatsappOptIn: whatsappOptIn ?? leadSnap?.parent_whatsapp_opt_in,
         childClass: '', programCategory: '', currentSchool: prov.schoolName ?? null,
         matchedSchoolId: prov.schoolId, schoolId: prov.schoolId,
         schoolName: prov.schoolName ?? 'Rillcod Technologies',

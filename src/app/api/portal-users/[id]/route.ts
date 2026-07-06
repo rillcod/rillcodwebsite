@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
 
 function adminClient() {
   return createClient(
@@ -85,6 +86,16 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const isStudentProfile = data?.role === 'student' || update.gender !== undefined || update.date_of_birth !== undefined;
+  if (isStudentProfile && (update.gender !== undefined || update.date_of_birth !== undefined || update.full_name !== undefined || update.section_class !== undefined)) {
+    await syncStudentIdentityAcrossStores(admin, id, {
+      gender: update.gender,
+      date_of_birth: update.date_of_birth,
+      full_name: update.full_name,
+      section_class: update.section_class,
+    }, 'overwrite');
+    await harmonizeStudentParentIdentity(admin, { studentUserId: id });
+  } else {
   // Sync students shadow table when profile fields change
   const studentSync: Record<string, any> = {};
   if (update.full_name     !== undefined) { studentSync.full_name = update.full_name; studentSync.name = update.full_name; }
@@ -96,6 +107,7 @@ export async function PATCH(
   if (update.phone         !== undefined) { studentSync.parent_phone = update.phone; }
   if (Object.keys(studentSync).length > 0) {
     await admin.from('students').update(studentSync).eq('user_id', id);
+  }
   }
 
   // Keep auth.users metadata in sync so role/name are consistent everywhere
