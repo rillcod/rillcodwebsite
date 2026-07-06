@@ -39,6 +39,9 @@ export interface CardConfig {
   height?: string;
   /** QR size regulator from Card Studio (0.85 = compact, 1 = standard, 1.35 = large). */
   qrScale?: number;
+  /** Logo + header size regulators (1 = default). */
+  logoScale?: number;
+  headerScale?: number;
   /** Typography from the Card Studio design tab — colors are applied to prints. */
   typo?: Record<string, CardTypoStyle>;
   fields: CardFieldConfig[];
@@ -134,6 +137,8 @@ export async function buildSingleCardHtml(
   const qrScale = cfg.qrScale ?? 1;
   const qrPx = Math.round(150 * qrScale);
   const qrpPx = qrPx + 34;
+  const logoScale = cfg.logoScale ?? 1;
+  const headerScale = cfg.headerScale ?? 1;
   const expiryVal = holder.expires_at
     ? new Date(holder.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
@@ -186,11 +191,11 @@ export async function buildSingleCardHtml(
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family:'Inter','Segoe UI',system-ui,sans-serif; color:#111827; background:#fff; display:flex; align-items:flex-start; justify-content:center; }
     .card { border:1px solid #d1d5db; ${hs === 'border' ? `border-left:4px solid ${acc};` : ''} border-radius:${cardRadiusPx(cfg)}px; width:100%; max-width:480px; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; }
-    .chdr { background:${acc}; padding:12px 18px; display:flex; align-items:center; gap:10px; }
-    .bhdr { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid #f3f4f6; }
-    .mhdr { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:2px solid ${acc}; }
-    .logo { width:32px; height:32px; object-fit:contain; flex-shrink:0; }
-    .logo-m { width:28px; height:28px; object-fit:contain; flex-shrink:0; }
+    .chdr { background:${acc}; padding:${(12*headerScale).toFixed(1)}px 18px; display:flex; align-items:center; gap:10px; }
+    .bhdr { display:flex; align-items:center; gap:10px; padding:${(10*headerScale).toFixed(1)}px 16px; border-bottom:1px solid #f3f4f6; }
+    .mhdr { display:flex; align-items:center; gap:10px; padding:${(10*headerScale).toFixed(1)}px 16px; border-bottom:2px solid ${acc}; }
+    .logo { width:${(32*logoScale).toFixed(1)}px; height:${(32*logoScale).toFixed(1)}px; object-fit:contain; flex-shrink:0; }
+    .logo-m { width:${(28*logoScale).toFixed(1)}px; height:${(28*logoScale).toFixed(1)}px; object-fit:contain; flex-shrink:0; }
     .org-name { font-size:14px; font-weight:900; color:#fff; text-transform:uppercase; line-height:1; }
     .org-web  { font-size:9px; color:rgba(255,255,255,.8); font-weight:700; margin-top:3px; }
     .org-name-b { font-size:13px; font-weight:900; color:#111; text-transform:uppercase; line-height:1; }
@@ -317,6 +322,10 @@ export async function buildBulkPrintHtml(
   const qrScale = cfg.qrScale ?? 1;
   const qrMm = (20 * qrScale).toFixed(1);
   const rightMm = (parseFloat(qrMm) + 6).toFixed(1);
+  const logoScale = cfg.logoScale ?? 1;
+  const headerScale = cfg.headerScale ?? 1;
+  const hdrPadMm = (2.2 * headerScale).toFixed(2);
+  const logoMm = (5 * logoScale).toFixed(2);
 
   const fixed = opts.fixedSize && cfg.width && cfg.height;
   const gridCss = fixed
@@ -331,10 +340,10 @@ export async function buildBulkPrintHtml(
     body { margin:0; font-family:Inter,system-ui,sans-serif; color:#111827; background:#fff; }
     .grid { ${gridCss} }
     .card { ${cardSizeCss} border:1px solid #e5e7eb; ${hs === 'border' ? `border-left:3mm solid ${acc};` : ''} border-radius:${cardRadiusPx(cfg)}px; display:flex; flex-direction:column; overflow:hidden; background:${cfg.bgColor || '#fff'}; page-break-inside:avoid; margin-bottom:8mm; }
-    .hdr-band   { background:${acc}; color:#fff; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
-    .hdr-border { padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; border-bottom:1px solid #f3f4f6; }
-    .hdr-min    { border-bottom:2px solid ${acc}; padding:2.2mm 3mm; display:flex; align-items:center; gap:2mm; }
-    .logo { width:5mm; height:5mm; object-fit:contain; }
+    .hdr-band   { background:${acc}; color:#fff; padding:${hdrPadMm}mm 3mm; display:flex; align-items:center; gap:2mm; }
+    .hdr-border { padding:${hdrPadMm}mm 3mm; display:flex; align-items:center; gap:2mm; border-bottom:1px solid #f3f4f6; }
+    .hdr-min    { border-bottom:2px solid ${acc}; padding:${hdrPadMm}mm 3mm; display:flex; align-items:center; gap:2mm; }
+    .logo { width:${logoMm}mm; height:${logoMm}mm; object-fit:contain; }
     .org  { font-weight:900; font-size:2.5mm; text-transform:uppercase; line-height:1; }
     .web  { font-size:1.8mm; opacity:.8; margin-top:.5mm; }
     .cbadge { margin-left:auto; background:rgba(0,0,0,.22); color:#fff; padding:.5mm 1.5mm; font-size:1.6mm; font-weight:900; text-transform:uppercase; }

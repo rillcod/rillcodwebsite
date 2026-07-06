@@ -34,7 +34,7 @@ interface CardConfig {
   cornerRadius: 'sharp' | 'rounded' | 'pill';
   bgColor: string; showLogo: boolean; showPhotoSlot: boolean;
   cardOrientation: 'portrait' | 'landscape';
-  width: string; height: string; qrScale?: number; showCardLabel?: boolean;
+  width: string; height: string; qrScale?: number; logoScale?: number; headerScale?: number; showCardLabel?: boolean;
   badgeMode?: 'class' | 'label' | 'custom'; badgeText?: string;
   fields: FieldConfig[];
   typo: {
@@ -78,7 +78,7 @@ const DEFAULT_CONFIG: CardConfig = {
   orgName: 'RILLCOD TECHNOLOGIES', orgWebsite: 'www.rillcod.com',
   cardLabel: 'Student Access Card', footerLeft: 'rillcod.com/login', footerRight: 'Student ID',
   cornerRadius: 'sharp', bgColor: '#ffffff', showLogo: true, showPhotoSlot: false, showCardLabel: true,
-  badgeMode: 'label', badgeText: '',
+  badgeMode: 'label', badgeText: '', logoScale: 1, headerScale: 1,
   cardOrientation: 'portrait', width: '54mm', height: '85.6mm',
   fields: DEFAULT_FIELDS, typo: DEFAULT_TYPO,
 };
@@ -201,6 +201,8 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
   const badge = badgeMode==='class' ? SAMPLE.className : badgeMode==='custom' ? (cfg.badgeText||'') : cfg.cardLabel;
   const showBadge = cfg.showCardLabel!==false && !!badge;
   const badgeColor = cfg.typo?.cardLabel?.color;
+  const logoScale = cfg.logoScale ?? 1;
+  const headerScale = cfg.headerScale ?? 1;
   const ff = (fam: string) => fam === 'mono' ? 'monospace' : "'Inter','Segoe UI',system-ui,sans-serif";
   const ts = (s: TypoStyle, extra?: React.CSSProperties): React.CSSProperties => ({
     fontSize:s.fontSize, fontWeight:parseInt(s.fontWeight), color:s.color, fontFamily:ff(s.fontFamily), ...extra,
@@ -209,8 +211,8 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
 
   const Header = () => {
     if (cfg.headerStyle === 'band') return (
-      <div style={{background:acc,padding:'8px 12px',display:'flex',alignItems:'center',gap:7}}>
-        <div style={{width:18,height:18,background:'rgba(255,255,255,0.3)',borderRadius:2,flexShrink:0}}/>
+      <div style={{background:acc,padding:`${8*headerScale}px 12px`,display:'flex',alignItems:'center',gap:7}}>
+        <div style={{width:18*logoScale,height:18*logoScale,background:'rgba(255,255,255,0.3)',borderRadius:2,flexShrink:0}}/>
         <div>
           <div style={ts(t.orgName,{textTransform:'uppercase',lineHeight:1})}>{cfg.orgName}</div>
           <div style={ts(t.orgWebsite,{marginTop:2})}>{cfg.orgWebsite}</div>
@@ -219,8 +221,8 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
       </div>
     );
     if (cfg.headerStyle === 'border') return (
-      <div style={{display:'flex',alignItems:'center',gap:7,padding:'7px 10px',borderBottom:'1px solid #f3f4f6'}}>
-        <div style={{width:16,height:16,background:'#e5e7eb',borderRadius:2,flexShrink:0}}/>
+      <div style={{display:'flex',alignItems:'center',gap:7,padding:`${7*headerScale}px 10px`,borderBottom:'1px solid #f3f4f6'}}>
+        <div style={{width:16*logoScale,height:16*logoScale,background:'#e5e7eb',borderRadius:2,flexShrink:0}}/>
         <div>
           <div style={ts(t.orgName,{textTransform:'uppercase',lineHeight:1,color:'#111'})}>{cfg.orgName}</div>
           <div style={ts(t.orgWebsite,{marginTop:1,color:acc})}>{cfg.orgWebsite}</div>
@@ -229,8 +231,8 @@ function CardPreview({ cfg, scale = 1.25 }: { cfg: CardConfig; scale?: number })
       </div>
     );
     return (
-      <div style={{display:'flex',alignItems:'center',gap:7,padding:'7px 10px',borderBottom:`2px solid ${acc}`}}>
-        <div style={{width:14,height:14,background:'#e5e7eb',borderRadius:2,flexShrink:0}}/>
+      <div style={{display:'flex',alignItems:'center',gap:7,padding:`${7*headerScale}px 10px`,borderBottom:`2px solid ${acc}`}}>
+        <div style={{width:14*logoScale,height:14*logoScale,background:'#e5e7eb',borderRadius:2,flexShrink:0}}/>
         <div style={ts(t.orgName,{textTransform:'uppercase',color:'#111'})}>{cfg.orgName}</div>
         {showBadge && <div style={{marginLeft:'auto',fontSize:7,fontWeight:900,color:badgeColor||acc,textTransform:'uppercase',flexShrink:0}}>{badge}</div>}
       </div>
@@ -1000,6 +1002,22 @@ export default function CardStudioPage() {
                 </button>
               ))}
             </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 font-bold">Logo Size</div>
+              <span className="text-[9px] font-mono font-bold text-primary">{Math.round((cfg.logoScale??1)*100)}%</span>
+            </div>
+            <input type="range" min={0.5} max={2} step={0.05} value={cfg.logoScale??1}
+              onChange={e=>update({logoScale:parseFloat(e.target.value)})} className="w-full accent-primary cursor-pointer"/>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 font-bold">Header Size</div>
+              <span className="text-[9px] font-mono font-bold text-primary">{Math.round((cfg.headerScale??1)*100)}%</span>
+            </div>
+            <input type="range" min={0.5} max={2} step={0.05} value={cfg.headerScale??1}
+              onChange={e=>update({headerScale:parseFloat(e.target.value)})} className="w-full accent-primary cursor-pointer"/>
           </div>
           <div>
             <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">Background</div>
