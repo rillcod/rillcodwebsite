@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notificationsService } from '@/services/notifications.service';
-import { buildInvoiceEmail } from '@/lib/email/rillcod-transactional-email';
+import { buildInvoiceReminderEmail } from '@/lib/finance/invoice-email';
 import { DEFAULT_CONFIG, type BillingAutomationConfig } from '@/app/api/billing/automation/config';
 
 export const dynamic = 'force-dynamic';
@@ -38,41 +38,6 @@ async function loadConfig(db: ReturnType<typeof createAdminClient>): Promise<Bil
   if (!data?.setting_value) return DEFAULT_CONFIG;
   try { return { ...DEFAULT_CONFIG, ...JSON.parse(data.setting_value) }; }
   catch { return DEFAULT_CONFIG; }
-}
-
-function buildReminderEmail(invoice: any, reminderNumber: 1 | 2 | 3): string {
-  const student = invoice.portal_users as any;
-  const invoiceNumber = invoice.invoice_number ?? `INV-${invoice.id.slice(0, 8).toUpperCase()}`;
-  const payUrl = `${APP_URL}/dashboard/my-payments`;
-  const curr = invoice.currency || 'NGN';
-
-  const lineItems = (invoice.items as any[] ?? []).map((item: any) => ({
-    description: String(item.description ?? 'Platform Fee'),
-    qty:         item.quantity ? Number(item.quantity) : undefined,
-    unitPrice:   Number(item.unit_price ?? 0),
-    currency:    curr,
-  }));
-  if (lineItems.length === 0) {
-    lineItems.push({ description: 'Platform Fee', qty: undefined, unitPrice: Number(invoice.amount ?? 0), currency: curr });
-  }
-
-  const accentColors = { 1: '#2563eb', 2: '#d97706', 3: '#dc2626' } as const;
-  const notesByReminder = {
-    1: 'This is your invoice. Please settle before the due date to ensure uninterrupted access. Paid by bank transfer? Upload your proof of payment on the portal.',
-    2: 'Payment is due soon. Please log in and settle your balance to avoid service interruption. Upload bank transfer receipts via your portal dashboard.',
-    3: '⚠️ Your invoice is now OVERDUE. Immediate payment is required to prevent suspension of access. If already paid, please upload your receipt immediately.',
-  } as const;
-
-  return buildInvoiceEmail({
-    recipientName: student?.full_name ?? 'Student',
-    invoiceNumber,
-    issueDate:     invoice.created_at || new Date().toISOString(),
-    dueDate:       invoice.due_date || new Date().toISOString(),
-    items:         lineItems,
-    currency:      curr,
-    notes:         notesByReminder[reminderNumber],
-    paymentUrl:    payUrl,
-  });
 }
 
 async function run(triggeredBy: 'cron' | 'manual') {
@@ -153,12 +118,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
 
     if (reminderToSend) {
       try {
-        const html = await buildReminderEmail(inv, reminderToSend);
-        const subjects: Record<number, string> = {
-          1: `Invoice ${inv.invoice_number ?? ''} — Rillcod Technologies`,
-          2: `Payment Reminder: Your invoice is due soon — Rillcod Technologies`,
-          3: `Action Required: Invoice overdue — Rillcod Technologies`,
-        };
+        const { html, subject } = buildInvoiceReminderEmail(inv, reminderToSend, { appUrl: APP_URL });
 
         let delivered = false;
 
@@ -167,7 +127,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
           // not a delivery for reminder purposes.
           const sent = await notificationsService.sendEmail(student.id, {
             to:        student.email,
-            subject:   subjects[reminderToSend],
+            subject,
             html,
             fromName:  'Rillcod Technologies Finance',
             fromEmail: 'support@rillcod.com',
@@ -178,7 +138,7 @@ async function run(triggeredBy: 'cron' | 'manual') {
         if (config.notify_in_app) {
           const { error: notifErr } = await db.from('notifications').insert({
             user_id: student.id,
-            title: subjects[reminderToSend],
+            title: subject,
             message: `Amount due: ${inv.currency === 'NGN' ? '₦' : inv.currency}${Number(inv.amount ?? 0).toLocaleString()}`,
             type: reminderToSend === 3 ? 'warning' : 'info',
             link: '/dashboard/my-payments',

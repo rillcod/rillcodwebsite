@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
-import { buildInvoiceEmail } from '@/lib/email/rillcod-transactional-email';
+import { buildInvoiceIssueEmail, defaultInvoicePaymentUrl } from '@/lib/finance/invoice-email';
 import { AppError } from '@/lib/errors';
 import { env } from '@/config/env';
 
@@ -125,36 +125,12 @@ export async function POST(req: Request) {
             ? (invoice.schools?.name || 'Partner School')
             : (portalUser?.full_name || 'Client');
 
-        const currencySymbol = invoice.currency === 'NGN' ? '₦' : (invoice.currency || '₦');
-        const accentColor = isSchoolStream ? '#4338ca' : '#2563eb';
-
-        const subject = isSchoolStream
-            ? `Invoice ${invoice.invoice_number} — Rillcod Technologies (School Billing)`
-            : `Invoice ${invoice.invoice_number} from Rillcod Technologies`;
-
-        const lineItems = (invoice.items || []).map((item: any) => ({
-            description: String(item.description || 'Service'),
-            qty: item.quantity ? Number(item.quantity) : undefined,
-            unitPrice: Number(item.unit_price ?? item.amount ?? 0),
-            currency: invoice.currency || 'NGN',
-        }));
-
-        // Fall back to a single line item using invoice.amount if items array is empty
-        if (lineItems.length === 0) {
-            lineItems.push({
-                description: invoice.description || (isSchoolStream ? 'School Platform Fee' : 'Platform Fee'),
-                unitPrice: Number(invoice.amount),
-                currency: invoice.currency || 'NGN',
-            });
-        }
-
-        // ── Generate Paystack payment link ────────────────────────────
         const appBase = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
-        const fallbackUrl = isSchoolStream
-            ? `${appBase}/dashboard/finance`
-            : `${appBase}/dashboard/parent-invoices`;
-
-        let paystackUrl: string = fallbackUrl;
+        let paystackUrl: string = defaultInvoicePaymentUrl({
+            isSchool: isSchoolStream,
+            invoiceId,
+            appUrl: appBase,
+        });
 
         if (env.PAYSTACK_SECRET_KEY && invoice.amount > 0) {
             try {
@@ -221,17 +197,12 @@ export async function POST(req: Request) {
             .or(invoice.school_id ? `school_id.eq.${invoice.school_id},owner_type.eq.global` : 'owner_type.eq.global')
             .limit(3);
 
-        const html = buildInvoiceEmail({
-            recipientName: recipientName,
-            invoiceNumber: invoice.invoice_number,
-            issueDate: invoice.created_at || new Date().toISOString(),
-            dueDate: invoice.due_date || new Date(Date.now() + 7 * 86400000).toISOString(),
-            items: lineItems,
-            currency: invoice.currency || 'NGN',
+        const { html, subject } = buildInvoiceIssueEmail(invoice, {
+            recipientName,
             isSchool: isSchoolStream,
-            schoolName: isSchoolStream ? (invoice.schools?.name || 'Rillcod Technologies') : undefined,
-            bankAccounts: bankAccounts ?? [],
             paymentUrl: paystackUrl,
+            bankAccounts: bankAccounts ?? [],
+            appUrl: appBase,
         });
 
         // ── Send ──────────────────────────────────────────────────────

@@ -413,6 +413,8 @@ export function buildInvoiceEmail(opts: {
   paymentUrl: string;
   bankAccounts?: InvoiceBankAccount[];
   appUrl?: string;
+  /** When set, adjusts intro copy, accent, and CTA for automated/staff reminders. */
+  reminderLevel?: 1 | 2 | 3;
 }): string {
   const curr = opts.currency ?? 'NGN';
   const total = opts.items.reduce((s, i) => s + (i.qty ?? 1) * i.unitPrice, 0);
@@ -494,28 +496,63 @@ export function buildInvoiceEmail(opts: {
   const dueStr   = new Date(opts.dueDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
   const issueStr = new Date(opts.issueDate).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  // School-specific intro copy vs individual
-  const introCopy = opts.isSchool
-    ? `<p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+  const schoolLabel = opts.schoolName ?? BRAND.name;
+  const REMINDER_ACCENTS = { 1: '#2563eb', 2: '#d97706', 3: '#dc2626' } as const;
+  const REMINDER_EYEBROWS = { 1: 'Invoice', 2: 'Payment Reminder', 3: 'Final Reminder — Overdue' } as const;
+
+  let introCopy: string;
+  let accentColor: string;
+  let eyebrow: string;
+  let title: string;
+  let ctaLabel: string;
+
+  if (opts.reminderLevel) {
+    const level = opts.reminderLevel;
+    accentColor = REMINDER_ACCENTS[level];
+    eyebrow = `${REMINDER_EYEBROWS[level]} — ${schoolLabel}`;
+    title = `Invoice #${opts.invoiceNumber}`;
+    ctaLabel = 'View & Pay Invoice';
+    const introByLevel = {
+      1: `Please find your invoice from <strong style="color:${BRAND.white};">${escapeHtml(schoolLabel)}</strong> below. Payment is due by <strong style="color:${BRAND.white};">${dueStr}</strong>.`,
+      2: `This is a friendly reminder that your invoice from <strong style="color:${BRAND.white};">${escapeHtml(schoolLabel)}</strong> is due on <strong style="color:${BRAND.white};">${dueStr}</strong>. Please make payment at your earliest convenience.`,
+      3: `This is a <strong style="color:#fca5a5;">final reminder</strong> that your invoice from <strong style="color:${BRAND.white};">${escapeHtml(schoolLabel)}</strong> was due on <strong style="color:#fca5a5;">${dueStr}</strong> and is now <strong style="color:#fca5a5;">overdue</strong>. Please settle immediately to avoid service interruption.`,
+    } as const;
+    introCopy = `
+      <p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+        Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
+      </p>
+      <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
+        ${introByLevel[level]}
+      </p>`;
+  } else if (opts.isSchool) {
+    accentColor = '#4338ca';
+    eyebrow = `School Invoice — ${schoolLabel}`;
+    title = `Invoice #${opts.invoiceNumber}`;
+    ctaLabel = 'Pay via Portal';
+    introCopy = `<p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
         Dear <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong> Team,
       </p>
       <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
         Please find your school's invoice from <strong style="color:${BRAND.white};">Rillcod Technologies</strong> below.
         Kindly arrange payment by the due date to avoid any service interruption for your students.
-      </p>`
-    : `<p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
+      </p>`;
+  } else {
+    accentColor = BRAND.primary;
+    eyebrow = schoolLabel;
+    title = `Invoice #${opts.invoiceNumber}`;
+    ctaLabel = 'Pay Now via Paystack';
+    introCopy = `<p style="margin:0 0 16px;color:${BRAND.text};font-size:15px;">
         Hello <strong style="color:${BRAND.white};">${escapeHtml(opts.recipientName)}</strong>,
       </p>
       <p style="margin:0 0 20px;color:${BRAND.text};font-size:15px;line-height:1.65;">
         Please find your invoice details below. Kindly settle the balance by the due date to avoid any service interruption.
       </p>`;
-
-  const accentColor = opts.isSchool ? '#4338ca' : BRAND.primary;
+  }
 
   return buildRillcodTransactionalEmailHtml({
     appUrl:      opts.appUrl,
-    eyebrow:     opts.isSchool ? `School Invoice — ${opts.schoolName ?? 'Partner School'}` : (opts.schoolName ?? BRAND.name),
-    title:       `Invoice #${opts.invoiceNumber}`,
+    eyebrow,
+    title,
     accentColor,
     bodyHtml: introCopy,
     summaryRows: [
@@ -525,7 +562,7 @@ export function buildInvoiceEmail(opts: {
       { label: 'Amount Due',   value: currency(total, curr), highlight: true },
     ],
     extraBlock: lineItemsTable + bankTransferBlock + notesBlock,
-    cta:        { href: opts.paymentUrl, label: opts.isSchool ? 'Pay via Portal' : 'Pay Now via Paystack', color: accentColor },
+    cta:        { href: opts.paymentUrl, label: ctaLabel, color: accentColor },
     secondaryCta: { href: `mailto:${opts.isSchool ? 'partners@rillcod.com' : 'support@rillcod.com'}`, label: `Questions? Reply to ${opts.isSchool ? 'partners@rillcod.com' : 'support@rillcod.com'}` },
     footerNote: `Invoice issued by Rillcod Technologies · ${BRAND.address} · ${BRAND.phone}. Late payments may result in service suspension.`,
   });
