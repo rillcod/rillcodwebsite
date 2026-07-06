@@ -127,7 +127,8 @@ export default function FinanceReconciliationPage() {
       }
     });
 
-    const avgLatency = countedInvoices > 0 ? (totalLatencyDays / countedInvoices).toFixed(1) : '3.2';
+    // No fabricated placeholder — show a dash until real data exists.
+    const avgLatency = countedInvoices > 0 ? (totalLatencyDays / countedInvoices).toFixed(1) : null;
 
     return {
       collectionRate,
@@ -164,7 +165,8 @@ export default function FinanceReconciliationPage() {
       const res = await fetch(`/api/finance/reconciliation?id=${encodeURIComponent(txId)}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to delete');
-      setRows(prev => prev.filter(r => r.transaction_id !== txId));
+      // Reload so the summary cards reflect the removal instead of going stale.
+      await load();
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -307,8 +309,8 @@ export default function FinanceReconciliationPage() {
               <div>
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Settlement Latency</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-white">{cashFlowMetrics.avgLatency} Days</span>
-                  <span className="text-xs text-muted-foreground">average</span>
+                  <span className="text-3xl font-black text-white">{cashFlowMetrics.avgLatency != null ? `${cashFlowMetrics.avgLatency} Days` : '—'}</span>
+                  <span className="text-xs text-muted-foreground">{cashFlowMetrics.avgLatency != null ? 'average' : 'no settled invoices yet'}</span>
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">

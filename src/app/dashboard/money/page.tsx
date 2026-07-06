@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import {
   classifyInvoiceStream,
   classifyReceiptStream,
@@ -106,7 +107,7 @@ function StreamChip({ stream }: { stream: FinanceStream }) {
 const NGN = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
 const formatMoney = (amount: number, currency = 'NGN') => {
   try { return new Intl.NumberFormat('en-NG', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount); }
-  catch { return `${currency} ${NGN.format(amount)}`; }
+  catch { return `${currency} ${amount.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`; }
 };
 
 const formatDate = (iso?: string | null) => {
@@ -116,6 +117,7 @@ const formatDate = (iso?: string | null) => {
 
 const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   completed: { label: 'Paid',     cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
+  success:   { label: 'Paid',     cls: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' },
   pending:   { label: 'Pending',  cls: 'bg-amber-500/15 border-amber-500/30 text-amber-300' },
   processing:{ label: 'Processing', cls: 'bg-sky-500/15 border-sky-500/30 text-sky-300' },
   failed:    { label: 'Failed',   cls: 'bg-rose-500/15 border-rose-500/30 text-rose-300' },
@@ -219,10 +221,10 @@ export default function MoneyHubPage() {
   }, [invoices, streamTab]);
 
   const totals = useMemo(() => {
-    const paid = scopedTxs.filter(t => ['completed', 'paid'].includes((t.payment_status || '').toLowerCase()));
+    const paid = scopedTxs.filter(t => ['completed', 'success', 'paid'].includes((t.payment_status || '').toLowerCase()));
     const pending = scopedTxs.filter(t => ['pending', 'processing'].includes((t.payment_status || '').toLowerCase()));
     const refunded = scopedTxs.filter(t => (t.payment_status || '').toLowerCase() === 'refunded' || t.refunded_at);
-    const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()));
+    const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()));
 
     // Admin-only: net commission on the SCHOOL stream (what Rillcod keeps).
     const schoolPaid = paid.filter(t => txStream(t) === 'school');
@@ -281,7 +283,7 @@ export default function MoneyHubPage() {
         setTxs(prev => prev.map(t => t.id === txId ? { ...t, receipt_url: json.url } : t));
       }
     } catch (e: any) {
-      alert(e.message || 'Failed to download receipt');
+      toast.error(e.message || 'Failed to download receipt');
     } finally {
       setBusyRow(null);
     }
@@ -305,7 +307,7 @@ export default function MoneyHubPage() {
   // Teachers: fee tracking + manual payment confirmation
   if (role === 'teacher') {
     const outstandingForTeacher = invoices.filter(i =>
-      i.portal_user_id && !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase())
+      i.portal_user_id && !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase())
     );
     const overdueForTeacher = outstandingForTeacher.filter(i => i.due_date && new Date(i.due_date) < new Date());
     const paidForTeacher = invoices.filter(i => i.portal_user_id && (i.status || '').toLowerCase() === 'paid');
@@ -409,7 +411,7 @@ export default function MoneyHubPage() {
                       <div className="flex items-center gap-2 shrink-0">
                         {inv.payment_link && (
                           <button
-                            onClick={() => { navigator.clipboard.writeText(inv.payment_link!); alert('Payment link copied!'); }}
+                            onClick={() => { navigator.clipboard.writeText(inv.payment_link!); toast.success('Payment link copied!'); }}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted border border-border text-muted-foreground text-[10px] font-black uppercase tracking-widest hover:bg-muted/80 shrink-0"
                           >
                             Copy Link
@@ -655,7 +657,7 @@ export default function MoneyHubPage() {
 
         {/* ── Fee status hero (student / parent) ────────────────────── */}
         {(role === 'student' || role === 'parent') && (() => {
-          const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()));
+          const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()));
           const overdue = outstanding.filter(i => i.due_date && new Date(i.due_date) < new Date());
           if (outstanding.length === 0) return null;
           const isOver = overdue.length > 0;
@@ -690,7 +692,7 @@ export default function MoneyHubPage() {
 
         {/* ── School balance banner ──────────────────────────────────── */}
         {isSchool && (() => {
-          const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()));
+          const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()));
           if (outstanding.length === 0) return null;
           const overdue = outstanding.filter(i => i.due_date && new Date(i.due_date) < new Date());
           const totalDue = outstanding.reduce((s, i) => s + Number(i.amount || 0), 0);
@@ -798,7 +800,7 @@ export default function MoneyHubPage() {
         </section>
 
         {/* ── Outstanding invoices (payers) ──────────────────────────── */}
-        {!isAdmin && scopedInvoices.filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase())).length > 0 && (
+        {!isAdmin && scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase())).length > 0 && (
           <section className="rounded-2xl border border-border bg-card overflow-hidden">
             <div className="px-4 sm:px-5 py-3 border-b border-border flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -813,7 +815,7 @@ export default function MoneyHubPage() {
             </div>
             <ul className="divide-y divide-border">
               {scopedInvoices
-                .filter(i => !['paid', 'cancelled', 'draft'].includes((i.status || '').toLowerCase()))
+                .filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()))
                 .sort((a, b) => (a.id === invoiceParam ? -1 : b.id === invoiceParam ? 1 : 0))
                 .slice(0, 8)
                 .map(inv => {

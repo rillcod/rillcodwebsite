@@ -194,6 +194,15 @@ async function handleRequest(request: Request) {
 
   await maybeRollOverPaidCycles(db);
 
+  // Promote overdue cycles: 'due' → 'past_due' once the due date has passed.
+  // Nothing else flips this status automatically, so dashboards showed
+  // long-overdue cycles as merely "due".
+  await db
+    .from('billing_cycles')
+    .update({ status: 'past_due', updated_at: new Date().toISOString() })
+    .eq('status', 'due')
+    .lt('due_date', new Date().toISOString().slice(0, 10));
+
   const { data: cycles, error } = await db
     .from('billing_cycles')
     .select('*')
@@ -222,6 +231,7 @@ async function handleRequest(request: Request) {
     if (alreadySent) continue;
 
     const noticeId = await ensureStickyNotice(db, cycle, mobileUrl);
+    let anyDelivered = false;
 
     let emailTarget: string | null = null;
     let whatsappTarget: string | null = null;
@@ -277,6 +287,7 @@ async function handleRequest(request: Request) {
           target: userId,
           status: 'sent',
         });
+        anyDelivered = true;
       } catch (err: any) {
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,
@@ -320,6 +331,7 @@ async function handleRequest(request: Request) {
           target: emailTarget,
           status: 'sent',
         });
+        anyDelivered = true;
       } catch (err: any) {
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,
@@ -345,6 +357,7 @@ async function handleRequest(request: Request) {
           target: whatsappTarget,
           status: 'sent',
         });
+        anyDelivered = true;
       } catch (err: any) {
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,
@@ -357,8 +370,11 @@ async function handleRequest(request: Request) {
       }
     }
 
-    const reminderField =
-      week === 6
+    // Only stamp the week marker when at least one channel delivered —
+    // otherwise the next run retries instead of silently giving up forever.
+    const reminderField = !anyDelivered
+      ? {}
+      : week === 6
         ? { reminder_week6_sent_at: new Date().toISOString() }
         : week === 7
           ? { reminder_week7_sent_at: new Date().toISOString() }
@@ -370,7 +386,7 @@ async function handleRequest(request: Request) {
       updated_at: new Date().toISOString(),
     }).eq('id', cycle.id);
 
-    processed += 1;
+    if (anyDelivered) processed += 1;
   }
 
   return NextResponse.json({ success: true, processed });

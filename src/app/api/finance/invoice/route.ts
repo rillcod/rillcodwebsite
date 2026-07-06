@@ -104,6 +104,13 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Finance listings are staff-only; non-admin staff are always scoped to their own school.
+  if (!['admin', 'school', 'teacher'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  if (caller.role !== 'admin' && !caller.school_id) {
+    return NextResponse.json({ error: 'No school scope on this account' }, { status: 403 });
+  }
 
   const { searchParams } = new URL(request.url);
   const school_id = caller.role === 'admin' ? searchParams.get('school_id') : caller.school_id;

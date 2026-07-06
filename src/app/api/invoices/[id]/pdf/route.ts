@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { classifyInvoiceStream, splitSchoolAmount, DEFAULT_COMMISSION_RATE } from '@/lib/finance/streams';
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 function adminClient() {
   return createClient(
@@ -19,7 +20,7 @@ async function getCallerAndInvoice(req: NextRequest, invoiceId: string) {
   const admin = adminClient();
   const { data: profile } = await admin
     .from('portal_users')
-    .select('id, role, school_id')
+    .select('id, role, school_id, email')
     .eq('id', user.id)
     .single();
 
@@ -67,12 +68,22 @@ async function getCallerAndInvoice(req: NextRequest, invoiceId: string) {
     if (school) invoice.schools = school;
   }
 
-  // Access control: admin sees all, school sees own school/cycle, parent/student sees own.
-  if (profile.role === 'school') {
-    const schoolMatches = invoice.school_id === profile.school_id || cycleSchoolId === profile.school_id;
+  // Access control: admin sees all; school/teacher see their own school/cycle;
+  // students see their own; parents see invoices billed to any linked child.
+  if (profile.role === 'school' || profile.role === 'teacher') {
+    const schoolMatches = !!profile.school_id
+      && (invoice.school_id === profile.school_id || cycleSchoolId === profile.school_id);
     if (!schoolMatches) return null;
   }
-  if (['parent', 'student'].includes(profile.role) && invoice.portal_user_id !== profile.id) return null;
+  if (profile.role === 'student' && invoice.portal_user_id !== profile.id) return null;
+  if (profile.role === 'parent') {
+    if (!invoice.portal_user_id) return null;
+    const { studentUserIds } = await getParentLinkScope(admin as any, {
+      id: profile.id,
+      email: profile.email || undefined,
+    });
+    if (!studentUserIds.includes(invoice.portal_user_id) && invoice.portal_user_id !== profile.id) return null;
+  }
 
   return { profile, invoice, cycle };
 }

@@ -160,24 +160,38 @@ async function run(triggeredBy: 'cron' | 'manual') {
           3: `Action Required: Invoice overdue — Rillcod Technologies`,
         };
 
+        let delivered = false;
+
         if (config.notify_email) {
-          await notificationsService.sendEmail(student.id, {
+          // sendEmail returns false when the user opted out of email; that is
+          // not a delivery for reminder purposes.
+          const sent = await notificationsService.sendEmail(student.id, {
             to:        student.email,
             subject:   subjects[reminderToSend],
             html,
             fromName:  'Rillcod Technologies Finance',
             fromEmail: 'support@rillcod.com',
           });
+          if (sent !== false) delivered = true;
         }
 
         if (config.notify_in_app) {
-          await db.from('notifications').insert({
+          const { error: notifErr } = await db.from('notifications').insert({
             user_id: student.id,
             title: subjects[reminderToSend],
             message: `Amount due: ${inv.currency === 'NGN' ? '₦' : inv.currency}${Number(inv.amount ?? 0).toLocaleString()}`,
             type: reminderToSend === 3 ? 'warning' : 'info',
             link: '/dashboard/my-payments',
           } as any);
+          if (!notifErr) delivered = true;
+        }
+
+        // Only stamp the reminder marker when at least one channel actually
+        // delivered — otherwise the invoice would never be retried.
+        if (!delivered) {
+          result.skipped++;
+          result.details.push({ invoice_id: inv.id, reminder: reminderToSend, status: 'skipped', reason: 'no channel delivered' });
+          continue;
         }
 
         // Track the reminder sent

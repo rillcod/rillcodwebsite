@@ -42,14 +42,20 @@ export async function POST(req: NextRequest) {
 
     const { data: invoice } = await admin
       .from('invoices')
-      .select('id, invoice_number, amount, currency, status, payment_transaction_id, portal_user_id, school_id')
+      .select('id, invoice_number, amount, currency, status, payment_transaction_id, portal_user_id, school_id, portal_users(school_id)')
       .eq('id', invoiceId)
       .maybeSingle();
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 
-    // School boundary for non-admins.
-    if (caller.role !== 'admin' && caller.school_id && invoice.school_id && invoice.school_id !== caller.school_id) {
-      return NextResponse.json({ error: 'Forbidden: invoice belongs to a different school' }, { status: 403 });
+    // School boundary for non-admins: the invoice must belong to the caller's
+    // school either directly or via the billed student's school.
+    if (caller.role !== 'admin') {
+      const studentSchoolId = (invoice as any).portal_users?.school_id ?? null;
+      const inTenant = !!caller.school_id
+        && (invoice.school_id === caller.school_id || studentSchoolId === caller.school_id);
+      if (!inTenant) {
+        return NextResponse.json({ error: 'Forbidden: invoice belongs to a different school' }, { status: 403 });
+      }
     }
 
     if (invoice.status === 'paid') {

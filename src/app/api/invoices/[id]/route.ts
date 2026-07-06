@@ -48,9 +48,6 @@ export async function GET(
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  if (!['admin', 'school'].includes(caller.role)) {
-    return NextResponse.json({ error: 'Only finance admins or school accounts can update invoices' }, { status: 403 });
-  }
 
   const { id } = await context.params;
   const admin = adminClient();
@@ -64,10 +61,10 @@ export async function GET(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // School-scoped users can only see their own invoices or linked school cycles.
-  if (caller.role === 'school') {
+  // School/teacher users can only see their own school's invoices or linked school cycles.
+  if (caller.role === 'school' || caller.role === 'teacher') {
     const cycleSchoolId = await getLinkedCycleSchoolId(admin, data);
-    if (data.school_id !== caller.school_id && cycleSchoolId !== caller.school_id) {
+    if (!caller.school_id || (data.school_id !== caller.school_id && cycleSchoolId !== caller.school_id)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }
@@ -82,6 +79,10 @@ export async function PATCH(
 ) {
   const caller = await requireStaff();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Editing invoices is a finance action — teachers can view but not mutate.
+  if (!['admin', 'school'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Only finance admins or school accounts can update invoices' }, { status: 403 });
+  }
 
   const { id } = await context.params;
   const body = await req.json();
@@ -94,7 +95,7 @@ export async function PATCH(
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (caller.role === 'school') {
     const cycleSchoolId = await getLinkedCycleSchoolId(admin, existing);
-    if (existing.school_id !== caller.school_id && cycleSchoolId !== caller.school_id) {
+    if (!caller.school_id || (existing.school_id !== caller.school_id && cycleSchoolId !== caller.school_id)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }
@@ -115,6 +116,23 @@ export async function PATCH(
   if (items !== undefined) update.items = items;
   if (amount !== undefined) update.amount = parseFloat(amount);
   if (portal_user_id !== undefined) update.portal_user_id = portal_user_id || null;
+
+  // Keep the stored amount consistent with line items so the printed document
+  // never disagrees with the ledger total.
+  if (Array.isArray(update.items) && update.items.length > 0) {
+    const itemsSum = update.items.reduce((s: number, it: any) => {
+      const line = Number(it?.total ?? (Number(it?.quantity ?? 1) * Number(it?.unit_price ?? 0)));
+      return s + (Number.isFinite(line) ? line : 0);
+    }, 0);
+    if (update.amount === undefined) {
+      update.amount = itemsSum;
+    } else if (Math.abs(Number(update.amount) - itemsSum) > 0.01) {
+      return NextResponse.json(
+        { error: `Amount (${update.amount}) does not match the sum of line items (${itemsSum}).` },
+        { status: 400 },
+      );
+    }
+  }
 
   const { data, error } = await admin
     .from('invoices')

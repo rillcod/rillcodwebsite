@@ -12,13 +12,19 @@ export async function POST(req: Request) {
 
         // ── Identify the staff member sending this email ──────────────
         const { data: { user } } = await supabase.auth.getUser();
-        const { data: caller } = user
-            ? await (supabase as any)
-                .from('portal_users')
-                .select('id, full_name, role')
-                .eq('id', user.id)
-                .single()
-            : { data: null };
+        if (!user) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+        }
+        const { data: caller } = await (supabase as any)
+            .from('portal_users')
+            .select('id, full_name, role, school_id')
+            .eq('id', user.id)
+            .single();
+
+        // Sending invoices (with payment links) is a staff-only action.
+        if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        }
 
         const callerName = caller?.full_name || 'Rillcod Staff';
 
@@ -52,6 +58,11 @@ export async function POST(req: Request) {
                 success: false,
                 message: error ? `Supabase error: ${error.message || error.details}` : 'Invoice not found in DB'
             }, { status: 404 });
+        }
+
+        // Non-admin staff can only send invoices belonging to their own school.
+        if (caller.role !== 'admin' && (!caller.school_id || invoice.school_id !== caller.school_id)) {
+            return NextResponse.json({ success: false, message: 'Forbidden — invoice is outside your school' }, { status: 403 });
         }
 
         let billingContact = null;

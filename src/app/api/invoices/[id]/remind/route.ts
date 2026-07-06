@@ -44,12 +44,22 @@ export async function POST(
 
   const { data: invoice, error: invErr } = await admin
     .from('invoices')
-    .select('*, portal_users(id, full_name, email), schools(name)')
+    .select('*, portal_users(id, full_name, email, school_id), schools(name)')
     .eq('id', invoiceId)
     .single();
 
   if (invErr || !invoice) {
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+  }
+
+  // Non-admin staff may only send reminders inside their own school.
+  if (caller.role !== 'admin') {
+    const studentSchoolId = (invoice.portal_users as any)?.school_id ?? null;
+    const inTenant = !!caller.school_id
+      && (invoice.school_id === caller.school_id || studentSchoolId === caller.school_id);
+    if (!inTenant) {
+      return NextResponse.json({ error: 'Forbidden: invoice belongs to a different school' }, { status: 403 });
+    }
   }
 
   const student = invoice.portal_users as any;
@@ -180,8 +190,13 @@ export async function POST(
     .update({
       [`reminder_${reminderNumber}_sent_at`]: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      // Mark as 'sent' if was draft, mark as 'overdue' if reminder 3
-      ...(reminderNumber === 3 && invoice.status !== 'paid' ? { status: 'overdue' } : {}),
+      // Mark as 'sent' if was draft; only mark 'overdue' on a final reminder
+      // when the due date has genuinely passed.
+      ...(reminderNumber === 3
+        && invoice.status !== 'paid'
+        && invoice.due_date
+        && new Date(invoice.due_date).getTime() < Date.now()
+        ? { status: 'overdue' } : {}),
       ...(invoice.status === 'draft' ? { status: 'sent' } : {}),
     } as any)
     .eq('id', invoiceId);

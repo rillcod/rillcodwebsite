@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { env } from '@/config/env';
 import { AppError } from '@/lib/errors';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 function assertServiceRoleWebhook() {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -67,9 +68,11 @@ async function handleStripeWebhook(rawBody: string, signature: string) {
 async function handlePaystackWebhook(rawBody: string, signature: string) {
     if (!env.PAYSTACK_SECRET_KEY) throw new AppError('Paystack missing', 500);
 
-    // Verify HMAC signature
+    // Verify HMAC signature (timing-safe compare)
     const hash = crypto.createHmac('sha512', env.PAYSTACK_SECRET_KEY).update(rawBody).digest('hex');
-    if (hash !== signature) {
+    const hashBuf = Buffer.from(hash, 'utf8');
+    const sigBuf = Buffer.from(signature || '', 'utf8');
+    if (hashBuf.length !== sigBuf.length || !crypto.timingSafeEqual(hashBuf, sigBuf)) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
@@ -77,7 +80,35 @@ async function handlePaystackWebhook(rawBody: string, signature: string) {
 
     if (event.event === 'charge.success') {
         assertServiceRoleWebhook();
-        await processSuccessfulPayment(event.data.reference, 'paystack', event.data);
+
+        // Verify what Paystack says was charged covers what we recorded as due.
+        // event.data.amount is in minor units and includes any fee gross-up, so
+        // it must be >= the stored (net) transaction amount in the same currency.
+        const reference = event.data?.reference as string;
+        const db = createAdminClient();
+        const { data: pendingTx } = await db
+            .from('payment_transactions')
+            .select('id, amount, currency, payment_status')
+            .eq('transaction_reference', reference)
+            .maybeSingle();
+        if (pendingTx && !['completed', 'success', 'paid'].includes(String(pendingTx.payment_status || '').toLowerCase())) {
+            const paidMajor = Number(event.data?.amount || 0) / 100;
+            const expectedMajor = Number(pendingTx.amount || 0);
+            const eventCurrency = String(event.data?.currency || '').toUpperCase();
+            const txCurrency = String(pendingTx.currency || 'NGN').toUpperCase();
+            if (eventCurrency && txCurrency && eventCurrency !== txCurrency) {
+                console.error(`[webhook] currency mismatch for ${reference}: event=${eventCurrency} tx=${txCurrency}`);
+                return NextResponse.json({ error: 'Currency mismatch' }, { status: 400 });
+            }
+            if (paidMajor + 1 < expectedMajor) {
+                console.error(`[webhook] underpayment for ${reference}: paid=${paidMajor} expected=${expectedMajor}`);
+                return NextResponse.json({ error: 'Amount below recorded charge' }, { status: 400 });
+            }
+        }
+
+        // Let pipeline failures propagate as 5xx so Paystack retries instead of
+        // silently dropping side effects.
+        await processSuccessfulPayment(reference, 'paystack', event.data);
     } else {
         console.info(`Ignoring Paystack webhook event: ${event.event}`);
     }

@@ -1,14 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getParentLinkScope } from '@/lib/parents/links';
 
 async function getCaller() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
   const db = createAdminClient();
-  const { data } = await db.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
-  return data ? { ...user, role: data.role, school_id: data.school_id } : null;
+  const { data } = await db.from('portal_users').select('id, role, school_id, email').eq('id', user.id).single();
+  return data ? { ...user, role: data.role, school_id: data.school_id, email: data.email ?? user.email } : null;
+}
+
+/** Caller may act on this invoice: staff within tenant, the student themselves, or a linked parent. */
+async function canAccessInvoice(
+  db: ReturnType<typeof createAdminClient>,
+  caller: { id: string; role: string; school_id: string | null; email?: string | null },
+  invoice: { portal_user_id: string | null; school_id?: string | null },
+): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  if (caller.role === 'school' || caller.role === 'teacher') {
+    return !!caller.school_id && invoice.school_id === caller.school_id;
+  }
+  if (caller.role === 'student') return invoice.portal_user_id === caller.id;
+  if (caller.role === 'parent') {
+    if (!invoice.portal_user_id) return false;
+    const { studentUserIds } = await getParentLinkScope(db as any, { id: caller.id, email: caller.email });
+    return studentUserIds.includes(invoice.portal_user_id);
+  }
+  return false;
 }
 
 /**
@@ -36,12 +56,26 @@ export async function POST(req: NextRequest) {
   // Fetch invoice
   const { data: invoice, error: invErr } = await db
     .from('invoices')
-    .select('id, amount, currency, portal_user_id, status')
+    .select('id, amount, currency, portal_user_id, school_id, status')
     .eq('id', invoiceId)
     .single();
 
   if (invErr || !invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+  if (!(await canAccessInvoice(db, caller, invoice))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (invoice.status === 'paid') return NextResponse.json({ error: 'Invoice already paid' }, { status: 409 });
+
+  // One active plan per invoice — prevents stacking duplicate schedules.
+  const { data: existingPlan } = await db
+    .from('instalment_plans')
+    .select('id')
+    .eq('invoice_id', invoiceId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (existingPlan) {
+    return NextResponse.json({ error: 'This invoice already has an active instalment plan' }, { status: 409 });
+  }
 
   // NF-9.2 — sum must equal invoice total exactly
   const sum = instalments.reduce((acc, i) => acc + Number(i.amount), 0);
@@ -97,13 +131,42 @@ export async function GET(req: NextRequest) {
   const invoiceId = searchParams.get('invoice_id');
 
   const db = createAdminClient();
+
+  // Non-admin staff and students must be scoped; parents are filtered below.
+  if (invoiceId && caller.role !== 'admin' && caller.role !== 'parent') {
+    const { data: invoice } = await db
+      .from('invoices')
+      .select('id, portal_user_id, school_id')
+      .eq('id', invoiceId)
+      .maybeSingle();
+    if (!invoice || !(await canAccessInvoice(db, caller, invoice))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
   let q = db
     .from('instalment_plans')
     .select('*, instalment_items(*)')
     .order('created_at', { ascending: false });
 
   if (invoiceId) q = q.eq('invoice_id', invoiceId) as any;
-  if (caller.role === 'parent') q = q.eq('parent_id', caller.id) as any;
+  if (caller.role === 'parent') {
+    q = q.eq('parent_id', caller.id) as any;
+  } else if (caller.role === 'student') {
+    // Students only see plans on their own invoices.
+    const { data: ownInvoices } = await db.from('invoices').select('id').eq('portal_user_id', caller.id);
+    const ids = (ownInvoices ?? []).map((r: any) => r.id);
+    if (ids.length === 0) return NextResponse.json({ data: [] });
+    q = q.in('invoice_id', ids) as any;
+  } else if ((caller.role === 'school' || caller.role === 'teacher') && !invoiceId) {
+    if (!caller.school_id) return NextResponse.json({ data: [] });
+    const { data: schoolInvoices } = await db.from('invoices').select('id').eq('school_id', caller.school_id);
+    const ids = (schoolInvoices ?? []).map((r: any) => r.id);
+    if (ids.length === 0) return NextResponse.json({ data: [] });
+    q = q.in('invoice_id', ids) as any;
+  } else if (caller.role !== 'admin' && !['school', 'teacher', 'parent', 'student'].includes(caller.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { data, error } = await q;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

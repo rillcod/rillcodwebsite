@@ -69,6 +69,23 @@ export async function verifyInvoicePayment(input: {
   const method = normalizeMethod(input.method);
   const now = new Date().toISOString();
 
+  // The invoice may not carry payment_transaction_id yet (checkout links the
+  // transaction → invoice, not the reverse). Reuse any transaction already
+  // attached to this invoice — preferring completed, then most recent — so a
+  // staff verification during a pending gateway checkout doesn't insert a
+  // duplicate ledger entry.
+  if (!transactionId) {
+    const { data: linkedTxs } = await db
+      .from('payment_transactions')
+      .select('id, payment_status, created_at')
+      .eq('invoice_id', invoice.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    const completed = (linkedTxs ?? []).find((t: any) => ['completed', 'success', 'paid'].includes(String(t.payment_status || '').toLowerCase()));
+    const reusable = completed ?? (linkedTxs ?? [])[0] ?? null;
+    if (reusable) transactionId = reusable.id;
+  }
+
   if (transactionId) {
     const { data: existingTx } = await db
       .from('payment_transactions')
@@ -76,7 +93,7 @@ export async function verifyInvoicePayment(input: {
       .eq('id', transactionId)
       .maybeSingle();
     if (existingTx?.transaction_reference) reference = existingTx.transaction_reference;
-    if (existingTx?.payment_status === 'completed') {
+    if (['completed', 'success', 'paid'].includes(String(existingTx?.payment_status || '').toLowerCase())) {
       await db.from('invoices')
         .update({ status: 'paid', payment_transaction_id: transactionId, updated_at: now })
         .eq('id', invoice.id);
@@ -135,6 +152,20 @@ export async function verifyInvoicePayment(input: {
     note: input.note || null,
   });
 
+  // Post-condition: don't report success to staff if the pipeline silently
+  // failed to settle the invoice — that would hide a broken ledger.
+  const { data: settledInvoice } = await db
+    .from('invoices')
+    .select('status')
+    .eq('id', invoice.id)
+    .maybeSingle();
+  if (settledInvoice?.status !== 'paid') {
+    throw new AppError(
+      'Payment was recorded but the invoice could not be marked paid. Check the finance logs before retrying.',
+      500,
+    );
+  }
+
   const { data: settledTx } = await db
     .from('payment_transactions')
     .select('id, receipt_url')
@@ -173,6 +204,9 @@ export async function verifySummerBalancePayment(input: {
   if (balanceDue <= 0) throw new AppError('This applicant has no outstanding balance.', 400);
   if (amount + 1 < balanceDue) {
     throw new AppError(`Payment amount (${amount}) is below the outstanding balance (${balanceDue}).`, 400);
+  }
+  if (amount - 1 > balanceDue) {
+    throw new AppError(`Payment amount (${amount}) exceeds the outstanding balance (${balanceDue}) — check for a typo.`, 400);
   }
 
   const method = normalizeMethod(input.method);

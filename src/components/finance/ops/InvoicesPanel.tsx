@@ -315,7 +315,8 @@ export function InvoicesPanel() {
         if (statusFilter === 'all') return true;
         if (statusFilter === 'paid') return inv.status === 'paid';
         if (statusFilter === 'overdue') return inv.status === 'overdue';
-        return ['sent', 'draft'].includes(inv.status);
+        // "open" = anything still collectible, overdue included.
+        return ['sent', 'draft', 'overdue', 'partially_paid'].includes(inv.status);
       })
       .filter((inv) => {
         if (!q) return true;
@@ -727,7 +728,28 @@ function QuickInvoiceForm({
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'Failed to create invoice');
-      toast.success(`Invoice ${j.data?.invoice_number || ''} created`);
+
+      // The create endpoint doesn't send mail itself — honour the checkbox by
+      // firing the invoice email explicitly once the row exists.
+      if (sendEmail && j.data?.id) {
+        try {
+          const mailRes = await fetch('/api/payments/invoices/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invoiceId: j.data.id }),
+          });
+          const mailJson = await mailRes.json().catch(() => ({}));
+          if (!mailRes.ok || mailJson.success === false) {
+            toast.warning(`Invoice created, but the email failed: ${mailJson.message || mailJson.error || 'unknown error'}`);
+          } else {
+            toast.success(`Invoice ${j.data?.invoice_number || ''} created and emailed`);
+          }
+        } catch {
+          toast.warning('Invoice created, but the email could not be sent.');
+        }
+      } else {
+        toast.success(`Invoice ${j.data?.invoice_number || ''} created`);
+      }
       onCreated();
     } catch (e: unknown) {
       toast.error((e as Error).message || 'Failed to create invoice');

@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         }
 
         // Non-admin: only approve transactions belonging to their school
-        if (profile?.role !== 'admin' && profile?.school_id && transaction.school_id !== profile.school_id) {
+        if (profile?.role !== 'admin' && (!profile?.school_id || transaction.school_id !== profile.school_id)) {
             return NextResponse.json({ error: 'Forbidden: transaction belongs to a different school' }, { status: 403 });
         }
 
@@ -71,16 +71,19 @@ export async function POST(req: Request) {
             // confirmed bank transfer becomes a fully cohesive record: transaction
             // completed + invoice + summer/registration onboarding + receipt + staff
             // notification. One implementation, zero divergence.
-            if (reference) {
-                await processSuccessfulPayment(reference, (transaction as any).payment_method || 'manual', null);
-            } else {
-                // No reference (rare/legacy) — at least mark it completed.
-                const { error: updError } = await admin
+            let pipelineRef = reference;
+            if (!pipelineRef) {
+                // No reference (rare/legacy) — backfill one so the transaction can
+                // run through the same pipeline instead of a bare status flip that
+                // skipped invoices, receipts, and notifications.
+                pipelineRef = `MAN-APPR-${String(transactionId).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}-${Date.now()}`;
+                const { error: refErr } = await admin
                     .from('payment_transactions')
-                    .update({ payment_status: 'completed', paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                    .update({ transaction_reference: pipelineRef, updated_at: new Date().toISOString() })
                     .eq('id', transactionId);
-                if (updError) throw updError;
+                if (refErr) throw refErr;
             }
+            await processSuccessfulPayment(pipelineRef, (transaction as any).payment_method || 'manual', null);
         } else {
             // Reject / other terminal status — mark only, no side effects.
             const { error: updError } = await admin

@@ -89,12 +89,11 @@ export async function POST(req: NextRequest) {
       if (!verified) {
         return NextResponse.json({ onboarded: false, reason: 'Payment not yet confirmed by gateway' });
       }
-      // Mark as completed (webhook will also do this — upsert-safe via .neq guard)
-      await supabase
-        .from('payment_transactions')
-        .update({ payment_status: 'completed', paid_at: new Date().toISOString() })
-        .eq('id', tx.id)
-        .neq('payment_status', 'completed');
+      // Run the FULL payment pipeline, not a bare status flip. Flipping the
+      // status directly made the later webhook a no-op (idempotency guard),
+      // permanently skipping invoice creation, receipts, and notifications.
+      const { processSuccessfulPayment } = await import('@/lib/payments/process-successful-payment');
+      await processSuccessfulPayment(reference.trim(), 'paystack', paystackData.data);
     }
 
     if (paymentType === 'summer_school_balance') {

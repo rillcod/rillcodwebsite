@@ -59,89 +59,12 @@ export async function GET(req: Request) {
         });
       }
 
-      await supabase
-        .from('payment_transactions')
-        .update({
-          payment_status: 'completed',
-          paid_at: new Date().toISOString(),
-          payment_gateway_response: {
-            ...gateway,
-            paystack: paystackData.data,
-          },
-        })
-        .eq('id', tx.id)
-        .neq('payment_status', 'completed');
-    }
-
-    await supabase
-      .from('students')
-      .update({
-        status: 'pending',
-        registration_payment_at: new Date().toISOString(),
-        registration_paystack_reference: reference,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', studentId)
-      .eq('status', 'pending');
-
-    if (!tx.invoice_id) {
-      const { data: student } = await supabase
-        .from('students')
-        .select('school_id, enrollment_type, full_name, name')
-        .eq('id', studentId)
-        .maybeSingle();
-
-      const { data: existingInv } = await supabase
-        .from('invoices')
-        .select('id')
-        .eq('payment_transaction_id', tx.id)
-        .maybeSingle();
-
-      if (!existingInv) {
-        const enrollLabel = String(gateway.enrollment_type || student?.enrollment_type || 'Registration');
-        const progName = gateway.program_name ? String(gateway.program_name) : '';
-        const displayName = String(student?.full_name || student?.name || gateway.student_name || 'Student');
-        const rawRef = String(tx.transaction_reference || tx.id);
-        const invoiceNumber = `INV-REG-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 48)}`;
-
-        const { data: newInv, error: invErr } = await supabase
-          .from('invoices')
-          .insert({
-            invoice_number: invoiceNumber,
-            amount: Number(tx.amount),
-            currency: tx.currency || 'NGN',
-            status: 'paid',
-            due_date: null,
-            portal_user_id: null,
-            school_id: student?.school_id ?? null,
-            payment_transaction_id: tx.id,
-            items: [
-              {
-                description: progName ? `${enrollLabel} - ${progName}` : `${enrollLabel} Registration Fee`,
-                program_name: progName || null,
-                enrollment_type: enrollLabel,
-                unit_price: Number(tx.amount),
-                quantity: 1,
-              },
-            ],
-            metadata: {
-              registration_student_id: studentId,
-              student_name: displayName,
-              source: 'registration_verify_fallback',
-            },
-          })
-          .select('id')
-          .single();
-
-        if (invErr) {
-          console.error('Failed to create registration invoice from verify fallback:', invErr);
-        } else if (newInv?.id) {
-          await supabase
-            .from('payment_transactions')
-            .update({ invoice_id: newInv.id })
-            .eq('id', tx.id);
-        }
-      }
+      // Run the FULL payment pipeline instead of flipping the status inline.
+      // The pipeline handles: transaction completion, student status update,
+      // registration invoice, receipt, and staff/parent notifications — and
+      // stays idempotent with the webhook that may arrive later.
+      const { processSuccessfulPayment } = await import('@/lib/payments/process-successful-payment');
+      await processSuccessfulPayment(reference, 'paystack', paystackData.data);
     }
 
     return NextResponse.json({

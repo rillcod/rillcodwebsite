@@ -1333,7 +1333,7 @@ function AutomationTab() {
       fetch('/api/billing/automation', { cache: 'no-store' }),
       fetch('/api/billing/automation/logs', { cache: 'no-store' }),
     ]);
-    if (cfgRes.ok) { const j = await cfgRes.json(); if (j.data) setConfig(j.data); }
+    if (cfgRes.ok) { const j = await cfgRes.json(); if (j.config) setConfig(j.config); }
     if (logRes.ok) { const j = await logRes.json(); setLogs(j.logs ?? []); }
     setLoading(false);
   }, []);
@@ -1353,9 +1353,9 @@ function AutomationTab() {
 
   async function runNow() {
     setRunning(true); setRunResult(null);
-    const res = await fetch('/api/cron/invoice-reminders', {
-      method: 'POST', headers: { Authorization: `Bearer ${process.env.NEXT_PUBLIC_CRON_SECRET ?? ''}` },
-    });
+    // Manual runs authenticate via the admin session — never expose the cron
+    // secret to the browser bundle.
+    const res = await fetch('/api/cron/invoice-reminders', { method: 'POST' });
     setRunning(false);
     if (res.ok) { const j = await res.json(); setRunResult(j); toast.success('Automation run complete'); load(); }
     else toast.error('Run failed');

@@ -144,6 +144,8 @@ async function handle(req: NextRequest) {
     const payLink = `${baseUrl}/summer-school/pay-balance?email=${encodeURIComponent(to)}`;
     const amountStr = `₦${balanceDue.toLocaleString()}`;
 
+    let delivered = false;
+
     if (settings.channelEmail) try {
       const html = buildRillcodTransactionalEmailHtml({
         eyebrow: 'Summer School',
@@ -167,6 +169,7 @@ async function handle(req: NextRequest) {
         fromEmail: 'support@rillcod.com',
       });
       report.remindedEmail++;
+      delivered = true;
     } catch (emailErr) {
       console.error('[payment-reminders] email failed:', emailErr);
     }
@@ -181,9 +184,13 @@ async function handle(req: NextRequest) {
           `Pay online: ${payLink}`,
           'Thank you!',
         ].join('\n'));
-        if (ok) report.remindedWhatsapp++;
+        if (ok) { report.remindedWhatsapp++; delivered = true; }
       } catch { /* non-fatal */ }
     }
+
+    // Nothing went out — leave the markers untouched so the next run retries
+    // instead of counting a phantom reminder toward the cap.
+    if (!delivered) { report.skipped++; continue; }
 
     // Stamp the de-dupe marker + running count (strip any previous markers first).
     const cleanedNotes = (p.notes || '')

@@ -21,6 +21,9 @@ function isValidEmail(email: string | null | undefined) {
  * Idempotent: returns early if the transaction is already completed, and uses a
  * conditional update (`.neq('payment_status','completed')`) so concurrent
  * webhook/approval races only run side-effects once.
+ *
+ * Hard failures THROW so callers can react: the webhook returns 5xx (gateway
+ * retries) and staff verification surfaces the error instead of a false success.
  */
 export async function processSuccessfulPayment(reference: string, method: string, rawGatewayData: any) {
     const supabase = createAdminClient();
@@ -32,7 +35,7 @@ export async function processSuccessfulPayment(reference: string, method: string
         .eq('transaction_reference', reference)
         .maybeSingle();
 
-    if (existingTx?.payment_status === 'completed') {
+    if (['completed', 'success', 'paid'].includes(String(existingTx?.payment_status || '').toLowerCase())) {
         return;
     }
 
@@ -45,7 +48,7 @@ export async function processSuccessfulPayment(reference: string, method: string
 
     if (txError || !transaction) {
         console.error(`Transaction not found for success: ${reference}`);
-        return;
+        throw new Error(`Transaction not found for reference ${reference}`);
     }
 
     const prevGateway =
@@ -62,6 +65,55 @@ export async function processSuccessfulPayment(reference: string, method: string
                 ? { ...prevGateway, stripe: rawGatewayData }
                 : { ...prevGateway, manual: rawGatewayData ?? { confirmed_at: new Date().toISOString() } };
 
+    // 2a. Validate invoice amounts BEFORE flipping the transaction to completed.
+    // Previously validation happened after the flip: a mismatch aborted the run,
+    // and every retry then hit the idempotency guard — invoice permanently
+    // unpaid with a "completed" transaction. Validating first keeps the
+    // transaction pending (and retryable) until the numbers make sense.
+    const preGateway = prevGateway as any;
+    const isPlainInvoicePayment =
+        !!(transaction as any).invoice_id &&
+        !['registration', 'summer_school', 'summer_school_balance', 'billing_cycle'].includes(String(preGateway?.payment_type || ''));
+    let validatedInvoice: any = null;
+    if (isPlainInvoicePayment) {
+        const { data: invoice, error: invFetchErr } = await (supabase as any)
+            .from('invoices')
+            .select('id, amount, status, payment_transaction_id, billing_cycle_id, school_id, invoice_number')
+            .eq('id', (transaction as any).invoice_id)
+            .maybeSingle();
+        if (invFetchErr || !invoice) {
+            console.error('Invoice not found for successful payment:', (transaction as any).invoice_id, invFetchErr);
+            throw new Error(`Invoice ${(transaction as any).invoice_id} not found for payment ${reference}`);
+        }
+
+        const expected = Number(invoice.amount) || 0;
+        const received = Number(transaction.amount) || 0;
+        // Underpayment blocks settlement. Overpayment is tolerated: gateway fee
+        // gross-ups and legacy rows that stored the fee-inclusive amount both
+        // pay MORE than the invoice, never less.
+        if (received + 1 < expected) {
+            console.error('Invoice payment amount mismatch:', {
+                invoice_id: invoice.id,
+                expected,
+                received,
+                reference,
+            });
+            try {
+                const { notifyStaffOfPayment } = await import('@/lib/payments/notify-staff');
+                void notifyStaffOfPayment({
+                    schoolId: (transaction as any).school_id ?? null,
+                    title: 'Payment needs review',
+                    message: `Payment ${reference} received ${received} but invoice ${invoice.invoice_number || invoice.id} expects ${expected}. The invoice was NOT marked paid.`,
+                    actionUrl: '/dashboard/finance?tab=operations&ops=approvals',
+                });
+            } catch { /* best-effort alert */ }
+            throw new Error(
+                `Payment ${reference} amount (${received}) is below invoice ${invoice.invoice_number || invoice.id} amount (${expected}).`,
+            );
+        }
+        validatedInvoice = invoice;
+    }
+
     // 2b. Prevent duplicate processing atomically (handles retries/races)
     const { data: updatedTx, error: updateErr } = await supabase
         .from('payment_transactions')
@@ -76,7 +128,7 @@ export async function processSuccessfulPayment(reference: string, method: string
         .maybeSingle();
     if (updateErr) {
         console.error(`Failed to mark transaction completed: ${reference}`, updateErr);
-        return;
+        throw new Error(`Failed to mark transaction completed for ${reference}: ${updateErr.message}`);
     }
     if (!updatedTx) {
         return;
@@ -364,28 +416,8 @@ export async function processSuccessfulPayment(reference: string, method: string
         } catch (cycInvErr) {
             console.error('[payment] billing-cycle invoice creation failed:', cycInvErr);
         }
-    } else if ((transaction as any).invoice_id) {
-        const { data: invoice, error: invFetchErr } = await (supabase as any)
-            .from('invoices')
-            .select('id, amount, status, payment_transaction_id')
-            .eq('id', (transaction as any).invoice_id)
-            .maybeSingle();
-        if (invFetchErr || !invoice) {
-            console.error('Invoice not found for successful payment:', (transaction as any).invoice_id, invFetchErr);
-            return;
-        }
-
-        const expected = Number(invoice.amount) || 0;
-        const received = Number(transaction.amount) || 0;
-        if (Math.abs(received - expected) > 1) {
-            console.error('Invoice payment amount mismatch:', {
-                invoice_id: invoice.id,
-                expected,
-                received,
-                reference,
-            });
-            return;
-        }
+    } else if ((transaction as any).invoice_id && validatedInvoice) {
+        const invoice = validatedInvoice;
 
         const { error: invUpdateErr } = await (supabase as any)
             .from('invoices')
@@ -398,9 +430,41 @@ export async function processSuccessfulPayment(reference: string, method: string
             .neq('status', 'paid');
         if (invUpdateErr) {
             console.error('Failed to mark invoice paid:', invUpdateErr);
-            return;
+            throw new Error(`Failed to mark invoice ${invoice.id} paid: ${invUpdateErr.message}`);
         }
         await syncRosterBillingForInvoice(supabase as any, invoice.id, 'paid');
+
+        // Keep the linked billing cycle in step with its invoice. Previously
+        // paying the invoice left the cycle 'due' — schools still saw a
+        // balance and could pay twice.
+        let cycleId: string | null = invoice.billing_cycle_id ?? null;
+        if (!cycleId) {
+            const { data: linkedCycle } = await (supabase as any)
+                .from('billing_cycles')
+                .select('id')
+                .eq('invoice_id', invoice.id)
+                .maybeSingle();
+            cycleId = linkedCycle?.id ?? null;
+        }
+        if (cycleId) {
+            const { data: cycle } = await (supabase as any)
+                .from('billing_cycles')
+                .select('id, sticky_notice_id')
+                .eq('id', cycleId)
+                .maybeSingle();
+            await (supabase as any)
+                .from('billing_cycles')
+                .update({ status: 'paid', updated_at: new Date().toISOString() })
+                .eq('id', cycleId)
+                .neq('status', 'paid');
+            await syncRosterBillingForCycle(supabase as any, cycleId, 'paid');
+            if (cycle?.sticky_notice_id) {
+                await (supabase as any)
+                    .from('billing_notices')
+                    .update({ is_resolved: true, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                    .eq('id', cycle.sticky_notice_id);
+            }
+        }
     }
 
     // 4. Generate Receipt automatically + notify

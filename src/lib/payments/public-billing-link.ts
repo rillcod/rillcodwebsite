@@ -6,7 +6,15 @@ type BillingTokenPayload = {
 };
 
 function getSecret() {
-  return process.env.BILLING_CRON_SECRET || process.env.CRON_SECRET || '';
+  // Prefer a dedicated signing secret so a leaked billing token can never be
+  // parlayed into cron access (and vice versa). Fall back to the legacy chain
+  // so links issued before BILLING_LINK_SECRET was configured keep working.
+  return (
+    process.env.BILLING_LINK_SECRET ||
+    process.env.BILLING_CRON_SECRET ||
+    process.env.CRON_SECRET ||
+    ''
+  );
 }
 
 function toBase64Url(input: string) {
@@ -34,7 +42,9 @@ export function verifyPublicBillingToken(token: string): BillingTokenPayload | n
   if (!secret || !token || !token.includes('.')) return null;
   const [body, sig] = token.split('.');
   const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
-  if (sig !== expected) return null;
+  const sigBuf = Buffer.from(sig || '', 'utf8');
+  const expBuf = Buffer.from(expected, 'utf8');
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
   try {
     const payload = JSON.parse(fromBase64Url(body)) as BillingTokenPayload;
     if (!payload?.cycleId || !payload?.exp) return null;

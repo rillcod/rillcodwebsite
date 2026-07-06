@@ -70,7 +70,7 @@ export class PaymentsService {
             });
 
             // Store transaction (Task 20.1)
-            await supabase.from('payment_transactions').insert([{
+            const { error: insertErr } = await supabase.from('payment_transactions').insert([{
                 school_id: tenantId,
                 portal_user_id: userId,
                 course_id: courseId,
@@ -82,6 +82,9 @@ export class PaymentsService {
                 external_transaction_id: session.id,
                 created_at: new Date().toISOString()
             }]);
+            if (insertErr) {
+                throw new Error(`Could not record pending transaction: ${insertErr.message}`);
+            }
 
             return { url: session.url, reference };
         } catch (err: any) {
@@ -187,19 +190,37 @@ export class PaymentsService {
                 throw new Error(paystackData.message);
             }
 
-            await supabase.from('payment_transactions').insert([{
+            // Store the NET amount (what the invoice/course actually costs).
+            // The Paystack fee gross-up is what the customer is charged, but
+            // recording it as `amount` broke invoice settlement: the pipeline
+            // compares transaction.amount to invoice.amount and they never
+            // matched. Fees live in payment_gateway_response for audit.
+            const { error: insertErr } = await supabase.from('payment_transactions').insert([{
                 school_id: tenantId,
                 portal_user_id: userId,
                 course_id: courseId || null,
                 invoice_id: invoiceId || null,
-                amount: totalAmount,
+                amount,
                 currency: payCurrency,
                 payment_method: 'paystack',
                 payment_status: 'pending',
                 transaction_reference: reference,
                 external_transaction_id: paystackData.data.reference,
+                payment_gateway_response: {
+                    checkout: {
+                        gross_charged: totalAmount,
+                        gateway_fees: Math.max(0, totalAmount - amount),
+                        currency: payCurrency,
+                    },
+                    ...(invoiceId ? { payment_type: 'invoice_payment', invoice_id: invoiceId } : {}),
+                },
                 created_at: new Date().toISOString(),
             }]);
+            if (insertErr) {
+                // Without a pending row the webhook can never settle this payment —
+                // fail the checkout rather than sending the user to pay into a void.
+                throw new Error(`Could not record pending transaction: ${insertErr.message}`);
+            }
 
             return { url: paystackData.data.authorization_url, reference };
         } catch (err: any) {

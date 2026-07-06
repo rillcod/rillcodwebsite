@@ -87,6 +87,24 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = adminClient();
+
+  // Teachers can only issue receipts inside their own school.
+  if (caller.role === 'teacher') {
+    if (!caller.school_id) return NextResponse.json({ error: 'No school scope on this account' }, { status: 403 });
+    if (school_id && school_id !== caller.school_id) {
+      return NextResponse.json({ error: 'Forbidden — receipt is outside your school' }, { status: 403 });
+    }
+    if (student_id) {
+      const { data: student } = await admin
+        .from('portal_users')
+        .select('school_id')
+        .eq('id', student_id)
+        .maybeSingle();
+      if (!student || student.school_id !== caller.school_id) {
+        return NextResponse.json({ error: 'Forbidden — student is outside your school' }, { status: 403 });
+      }
+    }
+  }
   const stream = classifyReceiptStream({
     stream: metadata?.stream ?? null,
     school_id: school_id || null,

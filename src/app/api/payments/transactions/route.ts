@@ -31,6 +31,10 @@ export async function GET(req: NextRequest) {
   const cursorId = searchParams.get('cursor_id');
   const statusFilter = searchParams.get('status');
   const schoolIdParam = searchParams.get('school_id');
+  // Optional page size (default 20, capped at 200) — panels like Approvals
+  // need more than the default page to show every pending item.
+  const rawLimit = parseInt(searchParams.get('limit') || '20', 10);
+  const pageSize = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 20, 1), 200);
 
   const db = createAdminClient();
   let q = db
@@ -38,7 +42,7 @@ export async function GET(req: NextRequest) {
     .select('*, portal_users(full_name, email), invoices!payment_transactions_invoice_id_fkey(invoice_number, items, stream, billing_cycle_id, school_id), courses(title)')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
-    .limit(21);
+    .limit(pageSize + 1);
 
   // Scoping precedence (most-specific first)
   if (profile.role === 'student') {
@@ -75,8 +79,8 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const rows = data ?? [];
-  const hasMore = rows.length === 21;
-  const page = hasMore ? rows.slice(0, 20) : rows;
+  const hasMore = rows.length === pageSize + 1;
+  const page = hasMore ? rows.slice(0, pageSize) : rows;
   const last = page[page.length - 1] as any;
   const nextCursor = hasMore && last
     ? { created_at: last.created_at, id: last.id }
