@@ -274,6 +274,9 @@ export async function GET(
   });
 
   if (consent.required && !consent.complete) {
+    await backfillParentLinkFromConsent(db, student.id, consent);
+    const parentCaptured = await isParentCaptured(db, student.id);
+    const recordGaps = await getStudentRecordGaps(db, student.id);
     await logResultAccessEvent(db, req, {
       action: 'result_check_consent_required',
       studentId: student.id,
@@ -287,7 +290,11 @@ export async function GET(
     return NextResponse.json({
       accessRequired: false,
       consentRequired: true,
+      consentComplete: false,
       oneTime: true,
+      parentCaptured,
+      recordGaps,
+      needsGender: recordGaps.needsGender,
       student: publicStudentPayload(student),
       form: consent.form,
       formUrl: consent.formUrl

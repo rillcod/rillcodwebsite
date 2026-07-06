@@ -277,15 +277,14 @@ export default function ResultQuickCheckPage() {
               </div>
             </div>
 
-            {data.consentRequired ? (
+            {data.consentRequired && !data.consentComplete && (
               <div className="rounded-[1.5rem] border border-amber-500/30 bg-amber-500/10 p-6 space-y-4">
                 <div className="flex items-start gap-3">
                   <ExclamationTriangleIcon className="w-6 h-6 text-amber-400 flex-shrink-0" />
                   <div>
                     <h2 className="text-lg font-black text-foreground">One-Time Parent Consent Required</h2>
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                      To release this result, the parent/guardian needs to complete the school consent and assessment form once.
-                      If it has already been completed and matched, future scans will open results instantly.
+                      Complete the school consent form once to view the full result. You can still link your parent account below and receive portal logins while you finish the form.
                     </p>
                   </div>
                 </div>
@@ -302,22 +301,27 @@ export default function ResultQuickCheckPage() {
                   </p>
                 )}
               </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/10 p-5 flex items-start gap-3">
-                  <CheckCircleIcon className="w-6 h-6 text-emerald-400 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-black text-foreground">Verified by Rillcod Technologies</p>
-                    <p className="text-xs text-muted-foreground mt-1">This is a genuine Rillcod result access code.</p>
-                  </div>
-                </div>
+            )}
 
-                <ResultGate
-                  code={code}
-                  captured={!!data.parentCaptured || !!data.consentComplete}
-                  recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
-                  onClaimLinked={() => void loadResultCheck()}
-                >
+            {(!data.consentRequired || data.consentComplete) && (
+              <div className="rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/10 p-5 flex items-start gap-3">
+                <CheckCircleIcon className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-black text-foreground">Verified by Rillcod Technologies</p>
+                  <p className="text-xs text-muted-foreground mt-1">This is a genuine Rillcod result access code.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-5">
+              <ResultGate
+                code={code}
+                captured={!!data.parentCaptured || !!data.consentComplete}
+                recordGaps={data.recordGaps ?? { needsGender: !!data.needsGender }}
+                consentNudge={data.consentRequired && !data.consentComplete ? { formUrl: data.formUrl, formTitle: data.form?.title } : undefined}
+                resultsLocked={!!data.consentRequired && !data.consentComplete}
+                onClaimLinked={() => void loadResultCheck()}
+              >
                 {reports.length === 0 ? (
                   <div className="rounded-[1.5rem] border border-border bg-background p-8 text-center">
                     <DocumentChartBarIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -388,9 +392,8 @@ export default function ResultQuickCheckPage() {
                     )}
                   </>
                 )}
-                </ResultGate>
-              </div>
-            )}
+              </ResultGate>
+            </div>
             <div className="pt-2 border-t border-border">
               <Link href="/result-check" className="text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">
                 Check another result code

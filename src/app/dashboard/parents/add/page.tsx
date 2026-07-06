@@ -1,15 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { ParentForm, Student, Teacher } from '@/components/parents/ParentForm';
 import { ArrowLeftIcon } from '@/lib/icons';
 
 type ClassItem = { name: string; school_name: string | null };
 
-export default function AddParentPage() {
+function AddParentPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedStudentIds = searchParams.get('student_id')
+    ? [searchParams.get('student_id')!]
+    : undefined;
   const { profile, loading: authLoading } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -79,8 +83,14 @@ export default function AddParentPage() {
           <ArrowLeftIcon className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-2xl font-black text-foreground tracking-tight">Add Parent</h1>
-          <p className="text-sm text-muted-foreground mt-1">Create a new parent account and link to students.</p>
+          <h1 className="text-2xl font-black text-foreground tracking-tight">
+            {preselectedStudentIds?.length ? 'Add Co-Parent' : 'Add Parent'}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {preselectedStudentIds?.length
+              ? 'Link a second guardian to the selected child — both parents can access the portal.'
+              : 'Create a new parent account and link to students.'}
+          </p>
         </div>
       </div>
 
@@ -96,11 +106,25 @@ export default function AddParentPage() {
           schools={schools}
           officialClasses={classes}
           defaultSchool={profile?.role === 'teacher' ? (profile?.school_name || '') : (schools.length === 1 ? schools[0] : '')}
+          preselectedStudentIds={preselectedStudentIds}
           onSchoolChange={handleSchoolChange}
           onCancel={() => router.push('/dashboard/parents')}
           onSaved={() => router.push('/dashboard/parents')}
         />
       )}
     </div>
+  );
+}
+
+export default function AddParentPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Loading…</p>
+      </div>
+    }>
+      <AddParentPageContent />
+    </Suspense>
   );
 }

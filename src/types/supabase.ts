@@ -6488,6 +6488,7 @@ export type Database = {
         Row: {
           attempts: number
           child_age: number | null
+          child_dob: string | null
           child_gender: string | null
           child_name: string | null
           code_hash: string
@@ -6505,6 +6506,7 @@ export type Database = {
         Insert: {
           attempts?: number
           child_age?: number | null
+          child_dob?: string | null
           child_gender?: string | null
           child_name?: string | null
           code_hash: string
@@ -6522,6 +6524,7 @@ export type Database = {
         Update: {
           attempts?: number
           child_age?: number | null
+          child_dob?: string | null
           child_gender?: string | null
           child_name?: string | null
           code_hash?: string

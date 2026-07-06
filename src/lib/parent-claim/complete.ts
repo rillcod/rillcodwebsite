@@ -18,6 +18,7 @@ export interface ClaimDetails {
   childName?: string;
   childGender?: string | null;
   childAge?: string | number | null;
+  childDob?: string | null;
   whatsappOptIn?: boolean;
 }
 
@@ -100,7 +101,7 @@ async function notifyStaffOfClaim(admin: Db, schoolId: string | null, childName:
  * verification — one implementation so both paths behave identically.
  */
 export async function completeParentClaim(admin: Db, studentId: string, details: ClaimDetails): Promise<ClaimResult> {
-  const { fullName, email, phone, relationship, childGender, childAge, whatsappOptIn } = details;
+  const { fullName, email, phone, relationship, childGender, childAge, childDob, whatsappOptIn } = details;
   const parsedAge = normaliseChildAge(childAge);
 
   const { data: childStudent } = await admin
@@ -141,6 +142,7 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     phone,
     childGender,
     childAge: parsedAge,
+    childDob,
     whatsappOptIn,
   });
 
@@ -157,6 +159,7 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
         childName: prov.childName ?? null,
         childGender: childGender ?? null,
         childAge: parsedAge,
+        childDob: childDob ?? null,
         whatsappOptIn,
       });
       const formId = leadId ? (await admin.from('form_leads').select('form_id').eq('id', leadId).maybeSingle()).data?.form_id : null;
@@ -187,6 +190,7 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
 
   const enrichNote = [
     enrichment.genderRecorded && 'gender',
+    enrichment.dobRecorded && 'dob',
     enrichment.ageRecorded && 'age',
     enrichment.whatsappOptInSet && 'whatsapp_opt_in',
   ].filter(Boolean).join(', ');

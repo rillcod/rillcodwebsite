@@ -16,16 +16,18 @@ type Step = 'cta' | 'form' | 'otp' | 'done';
 export default function ParentClaim({
   code,
   recordGaps,
+  consentNudge,
   onLinked,
 }: {
   code: string;
   recordGaps?: { needsGender?: boolean; needsAge?: boolean };
+  consentNudge?: { formUrl?: string | null; formTitle?: string | null };
   onLinked?: () => void;
 }) {
   const [step, setStep] = useState<Step>('cta');
   const [form, setForm] = useState({
     fullName: '', email: '', phone: '', relationship: 'Guardian', childName: '',
-    childGender: '' as '' | 'male' | 'female', childAge: '', whatsappOptIn: true,
+    childGender: '' as '' | 'male' | 'female', childAge: '', childDob: '', whatsappOptIn: true,
   });
   const [claimId, setClaimId] = useState('');
   const [otp, setOtp] = useState('');
@@ -46,7 +48,7 @@ export default function ParentClaim({
       studentEmail?: string;
     } | null;
     genderRecorded?: boolean;
-    enrichment?: { genderRecorded?: boolean; ageRecorded?: boolean; whatsappOptInSet?: boolean } | null;
+    enrichment?: { genderRecorded?: boolean; ageRecorded?: boolean; dobRecorded?: boolean; whatsappOptInSet?: boolean } | null;
   } | null>(null);
 
   // Resend cooldown ticker.
@@ -131,11 +133,11 @@ export default function ParentClaim({
   }
 
   const genderRequired = !!recordGaps?.needsGender;
-  const ageRequired = !!recordGaps?.needsAge;
+  const birthRequired = !!recordGaps?.needsAge;
   const formValid = form.fullName && form.email && form.phone
     && (isParent ? form.childName : true)
     && (!genderRequired || form.childGender)
-    && (!ageRequired || (form.childAge && parseInt(form.childAge, 10) >= 3));
+    && (!birthRequired || form.childDob || (form.childAge && parseInt(form.childAge, 10) >= 3));
 
   if (step === 'done' && done) {
     const creds = done.credentials;
@@ -150,13 +152,24 @@ export default function ParentClaim({
           <p className="text-xs text-foreground">We also linked {done.siblingsLinked} sibling{done.siblingsLinked !== 1 ? 's' : ''} on record with your contact.</p>
         )}
 
-        {(done.enrichment?.genderRecorded || done.enrichment?.ageRecorded) && (
+        {(done.enrichment?.genderRecorded || done.enrichment?.ageRecorded || done.enrichment?.dobRecorded) && (
           <p className="text-xs text-muted-foreground">
             {[
               done.enrichment.genderRecorded && 'Gender',
+              done.enrichment.dobRecorded && 'Date of birth',
               done.enrichment.ageRecorded && 'Age',
-            ].filter(Boolean).join(' and ')} saved to your child&apos;s school record — thank you.
+            ].filter(Boolean).join(', ')} saved to your child&apos;s school record — thank you.
           </p>
+        )}
+
+        {consentNudge?.formUrl && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2">
+            <p className="text-xs font-black text-foreground">One-time school form still needed</p>
+            <p className="text-[11px] text-muted-foreground">Complete it to view the full result on your next scan.</p>
+            <a href={consentNudge.formUrl} className="inline-block text-xs font-black uppercase tracking-widest text-primary hover:underline">
+              Complete {consentNudge.formTitle || 'consent form'} →
+            </a>
+          </div>
         )}
 
         <div className="rounded-xl border border-border bg-background p-4 space-y-3">
@@ -288,18 +301,29 @@ export default function ParentClaim({
           <p className="text-[10px] text-muted-foreground mt-1">Helps us keep accurate school records — same as the consent form.</p>
         </div>
       )}
-      {ageRequired && (
-        <div>
+      {birthRequired && (
+        <div className="space-y-2">
           <input
             className={field}
-            type="number"
-            min={3}
-            max={25}
-            placeholder="Child&apos;s age (required for records)"
-            value={form.childAge}
-            onChange={e => setForm(f => ({ ...f, childAge: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+            type="date"
+            value={form.childDob}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={e => setForm(f => ({ ...f, childDob: e.target.value, childAge: e.target.value ? '' : f.childAge }))}
           />
-          <p className="text-[10px] text-muted-foreground mt-1">Approximate age is fine — used for class records and reports.</p>
+          <p className="text-[10px] text-muted-foreground">Child&apos;s date of birth (preferred for school records)</p>
+          {!form.childDob && (
+            <>
+              <input
+                className={field}
+                type="number"
+                min={3}
+                max={25}
+                placeholder="Or approximate age if you don&apos;t know the exact date"
+                value={form.childAge}
+                onChange={e => setForm(f => ({ ...f, childAge: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+              />
+            </>
+          )}
         </div>
       )}
       <label className="flex items-start gap-3 cursor-pointer">

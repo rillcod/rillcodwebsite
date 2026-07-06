@@ -2,6 +2,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ShieldCheckIcon, MagnifyingGlassIcon, ArrowPathIcon,
@@ -132,6 +133,7 @@ export default function ParentClaimsAuditPage() {
                   <th className="text-left px-4 py-3">Parent contact</th>
                   <th className="text-left px-4 py-3">Student</th>
                   <th className="text-left px-4 py-3">Details</th>
+                  <th className="text-left px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -153,6 +155,18 @@ export default function ParentClaimsAuditPage() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {row.siblings_linked > 0 && <span>{row.siblings_linked} sibling(s) linked · </span>}
                       {row.note || '—'}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {row.action === 'linked' && row.student_id ? (
+                        <Link
+                          href={`/dashboard/parents/add?student_id=${encodeURIComponent(row.student_id)}`}
+                          className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                        >
+                          Add co-parent
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

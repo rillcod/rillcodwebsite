@@ -34,6 +34,7 @@ export async function POST(request: Request) {
   const childGender = String(body.childGender ?? '').trim() || null;
   const childAgeRaw = String(body.childAge ?? '').trim();
   const childAge = childAgeRaw ? parseInt(childAgeRaw, 10) : null;
+  const childDob = String(body.childDob ?? '').trim() || null;
   const whatsappOptIn = body.whatsappOptIn === true || body.whatsappOptIn === 'true';
 
   if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 });
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
       student_id: guard.studentId, full_name: fullName, email, phone, relationship,
       child_name: childName || null, child_gender: childGender,
       child_age: Number.isFinite(childAge) ? childAge : null,
+      child_dob: childDob || null,
       whatsapp_opt_in: whatsappOptIn,
       code_hash: hashOtp(otp), expires_at: otpExpiry(),
     })

@@ -238,6 +238,7 @@ export function ParentForm({
   schools,
   officialClasses,
   defaultSchool,
+  preselectedStudentIds,
   onCancel,
   onSaved,
   onSchoolChange,
@@ -248,6 +249,7 @@ export function ParentForm({
   schools: string[];
   officialClasses?: { name: string; school_name: string | null }[];
   defaultSchool?: string;
+  preselectedStudentIds?: string[];
   onCancel: () => void;
   onSaved: () => void;
   onSchoolChange?: (school: string) => Promise<void>;
@@ -285,6 +287,15 @@ export function ParentForm({
     const t = teachers.find(x => x.id === selectedTeacherId);
     if (t?.section_class && !selectedClass) setSelectedClass(t.section_class);
   }, [selectedTeacherId, teachers, selectedClass]);
+
+  useEffect(() => {
+    if (isEdit || !preselectedStudentIds?.length || students.length === 0) return;
+    const valid = preselectedStudentIds.filter(id => students.some(s => s.id === id));
+    if (valid.length === 0) return;
+    setForm(f => ({ ...f, student_ids: valid }));
+    const first = students.find(s => s.id === valid[0]);
+    if (first?.school_name && !selectedSchool) setSelectedSchool(first.school_name);
+  }, [isEdit, preselectedStudentIds, students, selectedSchool]);
 
   const handleSchoolSelect = async (school: string) => {
     setSelectedSchool(school);

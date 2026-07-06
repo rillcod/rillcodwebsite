@@ -51,6 +51,7 @@ export async function POST(request: Request) {
     relationship: claim.relationship, childName: claim.child_name ?? undefined,
     childGender: claim.child_gender ?? undefined,
     childAge: claim.child_age ?? undefined,
+    childDob: claim.child_dob ?? undefined,
     whatsappOptIn: !!claim.whatsapp_opt_in,
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });

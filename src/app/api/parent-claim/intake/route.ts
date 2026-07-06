@@ -29,6 +29,7 @@ export async function POST(request: Request) {
   const childName = String(body.childName ?? '').trim();
   const childGender = String(body.childGender ?? '').trim() || null;
   const childAge = String(body.childAge ?? '').trim() || null;
+  const childDob = String(body.childDob ?? '').trim() || null;
   const whatsappOptIn = body.whatsappOptIn === true || body.whatsappOptIn === 'true';
 
   if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 });
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   if (!guard.studentId) return NextResponse.json({ error: guard.error }, { status: guard.status ?? 400 });
 
   const result = await completeParentClaim(admin, guard.studentId, {
-    fullName, email, phone, relationship, childName, childGender, childAge, whatsappOptIn,
+    fullName, email, phone, relationship, childName, childGender, childAge, childDob, whatsappOptIn,
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status ?? 500 });
 

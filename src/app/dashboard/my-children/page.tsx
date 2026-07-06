@@ -78,6 +78,21 @@ export default function MyChildrenPage() {
   const [statsMap, setStatsMap] = useState<Record<string, ChildStats>>({});
   const [activityEvents, setActivityEvents] = useState<ActivityEvent[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [pendingConsent, setPendingConsent] = useState<Array<{
+    studentUserId: string;
+    childName: string;
+    schoolName: string | null;
+    formUrl: string | null;
+    formTitle: string | null;
+  }>>([]);
+
+  useEffect(() => {
+    if (!profile || profile.role !== 'parent') return;
+    fetch('/api/parents/pending-consent')
+      .then(res => res.ok ? res.json() : { pending: [] })
+      .then(data => setPendingConsent(data.pending ?? []))
+      .catch(() => setPendingConsent([]));
+  }, [profile]);
 
   useEffect(() => {
     if (!profile) return;
@@ -170,6 +185,39 @@ export default function MyChildrenPage() {
           </div>
         </div>
       </div>
+
+      {pendingConsent.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="space-y-2 flex-1">
+              <p className="text-sm font-black text-foreground">School form(s) still needed</p>
+              <p className="text-xs text-muted-foreground">
+                Complete the one-time consent/assessment form so full results and report cards unlock for your child.
+              </p>
+              <ul className="space-y-2">
+                {pendingConsent.map(item => (
+                  <li key={item.studentUserId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <span className="text-xs font-bold text-foreground">
+                      {item.childName}{item.schoolName ? ` · ${item.schoolName}` : ''}
+                    </span>
+                    {item.formUrl ? (
+                      <a
+                        href={item.formUrl}
+                        className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline whitespace-nowrap"
+                      >
+                        Complete {item.formTitle || 'form'} →
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">Contact the school for the form link</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div>
         <h2 className="text-base font-black text-foreground tracking-tight">My Children</h2>

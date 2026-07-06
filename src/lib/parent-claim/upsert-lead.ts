@@ -14,6 +14,7 @@ export type LeadCaptureInput = {
   childName: string | null;
   childGender?: string | null;
   childAge?: number | null;
+  childDob?: string | null;
   whatsappOptIn?: boolean;
 };
 
@@ -37,6 +38,7 @@ export async function upsertResultCheckerLead(admin: AnySupabase, input: LeadCap
     last_claim_at: now,
     ...(input.childGender ? { child_gender: input.childGender } : {}),
     ...(input.childAge != null ? { child_age: String(input.childAge) } : {}),
+    ...(input.childDob ? { child_dob: input.childDob } : {}),
     ...(input.whatsappOptIn ? { parent_whatsapp_opt_in: true } : {}),
   };
 

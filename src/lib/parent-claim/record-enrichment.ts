@@ -13,6 +13,7 @@ export type StudentRecordGaps = {
 export type RecordEnrichmentResult = {
   genderRecorded: boolean;
   ageRecorded: boolean;
+  dobRecorded: boolean;
   whatsappOptInSet: boolean;
 };
 
@@ -27,6 +28,28 @@ export function normaliseChildAge(raw: string | number | null | undefined): numb
   const n = typeof raw === 'number' ? raw : parseInt(String(raw ?? '').trim(), 10);
   if (!Number.isFinite(n) || n < 3 || n > 25) return null;
   return n;
+}
+
+/** Parse YYYY-MM-DD; rejects future dates and unreasonably old births. */
+export function normaliseChildDob(raw: string | null | undefined): string | null {
+  const s = String(raw ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const d = new Date(`${s}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  if (d > now) return null;
+  const ageYears = (now.getTime() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+  if (ageYears < 2 || ageYears > 30) return null;
+  return s;
+}
+
+function ageFromDob(dob: string): number {
+  const born = new Date(`${dob}T12:00:00`);
+  const now = new Date();
+  let age = now.getFullYear() - born.getFullYear();
+  const m = now.getMonth() - born.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < born.getDate())) age--;
+  return age;
 }
 
 async function fetchStudentRow(admin: AnySupabase, studentUserId: string) {
@@ -78,6 +101,33 @@ export async function applyParentSuppliedChildGender(
   try {
     await admin.from('portal_users').update({ gender, updated_at: now }).eq('id', studentUserId);
   } catch { /* best-effort */ }
+  return true;
+}
+
+/**
+ * Fill-only: exact date of birth (preferred over age alone).
+ */
+export async function applyParentSuppliedChildDob(
+  admin: AnySupabase,
+  studentUserId: string,
+  rawDob: string | null | undefined,
+): Promise<boolean> {
+  const dob = normaliseChildDob(rawDob);
+  if (!dob) return false;
+
+  const childRowId = await resolveOrCreateStudentRowId(admin, studentUserId);
+  if (!childRowId) return false;
+
+  const { data: existing } = await admin
+    .from('students')
+    .select('age, date_of_birth')
+    .eq('id', childRowId)
+    .maybeSingle();
+  if (existing?.age != null || String(existing?.date_of_birth ?? '').trim()) return false;
+
+  const age = ageFromDob(dob);
+  const now = new Date().toISOString();
+  await admin.from('students').update({ date_of_birth: dob, age, updated_at: now }).eq('id', childRowId);
   return true;
 }
 
@@ -136,13 +186,15 @@ export async function applyParentRecordEnrichment(
     phone: string | null;
     childGender?: string | null;
     childAge?: string | number | null;
+    childDob?: string | null;
     whatsappOptIn?: boolean;
   },
 ): Promise<RecordEnrichmentResult> {
+  const dobRecorded = await applyParentSuppliedChildDob(admin, input.studentUserId, input.childDob);
   const [genderRecorded, ageRecorded, whatsappOptInSet] = await Promise.all([
     applyParentSuppliedChildGender(admin, input.studentUserId, input.childGender),
-    applyParentSuppliedChildAge(admin, input.studentUserId, input.childAge),
+    dobRecorded ? Promise.resolve(false) : applyParentSuppliedChildAge(admin, input.studentUserId, input.childAge),
     applyParentWhatsappOptIn(admin, input.parentId, input.phone, !!input.whatsappOptIn),
   ]);
-  return { genderRecorded, ageRecorded, whatsappOptInSet };
+  return { genderRecorded, ageRecorded, dobRecorded, whatsappOptInSet };
 }
