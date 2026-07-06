@@ -215,55 +215,82 @@ export const OKLCH_HEX_OVERRIDES = `
 // Uses html-to-image which renders via the browser's native foreignObject SVG
 // renderer — no custom CSS parser, so oklch/lab/lch/display-p3 all work natively.
 
-/** Internal: renders element → jsPDF instance (shared by save + blob variants) */
+/** Internal: renders element → jsPDF instance (shared by save + blob variants).
+ *  Captures from a full-size off-screen clone so downloads still produce a crisp
+ *  A4 PDF even when the on-screen card is scaled down (mobile). */
 async function buildPdf(element: HTMLElement, isLandscape = false, pixelRatio = 1.5, jpegQuality = 0.92) {
     const [{ toPng }, { default: jsPDF }] = await Promise.all([
         import('html-to-image'),
         import('jspdf'),
     ]);
 
-    const imgs = element.querySelectorAll('img');
-    await Promise.allSettled(
-        Array.from(imgs).map(img =>
-            img.complete
-                ? Promise.resolve()
-                : new Promise(res => { img.onload = res; img.onerror = res; })
-        )
-    );
-
     const W = isLandscape ? 1122 : 794;
-    const H = isLandscape ? 794 : element.scrollHeight;
 
-    const pngUrl = await toPng(element, {
-        pixelRatio,
-        cacheBust: true,
-        skipAutoScale: false,
-        width: W,
-        height: H,
-        backgroundColor: '#fff',
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.style.width = `${W}px`;
+    clone.style.maxWidth = 'none';
+    // Undo the responsive ScaledReportCard shrink so the clone lays out at full A4 width
+    clone.querySelectorAll<HTMLElement>('[data-scaled-card]').forEach(el => {
+        el.style.height = 'auto';
+        el.style.overflow = 'visible';
     });
-
-    // Convert PNG→JPEG via canvas before passing to jsPDF.
-    // jsPDF's PNG path does Array.join('') on raw pixel bytes which overflows
-    // the JS max string length on large reports. JPEG path avoids this entirely.
-    const jpegUrl = await new Promise<string>(resolve => {
-        const img = new Image();
-        img.onload = () => {
-            const c = document.createElement('canvas');
-            c.width = img.width;
-            c.height = img.height;
-            const ctx = c.getContext('2d')!;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, c.width, c.height);
-            ctx.drawImage(img, 0, 0);
-            resolve(c.toDataURL('image/jpeg', jpegQuality));
-        };
-        img.src = pngUrl;
+    clone.querySelectorAll<HTMLElement>('[data-scaled-inner]').forEach(el => {
+        el.style.transform = 'none';
     });
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText =
+        `position:fixed;left:0;top:0;width:${W}px;background:#fff;z-index:99999;pointer-events:none;opacity:0.001;`;
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
 
-    const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
-    pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
-    return pdf;
+    try {
+        // One layout pass so scrollHeight reflects the full-size clone
+        await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+        const imgs = clone.querySelectorAll('img');
+        await Promise.allSettled(
+            Array.from(imgs).map(img =>
+                img.complete
+                    ? Promise.resolve()
+                    : new Promise(res => { img.onload = res; img.onerror = res; })
+            )
+        );
+
+        const H = isLandscape ? 794 : clone.scrollHeight;
+
+        const pngUrl = await toPng(clone, {
+            pixelRatio,
+            cacheBust: true,
+            skipAutoScale: false,
+            width: W,
+            height: H,
+            backgroundColor: '#fff',
+        });
+
+        // Convert PNG→JPEG via canvas before passing to jsPDF.
+        // jsPDF's PNG path does Array.join('') on raw pixel bytes which overflows
+        // the JS max string length on large reports. JPEG path avoids this entirely.
+        const jpegUrl = await new Promise<string>(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.width;
+                c.height = img.height;
+                const ctx = c.getContext('2d')!;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, c.width, c.height);
+                ctx.drawImage(img, 0, 0);
+                resolve(c.toDataURL('image/jpeg', jpegQuality));
+            };
+            img.src = pngUrl;
+        });
+
+        const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
+        pdf.addImage(jpegUrl, 'JPEG', 0, 0, W, H);
+        return pdf;
+    } finally {
+        document.body.removeChild(wrapper);
+    }
 }
 
 /** Download the report as a PDF file */
@@ -509,6 +536,7 @@ export function ScaledReportCard({ children, report, responsive = false }: { chi
     return (
         <div
             ref={containerRef}
+            data-scaled-card
             style={{
                 width: '100%',
                 overflow: 'hidden',
@@ -517,6 +545,7 @@ export function ScaledReportCard({ children, report, responsive = false }: { chi
         >
             <div
                 ref={innerRef}
+                data-scaled-inner
                 style={{
                     transform: `scale(${scale})`,
                     transformOrigin: 'top left',
@@ -561,6 +590,9 @@ export function printElement(el: HTMLElement) {
 ${linkTags}
 <style>
 ${styleSheets}
+/* Print at full A4 size even when the on-screen card was scaled down for mobile */
+[data-scaled-card] { height: auto !important; overflow: visible !important; }
+[data-scaled-inner] { transform: none !important; }
 @media print { @page { margin: 12mm 10mm; } body { margin: 0; background: white; } }
 </style>
 </head>

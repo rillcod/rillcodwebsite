@@ -370,11 +370,15 @@ export default function ResultQuickCheckPage() {
                     )}
 
                     {selectedReport && (
-                      <div className="overflow-auto rounded-[1.5rem] border border-border bg-white p-3 sm:p-5">
-                        <div ref={reportRef} className="relative mx-auto bg-white" style={{ width: '210mm', minHeight: '297mm' }}>
-                          <div className="absolute right-5 top-5 z-20 rounded-full border border-emerald-200 bg-white/95 px-4 py-2 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700 shadow-sm">
-                            Verified by Rillcod Technologies
-                          </div>
+                      <div className="relative rounded-[1.5rem] border border-border bg-white p-2 sm:p-5">
+                        {/* Screen-only badge — kept outside the printable area so it never
+                            covers the report write-up on print or PDF. */}
+                        <div className="absolute right-3 top-3 sm:right-7 sm:top-7 z-20 rounded-full border border-emerald-200 bg-white/95 px-3 py-1.5 sm:px-4 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.18em] text-emerald-700 shadow-sm pointer-events-none print:hidden">
+                          Verified by Rillcod Technologies
+                        </div>
+                        {/* Full A4 on desktop; scales down to fit the phone screen so the
+                            whole page is visible at a glance (pinch-zoom still works). */}
+                        <div ref={reportRef} className="mx-auto bg-white w-full" style={{ maxWidth: '210mm' }}>
                           <ScaledReportCard report={selectedReport} responsive>
                             <ModernReportCard report={selectedReport} orgSettings={data?.orgSettings ?? null} />
                           </ScaledReportCard>
