@@ -916,6 +916,23 @@ export default function CardStudioPage() {
                 </button>
               ))}
             </div>
+            {/* Custom dimensions (mm) — overrides the presets above. */}
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 flex-1">
+                <span className="text-[8px] font-bold uppercase text-muted-foreground/70">W</span>
+                <input type="number" min={30} max={150} step={0.1} value={parseFloat(cfg.width)||''}
+                  onChange={e=>{const v=parseFloat(e.target.value);if(!isNaN(v)&&v>0)update({width:`${Math.min(150,Math.max(30,v))}mm`});}}
+                  className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-[11px] font-mono focus:outline-none focus:border-primary rounded-md"/>
+              </label>
+              <span className="text-[10px] text-muted-foreground/50 font-bold">×</span>
+              <label className="flex items-center gap-1.5 flex-1">
+                <span className="text-[8px] font-bold uppercase text-muted-foreground/70">H</span>
+                <input type="number" min={30} max={150} step={0.1} value={parseFloat(cfg.height)||''}
+                  onChange={e=>{const v=parseFloat(e.target.value);if(!isNaN(v)&&v>0)update({height:`${Math.min(150,Math.max(30,v))}mm`});}}
+                  className="w-full px-2 py-1.5 bg-background border border-border text-foreground text-[11px] font-mono focus:outline-none focus:border-primary rounded-md"/>
+              </label>
+              <span className="text-[8px] font-bold uppercase text-muted-foreground/50">mm</span>
+            </div>
           </div>
           <div>
             <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">QR Size</div>
