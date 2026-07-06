@@ -13,6 +13,9 @@ export type CredentialDelivery = {
   studentPasswordSent: boolean;
   parentEmail?: string;
   studentEmail?: string;
+  /** One-tap login links for the post-scan done screen (password pre-filled when temp creds were issued). */
+  parentLoginUrl?: string;
+  studentLoginUrl?: string;
 };
 
 type LoginBlock = { email: string; password: string | null; label: string; accent: string };
@@ -161,9 +164,13 @@ export async function deliverResultCheckerCredentials(
   sent.studentEmail = studentPU?.email ?? undefined;
   sent.parentPasswordSent = !!parentPw;
   sent.studentPasswordSent = !!studentPw;
+  sent.parentLoginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}${parentPw ? `&pw=${encodeURIComponent(parentPw)}` : ''}`;
+  if (studentPU?.email) {
+    sent.studentLoginUrl = `${appUrl}/login?type=student&email=${encodeURIComponent(studentPU.email)}${studentPw ? `&pw=${encodeURIComponent(studentPw)}` : ''}`;
+  }
 
   const firstName = (childName || studentPU?.full_name || 'your child').trim().split(/\s+/)[0];
-  const loginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}${parentPw ? `&pw=${encodeURIComponent(parentPw)}` : ''}`;
+  const loginUrl = sent.parentLoginUrl;
 
   const bodyHtml = `
     <p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">
