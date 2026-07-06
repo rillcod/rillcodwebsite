@@ -34,11 +34,11 @@ interface CardConfig {
   cornerRadius: 'sharp' | 'rounded' | 'pill';
   bgColor: string; showLogo: boolean; showPhotoSlot: boolean;
   cardOrientation: 'portrait' | 'landscape';
-  width: string; height: string; qrScale?: number; fields: FieldConfig[];
+  width: string; height: string; qrScale?: number; showCardLabel?: boolean; fields: FieldConfig[];
   typo: {
     orgName: TypoStyle; orgWebsite: TypoStyle; studentName: TypoStyle;
     school: TypoStyle; fieldLabel: TypoStyle; fieldValue: TypoStyle;
-    accentValue: TypoStyle; footer: TypoStyle;
+    accentValue: TypoStyle; footer: TypoStyle; cardLabel: TypoStyle;
   };
 }
 
@@ -68,13 +68,14 @@ const DEFAULT_TYPO: CardConfig['typo'] = {
   fieldValue:  { fontSize: '2.1mm', fontWeight: '700', color: '#111827',              fontFamily: 'mono' },
   accentValue: { fontSize: '2.2mm', fontWeight: '800', color: '#1A3A8F',              fontFamily: 'mono' },
   footer:      { fontSize: '1.5mm', fontWeight: '600', color: '#9ca3af',              fontFamily: 'sans' },
+  cardLabel:   { fontSize: '1.6mm', fontWeight: '900', color: '#ffffff',              fontFamily: 'sans' },
 };
 
 const DEFAULT_CONFIG: CardConfig = {
   accentColor: '#1A3A8F', headerStyle: 'band',
   orgName: 'RILLCOD TECHNOLOGIES', orgWebsite: 'www.rillcod.com',
   cardLabel: 'Student Access Card', footerLeft: 'rillcod.com/login', footerRight: 'Student ID',
-  cornerRadius: 'sharp', bgColor: '#ffffff', showLogo: true, showPhotoSlot: false,
+  cornerRadius: 'sharp', bgColor: '#ffffff', showLogo: true, showPhotoSlot: false, showCardLabel: true,
   cardOrientation: 'portrait', width: '54mm', height: '85.6mm',
   fields: DEFAULT_FIELDS, typo: DEFAULT_TYPO,
 };
@@ -299,7 +300,7 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
               <div style={{fontSize:8,fontWeight:900,color:'#fff',textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{config.orgName}</div>
               <div style={{fontSize:6,color:'rgba(255,255,255,0.8)',fontWeight:700,marginTop:1}}>{config.orgWebsite}</div>
             </div>
-            <div style={{background:'rgba(0,0,0,0.22)',color:'#fff',padding:'2px 6px',fontSize:6,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>
+            {config.showCardLabel!==false && <div style={{background:'rgba(0,0,0,0.22)',color:config.typo?.cardLabel?.color||'#fff',padding:'2px 6px',fontSize:6,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>}
           </div>
         )}
         {hStyle==='border'&&(
@@ -308,13 +309,13 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
               <div style={{fontSize:8,fontWeight:900,color:'#111',textTransform:'uppercase'}}>{config.orgName}</div>
               <div style={{fontSize:6,color:acc,fontWeight:700,marginTop:1}}>{config.orgWebsite}</div>
             </div>
-            <div style={{background:acc,color:'#fff',padding:'2px 6px',fontSize:6,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>
+            {config.showCardLabel!==false && <div style={{background:acc,color:config.typo?.cardLabel?.color||'#fff',padding:'2px 6px',fontSize:6,fontWeight:900,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>}
           </div>
         )}
         {hStyle==='minimal'&&(
           <div style={{borderBottom:`2px solid ${acc}`,padding:'6px 10px',display:'flex',alignItems:'center',gap:6}}>
             <div style={{flex:1,fontSize:8,fontWeight:900,color:'#111',textTransform:'uppercase',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{config.orgName}</div>
-            <div style={{fontSize:7,fontWeight:900,color:acc,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>
+            {config.showCardLabel!==false && <div style={{fontSize:7,fontWeight:900,color:config.typo?.cardLabel?.color||acc,textTransform:'uppercase',flexShrink:0}}>{config.cardLabel}</div>}
           </div>
         )}
         <div style={{display:'flex',minHeight:80}}>
@@ -489,7 +490,9 @@ export default function CardStudioPage() {
     setCfg(prev => ({ ...prev, fields: arr }));
   };
   const updateTypo = (elem: keyof CardConfig['typo'], patch: Partial<TypoStyle>) =>
-    setCfg(prev => ({ ...prev, typo: { ...prev.typo, [elem]: { ...prev.typo[elem], ...patch } } }));
+    // Base on DEFAULT_TYPO so a style missing from an older saved config (e.g. cardLabel)
+    // is always complete after an edit.
+    setCfg(prev => ({ ...prev, typo: { ...prev.typo, [elem]: { ...DEFAULT_TYPO[elem], ...prev.typo[elem], ...patch } } }));
 
   const handleSave = async () => {
     try {
@@ -938,10 +941,13 @@ export default function CardStudioPage() {
             </div>
           </div>
           <div>
-            <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">QR Size</div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 font-bold">QR Size</div>
+              <span className="text-[9px] font-mono font-bold text-primary">{Math.round((cfg.qrScale??1)*100)}%</span>
+            </div>
             <div className="flex gap-1.5 mb-2">
               {([{label:'Compact',v:0.85},{label:'Standard',v:1},{label:'Large',v:1.35}]).map(s=>{
-                const active=(cfg.qrScale??1)===s.v;
+                const active=Math.abs((cfg.qrScale??1)-s.v)<0.001;
                 return (
                   <button key={s.label} onClick={()=>update({qrScale:s.v})}
                     className={`flex-1 py-1.5 text-[8px] font-bold uppercase border transition-all truncate rounded-md ${active?'border-primary bg-primary/10 text-primary':'border-border text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
@@ -950,6 +956,10 @@ export default function CardStudioPage() {
                 );
               })}
             </div>
+            {/* Free scaling — drag to any size between 50% and 200%. */}
+            <input type="range" min={0.5} max={2} step={0.05} value={cfg.qrScale??1}
+              onChange={e=>update({qrScale:parseFloat(e.target.value)})}
+              className="w-full accent-primary cursor-pointer"/>
           </div>
           <div>
             <div className="text-[9px] uppercase tracking-widest text-muted-foreground/80 mb-2 font-bold">Background</div>
@@ -968,7 +978,7 @@ export default function CardStudioPage() {
             </div>
           </div>
           <div className="space-y-2">
-            {([{key:'showLogo' as const,label:'Show Logo',desc:'Logo in header'},{key:'showPhotoSlot' as const,label:'Photo Slot',desc:'Student photo space'}]).map(opt=>(
+            {([{key:'showLogo' as const,label:'Show Logo',desc:'Logo in header'},{key:'showPhotoSlot' as const,label:'Photo Slot',desc:'Student photo space'},{key:'showCardLabel' as const,label:'Card Label',desc:'“Student Access Card” badge'}]).map(opt=>(
               <label key={opt.key} className="flex items-center gap-3 cursor-pointer py-1">
                 <div onClick={()=>update({[opt.key]:!cfg[opt.key]})}
                   className={`w-8 h-4 rounded-full flex-shrink-0 transition-all relative ${cfg[opt.key]?'bg-primary':'bg-muted'}`}>
@@ -1018,8 +1028,8 @@ export default function CardStudioPage() {
 
         <SidebarSection title="Typography" open={openSections.has('typography')} onToggle={()=>toggleSection('typography')}>
           <div className="space-y-3">
-            {([{elem:'orgName' as const,label:'Org Name'},{elem:'studentName' as const,label:'Student Name'},{elem:'school' as const,label:'School'},{elem:'fieldLabel' as const,label:'Field Labels'},{elem:'fieldValue' as const,label:'Field Values'},{elem:'accentValue' as const,label:'Accent Values'},{elem:'footer' as const,label:'Footer'}]).map(({elem,label})=>{
-              const s=cfg.typo[elem];
+            {([{elem:'cardLabel' as const,label:'Card Label'},{elem:'orgName' as const,label:'Org Name'},{elem:'studentName' as const,label:'Student Name'},{elem:'school' as const,label:'School'},{elem:'fieldLabel' as const,label:'Field Labels'},{elem:'fieldValue' as const,label:'Field Values'},{elem:'accentValue' as const,label:'Accent Values'},{elem:'footer' as const,label:'Footer'}]).map(({elem,label})=>{
+              const s=cfg.typo[elem]??DEFAULT_TYPO[elem];
               return (
                 <div key={elem} className="border border-border p-2.5 rounded-lg space-y-2 bg-background">
                   <div className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">{label}</div>

@@ -28,6 +28,8 @@ export interface CardConfig {
   bgColor?: string;
   showLogo?: boolean;
   showPhotoSlot?: boolean;
+  /** Show the "Student Access Card" badge in the header (default true). */
+  showCardLabel?: boolean;
   cornerRadius?: 'sharp' | 'rounded' | 'pill';
   /** CR80 dimensions from Card Studio (e.g. '54mm' × '85.6mm'). */
   width?: string;
@@ -285,7 +287,7 @@ export async function buildBulkPrintHtml(
       <div class="${hdrClass}">
         ${cfg.showLogo !== false ? `<img class="logo" src="${logoUrl}" />` : ''}
         <div><div class="org">${cfg.orgName}</div><div class="web">${cfg.orgWebsite}</div></div>
-        <div class="cbadge">${cfg.cardLabel}</div>
+        ${cfg.showCardLabel !== false ? `<div class="cbadge" style="color:${tc('cardLabel', '#fff')}">${cfg.cardLabel}</div>` : ''}
       </div>
       <div class="body">
         <div class="left">
