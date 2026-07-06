@@ -136,6 +136,21 @@ export default function VerifyCodePage() {
   const [classRank, setClassRank] = useState<{ position: number; classSize: number } | null>(null);
   const [parentCaptured, setParentCaptured] = useState(false);
   const [claimUnlocked, setClaimUnlocked] = useState(false);
+  const [staffUnlocked, setStaffUnlocked] = useState(false);
+
+  // Logged-in staff (admin/teacher/school) bypass the parent gate — verified server-side
+  // via their session, not a client guess. Parents on the public page are unaffected.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/me')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        const role = j?.profile?.role;
+        if (!cancelled && role && ['admin', 'teacher', 'school'].includes(role)) setStaffUnlocked(true);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const [certificate, setCertificate] = useState<any | null>(null);
   const [card, setCard] = useState<any | null>(null);
   const [mode, setMode] = useState<'report' | 'certificate' | 'card' | null>(null);
@@ -369,7 +384,12 @@ export default function VerifyCodePage() {
               {/* MODE: Report Display */}
               {mode === 'report' && report && (
                 <div className="space-y-12">
-                  {(parentCaptured || claimUnlocked) ? (
+                  {staffUnlocked && !parentCaptured && (
+                    <div className="bg-primary/5 border border-primary/20 rounded-2xl px-5 py-3 text-center">
+                      <p className="text-[11px] font-black uppercase tracking-widest text-primary">Staff view — result shown without the parent gate</p>
+                    </div>
+                  )}
+                  {(parentCaptured || claimUnlocked || staffUnlocked) ? (
                   <>
                   {/* Academic year / term selector — lets a school view this student's
                       other published terms instead of only the scanned one. */}
@@ -435,11 +455,14 @@ export default function VerifyCodePage() {
                     </div>
                   )}
 
-                  {/* Self-service parent link — also the gate that unlocks the result */}
-                  <ParentClaim
-                    code={activeCode || String(code)}
-                    onLinked={() => { setClaimUnlocked(true); setParentCaptured(true); }}
-                  />
+                  {/* Self-service parent link — also the gate that unlocks the result.
+                      Hidden for staff, who aren't the parent and already bypass the gate. */}
+                  {!staffUnlocked && (
+                    <ParentClaim
+                      code={activeCode || String(code)}
+                      onLinked={() => { setClaimUnlocked(true); setParentCaptured(true); }}
+                    />
+                  )}
                 </div>
               )}
 
