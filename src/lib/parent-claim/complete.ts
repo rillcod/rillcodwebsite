@@ -5,7 +5,7 @@ import { looseNameMatch } from './name-match';
 import { provisionParentAndLinkChild, autoLinkSiblings } from './provision';
 import { ensureResultIntakeForm } from './intake-form';
 import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
-import { deliverParentLogin } from '@/lib/parents/deliver-login';
+import { deliverResultCheckerCredentials, type CredentialDelivery } from '@/lib/parent-claim/deliver-credentials';
 
 type Db = SupabaseClient<Database>;
 
@@ -25,6 +25,7 @@ export interface ClaimResult {
   accountCreated?: boolean;
   siblingsLinked?: number;
   siblingNames?: string[];
+  credentials?: CredentialDelivery;
 }
 
 /**
@@ -169,9 +170,16 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     }
   }
 
-  if (prov.accountCreated && prov.generatedPassword) {
-    await deliverParentLogin({ email, phone, fullName, password: prov.generatedPassword, schoolName: prov.schoolName });
-  }
+  const credentials = await deliverResultCheckerCredentials(admin, {
+    parentId: prov.parentId,
+    studentUserId: studentId,
+    parentEmail: email,
+    parentPhone: phone,
+    parentName: fullName,
+    childName: prov.childName ?? null,
+    schoolName: prov.schoolName ?? null,
+    newParentPassword: prov.generatedPassword ?? null,
+  });
 
   // Accountability + staff visibility (both best-effort).
   await logClaimAudit(admin, {
@@ -186,5 +194,6 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     accountCreated: !!prov.accountCreated,
     siblingsLinked: siblingNames.length,
     siblingNames,
+    credentials,
   };
 }

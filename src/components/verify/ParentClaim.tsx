@@ -22,7 +22,20 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
   const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ childName: string | null; accountCreated: boolean; siblingsLinked: number } | null>(null);
+  const [done, setDone] = useState<{
+    childName: string | null;
+    accountCreated: boolean;
+    siblingsLinked: number;
+    credentials?: {
+      email?: boolean;
+      whatsapp?: boolean;
+      parentPasswordSent?: boolean;
+      studentPasswordSent?: boolean;
+      receiptAttached?: boolean;
+      parentEmail?: string;
+      studentEmail?: string;
+    } | null;
+  } | null>(null);
 
   // Resend cooldown ticker.
   useEffect(() => {
@@ -43,7 +56,12 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
   const box = 'bg-card border border-border rounded-2xl p-6 space-y-4';
 
   function applyDone(j: any) {
-    setDone({ childName: j.childName ?? null, accountCreated: !!j.accountCreated, siblingsLinked: j.siblingsLinked ?? 0 });
+    setDone({
+      childName: j.childName ?? null,
+      accountCreated: !!j.accountCreated,
+      siblingsLinked: j.siblingsLinked ?? 0,
+      credentials: j.credentials ?? null,
+    });
     setStep('done');
     onLinked?.(); // unlock the gated result on the verify page
   }
@@ -99,15 +117,51 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
   }
 
   if (step === 'done' && done) {
+    const creds = done.credentials;
+    const deliveryNote = creds?.email || creds?.whatsapp
+      ? `Login details sent${creds.email && creds.whatsapp ? ' by email and WhatsApp' : creds.email ? ' by email' : ' via WhatsApp'}.`
+      : 'We could not deliver login details automatically — use the button below or contact the school.';
+
     return (
       <div className={box}>
         <p className="text-sm font-black text-emerald-400">✓ Done{done.childName ? ` — ${done.childName} is linked to your account` : ''}.</p>
         {done.siblingsLinked > 0 && (
           <p className="text-xs text-foreground">We also linked {done.siblingsLinked} sibling{done.siblingsLinked !== 1 ? 's' : ''} on record with your contact.</p>
         )}
-        {done.accountCreated
-          ? <p className="text-xs text-muted-foreground">Your parent login was sent to your email and WhatsApp — sign in anytime to manage results.</p>
-          : <p className="text-xs text-muted-foreground">Your existing parent account is now linked. Sign in to see all your children.</p>}
+
+        <div className="rounded-xl border border-border bg-background p-4 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your portal access</p>
+          <p className="text-xs text-muted-foreground">{deliveryNote}</p>
+
+          {creds?.parentEmail && (
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Parent portal</p>
+              <p className="text-xs font-mono text-foreground mt-1">{creds.parentEmail}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {creds.parentPasswordSent
+                  ? 'Temporary password included in your email/WhatsApp.'
+                  : 'Use your existing password or reset at login.'}
+              </p>
+            </div>
+          )}
+
+          {creds?.studentEmail && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary">Student portal</p>
+              <p className="text-xs font-mono text-foreground mt-1">{creds.studentEmail}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {creds.studentPasswordSent
+                  ? 'Temporary password included in your email/WhatsApp.'
+                  : 'Your child should use their existing password or reset at login.'}
+              </p>
+            </div>
+          )}
+
+          {creds?.receiptAttached && (
+            <p className="text-[10px] text-emerald-400 font-bold">Payment receipt attached to your email.</p>
+          )}
+        </div>
+
         <a
           href={`/login?type=parent&email=${encodeURIComponent(form.email)}`}
           className="inline-block px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all"

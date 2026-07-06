@@ -48,5 +48,6 @@ export async function POST(request: Request) {
     accountCreated: !!result.accountCreated,
     siblingsLinked: result.siblingsLinked ?? 0,
     siblingNames: result.siblingNames ?? [],
+    credentials: result.credentials ?? null,
   });
 }

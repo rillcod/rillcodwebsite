@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -76,54 +76,44 @@ export default function ResultQuickCheckPage() {
   const reportRef = useRef<HTMLDivElement | null>(null);
   const lastReportActionAt = useRef(0);
 
-  useEffect(() => {
+  const loadResultCheck = useCallback(async () => {
     if (!code) {
       setData({ error: 'Missing result check code.' });
       setLoading(false);
       return;
     }
 
-    let cancelled = false;
     setLoading(true);
-    fetch(`/api/public/student/${encodeURIComponent(code)}/reports?accessCode=${encodeURIComponent(code)}`, {
-      cache: 'no-store',
-    })
-      .then(async (res) => {
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok && !json?.consentRequired) {
-          throw new Error(json?.error || 'Result check failed.');
-        }
-        return json;
-      })
-      .then((json) => {
-        if (!cancelled) {
-          setData(json);
-          setSelectedReportId(json?.reports?.[0]?.id ?? null);
-        }
-      })
-      .catch(async (err) => {
-        // Not a student result — the code may be a non-student ID card (teacher/parent/
-        // school). Fall back to card identity so those QRs still verify here.
-        try {
-          const cres = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(code)}`, { cache: 'no-store' });
-          const cjson = await cres.json().catch(() => ({}));
-          if (!cancelled && cres.ok && cjson?.card) {
-            setData({ card: cjson.card, cardResult: cjson.result });
-            return;
-          }
-        } catch {
-          /* fall through to the generic error below */
-        }
-        if (!cancelled) setData({ error: err.message || 'Result check failed.' });
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+    try {
+      const res = await fetch(`/api/public/student/${encodeURIComponent(code)}/reports?accessCode=${encodeURIComponent(code)}`, {
+        cache: 'no-store',
       });
-
-    return () => {
-      cancelled = true;
-    };
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok && !json?.consentRequired) {
+        throw new Error(json?.error || 'Result check failed.');
+      }
+      setData(json);
+      setSelectedReportId(json?.reports?.[0]?.id ?? null);
+    } catch (err) {
+      try {
+        const cres = await fetch(`/api/cards/verify-public?code=${encodeURIComponent(code)}`, { cache: 'no-store' });
+        const cjson = await cres.json().catch(() => ({}));
+        if (cres.ok && cjson?.card) {
+          setData({ card: cjson.card, cardResult: cjson.result });
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+      setData({ error: err instanceof Error ? err.message : 'Result check failed.' });
+    } finally {
+      setLoading(false);
+    }
   }, [code]);
+
+  useEffect(() => {
+    void loadResultCheck();
+  }, [loadResultCheck]);
 
   const reports = useMemo(() => data?.reports ?? [], [data?.reports]);
   const selectedReport = reports.find((report) => report.id === selectedReportId) ?? reports[0] ?? null;
@@ -320,7 +310,7 @@ export default function ResultQuickCheckPage() {
                   </div>
                 </div>
 
-                <ResultGate code={code} captured={!!data.parentCaptured || !!data.consentComplete}>
+                <ResultGate code={code} captured={!!data.parentCaptured || !!data.consentComplete} onClaimLinked={() => void loadResultCheck()}>
                 {reports.length === 0 ? (
                   <div className="rounded-[1.5rem] border border-border bg-background p-8 text-center">
                     <DocumentChartBarIcon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />

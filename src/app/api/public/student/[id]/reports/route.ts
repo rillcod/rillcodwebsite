@@ -5,6 +5,7 @@ import { RateLimitError } from '@/lib/errors';
 import { compareReportsByPeriodDesc } from '@/lib/reports/academic-period';
 import { getResultConsentAccessStatus } from '@/lib/consent/result-access';
 import { isParentCaptured } from '@/lib/parent-claim/captured';
+import { backfillParentLinkFromConsent } from '@/lib/parent-claim/consent-backfill';
 import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
 import type { Database, Json } from '@/types/supabase';
@@ -315,6 +316,10 @@ export async function GET(
     course_name: report.course_name,
     published_at: report.updated_at,
   }));
+
+  // Backfill parent_student_links from a completed consent lead when staff matched the
+  // form but the junction row was never written — keeps gate + response in sync.
+  await backfillParentLinkFromConsent(db, student.id, consent);
 
   // Has a REAL parent been captured (verified linked account, not just a bulk email)?
   const parentCaptured = await isParentCaptured(db, student.id);
