@@ -456,12 +456,22 @@ export default function VerifyCodePage() {
                   )}
 
                   {/* Self-service parent link — also the gate that unlocks the result.
-                      Hidden for staff, who aren't the parent and already bypass the gate. */}
-                  {!staffUnlocked && (
+                      Shown only while the child isn't yet captured (or just claimed);
+                      hidden for staff and for already-linked children (anti-hijack). */}
+                  {!staffUnlocked && (!parentCaptured || claimUnlocked) && (
                     <ParentClaim
                       code={activeCode || String(code)}
                       onLinked={() => { setClaimUnlocked(true); setParentCaptured(true); }}
                     />
+                  )}
+                  {!staffUnlocked && parentCaptured && !claimUnlocked && (
+                    <div className="bg-card border border-border rounded-2xl p-5 text-center">
+                      <p className="text-xs text-muted-foreground">
+                        Are you the parent/guardian?{' '}
+                        <a href="/login?type=parent" className="text-primary font-bold underline">Sign in to your portal</a>{' '}
+                        to manage results. To be added to this child’s account, contact the school.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

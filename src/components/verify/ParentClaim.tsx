@@ -102,6 +102,12 @@ export default function ParentClaim({ code, onLinked }: { code: string; onLinked
         {done.accountCreated
           ? <p className="text-xs text-muted-foreground">Your parent login was sent to your email and WhatsApp — sign in anytime to manage results.</p>
           : <p className="text-xs text-muted-foreground">Your existing parent account is now linked. Sign in to see all your children.</p>}
+        <a
+          href={`/login?type=parent&email=${encodeURIComponent(form.email)}`}
+          className="inline-block px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all"
+        >
+          Sign in to my parent portal
+        </a>
       </div>
     );
   }

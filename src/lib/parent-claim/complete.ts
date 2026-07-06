@@ -62,6 +62,32 @@ export async function resolveAndGuardChild(
 export async function completeParentClaim(admin: Db, studentId: string, details: ClaimDetails): Promise<ClaimResult> {
   const { fullName, email, phone, relationship } = details;
 
+  // Anti-hijack: if this child is ALREADY linked to a parent whose contact differs from
+  // the claimant, don't silently attach a stranger (possession of the QR + owning your
+  // own email doesn't make you the parent). Route them to the school instead. A matching
+  // contact (the same parent re-claiming, or a co-parent already on file) still passes.
+  const { data: childStudent } = await admin
+    .from('students').select('id, parent_email, parent_phone').eq('user_id', studentId).maybeSingle();
+  if (childStudent) {
+    const exEmail = (childStudent.parent_email ?? '').trim().toLowerCase();
+    const exPhone = (childStudent.parent_phone ?? '').replace(/\D/g, '');
+    const inPhone = (phone ?? '').replace(/\D/g, '');
+    let hasParent = !!exEmail;
+    if (!hasParent) {
+      const { data: link } = await admin
+        .from('parent_student_links').select('id').eq('student_id', childStudent.id).limit(1).maybeSingle();
+      hasParent = !!link;
+    }
+    const matchesExisting = (!!exEmail && exEmail === email) || (!!exPhone && !!inPhone && exPhone === inPhone);
+    if (hasParent && !matchesExisting) {
+      return {
+        ok: false,
+        status: 409,
+        error: 'This child is already linked to a parent account. Please ask the school to add you as an additional guardian.',
+      };
+    }
+  }
+
   const prov = await provisionParentAndLinkChild(admin, { email, phone, fullName, relationship, studentId });
   if (!prov.ok || !prov.parentId) {
     return { ok: false, error: prov.error ?? 'Could not link your account.', status: prov.status ?? 500 };
