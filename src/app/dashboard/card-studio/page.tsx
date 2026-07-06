@@ -436,7 +436,7 @@ export default function CardStudioPage() {
   const [cfg, setCfg] = useState<CardConfig>(DEFAULT_CONFIG);
   const [saved, setSaved] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['templates','design']));
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['templates','design','fields']));
   const [previewZoom, setPreviewZoom] = useState(1.0);
   const [designStudents, setDesignStudents] = useState<any[]>([]);
   const [designStudentsLoading, setDesignStudentsLoading] = useState(false);
@@ -983,7 +983,8 @@ export default function CardStudioPage() {
           </div>
         </SidebarSection>
 
-        <SidebarSection title="Fields" open={openSections.has('fields')} onToggle={()=>toggleSection('fields')}>
+        <SidebarSection title="Card Fields" icon={<CreditCardIcon className="w-3.5 h-3.5"/>} open={openSections.has('fields')} onToggle={()=>toggleSection('fields')}>
+          <p className="text-[9px] text-muted-foreground/70 leading-relaxed mb-2">Tick to show a field, edit its label, or reorder with the arrows.</p>
           <div className="space-y-1.5">
             {cfg.fields.map((f,i)=>(
               <div key={f.key} className={`flex items-center gap-1.5 px-2 py-2 border transition-all rounded-lg bg-card ${f.visible?'border-primary/30 bg-primary/5':'border-border'}`}>
