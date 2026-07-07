@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { fixedBand, parseBandLabel, canonicalTier, inferProgramme } from '@/lib/classes/naming';
+import { fixedBand, parseBandLabel, canonicalTier, inferProgramme, buildClassName, bandForGrade, type BandGranularity } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -1211,17 +1211,41 @@ export async function POST(req: NextRequest) {
   // Create a new class for a teacher at a given school, then optionally fill it with students.
   // Used by the Teacher Audit workspace when a teacher has displaced students but no class at a school yet.
   if (action === 'create_class_for_teacher') {
-    const { teacherId, schoolId, className, studentIds: sids } = body;
+    const { teacherId, schoolId, className, studentIds: sids, grade, band_granularity } = body;
     if (!teacherId || !schoolId || !className?.trim()) {
       return NextResponse.json({ error: 'teacherId, schoolId, className required' }, { status: 400 });
     }
-    // Create the class
-    const { data: newClass, error: classErr } = await db
-      .from('classes')
-      .insert({ name: className.trim(), school_id: schoolId, teacher_id: teacherId })
-      .select('id, name')
-      .single();
-    if (classErr || !newClass) return NextResponse.json({ error: classErr?.message ?? 'Class creation failed' }, { status: 500 });
+
+    // Canonicalise to the standard "School · Programme · Band" convention and store the
+    // numeric band + tier — so a class made here is identical to auto-created ones.
+    const { data: sch } = await db.from('schools').select('name').eq('id', schoolId).maybeSingle();
+    const schoolName = (sch as { name?: string } | null)?.name ?? '';
+    const rawGrade = String(grade ?? className);
+    const gran: BandGranularity = band_granularity === 'single' ? 'single' : 'fixed';
+    const band = bandForGrade(rawGrade, gran) || parseBandLabel(className);
+    const tier = canonicalTier(className) || inferProgramme(className);
+    const finalName = buildClassName({ schoolName, programme: tier, range: band?.label, online: /online/i.test(schoolName) }) || className.trim();
+
+    // Idempotent: reuse an existing class of the same canonical name, else create it.
+    const { data: existing } = await db
+      .from('classes').select('id, name, teacher_id').eq('school_id', schoolId).eq('name', finalName).maybeSingle();
+    let newClass: { id: string; name: string } | null = existing ? { id: (existing as any).id, name: (existing as any).name } : null;
+    if (existing) {
+      if (!(existing as any).teacher_id) await db.from('classes').update({ teacher_id: teacherId, updated_at: new Date().toISOString() }).eq('id', (existing as any).id);
+    } else {
+      const { data: created, error: classErr } = await db
+        .from('classes')
+        .insert({
+          name: finalName, school_id: schoolId, teacher_id: teacherId, status: 'active',
+          tier: tier ?? null, band_lvl: band?.lvl ?? null, band_low: band?.low ?? null, band_high: band?.high ?? null,
+          qa_grade_band: band?.label ?? null,
+        })
+        .select('id, name')
+        .single();
+      if (classErr || !created) return NextResponse.json({ error: classErr?.message ?? 'Class creation failed' }, { status: 500 });
+      newClass = created;
+    }
+    if (!newClass) return NextResponse.json({ error: 'Class creation failed' }, { status: 500 });
 
     // Ensure teacher_schools row exists so the teacher can see this school
     const { data: existingTs } = await db

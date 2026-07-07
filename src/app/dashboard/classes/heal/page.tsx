@@ -754,9 +754,10 @@ export default function ClassHealPage() {
                             type="text"
                             value={createClassForm[school.school_id]?.name ?? ''}
                             onChange={e => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { ...prev[school.school_id], name: e.target.value } }))}
-                            placeholder="Class name (e.g. Python SS2)"
+                            placeholder="Programme + grade (e.g. Python SS2)"
                             className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                           />
+                          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">Auto-named to the standard convention <span className="font-mono text-foreground/70">School · Programme · Band</span> (e.g. Python SS2 → “… · Teen Dev · SS 1-3”), with the tier + grade band stored for placement.</p>
                           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                             <input
                               type="checkbox"
