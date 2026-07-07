@@ -11,6 +11,8 @@ import {
   ExclamationTriangleIcon, ArrowPathIcon, UserIcon,
   BuildingOfficeIcon, UserGroupIcon,
 } from '@/lib/icons';
+import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
+import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors';
 const LABEL = 'block text-xs font-bold text-muted-foreground mb-1.5';
@@ -53,6 +55,10 @@ export default function AddClassPage() {
     status: 'scheduled',
   });
 
+  // Grade drives the canonical name — no free-typed class names.
+  const [grade, setGrade] = useState('');
+  const [granularity, setGranularity] = useState<BandGranularity>('fixed');
+
   const set = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));
   const setTerm = (termId: string) => {
     const term = academicTerms.find(t => t.id === termId);
@@ -61,9 +67,12 @@ export default function AddClassPage() {
       term_id: termId,
       start_date: term?.start_date ?? f.start_date,
       end_date: term?.end_date ?? f.end_date,
-      name: f.name || (term ? `${term.term_label} Class` : f.name),
     }));
   };
+
+  const programmeName = programs.find(p => p.id === form.program_id)?.name ?? null;
+  const schoolName = schools.find(s => s.id === form.school_id)?.name ?? null;
+  const composed = composeClassName({ schoolName, programme: programmeName, grade, granularity });
 
   // Load programmes, teachers, schools
   useEffect(() => {
@@ -187,15 +196,18 @@ export default function AddClassPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.program_id) {
-      setError('Class name and programme are required.');
+    if (!form.program_id || !grade) {
+      setError('Programme and grade are required — the class name is composed from them.');
       return;
     }
     setSaving(true);
     setError(null);
     try {
       const payload: any = {
-        name: form.name.trim(),
+        // No free-typed name — the server composes "School · Programme · Band".
+        auto_name: true,
+        grade,
+        band_granularity: granularity,
         description: form.description.trim() || null,
         program_id: form.program_id,
         teacher_id: form.teacher_id || profile?.id || '',
@@ -305,18 +317,6 @@ export default function AddClassPage() {
         <div className="bg-card shadow-sm border border-border rounded-xl p-6 space-y-5">
           <h2 className="text-sm font-bold text-foreground">Class Details</h2>
 
-          <div>
-            <label className={LABEL}>Class Name <span className="text-primary">*</span></label>
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={e => set('name', e.target.value)}
-              placeholder="e.g. Python Beginners — Term 1"
-              className={INPUT}
-            />
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={LABEL}>Programme <span className="text-primary">*</span></label>
@@ -332,6 +332,34 @@ export default function AddClassPage() {
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className={LABEL}>Grade <span className="text-primary">*</span></label>
+              <GradeBandPicker grade={grade}
+                onChange={({ granularity: g, grade: v }) => { setGranularity(g); setGrade(v); }}
+                selectClass={INPUT} />
+            </div>
+          </div>
+
+          {/* Live view of the class being created — composed automatically, never typed. */}
+          <div className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 to-transparent p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AcademicCapIcon className="w-4 h-4 text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Class preview</span>
+            </div>
+            <p className="text-lg font-black text-foreground leading-tight">{composed.name || <span className="text-muted-foreground font-normal text-base">Pick a programme and grade…</span>}</p>
+            {composed.name && (
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {composed.tier && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-primary/15 text-primary border border-primary/20">{composed.tier}</span>}
+                {composed.band?.label && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-sky-500/15 text-sky-400 border border-sky-500/20">{composed.band.label}</span>}
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-muted text-muted-foreground border border-border">{schoolName || 'Independent / Online'}</span>
+                {academicTerms.find(t => t.id === form.term_id) && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">{academicTerms.find(t => t.id === form.term_id)?.term_label}</span>}
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-2.5">Auto-named <span className="font-mono">School · Programme · Band</span> — no typing, always consistent.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             <div>
               <label className={LABEL}>Teacher</label>

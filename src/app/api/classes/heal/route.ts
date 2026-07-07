@@ -721,6 +721,61 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, updated: studentIds.length });
   }
 
+  // Create + assign following the canonical pattern: each student is placed into their OWN
+  // school's "School · Programme · Band" class (created/reused via ensureClassWithTutor),
+  // using their own grade for the band. Programme (tier) is the single explicit choice.
+  if (action === 'create_and_assign_placement') {
+    const { studentIds: sids, programme, band_granularity } = body;
+    if (!sids?.length || !programme?.trim()) {
+      return NextResponse.json({ error: 'studentIds and programme required' }, { status: 400 });
+    }
+    const gran = band_granularity === 'single' ? 'single' : undefined; // undefined → school default
+    const { ensureClassWithTutor } = await import('@/lib/summer-school/onboard');
+
+    const { data: studs } = await db
+      .from('portal_users').select('id, school_id, school_name, section_class').eq('role', 'student').in('id', sids);
+    // Grade fallback from the students registry when section_class is blank.
+    const { data: reg } = await db.from('students').select('user_id, grade_level, grade, section').in('user_id', sids);
+    const gradeMap: Record<string, string | null> = {};
+    (reg ?? []).forEach((r: any) => { gradeMap[r.user_id] = r.grade_level || r.grade || r.section || null; });
+
+    // Resolve any missing school names in one query.
+    const schoolIds = [...new Set((studs ?? []).map((s: any) => s.school_id).filter(Boolean))] as string[];
+    const schoolNameMap: Record<string, string> = {};
+    if (schoolIds.length) {
+      const { data: schs } = await db.from('schools').select('id, name').in('id', schoolIds);
+      (schs ?? []).forEach((s: any) => { schoolNameMap[s.id] = s.name; });
+    }
+
+    const classCache = new Map<string, { id: string; name: string; teacher_id: string | null }>();
+    let assigned = 0, skipped = 0;
+    const createdClasses = new Set<string>();
+    for (const s of (studs ?? [])) {
+      const schoolId = (s as any).school_id;
+      if (!schoolId) { skipped++; continue; }
+      const schoolName = (s as any).school_name || schoolNameMap[schoolId] || '';
+      const grade = (s as any).section_class || gradeMap[(s as any).id] || null;
+      const cacheKey = `${schoolId}::${(grade || '').toUpperCase().trim()}`;
+      let cls = classCache.get(cacheKey);
+      if (!cls) {
+        const classId = await ensureClassWithTutor(db as any, schoolId, schoolName, programme.trim(), undefined, grade, gran);
+        if (!classId) { skipped++; continue; }
+        const { data: c } = await db.from('classes').select('name, teacher_id').eq('id', classId).maybeSingle();
+        cls = { id: classId, name: (c as any)?.name ?? null, teacher_id: (c as any)?.teacher_id ?? null };
+        classCache.set(cacheKey, cls);
+      }
+      createdClasses.add(cls.id);
+      await db.from('portal_users').update({
+        class_id: cls.id, section_class: cls.name, primary_teacher_id: cls.teacher_id ?? null, updated_at: new Date().toISOString(),
+      }).eq('id', (s as any).id);
+      await db.from('students').update({
+        class_id: cls.id, school_id: schoolId, school_name: schoolName || null, section_class: cls.name,
+      }).eq('user_id', (s as any).id);
+      assigned++;
+    }
+    return NextResponse.json({ success: true, updated: assigned, classesTouched: createdClasses.size, skipped });
+  }
+
   if (action === 'assign_school') {
     if (!schoolId || !studentIds?.length) {
       return NextResponse.json({ error: 'schoolId and studentIds required' }, { status: 400 });
@@ -868,6 +923,113 @@ export async function POST(req: NextRequest) {
       if (!band && c.band_low == null) needsReview.push({ id: c.id, name: c.name });
     }
     return NextResponse.json({ success: true, updated, needsReview });
+  }
+
+  // Thoroughly scan EVERY class, compute its canonical "School · Programme · Band" name, and
+  // rename non-conforming ones (fixing free-typed teacher names) — the "fix naming once and
+  // for all" pass. dryRun=true previews without writing. mergeDuplicates=true collapses two
+  // classes that resolve to the same canonical name (moves students/lessons to the survivor,
+  // deletes the empty duplicate); otherwise duplicates are reported as conflicts.
+  if (action === 'canonicalize_class_names') {
+    const dryRun = body.dryRun === true;
+    const mergeDuplicates = body.mergeDuplicates === true;
+    const onlySchoolId: string | null = body.schoolId || null;
+
+    let q = db.from('classes').select('id, name, school_id, tier, band_lvl, band_low, band_high, qa_grade_band, program_id, teacher_id, term_id');
+    if (onlySchoolId) q = q.eq('school_id', onlySchoolId) as any;
+    const { data: classes } = await q;
+
+    // Current academic term — classes commonly miss it, so we set it on any class that has none.
+    let currentTermId: string | null = null;
+    let currentTermLabel = '';
+    try {
+      const { data: term } = await db.from('academic_terms').select('id, academic_year, term_label, is_current').eq('is_current', true).limit(1).maybeSingle();
+      const t = (term as any) || null;
+      if (t?.id) { currentTermId = t.id; currentTermLabel = [t.academic_year, t.term_label].filter(Boolean).join(' · '); }
+    } catch { /* academic_terms optional */ }
+
+    const progIds = [...new Set((classes ?? []).map((c: any) => c.program_id).filter(Boolean))] as string[];
+    const progMap: Record<string, string> = {};
+    if (progIds.length) { const { data } = await db.from('programs').select('id, name').in('id', progIds); (data ?? []).forEach((p: any) => { progMap[p.id] = p.name; }); }
+    const schoolIds = [...new Set((classes ?? []).map((c: any) => c.school_id).filter(Boolean))] as string[];
+    const schoolMap: Record<string, string> = {};
+    if (schoolIds.length) { const { data } = await db.from('schools').select('id, name').in('id', schoolIds); (data ?? []).forEach((s: any) => { schoolMap[s.id] = s.name; }); }
+
+    // Student counts — used to keep the fullest class as the survivor when merging.
+    const { data: countRows } = await db.from('portal_users').select('class_id').eq('role', 'student').not('class_id', 'is', null);
+    const countMap: Record<string, number> = {};
+    (countRows ?? []).forEach((r: any) => { countMap[r.class_id] = (countMap[r.class_id] || 0) + 1; });
+
+    const computed = (classes ?? []).map((c: any) => {
+      const schoolName = schoolMap[c.school_id] || '';
+      const tier = canonicalTier(c.tier) || canonicalTier(progMap[c.program_id]) || inferProgramme(c.name);
+      const band = (c.band_low != null)
+        ? { lvl: c.band_lvl, low: c.band_low, high: c.band_high, label: c.qa_grade_band || (c.band_low === c.band_high ? `${c.band_lvl} ${c.band_low}` : `${c.band_lvl} ${c.band_low}-${c.band_high}`) }
+        : (parseBandLabel(c.qa_grade_band) || fixedBand(c.name));
+      const canonical = buildClassName({ schoolName, programme: tier, range: band?.label ?? null, online: /online/i.test(schoolName) });
+      return { c, tier, band, canonical, count: countMap[c.id] || 0 };
+    });
+
+    const groups = new Map<string, typeof computed>();
+    const needsReview: Array<{ id: string; name: string }> = [];
+    for (const x of computed) {
+      if (!x.canonical) { needsReview.push({ id: x.c.id, name: x.c.name }); continue; }
+      const key = `${x.c.school_id}::${x.canonical}`;
+      let arr = groups.get(key); if (!arr) { arr = []; groups.set(key, arr); }
+      arr.push(x);
+    }
+
+    let renamed = 0, merged = 0, conflicts = 0, termsSet = 0;
+    const changes: Array<{ id: string; from: string; to: string; action: string }> = [];
+    const now = new Date().toISOString();
+
+    for (const group of Array.from(groups.values())) {
+      const canonical = group[0].canonical as string;
+      const survivor = group.find(g => g.c.name === canonical)
+        || [...group].sort((a, b) => (b.count - a.count) || ((b.c.teacher_id ? 1 : 0) - (a.c.teacher_id ? 1 : 0)))[0];
+
+      for (const g of group) {
+        const c = g.c;
+        if (c.id === survivor.c.id) {
+          const needsRename = c.name !== canonical;
+          const needsBand = c.band_low == null && !!g.band;
+          const needsTier = !c.tier && !!g.tier;
+          const needsTerm = !!currentTermId && !c.term_id;
+          if (needsRename || needsBand || needsTier || needsTerm) {
+            changes.push({ id: c.id, from: c.name, to: needsRename ? canonical : `${canonical}${needsTerm ? `  ·  + ${currentTermLabel}` : ''}`, action: needsRename ? 'rename' : needsTerm ? 'set-term' : 'backfill' });
+            if (!dryRun) {
+              const patch: Record<string, unknown> = {
+                name: canonical,
+                tier: g.tier ?? c.tier ?? null,
+                band_lvl: g.band?.lvl ?? c.band_lvl ?? null,
+                band_low: g.band?.low ?? c.band_low ?? null,
+                band_high: g.band?.high ?? c.band_high ?? null,
+                qa_grade_band: g.band?.label ?? c.qa_grade_band ?? null,
+                updated_at: now,
+              };
+              if (needsTerm) patch.term_id = currentTermId;
+              await db.from('classes').update(patch).eq('id', c.id);
+            }
+            if (needsRename) renamed++;
+            if (needsTerm) termsSet++;
+          }
+        } else if (mergeDuplicates) {
+          changes.push({ id: c.id, from: c.name, to: canonical, action: 'merge' });
+          if (!dryRun) {
+            await db.from('portal_users').update({ class_id: survivor.c.id, section_class: canonical, updated_at: now }).eq('class_id', c.id);
+            await db.from('students').update({ class_id: survivor.c.id, section_class: canonical }).eq('class_id', c.id);
+            try { await db.from('lesson_plans').update({ class_id: survivor.c.id }).eq('class_id', c.id); } catch { /* best-effort */ }
+            await db.from('classes').delete().eq('id', c.id);
+          }
+          merged++;
+        } else {
+          changes.push({ id: c.id, from: c.name, to: `${canonical} — merge into survivor`, action: 'conflict' });
+          conflicts++;
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, dryRun, scanned: computed.length, renamed, merged, conflicts, termsSet, currentTerm: currentTermLabel || null, needsReview, changes: changes.slice(0, 500) });
   }
 
   // Add missing teacher_schools entries for a specific teacher (or all teachers).

@@ -261,13 +261,21 @@ export async function POST(request: NextRequest) {
         if (legacy) insertRow.qa_grade_band = legacy;
       }
 
-      // Auto-name from "School · Programme · Band" when no name is given (or auto_name asked).
-      if ((!insertRow.name || body.auto_name) && insertRow.school_id) {
-        const { data: sch } = await admin.from('schools').select('name').eq('id', insertRow.school_id as string).maybeSingle();
-        const schoolName = (sch as { name?: string } | null)?.name ?? '';
+      // Compose "School · Programme · Band" whenever a programme is chosen — ENFORCED: a
+      // free-typed name is ignored so every programme class follows one convention. Works
+      // without a school too (independent/online → "Programme · Band").
+      if (progName && (!insertRow.name || body.auto_name || insertRow.program_id)) {
+        let schoolName = '';
+        if (insertRow.school_id) {
+          const { data: sch } = await admin.from('schools').select('name').eq('id', insertRow.school_id as string).maybeSingle();
+          schoolName = (sch as { name?: string } | null)?.name ?? '';
+        }
         const built = buildClassName({ schoolName, programme: progName, range: band?.label || (insertRow.qa_grade_band as string) || null, online: /online/i.test(schoolName) });
         if (built) insertRow.name = built;
       }
+    }
+    if (!insertRow.name && insertRow.program_id) {
+      return NextResponse.json({ error: 'Could not resolve the programme to compose a class name.' }, { status: 400 });
     }
     if (!insertRow.name) {
       return NextResponse.json({ error: 'Class name is required' }, { status: 400 });

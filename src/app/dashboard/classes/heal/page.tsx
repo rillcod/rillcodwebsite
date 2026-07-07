@@ -3,6 +3,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon, PlusIcon, ChevronDownIcon } from '@/lib/icons';
+import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
+import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
+
+const PROGRAMME_OPTIONS = ['Young Innovators', 'Teen Developers', 'Web Development Bootcamp', 'Data Analysis with Python'];
 
 type RegistryHint = { school_id: string | null; school_name: string | null; section: string | null; grade_level: string | null; status: string | null };
 type AnomalyStudent = { id: string; full_name: string; email: string; class_id?: string | null; school_id?: string | null; section_class?: string | null; school_name?: string | null; primary_teacher_id?: string | null; registry?: RegistryHint | null; class_name?: string | null; class_school_id?: string | null; class_school_name?: string | null; class_teacher_conflict?: boolean };
@@ -50,9 +54,12 @@ export default function ClassHealPage() {
   // Unified selection: covers both in-class and displaced students per school
   const [auditSel, setAuditSel] = useState<Record<string, Set<string>>>({}); // schoolId => Set<studentId>
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set()); // class IDs with roster open
-  const [createClassForm, setCreateClassForm] = useState<Record<string, { name: string; autoFill: boolean }>>({});
+  const [createClassForm, setCreateClassForm] = useState<Record<string, { programme: string; grade: string; granularity: BandGranularity; autoFill: boolean }>>({});
   const [auditConfirmDelete, setAuditConfirmDelete] = useState<string | null>(null); // student id pending delete in audit
   const [noClassConfirmDelete, setNoClassConfirmDelete] = useState<string | null>(null);
+  const [namingScan, setNamingScan] = useState<any>(null);
+  const [namingBusy, setNamingBusy] = useState(false);
+  const [noClassProgramme, setNoClassProgramme] = useState('');
   // Claim a class state
   const [claimClassId, setClaimClassId] = useState('');
   const [claimTeacherId, setClaimTeacherId] = useState('');
@@ -174,6 +181,39 @@ export default function ClassHealPage() {
     } finally { setWorking(false); }
   }
 
+  async function scanNames() {
+    setNamingBusy(true); setMsg(null);
+    try {
+      const res = await fetch('/api/classes/heal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'canonicalize_class_names', dryRun: true }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Scan failed');
+      setNamingScan(j);
+    } catch (e: any) { setMsg({ type: 'err', text: e.message }); }
+    finally { setNamingBusy(false); }
+  }
+
+  async function fixNames(merge: boolean) {
+    const renameCount = (namingScan?.changes ?? []).filter((c: any) => c.action === 'rename').length;
+    const mergeCount = namingScan?.conflicts ?? 0;
+    if (!confirm(`Apply canonical class names?\n\n• ${renameCount} class(es) renamed to “School · Programme · Band”.${merge ? `\n• ${mergeCount} duplicate(s) merged — students & lessons moved to the survivor, empty class deleted.` : ''}\n\nThis can’t be auto-undone.`)) return;
+    setNamingBusy(true); setMsg(null);
+    try {
+      const res = await fetch('/api/classes/heal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'canonicalize_class_names', dryRun: false, mergeDuplicates: merge }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Fix failed');
+      setMsg({ type: 'ok', text: `Naming fixed — ${j.renamed} renamed${j.termsSet ? `, ${j.termsSet} term set` : ''}${merge ? `, ${j.merged} merged` : ''}${j.conflicts ? `, ${j.conflicts} duplicate conflict(s) left` : ''}${j.needsReview?.length ? `, ${j.needsReview.length} need review` : ''}.` });
+      await scanNames();
+      await load();
+    } catch (e: any) { setMsg({ type: 'err', text: e.message }); }
+    finally { setNamingBusy(false); }
+  }
+
   function handleSearchInput(val: string) {
     setSearchQ(val);
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -217,7 +257,7 @@ export default function ClassHealPage() {
 
   function toggleSel(set: Set<string>, setFn: (s: Set<string>) => void, id: string) {
     const n = new Set(set);
-    n.has(id) ? n.delete(id) : n.add(id);
+    if (n.has(id)) n.delete(id); else n.add(id);
     setFn(n);
   }
   function selAll(ids: string[], setFn: (s: Set<string>) => void) {
@@ -307,6 +347,61 @@ export default function ClassHealPage() {
             <span className="text-2xl font-black text-rose-400">{data?.duplicateAccounts.length ?? 0}</span>
             <span className="text-[10px] text-muted-foreground leading-tight">same email, multiple accounts</span>
           </div>
+        </div>
+
+        {/* ── Class Naming Convention ─────────────────────────────── */}
+        <div className="bg-card border border-primary/25 rounded-xl p-4 sm:p-5 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-black text-foreground">Class Naming Convention</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Rename every class to the standard <span className="font-mono text-foreground/70">School · Programme · Band</span> — fixes free-typed teacher names and stores tier + grade band. Scan first to preview.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={scanNames} disabled={namingBusy}
+                className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 disabled:opacity-40 text-xs font-black rounded-xl transition">
+                <ArrowPathIcon className={`w-4 h-4 ${namingBusy ? 'animate-spin' : ''}`} /> Scan names
+              </button>
+              {namingScan && (
+                <>
+                  <button onClick={() => fixNames(false)} disabled={namingBusy || (namingScan.changes ?? []).filter((c: any) => c.action !== 'conflict').length === 0}
+                    className="px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-black rounded-xl transition">
+                    Fix all ({(namingScan.changes ?? []).filter((c: any) => c.action !== 'conflict').length})
+                  </button>
+                  {namingScan.conflicts > 0 && (
+                    <button onClick={() => fixNames(true)} disabled={namingBusy}
+                      className="px-3 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition">
+                      Fix + merge dupes ({namingScan.conflicts})
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {namingScan && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Scanned <strong className="text-foreground">{namingScan.scanned}</strong> · <strong className="text-primary">{(namingScan.changes ?? []).filter((c: any) => c.action === 'rename').length}</strong> to rename · <strong className="text-sky-400">{(namingScan.changes ?? []).filter((c: any) => c.action === 'set-term').length}</strong> missing term{namingScan.currentTerm ? ` (→ ${namingScan.currentTerm})` : ''} · <strong className="text-rose-400">{namingScan.conflicts}</strong> duplicate conflict(s) · <strong className="text-amber-400">{namingScan.needsReview?.length ?? 0}</strong> need review
+              </p>
+              {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').length === 0 ? (
+                <p className="text-xs text-emerald-400 font-bold">Every class already follows the convention. 🎉</p>
+              ) : (
+                <div className="max-h-64 overflow-auto rounded-xl border border-border divide-y divide-border/60">
+                  {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').slice(0, 100).map((c: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 text-xs">
+                      <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider shrink-0 ${c.action === 'merge' || c.action === 'conflict' ? 'bg-rose-500/15 text-rose-400' : 'bg-primary/15 text-primary'}`}>{c.action}</span>
+                      <span className="text-muted-foreground line-through truncate">{c.from}</span>
+                      <span className="text-muted-foreground/50">→</span>
+                      <span className="font-bold text-foreground truncate">{c.to}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {namingScan.needsReview?.length > 0 && (
+                <p className="text-[11px] text-amber-400/80">Need review (no programme/grade to derive): {namingScan.needsReview.slice(0, 8).map((r: any) => r.name).join(', ')}{namingScan.needsReview.length > 8 ? '…' : ''}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {totalIssues === 0 && (
@@ -445,7 +540,7 @@ export default function ClassHealPage() {
                   function toggleSt(id: string) {
                     setAuditSel(prev => {
                       const cur = new Set(prev[school.school_id] ?? []);
-                      cur.has(id) ? cur.delete(id) : cur.add(id);
+                      if (cur.has(id)) cur.delete(id); else cur.add(id);
                       return { ...prev, [school.school_id]: cur };
                     });
                   }
@@ -511,7 +606,7 @@ export default function ClassHealPage() {
                                 className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition"
                                 onClick={() => setExpandedClasses(prev => {
                                   const n = new Set(prev);
-                                  n.has(cls.id) ? n.delete(cls.id) : n.add(cls.id);
+                                  if (n.has(cls.id)) n.delete(cls.id); else n.add(cls.id);
                                   return n;
                                 })}
                               >
@@ -746,22 +841,34 @@ export default function ClassHealPage() {
                         </div>
                       )}
 
-                      {/* Create new class form */}
-                      {createClassForm[school.school_id] !== undefined ? (
+                      {/* Create new class form — programme + grade only, name is composed */}
+                      {createClassForm[school.school_id] !== undefined ? (() => {
+                        const cf = createClassForm[school.school_id];
+                        const preview = composeClassName({ schoolName: school.school_name, programme: cf.programme, grade: cf.grade, granularity: cf.granularity }).name;
+                        return (
                         <div className="border border-dashed border-primary/40 rounded-xl p-3 space-y-2.5 bg-primary/5">
                           <p className="text-xs font-black text-primary uppercase tracking-wide">Create New Class</p>
-                          <input
-                            type="text"
-                            value={createClassForm[school.school_id]?.name ?? ''}
-                            onChange={e => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { ...prev[school.school_id], name: e.target.value } }))}
-                            placeholder="Programme + grade (e.g. Python SS2)"
-                            className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                          <select
+                            value={cf.programme}
+                            onChange={e => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { ...prev[school.school_id], programme: e.target.value } }))}
+                            className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                          >
+                            <option value="">Select programme…</option>
+                            {PROGRAMME_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          <GradeBandPicker
+                            grade={cf.grade}
+                            onChange={({ granularity, grade }) => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { ...prev[school.school_id], granularity, grade } }))}
+                            selectClass="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                           />
-                          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">Auto-named to the standard convention <span className="font-mono text-foreground/70">School · Programme · Band</span> (e.g. Python SS2 → “… · Teen Dev · SS 1-3”), with the tier + grade band stored for placement.</p>
+                          <div className="rounded-lg border border-primary/20 bg-background px-3 py-2">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/70">Class name (auto)</p>
+                            <p className="text-xs font-black text-foreground">{preview || <span className="text-muted-foreground font-normal">Pick programme + grade…</span>}</p>
+                          </div>
                           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={createClassForm[school.school_id]?.autoFill ?? true}
+                              checked={cf.autoFill}
                               onChange={e => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { ...prev[school.school_id], autoFill: e.target.checked } }))}
                               className="w-4 h-4 rounded"
                             />
@@ -769,11 +876,10 @@ export default function ClassHealPage() {
                           </label>
                           <div className="flex gap-2">
                             <button
-                              disabled={!createClassForm[school.school_id]?.name?.trim() || working}
+                              disabled={!cf.programme || !cf.grade || working}
                               onClick={async () => {
-                                const form = createClassForm[school.school_id];
-                                if (!form?.name?.trim() || !auditTeacherId) return;
-                                const fillIds = form.autoFill
+                                if (!cf.programme || !cf.grade || !auditTeacherId) return;
+                                const fillIds = cf.autoFill
                                   ? school.displaced_students.map(s => s.id)
                                   : selCount > 0 ? Array.from(schoolSel) : [];
                                 setWorking(true); setMsg(null);
@@ -781,7 +887,7 @@ export default function ClassHealPage() {
                                   const res = await fetch('/api/classes/heal', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ action: 'create_class_for_teacher', teacherId: auditTeacherId, schoolId: school.school_id, className: form.name.trim(), studentIds: fillIds }),
+                                    body: JSON.stringify({ action: 'create_class_for_teacher', teacherId: auditTeacherId, schoolId: school.school_id, className: cf.programme, grade: cf.grade, band_granularity: cf.granularity, studentIds: fillIds }),
                                   });
                                   const j = await res.json();
                                   if (!res.ok) throw new Error(j.error || 'Failed');
@@ -809,9 +915,10 @@ export default function ClassHealPage() {
                             </button>
                           </div>
                         </div>
-                      ) : (
+                        );
+                      })() : (
                         <button
-                          onClick={() => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { name: '', autoFill: true } }))}
+                          onClick={() => setCreateClassForm(prev => ({ ...prev, [school.school_id]: { programme: '', grade: '', granularity: 'fixed', autoFill: true } }))}
                           className="flex items-center gap-1.5 text-xs font-bold text-primary/70 hover:text-primary transition"
                         >
                           <PlusIcon className="w-3.5 h-3.5" /> Create new class for this teacher at {school.school_name}
@@ -1499,6 +1606,24 @@ export default function ClassHealPage() {
                   </button>
                 </div>
               </div>
+              {/* Or auto-create + place each selected student into their OWN school's standard
+                  "School · Programme · Band" class (grade taken from each student). */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-2">
+                <select value={noClassProgramme} onChange={e => setNoClassProgramme(e.target.value)}
+                  className="select-premium flex-1 text-sm px-3 py-2">
+                  <option value="">— Programme (auto-create standard class) —</option>
+                  <option value="Young Innovators">Young Innovators</option>
+                  <option value="Teen Developers">Teen Developers</option>
+                  <option value="Web Development Bootcamp">Web Development Bootcamp</option>
+                  <option value="Data Analysis with Python">Data Analysis with Python</option>
+                </select>
+                <button
+                  disabled={!noClassProgramme || selNoClass.size === 0 || working}
+                  onClick={() => applyAction('create_and_assign_placement', Array.from(selNoClass), { programme: noClassProgramme })}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl disabled:opacity-40 transition">
+                  Create &amp; assign standard class
+                </button>
+              </div>
               {data!.noClass.map(s => (
                 noClassConfirmDelete === s.id ? (
                   <div key={s.id} className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 border border-rose-500/20 rounded-xl">
@@ -1716,7 +1841,7 @@ export default function ClassHealPage() {
                             return (
                               <label key={s.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer border transition ${checked ? 'bg-primary/10 border-primary/30' : 'border-border hover:bg-muted/30'}`}>
                                 <input type="checkbox" checked={checked}
-                                  onChange={() => { const n = new Set(txSelected); checked ? n.delete(s.id) : n.add(s.id); setTxSelected(n); }}
+                                  onChange={() => { const n = new Set(txSelected); if (checked) n.delete(s.id); else n.add(s.id); setTxSelected(n); }}
                                   className="w-4 h-4 rounded text-primary shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">

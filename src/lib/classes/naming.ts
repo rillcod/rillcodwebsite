@@ -25,7 +25,7 @@ function titleCase(s: string): string {
 
 /** Concise, distinct school name derived from the full name. */
 export function shortSchoolName(full: string | null | undefined): string {
-  if (!full || !full.trim()) return 'School';
+  if (!full || !full.trim()) return ''; // no school → dropped from the name (online/independent)
   let s = full.trim();
   // Campus / section marker in parentheses → keep as a short suffix so a school with
   // separate Basic / Secondary / GRA sub-schools stays distinguishable.
@@ -44,15 +44,19 @@ export function shortSchoolName(full: string | null | undefined): string {
   return (words.join(' ') + suffix).trim();
 }
 
+// "Primary"/"Pry" normalise to Basic — the school convention uses Basic, not Primary.
+// Nursery/KG (pre-primary) are their own levels.
 const LVL: Record<string, string> = {
-  js: 'JSS', jss: 'JSS', sss: 'SSS', ss: 'SS', basic: 'Basic', primary: 'Primary',
-  pry: 'Primary', elementary: 'Elem', elem: 'Elem', grade: 'Grade', year: 'Year',
+  js: 'JSS', jss: 'JSS', sss: 'SSS', ss: 'SS', basic: 'Basic', primary: 'Basic',
+  pry: 'Basic', elementary: 'Basic', elem: 'Basic', grade: 'Grade', year: 'Year',
+  nursery: 'Nursery', nur: 'Nursery', creche: 'Nursery',
+  kg: 'KG', kindergarten: 'KG', reception: 'KG',
 };
 
 /** Pull grade tokens (level + number) out of any messy string. */
 export function parseGrades(str: string | null | undefined): { lvl: string; n: number }[] {
   const out: { lvl: string; n: number }[] = [];
-  const re = /\b(SSS|SS|JSS|JS|BASIC|PRIMARY|PRY|ELEMENTARY|ELEM|GRADE|YEAR)\s*0*(\d+)/gi;
+  const re = /\b(SSS|SS|JSS|JS|BASIC|PRIMARY|PRY|ELEMENTARY|ELEM|NURSERY|NUR|CRECHE|KINDERGARTEN|KG|RECEPTION|GRADE|YEAR)\s*0*(\d+)/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec((str || '').toUpperCase()))) out.push({ lvl: LVL[m[1].toLowerCase()], n: parseInt(m[2], 10) });
   return out;
@@ -152,6 +156,7 @@ export function fixedBand(grade: string | null | undefined): CanonicalBand | nul
   const { lvl, n } = g;
   if (lvl === 'JSS' || lvl === 'JS') return { lvl: 'JSS', low: 1, high: 3, label: 'JSS 1-3' };
   if (lvl === 'SS' || lvl === 'SSS') return { lvl: 'SS', low: 1, high: 3, label: 'SS 1-3' };
+  if (lvl === 'Nursery' || lvl === 'KG') return { lvl, low: 1, high: 2, label: `${lvl} 1-2` };
   const low = n <= 3 ? 1 : 4;
   const high = n <= 3 ? 3 : 6;
   return { lvl, low, high, label: bandLabel(lvl, low, high) };
@@ -201,6 +206,37 @@ export function parseBandLabel(label: string | null | undefined): CanonicalBand 
   const low = parseInt(m[2], 10);
   const high = m[3] ? parseInt(m[3], 10) : low;
   return { lvl, low: Math.min(low, high), high: Math.max(low, high), label: bandLabel(lvl, Math.min(low, high), Math.max(low, high)) };
+}
+
+// ── Fixed option lists for the class-name pickers — the ONLY grades/bands a class may use,
+//    so free-typed names are impossible and every class follows one convention. ──────────
+export const FIXED_BANDS = ['Nursery 1-2', 'KG 1-2', 'Basic 1-3', 'Basic 4-6', 'JSS 1-3', 'SS 1-3'] as const;
+export const SINGLE_GRADES = [
+  'Nursery 1', 'Nursery 2', 'KG 1', 'KG 2',
+  'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',
+  'JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3',
+] as const;
+
+/** Compose the one canonical class name from an explicit programme + a chosen band/grade. */
+export function composeClassName(opts: {
+  schoolName?: string | null;
+  programme?: string | null;
+  grade?: string | null;              // a single grade or a band label ("Basic 2" / "Basic 1-3")
+  granularity?: BandGranularity;      // 'fixed' (default) collapses to a band; 'single' keeps the grade
+  online?: boolean;
+  cohort?: string | null;
+}): { name: string; band: CanonicalBand | null; tier: string | null } {
+  const tier = canonicalTier(opts.programme);
+  const band = opts.grade ? (bandForGrade(opts.grade, opts.granularity ?? 'fixed') || parseBandLabel(opts.grade)) : null;
+  const online = opts.online ?? /online/i.test(opts.schoolName || '');
+  const name = buildClassName({
+    schoolName: opts.schoolName,
+    programme: tier || opts.programme,
+    range: band?.label ?? null,
+    online,
+    cohort: opts.cohort,
+  });
+  return { name, band, tier: tier || (opts.programme?.trim() || null) };
 }
 
 /** Canonical tier/programme name (explicit choice — NEVER derived from age). */
