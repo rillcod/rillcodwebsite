@@ -643,14 +643,10 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
   };
 
   const handleDeleteTeacher = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this teacher? This will soft-delete the profile.')) return;
+    if (!confirm('Permanently delete this teacher? Their account and login are fully removed. Their classes, reports and lessons are KEPT but unlinked from them. This cannot be undone.')) return;
     setDeleting(id);
     try {
-      const res = await fetch(`/api/portal-users/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_deleted: true, is_active: false }),
-      });
+      const res = await fetch(`/api/portal-users/${id}`, { method: 'DELETE' });
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
       setTeachers(prev => prev.filter(t => t.id !== id));
     } catch (err: any) {

@@ -173,92 +173,36 @@ export async function DELETE(
     }
   }
 
-  // ── Students: full wipe via the DB function ──────────────────────────
-  // A student can have rows in ~150 FK-linked tables; hand-listing a subset here left
-  // orphans and sometimes failed the portal_users delete outright. hard_delete_portal_user
-  // clears every child (and the students + auth.users rows) in one shot — a clean, complete
-  // delete with nothing left to resurface as a phantom.
-  if (pu?.role === 'student') {
-    const { error: wipeErr } = await (admin as any).rpc('hard_delete_portal_user', { p_id: id });
-    if (wipeErr) return NextResponse.json({ error: wipeErr.message }, { status: 500 });
-    // Best-effort auth removal in case the SQL side could not reach auth.users.
-    await admin.auth.admin.deleteUser(id).catch(() => {});
-    return NextResponse.json({ success: true, hardDeleted: true });
-  }
-
-  // ── Step 0: If this is a parent, wipe all linked data ──────────────
+  // ── Step 0: Role-specific pre-steps the DB function can't infer ──────────
+  // Parent: clear the TEXT parent_* fields on students (not FK columns) and unlink leads.
   if (pu?.role === 'parent') {
-    // Clear parent fields from all students linked by email
     if (pu.email) {
       await admin.from('students').update({
         parent_email: null, parent_name: null, parent_phone: null,
         updated_at: new Date().toISOString(),
       }).eq('parent_email', pu.email);
     }
-    // Remove explicit parent-child link rows
-    await admin.from('parent_student_links').delete().eq('parent_id', id);
-    // Unlink from any consent-form leads so the UI doesn't show stale data
     await admin.from('form_leads').update({ matched_parent_id: null }).eq('matched_parent_id', id);
   }
-
-  // ── Step 1: Remove all child records that FK-reference this portal user ──
-
-  // Teacher-school assignments (teacher side)
-  await admin.from('teacher_schools').delete().eq('teacher_id', id);
-
-  // Nullify teacher references in progress reports (keep the reports themselves)
-  await admin.from('student_progress_reports').update({ teacher_id: null }).eq('teacher_id', id);
-
-  // Delete linked students registration row (prevents orphaned/duplicate records on re-register)
-  await admin.from('students').delete().eq('user_id', id);
-
-  // Nullify created_by on students created by this user (keeps student records intact)
-  await admin.from('students').update({ created_by: null }).eq('created_by', id);
-
-  // Delete enrollments belonging to this user
-  await admin.from('enrollments').delete().eq('user_id', id);
-
-  // Delete assignment submissions by this user
-  await admin.from('assignment_submissions').delete().eq('portal_user_id', id);
-
-  // Nullify graded_by references in submissions
-  await admin.from('assignment_submissions').update({ graded_by: null }).eq('graded_by', id);
-
-  // ── Step 1.5: Nullify teacher references in classes ──────────────────
-  await admin.from('classes').update({ teacher_id: null }).eq('teacher_id', id);
-
-  // ── Step 1.6: Nullify teacher references in timetable slots ─────────
-  // We keep the slot but clear the ID/name linkage
-  await admin.from('timetable_slots').update({ teacher_id: null }).eq('teacher_id', id);
-
-  // ── Step 1.7: Nullify uploaded_by on files (keep the files themselves) ──
-  await admin.from('files').update({ uploaded_by: null }).eq('uploaded_by', id);
-
-  // ── Step 1.8: Study groups cleanup ──
-  await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', id);
-  await admin.from('study_group_members').delete().eq('user_id', id);
-  await admin.from('study_groups').update({ created_by: null }).eq('created_by', id);
-
-  // ── Step 2: If this is a school account, also delete the linked schools row ──
+  // School: detach students and delete the linked schools row (schools is not a
+  // portal_users FK child, so the function won't touch it).
   if (pu?.role === 'school' && pu?.school_id) {
-    // Unlink any students tied to this school first
     await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', pu.school_id);
-    // Remove teacher-school assignments for this school
     await admin.from('teacher_schools').delete().eq('school_id', pu.school_id);
-    // Delete the school row
     await admin.from('schools').delete().eq('id', pu.school_id);
   }
 
-  // ── Step 3: Delete the portal_users row ──
-  const { error: dbErr } = await admin.from('portal_users').delete().eq('id', id);
-  if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 });
+  // ── Full wipe via the semantic DB function ──────────────────────────────
+  // hard_delete_portal_user walks every FK child: student-owned rows are deleted, while
+  // creator/teacher references (classes.teacher_id, reports.teacher_id, lessons.created_by,
+  // …) are set NULL so a teacher's content is preserved and just unlinked. Then it removes
+  // the students, portal_users and auth.users rows — a clean, complete delete for ANY role
+  // with nothing left to orphan or resurface as a phantom.
+  const { error: wipeErr } = await (admin as any).rpc('hard_delete_portal_user', { p_id: id });
+  if (wipeErr) return NextResponse.json({ error: wipeErr.message }, { status: 500 });
 
-  // ── Step 4: Delete the Supabase Auth account ──
-  const { error: authErr } = await admin.auth.admin.deleteUser(id);
-  if (authErr) {
-    // Auth deletion failed but DB row is already gone — log only
-    console.error('Auth user deletion failed (DB row already deleted):', authErr.message);
-  }
+  // Best-effort auth removal in case the SQL side could not reach auth.users.
+  await admin.auth.admin.deleteUser(id).catch(() => {});
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, hardDeleted: true });
 }
