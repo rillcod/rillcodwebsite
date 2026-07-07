@@ -111,6 +111,20 @@ export function inferProgramme(name: string | null | undefined, grades: { lvl: s
 }
 
 /** The one place that composes a class name — used by every creation path. */
+/** Collapse a repeated leading prefix: "A · B · A · B · C" → "A · B · C". Guards against
+ *  an already-composed class name being fed back in as a segment (the double-prefix bug). */
+export function collapseRepeatedClassName(name: string): string {
+  let s = name.split('·').map((p) => p.trim()).filter(Boolean);
+  let changed = true;
+  while (changed && s.length >= 4) {
+    changed = false;
+    for (let k = Math.floor(s.length / 2); k >= 1; k--) {
+      if (s.slice(0, k).join('|') === s.slice(k, 2 * k).join('|')) { s = s.slice(k); changed = true; break; }
+    }
+  }
+  return s.join(' · ');
+}
+
 export function buildClassName(opts: {
   schoolName?: string | null;
   programme?: string | null;
@@ -119,10 +133,14 @@ export function buildClassName(opts: {
   cohort?: string | null;
 }): string {
   const prog = shortProgramme(opts.programme);
-  if (opts.online) {
-    return [prog || 'Class', opts.cohort].filter(Boolean).join(' · ');
-  }
-  return [shortSchoolName(opts.schoolName), prog, opts.range].filter(Boolean).join(' · ');
+  // A range/grade must be a bare band ("Basic 5"), never a composed name. If a caller passes
+  // a full "School · Programme · X" by mistake, keep only its last segment so the prefix
+  // isn't doubled; collapseRepeatedClassName is the final belt-and-suspenders.
+  const range = opts.range && opts.range.includes('·') ? opts.range.split('·').pop()!.trim() : opts.range;
+  const raw = opts.online
+    ? [prog || 'Class', opts.cohort].filter(Boolean).join(' · ')
+    : [shortSchoolName(opts.schoolName), prog, range].filter(Boolean).join(' · ');
+  return collapseRepeatedClassName(raw);
 }
 
 // ───────────────────────────────────────────────────────────────────────────
