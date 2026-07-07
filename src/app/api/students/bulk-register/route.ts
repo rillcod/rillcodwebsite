@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { buildClassName, gradeBand } from '@/lib/classes/naming';
 import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
+import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -288,6 +289,11 @@ export async function POST(request: Request) {
     // Build lookup maps for exact name AND reversed-name (first/last swapped)
     const existingByName = new Map<string, { id: string; email: string; full_name: string }>();
     const existingByReversedName = new Map<string, { id: string; email: string; full_name: string }>();
+    // Normalized key map — the STRONG barricade. duplicateNameKey ignores word order,
+    // casing, invisible/bidi chars, "34." index prefixes and trailing disambiguator
+    // numbers, so "Uche Sunday" ≡ "Uche Sunday 5" ≡ "5 Uche Sunday" all collapse and a
+    // re-upload can no longer create a same-child twin with a slightly different spelling.
+    const existingByKey = new Map<string, { id: string; email: string; full_name: string }>();
     for (const s of (existingStudents ?? [])) {
       const norm = s.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
       existingByName.set(norm, { id: s.id, email: s.email, full_name: s.full_name });
@@ -297,6 +303,8 @@ export async function POST(request: Request) {
         const reversed = [...parts].reverse().join(' ');
         existingByReversedName.set(reversed, { id: s.id, email: s.email, full_name: s.full_name });
       }
+      const key = duplicateNameKey(s.full_name);
+      if (key) existingByKey.set(key, { id: s.id, email: s.email, full_name: s.full_name });
     }
 
     // allowNameSwap: caller explicitly confirmed this is a different student from the name-swapped match
@@ -374,6 +382,19 @@ export async function POST(request: Request) {
         continue;
       }
 
+      // 2b. Normalized-key match — catches spelling-noise variants the exact/reversed
+      // checks miss ("Uche Sunday" vs "Uche Sunday 5", invisible chars, "34." prefixes).
+      const keyMatch = (!exactMatch && !swapMatch) ? existingByKey.get(duplicateNameKey(full_name)) : null;
+      if (keyMatch && !allowSameName) {
+        results.push({
+          full_name, email, password, class_name,
+          status: 'skipped',
+          error: `Already registered at this school as "${keyMatch.full_name}" (login: ${keyMatch.email}). This looks like the same student — confirm "allow same name" only if it is genuinely a different child.`,
+          userId: keyMatch.id,
+        });
+        continue;
+      }
+
       try {
         // Attempt to create auth user
         const { data: authData, error: signupErr } = await supabaseAdmin.auth.admin.createUser({
@@ -447,8 +468,10 @@ export async function POST(request: Request) {
           await supabaseAdmin.from('portal_users')
             .update({ is_deleted: true, is_active: false, class_id: null })
             .eq('id', ghost.id);
+          // Mirror is_deleted into the registry too (status alone left phantoms in
+          // registry-backed lists — the duplicate-appears-twice bug).
           await supabaseAdmin.from('students')
-            .update({ status: 'inactive' })
+            .update({ status: 'inactive', is_deleted: true, is_active: false })
             .eq('user_id', ghost.id);
         }
 
@@ -459,7 +482,7 @@ export async function POST(request: Request) {
           {
             id: authUserId,
             email: normalizeEmail(email),
-            full_name: full_name.trim(),
+            full_name: cleanStudentName(full_name) || full_name.trim(),
             role: 'student',
             school_id: resolvedSchoolId,
             school_name: resolvedSchoolName,
@@ -500,8 +523,8 @@ export async function POST(request: Request) {
         // expect students to have a record in the 'students' table for linkage.
         const { error: studentErr } = await supabaseAdmin.from('students').upsert({
           user_id: authUserId,
-          name: full_name.trim(),
-          full_name: full_name.trim(),
+          name: cleanStudentName(full_name) || full_name.trim(),
+          full_name: cleanStudentName(full_name) || full_name.trim(),
           student_email: normalizeEmail(email),
           school_id: resolvedSchoolId,
           school_name: resolvedSchoolName,
