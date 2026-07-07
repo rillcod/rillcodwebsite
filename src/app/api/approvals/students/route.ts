@@ -35,19 +35,38 @@ async function callerCanAccessSchool(admin: ReturnType<typeof adminClient>, call
 async function resolveStudentClassId(
   admin: ReturnType<typeof adminClient>,
   schoolId: string | null,
+  schoolName: string | null,
   classNames: Array<string | null | undefined>,
+  programme?: string | null,
+  grade?: string | null,
 ): Promise<string | null> {
   const names = Array.from(new Set(classNames.map((name) => name?.trim()).filter(Boolean))) as string[];
-  if (!schoolId || names.length === 0) return null;
+  if (!schoolId) return null;
 
-  const { data } = await admin
-    .from('classes')
-    .select('id')
-    .eq('school_id', schoolId)
-    .in('name', names)
-    .limit(1)
-    .maybeSingle();
-  return data?.id ?? null;
+  // 1) Reuse an existing class matched by name.
+  if (names.length > 0) {
+    const { data } = await admin
+      .from('classes')
+      .select('id')
+      .eq('school_id', schoolId)
+      .in('name', names)
+      .limit(1)
+      .maybeSingle();
+    if (data?.id) return data.id as string;
+  }
+
+  // 2) None exists → auto-create the canonical "School · Programme · Band" class (same engine
+  //    as onboarding/consent), so approval also places every student, even at a brand-new
+  //    school. Needs a programme or a grade to name it; otherwise leave it for review.
+  const className = (programme || '').replace(/\(.*?\)/g, '').trim() || grade?.trim() || names[0] || null;
+  if (!className) return null;
+  try {
+    const { ensureClassWithTutor } = await import('@/lib/summer-school/onboard');
+    return await ensureClassWithTutor(admin as any, schoolId, schoolName || '', className, undefined, grade ?? null);
+  } catch (err) {
+    console.error('[ApproveStudent] auto-create class failed:', err);
+    return null;
+  }
 }
 
 async function requireStaff() {
@@ -295,7 +314,7 @@ export async function POST(request: Request) {
   // Fetch only needed fields — avoid select('*') for security hygiene
   const { data: student, error: fetchErr } = await admin
     .from('students')
-    .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, registration_payment_at, registration_paystack_reference, date_of_birth, created_by')
+    .select('id, name, full_name, student_email, parent_email, parent_name, user_id, status, school_id, school_name, enrollment_type, current_class, section, grade_level, course_interest, registration_payment_at, registration_paystack_reference, date_of_birth, created_by')
     .eq('id', id)
     .maybeSingle();
 
@@ -382,11 +401,19 @@ export async function POST(request: Request) {
     }
   }
 
-  const resolvedClassId = await resolveStudentClassId(admin, resolvedSchoolId, [
-    ...(isSummerStudent ? ['Summer School 2026'] : []),
-    student.current_class,
-    student.grade_level,
-  ]);
+  const resolvedClassId = await resolveStudentClassId(
+    admin,
+    resolvedSchoolId,
+    resolvedSchoolName,
+    [
+      ...(isSummerStudent ? ['Summer School 2026'] : []),
+      student.current_class,
+      student.grade_level,
+    ],
+    // Programme (tier) is the explicit choice; grade drives the band. Never age.
+    isSummerStudent ? 'AI Summer School' : (student.course_interest ?? null),
+    student.current_class ?? student.grade_level ?? null,
+  );
 
   // Enforce correct enrollment_type for summer students
   const effectiveEnrollmentType = isSummerStudent ? 'summer_school' : (student.enrollment_type || 'in_person');
