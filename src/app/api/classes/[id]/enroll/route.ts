@@ -214,7 +214,7 @@ export async function POST(
   // Fetch class — include max_students for the capacity guard
   const { data: cls, error: clsErr } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id, term_id')
+    .select('id, name, program_id, max_students, school_id, term_id, teacher_id')
     .eq('id', classId)
     .single();
 
@@ -298,14 +298,22 @@ export async function POST(
     .single();
   const prevClassId = studentBefore?.class_id ?? null;
 
-  // Assign student → class; keep section_class in sync
+  // Assign student → class; keep section_class in sync. Set primary_teacher_id to
+  // the destination class teacher so the guard_student_class_division trigger
+  // treats this as an authorized transfer (see batch PUT for the full rationale).
+  const authorizedTeacher = cls.teacher_id ?? (caller.role === 'teacher' ? caller.id : null);
+  const movePayload: Record<string, unknown> = { class_id: classId, section_class: cls.name };
+  if (authorizedTeacher) movePayload.primary_teacher_id = authorizedTeacher;
+
   const { error: updateErr } = await admin
     .from('portal_users')
-    .update({ class_id: classId, section_class: cls.name })
+    .update(movePayload)
     .eq('id', studentId)
     .eq('role', 'student');
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+
+  await admin.from('students').update({ class_id: classId }).eq('user_id', studentId);
 
   await upsertClassTermRoster(admin, cls, [studentId], 'active', caller.id);
 
@@ -398,10 +406,10 @@ export async function PUT(
 
   const admin = adminClient();
 
-  // Fetch class — include max_students for the capacity guard
+  // Fetch class — include max_students for the capacity guard, teacher_id for authorized transfer
   const { data: cls } = await admin
     .from('classes')
-    .select('id, name, program_id, max_students, school_id, term_id')
+    .select('id, name, program_id, max_students, school_id, term_id, teacher_id')
     .eq('id', classId)
     .single();
   if (!cls) return NextResponse.json({ error: 'Class not found' }, { status: 404 });
@@ -540,14 +548,26 @@ export async function PUT(
     ),
   ];
 
-  // Batch-assign class_id and keep section_class in sync
+  // Batch-assign class_id and keep section_class in sync.
+  // Also set primary_teacher_id to the destination class teacher so the
+  // guard_student_class_division trigger treats this as an AUTHORIZED transfer
+  // (moving a student already owned by another teacher is otherwise blocked at
+  // the DB level). Falls back to the calling teacher when the class has no tutor.
+  const authorizedTeacher = cls.teacher_id ?? (caller.role === 'teacher' ? caller.id : null);
+  const movePayload: Record<string, unknown> = { class_id: classId, section_class: cls.name };
+  if (authorizedTeacher) movePayload.primary_teacher_id = authorizedTeacher;
+
   const { error: updateErr } = await admin
     .from('portal_users')
-    .update({ class_id: classId, section_class: cls.name })
+    .update(movePayload)
     .in('id', allowedIds)
     .eq('role', 'student');
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+
+  // Keep the legacy students table aligned so rosters, cards and reports resolve
+  // the same class no matter which table a downstream feature reads.
+  await admin.from('students').update({ class_id: classId }).in('user_id', allowedIds);
 
   await upsertClassTermRoster(admin, cls, allowedIds, 'active', caller.id);
 

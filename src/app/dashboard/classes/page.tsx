@@ -9,7 +9,7 @@ import {
   ClockIcon, UserGroupIcon, ChartBarIcon, DocumentTextIcon,
   EyeIcon, PencilIcon, TrashIcon, BuildingOfficeIcon,
   ArrowPathIcon, ExclamationTriangleIcon, CalendarDaysIcon,
-  ClipboardDocumentCheckIcon,
+  ClipboardDocumentCheckIcon, ArrowsRightLeftIcon,
 } from '@/lib/icons';
 
 const STATUS_BADGE: Record<string, string> = {
@@ -119,6 +119,13 @@ export default function ClassesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
+          <Link
+            href="/dashboard/classes/transfer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-xl transition-colors"
+          >
+            <ArrowsRightLeftIcon className="w-4 h-4 text-primary" />
+            Transfer
+          </Link>
           {profile?.role !== 'school' && (
             <Link
               href="/dashboard/reports/builder"
