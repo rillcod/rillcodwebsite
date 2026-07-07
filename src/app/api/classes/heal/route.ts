@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { fixedBand, parseBandLabel, canonicalTier, inferProgramme, buildClassName, bandForGrade, type BandGranularity } from '@/lib/classes/naming';
-import { cleanStudentName, nameNeedsCleaning, duplicateNameKey } from '@/lib/students/clean-name';
+import { cleanStudentName, nameNeedsCleaning, duplicateNameKey, namesAreNearDuplicate } from '@/lib/students/clean-name';
 
 function adminClient() {
   return createClient(
@@ -796,29 +796,80 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, cleaned: applied, scanned: all.length });
     }
 
-    // scan_name_health → also compute same-school duplicate-name groups.
+    // scan_name_health → same-school duplicate-name groups (exact-key + fuzzy variants).
+    const rankMember = (m: any) => ({
+      id: m.id, full_name: m.full_name, email: m.email, class_id: m.class_id,
+      reports: repCount[m.id] ?? 0, published: pubCount[m.id] ?? 0,
+    });
+    const groupToDup = (g: any[], kind: 'exact' | 'fuzzy') => {
+      const ranked = [...g].sort((a, b) => (pubCount[b.id] ?? 0) - (pubCount[a.id] ?? 0) || (repCount[b.id] ?? 0) - (repCount[a.id] ?? 0));
+      return {
+        kind,
+        school_name: g[0].school_name,
+        suggestedSurvivorId: ranked[0].id,
+        // 2+ copies hold records (possible distinct history) OR fuzzy → confirm before hard delete.
+        needsReview: kind === 'fuzzy' || g.filter((m) => (repCount[m.id] ?? 0) > 0).length > 1,
+        members: ranked.map(rankMember),
+      };
+    };
+
+    // Exact key groups (order/number/casing-insensitive).
     const groups: Record<string, any[]> = {};
     for (const s of all) {
       const key = `${s.school_id || s.school_name || '?'}::${duplicateNameKey(s.full_name)}`;
       if (duplicateNameKey(s.full_name)) (groups[key] = groups[key] || []).push(s);
     }
-    const duplicates = Object.values(groups)
-      .filter((g) => g.length > 1)
-      .map((g) => {
-        const ranked = [...g].sort((a, b) => (pubCount[b.id] ?? 0) - (pubCount[a.id] ?? 0) || (repCount[b.id] ?? 0) - (repCount[a.id] ?? 0));
-        const bothHaveRecords = g.filter((m) => (repCount[m.id] ?? 0) > 0).length > 1;
-        return {
-          school_name: g[0].school_name,
-          suggestedSurvivorId: ranked[0].id,
-          needsReview: bothHaveRecords,
-          members: ranked.map((m) => ({
-            id: m.id, full_name: m.full_name, email: m.email, class_id: m.class_id,
-            reports: repCount[m.id] ?? 0, published: pubCount[m.id] ?? 0,
-          })),
-        };
-      });
+    const exactGroups = Object.values(groups).filter((g) => g.length > 1);
+    const claimed = new Set(exactGroups.flat().map((s: any) => s.id));
+    const duplicates = exactGroups.map((g) => groupToDup(g, 'exact'));
 
-    return NextResponse.json({ scanned: all.length, cleanups, duplicates });
+    // Fuzzy spelling-variant pairs within a school (not already in an exact group).
+    const bySchool: Record<string, any[]> = {};
+    for (const s of all) {
+      if (claimed.has(s.id)) continue;
+      (bySchool[s.school_id || s.school_name || '?'] = bySchool[s.school_id || s.school_name || '?'] || []).push(s);
+    }
+    const fuzzy: any[] = [];
+    const usedFuzzy = new Set<string>();
+    for (const list of Object.values(bySchool)) {
+      for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+          const A = list[i], B = list[j];
+          if (usedFuzzy.has(A.id) || usedFuzzy.has(B.id)) continue;
+          if (duplicateNameKey(A.full_name) === duplicateNameKey(B.full_name)) continue;
+          if (namesAreNearDuplicate(A.full_name, B.full_name)) {
+            fuzzy.push(groupToDup([A, B], 'fuzzy'));
+            usedFuzzy.add(A.id); usedFuzzy.add(B.id);
+          }
+        }
+      }
+    }
+
+    // Registry desync: students rows still active while their portal account is soft-deleted
+    // (the phantom-duplicate cause). Reported so the UI can offer a one-click resync.
+    const { data: phantomRows } = await db
+      .from('students')
+      .select('user_id, full_name, portal_users!inner(is_deleted)')
+      .eq('is_deleted', false)
+      .eq('portal_users.is_deleted', true);
+    const registryDesync = (phantomRows ?? []).length;
+
+    return NextResponse.json({ scanned: all.length, cleanups, duplicates, fuzzyDuplicates: fuzzy, registryDesync });
+  }
+
+  // Resync the students registry to portal_users deletions — clears phantom duplicates that
+  // remain visible in registry-backed lists after an account was soft-deleted.
+  if (action === 'sync_registry') {
+    const { data: phantoms } = await db
+      .from('students')
+      .select('user_id, portal_users!inner(is_deleted)')
+      .eq('is_deleted', false)
+      .eq('portal_users.is_deleted', true);
+    const ids = (phantoms ?? []).map((p: any) => p.user_id).filter(Boolean);
+    for (let i = 0; i < ids.length; i += 200) {
+      await db.from('students').update({ is_deleted: true, is_active: false, status: 'inactive' }).in('user_id', ids.slice(i, i + 200));
+    }
+    return NextResponse.json({ success: true, resynced: ids.length });
   }
 
   if (action === 'assign_class') {

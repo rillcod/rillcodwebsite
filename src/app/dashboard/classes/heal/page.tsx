@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ExclamationTriangleIcon, CheckCircleIcon, ArrowPathIcon, TrashIcon, MagnifyingGlassIcon, PlusIcon, ChevronDownIcon } from '@/lib/icons';
 import { GradeBandPicker } from '@/components/classes/GradeBandPicker';
 import { composeClassName, type BandGranularity } from '@/lib/classes/naming';
+import NameHealthPanel from '@/components/classes/NameHealthPanel';
 
 const PROGRAMME_OPTIONS = ['Young Innovators', 'Teen Developers', 'Web Development Bootcamp', 'Data Analysis with Python'];
 
@@ -322,6 +323,9 @@ export default function ClassHealPage() {
             {msg.text}
           </div>
         )}
+
+        {/* Student name & duplicate health — self-serve cleanup / dedup / registry resync */}
+        <NameHealthPanel />
 
         {/* Stats summary panel */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

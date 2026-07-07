@@ -30,6 +30,41 @@ export function nameNeedsCleaning(raw: string | null | undefined): boolean {
   return !!cleaned && cleaned !== String(raw ?? '');
 }
 
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const d: number[] = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    let prev = d[0];
+    d[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = d[j];
+      d[j] = Math.min(d[j - 1] + 1, d[j] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return d[n];
+}
+
+const nameTokens = (raw: string | null | undefined): string[] =>
+  cleanStudentName(raw).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    .split(/\s+/).filter((t) => t && !/^\d+$/.test(t) && t.length > 1);
+
+const tokenSimilar = (x: string, y: string): boolean =>
+  x === y || (Math.max(x.length, y.length) >= 5 && levenshtein(x, y) <= 1) || (Math.max(x.length, y.length) >= 8 && levenshtein(x, y) <= 2);
+
+/**
+ * True when two names are near-duplicates: every token of the shorter name fuzzy-matches
+ * a token in the longer (spelling variants, reversed order, an added middle name). Requires
+ * ≥2 matched tokens so siblings ("Toby Akinmejiwa" vs "Oluwatobi Akinmejiwa Nelson") and
+ * twins are NOT collapsed — those still need a human decision.
+ */
+export function namesAreNearDuplicate(a: string | null | undefined, b: string | null | undefined): boolean {
+  const ta = nameTokens(a), tb = nameTokens(b);
+  const [small, large] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  if (small.length < 2) return false;
+  return small.every((t) => large.some((u) => tokenSimilar(t, u)));
+}
+
 /**
  * Order-independent key for detecting duplicate names. Drops standalone numeric tokens
  * so bulk-register disambiguators collapse together ("Uche Sunday" ≡ "Uche Sunday 5" ≡
