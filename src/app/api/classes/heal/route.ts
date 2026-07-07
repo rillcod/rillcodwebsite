@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { fixedBand, parseBandLabel, canonicalTier, inferProgramme, buildClassName, bandForGrade, type BandGranularity } from '@/lib/classes/naming';
+import { cleanStudentName, nameNeedsCleaning, duplicateNameKey } from '@/lib/students/clean-name';
 
 function adminClient() {
   return createClient(
@@ -704,6 +705,122 @@ export async function POST(req: NextRequest) {
   const { action, studentIds, classId, schoolId, deleteClassId } = body;
   const db = adminClient();
 
+  // ── Student name health: scan / clean / merge duplicates ──────────────────
+  // One self-serve place to undo the damage bulk imports + one-off scripts leave in
+  // student names: "34. " index prefixes, invisible/bidi characters, stray spaces, and
+  // duplicate-name accounts (same child registered twice with unique emails).
+  if (action === 'scan_name_health' || action === 'clean_student_names' || action === 'merge_duplicate_name') {
+    // Merge one duplicate group into a chosen survivor, moving every child record first.
+    if (action === 'merge_duplicate_name') {
+      const survivorId: string | undefined = body.survivorId;
+      const loserIds: string[] = Array.isArray(body.loserIds) ? body.loserIds : [];
+      if (!survivorId || loserIds.length === 0) {
+        return NextResponse.json({ error: 'survivorId and loserIds required' }, { status: 400 });
+      }
+      // Re-point child records to the survivor. Reports are guarded by a unique
+      // (student, term, course) index, so skip any loser report that would collide —
+      // those are surfaced for manual review instead of silently dropped.
+      const moved: Record<string, number> = {};
+      const { data: survReports } = await db.from('student_progress_reports')
+        .select('report_term, course_name').eq('student_id', survivorId);
+      const taken = new Set((survReports ?? []).map((r: any) => `${r.report_term}::${r.course_name}`));
+      const { data: loserReports } = await db.from('student_progress_reports')
+        .select('id, report_term, course_name').in('student_id', loserIds);
+      const movable = (loserReports ?? []).filter((r: any) => !taken.has(`${r.report_term}::${r.course_name}`));
+      const conflicting = (loserReports ?? []).filter((r: any) => taken.has(`${r.report_term}::${r.course_name}`));
+      if (movable.length) {
+        await db.from('student_progress_reports').update({ student_id: survivorId }).in('id', movable.map((r: any) => r.id));
+        moved.reports = movable.length;
+      }
+      await db.from('assignment_submissions').update({ portal_user_id: survivorId }).in('portal_user_id', loserIds);
+
+      // hard=true → fully wipe the loser accounts (and any leftover conflicting report) so
+      // the DB is clean. Otherwise soft-delete with a merged_into breadcrumb so an already
+      // printed card still resolves to the survivor, and mirror is_deleted into students so
+      // the loser never reappears in registry-backed lists (the phantom-dup bug).
+      if (body.hard === true) {
+        for (const lid of loserIds) await db.rpc('hard_delete_portal_user', { p_id: lid });
+      } else {
+        for (const lid of loserIds) {
+          await db.from('portal_users').update({
+            is_deleted: true, is_active: false,
+            metadata: { merged_into: survivorId, merged_at: new Date().toISOString() },
+            updated_at: new Date().toISOString(),
+          }).eq('id', lid);
+          await db.from('students').update({ is_deleted: true, is_active: false }).eq('user_id', lid);
+        }
+      }
+      return NextResponse.json({
+        success: true, survivorId, merged: loserIds.length, moved, hard: body.hard === true,
+        conflictingReports: conflicting.length,
+        note: conflicting.length && body.hard !== true ? 'Some loser reports shared a term+course with the survivor and were left in place for review.' : undefined,
+      });
+    }
+
+    // Scan / clean paths both need the full active student set.
+    const { data: students } = await db
+      .from('portal_users')
+      .select('id, full_name, email, school_id, school_name, class_id')
+      .eq('role', 'student')
+      .eq('is_deleted', false);
+    const all = students ?? [];
+
+    // Reports/subs lookup for duplicate survivor selection.
+    const ids = all.map((s: any) => s.id);
+    const repCount: Record<string, number> = {};
+    const pubCount: Record<string, number> = {};
+    for (let i = 0; i < ids.length; i += 500) {
+      const chunk = ids.slice(i, i + 500);
+      const { data: reps } = await db.from('student_progress_reports').select('student_id, is_published').in('student_id', chunk);
+      (reps ?? []).forEach((r: any) => {
+        repCount[r.student_id] = (repCount[r.student_id] ?? 0) + 1;
+        if (r.is_published) pubCount[r.student_id] = (pubCount[r.student_id] ?? 0) + 1;
+      });
+    }
+
+    const cleanups = all
+      .filter((s: any) => nameNeedsCleaning(s.full_name))
+      .map((s: any) => ({ id: s.id, from: s.full_name, to: cleanStudentName(s.full_name), school_name: s.school_name }));
+
+    if (action === 'clean_student_names') {
+      const only: string[] | null = Array.isArray(body.studentIds) && body.studentIds.length ? body.studentIds : null;
+      const targets = only ? cleanups.filter((c) => only.includes(c.id)) : cleanups;
+      let applied = 0;
+      for (const c of targets) {
+        const { error } = await db.from('portal_users').update({ full_name: c.to, updated_at: new Date().toISOString() }).eq('id', c.id);
+        if (!error) {
+          await db.from('students').update({ full_name: c.to, name: c.to }).eq('user_id', c.id);
+          applied += 1;
+        }
+      }
+      return NextResponse.json({ success: true, cleaned: applied, scanned: all.length });
+    }
+
+    // scan_name_health → also compute same-school duplicate-name groups.
+    const groups: Record<string, any[]> = {};
+    for (const s of all) {
+      const key = `${s.school_id || s.school_name || '?'}::${duplicateNameKey(s.full_name)}`;
+      if (duplicateNameKey(s.full_name)) (groups[key] = groups[key] || []).push(s);
+    }
+    const duplicates = Object.values(groups)
+      .filter((g) => g.length > 1)
+      .map((g) => {
+        const ranked = [...g].sort((a, b) => (pubCount[b.id] ?? 0) - (pubCount[a.id] ?? 0) || (repCount[b.id] ?? 0) - (repCount[a.id] ?? 0));
+        const bothHaveRecords = g.filter((m) => (repCount[m.id] ?? 0) > 0).length > 1;
+        return {
+          school_name: g[0].school_name,
+          suggestedSurvivorId: ranked[0].id,
+          needsReview: bothHaveRecords,
+          members: ranked.map((m) => ({
+            id: m.id, full_name: m.full_name, email: m.email, class_id: m.class_id,
+            reports: repCount[m.id] ?? 0, published: pubCount[m.id] ?? 0,
+          })),
+        };
+      });
+
+    return NextResponse.json({ scanned: all.length, cleanups, duplicates });
+  }
+
   if (action === 'assign_class') {
     if (!classId || !studentIds?.length) {
       return NextResponse.json({ error: 'classId and studentIds required' }, { status: 400 });
@@ -837,13 +954,28 @@ export async function POST(req: NextRequest) {
 
   if (action === 'delete_portal_user') {
     if (!studentIds?.length) return NextResponse.json({ error: 'studentIds required' }, { status: 400 });
+
+    // Hard delete: full wipe (all FK children + students row + auth.users) via the DB
+    // function so nothing is left to reappear as a phantom duplicate anywhere.
+    if (body.hard === true) {
+      let wiped = 0; const failed: string[] = [];
+      for (const id of studentIds) {
+        const { error } = await db.rpc('hard_delete_portal_user', { p_id: id });
+        if (error) failed.push(id); else wiped += 1;
+      }
+      return NextResponse.json({ success: failed.length === 0, hardDeleted: wiped, failed });
+    }
+
+    // Soft delete — MUST mirror is_deleted into the students registry (not just status),
+    // otherwise the account keeps showing in registry-backed views (the phantom-dup bug).
     const { error } = await db
       .from('portal_users')
       .update({ is_deleted: true, is_active: false, class_id: null, section_class: null })
       .in('id', studentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    // Cascade: deactivate in students registry and clear enrollment
-    await db.from('students').update({ status: 'inactive', class_id: null, section_class: null }).in('user_id', studentIds);
+    await db.from('students')
+      .update({ status: 'inactive', is_deleted: true, is_active: false, class_id: null, section_class: null })
+      .in('user_id', studentIds);
     return NextResponse.json({ success: true, updated: studentIds.length });
   }
 

@@ -173,6 +173,19 @@ export async function DELETE(
     }
   }
 
+  // ── Students: full wipe via the DB function ──────────────────────────
+  // A student can have rows in ~150 FK-linked tables; hand-listing a subset here left
+  // orphans and sometimes failed the portal_users delete outright. hard_delete_portal_user
+  // clears every child (and the students + auth.users rows) in one shot — a clean, complete
+  // delete with nothing left to resurface as a phantom.
+  if (pu?.role === 'student') {
+    const { error: wipeErr } = await (admin as any).rpc('hard_delete_portal_user', { p_id: id });
+    if (wipeErr) return NextResponse.json({ error: wipeErr.message }, { status: 500 });
+    // Best-effort auth removal in case the SQL side could not reach auth.users.
+    await admin.auth.admin.deleteUser(id).catch(() => {});
+    return NextResponse.json({ success: true, hardDeleted: true });
+  }
+
   // ── Step 0: If this is a parent, wipe all linked data ──────────────
   if (pu?.role === 'parent') {
     // Clear parent fields from all students linked by email
