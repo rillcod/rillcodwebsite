@@ -94,7 +94,10 @@ export async function getResultConsentAccessStatus(
     .from('form_leads')
     .select('id, status, match_status, matched_parent_id, matched_student_id, response_data')
     .eq('form_id', form.id)
-    .order('created_at', { ascending: false })
+    // form_leads is timestamped by submitted_at (there is no created_at column) — ordering
+    // by a non-existent column threw 42703 and 500'd result access for every school that
+    // had a public consent form. Keep the newest-first ordering on the real column.
+    .order('submitted_at', { ascending: false, nullsFirst: false })
     .limit(1000);
 
   if (error) throw error;

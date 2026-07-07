@@ -268,13 +268,21 @@ export async function GET(
     );
   }
 
-  const consent = await getResultConsentAccessStatus(db, {
-    studentUserId: student.id,
-    schoolId: student.school_id,
-    classId: student.class_id,
-  });
-
-  await backfillParentLinkFromConsent(db, student.id, consent);
+  // Consent lookup is an ENRICHMENT, not a gate on the result itself. If it fails for any
+  // reason (schema drift, transient DB error) we must still surface the published result —
+  // never 500 the whole scan. Degrade to "no consent form required" on error.
+  let consent: Awaited<ReturnType<typeof getResultConsentAccessStatus>>;
+  try {
+    consent = await getResultConsentAccessStatus(db, {
+      studentUserId: student.id,
+      schoolId: student.school_id,
+      classId: student.class_id,
+    });
+    await backfillParentLinkFromConsent(db, student.id, consent);
+  } catch (consentErr) {
+    console.warn('[result-check] consent enrichment failed (non-fatal):', consentErr);
+    consent = { required: false, complete: true, form: null, formUrl: null, matchedLeadId: null };
+  }
 
   const [{ data: reports, error }, { data: orgSettings }] = await Promise.all([
     db
