@@ -222,6 +222,10 @@ export async function GET(
   const db = createAdminClient();
   const { searchParams } = new URL(req.url);
   const accessCodeParam = searchParams.get('accessCode');
+
+  // Defense-in-depth: any unexpected throw below must return a clean JSON error, never an
+  // empty-body 500 that the public page renders as "Result Access Not Verified".
+  try {
   const student = await resolveStudent(db, id);
   if (!student) {
     await logResultAccessEvent(db, req, {
@@ -340,6 +344,15 @@ export async function GET(
       ? `${consent.formUrl}?returnTo=${encodeURIComponent(`/result-check/${encodeURIComponent(id)}`)}`
       : null,
   });
+  } catch (err) {
+    console.error('[result-check GET] unexpected failure:', err);
+    await logResultAccessEvent(db, req, {
+      action: 'result_check_error',
+      rawCode: accessCodeParam ?? id,
+      details: { result: 'unexpected_error', message: err instanceof Error ? err.message : String(err) },
+    });
+    return NextResponse.json({ error: 'Result check failed. Please try again.' }, { status: 500 });
+  }
 }
 
 export async function POST(
@@ -369,6 +382,8 @@ export async function POST(
   const db = createAdminClient();
   const { searchParams } = new URL(req.url);
   const accessCodeParam = searchParams.get('accessCode');
+
+  try {
   const student = await resolveStudent(db, id);
   if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
@@ -448,4 +463,8 @@ export async function POST(
   });
 
   return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[result-check POST] unexpected failure:', err);
+    return NextResponse.json({ error: 'Result action failed. Please try again.' }, { status: 500 });
+  }
 }
