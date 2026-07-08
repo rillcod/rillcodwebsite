@@ -109,3 +109,37 @@ export async function deliverNewsletter(
 
   return { delivered, emailed, failed };
 }
+
+/**
+ * Publish every newsletter whose scheduled_for has passed, delivering to the stored target with
+ * the author's school scope. Idempotent (upsert on the delivery unique index) so it's safe to
+ * call from any cron — including piggybacking on an existing frequent sweep. Returns how many
+ * were published.
+ */
+export async function publishDueNewsletters(admin: AnySupabase): Promise<{ count: number }> {
+  const { data: due } = await admin
+    .from('newsletters')
+    .select('id, author_id, scheduled_target, scheduled_send_email')
+    .eq('status', 'scheduled')
+    .lte('scheduled_for', new Date().toISOString())
+    .limit(50);
+
+  let count = 0;
+  for (const nl of due ?? []) {
+    const { data: author } = await admin.from('portal_users')
+      .select('id, role, school_id').eq('id', (nl as any).author_id).maybeSingle();
+    const scope = author ? await authorSchoolScope(admin, author as any) : null;
+    const target = ((nl as any).scheduled_target || 'all') as NewsletterTarget;
+    const userIds = await resolveRecipients(admin, { target, schoolScope: scope });
+    if (userIds.length === 0) {
+      // Publish anyway so it doesn't loop forever on an empty audience.
+      await admin.from('newsletters')
+        .update({ status: 'published', published_at: new Date().toISOString(), scheduled_for: null })
+        .eq('id', (nl as any).id);
+      continue;
+    }
+    await deliverNewsletter(admin, { newsletterId: (nl as any).id, userIds, sendEmail: (nl as any).scheduled_send_email === true });
+    count++;
+  }
+  return { count };
+}

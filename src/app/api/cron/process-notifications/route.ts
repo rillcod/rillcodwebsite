@@ -1,13 +1,25 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { queueService } from '@/services/queue.service';
 import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { publishDueNewsletters } from '@/lib/newsletters/push';
 
 export const dynamic = 'force-dynamic';
 
 async function handleRequest(req: Request) {
     if (!isValidCronSecret(extractCronSecret(req))) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Piggyback: publish any newsletters whose scheduled time has passed. Best-effort — never
+    // let it block the notification queue. Avoids needing a separate cron entry.
+    let newslettersPublished = 0;
+    try {
+        const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+        newslettersPublished = (await publishDueNewsletters(admin)).count;
+    } catch (err) {
+        console.error('[process-notifications] newsletter publish sweep failed:', err);
     }
 
     const batchSize = 10;
@@ -41,6 +53,7 @@ async function handleRequest(req: Request) {
         success: true,
         processed,
         failed,
+        newslettersPublished,
         remaining: await queueService.getQueueLength()
     });
 }
