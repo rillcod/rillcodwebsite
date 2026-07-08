@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import {
   EnvelopeIcon, KeyIcon, ArrowPathIcon, CheckCircleIcon,
@@ -101,58 +100,15 @@ export default function ResendCredentialsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const db = createClient();
-      const { data, error } = await db
-        .from('students')
-        .select('id, full_name, student_email, parent_email, school_name, status, enrollment_type, user_id, created_at')
-        .in('status', ['approved', 'paid', 'partially_paid'])
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        toast.error('Failed to load students: ' + error.message);
+      // Scoped server API (service role, role-aware) — never depends on client-side RLS, and
+      // it enriches + chunks server-side so the page can't hang on an oversized query.
+      const res = await fetch('/api/students/credentials-list', { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error('Failed to load students: ' + (json.error || res.statusText));
         return;
       }
-
-      const rows: StudentRow[] = data ?? [];
-
-      // Enrich with latest credential status and passwords from registration_results.
-      // IMPORTANT: query in CHUNKS — a single `.in('email', [~1500 emails])` builds a huge
-      // URL that stalls/rejects (this is what made the page hang on the spinner).
-      const studentEmails = rows.map(s => s.student_email).filter(Boolean) as string[];
-      const parentEmails = rows.map(s => s.parent_email).filter(Boolean) as string[];
-      const allEmails = Array.from(new Set([...studentEmails, ...parentEmails]));
-
-      if (allEmails.length > 0) {
-        const latestByEmail: Record<string, CredentialStatus> = {};
-        const CHUNK = 100;
-        for (let i = 0; i < allEmails.length; i += CHUNK) {
-          const batch = allEmails.slice(i, i + CHUNK);
-          const { data: results } = await db
-            .from('registration_results')
-            .select('email, status, password, created_at')
-            .in('email', batch)
-            .order('created_at', { ascending: false });
-          // Results newest-first. Keep the LATEST status/date, but BACKFILL the password from
-          // the most recent row that has one, so a newer status-only row never blanks it.
-          for (const r of results ?? []) {
-            const key = (r.email || '').trim().toLowerCase();
-            if (!key) continue;
-            if (!latestByEmail[key]) {
-              latestByEmail[key] = { status: r.status, created_at: r.created_at, password: r.password ?? null };
-            } else if (!latestByEmail[key].password && r.password) {
-              latestByEmail[key].password = r.password;
-            }
-          }
-        }
-        for (const row of rows) {
-          const sKey = (row.student_email || '').trim().toLowerCase();
-          const pKey = (row.parent_email || '').trim().toLowerCase();
-          if (sKey && latestByEmail[sKey]) row.credEmail = latestByEmail[sKey];
-          if (pKey && latestByEmail[pKey]) row.parentCred = latestByEmail[pKey];
-        }
-      }
-
-      setStudents(rows);
+      setStudents((json.students ?? []) as StudentRow[]);
     } catch (e: any) {
       toast.error('Failed to load students: ' + (e?.message || 'unexpected error'));
     } finally {
