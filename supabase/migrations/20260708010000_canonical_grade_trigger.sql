@@ -45,9 +45,13 @@ BEGIN
       WHEN 'SSS' THEN 'SS' WHEN 'SS' THEN 'SS'
       WHEN 'BASIC' THEN 'Basic' WHEN 'PRIMARY' THEN 'Basic' WHEN 'PRY' THEN 'Basic'
       WHEN 'ELEMENTARY' THEN 'Basic' WHEN 'ELEM' THEN 'Basic'
+      -- Pre-primary is "Nursery" throughout (KG/Kindergarten/Reception all map to Nursery).
       WHEN 'NURSERY' THEN 'Nursery' WHEN 'NUR' THEN 'Nursery' WHEN 'CRECHE' THEN 'Nursery'
-      WHEN 'KG' THEN 'KG' WHEN 'KINDERGARTEN' THEN 'KG' WHEN 'RECEPTION' THEN 'KG'
-      WHEN 'GRADE' THEN 'Grade' WHEN 'YEAR' THEN 'Year'
+      WHEN 'KG' THEN 'Nursery' WHEN 'KINDERGARTEN' THEN 'Nursery' WHEN 'RECEPTION' THEN 'Nursery'
+      -- Grade collapses to Basic ("Grade 2" == "Basic 2"). "Year N" adopts the level of the
+      -- student's class (primary school → Basic, secondary → JSS); in practice grade is derived
+      -- from the class band which already carries the level, so JSS is only a bare fallback.
+      WHEN 'GRADE' THEN 'Basic' WHEN 'YEAR' THEN 'JSS'
       ELSE initcap(rec.lvl_raw)
     END;
     IF first_norm IS NULL THEN first_norm := norm_lvl; END IF;

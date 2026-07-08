@@ -46,11 +46,13 @@ export function shortSchoolName(full: string | null | undefined): string {
 
 // "Primary"/"Pry" normalise to Basic — the school convention uses Basic, not Primary.
 // Nursery/KG (pre-primary) are their own levels.
+// Canonical school vocabulary: Grade→Basic, and the pre-primary level is "Nursery" (KG/
+// Kindergarten/Reception all map to Nursery). Year is context-dependent (see canonicalGrade).
 const LVL: Record<string, string> = {
   js: 'JSS', jss: 'JSS', sss: 'SSS', ss: 'SS', basic: 'Basic', primary: 'Basic',
-  pry: 'Basic', elementary: 'Basic', elem: 'Basic', grade: 'Grade', year: 'Year',
+  pry: 'Basic', elementary: 'Basic', elem: 'Basic', grade: 'Basic', year: 'Year',
   nursery: 'Nursery', nur: 'Nursery', creche: 'Nursery',
-  kg: 'KG', kindergarten: 'KG', reception: 'KG',
+  kg: 'Nursery', kindergarten: 'Nursery', reception: 'Nursery',
 };
 
 /** Pull grade tokens (level + number) out of any messy string. */
@@ -184,7 +186,10 @@ export function canonicalGrade(input: string | null | undefined): string | null 
   const seg = String(input).includes('·') ? String(input).split('·').pop()!.trim() : String(input);
   const grades = parseGrades(seg);
   if (!grades.length) return null;
-  const norm = (l: string) => (l === 'JS' ? 'JSS' : l === 'SSS' ? 'SS' : l);
+  // Level synonyms → canonical school vocabulary: JS→JSS, SSS→SS, Grade→Basic ("Grade 2" is
+  // "Basic 2"), and Year→JSS with the same number ("Year 2" is "JSS 2"). (Primary/Pry/
+  // Elementary already map to Basic in parseGrades.)
+  const norm = (l: string) => (l === 'JS' ? 'JSS' : l === 'SSS' ? 'SS' : l === 'Grade' ? 'Basic' : l === 'Year' ? 'JSS' : l);
   const lvl = norm(grades[0].lvl);
   const rm = seg.match(/(\d+)\s*[-–]\s*(\d+)/);
   // Range → lowest specific grade; otherwise the lowest token of the dominant level.
@@ -255,9 +260,9 @@ export function parseBandLabel(label: string | null | undefined): CanonicalBand 
 
 // ── Fixed option lists for the class-name pickers — the ONLY grades/bands a class may use,
 //    so free-typed names are impossible and every class follows one convention. ──────────
-export const FIXED_BANDS = ['Nursery 1-2', 'KG 1-2', 'Basic 1-3', 'Basic 4-6', 'JSS 1-3', 'SS 1-3'] as const;
+export const FIXED_BANDS = ['Nursery 1-3', 'Basic 1-3', 'Basic 4-6', 'JSS 1-3', 'SS 1-3'] as const;
 export const SINGLE_GRADES = [
-  'Nursery 1', 'Nursery 2', 'KG 1', 'KG 2',
+  'Nursery 1', 'Nursery 2', 'Nursery 3',
   'Basic 1', 'Basic 2', 'Basic 3', 'Basic 4', 'Basic 5', 'Basic 6',
   'JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3',
 ] as const;
