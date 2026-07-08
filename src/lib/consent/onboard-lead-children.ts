@@ -38,7 +38,7 @@ const programLabel = (p?: string | null): string | null =>
 export async function onboardLeadChildren(
   admin: AnySupabase,
   ctx: LeadChildContext,
-): Promise<Array<{ name: string; email: string; password: string }>> {
+): Promise<Array<{ name: string; email: string; password: string; studentPortalId: string }>> {
   const rd = (ctx.lead.response_data ?? {}) as Record<string, any>;
   const str = (k: string) => ((rd[k] as string) ?? '').trim();
   const childName = str('child_name');
@@ -49,7 +49,7 @@ export async function onboardLeadChildren(
     ? (rd.child_matches as Array<{ childIndex: number; studentId: string }>)
     : [];
 
-  const created: Array<{ name: string; email: string; password: string }> = [];
+  const created: Array<{ name: string; email: string; password: string; studentPortalId: string }> = [];
   const tasks: Array<{ name: string; klass: string | null; age: string | null; gender: string | null; program: string | null }> = [];
 
   // Primary child — unmatched when the lead has no matched_student_id.
@@ -87,7 +87,7 @@ export async function onboardLeadChildren(
         classId: ctx.classId,
         className: ctx.className,
       });
-      if (res.created) created.push({ name: t.name, email: res.studentEmail, password: res.studentPassword });
+      if (res.created) created.push({ name: t.name, email: res.studentEmail, password: res.studentPassword, studentPortalId: res.studentPortalId });
     } catch (e) {
       console.error('[onboardLeadChildren] failed for', t.name, e);
     }

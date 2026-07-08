@@ -100,6 +100,29 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       className: overrideClassName,
     });
 
+  // PROVENANCE: write the onboarded children back onto the lead so a student created from
+  // a consent form is traceable to its source form (matched_student_id + child_matches).
+  // Re-reads the current response_data so it never clobbers the portal-creation log.
+  const linkChildrenToLead = async (kids: Array<{ name: string; studentPortalId: string }>) => {
+    const ids = kids.map((k) => k.studentPortalId).filter(Boolean);
+    if (ids.length === 0) return;
+    const { data: cur } = await (sb as any)
+      .from('form_leads').select('response_data, matched_student_id').eq('id', leadId).maybeSingle();
+    const crd = ((cur?.response_data ?? rd) as Record<string, any>) || {};
+    const existingMatches: Array<{ studentId: string }> = Array.isArray(crd.child_matches) ? crd.child_matches : [];
+    const merged = [...existingMatches];
+    kids.forEach((k) => {
+      if (k.studentPortalId && !merged.some((m) => m.studentId === k.studentPortalId)) {
+        merged.push({ childIndex: merged.length, studentId: k.studentPortalId, studentName: k.name, studentClass: null, confidence: 'high' } as any);
+      }
+    });
+    await (sb as any).from('form_leads').update({
+      matched_student_id: cur?.matched_student_id ?? ids[0],
+      match_status: 'approved',
+      response_data: { ...crd, child_matches: merged },
+    }).eq('id', leadId);
+  };
+
   // Check if portal account already exists
   const { data: existing } = await (sb as any)
     .from('portal_users')
@@ -201,6 +224,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         await notificationsService.sendEmail('system', { to: existing.email, subject: `Your Child's Rillcod Student Login`, html });
       } catch { /* non-fatal */ }
     }
+
+    await linkChildrenToLead(newStudents);
 
     return NextResponse.json({
       success: true, alreadyExisted: true, parentId: existing.id,
@@ -415,6 +440,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       portal_created_by:       staffName,
     },
   }).eq('id', leadId);
+
+  await linkChildrenToLead(newStudents);
 
   return NextResponse.json({
     success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail,

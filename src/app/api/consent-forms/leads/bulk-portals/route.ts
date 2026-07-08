@@ -13,6 +13,21 @@ export const dynamic = 'force-dynamic';
 
 const MAX_LEADS = 50;
 
+/** Merge freshly-onboarded children into a lead's child_matches (provenance back-link). */
+function mergeChildMatches(
+  crd: Record<string, any>,
+  kids: Array<{ name: string; studentPortalId: string }>,
+): Array<{ childIndex: number; studentId: string; studentName: string; studentClass: string | null; confidence: string }> {
+  const existing = Array.isArray(crd.child_matches) ? crd.child_matches : [];
+  const merged = [...existing];
+  for (const k of kids) {
+    if (k.studentPortalId && !merged.some((m: any) => m.studentId === k.studentPortalId)) {
+      merged.push({ childIndex: merged.length, studentId: k.studentPortalId, studentName: k.name, studentClass: null, confidence: 'high' });
+    }
+  }
+  return merged;
+}
+
 function adminClient() {
   return createAdminSupabase(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -196,7 +211,15 @@ export async function POST(req: NextRequest) {
         }
 
         await (sb as any).from('form_leads')
-          .update({ matched_parent_id: existing.id })
+          .update({
+            matched_parent_id: existing.id,
+            // PROVENANCE: newly-created children are traceable back to this source form.
+            ...(newStudents.length ? {
+              matched_student_id: lead.matched_student_id ?? newStudents[0].studentPortalId,
+              match_status: 'approved',
+              response_data: { ...rd, child_matches: mergeChildMatches(rd, newStudents) },
+            } : {}),
+          })
           .eq('id', lead.id);
         results.skipped++;
         continue;
@@ -365,7 +388,12 @@ export async function POST(req: NextRequest) {
       };
       await (sb as any).from('form_leads').update({
         matched_parent_id: parentId,
-        response_data:     updatedRd,
+        // PROVENANCE: created children link back to this source form.
+        ...(newStudents.length ? {
+          matched_student_id: lead.matched_student_id ?? newStudents[0].studentPortalId,
+          match_status: 'approved',
+        } : {}),
+        response_data: newStudents.length ? { ...updatedRd, child_matches: mergeChildMatches(updatedRd, newStudents) } : updatedRd,
       }).eq('id', lead.id);
 
       results.created++;
