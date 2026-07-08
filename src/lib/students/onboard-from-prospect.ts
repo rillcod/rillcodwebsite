@@ -163,10 +163,11 @@ export async function onboardStudentFromProspect(
 
   // Retain the existing student's class/school from their PORTAL account (the
   // authoritative source for placement — students has no class_id).
-  // DATA-INTEGRITY GUARD: when we REUSE an existing account, keep its established name.
-  // Overwriting it with the incoming form's spelling variant is how a name update could
-  // "mutate" one child's account into a differently-named record. New accounts still use
-  // the form name; deliberate name fixes go through the heal Name panel.
+  // CONSENT-FORM DOMINANCE: the child's details on the form are the source of truth, so the
+  // form name (and age/gender below) UPDATE the matched account. We only fall back to the
+  // existing name when the form provides none — so a match is refreshed, never blanked. The
+  // safeguard against mutating the WRONG account is the precise duplicate matcher above
+  // (≥2 shared tokens + similarity), not name-freezing.
   let effectiveName = fullNameTrimmed;
   if (priorUserId) {
     const { data: pu } = await admin.from('portal_users').select('class_id, school_id, school_name, full_name').eq('id', priorUserId).maybeSingle();
@@ -174,7 +175,7 @@ export async function onboardStudentFromProspect(
       priorClassId = (pu as any).class_id ?? null;
       priorSchoolId = priorSchoolId ?? (pu as any).school_id ?? null;
       priorSchoolName = priorSchoolName ?? (pu as any).school_name ?? null;
-      if ((pu as any).full_name?.trim()) effectiveName = (pu as any).full_name.trim();
+      if (!effectiveName) effectiveName = ((pu as any).full_name ?? '').trim();
     }
   }
 
@@ -251,8 +252,11 @@ export async function onboardStudentFromProspect(
     school_id: school.id,
     school_name: school.name,
     class_id: classId,
-    date_of_birth: prospect.age ? `${new Date().getFullYear() - prospect.age}-01-01` : null,
-    section_class: prospect.grade || null,
+    // Consent-form details update the account, but only when provided — never blank an
+    // existing gender / dob / class on a reused account.
+    ...(prospect.gender ? { gender: prospect.gender } : {}),
+    ...(prospect.age ? { date_of_birth: `${new Date().getFullYear() - prospect.age}-01-01` } : {}),
+    ...(prospect.grade ? { section_class: prospect.grade } : {}),
     enrollment_type: recordEnrollmentType,
     phone: prospect.parent_phone || null,
     is_active: true,
@@ -268,11 +272,11 @@ export async function onboardStudentFromProspect(
     parent_name: parentName,
     parent_email: normalizedParentEmail || null,
     parent_phone: prospect.parent_phone || null,
-    age: prospect.age ?? null,
-    gender: prospect.gender ?? null,
-    grade: prospect.grade ?? null,
-    grade_level: prospect.grade ?? null,
-    current_class: prospect.grade ?? null,
+    // Consent-form child details have dominance, but only overwrite when provided (an
+    // empty form field must not wipe an existing student's gender/age/grade).
+    ...(prospect.age != null ? { age: prospect.age } : {}),
+    ...(prospect.gender ? { gender: prospect.gender } : {}),
+    ...(prospect.grade ? { grade: prospect.grade, grade_level: prospect.grade, current_class: prospect.grade } : {}),
     school_id: school.id,
     school_name: school.name,
     // class_id intentionally omitted — the students table has no class_id column;
