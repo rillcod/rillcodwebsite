@@ -8,8 +8,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import {
     ArrowLeftIcon, BookOpenIcon, CheckIcon,
-    ExclamationTriangleIcon, ArrowPathIcon, UserIcon,
-    BuildingOfficeIcon,
+    ExclamationTriangleIcon, ArrowPathIcon,
+    UserGroupIcon, ArrowsRightLeftIcon,
 } from '@/lib/icons';
 
 type AcademicTermOption = {
@@ -32,14 +32,8 @@ export default function EditClassPage() {
     const [teachers, setTeachers] = useState<any[]>([]);
     const [schools, setSchools] = useState<any[]>([]);
     const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
-    const [availableStudents, setAvailableStudents] = useState<any[]>([]);
-    const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-    const [initialStudents, setInitialStudents] = useState<string[]>([]);
-    // originalName removed — student assignment now uses class_id FK instead of name matching
 
     const [loading, setLoading] = useState(true);
-    const [loadingStudents, setLoadingStudents] = useState(false);
-    const [pendingCount, setPendingCount] = useState(0);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -113,16 +107,6 @@ export default function EditClassPage() {
                 }
                 const { data: sData } = await schoolsQuery;
 
-                // 4. Fetch currently assigned students (those with class_id = this class)
-                const { data: currentStuds } = await db.from('portal_users')
-                    .select('id')
-                    .eq('role', 'student')
-                    .eq('class_id', id);
-
-                const currentIds = (currentStuds ?? []).map(s => s.id);
-                setSelectedStudents(currentIds);
-                setInitialStudents(currentIds);
-
                 setPrograms(programsRes.data ?? []);
                 setTeachers(teachersRes.data ?? []);
                 setSchools(sData ?? []);
@@ -136,100 +120,6 @@ export default function EditClassPage() {
 
         loadData();
     }, [id, profile?.id, authLoading]);
-
-    // Fetch available students when program or school changes
-    useEffect(() => {
-        if (!form.program_id || loading) {
-            if (!form.program_id) setAvailableStudents([]);
-            return;
-        }
-        const db = createClient();
-        setLoadingStudents(true);
-        async function fetchStudents() {
-            try {
-                // 1. Get schools for permissions (teachers only)
-                const { data: assignments } = await db
-                    .from('teacher_schools')
-                    .select('school_id')
-                    .eq('teacher_id', profile?.id || '');
-                const assignedSchoolIds = assignments?.map(a => a.school_id).filter(Boolean) || [];
-                if (profile?.school_id && !assignedSchoolIds.includes(profile.school_id)) assignedSchoolIds.push(profile.school_id);
-
-                // 2. Fetch the "Pool" from portal_users (active students who can be assigned)
-                let poolQuery = db.from('portal_users')
-                    .select('id, full_name, email, school_id, school_name, section_class')
-                    .eq('role', 'student')
-                    .neq('is_deleted', true);
-
-                // Jurisdiction rule:
-                //   Admin:   school_id match + school_name match + truly unassigned (both null)
-                //   Teacher: school_id match + school_name match ONLY — no unclaimed students
-                if (profile?.role === 'admin') {
-                    if (form.school_id) {
-                        const sName = schools.find(s => s.id === form.school_id)?.name;
-                        const unassigned = 'and(school_id.is.null,school_name.is.null)';
-                        if (sName) {
-                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq.${sName},${unassigned}`);
-                        } else {
-                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},${unassigned}`);
-                        }
-                    }
-                } else {
-                    // Teachers only see students from schools within their jurisdiction
-                    if (form.school_id) {
-                        const sName = schools.find(s => s.id === form.school_id)?.name;
-                        if (sName) {
-                            poolQuery = poolQuery.or(`school_id.eq.${form.school_id},school_name.eq.${sName}`);
-                        } else {
-                            poolQuery = poolQuery.in('school_id', [form.school_id]);
-                        }
-                    } else if (assignedSchoolIds.length > 0) {
-                        const schoolNames = schools.filter(s => assignedSchoolIds.includes(s.id)).map(s => s.name).filter(Boolean);
-                        const idPart = `school_id.in.(${assignedSchoolIds.join(',')})`;
-                        const namePart = schoolNames.map(n => `school_name.eq.${n}`).join(',');
-                        poolQuery = (poolQuery as any).or(namePart ? `${idPart},${namePart}` : idPart);
-                    } else {
-                        // Teacher with no school assignment — show nothing
-                        setAvailableStudents([]);
-                        setLoadingStudents(false);
-                        return;
-                    }
-                }
-
-                const { data: studs } = await poolQuery.order('full_name');
-                setAvailableStudents(studs ?? []);
-
-                // 3. Count "Pending Admission" (students registry table where user_id is null)
-                let pendingQuery = db.from('students')
-                    .select('id')
-                    .is('user_id', null);
-
-                if (form.school_id) {
-                    const sName = schools.find(s => s.id === form.school_id)?.name;
-                    if (sName) {
-                        pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},school_name.eq.${sName},created_by.eq.${profile?.id || ''}`);
-                    } else {
-                        pendingQuery = pendingQuery.or(`school_id.eq.${form.school_id},created_by.eq.${profile?.id || ''}`);
-                    }
-                } else if (profile?.role === 'teacher') {
-                    if (assignedSchoolIds.length > 0) {
-                        pendingQuery = pendingQuery.or(`school_id.in.(${assignedSchoolIds.join(',')}),created_by.eq.${profile.id}`);
-                    } else {
-                        pendingQuery = pendingQuery.eq('created_by', profile.id);
-                    }
-                }
-
-                const { data: pData } = await pendingQuery;
-                setPendingCount(pData?.length ?? 0);
-
-            } catch (err) {
-                console.error('Error fetching students:', err);
-            } finally {
-                setLoadingStudents(false);
-            }
-        }
-        fetchStudents();
-    }, [form.program_id, form.school_id, loading]);
 
     const isStaff = profile?.role === 'admin' || profile?.role === 'teacher' || profile?.role === 'school';
 
@@ -252,7 +142,6 @@ export default function EditClassPage() {
                 max_students: parseInt(form.max_students) || 20,
                 status: form.status,
                 schedule: form.schedule.trim() || null,
-                current_students: selectedStudents.length,
                 updated_at: new Date().toISOString(),
             };
             if (form.start_date) payload.start_date = form.start_date;
@@ -266,41 +155,9 @@ export default function EditClassPage() {
             });
             if (!patchRes.ok) { const j = await patchRes.json(); throw new Error(j.error || 'Failed to update class'); }
 
-            // Update student assignments via API (bypasses RLS — teachers can't update other users)
-            // 1. Remove students who were unselected (clear their class_id)
-            const removed = initialStudents.filter(sid => !selectedStudents.includes(sid));
-            if (removed.length > 0) {
-                await fetch('/api/portal-users', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids: removed, update: { class_id: null } }),
-                });
-            }
-
-            // 2. Assign newly selected students (and all kept) via class_id FK
-            if (selectedStudents.length > 0) {
-                const patchUpdate: Record<string, string | null> = { class_id: id };
-                if (form.school_id) patchUpdate.school_id = form.school_id;
-
-                await fetch('/api/portal-users', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids: selectedStudents, update: patchUpdate }),
-                });
-
-                // Ensure enrollment exists for each student in this program
-                await fetch('/api/students/bulk-enroll', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userIds: selectedStudents,
-                        program_id: form.program_id,
-                        class_id: id,
-                        school_id: form.school_id || undefined,
-                    }),
-                });
-            }
-
+            // Editing a class only changes its SETTINGS. Enrolling students happens at class
+            // creation; moving students between classes is the dedicated Transfer flow — so
+            // this page no longer touches the roster (no repeated student-selection).
             router.push(`/dashboard/classes/${id}`);
         } catch (e: any) {
             setError(e.message ?? 'Failed to update class');
@@ -421,60 +278,21 @@ export default function EditClassPage() {
                         </select>
                     </div>
 
-                    {/* Student Selection */}
+                    {/* Roster is managed elsewhere — this page edits class SETTINGS only. */}
                     <div className="pt-4 border-t border-border">
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                            Manage Enrolled Students <span className="text-muted-foreground font-normal normal-case">({selectedStudents.length} selected)</span>
-                        </label>
-
-                        {loadingStudents ? (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground p-4">
-                                <ArrowPathIcon className="w-4 h-4 animate-spin" /> Refreshing student list…
-                            </div>
-                        ) : availableStudents.length === 0 ? (
-                            <div className="space-y-3">
-                                <p className="text-sm text-amber-400/60 italic bg-amber-500/5 border border-dashed border-amber-500/10 rounded-xl p-4">
-                                    No students found matching this programme/school. Only students with active portal accounts appear here.
+                        <div className="flex items-start gap-3 rounded-xl border border-sky-500/20 bg-sky-500/[0.06] p-4">
+                            <UserGroupIcon className="w-5 h-5 text-sky-400 flex-shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-foreground">Editing class settings only</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Students are enrolled when a class is created. To move students between classes, use the dedicated <strong>Transfer</strong> tool — no need to re-pick students here.
                                 </p>
-                                {pendingCount > 0 && (
-                                    <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-xl p-4">
-                                        <UserIcon className="w-5 h-5 text-primary" />
-                                        <p className="text-xs text-primary">
-                                            <strong>{pendingCount} student{pendingCount !== 1 ? 's' : ''}</strong> you registered are still <strong>Pending Admission</strong>. They will appear here once approved by an administrator.
-                                        </p>
-                                    </div>
-                                )}
-                                {!form.program_id && (
-                                    <p className="text-xs text-muted-foreground px-1">Please select a <strong>Programme</strong> above to see eligible students.</p>
-                                )}
+                                <Link href="/dashboard/classes/transfer"
+                                    className="inline-flex items-center gap-1.5 mt-2 text-xs font-black text-sky-400 hover:text-sky-300">
+                                    <ArrowsRightLeftIcon className="w-4 h-4" /> Open Transfer
+                                </Link>
                             </div>
-                        ) : (
-                            <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-                                <div className="max-h-60 overflow-y-auto divide-y divide-white/5">
-                                    {availableStudents.map(student => (
-                                        <label key={student.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted cursor-pointer transition-colors">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedStudents.includes(student.id)}
-                                                onChange={e => {
-                                                    if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
-                                                    else setSelectedStudents(prev => prev.filter(id => id !== student.id));
-                                                }}
-                                                className="w-4 h-4 rounded border-border bg-card shadow-sm text-primary focus:ring-primary"
-                                            />
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    {student.email} {student.class_id && student.class_id !== id && (
-                                                        <span className="ml-2 text-[10px] bg-amber-500/10 px-1.5 py-0.5 rounded text-amber-400 uppercase">In another class</span>
-                                                    )}
-                                                </p>
-                                            </div>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
