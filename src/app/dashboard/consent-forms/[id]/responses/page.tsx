@@ -1565,12 +1565,12 @@ export default function ResponsesPage() {
                                 </div>
                               </div>
                             ) : isApproved ? (
-                              <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                                ✓ Matched
+                              <span title="A real portal account (student/parent) is linked to this response" className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                ✓ Account linked
                               </span>
                             ) : lead.contact_id ? (
-                              <span className="text-[9px] font-black text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
-                                CRM linked
+                              <span title="A CRM/marketing contact exists — no portal account created yet" className="text-[9px] font-black text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                                CRM contact
                               </span>
                             ) : (
                               <span className="text-[10px] text-muted-foreground">—</span>
