@@ -124,9 +124,11 @@ export async function PATCH(
 // DELETE /api/portal-users/[id] — force-deletes portal row + auth account,
 // bypassing FK constraints by manually cleaning up all dependent records first.
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const delBody = await request.json().catch(() => ({} as Record<string, unknown>));
+  const reassignToTeacherId = typeof delBody.reassignToTeacherId === 'string' ? delBody.reassignToTeacherId : null;
   const supabase = await createServerClient();
   const { data: { user }, error: deleteAuthErr } = await supabase.auth.getUser();
   if (deleteAuthErr || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -190,6 +192,51 @@ export async function DELETE(
     await admin.from('students').update({ school_id: null, school_name: null }).eq('school_id', pu.school_id);
     await admin.from('teacher_schools').delete().eq('school_id', pu.school_id);
     await admin.from('schools').delete().eq('id', pu.school_id);
+  }
+  // Teacher: never orphan their classes. Reassign owned classes (and their students'
+  // primary_teacher_id) to a chosen replacement before the wipe. Without a valid target
+  // we block and hand back the owned classes + eligible same-school teachers so the UI can
+  // prompt — the "forces reassignment first" guard.
+  if (pu?.role === 'teacher') {
+    const { data: owned } = await admin.from('classes').select('id, name, school_id').eq('teacher_id', id);
+    const ownedClasses = owned ?? [];
+    if (ownedClasses.length > 0) {
+      // Validate the chosen replacement is an active teacher who can access every class's school.
+      let target: { id: string } | null = null;
+      if (reassignToTeacherId && reassignToTeacherId !== id) {
+        const { data: cand } = await admin.from('portal_users')
+          .select('id, role, school_id, is_deleted').eq('id', reassignToTeacherId).maybeSingle();
+        if (cand && cand.role === 'teacher' && cand.is_deleted !== true) {
+          const { data: ts } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', reassignToTeacherId);
+          const reach = new Set([...(ts ?? []).map((r: any) => r.school_id), (cand as any).school_id].filter(Boolean));
+          const coversAll = ownedClasses.every((c) => !c.school_id || reach.has(c.school_id));
+          if (coversAll) target = { id: reassignToTeacherId };
+        }
+      }
+      if (!target) {
+        const schoolIds = [...new Set(ownedClasses.map((c) => c.school_id).filter(Boolean))] as string[];
+        const { data: tsRows } = await admin.from('teacher_schools').select('teacher_id, school_id').in('school_id', schoolIds.length ? schoolIds : ['00000000-0000-0000-0000-000000000000']);
+        const eligibleIds = [...new Set((tsRows ?? []).map((r: any) => r.teacher_id).filter((t: any) => t && t !== id))];
+        const { data: eligible } = eligibleIds.length
+          ? await admin.from('portal_users').select('id, full_name, email').in('id', eligibleIds).eq('role', 'teacher').neq('is_deleted', true)
+          : { data: [] as Array<{ id: string; full_name: string; email: string }> };
+        return NextResponse.json({
+          error: `This teacher owns ${ownedClasses.length} active class(es). Choose a teacher to reassign them to before deleting.`,
+          requiresReassignment: true,
+          ownedClasses: ownedClasses.map((c) => ({ id: c.id, name: c.name })),
+          eligibleTeachers: eligible ?? [],
+        }, { status: 409 });
+      }
+      // Reassign classes + student ownership to the replacement teacher, and carry the
+      // outgoing teacher's authored work (reports, lessons) under the new teacher's
+      // authorship BEFORE the wipe nulls those references — so nothing is orphaned.
+      const classIds = ownedClasses.map((c) => c.id);
+      await admin.from('classes').update({ teacher_id: target.id, updated_at: new Date().toISOString() }).in('id', classIds);
+      await admin.from('portal_users').update({ primary_teacher_id: target.id, updated_at: new Date().toISOString() })
+        .in('class_id', classIds).eq('role', 'student');
+      await admin.from('student_progress_reports').update({ teacher_id: target.id }).eq('teacher_id', id);
+      await admin.from('lesson_plans').update({ created_by: target.id }).eq('created_by', id);
+    }
   }
 
   // ── Full wipe via the semantic DB function ──────────────────────────────

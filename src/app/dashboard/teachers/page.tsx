@@ -643,10 +643,32 @@ function AdminTeacherView({ schoolId }: { schoolId?: string }) {
   };
 
   const handleDeleteTeacher = async (id: string) => {
-    if (!confirm('Permanently delete this teacher? Their account and login are fully removed. Their classes, reports and lessons are KEPT but unlinked from them. This cannot be undone.')) return;
+    if (!confirm('Permanently delete this teacher? Their account and login are fully removed. This cannot be undone.')) return;
     setDeleting(id);
     try {
-      const res = await fetch(`/api/portal-users/${id}`, { method: 'DELETE' });
+      const del = async (reassignToTeacherId?: string) => fetch(`/api/portal-users/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reassignToTeacherId ? { reassignToTeacherId } : {}),
+      });
+      let res = await del();
+      // The teacher still owns active classes → the API asks who to hand them to first.
+      if (res.status === 409) {
+        const j = await res.json();
+        if (j?.requiresReassignment) {
+          const opts: Array<{ id: string; full_name: string }> = j.eligibleTeachers ?? [];
+          if (opts.length === 0) {
+            throw new Error(`This teacher owns ${j.ownedClasses?.length ?? 0} active class(es), and no other teacher shares those schools. Add a teacher to the school, or reassign the classes first.`);
+          }
+          const pick = window.prompt(
+            `This teacher owns ${j.ownedClasses?.length ?? 0} active class(es): ${(j.ownedClasses ?? []).map((c: any) => c.name).join(', ')}.\n\nReassign them to which teacher? Enter a number:\n` +
+            opts.map((t, i) => `${i + 1}. ${t.full_name}`).join('\n'),
+          );
+          const idx = pick ? parseInt(pick, 10) - 1 : -1;
+          if (idx < 0 || idx >= opts.length) { setDeleting(null); return; }
+          res = await del(opts[idx].id);
+        }
+      }
       if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Failed to delete'); }
       setTeachers(prev => prev.filter(t => t.id !== id));
     } catch (err: any) {
