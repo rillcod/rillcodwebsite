@@ -167,6 +167,33 @@ export function bandLabel(lvl: string, low: number, high: number): string {
   return low === high ? `${lvl} ${low}` : `${lvl} ${low}-${high}`;
 }
 
+/**
+ * Clean, canonical SPECIFIC grade from any messy grade/section/class string — the ONE place a
+ * student's `grade` is normalised so every creation path stores it the same way. The grade is
+ * always a single grade from the school vocabulary (Basic 1-6, JSS 1-3, SS 1-3, Nursery/KG),
+ * kept SEPARATE from the section/class (e.g. section "Quincy · Teen Dev · JSS 1-3", grade "JSS 1").
+ *
+ * Returns a specific grade ("Basic 5" / "JSS 1"), or null when no grade is present (programme
+ * labels, cohort names, free text). A RANGE input (a class band like "JSS 1-3") collapses to the
+ * band's LOWEST grade as the specific placeholder — an exact per-student grade the source never
+ * captured, correctable later. Composed class names use their last segment; level synonyms are
+ * normalised (JS→JSS, SSS→SS, Primary/Pry→Basic).
+ */
+export function canonicalGrade(input: string | null | undefined): string | null {
+  if (!input || !String(input).trim()) return null;
+  const seg = String(input).includes('·') ? String(input).split('·').pop()!.trim() : String(input);
+  const grades = parseGrades(seg);
+  if (!grades.length) return null;
+  const norm = (l: string) => (l === 'JS' ? 'JSS' : l === 'SSS' ? 'SS' : l);
+  const lvl = norm(grades[0].lvl);
+  const rm = seg.match(/(\d+)\s*[-–]\s*(\d+)/);
+  // Range → lowest specific grade; otherwise the lowest token of the dominant level.
+  const low = rm
+    ? Math.min(+rm[1], +rm[2])
+    : Math.min(...grades.filter((g) => norm(g.lvl) === lvl).map((g) => g.n));
+  return `${lvl} ${low}`;
+}
+
 /** Fixed-band policy (the default): Basic/Primary split 1-3 / 4-6; JSS 1-3; SS 1-3. */
 export function fixedBand(grade: string | null | undefined): CanonicalBand | null {
   const g = parseGrade(grade);

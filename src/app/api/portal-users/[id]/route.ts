@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
+import { cleanStudentName } from '@/lib/students/clean-name';
+import { canonicalGrade } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -47,7 +49,7 @@ export async function PATCH(
 
   if (isAdmin) {
     // Admin can update all fields
-    const { full_name, role, phone, is_active, bio, email, is_deleted, avatar_url, section_class } = body;
+    const { full_name, role, phone, is_active, bio, email, is_deleted, avatar_url, section_class, grade } = body;
     if (full_name     !== undefined) update.full_name     = full_name;
     if (role          !== undefined) update.role          = role;
     if (phone         !== undefined) update.phone         = phone;
@@ -57,10 +59,14 @@ export async function PATCH(
     if (is_deleted    !== undefined) update.is_deleted    = is_deleted;
     if (avatar_url    !== undefined) update.avatar_url    = avatar_url ?? null;
     if (section_class !== undefined) update.section_class = section_class ?? null;
+    // grade is a specific single grade, kept separate from the section — normalise to the
+    // canonical form so a hand-typed "jss1" becomes "JSS 1".
+    if (grade         !== undefined) update.grade         = grade ? (canonicalGrade(grade) ?? grade) : null;
   } else if (isTeacher) {
     // Teachers can correct student profile details
     if ('full_name'     in body) update.full_name     = body.full_name;
     if ('section_class' in body) update.section_class = body.section_class ?? null;
+    if ('grade'         in body) update.grade         = body.grade ? (canonicalGrade(body.grade) ?? body.grade) : null;
     if ('phone'         in body) update.phone         = body.phone ?? null;
     if ('grade_level'   in body) update.grade_level   = body.grade_level ?? null;
     if ('school_id'     in body) update.school_id     = body.school_id ?? null;
@@ -73,6 +79,12 @@ export async function PATCH(
     if ('phone'      in body) update.phone      = body.phone ?? null;
     if ('bio'        in body) update.bio        = body.bio ?? null;
     if ('avatar_url' in body) update.avatar_url = body.avatar_url ?? null;
+  }
+
+  // Clean edited names on write so a corrected name sticks in canonical form everywhere
+  // (strips index prefixes, trailing numbers, invisible chars) — the source of truth.
+  if (typeof update.full_name === 'string') {
+    update.full_name = cleanStudentName(update.full_name) || update.full_name.trim();
   }
 
   const admin = adminClient();
@@ -108,6 +120,13 @@ export async function PATCH(
   if (Object.keys(studentSync).length > 0) {
     await admin.from('students').update(studentSync).eq('user_id', id);
   }
+  }
+
+  // Mirror the canonical grade to the students shadow (grade + grade_level) regardless of which
+  // sync branch ran, so the specific grade is consistent across stores. grade stays SEPARATE
+  // from the section/class (current_class).
+  if (update.grade !== undefined) {
+    await admin.from('students').update({ grade: update.grade, grade_level: update.grade }).eq('user_id', id);
   }
 
   // Keep auth.users metadata in sync so role/name are consistent everywhere

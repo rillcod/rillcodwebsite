@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
-import { buildClassName, gradeBand } from '@/lib/classes/naming';
+import { buildClassName, gradeBand, canonicalGrade } from '@/lib/classes/naming';
 import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
 
@@ -487,6 +487,7 @@ export async function POST(request: Request) {
             school_id: resolvedSchoolId,
             school_name: resolvedSchoolName,
             section_class: effectiveClassName,
+            grade: canonicalGrade(effectiveClassName),
             class_id: effectiveClassId,
             enrollment_type: 'in_person',
             is_active: true,
@@ -761,7 +762,7 @@ export async function PATCH(request: Request) {
         .maybeSingle();
       if (existingUser && canAccessSchool(patchCaller, assignedSchoolIds, (existingUser as any).school_id)) {
         await supabaseAdmin.from('portal_users')
-          .update({ full_name: r.full_name, section_class: r.class_name || null })
+          .update({ full_name: r.full_name, section_class: r.class_name || null, grade: canonicalGrade(r.class_name) })
           .eq('id', existingUser.id);
         // Keep students table in sync
         await supabaseAdmin.from('students')
@@ -811,6 +812,7 @@ export async function PATCH(request: Request) {
         class_id: classId,
         school_id: cls.school_id,
         section_class: cls.name,
+        grade: canonicalGrade(cls.name),
         primary_teacher_id: cls.teacher_id ?? null,
         updated_at: new Date().toISOString(),
       }).in('id', allowedIds).eq('role', 'student');

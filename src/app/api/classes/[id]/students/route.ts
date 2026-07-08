@@ -68,7 +68,7 @@ export async function GET(
     // ── Primary: students directly assigned via class_id FK ─────────────────
     const { data: directStudents, error: directErr } = await admin
       .from('portal_users')
-      .select('id, full_name, email, school_id, school_name, section_class, class_id')
+      .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
       .eq('class_id', classId)
       .eq('role', 'student')
       .order('full_name');
@@ -83,7 +83,7 @@ export async function GET(
     if (cls.school_id && cls.name) {
       const { data: bySection } = await admin
         .from('portal_users')
-        .select('id, full_name, email, school_id, school_name, section_class, class_id')
+        .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
         .eq('school_id', cls.school_id)   // hard school boundary
         .eq('section_class', cls.name)
         .is('class_id', null)             // only heal those with no class_id set
@@ -126,7 +126,7 @@ export async function GET(
       if (reportStudentIds.length > 0) {
         const { data: reportLinkedStudents } = await admin
           .from('portal_users')
-          .select('id, full_name, email, school_id, school_name, section_class, class_id')
+          .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
           .in('id', reportStudentIds)
           .eq('role', 'student')
           .order('full_name');
@@ -163,7 +163,7 @@ export async function GET(
         if (inactiveIds.length > 0) {
           const { data: inactiveProfiles } = await admin
             .from('portal_users')
-            .select('id, full_name, email, school_id, school_name, section_class, class_id')
+            .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
             .in('id', inactiveIds)
             .eq('role', 'student')
             .order('full_name');

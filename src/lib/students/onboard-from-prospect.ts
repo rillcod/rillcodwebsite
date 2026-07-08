@@ -6,6 +6,7 @@ import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
 import { namesAreNearDuplicate, duplicateNameKey } from '@/lib/students/clean-name';
+import { canonicalGrade } from '@/lib/classes/naming';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -257,6 +258,7 @@ export async function onboardStudentFromProspect(
     ...(prospect.gender ? { gender: prospect.gender } : {}),
     ...(prospect.age ? { date_of_birth: `${new Date().getFullYear() - prospect.age}-01-01` } : {}),
     ...(prospect.grade ? { section_class: prospect.grade } : {}),
+    ...(canonicalGrade(prospect.grade) ? { grade: canonicalGrade(prospect.grade) } : {}),
     enrollment_type: recordEnrollmentType,
     phone: prospect.parent_phone || null,
     is_active: true,

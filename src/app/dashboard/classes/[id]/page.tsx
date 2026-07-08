@@ -742,13 +742,16 @@ export default function ClassDetailPage() {
   ];
 
   // ── Band-fit health: the class name's last segment is its grade band ("Basic 1-3").
-  //    A student is "off-band" when their grade parses to a real level/number that the
-  //    class band does not cover. Unparseable grades are never flagged (we can't tell). ──
+  //    A student is "off-band" when their canonical grade parses to a real level/number the
+  //    class band does not cover. The grade comes from the clean portal_users.grade column;
+  //    section_class is only a legacy fallback. Unparseable grades are never flagged. ──
   const classBand = parseBandLabel(cls.name?.split('·').pop()?.trim());
+  const studentGrade = (student: any) => student.grade || student.section_class;
   const isOffBand = (student: any): boolean => {
     if (!classBand) return false;
-    if (!parseGrade(student.section_class)) return false; // unknown grade — don't flag
-    return !bandCoversGrade(classBand, student.section_class);
+    const g = studentGrade(student);
+    if (!parseGrade(g)) return false; // unknown grade — don't flag
+    return !bandCoversGrade(classBand, g);
   };
   const offBandCount = currentTermStudents.filter(isOffBand).length;
 
@@ -977,7 +980,7 @@ export default function ClassDetailPage() {
                               <p className="truncate text-sm font-bold text-foreground">
                                 {student.full_name}
                                 {offBand && (
-                                  <span title={`Grade "${student.section_class}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="ml-2 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400 align-middle">
+                                  <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="ml-2 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400 align-middle">
                                     Off-band
                                   </span>
                                 )}

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     let query = admin
       .from('portal_users')
-      .select('id, full_name, email, role, school_id, school_name, class_id, section_class, is_active, created_at, updated_at')
+      .select('id, full_name, email, role, school_id, school_name, class_id, section_class, grade, is_active, created_at, updated_at')
       .eq('is_deleted', false)
       .order('full_name');
 
