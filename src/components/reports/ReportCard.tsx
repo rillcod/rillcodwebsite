@@ -86,6 +86,7 @@ export interface ReportCardData {
     school_name?: string | null;
     course_name?: string | null;
     section_class?: string | null;
+    student_grade?: string | null;
     report_term?: string | null;
     report_date?: string | null;
     theory_score?: number | null;
@@ -277,7 +278,11 @@ export default function ReportCard({ report, orgSettings }: {
                                     <p className="text-[13px] font-bold text-foreground/80">{report.course_name ?? '—'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Class / Section</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Class</p>
+                                    <p className="text-[13px] font-bold text-foreground/80">{report.student_grade ?? '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/70">Section</p>
                                     <p className="text-[13px] font-bold text-foreground/80">{report.section_class ?? '—'}</p>
                                 </div>
                                 {report.gender && (

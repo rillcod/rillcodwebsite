@@ -206,7 +206,8 @@ export default function PrintableReport({ report, orgSettings }: PrintableReport
                         ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '')
                             ? { label: 'Term', value: `${report.report_term || '—'}${report.report_period ? ` · ${report.report_period}` : ''}` }
                             : { label: 'Duration', value: (report.course_duration || report.report_term || 'S1-2024') },
-                        { label: 'Class',     value: report.section_class || 'N/A'            },
+                        { label: 'Class',     value: report.student_grade || 'N/A'            },
+                        ...(report.section_class ? [{ label: 'Section', value: report.section_class }] : []),
                         ...(report.gender ? [{ label: 'Gender', value: report.gender.charAt(0).toUpperCase() + report.gender.slice(1) }] : []),
                         { label: 'School',    value: report.school_name   || 'Rillcod'        },
                     ].map(f => (

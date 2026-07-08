@@ -1514,6 +1514,8 @@ function ReportBuilderInner() {
                 gender: form.gender || null,
                 school_name: sessionConfig.school_name || (selectedStudent as any).school_name || null,
                 section_class: form.section_class || sessionConfig.section_class || (selectedStudent as any).section_class || null,
+                // CLASS (grade) — isolated from SECTION (section_class/cohort).
+                student_grade: profileGrade || (selectedStudent as any).grade || null,
                 course_name: sessionConfig.course_name,
                 report_date: sessionConfig.report_date,
                 report_term: sessionConfig.report_term,
@@ -1842,6 +1844,7 @@ function ReportBuilderInner() {
             ? `This document officially recognizes that ${form.student_name} has successfully completed the intensive study programme in ${sessionConfig.course_name || 'the enrolled course'}.`
             : undefined,
         section_class: form.section_class || sessionConfig.section_class || undefined,
+        student_grade: profileGrade || (selectedStudent as any)?.grade || undefined,
         school_name: sessionConfig.school_name || undefined,
         fee_status: form.fee_status || undefined,
         fee_label: sessionConfig.fee_label || undefined,
@@ -1929,7 +1932,7 @@ function ReportBuilderInner() {
                                 {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
                             </select>
                         </Field>
-                        <Field label="Class / Section">
+                        <Field label="Section">
                             <select
                                 value={sessionConfig.section_class}
                                 onChange={e => setSessionConfig(s => ({ ...s, section_class: e.target.value }))}
@@ -2285,7 +2288,7 @@ function ReportBuilderInner() {
                                         {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
                                     </select>
                                 </Field>
-                                <Field label="Class / Section *">
+                                <Field label="Section *">
                                     <select
                                         value={sessionConfig.section_class}
                                         onChange={e => setSessionConfig(s => ({ ...s, section_class: e.target.value }))}
@@ -2979,25 +2982,28 @@ function ReportBuilderInner() {
                                                     <p className="text-sm text-muted-foreground font-semibold truncate">{sessionConfig.school_name || '—'}</p>
                                                 </div>
                                                 <div className="p-3 bg-muted/20 border border-border rounded-xl">
+                                                    {/* CLASS = the student's grade level (Basic 1 / JSS 2) — isolated from the cohort. */}
                                                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Class</label>
+                                                    <select
+                                                        value={profileGrade}
+                                                        onChange={e => setProfileGrade(e.target.value)}
+                                                        title="Student's grade level (their Class). Separate from the Section/cohort. Click 'Save to profile' to apply everywhere."
+                                                        className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
+                                                        <option value="" className="bg-background">Select —</option>
+                                                        {Array.from(new Set([...(profileGrade && !(SINGLE_GRADES as readonly string[]).includes(profileGrade) ? [profileGrade] : []), ...SINGLE_GRADES])).map(g => <option key={g} value={g} className="bg-background">{g}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
+                                                    {/* SECTION = the Rillcod cohort/programme group (e.g. "Quincy · Teen Dev · JSS 1-3"). */}
+                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Section</label>
                                                     <select
                                                         value={form.section_class}
                                                         onChange={e => setForm(f => ({ ...f, section_class: e.target.value }))}
+                                                        title="The Rillcod cohort / class group (Section) — separate from the grade (Class)."
                                                         className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
                                                         <option value="" className="bg-background">Select —</option>
                                                         {CLASS_PRESETS.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
                                                         {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
-                                                    </select>
-                                                </div>
-                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
-                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Grade</label>
-                                                    <select
-                                                        value={profileGrade}
-                                                        onChange={e => setProfileGrade(e.target.value)}
-                                                        title="Student's specific grade — separate from the class/section. Click 'Save to profile' to apply everywhere."
-                                                        className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
-                                                        <option value="" className="bg-background">No grade</option>
-                                                        {Array.from(new Set([...(profileGrade && !(SINGLE_GRADES as readonly string[]).includes(profileGrade) ? [profileGrade] : []), ...SINGLE_GRADES])).map(g => <option key={g} value={g} className="bg-background">{g}</option>)}
                                                     </select>
                                                 </div>
                                                 <div className="p-3 bg-muted/20 border border-border rounded-xl">

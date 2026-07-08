@@ -20,6 +20,7 @@ export interface ReportCardData {
     school_name?: string | null;
     course_name?: string | null;
     section_class?: string | null;
+    student_grade?: string | null;
     report_term?: string | null;
     report_date?: string | null;
     theory_score?: number | null;
@@ -267,7 +268,8 @@ export default function ModernReportCard({ report, orgSettings }: {
                         </h3>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 10px' }}>
                             {[
-                                { l: 'Class', v: report.section_class },
+                                { l: 'Class', v: report.student_grade },
+                                { l: 'Section', v: report.section_class },
                                 { l: 'Gender', v: report.gender ? (report.gender.charAt(0).toUpperCase() + report.gender.slice(1)) : null },
                                 { l: 'School', v: report.school_name },
                                 { l: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? 'Term' : 'Duration', v: ['basic', 'secondary', 'unified', 'school'].includes(report.school_section ?? '') ? report.report_term : (report.course_duration || report.report_term) },
