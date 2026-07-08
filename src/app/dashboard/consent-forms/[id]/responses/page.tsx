@@ -565,6 +565,7 @@ export default function ResponsesPage() {
 
   // Bulk portal
   const [bulkPortalLoading, setBulkPortalLoading] = useState(false);
+  const [bulkSendingLogins, setBulkSendingLogins] = useState(false);
   const [bulkPortalResult, setBulkPortalResult] = useState<{ created: number; skipped: number; no_email: number; errors: number } | null>(null);
 
   // WhatsApp blast
@@ -860,13 +861,36 @@ export default function ResponsesPage() {
       const res = await fetch('/api/consent-forms/leads/bulk-portals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadIds: ids }),
+        // Silent: create accounts without blasting credentials — staff send them later with
+        // "Send logins" (accounts show "⚠ Not sent" until then).
+        body: JSON.stringify({ leadIds: ids, silent: true }),
       });
       const json = await res.json();
       setBulkPortalResult(json);
       await load();
     } catch { /* non-fatal */ } finally {
       setBulkPortalLoading(false);
+    }
+  }
+
+  // ── Bulk send login credentials ──────────────────────────────────────────
+  async function bulkSendLogins() {
+    const targets = leads.filter(l => selected.has(l.id) && l.matched_parent_id);
+    if (targets.length === 0) { alert('Select responses that already have a portal account.'); return; }
+    if (!confirm(`Send login credentials to ${targets.length} parent(s)? A fresh password is generated and delivered by WhatsApp + email.`)) return;
+    setBulkSendingLogins(true);
+    let sent = 0, failed = 0;
+    try {
+      for (const l of targets) {
+        try {
+          const res = await fetch(`/api/consent-forms/leads/${l.id}/create-portal-account`, { method: 'PUT' });
+          if (res.ok) sent++; else failed++;
+        } catch { failed++; }
+      }
+      await load();
+      alert(`Login credentials sent to ${sent} parent(s)${failed ? `, ${failed} failed` : ''}.`);
+    } finally {
+      setBulkSendingLogins(false);
     }
   }
 
@@ -1357,9 +1381,17 @@ export default function ResponsesPage() {
                 onClick={bulkCreatePortals}
                 disabled={bulkPortalLoading}
                 className="px-3 py-1.5 bg-emerald-500/15 text-emerald-400 text-xs font-black rounded-lg border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 whitespace-nowrap"
-                title="Create portal accounts for selected leads"
+                title="Create portal accounts for selected leads WITHOUT sending logins (send later with ↻ Send logins)"
               >
-                {bulkPortalLoading ? '…Portals' : '🏦 Portals'}
+                {bulkPortalLoading ? '…Creating' : '🏦 Create (silent)'}
+              </button>
+              <button
+                onClick={bulkSendLogins}
+                disabled={bulkSendingLogins}
+                className="px-3 py-1.5 bg-amber-500/15 text-amber-400 text-xs font-black rounded-lg border border-amber-500/20 hover:bg-amber-500/25 transition-colors disabled:opacity-50 whitespace-nowrap"
+                title="Send / resend login credentials to selected leads that already have a portal account"
+              >
+                {bulkSendingLogins ? '…Logins' : '↻ Send logins'}
               </button>
               <button
                 onClick={() => setWaBlastOpen(true)}
@@ -1642,10 +1674,18 @@ export default function ResponsesPage() {
                                 const hasAccount = ps === 'created' || ps === 'exists' || !!(lead.matched_parent_id);
                                 const parentName  = rd.parent_name || 'Parent/Guardian';
 
-                                if (hasAccount) return (
+                                if (hasAccount) {
+                                  const credsSent = Array.isArray(rd.portal_credentials_sent) && rd.portal_credentials_sent.length > 0;
+                                  return (
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
                                       ✓ Portal account
+                                    </span>
+                                    <span
+                                      title={credsSent ? 'Login credentials have been sent to this parent' : 'Account created — login not sent yet'}
+                                      className={`text-[9px] font-black px-2 py-0.5 rounded-full whitespace-nowrap border ${credsSent ? 'text-emerald-400/90 bg-emerald-500/5 border-emerald-500/15' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'}`}
+                                    >
+                                      {credsSent ? '✓ Sent' : '⚠ Not sent'}
                                     </span>
                                     <button
                                       disabled={resendingPortalId === lead.id}
@@ -1673,6 +1713,7 @@ export default function ResponsesPage() {
                                     </button>
                                   </div>
                                 );
+                                }
 
                                 return (
                                   <button

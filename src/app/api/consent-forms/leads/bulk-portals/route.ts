@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   }
   const staffName = (profile as unknown as { full_name: string | null }).full_name ?? 'Staff';
 
-  let body: { leadIds?: unknown };
+  let body: { leadIds?: unknown; silent?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { leadIds } = body;
+  // silent=true: create the accounts but do NOT send any WhatsApp/email now — staff hand out
+  // logins later via the "Send login" button (accounts show "⚠ Not sent" until then).
+  const silent = body.silent === true;
   if (!Array.isArray(leadIds) || leadIds.length === 0) {
     return NextResponse.json({ error: 'leadIds must be a non-empty array' }, { status: 400 });
   }
@@ -198,7 +201,7 @@ export async function POST(req: NextRequest) {
           classId: formClassById[lead.form_id] ?? null,
         });
         results.students_onboarded += newStudents.length;
-        if (newStudents.length > 0 && existing.email) {
+        if (!silent && newStudents.length > 0 && existing.email) {
           try {
             const block = newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('');
             const html = buildRillcodTransactionalEmailHtml({
@@ -324,8 +327,8 @@ export async function POST(req: NextRequest) {
       const channelsSent: string[] = [];
       const createdAt = new Date().toISOString();
 
-      // Send WhatsApp credentials
-      if (parentPhone) {
+      // Send WhatsApp credentials (skipped in silent mode — sent later via "Send login")
+      if (!silent && parentPhone) {
         try {
           const waMsg = [
             `Hello ${parentName}! 👋`,
@@ -345,8 +348,8 @@ export async function POST(req: NextRequest) {
         } catch { /* non-fatal */ }
       }
 
-      // Send email credentials
-      try {
+      // Send email credentials (skipped in silent mode)
+      if (!silent) try {
         const bodyHtml = `
           <p style="margin:0 0 16px;font-size:15px;color:#d4d4d8;">
             Dear <strong style="color:#fff;">${parentName}</strong>,
