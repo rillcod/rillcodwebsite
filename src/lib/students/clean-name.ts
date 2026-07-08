@@ -50,19 +50,47 @@ const nameTokens = (raw: string | null | undefined): string[] =>
     .split(/\s+/).filter((t) => t && !/^\d+$/.test(t) && t.length > 1);
 
 const tokenSimilar = (x: string, y: string): boolean =>
-  x === y || (Math.max(x.length, y.length) >= 5 && levenshtein(x, y) <= 1) || (Math.max(x.length, y.length) >= 8 && levenshtein(x, y) <= 2);
+  x === y
+  || (Math.max(x.length, y.length) >= 4 && levenshtein(x, y) <= 1)
+  || (Math.max(x.length, y.length) >= 6 && levenshtein(x, y) <= 2);
+
+// Also consider concatenations of adjacent tokens so a run-together name matches its split
+// form ("Catherinemary" ≡ "Catherine" + "Mary", "Oghenetejiri" ≡ "Oghene" + "Tejiri").
+const expandTokens = (t: string[]): string[] => {
+  const s = new Set(t);
+  for (let i = 0; i < t.length - 1; i++) s.add(t[i] + t[i + 1]);
+  return [...s];
+};
+
+const bigrams = (s: string): Set<string> => {
+  const g = new Set<string>();
+  const t = s.toLowerCase().replace(/[^a-z]/g, '');
+  for (let i = 0; i < t.length - 1; i++) g.add(t.slice(i, i + 2));
+  return g;
+};
+
+/** Dice bigram similarity on the letters of two names (order-independent-ish, 0–1). */
+export function nameDiceSimilarity(a: string | null | undefined, b: string | null | undefined): number {
+  const A = bigrams(cleanStudentName(a)), B = bigrams(cleanStudentName(b));
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  for (const x of A) if (B.has(x)) inter++;
+  return (2 * inter) / (A.size + B.size);
+}
 
 /**
- * True when two names are near-duplicates: every token of the shorter name fuzzy-matches
- * a token in the longer (spelling variants, reversed order, an added middle name). Requires
- * ≥2 matched tokens so siblings ("Toby Akinmejiwa" vs "Oluwatobi Akinmejiwa Nelson") and
- * twins are NOT collapsed — those still need a human decision.
+ * True when two names are near-duplicates of the SAME person: every token of the shorter
+ * name fuzzy-matches a token (or adjacent-token concatenation) of the longer, with ≥2
+ * matched tokens and a minimum overall letter similarity. Catches spelling variants,
+ * reversed order, added middle names, and run-together names — while requiring ≥2 shared
+ * tokens so siblings/twins that share only ONE token (surname) are NOT collapsed.
  */
 export function namesAreNearDuplicate(a: string | null | undefined, b: string | null | undefined): boolean {
   const ta = nameTokens(a), tb = nameTokens(b);
-  const [small, large] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  const [small, large] = ta.length <= tb.length ? [ta, expandTokens(tb)] : [tb, expandTokens(ta)];
   if (small.length < 2) return false;
-  return small.every((t) => large.some((u) => tokenSimilar(t, u)));
+  const matched = small.filter((t) => large.some((u) => tokenSimilar(t, u))).length;
+  return matched >= 2 && matched === small.length && nameDiceSimilarity(a, b) >= 0.5;
 }
 
 /**

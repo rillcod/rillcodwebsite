@@ -5,6 +5,7 @@ import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enroll
 import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
+import { namesAreNearDuplicate, duplicateNameKey } from '@/lib/students/clean-name';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -70,36 +71,34 @@ const nameTokens = (n: string | null | undefined): Set<string> =>
   new Set((n || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((t) => t.length > 1));
 
 /**
- * DUPLICATE GATE: catch a same-school student whose name is a token subset/superset
- * of this one (e.g. "Paul Aladhe" ↔ "Paul Aladhe Eseoghene", "Odigie Lux" ↔ "Odigie
- * Lux Osatohamwen") even when the parent email differs. Requires ≥2 fully-shared name
- * tokens in the SAME school, so siblings (different first names) and unrelated children
- * never collapse together. When found, onboarding REUSES that account instead of
- * creating a second one — the new (often fuller) name is adopted as the bio.
+ * DUPLICATE GATE: catch a same-school student who is the SAME child as this one even when
+ * the parent email differs and the name is a spelling variant, reversed, has an added middle
+ * name, or is run together — e.g. "Micheal Ayomide Akinbi" ↔ "Michael Akinbi", "Odanibeh
+ * Catherinemary" ↔ "Catherine Mary Odanibeh", "Paul Aladhe" ↔ "Paul Aladhe Eseoghene".
+ * Uses the shared fuzzy matcher (`namesAreNearDuplicate`) which requires ≥2 matched tokens
+ * plus a minimum overall similarity, so siblings/twins that share only ONE token (surname)
+ * are never collapsed. An exact normalized-key match wins first (fast + safest). When found,
+ * onboarding REUSES that account instead of creating a second one.
  */
 async function findDuplicateStudentByName(
   admin: AnySupabase, schoolId: string | null | undefined, fullName: string,
 ): Promise<{ rowId: string; userId: string | null; studentEmail: string | null; schoolId: string | null; schoolName: string | null } | null> {
   if (!schoolId) return null;
-  const target = nameTokens(fullName);
-  if (target.size < 2) return null;
+  if (nameTokens(fullName).size < 2) return null;
+  const targetKey = duplicateNameKey(fullName);
   const { data } = await admin
     .from('students')
     .select('id, user_id, student_email, full_name, school_id, school_name')
     .eq('school_id', schoolId)
     .neq('is_deleted', true);
-  for (const s of (data ?? []) as Array<{ id: string; user_id: string | null; student_email: string | null; full_name: string | null; school_id: string | null; school_name: string | null }>) {
-    const other = nameTokens(s.full_name);
-    if (other.size < 2) continue;
-    const smaller = target.size <= other.size ? target : other;
-    const larger = target.size <= other.size ? other : target;
-    let shared = 0;
-    for (const t of smaller) if (larger.has(t)) shared++;
-    if (shared === smaller.size && shared >= 2) {
-      return { rowId: s.id, userId: s.user_id, studentEmail: s.student_email, schoolId: s.school_id, schoolName: s.school_name };
-    }
-  }
-  return null;
+  const rows = (data ?? []) as Array<{ id: string; user_id: string | null; student_email: string | null; full_name: string | null; school_id: string | null; school_name: string | null }>;
+  const hit = (s: typeof rows[number]) => ({ rowId: s.id, userId: s.user_id, studentEmail: s.student_email, schoolId: s.school_id, schoolName: s.school_name });
+  // 1) exact normalized key (order/number/casing-insensitive) — highest confidence.
+  const exact = rows.find((s) => s.full_name && duplicateNameKey(s.full_name) === targetKey);
+  if (exact) return hit(exact);
+  // 2) fuzzy variant (typo / concatenation / added middle name).
+  const fuzzy = rows.find((s) => namesAreNearDuplicate(fullName, s.full_name));
+  return fuzzy ? hit(fuzzy) : null;
 }
 
 export async function onboardStudentFromProspect(
@@ -164,12 +163,18 @@ export async function onboardStudentFromProspect(
 
   // Retain the existing student's class/school from their PORTAL account (the
   // authoritative source for placement — students has no class_id).
+  // DATA-INTEGRITY GUARD: when we REUSE an existing account, keep its established name.
+  // Overwriting it with the incoming form's spelling variant is how a name update could
+  // "mutate" one child's account into a differently-named record. New accounts still use
+  // the form name; deliberate name fixes go through the heal Name panel.
+  let effectiveName = fullNameTrimmed;
   if (priorUserId) {
-    const { data: pu } = await admin.from('portal_users').select('class_id, school_id, school_name').eq('id', priorUserId).maybeSingle();
+    const { data: pu } = await admin.from('portal_users').select('class_id, school_id, school_name, full_name').eq('id', priorUserId).maybeSingle();
     if (pu) {
       priorClassId = (pu as any).class_id ?? null;
       priorSchoolId = priorSchoolId ?? (pu as any).school_id ?? null;
       priorSchoolName = priorSchoolName ?? (pu as any).school_name ?? null;
+      if ((pu as any).full_name?.trim()) effectiveName = (pu as any).full_name.trim();
     }
   }
 
@@ -241,7 +246,7 @@ export async function onboardStudentFromProspect(
   await admin.from('portal_users').upsert({
     id: studentPortalId,
     email: studentEmail,
-    full_name: prospect.full_name,
+    full_name: effectiveName,
     role: 'student',
     school_id: school.id,
     school_name: school.name,
@@ -256,8 +261,8 @@ export async function onboardStudentFromProspect(
 
   // students row.
   const studentPayload: Record<string, unknown> = {
-    full_name: prospect.full_name,
-    name: prospect.full_name,
+    full_name: effectiveName,
+    name: effectiveName,
     email: studentEmail,
     student_email: studentEmail,
     parent_name: parentName,
