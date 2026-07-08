@@ -18,7 +18,7 @@ import {
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 import { getWAECGrade } from '@/lib/grading';
-import { parseBandLabel, bandCoversGrade, parseGrade } from '@/lib/classes/naming';
+import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 
 
@@ -51,6 +51,11 @@ export default function ClassDetailPage() {
   const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
   const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
+  // Inline identity edit (name + grade) on the roster — source of truth, round-trips everywhere.
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editGrade, setEditGrade] = useState('');
+  const [savingIdentity, setSavingIdentity] = useState(false);
 
   // Bulk-remove checkboxes for enrolled students list
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
@@ -375,6 +380,34 @@ export default function ClassDetailPage() {
       alert(e.message ?? 'Failed');
     } finally {
       setCreatingNewClass(false);
+    }
+  };
+
+  const beginEditIdentity = (s: any) => {
+    setEditingStudentId(s.id);
+    setEditName(s.full_name || '');
+    setEditGrade(s.grade || '');
+  };
+
+  // Save a corrected name/grade. The endpoint cleans the name, normalises the grade, and
+  // round-trips both to portal_users (source of truth), the students shadow, and auth.
+  const saveIdentity = async (studentId: string) => {
+    if (!editName.trim()) { alert('Name cannot be empty'); return; }
+    setSavingIdentity(true);
+    try {
+      const res = await fetch(`/api/portal-users/${studentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: editName.trim(), grade: editGrade || null }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to save');
+      setEditingStudentId(null);
+      await fetchData();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSavingIdentity(false);
     }
   };
 
@@ -971,6 +1004,40 @@ export default function ClassDetailPage() {
                     <div className="max-h-[60vh] overflow-y-auto grid gap-2 sm:grid-cols-2 pr-1">
                       {visibleCurrent.map((student: any) => {
                         const offBand = isOffBand(student);
+                        if (editingStudentId === student.id) {
+                          const gradeOpts = Array.from(new Set([
+                            ...(editGrade && !(SINGLE_GRADES as readonly string[]).includes(editGrade) ? [editGrade] : []),
+                            ...SINGLE_GRADES,
+                          ]));
+                          return (
+                            <div key={student.id} className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2 sm:col-span-2">
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  placeholder="Full name"
+                                  className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                                />
+                                <select
+                                  value={editGrade}
+                                  onChange={(e) => setEditGrade(e.target.value)}
+                                  title="Grade (separate from the class/section)"
+                                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                                >
+                                  <option value="">No grade</option>
+                                  {gradeOpts.map((g) => <option key={g} value={g}>{g}</option>)}
+                                </select>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[10px] text-muted-foreground">Grade is separate from the class. Saves update the student everywhere — portal, records &amp; login.</p>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <button onClick={() => setEditingStudentId(null)} disabled={savingIdentity} className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black text-muted-foreground">Cancel</button>
+                                  <button onClick={() => saveIdentity(student.id)} disabled={savingIdentity} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground disabled:opacity-50">{savingIdentity ? 'Saving…' : 'Save'}</button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
                         return (
                           <div key={student.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary flex-shrink-0">
@@ -979,6 +1046,9 @@ export default function ClassDetailPage() {
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-bold text-foreground">
                                 {student.full_name}
+                                {student.grade && (
+                                  <span className="ml-2 text-[10px] font-black uppercase tracking-wide text-muted-foreground align-middle">{student.grade}</span>
+                                )}
                                 {offBand && (
                                   <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="ml-2 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400 align-middle">
                                     Off-band
@@ -989,6 +1059,13 @@ export default function ClassDetailPage() {
                             </div>
                             {isStaff && (
                               <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => beginEditIdentity(student)}
+                                  title="Edit name / grade"
+                                  className="rounded-lg border border-border bg-background p-1.5 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                                >
+                                  <PencilSquareIconOutline className="h-3.5 w-3.5" />
+                                </button>
                                 <Link
                                   href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`}
                                   title="Transfer / move this student"

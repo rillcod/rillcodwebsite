@@ -12,6 +12,7 @@ import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { generateReportPDF, ScaledReportCard, shareReportCard, printElement } from '@/lib/pdf-utils';
 import { ACADEMIC_TERM_OPTIONS, getCurrentTermLabel, getCurrentAcademicYear, academicYearOptions } from '@/lib/reports/academic-period';
+import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
     UserGroupIcon, DocumentTextIcon, EyeIcon, XMarkIcon,
@@ -500,6 +501,10 @@ function ReportBuilderInner() {
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
     const [existingReport, setExistingReport] = useState<StudentReport | null>(null);
     const [currentStudentIdx, setCurrentStudentIdx] = useState(-1);
+    // Explicit identity edit — grade (separate from class) + a deliberate "save to profile"
+    // so a corrected name/grade sticks system-wide (portal, records, login).
+    const [profileGrade, setProfileGrade] = useState('');
+    const [savingProfile, setSavingProfile] = useState(false);
 
     const [form, setForm] = useState({
         student_name: '',
@@ -558,6 +563,45 @@ function ReportBuilderInner() {
         if (successTimerRef.current) clearTimeout(successTimerRef.current);
         successTimerRef.current = setTimeout(() => setSuccess(''), 4000);
     };
+    // Keep the grade editor in sync with whichever student is loaded.
+    useEffect(() => { setProfileGrade(((selectedStudent as any)?.grade as string) ?? ''); }, [selectedStudent?.id]);
+
+    // Deliberate save of the child's name + grade to their root profile — sticks system-wide
+    // (portal_users source of truth, students shadow, and auth). Distinct from the passive
+    // fill-only guard on report save, because this is an explicit teacher action.
+    const saveStudentProfile = async () => {
+        if (!selectedStudent) return;
+        const idStr = String(selectedStudent.id ?? '');
+        if (idStr.startsWith('manual-') || idStr.startsWith('students-')) {
+            setError('Only portal students can be edited here.');
+            return;
+        }
+        const full_name = form.student_name.trim();
+        if (!full_name) { setError('Name cannot be empty.'); return; }
+        setSavingProfile(true);
+        try {
+            const res = await fetch(`/api/portal-users/${selectedStudent.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ full_name, grade: profileGrade || null }),
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error ?? 'Failed to update student');
+            const savedName = j.data?.full_name ?? full_name;
+            const savedGrade = j.data?.grade ?? (profileGrade || null);
+            (selectedStudent as any).full_name = savedName;
+            (selectedStudent as any).grade = savedGrade;
+            setForm(f => ({ ...f, student_name: savedName }));
+            setProfileGrade(savedGrade ?? '');
+            setStudents(prev => prev.map((s: any) => s.id === selectedStudent.id ? { ...s, full_name: savedName, grade: savedGrade } : s));
+            setSuccessMsg('Student name & grade updated everywhere.');
+        } catch (e: any) {
+            setError(e.message ?? 'Failed to update student');
+        } finally {
+            setSavingProfile(false);
+        }
+    };
+
     const [showPreview, setShowPreview] = useState(false);
     const [hasPreviewedCurrentReport, setHasPreviewedCurrentReport] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -756,9 +800,11 @@ function ReportBuilderInner() {
             const schoolsList = (schJson.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
             const brandingData = brandingRes.data;
 
-            // Grade lookup for portal students (portal_users has no grade_level; fetch from students shadow table)
+            // Grade source: portal_users.grade is now the canonical specific grade. Fall back to
+            // the students shadow (grade_level) only for the rare account with no grade yet.
             const portalIds = (portalJson.data ?? []).map((u: any) => u.id).filter(Boolean) as string[];
-            const { data: gradeRowsBR } = portalIds.length > 0
+            const needShadow = (portalJson.data ?? []).some((u: any) => !u.grade);
+            const { data: gradeRowsBR } = needShadow && portalIds.length > 0
                 ? await withTimeout(
                     db.from('students').select('user_id, grade_level').in('user_id', portalIds),
                     { data: [], error: null },
@@ -768,12 +814,12 @@ function ReportBuilderInner() {
             const gradeByUserId: Record<string, string | null> = {};
             (gradeRowsBR ?? []).forEach((r: any) => { if (r.user_id) gradeByUserId[r.user_id] = r.grade_level ?? null; });
 
-            // Normalize portal_users results
+            // Normalize portal_users results — prefer the canonical grade.
             const portalStudents = (portalJson.data ?? []).map((u: any) => ({
                 ...u,
                 section_class: u.section_class || '',
                 class_id: u.class_id || null,
-                grade_level: gradeByUserId[u.id] ?? null,
+                grade_level: u.grade ?? gradeByUserId[u.id] ?? null,
                 _source: 'portal',
             }));
 
@@ -2913,9 +2959,20 @@ function ReportBuilderInner() {
                                         </div>
                                         <div className="flex-1 space-y-4">
                                             <Field label="Full Name">
-                                                <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
+                                                <div className="flex gap-2">
+                                                    <input value={form.student_name} onChange={e => setForm(f => ({ ...f, student_name: e.target.value }))} className={INPUT} />
+                                                    <button
+                                                        type="button"
+                                                        onClick={saveStudentProfile}
+                                                        disabled={savingProfile}
+                                                        title="Save the corrected name & grade to the student's profile — updates everywhere (portal, records, login)"
+                                                        className="flex-shrink-0 rounded-xl border border-primary/30 bg-primary/10 px-3 text-xs font-black text-primary hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        {savingProfile ? 'Saving…' : 'Save to profile'}
+                                                    </button>
+                                                </div>
                                             </Field>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                 <div className="p-3 bg-muted/20 border border-border rounded-xl">
                                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">School</p>
                                                     <p className="text-sm text-muted-foreground font-semibold truncate">{sessionConfig.school_name || '—'}</p>
@@ -2929,6 +2986,17 @@ function ReportBuilderInner() {
                                                         <option value="" className="bg-background">Select —</option>
                                                         {CLASS_PRESETS.map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
                                                         {distinctClasses.filter(c => !CLASS_PRESETS.includes(c)).map(c => <option key={c} value={c} className="bg-background">{c}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div className="p-3 bg-muted/20 border border-border rounded-xl">
+                                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Grade</label>
+                                                    <select
+                                                        value={profileGrade}
+                                                        onChange={e => setProfileGrade(e.target.value)}
+                                                        title="Student's specific grade — separate from the class/section. Click 'Save to profile' to apply everywhere."
+                                                        className="w-full bg-transparent text-sm text-foreground focus:outline-none transition-colors cursor-pointer">
+                                                        <option value="" className="bg-background">No grade</option>
+                                                        {Array.from(new Set([...(profileGrade && !(SINGLE_GRADES as readonly string[]).includes(profileGrade) ? [profileGrade] : []), ...SINGLE_GRADES])).map(g => <option key={g} value={g} className="bg-background">{g}</option>)}
                                                     </select>
                                                 </div>
                                                 <div className="p-3 bg-muted/20 border border-border rounded-xl">
