@@ -32,8 +32,10 @@ begin
 
   -- Second-level cleanup: notification/audit rows that hang off the student's progress reports
   -- (email_events etc.) so the reports themselves can be deleted. Belt to the CASCADE suspenders.
-  delete from email_events ee using student_progress_reports r
-    where ee.report_id = r.id and (r.student_id = s_id or r.student_id = p_id);
+  -- NB: alias must NOT be `r` — that collides with the declared record variable below and
+  -- caused "record r is not assigned yet", which broke every hard delete.
+  delete from email_events ee using student_progress_reports spr
+    where ee.report_id = spr.id and (spr.student_id = s_id or spr.student_id = p_id);
 
   -- For every FK that references portal_users.id (and the linked students.id), decide per
   -- constraint: CASCADE/SET NULL constraints self-handle on the final delete; for the rest
