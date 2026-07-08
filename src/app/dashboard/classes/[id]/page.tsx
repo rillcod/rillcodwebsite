@@ -895,67 +895,63 @@ export default function ClassDetailPage() {
               </div>
 
               {activeOperation === 'roster' && (
-                <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-                  <div className="rounded-2xl border border-border bg-background p-4">
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-black text-foreground">Current Term Roster</h3>
-                        <p className="text-xs text-muted-foreground">Manage only the students active this term.</p>
-                      </div>
-                      {isStaff && (
-                        <div className="flex items-center gap-2">
-                          <Link href={`/dashboard/classes/transfer?from=${id}`} className="rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/50 transition-colors">
-                            ⇄ Transfer / Move
-                          </Link>
-                          <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
-                            Add Students
-                          </button>
-                        </div>
-                      )}
+                <div className="rounded-2xl border border-border bg-background p-4">
+                  {/* One consolidated roster: every student, active + withdrawn (badged), scrollable. */}
+                  <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-black text-foreground">Class Roster</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {currentTermStudents.length} active{inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
+                      </p>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {currentTermStudents.slice(0, 8).map((student: any) => (
+                    {isStaff && (
+                      <div className="flex items-center gap-2">
+                        <Link href={`/dashboard/classes/transfer?from=${id}`} className="rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/50 transition-colors">
+                          ⇄ Transfer / Move
+                        </Link>
+                        <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
+                          Add Students
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {currentTermStudents.length === 0 && inactiveTermStudents.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                      <UserGroupIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                      <p className="text-sm font-semibold text-muted-foreground">No students in this class yet.</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto grid gap-2 sm:grid-cols-2 pr-1">
+                      {currentTermStudents.map((student: any) => (
                         <div key={student.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary flex-shrink-0">
                             {(student.full_name ?? '?')[0].toUpperCase()}
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
                             <p className="truncate text-xs text-muted-foreground">{student.email}</p>
                           </div>
                         </div>
                       ))}
-                    </div>
-                    {currentTermStudents.length > 8 && (
-                      <p className="mt-3 text-xs text-muted-foreground">Showing 8 of {currentTermStudents.length}. Full roster remains below.</p>
-                    )}
-                    {currentTermStudents.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-border p-8 text-center">
-                        <UserGroupIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                        <p className="text-sm font-semibold text-muted-foreground">No active students for this term yet.</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-                    <h3 className="text-sm font-black text-foreground">Reinstate History</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">Paused students keep old reports and can return this term.</p>
-                    <div className="mt-4 space-y-2">
-                      {inactiveTermStudents.slice(0, 5).map((student: any) => (
-                        <div key={`${student.id}-${student.roster_status ?? 'former'}-canvas`} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
-                          <div className="min-w-0">
+                      {inactiveTermStudents.map((student: any) => (
+                        <div key={`${student.id}-${student.roster_status ?? 'former'}`} className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-400 flex-shrink-0">
+                            {(student.full_name ?? '?')[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
-                            <p className="text-[11px] text-muted-foreground">{student.roster_status ?? 'former'}</p>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-400/80">{student.roster_status ?? 'withdrawn'}</p>
                           </div>
                           {isStaff && (
-                            <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
+                            <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50 flex-shrink-0">
                               Reinstate
                             </button>
                           )}
                         </div>
                       ))}
-                      {inactiveTermStudents.length === 0 && <p className="text-xs text-muted-foreground">No paused students for this class.</p>}
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
