@@ -107,7 +107,16 @@ export default function EditClassPage() {
                 }
                 const { data: sData } = await schoolsQuery;
 
-                setPrograms(programsRes.data ?? []);
+                // Always include the class's CURRENT programme in the dropdown, even if it is
+                // inactive — otherwise the select has no matching option and shows blank
+                // instead of following the class's real programme.
+                let programList = programsRes.data ?? [];
+                if (cls.program_id && !programList.some((p: any) => p.id === cls.program_id)) {
+                    const { data: currentProg } = await db.from('programs').select('id, name').eq('id', cls.program_id).maybeSingle();
+                    if (currentProg) programList = [currentProg, ...programList];
+                }
+
+                setPrograms(programList);
                 setTeachers(teachersRes.data ?? []);
                 setSchools(sData ?? []);
                 setAcademicTerms(terms);
