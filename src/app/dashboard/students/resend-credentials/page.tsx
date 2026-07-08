@@ -100,46 +100,48 @@ export default function ResendCredentialsPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const db = createClient();
-    const { data, error } = await db
-      .from('students')
-      .select('id, full_name, student_email, parent_email, school_name, status, enrollment_type, user_id, created_at')
-      .in('status', ['approved', 'paid', 'partially_paid'])
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      toast.error('Failed to load students: ' + error.message);
-      setLoading(false);
-      return;
-    }
-
-    const rows: StudentRow[] = data ?? [];
-
-    // Enrich with latest credential status and passwords from registration_results
-    const studentEmails = rows.map(s => s.student_email).filter(Boolean) as string[];
-    const parentEmails = rows.map(s => s.parent_email).filter(Boolean) as string[];
-    const allEmails = Array.from(new Set([...studentEmails, ...parentEmails]));
-    
-    if (allEmails.length > 0) {
-      const { data: results } = await db
-        .from('registration_results')
-        .select('email, status, password, created_at')
-        .in('email', allEmails)
+    try {
+      const db = createClient();
+      const { data, error } = await db
+        .from('students')
+        .select('id, full_name, student_email, parent_email, school_name, status, enrollment_type, user_id, created_at')
+        .in('status', ['approved', 'paid', 'partially_paid'])
         .order('created_at', { ascending: false });
 
-      if (results) {
-        // Results are ordered newest-first. Keep the LATEST status/date, but
-        // BACKFILL the password from the most recent row that actually has one —
-        // so a newer status-only / null-password row never makes the password
-        // "disappear". Keys are lowercased to avoid case mismatches.
+      if (error) {
+        toast.error('Failed to load students: ' + error.message);
+        return;
+      }
+
+      const rows: StudentRow[] = data ?? [];
+
+      // Enrich with latest credential status and passwords from registration_results.
+      // IMPORTANT: query in CHUNKS — a single `.in('email', [~1500 emails])` builds a huge
+      // URL that stalls/rejects (this is what made the page hang on the spinner).
+      const studentEmails = rows.map(s => s.student_email).filter(Boolean) as string[];
+      const parentEmails = rows.map(s => s.parent_email).filter(Boolean) as string[];
+      const allEmails = Array.from(new Set([...studentEmails, ...parentEmails]));
+
+      if (allEmails.length > 0) {
         const latestByEmail: Record<string, CredentialStatus> = {};
-        for (const r of results) {
-          const key = (r.email || '').trim().toLowerCase();
-          if (!key) continue;
-          if (!latestByEmail[key]) {
-            latestByEmail[key] = { status: r.status, created_at: r.created_at, password: r.password ?? null };
-          } else if (!latestByEmail[key].password && r.password) {
-            latestByEmail[key].password = r.password;
+        const CHUNK = 100;
+        for (let i = 0; i < allEmails.length; i += CHUNK) {
+          const batch = allEmails.slice(i, i + CHUNK);
+          const { data: results } = await db
+            .from('registration_results')
+            .select('email, status, password, created_at')
+            .in('email', batch)
+            .order('created_at', { ascending: false });
+          // Results newest-first. Keep the LATEST status/date, but BACKFILL the password from
+          // the most recent row that has one, so a newer status-only row never blanks it.
+          for (const r of results ?? []) {
+            const key = (r.email || '').trim().toLowerCase();
+            if (!key) continue;
+            if (!latestByEmail[key]) {
+              latestByEmail[key] = { status: r.status, created_at: r.created_at, password: r.password ?? null };
+            } else if (!latestByEmail[key].password && r.password) {
+              latestByEmail[key].password = r.password;
+            }
           }
         }
         for (const row of rows) {
@@ -149,10 +151,13 @@ export default function ResendCredentialsPage() {
           if (pKey && latestByEmail[pKey]) row.parentCred = latestByEmail[pKey];
         }
       }
-    }
 
-    setStudents(rows);
-    setLoading(false);
+      setStudents(rows);
+    } catch (e: any) {
+      toast.error('Failed to load students: ' + (e?.message || 'unexpected error'));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
