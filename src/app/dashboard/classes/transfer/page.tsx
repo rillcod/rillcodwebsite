@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowsRightLeftIcon, MagnifyingGlassIcon, UserGroupIcon, AcademicCapIcon,
-  ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowRightIcon,
-  ArrowLeftIcon,
+  ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowLeftIcon,
 } from '@/lib/icons';
 
 type ClassRow = {
@@ -129,8 +128,8 @@ export default function ClassTransferPage() {
     if (!destId || selected.size === 0) return;
     setMoving(true);
     setResult(null);
+    const ids = [...selected];
     try {
-      const ids = [...selected];
       const res = await fetch(`/api/classes/${destId}/enroll`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -138,17 +137,60 @@ export default function ClassTransferPage() {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Transfer failed');
-      const skipped = j.skipped ?? 0;
       const rej = [...(j.rejectedOtherTeacher ?? []), ...(j.rejectedSchoolBoundary ?? [])];
-      let msg = `Moved ${j.enrolled ?? ids.length} student${(j.enrolled ?? ids.length) !== 1 ? 's' : ''} → ${destClass?.name ?? 'class'}.`;
-      if (skipped > 0) msg += ` ${skipped} skipped${rej.length ? `: ${rej.join(', ')}` : ''}.`;
+      const rejectedNames = new Set(rej.map((n: string) => (n || '').toLowerCase()));
+      const movedCount = j.enrolled ?? ids.length;
+
+      // ── Optimistic UI: instantly drop the moved students from the roster and adjust the
+      //    class counts — no full refetch, so batch moves feel immediate. Rejected students
+      //    (another teacher's class / cross-school) stay in the list.
+      const movedIds = new Set(
+        students.filter((s) => selected.has(s.id) && !rejectedNames.has((s.full_name ?? '').toLowerCase())).map((s) => s.id),
+      );
+      setStudents((prev) => prev.filter((s) => !movedIds.has(s.id)));
+      setSelected(new Set());
+      setClasses((prev) => prev.map((c) => {
+        if (c.id === destId) return { ...c, current_students: (c.current_students ?? 0) + movedIds.size };
+        if (c.id === sourceId) return { ...c, current_students: Math.max(0, (c.current_students ?? 0) - movedIds.size) };
+        return c;
+      }));
+
+      let msg = `Moved ${movedCount} student${movedCount !== 1 ? 's' : ''} → ${destClass?.name ?? 'class'}.`;
+      if (rej.length > 0) msg += ` ${rej.length} skipped: ${rej.join(', ')}.`;
       setResult({ ok: true, msg });
-      // Refresh both rosters + counts
-      await loadRoster(sourceId);
-      const cr = await fetch('/api/classes', { cache: 'no-store' });
-      if (cr.ok) setClasses((await cr.json()).data ?? []);
     } catch (e: any) {
       setResult({ ok: false, msg: e.message ?? 'Transfer failed' });
+      // On failure, reload the true roster so the UI is never out of sync.
+      loadRoster(sourceId);
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  // Deactivate = soft unenrol from the SOURCE class: keeps the class tie for history
+  // (student is marked withdrawn, never classless). No destination needed.
+  const deactivate = async () => {
+    if (!sourceId || selected.size === 0) return;
+    if (!confirm(`Deactivate ${selected.size} student(s) from ${sourceClass?.name ?? 'this class'}? They keep their class history and can be re-activated or moved later.`)) return;
+    setMoving(true);
+    setResult(null);
+    const ids = [...selected];
+    try {
+      const res = await fetch(`/api/classes/${sourceId}/enroll`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: ids }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || 'Deactivate failed');
+      const doneIds = new Set(ids);
+      setStudents((prev) => prev.filter((s) => !doneIds.has(s.id)));
+      setSelected(new Set());
+      setClasses((prev) => prev.map((c) => (c.id === sourceId ? { ...c, current_students: Math.max(0, (c.current_students ?? 0) - ids.length) } : c)));
+      setResult({ ok: true, msg: `Deactivated ${ids.length} student${ids.length !== 1 ? 's' : ''} — kept in ${sourceClass?.name ?? 'the class'}'s history.` });
+    } catch (e: any) {
+      setResult({ ok: false, msg: e.message ?? 'Deactivate failed' });
+      loadRoster(sourceId);
     } finally {
       setMoving(false);
     }
@@ -212,10 +254,16 @@ export default function ClassTransferPage() {
             ))}
           </select>
         </div>
-        <div className="hidden sm:flex items-center justify-center pb-3">
-          <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <ArrowRightIcon className="w-4 h-4 text-primary" />
-          </div>
+        <div className="flex items-center justify-center sm:pb-3">
+          <button
+            type="button"
+            onClick={() => { if (sourceId && destId) { setSourceId(destId); setDestId(sourceId); setResult(null); } }}
+            disabled={!sourceId || !destId}
+            title="Swap From / To"
+            className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed rotate-90 sm:rotate-0"
+          >
+            <ArrowsRightLeftIcon className="w-4 h-4" />
+          </button>
         </div>
         <div>
           <label className="block text-[11px] font-black uppercase tracking-widest text-muted-foreground mb-1.5">To class</label>
@@ -319,6 +367,14 @@ export default function ClassTransferPage() {
               <p className="text-xs text-amber-400">Choose a destination class to move them.</p>
             )}
           </div>
+          <button
+            onClick={deactivate}
+            disabled={moving || selected.size === 0}
+            title="Withdraw the selected students from this class (keeps their history)"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 font-bold text-sm rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+          >
+            Deactivate
+          </button>
           <button
             onClick={move}
             disabled={moving || selected.size === 0 || !destId}
