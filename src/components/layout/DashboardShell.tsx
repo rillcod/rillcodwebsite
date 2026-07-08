@@ -7,13 +7,15 @@ import NewsletterPopup from '@/components/dashboard/NewsletterPopup';
 import StaffQRScanner from '@/components/qr/StaffQRScanner';
 import PartnerSchoolScopeBanner from '@/components/layout/PartnerSchoolScopeBanner';
 
-// Pages where the QR scanner should NOT appear
+// Pages where the QR scanner should NOT appear (its floating button overlaps their own
+// action bars / buttons — e.g. the report builder's sticky Save/Publish controls).
 const QR_HIDDEN_PATHS = [
   '/dashboard/inbox',
   '/dashboard/messages',
   '/dashboard/school-teacher-messages',
   '/dashboard/whatsapp-groups',
   '/dashboard/crm',
+  '/dashboard/reports/builder',
 ];
 
 // Pages that need full-bleed, zero-padding, native-app layout

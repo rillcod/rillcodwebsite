@@ -1588,10 +1588,11 @@ function ReportBuilderInner() {
                 }
             }
 
-            // Propagate ONLY non-identity updates back to the student's root profile.
-            // Name and gender are identity and must NOT be auto-overwritten from a report
-            // (a report on the wrong account would rename it — cascading corruption). We
-            // only fill them when the account has none; class may legitimately change.
+            // Propagate profile updates back to the student's root record. The teacher is the
+            // authority here, so a deliberately edited Full Name / Class / Gender OVERWRITES the
+            // student everywhere (portal, records, login) — the "teacher can mutate identity from
+            // the report builder" behaviour. (Gender still only fills when blank, to avoid a
+            // stray toggle silently flipping it.)
             if (!isManual && selectedStudent.id) {
                 const origName = selectedStudent.full_name ?? '';
                 const origClass = (selectedStudent as any).section_class ?? '';
@@ -1599,8 +1600,8 @@ function ReportBuilderInner() {
                 const newName = form.student_name.trim();
                 const newClass = (form.section_class || sessionConfig.section_class || '').trim();
                 const profilePatch: Record<string, string> = {};
-                if (newName && !origName.trim()) profilePatch.full_name = newName;           // fill-only
-                if (newClass && newClass !== origClass) profilePatch.section_class = newClass; // class can change
+                if (newName && newName !== origName.trim()) profilePatch.full_name = newName;   // teacher edit overwrites
+                if (newClass && newClass !== origClass) profilePatch.section_class = newClass;   // class can change
                 if (form.gender && !String(origGender).trim()) profilePatch.gender = form.gender; // fill-only
                 if (Object.keys(profilePatch).length > 0) {
                     fetch(`/api/portal-users/${selectedStudent.id}`, {
