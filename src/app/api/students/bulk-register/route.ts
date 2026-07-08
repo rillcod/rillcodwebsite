@@ -574,6 +574,21 @@ export async function POST(request: Request) {
           console.error('[BulkRegister] Card auto-issue failed:', cardErr);
         }
 
+        // ── Within-batch barricade: register the just-created student into the in-memory
+        // dedup maps so a LATER row in the SAME upload with the same name (or a spelling
+        // variant / swapped names) is caught. Without this, the maps only reflected the DB
+        // as it was BEFORE the batch, so two "John Doe" rows in one file both slipped through.
+        {
+          const createdName = cleanStudentName(full_name) || full_name.trim();
+          const normNew = createdName.replace(/\s+/g, ' ').toLowerCase();
+          const rec = { id: authUserId, email: emailKey, full_name: createdName };
+          existingByName.set(normNew, rec);
+          const partsNew = normNew.split(/\s+/);
+          if (partsNew.length >= 2) existingByReversedName.set([...partsNew].reverse().join(' '), rec);
+          const keyNew = duplicateNameKey(createdName);
+          if (keyNew) existingByKey.set(keyNew, rec);
+        }
+
         results.push({ full_name, email, password, class_name: effectiveClass, status, userId: authUserId, cardIssued, cardId });
       } catch (err: any) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: err.message });
