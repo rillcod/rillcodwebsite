@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
   ArrowsRightLeftIcon, MagnifyingGlassIcon, UserGroupIcon, AcademicCapIcon,
@@ -28,12 +29,14 @@ type StudentRow = {
 
 export default function ClassTransferPage() {
   const { profile, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
 
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [sourceId, setSourceId] = useState('');
+  // Pre-select the source class when opened from inside a classroom (?from=<classId>).
+  const [sourceId, setSourceId] = useState(searchParams.get('from') ?? '');
   const [destId, setDestId] = useState('');
 
   const [students, setStudents] = useState<StudentRow[]>([]);

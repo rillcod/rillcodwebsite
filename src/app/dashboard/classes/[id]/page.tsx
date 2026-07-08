@@ -903,9 +903,14 @@ export default function ClassDetailPage() {
                         <p className="text-xs text-muted-foreground">Manage only the students active this term.</p>
                       </div>
                       {isStaff && (
-                        <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
-                          Add Students
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dashboard/classes/transfer?from=${id}`} className="rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/50 transition-colors">
+                            ⇄ Transfer / Move
+                          </Link>
+                          <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
+                            Add Students
+                          </button>
+                        </div>
                       )}
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
