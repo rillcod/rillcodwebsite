@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 import {
   SparklesIcon,
   DocumentTextIcon,
@@ -86,6 +85,7 @@ interface Newsletter {
   status: string | null;
   created_at: string | null;
   published_at: string | null;
+  scheduled_for?: string | null;
   _total?: number;
   _viewed?: number;
 }
@@ -115,16 +115,20 @@ export default function NewslettersPage() {
   const [showPushModal, setShowPushModal] = useState(false);
   const [targetType, setTargetType] = useState<'all' | 'students' | 'teachers' | 'schools'>('all');
   const [pushing, setPushing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [editorTab, setEditorTab] = useState<EditorTab>('write');
+
+  // Push options
+  const [sendEmail, setSendEmail] = useState(false);
+  const [scheduleFor, setScheduleFor] = useState('');
 
   // Print controls
   const [issueNumber, setIssueNumber] = useState('');
   const [fontSize, setFontSize] = useState<FontSize>('normal');
   const [twoColumn, setTwoColumn] = useState(false);
 
-  const supabase = createClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Toolbar formatting ─────────────────────────────────────
@@ -311,25 +315,17 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
 
   async function loadNewsletters() {
     setLoading(true);
-    let data: Newsletter[] = [];
-    if (['admin', 'teacher', 'school'].includes(profile?.role || '')) {
-      const res = await supabase.from('newsletters').select('*').order('created_at', { ascending: false });
-      data = res.data ?? [];
-    } else {
-      if (!profile?.id) { setLoading(false); return; }
-      const { data: deliveries } = await supabase.from('newsletter_delivery')
-        .select('newsletter_id, is_viewed').eq('user_id', profile.id);
-      if (deliveries && deliveries.length > 0) {
-        const ids = deliveries.map(d => d.newsletter_id).filter((id): id is string => id !== null);
-        const { data: nls } = await supabase.from('newsletters')
-          .select('*').in('id', ids).eq('status', 'published').order('published_at', { ascending: false });
-        data = nls ?? [];
-        await supabase.from('newsletter_delivery').update({ is_viewed: true })
-          .eq('user_id', profile.id).in('newsletter_id', ids);
-      }
+    try {
+      // Scoped server API (role-aware, service role) — no client-RLS dependency.
+      const res = await fetch('/api/newsletters', { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to load');
+      setNewsletters((json.data ?? []) as Newsletter[]);
+    } catch {
+      setNewsletters([]);
+    } finally {
+      setLoading(false);
     }
-    setNewsletters(data);
-    setLoading(false);
   }
 
   async function handleAIGenerate() {
@@ -362,48 +358,49 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
 
   async function handleSave() {
     if (!activeNewsletter?.title || !activeNewsletter?.content) return;
-    setLoading(true);
-    const payload = {
-      title: activeNewsletter.title,
-      content: activeNewsletter.content,
-      author_id: profile?.id,
-      school_id: profile?.school_id,
-      status: 'draft',
-    };
-    const result = activeNewsletter.id
-      ? await supabase.from('newsletters').update(payload).eq('id', activeNewsletter.id).select().single()
-      : await supabase.from('newsletters').insert([payload]).select().single();
-    if (result.data && !activeNewsletter.id) setActiveNewsletter(result.data);
-    if (!result.error) {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/newsletters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: activeNewsletter.id, title: activeNewsletter.title, content: activeNewsletter.content }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Save failed');
+      if (json.data) setActiveNewsletter(json.data);
       setSuccess('Newsletter saved successfully!');
       setTimeout(() => setSuccess(null), 3000);
       loadNewsletters();
+    } catch (e: any) {
+      alert(e.message || 'Save failed');
+    } finally {
+      setSaving(false);
     }
-    setLoading(false);
   }
 
   async function handlePush() {
     if (!activeNewsletter?.id) return;
     setPushing(true);
     try {
-      let userQuery = supabase.from('portal_users').select('id');
-      if (profile?.role === 'school' && profile.school_id) userQuery = userQuery.eq('school_id', profile.school_id);
-      if (targetType === 'students') userQuery = userQuery.eq('role', 'student');
-      if (targetType === 'teachers') userQuery = userQuery.eq('role', 'teacher');
-      if (targetType === 'schools') userQuery = userQuery.eq('role', 'school');
-      const { data: users } = await userQuery;
-      if (!users || users.length === 0) throw new Error('No target users found');
-      const { error: delErr } = await supabase.from('newsletter_delivery').insert(
-        users.map(u => ({ newsletter_id: activeNewsletter.id, user_id: u.id }))
+      const res = await fetch(`/api/newsletters/${activeNewsletter.id}/push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: targetType, sendEmail, scheduleFor: scheduleFor || undefined }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Push failed');
+      setSuccess(
+        json.scheduled
+          ? `Scheduled for ${new Date(json.scheduledFor).toLocaleString()}.`
+          : `Pushed to ${json.delivered} recipient(s)${json.emailed ? ` · ${json.emailed} emailed` : ''}.`,
       );
-      if (delErr) throw delErr;
-      await supabase.from('newsletters').update({ status: 'published', published_at: new Date().toISOString() }).eq('id', activeNewsletter.id);
-      setSuccess(`Newsletter pushed to ${users.length} recipients!`);
       setShowPushModal(false);
+      setScheduleFor('');
+      setSendEmail(false);
       setView('list');
       loadNewsletters();
     } catch (e: any) {
-      alert(e.message);
+      alert(e.message || 'Push failed');
     } finally {
       setPushing(false);
     }
@@ -412,8 +409,13 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
   async function handleDelete(id: string, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm('Delete this newsletter? This cannot be undone.')) return;
-    await supabase.from('newsletters').delete().eq('id', id);
-    setNewsletters(prev => prev.filter(n => n.id !== id));
+    try {
+      const res = await fetch(`/api/newsletters/${id}`, { method: 'DELETE' });
+      if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Delete failed'); }
+      setNewsletters(prev => prev.filter(n => n.id !== id));
+    } catch (e: any) {
+      alert(e.message || 'Delete failed');
+    }
   }
 
   const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
@@ -509,13 +511,25 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                     )}
                     <ChevronRightIcon className="w-5 h-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                      nl.status === 'published' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                      nl.status === 'published' ? 'bg-emerald-500/20 text-emerald-400'
+                        : nl.status === 'scheduled' ? 'bg-sky-500/20 text-sky-400'
+                        : 'bg-amber-500/20 text-amber-400'
                     }`}>{nl.status || 'draft'}</span>
                     <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">
                       {nl.created_at ? new Date(nl.created_at).toLocaleDateString() : 'N/A'}
                     </span>
+                    {nl.status === 'scheduled' && nl.scheduled_for && (
+                      <span className="text-[9px] text-sky-400 font-black uppercase tracking-widest">
+                        · {new Date(nl.scheduled_for).toLocaleString()}
+                      </span>
+                    )}
+                    {isManager && nl.status === 'published' && (nl._total ?? 0) > 0 && (
+                      <span className="ml-auto inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground" title="Recipients who have opened it / total delivered">
+                        <EyeIcon className="w-3 h-3" /> {nl._viewed ?? 0}/{nl._total}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-xl font-black text-foreground mb-2 line-clamp-2 tracking-tight uppercase leading-tight">{nl.title}</h3>
                   <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
@@ -525,8 +539,30 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
               ))
             )}
           </div>
+        ) : !isManager ? (
+          /* ── Read-only reader (students / parents) ── */
+          <div className="max-w-3xl mx-auto pb-20">
+            <article className="bg-card border border-border rounded-2xl p-6 sm:p-10 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Official Newsletter</span>
+                {activeNewsletter?.published_at && (
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                    · {new Date(activeNewsletter.published_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-2xl sm:text-4xl font-black tracking-tight uppercase mb-6 leading-tight">
+                {activeNewsletter?.title || 'Newsletter'}
+              </h1>
+              <hr className="border-border mb-6" />
+              <div
+                className="text-sm leading-[1.9] text-foreground prose-custom"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(activeNewsletter?.content || '') || '<p>No content.</p>' }}
+              />
+            </article>
+          </div>
         ) : (
-          /* ── Editor ── */
+          /* ── Editor (managers) ── */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start pb-20 relative">
 
             {/* ─ Sidebar ─ */}
@@ -751,9 +787,9 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                     className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">
                     <EyeIcon className="w-4 h-4" /> A4 Preview
                   </button>
-                  <button onClick={handleSave} disabled={loading || !activeNewsletter?.title}
+                  <button onClick={handleSave} disabled={saving || !activeNewsletter?.title}
                     className="flex items-center gap-3 px-6 py-2.5 bg-primary hover:bg-primary/90 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary-foreground shadow-lg shadow-primary/30 disabled:opacity-50 transition-all">
-                    {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
+                    {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}
                     Save
                   </button>
                 </div>
@@ -794,59 +830,14 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
             </div>
 
             <div className="flex-1 overflow-auto p-6 bg-black/40 flex items-start justify-center">
-              {/* Scaled A4 sheet */}
-              <div className="shadow-[0_0_80px_rgba(0,0,0,0.5)] bg-white text-[#111827] origin-top"
-                style={{ width: '210mm', minHeight: '297mm', padding: '20mm', transform: 'scale(0.6)', transformOrigin: 'top center', marginBottom: '-40%' }}>
-
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 18, borderBottom: '3px double #000', paddingBottom: 14, marginBottom: 20 }}>
-                  <img src="/logo.png" alt="Logo" style={{ width: 50, height: 50, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: 'sans-serif' }}>
-                      {(profile as any)?.school_name || 'RILLCOD TECHNOLOGIES'}
-                    </div>
-                    <div style={{ fontSize: 7.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: '#555', marginTop: 2 }}>Official Institutional Communication</div>
-                    <div style={{ fontSize: 7.5, color: '#888', marginTop: 4 }}>26 Ogiesoba Avenue, Benin City · academy.rillcod.com · 0811 660 0091</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase' }}>VOL. {new Date().getFullYear()}</div>
-                    <div style={{ fontSize: 8, color: '#333', fontWeight: 700, textTransform: 'uppercase', marginTop: 2 }}>
-                      {new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-                    </div>
-                    {issueNumber && <div style={{ fontSize: 7.5, color: '#666', fontWeight: 700, marginTop: 2 }}>Issue No. {issueNumber}</div>}
-                  </div>
-                </div>
-
-                <div style={{ fontSize: 7.5, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 3, marginBottom: 8 }}>Official Notice / Newsletter</div>
-                <h1 style={{ fontSize: 26, fontWeight: 900, textTransform: 'uppercase', letterSpacing: -0.5, lineHeight: 1.1, marginBottom: 14, fontFamily: 'sans-serif' }}>
-                  {activeNewsletter?.title || 'Untitled Newsletter'}
-                </h1>
-                <hr style={{ border: 'none', borderTop: '2px solid #111', marginBottom: 14 }} />
-
-                <div
-                  style={{
-                    fontSize: fontSize === 'compact' ? 10 : fontSize === 'large' ? 13 : 11.5,
-                    lineHeight: 1.85,
-                    color: '#374151',
-                    columnCount: twoColumn ? 2 : undefined,
-                    columnGap: twoColumn ? 20 : undefined,
-                    columnRule: twoColumn ? '0.5px solid #d1d5db' : undefined,
-                    fontFamily: 'Georgia, serif',
-                  }}
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(activeNewsletter?.content || '') }}
-                />
-
-                <div style={{ marginTop: 40, borderTop: '1.5px solid #e5e7eb', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                  <div>
-                    <img src="/images/signature.png" alt="" style={{ height: 36, marginBottom: 4, mixBlendMode: 'multiply', opacity: 0.8 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    <div style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', fontFamily: 'sans-serif' }}>The Administrator</div>
-                    <div style={{ fontSize: 7.5, color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>Rillcod Technologies Executive Office</div>
-                  </div>
-                  <div style={{ width: 60, height: 60, border: '1.5px dashed #d1d5db', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: 6, color: '#d1d5db', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1, lineHeight: 1.4 }}>
-                    Official<br />Academy<br />Stamp
-                  </div>
-                </div>
-              </div>
+              {/* Single source of truth: the EXACT print/PDF document, isolated in an iframe so
+                  its print CSS can't leak into the app and the preview always matches the output. */}
+              <iframe
+                title="A4 newsletter preview"
+                srcDoc={buildPrintHTML(true)}
+                className="bg-white shadow-[0_0_80px_rgba(0,0,0,0.5)] origin-top"
+                style={{ width: 794, height: 1123, border: 'none', transform: 'scale(0.72)', transformOrigin: 'top center' }}
+              />
             </div>
           </div>
         )}
@@ -877,14 +868,26 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
                     </button>
                   ))}
                 </div>
+                {/* Also email + Schedule */}
+                <label className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card cursor-pointer">
+                  <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} className="accent-primary w-4 h-4" />
+                  <span className="text-sm font-bold text-foreground">Also send by email</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">recipients with a real inbox</span>
+                </label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Schedule (optional)</label>
+                  <input type="datetime-local" value={scheduleFor} onChange={e => setScheduleFor(e.target.value)}
+                    className="w-full px-3 py-2 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary" />
+                  <p className="text-[10px] text-muted-foreground">Leave blank to send now. A scheduled newsletter auto-publishes at the chosen time.</p>
+                </div>
                 <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-xl">
                   <InformationCircleIcon className="w-5 h-5 text-primary shrink-0" />
-                  <p className="text-[11px] text-primary font-medium">Recipients will see this newsletter the next time they log in.</p>
+                  <p className="text-[11px] text-primary font-medium">In-app: recipients see it on next login{sendEmail ? '; email is best-effort' : ''}.</p>
                 </div>
                 <button onClick={handlePush} disabled={pushing}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/40">
+                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black rounded-xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/40 disabled:opacity-50">
                   {pushing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SpeakerWaveIcon className="w-5 h-5" />}
-                  Confirm & Push Newsletter
+                  {scheduleFor ? 'Schedule Newsletter' : 'Confirm & Push Newsletter'}
                 </button>
               </div>
             </div>

@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       academic_terms: {
@@ -1745,6 +1720,9 @@ export type Database = {
       }
       classes: {
         Row: {
+          band_high: number | null
+          band_low: number | null
+          band_lvl: string | null
           created_at: string | null
           current_course_id: string | null
           current_students: number | null
@@ -1765,9 +1743,13 @@ export type Database = {
           status: string | null
           teacher_id: string | null
           term_id: string | null
+          tier: string | null
           updated_at: string | null
         }
         Insert: {
+          band_high?: number | null
+          band_low?: number | null
+          band_lvl?: string | null
           created_at?: string | null
           current_course_id?: string | null
           current_students?: number | null
@@ -1788,9 +1770,13 @@ export type Database = {
           status?: string | null
           teacher_id?: string | null
           term_id?: string | null
+          tier?: string | null
           updated_at?: string | null
         }
         Update: {
+          band_high?: number | null
+          band_low?: number | null
+          band_lvl?: string | null
           created_at?: string | null
           current_course_id?: string | null
           current_students?: number | null
@@ -1811,6 +1797,7 @@ export type Database = {
           status?: string | null
           teacher_id?: string | null
           term_id?: string | null
+          tier?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -3564,6 +3551,36 @@ export type Database = {
             referencedColumns: ["student_id"]
           },
         ]
+      }
+      dismissed_duplicate_pairs: {
+        Row: {
+          created_at: string
+          dismissed_by: string | null
+          id: string
+          pair_key: string
+          reason: string | null
+          student_a: string | null
+          student_b: string | null
+        }
+        Insert: {
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          pair_key: string
+          reason?: string | null
+          student_a?: string | null
+          student_b?: string | null
+        }
+        Update: {
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          pair_key?: string
+          reason?: string | null
+          student_a?: string | null
+          student_b?: string | null
+        }
+        Relationships: []
       }
       email_events: {
         Row: {
@@ -6215,6 +6232,9 @@ export type Database = {
           id: string
           image_url: string | null
           published_at: string | null
+          scheduled_for: string | null
+          scheduled_send_email: boolean
+          scheduled_target: string | null
           school_id: string | null
           status: string | null
           title: string
@@ -6226,6 +6246,9 @@ export type Database = {
           id?: string
           image_url?: string | null
           published_at?: string | null
+          scheduled_for?: string | null
+          scheduled_send_email?: boolean
+          scheduled_target?: string | null
           school_id?: string | null
           status?: string | null
           title: string
@@ -6237,6 +6260,9 @@ export type Database = {
           id?: string
           image_url?: string | null
           published_at?: string | null
+          scheduled_for?: string | null
+          scheduled_send_email?: boolean
+          scheduled_target?: string | null
           school_id?: string | null
           status?: string | null
           title?: string
@@ -7146,6 +7172,7 @@ export type Database = {
           enrollment_type: string | null
           full_name: string
           gender: string | null
+          grade: string | null
           id: string
           is_active: boolean | null
           is_deleted: boolean | null
@@ -7180,6 +7207,7 @@ export type Database = {
           enrollment_type?: string | null
           full_name: string
           gender?: string | null
+          grade?: string | null
           id?: string
           is_active?: boolean | null
           is_deleted?: boolean | null
@@ -7214,6 +7242,7 @@ export type Database = {
           enrollment_type?: string | null
           full_name?: string
           gender?: string | null
+          grade?: string | null
           id?: string
           is_active?: boolean | null
           is_deleted?: boolean | null
@@ -8346,6 +8375,7 @@ export type Database = {
           commission_rate: number
           contact_person: string | null
           created_at: string | null
+          default_band_granularity: string | null
           email: string | null
           enrollment_types: string[] | null
           id: string
@@ -8368,6 +8398,7 @@ export type Database = {
           commission_rate?: number
           contact_person?: string | null
           created_at?: string | null
+          default_band_granularity?: string | null
           email?: string | null
           enrollment_types?: string[] | null
           id?: string
@@ -8390,6 +8421,7 @@ export type Database = {
           commission_rate?: number
           contact_person?: string | null
           created_at?: string | null
+          default_band_granularity?: string | null
           email?: string | null
           enrollment_types?: string[] | null
           id?: string
@@ -8895,8 +8927,8 @@ export type Database = {
           school_name: string | null
           school_section: string | null
           section_class: string | null
-          student_grade: string | null
           show_payment_notice: boolean
+          student_grade: string | null
           student_id: string
           student_name: string | null
           teacher_id: string | null
@@ -8945,8 +8977,8 @@ export type Database = {
           school_name?: string | null
           school_section?: string | null
           section_class?: string | null
-          student_grade?: string | null
           show_payment_notice?: boolean
+          student_grade?: string | null
           student_id: string
           student_name?: string | null
           teacher_id?: string | null
@@ -8995,8 +9027,8 @@ export type Database = {
           school_name?: string | null
           school_section?: string | null
           section_class?: string | null
-          student_grade?: string | null
           show_payment_notice?: boolean
+          student_grade?: string | null
           student_id?: string
           student_name?: string | null
           teacher_id?: string | null
@@ -10850,6 +10882,7 @@ export type Database = {
       }
     }
     Functions: {
+      canonical_grade: { Args: { input: string }; Returns: string }
       check_course_completion: {
         Args: { p_course_id: string; p_user_id: string }
         Returns: boolean
@@ -10948,6 +10981,7 @@ export type Database = {
         Args: { p_school_id: string }
         Returns: string[]
       }
+      hard_delete_portal_user: { Args: { p_id: string }; Returns: Json }
       increment_download_count: {
         Args: { file_id: string }
         Returns: undefined
@@ -11106,9 +11140,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
