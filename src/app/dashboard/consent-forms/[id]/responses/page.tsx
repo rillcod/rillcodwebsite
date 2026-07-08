@@ -529,6 +529,7 @@ export default function ResponsesPage() {
   const [updatingId, setUpdatingId]     = useState<string | null>(null);
   const [creatingPortalId, setCreatingPortalId] = useState<string | null>(null);
   const [deletingPortalId, setDeletingPortalId] = useState<string | null>(null);
+  const [resendingPortalId, setResendingPortalId] = useState<string | null>(null);
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
   const [revertingLeadId, setRevertingLeadId] = useState<string | null>(null);
   const [portalStatus, setPortalStatus] = useState<Record<string, 'created' | 'exists'>>({});
@@ -694,6 +695,21 @@ export default function ResponsesPage() {
       }
     } finally {
       setCreatingPortalId(null);
+    }
+  }
+
+  // ── Resend / send login credentials ──────────────────────────────────────
+  async function resendCredentials(leadId: string, parentName: string) {
+    if (!confirm(`Send login credentials to ${parentName}?\n\nA fresh password is generated for the parent (and their student logins) and delivered by WhatsApp + email.`)) return;
+    setResendingPortalId(leadId);
+    try {
+      const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, { method: 'PUT' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(json.error ?? 'Failed to send credentials'); return; }
+      const ch = (json.channels ?? []).join(' + ') || 'no channel (no phone/email)';
+      alert(`Credentials sent via ${ch}${json.studentsSent ? ` · ${json.studentsSent} student login(s) included` : ''}.`);
+    } finally {
+      setResendingPortalId(null);
     }
   }
 
@@ -1631,6 +1647,14 @@ export default function ResponsesPage() {
                                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
                                       ✓ Portal account
                                     </span>
+                                    <button
+                                      disabled={resendingPortalId === lead.id}
+                                      onClick={() => resendCredentials(lead.id, parentName)}
+                                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                      title="Send / resend login credentials to the parent (and student logins) by WhatsApp + email"
+                                    >
+                                      {resendingPortalId === lead.id ? '…' : '↻ Send login'}
+                                    </button>
                                     <button
                                       disabled={deletingPortalId === lead.id}
                                       onClick={() => deletePortalAccount(lead.id, parentName)}

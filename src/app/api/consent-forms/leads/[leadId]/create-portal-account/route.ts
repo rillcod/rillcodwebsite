@@ -608,3 +608,84 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
 
   return NextResponse.json({ success: true });
 }
+
+// PUT /api/consent-forms/leads/[leadId]/create-portal-account
+// Resend login credentials: regenerates the parent's (and each linked student's) password
+// and delivers them by WhatsApp + email. Used by the "Resend credentials" button so staff
+// can hand out logins on demand after silent account creation.
+export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId: string }> }) {
+  const { leadId } = await context.params;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { data: profile } = await supabase.from('portal_users').select('role').eq('id', user.id).single();
+  if (!profile || !['teacher', 'admin', 'school'].includes(profile.role ?? '')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const sb = adminClient();
+  const { data: lead } = await (sb as any)
+    .from('form_leads').select('id, matched_parent_id, matched_student_id, response_data').eq('id', leadId).maybeSingle();
+  if (!lead?.matched_parent_id) return NextResponse.json({ error: 'No portal account on this lead yet.' }, { status: 400 });
+
+  const { data: parent } = await (sb as any)
+    .from('portal_users').select('email, full_name, phone').eq('id', lead.matched_parent_id).single();
+  if (!parent?.email) return NextResponse.json({ error: 'Parent account has no email on file.' }, { status: 400 });
+
+  const parentPw = generateTempPassword();
+  await sb.auth.admin.updateUserById(lead.matched_parent_id as string, { password: parentPw });
+
+  // Linked students come straight from the lead's provenance (matched_student_id + child_matches).
+  const rd = (lead.response_data ?? {}) as Record<string, any>;
+  const childMatchIds = Array.isArray(rd.child_matches) ? rd.child_matches.map((m: any) => m.studentId) : [];
+  const studentIds = [...new Set([lead.matched_student_id, ...childMatchIds].filter(Boolean))] as string[];
+  const students: Array<{ name: string; email: string; password: string }> = [];
+  for (const sid of studentIds) {
+    const { data: s } = await (sb as any).from('portal_users').select('email, full_name').eq('id', sid).eq('role', 'student').maybeSingle();
+    if (!s?.email) continue;
+    const pw = generateTempPassword();
+    await sb.auth.admin.updateUserById(sid, { password: pw });
+    students.push({ name: s.full_name || 'Student', email: s.email, password: pw });
+  }
+
+  const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
+  const loginUrl = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parent.email)}&pw=${encodeURIComponent(parentPw)}`;
+  const channelsSent: string[] = [];
+  const studentBlock = students.length
+    ? students.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('')
+    : '';
+
+  if (parent.phone) {
+    try {
+      const waMsg = [
+        `Hello ${parent.full_name || 'Parent'}! 👋`,
+        `Here are your Rillcod Parent Portal login details.`,
+        ``,
+        `📧 Email: ${parent.email}`,
+        `🔑 Password: ${parentPw}`,
+        ``,
+        `Tap to log in (pre-filled):`,
+        loginUrl,
+        ``,
+        `Please change your password after login. Questions? +234 811 660 0091`,
+      ].join('\n');
+      await sendWhatsApp(parent.phone, waMsg);
+      channelsSent.push('whatsapp');
+    } catch { /* non-fatal */ }
+  }
+  try {
+    const html = buildRillcodTransactionalEmailHtml({
+      title: 'Your Rillcod Login Details',
+      bodyHtml: `<p style="margin:0 0 14px;font-size:15px;color:#d4d4d8;">Dear <strong style="color:#fff;">${parent.full_name || 'Parent'}</strong>, here are your login details.</p>
+        <div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;margin:0 0 16px;border-radius:0 6px 6px 0;"><p style="margin:0;font-size:14px;color:#d4d4d8;">Email: <span style="font-family:monospace;">${parent.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${parentPw}</span></p></div>
+        ${studentBlock ? `<p style="margin:0 0 8px;font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Student Login${students.length > 1 ? 's' : ''}</p>${studentBlock}` : ''}`,
+      cta: { href: loginUrl, label: 'Log In' },
+      footerNote: 'Rillcod Technologies · +234 811 660 0091',
+    });
+    await notificationsService.sendEmail('system', { to: parent.email, subject: 'Your Rillcod Login Details', html });
+    channelsSent.push('email');
+  } catch { /* non-fatal */ }
+
+  return NextResponse.json({ success: true, channels: channelsSent, studentsSent: students.length });
+}
