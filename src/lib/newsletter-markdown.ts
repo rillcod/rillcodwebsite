@@ -1,5 +1,19 @@
+/**
+ * Escape HTML so raw markup in the source can NEVER become live HTML. This runs BEFORE the
+ * markdown transforms — the markdown tokens (** * ` # -) contain none of & < > so the regexes
+ * below still match. Without this, newsletter content is a stored-XSS vector: it's rendered via
+ * dangerouslySetInnerHTML to every recipient (students/parents) and injected into the print window.
+ */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function inlineMd(t: string): string {
-  return t
+  return escapeHtml(t)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code>$1</code>');

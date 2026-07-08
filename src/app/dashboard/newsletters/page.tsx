@@ -124,9 +124,6 @@ export default function NewslettersPage() {
   const [fontSize, setFontSize] = useState<FontSize>('normal');
   const [twoColumn, setTwoColumn] = useState(false);
 
-  // Scheduling
-  const [publishDate, setPublishDate] = useState('');
-
   const supabase = createClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -194,11 +191,16 @@ export default function NewslettersPage() {
   // ── Print helpers ──────────────────────────────────────────
 
   function buildPrintHTML(forExport = false): string {
-    const schoolName = (profile as any)?.school_name || 'RILLCOD TECHNOLOGIES';
+    // Escape everything interpolated into raw HTML (title/school/issue are free text) so a
+    // stray "<" never breaks the document or injects markup. Body goes through renderMarkdown,
+    // which now escapes internally.
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const schoolName = esc((profile as any)?.school_name || 'RILLCOD TECHNOLOGIES');
     const today = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
     const logoUrl = window.location.origin + '/logo.png';
     const sigUrl = window.location.origin + '/images/signature.png';
-    const title = activeNewsletter?.title || 'Untitled Newsletter';
+    const title = esc(activeNewsletter?.title || 'Untitled Newsletter');
+    const issueNo = esc(issueNumber);
     const bodyHtml = renderMarkdown(activeNewsletter?.content || '');
     const pt = FONT_PT[fontSize];
 
@@ -221,7 +223,7 @@ ${!forExport ? `
   <div class="nl-meta">
     <div class="nl-vol">VOL. ${new Date().getFullYear()}</div>
     <div class="nl-date">${today}</div>
-    ${issueNumber ? `<div class="nl-issue">Issue No. ${issueNumber}</div>` : ''}
+    ${issueNo ? `<div class="nl-issue">Issue No. ${issueNo}</div>` : ''}
   </div>
 </div>
 <div class="nl-subject-lbl">Official Notice / Newsletter</div>
@@ -415,12 +417,6 @@ ${!forExport ? `<script>window.addEventListener('load',()=>setTimeout(()=>window
   }
 
   const isManager = profile?.role === 'admin' || profile?.role === 'teacher';
-  const printableContent = activeNewsletter?.content
-    ? stripMarkdown(activeNewsletter.content)
-        .replace(/\n{3,}/g, '\n\n')
-        .replace(/[ \t]+\n/g, '\n')
-        .trim()
-    : 'Start writing or use the AI assistant to generate content...';
 
   if (!['admin', 'school', 'teacher', 'student', 'parent'].includes(profile?.role || '')) {
     return (
