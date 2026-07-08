@@ -220,7 +220,7 @@ export default function ClassTransferPage() {
   );
 
   return (
-    <div className="space-y-6 pb-28 sm:pb-20">
+    <div className="space-y-6 pb-40 sm:pb-20">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -369,9 +369,10 @@ export default function ClassTransferPage() {
         </div>
       )}
 
-      {/* Sticky action bar */}
+      {/* Sticky action bar — on mobile it sits ABOVE the 64px bottom tab bar (bottom-16) so it
+          never covers the nav's menu CTAs; static in the normal flow from sm up. */}
       {sourceId && (
-        <div className="fixed bottom-0 left-0 right-0 sm:static z-20 bg-card/95 backdrop-blur border-t sm:border border-border sm:rounded-2xl p-4 flex items-center gap-3">
+        <div className="fixed bottom-16 left-0 right-0 sm:static sm:bottom-auto z-20 bg-card/95 backdrop-blur border-t sm:border border-border sm:rounded-2xl p-4 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-foreground truncate">
               {selected.size} selected
