@@ -142,12 +142,10 @@ export async function DELETE(
     if (student?.user_id) {
         // Capture the login email first so we can purge the bulk-register archive.
         const { data: pu } = await admin.from('portal_users').select('email').eq('id', student.user_id).maybeSingle();
-        await admin.from('files').update({ uploaded_by: null }).eq('uploaded_by', student.user_id);
-        await admin.from('study_group_messages').update({ sender_id: null }).eq('sender_id', student.user_id);
-        await admin.from('study_group_members').delete().eq('user_id', student.user_id);
-        await admin.from('study_groups').update({ created_by: null }).eq('created_by', student.user_id);
-        await admin.from('portal_users').delete().eq('id', student.user_id);
-        await admin.auth.admin.deleteUser(student.user_id);
+        // Full wipe via the DB function: clears every FK child, the students + portal_users
+        // rows and auth.users in one shot (no hand-listed subset that can leave orphans).
+        await (admin as any).rpc('hard_delete_portal_user', { p_id: student.user_id });
+        await admin.auth.admin.deleteUser(student.user_id).catch(() => {});
 
         // Harmonise the bulk-register archive (keyed by email): drop this student's
         // history row and prune the batch if it becomes empty.
