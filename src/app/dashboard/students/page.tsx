@@ -16,6 +16,7 @@ import {
   PrinterIcon, UserPlusIcon,
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
+import { SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchCardConfig, buildSingleCardHtml, openPrintWindow, holderCode, type CardHolder } from '@/lib/cards/printCard';
 
 // ─── Status badge ─────────────────────────────────────────────
@@ -196,13 +197,11 @@ function LinkParentModal({ student, onClose, onSaved }: {
   );
 }
 
-const GRADE_LEVELS_LIST = [
-  'BASIC 1','BASIC 2','BASIC 3','BASIC 4','BASIC 5','BASIC 6',
-  'JSS 1','JSS 2','JSS 3',
-  'SS 1','SS 2','SS 3',
-] as const;
+// Canonical grade vocabulary — the single dropdown source of truth (Nursery 1-3, Basic 1-6,
+// JSS 1-3, SS 1-3). Shared with the report builder, roster and class naming.
+const GRADE_LEVELS_LIST = SINGLE_GRADES;
 
-// Natural Nigerian school grade order for sorting
+// Natural Nigerian school grade order for sorting (canonical + legacy no-space variants)
 const GRADE_ORDER: Record<string, number> = {};
 [...GRADE_LEVELS_LIST, 'JSS1','JSS2','JSS3','SS1','SS2','SS3'].forEach((g, i) => { GRADE_ORDER[g] = i; });
 function sortByGrade(a: string, b: string) {
@@ -222,7 +221,7 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
     full_name: student.full_name || '',
     phone: student.phone || '',
     section_class: student.section_class || '',
-    grade_level: student.grade_level || '',
+    grade_level: student.grade || student.grade_level || '',
     school_id: student.school_id || '',
     gender: student.gender || '',
     date_of_birth: student.date_of_birth || '',
@@ -243,6 +242,7 @@ function EditEnrolledModal({ student, schools, onClose, onSaved }: {
           full_name: form.full_name.trim(),
           phone: form.phone.trim() || null,
           section_class: form.section_class.trim() || null,
+          grade: form.grade_level || null,
           grade_level: form.grade_level || null,
           school_id: form.school_id || null,
           school_name: schoolName,

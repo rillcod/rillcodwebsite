@@ -12,9 +12,11 @@ import {
 } from '@/lib/icons';
 import { toast } from 'sonner';
 import { qrDataUrl } from '@/lib/cards/qr';
+import { SINGLE_GRADES } from '@/lib/classes/naming';
 
-const GRADE_LEVELS = ['Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
-    'JSS1', 'JSS2', 'JSS3', 'SS1', 'SS2', 'SS3'] as const;
+// Canonical grade vocabulary — the single dropdown source of truth (Nursery 1-3, Basic 1-6,
+// JSS 1-3, SS 1-3), consistent with every other entry point and the DB grade trigger.
+const GRADE_LEVELS = SINGLE_GRADES;
 
 interface AddStudentModalProps {
     isOpen: boolean;
