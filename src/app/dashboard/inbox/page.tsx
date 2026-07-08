@@ -457,7 +457,9 @@ export default function UnifiedInbox() {
     if (!profile || !isParentOrStudent) return;
     const key = `details_confirmed_${profile.id}`;
     const confirmedOnce = typeof window !== 'undefined' ? window.localStorage.getItem(key) === '1' : false;
-    const hasRequired = Boolean(profile.full_name && profile.email && profile.phone && profile.school_name && profile.section_class);
+    // School & class are resolved automatically from the child's record — a parent only
+    // needs their own contact details confirmed before messaging support.
+    const hasRequired = Boolean(profile.full_name && profile.email && profile.phone);
     setConfirmDetailsForm({
       full_name: profile.full_name || '',
       email: profile.email || '',
@@ -2488,9 +2490,9 @@ export default function UnifiedInbox() {
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     <input value={confirmDetailsForm.full_name} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, full_name: e.target.value }))} placeholder="Full name" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
                     <input value={confirmDetailsForm.email} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
-                    <input value={confirmDetailsForm.phone} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
-                    <input value={confirmDetailsForm.school_name} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, school_name: e.target.value }))} placeholder="School" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none" />
-                    <input value={confirmDetailsForm.class_name} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, class_name: e.target.value }))} placeholder="Class" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none sm:col-span-2" />
+                    <input value={confirmDetailsForm.phone} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-white/10 bg-[#2a3942] px-2.5 py-2 text-xs text-white outline-none sm:col-span-2" />
+                    {/* School & class are NOT asked here — they resolve automatically from the
+                        child's record and reach support with every message. */}
                   </div>
                   <label className="mt-2 flex items-center gap-2 text-[11px] text-white/80">
                     <input type="checkbox" checked={confirmDetailsForm.confirmed} onChange={(e) => setConfirmDetailsForm((f) => ({ ...f, confirmed: e.target.checked }))} />
