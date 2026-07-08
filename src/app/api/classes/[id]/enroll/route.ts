@@ -686,14 +686,27 @@ export async function DELETE(
   }
   if (ids.length === 0) return NextResponse.json({ error: 'studentId or studentIds required' }, { status: 400 });
 
-  const { error } = await admin
-    .from('portal_users')
-    .update({ class_id: null, section_class: null })
-    .in('id', ids)
-    .eq('class_id', classId)
-    .eq('role', 'student'); // safety: only remove students actually in this class
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Two modes:
+  //  • Soft unenrol (default): KEEP the class tie so the student is never classless and the
+  //    class keeps its history — they're just marked 'withdrawn' in this term's roster.
+  //  • Hard remove (body.hard === true): fully WIPE the student account (all FK children +
+  //    students + portal_users + auth) — a complete admin-style delete, not just a detach.
+  if (body.hard === true) {
+    // Only students actually in THIS class can be wiped from here (safety).
+    const { data: inClass } = await admin
+      .from('portal_users').select('id').in('id', ids).eq('class_id', classId).eq('role', 'student');
+    const wipeIds = (inClass ?? []).map((r: any) => r.id);
+    let wiped = 0;
+    for (const uid of wipeIds) {
+      const { error } = await (admin as any).rpc('hard_delete_portal_user', { p_id: uid });
+      if (!error) { await admin.auth.admin.deleteUser(uid).catch(() => {}); wiped += 1; }
+    }
+    // Resync count and return — the accounts no longer exist, so no roster/enrolment steps.
+    const { count: afterCount } = await admin
+      .from('portal_users').select('id', { count: 'exact', head: true }).eq('class_id', classId).eq('role', 'student');
+    await admin.from('classes').update({ current_students: afterCount ?? 0 }).eq('id', classId);
+    return NextResponse.json({ success: true, hardDeleted: wiped });
+  }
 
   if (cls) await upsertClassTermRoster(admin, cls, ids, 'withdrawn', caller.id);
 
