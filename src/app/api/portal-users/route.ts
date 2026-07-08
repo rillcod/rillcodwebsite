@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
+
+const NO_MATCH_UUID = '00000000-0000-0000-0000-000000000000';
 
 function adminClient() {
   return createClient(
@@ -50,6 +53,9 @@ export async function GET(request: NextRequest) {
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
       if (caller.role === 'teacher') {
+        // Class-privacy: when isolation is ON, a teacher sees only students in their OWN
+        // classes (+ students they authored reports for), never the whole school.
+        const isolated = await isTeacherIsolationOn(admin);
         // Step 1 — resolve teacher's assigned school IDs
         const { data: schoolRows } = await admin
           .from('teacher_schools')
@@ -102,10 +108,18 @@ export async function GET(request: NextRequest) {
           const studentIds = Array.from(studentIdSet);
           if (studentIds.length > 0) {
             query = query.in('id', studentIds) as any;
-          } else {
+          } else if (!isolated) {
             // Classes exist but no students yet — scope to school so teacher can see all
             query = query.in('school_id', assignedIds) as any;
+          } else {
+            // Isolation on: nothing to show (no students in the teacher's own classes)
+            query = query.in('id', [NO_MATCH_UUID]) as any;
           }
+        } else if (isolated) {
+          // Isolation on with no personal classes → only students this teacher authored
+          // reports for; otherwise nothing (never the whole school).
+          const ids = Array.from(reportedStudentIds);
+          query = query.in('id', ids.length ? ids : [NO_MATCH_UUID]) as any;
         } else {
           // No personal classes set up — fall back to school-level scoping.
           // Also include any report-authored students not captured by school scope.

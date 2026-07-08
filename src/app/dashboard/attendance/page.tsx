@@ -99,30 +99,25 @@ function AttendanceContent() {
     if (authLoading || profileLoading || !profile) return;
     const db = createClient();
     if (isStaff) {
-      if (profile.role === 'teacher') {
-        // Get teacher's assigned school IDs so we show classes from their schools too
-        Promise.all([
-          db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id),
-        ]).then(async ([tsRes]) => {
-          const schoolIds: string[] = (tsRes.data ?? []).map((r: any) => r.school_id).filter(Boolean);
-          if (profile.school_id && !schoolIds.includes(profile.school_id)) schoolIds.push(profile.school_id);
-
-          let q = db.from('classes').select('id, name, term_id, programs(name), academic_terms(term_label, academic_year)');
-          if (schoolIds.length > 0) {
-            // teacher's own classes OR any class in their assigned schools
-            q = (q as any).or(`teacher_id.eq.${profile.id},school_id.in.(${schoolIds.join(',')})`);
-          } else {
-            q = q.eq('teacher_id', profile.id);
-          }
-          const { data } = await q.order('name');
-          setClasses(data ?? []);
-        });
-      } else {
-        const q = profile.role === 'school' && profile.school_id
-          ? db.from('classes').select('id, name, term_id, programs(name), academic_terms(term_label, academic_year)').eq('school_id', profile.school_id).order('name')
-          : db.from('classes').select('id, name, term_id, programs(name), academic_terms(term_label, academic_year)').order('name');
-        q.then(({ data }) => setClasses(data ?? []));
-      }
+      // Load classes via the scoped API so ALL role rules apply centrally — admin: all;
+      // teacher: own + assigned-school classes, or ONLY own classes when Class Privacy
+      // (lms_teacher_isolation) is on; school: own school. No more direct, unscoped query.
+      fetch('/api/classes', { cache: 'no-store' })
+        .then(r => r.json())
+        .then(({ data }) => {
+          const rows = (data ?? []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            term_id: c.term_id ?? c.academic_terms?.id ?? null,
+            programs: c.programs ? { name: c.programs.name } : null,
+            academic_terms: c.academic_terms
+              ? { term_label: c.academic_terms.term_label, academic_year: c.academic_terms.academic_year }
+              : null,
+          }));
+          rows.sort((a: any, b: any) => (a.name ?? '').localeCompare(b.name ?? ''));
+          setClasses(rows);
+        })
+        .catch(() => setClasses([]));
     } else {
       // Student: get own attendance with sessions
       db.from('attendance')

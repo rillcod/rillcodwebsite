@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { buildClassName, parseGrades, formatGradeRange, gradeBand, bandForGrade, parseBandLabel, canonicalTier } from '@/lib/classes/naming';
+import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 
 function adminClient() {
   return createClient(
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
       .from('classes')
       .select(`
         id, name, description, status, max_students, current_students,
-        start_date, end_date, schedule, teacher_id, program_id, school_id, created_at,
+        start_date, end_date, schedule, teacher_id, program_id, school_id, term_id, created_at,
         qa_grade_key, qa_track_hint, qa_spine_lane,
         academic_terms ( id, academic_year, term_label, term_number ),
         programs ( id, name ),
@@ -80,12 +81,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('school_id', caller.school_id) as any;
     } else if (caller.role === 'teacher') {
       // ?mine=true or isolation enabled → only classes this teacher personally teaches
-      const { data: isoSetting } = await admin
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'lms_teacher_isolation')
-        .maybeSingle();
-      const isIsolated = isoSetting?.value === 'true';
+      const isIsolated = await isTeacherIsolationOn(admin);
 
       if (isIsolated || mineOnly) {
         query = query.eq('teacher_id', caller.id) as any;

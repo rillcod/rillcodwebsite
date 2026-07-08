@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isCrmPlatformRole } from '@/lib/server/api-rbac';
+import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { generateTempPassword } from '@/lib/utils/password';
 
 async function requireCrmStaff() {
@@ -58,15 +59,36 @@ export async function GET(req: NextRequest) {
 
     if (search) q = q.ilike('full_name', `%${search}%`);
 
-    // Teachers only see CRM contacts within the schools they are ASSIGNED to (teacher_schools
-    // + primary school). Never unscoped: a teacher with no school assignment sees nothing here
-    // (previously a null primary school_id skipped the filter and exposed every contact).
+    // Teacher scoping. Never unscoped (a teacher with no assignment sees nothing).
+    //  • Class privacy OFF → contacts within the schools they're assigned to (teacher_schools).
+    //  • Class privacy ON  → only their OWN-class students and those students' parents.
     if (profile.role === 'teacher') {
-      const schoolIds: string[] = [];
-      if (profile.school_id) schoolIds.push(profile.school_id);
-      const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
-      (ts ?? []).forEach((r: any) => { if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id); });
-      q = q.in('school_id', schoolIds.length ? schoolIds : ['00000000-0000-0000-0000-000000000000']);
+      const isolated = await isTeacherIsolationOn(db);
+      if (isolated) {
+        const idSet = new Set<string>();
+        const { data: ownClasses } = await db.from('classes').select('id').eq('teacher_id', profile.id);
+        const classIds = (ownClasses ?? []).map((c: any) => c.id);
+        if (classIds.length) {
+          const { data: studs } = await db.from('portal_users').select('id').in('class_id', classIds).eq('role', 'student');
+          const studentPortalIds = (studs ?? []).map((s: any) => s.id);
+          studentPortalIds.forEach((id: string) => idSet.add(id));
+          if (studentPortalIds.length) {
+            const { data: srows } = await db.from('students').select('id').in('user_id', studentPortalIds);
+            const studentRowIds = (srows ?? []).map((s: any) => s.id);
+            if (studentRowIds.length) {
+              const { data: links } = await db.from('parent_student_links').select('parent_id').in('student_id', studentRowIds);
+              (links ?? []).forEach((l: any) => { if (l.parent_id) idSet.add(l.parent_id); });
+            }
+          }
+        }
+        q = q.in('id', idSet.size ? Array.from(idSet) : ['00000000-0000-0000-0000-000000000000']);
+      } else {
+        const schoolIds: string[] = [];
+        if (profile.school_id) schoolIds.push(profile.school_id);
+        const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+        (ts ?? []).forEach((r: any) => { if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id); });
+        q = q.in('school_id', schoolIds.length ? schoolIds : ['00000000-0000-0000-0000-000000000000']);
+      }
     }
 
     const { data: portalUsers } = await q.limit(limit);
