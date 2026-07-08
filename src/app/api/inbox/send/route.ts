@@ -209,7 +209,8 @@ export async function POST(req: NextRequest) {
           direction: 'inbound',
           body: message.trim(),
           status: 'received',
-          sender_id: callerProfile!.id,
+          // whatsapp_messages has no sender_id column — record the sender in metadata.
+          metadata: { sender_id: callerProfile!.id, source: 'parent_portal' },
           created_at: new Date().toISOString(),
         })
         .select()
