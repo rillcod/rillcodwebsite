@@ -155,28 +155,33 @@ async function handleRequest(req: NextRequest) {
       </table>
       <p style="font-size:12px;color:#71717a;">Reach out, assign support work, or review their progress in the dashboard.</p>`;
 
-    // In-app alert (always)
-    await notificationsService.logNotification(
-      teacherId,
-      `${list.length} student${list.length > 1 ? 's' : ''} need attention`,
-      `${highCount ? `${highCount} high-risk. ` : ''}Tap to review at-risk students in your class.`,
-      'warning',
-    );
+    // Per-teacher work is guarded so one teacher's failure never aborts the rest of the digest run.
+    try {
+      // In-app alert (always)
+      await notificationsService.logNotification(
+        teacherId,
+        `${list.length} student${list.length > 1 ? 's' : ''} need attention`,
+        `${highCount ? `${highCount} high-risk. ` : ''}Tap to review at-risk students in your class.`,
+        'warning',
+      );
 
-    // Email digest (idempotent per teacher per day; respects attendance_alerts pref)
-    const info = teacherInfo[teacherId];
-    if (info?.email) {
-      await notificationsService.sendCategorisedEmail({
-        userId: teacherId,
-        to: info.email,
-        subject: `${list.length} student${list.length > 1 ? 's' : ''} need attention — Rillcod`,
-        html,
-        category: 'attendance_alerts',
-        eventType: 'at_risk_digest',
-        referenceId: `${teacherId}:${today}`,
-      });
+      // Email digest (idempotent per teacher per day; respects attendance_alerts pref)
+      const info = teacherInfo[teacherId];
+      if (info?.email) {
+        await notificationsService.sendCategorisedEmail({
+          userId: teacherId,
+          to: info.email,
+          subject: `${list.length} student${list.length > 1 ? 's' : ''} need attention — Rillcod`,
+          html,
+          category: 'attendance_alerts',
+          eventType: 'at_risk_digest',
+          referenceId: `${teacherId}:${today}`,
+        });
+      }
+      teachersNotified += 1;
+    } catch (err) {
+      console.error('[cron/at-risk-students] notify failed for teacher', teacherId, err);
     }
-    teachersNotified += 1;
   }
 
   return NextResponse.json({

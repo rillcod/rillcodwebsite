@@ -12,12 +12,18 @@
  *
  * Auth: cron secret (same scheme as the other cron routes).
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { onboardSummerStudent, sendSummerCredentials } from '@/lib/summer-school/onboard';
+import { fanoutCrons } from '@/lib/server/cron-fanout';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
+
+// Code-base cron jobs that aren't on the external scheduler — triggered from this daily sweep so
+// they run without a separate cron-job.org entry. Each runs as its own invocation (own timeout).
+const DAILY_FANOUT = ['assignment-reminders', 'at-risk-students', 'integrity-sweep', 'form-followup', 'auto-generate-content'];
 
 function adminClient() {
   return createClient(
@@ -127,6 +133,14 @@ async function handle(req: NextRequest) {
       console.error('[onboarding-sweep] drift repair failed for', prospect.id, err);
     }
   }
+
+  // Fan out the unregistered code-base crons in the background so they run daily too, without a
+  // separate scheduler entry. after() keeps this invocation alive to dispatch them AFTER the
+  // scheduler already got its fast response — so the host never blocks or times out.
+  after(async () => {
+    const fan = await fanoutCrons(req.url, DAILY_FANOUT);
+    console.log('[onboarding-sweep] fan-out:', fan);
+  });
 
   return NextResponse.json({ success: true, ...report });
 }
