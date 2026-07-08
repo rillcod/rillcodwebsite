@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
   // 1. Fetch Students in the specified School/Class
   let studentQuery = admin
     .from('portal_users')
-    .select('id, full_name, email, school_id, school_name, section_class, class_id')
+    .select('id, full_name, email, school_id, school_name, section_class, grade, class_id')
     .eq('role', 'student')
     .eq('is_deleted', false);
 
@@ -206,6 +206,7 @@ export async function POST(request: NextRequest) {
         school_id: student.school_id,
         school_name: student.school_name || school_name,
         section_class: student.section_class || class_name,
+        student_grade: student.grade || null,  // Class = grade, isolated from Section (cohort)
         course_id: course_id,
         course_name: course_name,
         report_term: report_term,

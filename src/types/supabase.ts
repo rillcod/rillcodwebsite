@@ -8895,6 +8895,7 @@ export type Database = {
           school_name: string | null
           school_section: string | null
           section_class: string | null
+          student_grade: string | null
           show_payment_notice: boolean
           student_id: string
           student_name: string | null
@@ -8944,6 +8945,7 @@ export type Database = {
           school_name?: string | null
           school_section?: string | null
           section_class?: string | null
+          student_grade?: string | null
           show_payment_notice?: boolean
           student_id: string
           student_name?: string | null
@@ -8993,6 +8995,7 @@ export type Database = {
           school_name?: string | null
           school_section?: string | null
           section_class?: string | null
+          student_grade?: string | null
           show_payment_notice?: boolean
           student_id?: string
           student_name?: string | null

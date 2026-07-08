@@ -628,6 +628,8 @@ function ResultsPageInner() {
             gender: (selectedReport as any).gender || (selectedStudent as any)?.gender || null,
             school_name: selectedReport.school_name || (selectedStudent ? studentSchoolName(selectedStudent) : null) || null,
             section_class: selectedReport.section_class || (selectedStudent ? studentClassName(selectedStudent) : null) || null,
+            // Class = grade (isolated from Section/cohort); prefer the report's stored grade.
+            student_grade: (selectedReport as any).student_grade || (selectedStudent as any)?.grade || (selectedStudent as any)?.grade_level || null,
           }
         : null;
 
@@ -1513,10 +1515,10 @@ tbody tr:hover{background:#f3f4f6}
                                         </div>
                                     </div>
                                 )}
-                                {/* Class filter chips */}
+                                {/* Section (cohort) filter chips */}
                                 {distinctClasses.length > 0 && (
                                     <div className="space-y-1">
-                                        <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Class</p>
+                                        <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Section</p>
                                         <div className="flex flex-wrap gap-1.5">
                                             <button
                                                 onClick={() => setFilterClass('')}

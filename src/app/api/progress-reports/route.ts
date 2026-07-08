@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
   const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
     // Identity (teacher_id intentionally excluded — set on insert only, never updated)
     'student_id', 'student_name', 'school_id', 'school_name', 'course_id', 'course_name',
-    'section_class', 'gender',
+    'section_class', 'student_grade', 'gender',
     // Session metadata
     'report_term', 'report_date', 'report_period', 'instructor_name',
     'current_module', 'next_module', 'course_duration', 'learning_milestones',
