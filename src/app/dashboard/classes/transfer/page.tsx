@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
@@ -38,6 +38,12 @@ export default function ClassTransferPage() {
   // Pre-select the source class when opened from inside a classroom (?from=<classId>).
   const [sourceId, setSourceId] = useState(searchParams.get('from') ?? '');
   const [destId, setDestId] = useState('');
+
+  // When opened for one specific student (?student=<id> from the classroom's inline "Move"),
+  // pre-tick that student once the source roster loads — so the teacher lands ready to pick a
+  // destination and move, no hunting required.
+  const preselectStudent = searchParams.get('student');
+  const preselectApplied = useRef(false);
 
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -77,13 +83,18 @@ export default function ClassTransferPage() {
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to load students');
       const { students: rows } = await res.json();
       setStudents(rows ?? []);
+      // One-time: pre-tick the student we were opened for, if they're on this roster.
+      if (preselectStudent && !preselectApplied.current && (rows ?? []).some((s: StudentRow) => s.id === preselectStudent)) {
+        setSelected(new Set([preselectStudent]));
+        preselectApplied.current = true;
+      }
     } catch (e: any) {
       setError(e.message ?? 'Failed to load students');
       setStudents([]);
     } finally {
       setLoadingStudents(false);
     }
-  }, []);
+  }, [preselectStudent]);
 
   useEffect(() => { loadRoster(sourceId); }, [sourceId, loadRoster]);
 

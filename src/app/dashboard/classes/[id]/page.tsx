@@ -14,10 +14,11 @@ import {
   ClipboardDocumentListIcon, ChevronRightIcon, UserIcon,
   CloudArrowDownIcon,
   PencilSquareIcon as PencilSquareIconOutline, CheckIcon as CheckIconOutline,
-  CloudArrowUpIcon, UserPlusIcon
+  CloudArrowUpIcon, UserPlusIcon, MagnifyingGlassIcon, ArrowsRightLeftIcon
 } from '@/lib/icons';
 import { AddStudentModal } from '@/features/students/components/AddStudentModal';
 import { getWAECGrade } from '@/lib/grading';
+import { parseBandLabel, bandCoversGrade, parseGrade } from '@/lib/classes/naming';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 
 
@@ -49,6 +50,7 @@ export default function ClassDetailPage() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
+  const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
 
   // Bulk-remove checkboxes for enrolled students list
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
@@ -738,6 +740,27 @@ export default function ClassDetailPage() {
     ...enrollments.filter((student: any) => student.is_current_term_active === false),
     ...formerEnrollments,
   ];
+
+  // ── Band-fit health: the class name's last segment is its grade band ("Basic 1-3").
+  //    A student is "off-band" when their grade parses to a real level/number that the
+  //    class band does not cover. Unparseable grades are never flagged (we can't tell). ──
+  const classBand = parseBandLabel(cls.name?.split('·').pop()?.trim());
+  const isOffBand = (student: any): boolean => {
+    if (!classBand) return false;
+    if (!parseGrade(student.section_class)) return false; // unknown grade — don't flag
+    return !bandCoversGrade(classBand, student.section_class);
+  };
+  const offBandCount = currentTermStudents.filter(isOffBand).length;
+
+  // ── Roster search: filter both active and historical lists by name/email. ──
+  const rosterQ = rosterSearch.trim().toLowerCase();
+  const matchesRoster = (student: any) =>
+    !rosterQ ||
+    (student.full_name ?? '').toLowerCase().includes(rosterQ) ||
+    (student.email ?? '').toLowerCase().includes(rosterQ);
+  const visibleCurrent = currentTermStudents.filter(matchesRoster);
+  const visibleInactive = inactiveTermStudents.filter(matchesRoster);
+  const rosterShowSearch = currentTermStudents.length + inactiveTermStudents.length > 6;
   const latestSession = sessions[0] ?? null;
   const openAssignments = items.assignments.filter((assignment: any) => {
     if (!assignment.due_date) return true;
@@ -896,22 +919,38 @@ export default function ClassDetailPage() {
 
               {activeOperation === 'roster' && (
                 <div className="rounded-2xl border border-border bg-background p-4">
-                  {/* One consolidated roster: every student, active + withdrawn (badged), scrollable. */}
-                  <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-black text-foreground">Class Roster</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {currentTermStudents.length} active{inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
-                      </p>
+                  {/* One consolidated roster: active + withdrawn (badged), searchable, with
+                      inline per-row Move / Withdraw / Reinstate so no shuttling between pages. */}
+                  <div className="mb-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-black text-foreground">Class Roster</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {currentTermStudents.length} active
+                          {inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
+                          {offBandCount ? <span className="text-amber-400"> · {offBandCount} off-band</span> : ''}
+                        </p>
+                      </div>
+                      {isStaff && (
+                        <div className="flex items-center gap-2">
+                          <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/50 transition-colors">
+                            <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" /> Transfer / Move
+                          </Link>
+                          <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
+                            Add Students
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {isStaff && (
-                      <div className="flex items-center gap-2">
-                        <Link href={`/dashboard/classes/transfer?from=${id}`} className="rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/50 transition-colors">
-                          ⇄ Transfer / Move
-                        </Link>
-                        <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
-                          Add Students
-                        </button>
+                    {rosterShowSearch && (
+                      <div className="relative">
+                        <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          value={rosterSearch}
+                          onChange={(e) => setRosterSearch(e.target.value)}
+                          placeholder="Search this class…"
+                          className="w-full rounded-xl border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary/50"
+                        />
                       </div>
                     )}
                   </div>
@@ -921,20 +960,53 @@ export default function ClassDetailPage() {
                       <UserGroupIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                       <p className="text-sm font-semibold text-muted-foreground">No students in this class yet.</p>
                     </div>
+                  ) : visibleCurrent.length === 0 && visibleInactive.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border p-8 text-center">
+                      <p className="text-sm font-semibold text-muted-foreground">No students match “{rosterSearch}”.</p>
+                    </div>
                   ) : (
                     <div className="max-h-[60vh] overflow-y-auto grid gap-2 sm:grid-cols-2 pr-1">
-                      {currentTermStudents.map((student: any) => (
-                        <div key={student.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary flex-shrink-0">
-                            {(student.full_name ?? '?')[0].toUpperCase()}
+                      {visibleCurrent.map((student: any) => {
+                        const offBand = isOffBand(student);
+                        return (
+                          <div key={student.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary flex-shrink-0">
+                              {(student.full_name ?? '?')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-bold text-foreground">
+                                {student.full_name}
+                                {offBand && (
+                                  <span title={`Grade "${student.section_class}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="ml-2 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400 align-middle">
+                                    Off-band
+                                  </span>
+                                )}
+                              </p>
+                              <p className="truncate text-xs text-muted-foreground">{student.email}</p>
+                            </div>
+                            {isStaff && (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <Link
+                                  href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`}
+                                  title="Transfer / move this student"
+                                  className="rounded-lg border border-border bg-background px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-foreground hover:border-primary/50 transition-colors"
+                                >
+                                  Move
+                                </Link>
+                                <button
+                                  onClick={() => removeStudent(student.id)}
+                                  disabled={processingStudent === student.id}
+                                  title="Withdraw from this class (keeps class history)"
+                                  className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 transition-colors"
+                                >
+                                  {processingStudent === student.id ? '…' : 'Withdraw'}
+                                </button>
+                              </div>
+                            )}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
-                            <p className="truncate text-xs text-muted-foreground">{student.email}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {inactiveTermStudents.map((student: any) => (
+                        );
+                      })}
+                      {visibleInactive.map((student: any) => (
                         <div key={`${student.id}-${student.roster_status ?? 'former'}`} className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-400 flex-shrink-0">
                             {(student.full_name ?? '?')[0].toUpperCase()}
@@ -945,7 +1017,7 @@ export default function ClassDetailPage() {
                           </div>
                           {isStaff && (
                             <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50 flex-shrink-0">
-                              Reinstate
+                              {processingStudent === student.id ? '…' : 'Reinstate'}
                             </button>
                           )}
                         </div>
