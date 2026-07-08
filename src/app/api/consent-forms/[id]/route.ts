@@ -40,7 +40,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       const { data: ts } = await (admin as any).from('teacher_schools').select('school_id').eq('teacher_id', user.id);
       for (const row of ts ?? []) { if (row.school_id && !allowedSchoolIds.includes(row.school_id)) allowedSchoolIds.push(row.school_id); }
     }
-    if (allowedSchoolIds.length > 0 && !allowedSchoolIds.includes(formCheck.school_id ?? '')) {
+    // Deny unless the form's school is one the caller is assigned to. A caller with NO school
+    // assignment (empty set) is denied too — never fall through to an unscoped read.
+    if (!allowedSchoolIds.includes(formCheck.school_id ?? '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

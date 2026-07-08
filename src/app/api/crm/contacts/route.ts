@@ -58,8 +58,15 @@ export async function GET(req: NextRequest) {
 
     if (search) q = q.ilike('full_name', `%${search}%`);
 
-    if (profile.role === 'teacher' && profile.school_id) {
-      q = q.eq('school_id', profile.school_id);
+    // Teachers only see CRM contacts within the schools they are ASSIGNED to (teacher_schools
+    // + primary school). Never unscoped: a teacher with no school assignment sees nothing here
+    // (previously a null primary school_id skipped the filter and exposed every contact).
+    if (profile.role === 'teacher') {
+      const schoolIds: string[] = [];
+      if (profile.school_id) schoolIds.push(profile.school_id);
+      const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+      (ts ?? []).forEach((r: any) => { if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id); });
+      q = q.in('school_id', schoolIds.length ? schoolIds : ['00000000-0000-0000-0000-000000000000']);
     }
 
     const { data: portalUsers } = await q.limit(limit);
