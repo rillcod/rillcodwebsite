@@ -2,12 +2,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
 import { RateLimitError } from '@/lib/errors';
+import { normalizeAccessCardCode, accessCardCodeMatchesStudent } from '@/lib/access-card-code';
 
 function normalizeCardCode(raw: string) {
   return decodeURIComponent(raw || '')
     .trim()
     .replace(/^RC-/i, '')
     .toLowerCase();
+}
+
+// The canonical card code (RC-XXXXXXXX) is a HASH of the student's UUID, not its prefix —
+// so resolve it by hashing each student and matching, using the result_access_codes cache
+// first. Returns the student's portal_users.id or null.
+async function resolveByCardCode(db: ReturnType<typeof createAdminClient>, rawId: string): Promise<string | null> {
+  const rc = normalizeAccessCardCode(rawId);
+  if (!rc) return null;
+  const { data: cached } = await db
+    .from('result_access_codes').select('student_id').eq('access_code', rc).maybeSingle();
+  if (cached?.student_id) return cached.student_id as string;
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db
+      .from('portal_users').select('id').eq('role', 'student').neq('is_deleted', true).range(from, from + 999);
+    if (error || !data || data.length === 0) break;
+    const hit = data.find((s: { id: string }) => accessCardCodeMatchesStudent(rc, s.id));
+    if (hit) return hit.id;
+    if (data.length < 1000) break;
+  }
+  return null;
 }
 
 export async function GET(
@@ -35,13 +56,19 @@ export async function GET(
 
   const db = createAdminClient();
 
+  // 0. Canonical card code (RC-XXXXXXXX) → resolve by hash. Then fall back to the legacy
+  //    UUID-prefix match (old QR encoded the raw UUID) so both card generations still scan.
+  const cardStudentId = await resolveByCardCode(db, id);
+
   // 1. Try portal_users (enrolled / registered students)
-  const { data: portalData } = await db
+  const portalQuery = db
     .from('portal_users')
     .select('id, full_name, school_name, is_active, enrollment_type, avatar_url, section_class, class_id, created_at')
-    .ilike('id', `${code}%`)
     .eq('role', 'student')
     .limit(2);
+  const { data: portalData } = cardStudentId
+    ? await portalQuery.eq('id', cardStudentId)
+    : await portalQuery.ilike('id', `${code}%`);
 
   if (portalData && portalData.length === 1) {
     const portalStudent = portalData[0];

@@ -13,6 +13,20 @@ import {
 } from '@/lib/icons';
 import { useSearchParams, useRouter } from 'next/navigation';
 
+// Extract a scannable student code from a QR value. Handles the current card URL
+// (/result-check/RC-XXXXXXXX), the older /verify and /student/<uuid> URLs, and a bare
+// RC- code or raw UUID — so every card generation scans into attendance.
+function extractScanCode(raw: string): string | null {
+  if (!raw) return null;
+  const url = raw.match(/\/(?:result-check|verify|student)\/([^/?#\s]+)/i);
+  if (url) return decodeURIComponent(url[1]);
+  const rc = raw.match(/\bRC-[A-Za-z0-9]{8}\b/);
+  if (rc) return rc[0];
+  const uuid = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  if (uuid) return uuid[0];
+  return null;
+}
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   present: { label: 'Present', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: CheckCircleIcon },
   absent: { label: 'Absent', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30', icon: XCircleIcon },
@@ -447,10 +461,10 @@ function AttendanceContent() {
           const codes = await detector.detect(videoRef.current);
           if (codes.length > 0) {
             const raw = codes[0].rawValue as string;
-            const match = raw.match(/\/student\/([0-9a-f-]{36})/i);
-            if (match) {
+            const code = extractScanCode(raw);
+            if (code) {
               stopQrCamera();
-              await resolveScannedStudent(match[1]);
+              await resolveScannedStudent(code);
               return;
             }
           }
@@ -474,9 +488,9 @@ function AttendanceContent() {
       const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
       const codes = await detector.detect(bitmap);
       if (codes.length === 0) { setQrMsg('No QR code found in image.'); setQrMsgType('err'); return; }
-      const match = (codes[0].rawValue as string).match(/\/student\/([0-9a-f-]{36})/i);
-      if (!match) { setQrMsg('QR code is not a student ID.'); setQrMsgType('err'); return; }
-      await resolveScannedStudent(match[1]);
+      const code = extractScanCode(codes[0].rawValue as string);
+      if (!code) { setQrMsg('QR code is not a student ID.'); setQrMsgType('err'); return; }
+      await resolveScannedStudent(code);
     } catch (err: any) {
       setQrMsg('Could not read image: ' + (err.message || 'error'));
       setQrMsgType('err');
@@ -487,7 +501,7 @@ function AttendanceContent() {
     setQrMsg('Looking up student…');
     setQrMsgType('ok');
     try {
-      const res = await fetch(`/api/public/student/${studentId}`);
+      const res = await fetch(`/api/public/student/${encodeURIComponent(studentId)}`);
       const json = await res.json();
       if (!res.ok || !json.student) { setQrMsg('Student not found.'); setQrMsgType('err'); return; }
       const s = json.student;
