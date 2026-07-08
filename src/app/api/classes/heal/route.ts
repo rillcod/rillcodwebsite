@@ -709,7 +709,26 @@ export async function POST(req: NextRequest) {
   // One self-serve place to undo the damage bulk imports + one-off scripts leave in
   // student names: "34. " index prefixes, invisible/bidi characters, stray spaces, and
   // duplicate-name accounts (same child registered twice with unique emails).
-  if (action === 'scan_name_health' || action === 'clean_student_names' || action === 'merge_duplicate_name') {
+  if (action === 'scan_name_health' || action === 'clean_student_names' || action === 'merge_duplicate_name' || action === 'dismiss_duplicate') {
+    // "Not a duplicate": remember that these students are twins / different people so the
+    // fuzzy scan never flags the pair again. Records every unordered pair in the group.
+    if (action === 'dismiss_duplicate') {
+      const ids: string[] = Array.isArray(body.ids) ? body.ids.filter(Boolean) : [];
+      if (ids.length < 2) return NextResponse.json({ error: 'ids (2+) required' }, { status: 400 });
+      let saved = 0;
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const [a, b] = [ids[i], ids[j]].sort();
+          const { error } = await db.from('dismissed_duplicate_pairs').upsert(
+            { pair_key: `${a}::${b}`, student_a: a, student_b: b, reason: body.reason ?? 'not a duplicate', dismissed_by: caller.id },
+            { onConflict: 'pair_key' },
+          );
+          if (!error) saved += 1;
+        }
+      }
+      return NextResponse.json({ success: true, dismissed: saved });
+    }
+
     // Merge one duplicate group into a chosen survivor, moving every child record first.
     if (action === 'merge_duplicate_name') {
       const survivorId: string | undefined = body.survivorId;
@@ -829,6 +848,11 @@ export async function POST(req: NextRequest) {
       if (claimed.has(s.id)) continue;
       (bySchool[s.school_id || s.school_name || '?'] = bySchool[s.school_id || s.school_name || '?'] || []).push(s);
     }
+    // Pairs an admin marked "not a duplicate" (twins / different people) — never re-flag them.
+    const pairKey = (a: string, b: string) => [a, b].sort().join('::');
+    const { data: dismissedRows } = await db.from('dismissed_duplicate_pairs').select('pair_key');
+    const dismissed = new Set((dismissedRows ?? []).map((r: any) => r.pair_key));
+
     const fuzzy: any[] = [];
     const usedFuzzy = new Set<string>();
     for (const list of Object.values(bySchool)) {
@@ -836,6 +860,7 @@ export async function POST(req: NextRequest) {
         for (let j = i + 1; j < list.length; j++) {
           const A = list[i], B = list[j];
           if (usedFuzzy.has(A.id) || usedFuzzy.has(B.id)) continue;
+          if (dismissed.has(pairKey(A.id, B.id))) continue;
           if (duplicateNameKey(A.full_name) === duplicateNameKey(B.full_name)) continue;
           if (namesAreNearDuplicate(A.full_name, B.full_name)) {
             fuzzy.push(groupToDup([A, B], 'fuzzy'));

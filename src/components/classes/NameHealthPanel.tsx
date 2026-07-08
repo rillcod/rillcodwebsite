@@ -76,6 +76,18 @@ export default function NameHealthPanel() {
     finally { setBusy(null); }
   };
 
+  // Mark a flagged pair/group as NOT a duplicate (twins / different people) so it never
+  // re-appears in future scans.
+  const dismiss = async (key: string, group: DupGroup) => {
+    setBusy(key); setMsg(null);
+    try {
+      const r = await heal({ action: 'dismiss_duplicate', ids: group.members.map((m) => m.id) });
+      setMsg({ ok: true, text: `Marked as not a duplicate — won't be flagged again (${r.dismissed} pair${r.dismissed !== 1 ? 's' : ''}).` });
+      await runScan();
+    } catch (e: any) { setMsg({ ok: false, text: e.message }); }
+    finally { setBusy(null); }
+  };
+
   const allGroups: Array<[string, DupGroup]> = [
     ...(scan?.duplicates ?? []).map((g, i) => [`e${i}`, g] as [string, DupGroup]),
     ...(scan?.fuzzyDuplicates ?? []).map((g, i) => [`f${i}`, g] as [string, DupGroup]),
@@ -189,6 +201,10 @@ export default function NameHealthPanel() {
                       <button onClick={() => { if (confirm('Hard-delete the non-kept account(s) entirely? This cannot be undone.')) merge(key, g, true); }} disabled={busy !== null}
                         className="px-3 py-1.5 bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-bold rounded-lg disabled:opacity-40">
                         Merge &amp; hard-delete
+                      </button>
+                      <button onClick={() => { if (confirm('These are NOT the same person (twins / different children)? They will stay separate and won\'t be flagged again.')) dismiss(key, g); }} disabled={busy !== null}
+                        className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 text-xs font-bold rounded-lg border border-white/10 disabled:opacity-40">
+                        {busy === key ? '…' : 'Not a duplicate'}
                       </button>
                     </div>
                   </div>
