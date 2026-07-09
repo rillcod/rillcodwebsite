@@ -155,7 +155,7 @@ function ResultsPageInner() {
     const [filterSchool, setFilterSchool] = useState('');
     const [filterClass, setFilterClass] = useState('');
     const [filterGrade, setFilterGrade] = useState('');
-    const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'none'>('all');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'has' | 'published' | 'draft' | 'none'>('all');
     const [filterParentEmail, setFilterParentEmail] = useState<'all' | 'has' | 'missing'>('all');
     const [sortBy, setSortBy] = useState<'name' | 'grade' | 'status' | 'school'>('name');
     const [filterTeacher, setFilterTeacher] = useState(''); // admin: filter by class teacher (lms-isolation specificity)
@@ -618,6 +618,7 @@ function ResultsPageInner() {
         const r = reportsMap[s.id];
         const matchStatus =
             filterStatus === 'all' ? true :
+                filterStatus === 'has' ? !!r :
                 filterStatus === 'published' ? r?.is_published === true :
                     filterStatus === 'draft' ? (r && r.is_published === false) :
             /* none */ !r;
@@ -1587,14 +1588,15 @@ tbody tr:hover{background:#f3f4f6}
                                     </select>
                                     <select
                                         value={filterStatus}
-                                        onChange={e => setFilterStatus(e.target.value as 'all' | 'published' | 'draft' | 'none')}
+                                        onChange={e => setFilterStatus(e.target.value as 'all' | 'has' | 'published' | 'draft' | 'none')}
                                         title="Report status"
                                         className={selectCls}
                                     >
                                         <option value="all">All status</option>
+                                        <option value="has">✓ Has report</option>
                                         <option value="published">✓ Published</option>
                                         <option value="draft">Draft</option>
-                                        <option value="none">No report</option>
+                                        <option value="none">✗ No report</option>
                                     </select>
                                 </div>
                                 {/* Parent email + Clear filters */}

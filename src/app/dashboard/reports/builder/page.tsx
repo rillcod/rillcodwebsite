@@ -471,6 +471,9 @@ function ReportBuilderInner() {
     const [classFilter, setClassFilter] = useState('');
     const [gradeFilter, setGradeFilter] = useState('');
     const [overrideFilters, setOverrideFilters] = useState(false);
+    // Report-coverage filter for the picker: who already has a report for THIS period vs who doesn't.
+    const [pickReportFilter, setPickReportFilter] = useState<'all' | 'has' | 'none'>('all');
+    const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
 
     // ── Step: 'session' | 'pick' | 'edit' ────────────────────────────────────
     const [step, setStep] = useState<'session' | 'pick' | 'edit'>('session');
@@ -891,7 +894,33 @@ function ReportBuilderInner() {
         loadData();
     }, [profile?.id, authLoading]); // eslint-disable-line
 
+    // Which loaded students already have a report for the CURRENT reporting period — powers the
+    // "has report / no report" picker filter. Refreshes when the locked term/period changes.
+    useEffect(() => {
+        const ids = students.map(s => s.id).filter(Boolean) as string[];
+        if (ids.length === 0) { setReportedIds(new Set()); return; }
+        let cancelled = false;
+        const db = createClient();
+        (async () => {
+            const rows: { student_id: string | null }[] = [];
+            for (let i = 0; i < ids.length; i += 300) {
+                let q = db.from('student_progress_reports').select('student_id').in('student_id', ids.slice(i, i + 300));
+                if (sessionConfig.report_term) q = q.eq('report_term', sessionConfig.report_term) as typeof q;
+                if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period) as typeof q;
+                const { data } = await withTimeout(q, { data: [], error: null }, 'report coverage');
+                rows.push(...((data ?? []) as any));
+            }
+            if (cancelled) return;
+            setReportedIds(new Set(rows.map(r => r.student_id).filter(Boolean) as string[]));
+        })();
+        return () => { cancelled = true; };
+    }, [students, sessionConfig.report_term, sessionConfig.report_period]); // eslint-disable-line
+
     const filteredStudents = students.filter(s => {
+        const matchesReport = pickReportFilter === 'all' ? true
+            : pickReportFilter === 'has' ? reportedIds.has(s.id)
+            : !reportedIds.has(s.id);
+        if (!matchesReport) return false;
         const matchesSearch = !search || s.full_name?.toLowerCase().includes(search.toLowerCase()) || s.email?.toLowerCase().includes(search.toLowerCase());
 
         // Override mode or active search: show all loaded students, just filter by name/email
@@ -2562,9 +2591,19 @@ function ReportBuilderInner() {
                                                 );
                                             })}
                                         </select>
-                                        {(classFilter || gradeFilter) && (
+                                        <select
+                                            title="Filter by report status for this period"
+                                            value={pickReportFilter}
+                                            onChange={e => setPickReportFilter(e.target.value as 'all' | 'has' | 'none')}
+                                            className="bg-card border border-border text-foreground px-3 py-2 text-sm focus:outline-none focus:border-primary rounded-lg"
+                                        >
+                                            <option value="all">All report status</option>
+                                            <option value="none">✗ No report yet</option>
+                                            <option value="has">✓ Has report</option>
+                                        </select>
+                                        {(classFilter || gradeFilter || pickReportFilter !== 'all') && (
                                             <button
-                                                onClick={() => { setClassFilter(''); setGradeFilter(''); }}
+                                                onClick={() => { setClassFilter(''); setGradeFilter(''); setPickReportFilter('all'); }}
                                                 className="text-xs text-primary hover:text-primary font-bold transition-colors px-2"
                                             >
                                                 Clear filters
