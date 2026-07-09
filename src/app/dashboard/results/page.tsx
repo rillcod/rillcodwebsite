@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { compareReportsByPeriodDesc } from '@/lib/reports/academic-period';
+import { compareReportsByPeriodDesc, getCurrentAcademicYear, getCurrentTermLabel } from '@/lib/reports/academic-period';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -158,8 +158,13 @@ function ResultsPageInner() {
     const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'none'>('all');
     const [filterParentEmail, setFilterParentEmail] = useState<'all' | 'has' | 'missing'>('all');
     const [sortBy, setSortBy] = useState<'name' | 'grade' | 'status' | 'school'>('name');
-    const [periodDraft, setPeriodDraft] = useState({ year: academicYearOptions()[0] ?? '', term: '' });
-    const [confirmedPeriod, setConfirmedPeriod] = useState<{ year: string; term: string } | null>(null);
+    const [filterTeacher, setFilterTeacher] = useState(''); // admin: filter by class teacher (lms-isolation specificity)
+    // Academic period auto-locks to the CURRENT term/year (like the term-aware reports) so staff
+    // aren't gated by a confirm screen every visit — they can still change it (unlock) below.
+    const [periodDraft, setPeriodDraft] = useState({ year: getCurrentAcademicYear(), term: getCurrentTermLabel() });
+    const [confirmedPeriod, setConfirmedPeriod] = useState<{ year: string; term: string } | null>(
+        () => ({ year: getCurrentAcademicYear(), term: getCurrentTermLabel() }),
+    );
 
     // ── Multi-select ───────────────────────────────────────────────────────────
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -329,7 +334,7 @@ function ResultsPageInner() {
 
             // 2. Build student query — join classes + schools for proper display names
             let finalQuery = db.from('portal_users')
-                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, classes:class_id(id, name), schools:school_id(id, name)')
+                .select('id, full_name, email, school_name, section_class, school_id, profile_image_url, class_id, gender, classes:class_id(id, name, teacher_id, teacher:teacher_id(id, full_name)), schools:school_id(id, name)')
                 .neq('is_deleted', true);
 
             if (!isAdmin) {
@@ -581,6 +586,16 @@ function ResultsPageInner() {
         students.map(s => studentSchoolName(s)).filter(Boolean)
     )].sort() as string[];
 
+    // Teachers (class owners) present in the current scope — for the admin teacher filter.
+    const distinctTeachers = (() => {
+        const m = new Map<string, string>();
+        for (const s of students) {
+            const t = (s as any).classes?.teacher;
+            if (t?.id) m.set(t.id, t.full_name || 'Teacher');
+        }
+        return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    })();
+
     // Cascading options: Section/Grade lists narrow to the chosen school so you only ever see
     // relevant choices (but always keep the currently-selected value so it can't vanish).
     const schoolScoped = filterSchool ? students.filter(s => studentSchoolName(s) === filterSchool) : students;
@@ -611,7 +626,8 @@ function ResultsPageInner() {
             filterParentEmail === 'all' ? true :
                 filterParentEmail === 'has' ? hasParentEmail :
             /* missing */ !hasParentEmail;
-        return matchSearch && matchSchool && matchClass && matchGrade && matchStatus && matchParentEmail;
+        const matchTeacher = !filterTeacher || (s as any).classes?.teacher_id === filterTeacher;
+        return matchSearch && matchSchool && matchClass && matchGrade && matchStatus && matchParentEmail && matchTeacher;
     }).sort((a, b) => {
         // Report status rank: needs-attention first (no report → draft → published) when sorting by status.
         const statusRank = (s: any) => { const r = reportsMap[s.id]; return !r ? 0 : r.is_published ? 2 : 1; };
@@ -623,10 +639,10 @@ function ResultsPageInner() {
 
     // Filter controls — shared select style + clear-all, so the sidebar stays neat.
     const selectCls = 'w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors';
-    const anyFilterActive = !!(search || filterSchool || filterClass || filterGrade || filterStatus !== 'all' || filterParentEmail !== 'all');
+    const anyFilterActive = !!(search || filterSchool || filterClass || filterGrade || filterStatus !== 'all' || filterParentEmail !== 'all' || filterTeacher);
     const clearFilters = () => {
         setSearch(''); setFilterSchool(''); setFilterClass(''); setFilterGrade('');
-        setFilterStatus('all'); setFilterParentEmail('all');
+        setFilterStatus('all'); setFilterParentEmail('all'); setFilterTeacher('');
     };
 
     const stats = {
@@ -1353,8 +1369,8 @@ tbody tr:hover{background:#f3f4f6}
                             <div className="flex items-center gap-2">
                                 <CalendarIcon className="w-4 h-4 text-primary" />
                                 <div>
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Academic Period Lock</p>
-                                    <p className="text-[11px] text-muted-foreground">Confirm year and term before viewing reports.</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">🔒 Academic Period</p>
+                                    <p className="text-[11px] text-muted-foreground">Locked to the current term — change to view another period.</p>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
@@ -1596,6 +1612,13 @@ tbody tr:hover{background:#f3f4f6}
                                         Clear filters
                                     </button>
                                 </div>
+                                {/* Teacher filter — admin only, to be specific under Class Privacy (lms isolation) */}
+                                {profile?.role === 'admin' && distinctTeachers.length > 0 && (
+                                    <select value={filterTeacher} onChange={e => setFilterTeacher(e.target.value)} title="Filter by class teacher" className={selectCls}>
+                                        <option value="">All teachers</option>
+                                        {distinctTeachers.map(([tid, tname]) => <option key={tid} value={tid}>{tname}</option>)}
+                                    </select>
+                                )}
                                 {/* Sort control */}
                                 <div className="flex items-center gap-2">
                                     <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">Sort by</span>

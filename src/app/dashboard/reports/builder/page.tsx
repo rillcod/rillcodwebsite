@@ -480,8 +480,8 @@ function ReportBuilderInner() {
     const [sessionConfig, setSessionConfig] = useState<SessionConfig>({
         instructor_name: '',
         report_date: '',
-        report_term: 'First Term',
-        report_period: '',
+        report_term: getCurrentTermLabel(),
+        report_period: getCurrentAcademicYear(),
         course_id: '',
         course_name: '',
         school_name: '',
@@ -496,6 +496,9 @@ function ReportBuilderInner() {
         show_payment_notice: false,
     });
     const [sessionExpanded, setSessionExpanded] = useState(true); // collapsed after "Start Grading"
+    // Term & Academic Year default (locked) to the current period — matching the Results page lock.
+    // Teachers only unlock this when deliberately building for a past/other term.
+    const [periodUnlocked, setPeriodUnlocked] = useState(false);
 
     // ── Per-student state ─────────────────────────────────────────────────────
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
@@ -2226,15 +2229,31 @@ function ReportBuilderInner() {
                                 </div>
                             ) : isSchoolSection(sessionConfig.school_section) ? (
                                 <>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <TermYearFields term={sessionConfig.report_term} period={sessionConfig.report_period} set={setSessionConfig} prominent />
-                                    </div>
-                                    <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-2.5">
-                                        <CheckCircleIcon className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                                        <p className="text-[11px] text-emerald-300 font-bold">
-                                            Creating <span className="underline">{sessionConfig.report_term || '—'}</span> reports for the <span className="underline">{sessionConfig.report_period || '— set year —'}</span> session.
-                                        </p>
-                                    </div>
+                                    {/* Locked to the current term (like the Results page). Unlock only to backfill another period. */}
+                                    {!periodUnlocked ? (
+                                        <div className="flex flex-wrap items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-3">
+                                            <span className="text-emerald-400">🔒</span>
+                                            <p className="text-[11px] text-emerald-300 font-bold">
+                                                Creating <span className="underline">{sessionConfig.report_term || '—'}</span> reports for <span className="underline">{sessionConfig.report_period || '— set year —'}</span>.
+                                            </p>
+                                            <button type="button" onClick={() => setPeriodUnlocked(true)}
+                                                className="ml-auto text-[10px] font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-300 underline underline-offset-2">
+                                                Change period
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <TermYearFields term={sessionConfig.report_term} period={sessionConfig.report_period} set={setSessionConfig} prominent />
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button type="button" onClick={() => setPeriodUnlocked(false)}
+                                                    className="text-[10px] font-black uppercase tracking-wider text-primary hover:opacity-80 underline underline-offset-2">
+                                                    🔒 Lock to this period
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             ) : (
                                 <>
