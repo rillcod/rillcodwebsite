@@ -11,6 +11,8 @@ import {
   Track,
 } from 'livekit-client';
 
+import ClassReplays from '@/components/live-session/ClassReplays';
+
 // Dynamic import — loads LiveKit CSS only on client, avoids SSR flash
 const LiveKitMeeting = dynamic(
   () => import('@/components/live-session/LiveKitMeeting'),
@@ -1841,6 +1843,11 @@ export default function LiveSessionsPage() {
             </AnimatePresence>
           </div>
         )}
+
+        {/* ── Class Replays — cloud recordings (host sees their own, admin all) ── */}
+        <div className="mt-10">
+          <ClassReplays heading="Class Replays" />
+        </div>
       </div>
 
       {/* ── Modals ── */}
