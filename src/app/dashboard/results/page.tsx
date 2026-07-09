@@ -453,7 +453,7 @@ function ResultsPageInner() {
                 const allReports: any[] = [];
                 await Promise.all(chunks.map(async (chunk) => {
                     let reportsQuery = db.from('student_progress_reports')
-                        .select('student_id, overall_grade, is_published, updated_at, report_term, report_period')
+                        .select('student_id, overall_grade, is_published, updated_at, report_date, report_term, report_period')
                         .in('student_id', chunk);
 
                     if (confirmedPeriod) {
@@ -632,8 +632,9 @@ function ResultsPageInner() {
                 filterParentEmail === 'has' ? hasParentEmail :
             /* missing */ !hasParentEmail;
         const matchTeacher = !filterTeacher || (s as any).classes?.teacher_id === filterTeacher;
-        // Date range — on the report's last updated timestamp. To-date is inclusive (end of day).
-        const reportTime = r?.updated_at ? new Date(r.updated_at).getTime() : NaN;
+        // Date range — on the teacher-assigned Report Date (falls back to last-updated). To-date inclusive (end of day).
+        const reportDateVal = (r as any)?.report_date || r?.updated_at;
+        const reportTime = reportDateVal ? new Date(reportDateVal).getTime() : NaN;
         const matchDateFrom = !filterDateFrom || (Number.isFinite(reportTime) && reportTime >= new Date(filterDateFrom + 'T00:00:00').getTime());
         const matchDateTo = !filterDateTo || (Number.isFinite(reportTime) && reportTime <= new Date(filterDateTo + 'T23:59:59.999').getTime());
         return matchSearch && matchSchool && matchClass && matchGrade && matchStatus && matchParentEmail && matchTeacher && matchDateFrom && matchDateTo;
@@ -641,7 +642,7 @@ function ResultsPageInner() {
         const dir = sortDir === 'desc' ? -1 : 1;
         // Report status rank: needs-attention first (no report → draft → published) when sorting by status.
         const statusRank = (s: any) => { const r = reportsMap[s.id]; return !r ? 0 : r.is_published ? 2 : 1; };
-        const reportMs = (s: any) => { const r = reportsMap[s.id]; return r?.updated_at ? new Date(r.updated_at).getTime() : 0; };
+        const reportMs = (s: any) => { const r = reportsMap[s.id]; const v = r?.report_date || r?.updated_at; return v ? new Date(v).getTime() : 0; };
         if (sortBy === 'grade') return dir * (((a as any).grade_level ?? '').localeCompare((b as any).grade_level ?? '') || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
         if (sortBy === 'school') return dir * (studentSchoolName(a).localeCompare(studentSchoolName(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
         if (sortBy === 'status') return dir * ((statusRank(a) - statusRank(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
