@@ -51,6 +51,7 @@ export default function ClassDetailPage() {
   const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
   const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
+  const [showNeedsReportOnly, setShowNeedsReportOnly] = useState(false); // roster: only students needing a report
   // Inline identity edit (name + grade) on the roster — source of truth, round-trips everywhere.
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -795,10 +796,13 @@ export default function ClassDetailPage() {
   // ── Roster search: filter both active and historical lists by name/email. ──
   const rosterQ = rosterSearch.trim().toLowerCase();
   const matchesRoster = (student: any) =>
-    !rosterQ ||
-    (student.full_name ?? '').toLowerCase().includes(rosterQ) ||
-    (student.email ?? '').toLowerCase().includes(rosterQ);
-  const visibleCurrent = currentTermStudents.filter(matchesRoster);
+    (!rosterQ ||
+      (student.full_name ?? '').toLowerCase().includes(rosterQ) ||
+      (student.email ?? '').toLowerCase().includes(rosterQ)) &&
+    (!showNeedsReportOnly || !student.has_published_report);
+  // Un-reported students float to the top so what needs attention is seen first.
+  const byNeedsReport = (a: any, b: any) => (a.has_published_report === b.has_published_report ? 0 : a.has_published_report ? 1 : -1);
+  const visibleCurrent = currentTermStudents.filter(matchesRoster).slice().sort(byNeedsReport);
   const visibleInactive = inactiveTermStudents.filter(matchesRoster);
   const rosterShowSearch = currentTermStudents.length + inactiveTermStudents.length > 6;
   const latestSession = sessions[0] ?? null;
@@ -971,7 +975,16 @@ export default function ClassDetailPage() {
                           {offBandCount ? <span className="text-amber-400"> · {offBandCount} off-band</span> : ''}
                           {currentTermStudents.length > 0 && (
                             <span className={needsReportCount ? 'text-amber-400' : 'text-emerald-400'}>
-                              {' · '}{reportedCount}/{currentTermStudents.length} reports{needsReportCount ? ` · ${needsReportCount} need one` : ' ✓'}
+                              {' · '}{reportedCount}/{currentTermStudents.length} reports{' '}
+                              {needsReportCount ? (
+                                <button
+                                  onClick={() => setShowNeedsReportOnly(v => !v)}
+                                  className={`underline decoration-dotted underline-offset-2 ${showNeedsReportOnly ? 'font-black text-amber-300' : ''}`}
+                                  title="Show only students who still need a report"
+                                >
+                                  · {needsReportCount} need one{showNeedsReportOnly ? ' (filtered — tap to clear)' : ''}
+                                </button>
+                              ) : ' ✓'}
                             </span>
                           )}
                         </p>
@@ -1058,21 +1071,25 @@ export default function ClassDetailPage() {
                                 {student.grade && (
                                   <span className="ml-2 text-[10px] font-black uppercase tracking-wide text-muted-foreground align-middle">{student.grade}</span>
                                 )}
-                                {/* Progress-report indicator — green = published, amber = needs attention. */}
-                                <span
-                                  title={student.has_published_report
-                                    ? `Progress report published${student.published_reports > 1 ? ` (${student.published_reports})` : ''}`
-                                    : student.draft_reports
-                                      ? 'Report drafted but NOT published yet — needs attention'
-                                      : 'No progress report yet — needs attention'}
-                                  className={`ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide align-middle ${
-                                    student.has_published_report
-                                      ? 'bg-emerald-500/15 text-emerald-400'
-                                      : 'bg-amber-500/15 text-amber-400'
-                                  }`}
-                                >
-                                  {student.has_published_report ? '✓ Report' : student.draft_reports ? 'Draft only' : 'Needs report'}
-                                </span>
+                                {/* Progress-report indicator (THIS term) — green = published, amber = needs
+                                    attention. Teachers get a one-tap link into the report builder for that
+                                    exact student; schools/others just see the status. */}
+                                {(() => {
+                                  const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
+                                  const title = student.has_published_report
+                                    ? `Progress report published for ${student.report_term ?? 'this term'}`
+                                    : student.has_draft_report
+                                      ? `Report drafted but NOT published for ${student.report_term ?? 'this term'} — needs attention`
+                                      : `No ${student.report_term ?? 'current-term'} progress report yet — needs attention`;
+                                  const cls = `ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide align-middle ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`;
+                                  return isStaff ? (
+                                    <Link href={`/dashboard/reports/builder?student=${student.id}`} title={`${title} — click to open the report builder`} className={`${cls} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
+                                      {label}
+                                    </Link>
+                                  ) : (
+                                    <span title={title} className={cls}>{label}</span>
+                                  );
+                                })()}
                                 {offBand && (
                                   <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="ml-2 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400 align-middle">
                                     Off-band

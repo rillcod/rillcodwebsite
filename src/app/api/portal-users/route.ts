@@ -160,20 +160,12 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     let rows = data ?? [];
-    // Opt-in: attach progress-report status (?with_reports=1) so lists like the card studio can
-    // flag students who still need a published report. Bulk-queried, chunked.
+    // Opt-in: attach THIS-term progress-report status (?with_reports=1) so lists (card studio,
+    // students page) can flag who still needs a published report. Term-scoped for consistency.
     if (searchParams.get('with_reports') === '1' && rows.length) {
-      const ids = rows.map((r: any) => r.id).filter(Boolean);
-      const published = new Set<string>();
-      for (let i = 0; i < ids.length; i += 300) {
-        const { data: reps } = await admin
-          .from('student_progress_reports')
-          .select('student_id')
-          .in('student_id', ids.slice(i, i + 300))
-          .eq('is_published', true);
-        for (const r of reps ?? []) if ((r as any).student_id) published.add((r as any).student_id);
-      }
-      rows = rows.map((r: any) => ({ ...r, has_published_report: published.has(r.id) }));
+      const { reportCoverageForStudents } = await import('@/lib/reports/coverage');
+      const { published, drafted } = await reportCoverageForStudents(admin, rows.map((r: any) => r.id));
+      rows = rows.map((r: any) => ({ ...r, has_published_report: published.has(r.id), has_draft_report: drafted.has(r.id) }));
     }
 
     return NextResponse.json({ data: rows });

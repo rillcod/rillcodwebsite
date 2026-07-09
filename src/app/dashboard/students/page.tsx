@@ -458,7 +458,7 @@ export default function StudentsPage() {
     setPortalLoading(true);
     try {
       const [stuRes, clsRes, schRes, invRes] = await Promise.all([
-        fetch('/api/portal-users?role=student&scoped=true', { cache: 'no-store' }),
+        fetch('/api/portal-users?role=student&scoped=true&with_reports=1', { cache: 'no-store' }),
         fetch('/api/classes', { cache: 'no-store' }),
         fetch('/api/schools', { cache: 'no-store' }),
         fetch('/api/invoices?limit=500', { cache: 'no-store' }),
@@ -1897,6 +1897,12 @@ export default function StudentsPage() {
                           {/* Name + badges */}
                           <div className="flex items-center gap-1.5 flex-wrap mb-1">
                             <span className="font-bold text-foreground text-sm sm:text-base truncate max-w-[140px] sm:max-w-none">{s.full_name}</span>
+                            {(s as any).has_published_report !== undefined && (
+                              <span
+                                title={(s as any).has_published_report ? 'Progress report published this term' : 'No published progress report this term — needs attention'}
+                                className={`w-2 h-2 rounded-full flex-shrink-0 ${(s as any).has_published_report ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                              />
+                            )}
                             <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-primary/10 text-primary border-primary/20'}`}>
                               {isEnrolled ? 'Enrolled' : 'Application'}
                             </span>

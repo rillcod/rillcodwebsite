@@ -20,6 +20,7 @@ import BillingStickyNotices from '@/components/billing/BillingStickyNotices';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useDashboardData, useDashboardAutoRefresh } from '@/hooks/useDashboardData';
 import InboxPreviewWidget from '@/components/dashboard/InboxPreviewWidget';
+import ReportCoverageWidget from '@/components/dashboard/ReportCoverageWidget';
 
 /* ── Quick actions by role ────────────────────────────── */
 const QUICK_ACTIONS = {
@@ -247,6 +248,9 @@ export default function DashboardPage() {
         />
       )}
       {role === 'student' && <StudentDashboardWidget />}
+
+      {/* Progress-report coverage — who still needs a report this term (staff + school) */}
+      {['admin', 'teacher', 'school'].includes(role) && <ReportCoverageWidget />}
 
       {/* Inbox preview — role-scoped for staff, parent and student */}
       {['admin', 'teacher', 'school', 'parent', 'student'].includes(role) && <InboxPreviewWidget />}
