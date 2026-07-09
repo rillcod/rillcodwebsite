@@ -992,7 +992,7 @@ export default function ClassDetailPage() {
                         </p>
                       </div>
                       {isStaff && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/50 transition-colors">
                             <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" /> Transfer / Move
                           </Link>
@@ -1025,7 +1025,7 @@ export default function ClassDetailPage() {
                       <p className="text-sm font-semibold text-muted-foreground">No students match “{rosterSearch}”.</p>
                     </div>
                   ) : (
-                    <div className="max-h-[60vh] overflow-y-auto grid gap-2 sm:grid-cols-2 pr-1">
+                    <div className="max-h-[60vh] overflow-y-auto grid gap-2 xl:grid-cols-2 pr-1">
                       {visibleCurrent.map((student: any) => {
                         const offBand = isOffBand(student);
                         if (editingStudentId === student.id) {
@@ -1034,7 +1034,7 @@ export default function ClassDetailPage() {
                             ...SINGLE_GRADES,
                           ]));
                           return (
-                            <div key={student.id} className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2 sm:col-span-2">
+                            <div key={student.id} className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2 xl:col-span-2">
                               <div className="flex flex-col sm:flex-row gap-2">
                                 <input
                                   value={editName}
@@ -1077,14 +1077,15 @@ export default function ClassDetailPage() {
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-bold text-foreground">
-                                {student.full_name}
+                              {/* Name + wrapping badges — badges live OUTSIDE the truncating name so
+                                  they never get clipped and can wrap on narrow screens. */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="truncate max-w-full text-sm font-bold text-foreground">{student.full_name}</span>
                                 {student.grade && (
-                                  <span className="ml-2 text-[10px] font-black uppercase tracking-wide text-muted-foreground align-middle">{student.grade}</span>
+                                  <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{student.grade}</span>
                                 )}
-                                {/* Progress-report indicator (THIS term) — green = published, amber = needs
-                                    attention. Teachers get a one-tap link into the report builder for that
-                                    exact student; schools/others just see the status. Admin-toggleable. */}
+                                {/* Progress-report indicator (THIS term). Teachers get a one-tap link into
+                                    the report builder; schools/others just see the status. Admin-toggleable. */}
                                 {reportIndicatorEnabled && (() => {
                                   const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
                                   const title = student.has_published_report
@@ -1092,7 +1093,7 @@ export default function ClassDetailPage() {
                                     : student.has_draft_report
                                       ? `Report drafted but NOT published for ${student.report_term ?? 'this term'} — needs attention`
                                       : `No ${student.report_term ?? 'current-term'} progress report yet — needs attention`;
-                                  const cls = `ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide align-middle ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`;
+                                  const cls = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`;
                                   return isStaff ? (
                                     <Link href={`/dashboard/reports/builder?student=${student.id}`} title={`${title} — click to open the report builder`} className={`${cls} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
                                       {label}
@@ -1102,11 +1103,11 @@ export default function ClassDetailPage() {
                                   );
                                 })()}
                                 {offBand && (
-                                  <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="ml-2 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400 align-middle">
+                                  <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400">
                                     Off-band
                                   </span>
                                 )}
-                              </p>
+                              </div>
                               <p className="truncate text-xs text-muted-foreground">{student.email}</p>
                             </div>
                             {isStaff && (
