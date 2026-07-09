@@ -79,6 +79,20 @@ export async function GET(
 
     const knownIds = new Set((directStudents ?? []).map((s: any) => s.id));
 
+    // Students deliberately WITHDRAWN from this class must never be silently re-added by the
+    // name-match heal below — otherwise a teacher who removed a name sees it reappear.
+    const withdrawnFromThisClass = new Set<string>();
+    {
+      let wq = (admin as any)
+        .from('class_term_rosters')
+        .select('student_id, status')
+        .eq('class_id', classId)
+        .neq('status', 'active');
+      wq = cls.term_id ? wq.eq('term_id', cls.term_id) : wq.is('term_id', null);
+      const { data: wRows } = await wq;
+      (wRows ?? []).forEach((r: any) => r.student_id && withdrawnFromThisClass.add(r.student_id));
+    }
+
     // ── Section-name fallback: students at same school whose section_class text ─
     // matches the class name but class_id was never set (legacy bulk registration)
     let sectionStudents: any[] = [];
@@ -92,7 +106,8 @@ export async function GET(
         .eq('role', 'student')
         .order('full_name');
 
-      sectionStudents = (bySection ?? []).filter((s: any) => !knownIds.has(s.id));
+      // Skip anyone already known AND anyone previously withdrawn from this class.
+      sectionStudents = (bySection ?? []).filter((s: any) => !knownIds.has(s.id) && !withdrawnFromThisClass.has(s.id));
 
       if (sectionStudents.length > 0) {
         const sectionIds = sectionStudents.map((s: any) => s.id);
@@ -123,7 +138,8 @@ export async function GET(
       const { data: reportRows } = await reportQuery;
       const reportStudentIds = (reportRows ?? [])
         .map((r: any) => r.student_id)
-        .filter((sid: any) => sid && !knownStudentIds.has(sid));
+        // Never let report-recovery resurrect a student who was withdrawn from this class.
+        .filter((sid: any) => sid && !knownStudentIds.has(sid) && !withdrawnFromThisClass.has(sid));
 
       if (reportStudentIds.length > 0) {
         const { data: reportLinkedStudents } = await admin

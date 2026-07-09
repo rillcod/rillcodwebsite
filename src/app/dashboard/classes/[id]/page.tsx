@@ -21,6 +21,20 @@ import { getWAECGrade } from '@/lib/grading';
 import { parseBandLabel, bandCoversGrade, parseGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
 
+// Turn an enroll PUT response into a human message about students that were NOT added,
+// so a silent school-boundary / other-teacher drop never looks like a successful add.
+function enrollSkipMessage(json: any, requested: number): string | null {
+  const school: string[] = Array.isArray(json?.rejectedSchoolBoundary) ? json.rejectedSchoolBoundary : [];
+  const otherTeacher: string[] = Array.isArray(json?.rejectedOtherTeacher) ? json.rejectedOtherTeacher : [];
+  const totalSkipped = typeof json?.skipped === 'number' ? json.skipped : Math.max(0, requested - (json?.enrolled ?? requested));
+  if (totalSkipped <= 0 && school.length === 0 && otherTeacher.length === 0) return null;
+  const lines: string[] = [`⚠ ${totalSkipped || school.length + otherTeacher.length} not added:`];
+  if (school.length) lines.push(`• Different school (blocked): ${school.join(', ')}`);
+  if (otherTeacher.length) lines.push(`• Owned by another teacher — needs an admin: ${otherTeacher.join(', ')}`);
+  const accounted = school.length + otherTeacher.length;
+  if (totalSkipped > accounted) lines.push(`• ${totalSkipped - accounted} skipped (already enrolled or ineligible).`);
+  return lines.join('\n');
+}
 
 export default function ClassDetailPage() {
   const params = useParams();
@@ -338,6 +352,9 @@ export default function ClassDetailPage() {
       setSelectedStudentIds(new Set());
       setAvailableStudents([]);
       await fetchData();
+      // Surface silent drops — otherwise a student you "added" simply never appears.
+      const msg = enrollSkipMessage(json, ids.length);
+      if (msg) alert(msg);
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -382,7 +399,8 @@ export default function ClassDetailPage() {
       setAvailableStudents([]);
       setNewClassForm({ name: '', program_id: '', school_id: '', max_students: '' });
       await fetchData();
-      alert(`Class "${clsJson.data.name}" created — ${enrolJson.enrolled ?? selectedStudentIds.size} student${(enrolJson.enrolled ?? selectedStudentIds.size) !== 1 ? 's' : ''} enrolled.`);
+      const skip = enrollSkipMessage(enrolJson, selectedStudentIds.size);
+      alert(`Class "${clsJson.data.name}" created — ${enrolJson.enrolled ?? selectedStudentIds.size} student${(enrolJson.enrolled ?? selectedStudentIds.size) !== 1 ? 's' : ''} enrolled.${skip ? `\n\n${skip}` : ''}`);
     } catch (e: any) {
       alert(e.message ?? 'Failed');
     } finally {
