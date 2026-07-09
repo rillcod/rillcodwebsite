@@ -580,12 +580,16 @@ function ResultsPageInner() {
         students.map(s => studentSchoolName(s)).filter(Boolean)
     )].sort() as string[];
 
+    // Cascading options: Section/Grade lists narrow to the chosen school so you only ever see
+    // relevant choices (but always keep the currently-selected value so it can't vanish).
+    const schoolScoped = filterSchool ? students.filter(s => studentSchoolName(s) === filterSchool) : students;
+
     const distinctClasses = [...new Set(
-        students.map(s => studentClassName(s)).filter(Boolean)
+        [...schoolScoped.map(s => studentClassName(s)), filterClass].filter(Boolean)
     )].sort() as string[];
 
     const distinctGrades = [...new Set(
-        students.map(s => (s as any).grade_level).filter(Boolean)
+        [...schoolScoped.map(s => (s as any).grade_level), filterGrade].filter(Boolean)
     )].sort() as string[];
 
     const filtered = students.filter(s => {
@@ -608,6 +612,14 @@ function ResultsPageInner() {
             /* missing */ !hasParentEmail;
         return matchSearch && matchSchool && matchClass && matchGrade && matchStatus && matchParentEmail;
     });
+
+    // Filter controls — shared select style + clear-all, so the sidebar stays neat.
+    const selectCls = 'w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors';
+    const anyFilterActive = !!(search || filterSchool || filterClass || filterGrade || filterStatus !== 'all' || filterParentEmail !== 'all');
+    const clearFilters = () => {
+        setSearch(''); setFilterSchool(''); setFilterClass(''); setFilterGrade('');
+        setFilterStatus('all'); setFilterParentEmail('all');
+    };
 
     const stats = {
         total: filtered.length,
@@ -1529,77 +1541,57 @@ tbody tr:hover{background:#f3f4f6}
                             </div>
 
                             <div className="space-y-2">
+                                {/* Neat dropdown filters — School · Section (cohort) · Grade (level) · Status,
+                                    kept SEPARATE. Selecting a school resets the section/grade below it. */}
                                 <div className="grid grid-cols-2 gap-2">
                                     <select
                                         value={filterSchool}
                                         onChange={e => { setFilterSchool(e.target.value); setFilterClass(''); setFilterGrade(''); }}
-                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
+                                        title="School"
+                                        className={selectCls}
                                     >
-                                        <option value="">All Schools</option>
+                                        <option value="">All schools</option>
                                         {distinctSchools.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                    <select value={filterClass} onChange={e => setFilterClass(e.target.value)} title="Section / cohort" className={selectCls}>
+                                        <option value="">All sections</option>
+                                        {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                    <select value={filterGrade} onChange={e => setFilterGrade(e.target.value)} title="Grade / class level" className={selectCls}>
+                                        <option value="">All grades</option>
+                                        {distinctGrades.map(g => <option key={g} value={g}>{g}</option>)}
                                     </select>
                                     <select
                                         value={filterStatus}
                                         onChange={e => setFilterStatus(e.target.value as 'all' | 'published' | 'draft' | 'none')}
-                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
+                                        title="Report status"
+                                        className={selectCls}
                                     >
-                                        <option value="all">All Status</option>
-                                        <option value="published">Published</option>
+                                        <option value="all">All status</option>
+                                        <option value="published">✓ Published</option>
                                         <option value="draft">Draft</option>
-                                        <option value="none">No Report</option>
+                                        <option value="none">No report</option>
                                     </select>
                                 </div>
-                                {/* Parent email filter */}
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">Parent Email</span>
-                                    <div className="flex gap-1 flex-wrap">
-                                        {(['all', 'has', 'missing'] as const).map(v => (
-                                            <button key={v}
-                                                onClick={() => setFilterParentEmail(v)}
-                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterParentEmail === v
-                                                    ? v === 'missing' ? 'bg-orange-500 text-white border-orange-500' : 'bg-emerald-600 text-white border-emerald-600'
-                                                    : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                            >
-                                                {v === 'all' ? 'All' : v === 'has' ? '✓ Has' : '⚠ Missing'}
-                                            </button>
-                                        ))}
-                                    </div>
+                                {/* Parent email + Clear filters */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <select value={filterParentEmail} onChange={e => setFilterParentEmail(e.target.value as 'all' | 'has' | 'missing')} title="Parent email on file" className={selectCls}>
+                                        <option value="all">Parent email: all</option>
+                                        <option value="has">✓ Has email</option>
+                                        <option value="missing">⚠ Missing email</option>
+                                    </select>
+                                    <button
+                                        onClick={clearFilters}
+                                        disabled={!anyFilterActive}
+                                        className="px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 transition-colors"
+                                    >
+                                        Clear filters
+                                    </button>
                                 </div>
-                                {/* Grade filter chips */}
-                                {distinctGrades.length > 0 && (
-                                    <div className="space-y-1">
-                                        <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Grade</p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            <button
-                                                onClick={() => setFilterGrade('')}
-                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterGrade ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                            >All</button>
-                                            {distinctGrades.map(g => (
-                                                <button key={g}
-                                                    onClick={() => setFilterGrade(filterGrade === g ? '' : g)}
-                                                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterGrade === g ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                                >{g}</button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {/* Section (cohort) filter chips */}
-                                {distinctClasses.length > 0 && (
-                                    <div className="space-y-1">
-                                        <p className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">Section</p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            <button
-                                                onClick={() => setFilterClass('')}
-                                                className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${!filterClass ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                            >All</button>
-                                            {distinctClasses.map(c => (
-                                                <button key={c}
-                                                    onClick={() => setFilterClass(filterClass === c ? '' : c)}
-                                                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${filterClass === c ? 'bg-primary text-foreground border-primary' : 'bg-card shadow-sm text-muted-foreground border-border hover:bg-muted'}`}
-                                                >{c}</button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                {anyFilterActive && (
+                                    <p className="text-[10px] text-muted-foreground px-1">
+                                        {filtered.length} of {students.length} students match
+                                    </p>
                                 )}
                             </div>
 
