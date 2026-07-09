@@ -1064,8 +1064,17 @@ export default function ClassDetailPage() {
                         }
                         return (
                           <div key={student.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary flex-shrink-0">
-                              {(student.full_name ?? '?')[0].toUpperCase()}
+                            <div className="relative flex-shrink-0">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
+                                {(student.full_name ?? '?')[0].toUpperCase()}
+                              </div>
+                              {/* Green = report published this term · Amber = still needs one. */}
+                              {reportIndicatorEnabled && (
+                                <span
+                                  title={student.has_published_report ? 'Progress report published this term' : student.has_draft_report ? 'Report drafted, not published — needs attention' : 'No report this term — needs attention'}
+                                  className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-card ${student.has_published_report ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                                />
+                              )}
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-bold text-foreground">
