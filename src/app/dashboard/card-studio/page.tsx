@@ -421,6 +421,49 @@ function ManageCardPreview({ r, config, dbCardsMap, selectedIds, toggleSelected,
   );
 }
 
+// ─── Manage Tab – compact LIST row (default view; grid is opt-in) ─────────────
+function ManageCardRow({ r, dbCardsMap, selectedIds, toggleSelected, issueCard, updateCardStatus, reissueCard, isIssuingIds, isRevokingIds, printSingle }: {
+  r: CardRecord; dbCardsMap: Map<string,DbCard>; selectedIds: Set<string>;
+  toggleSelected: (id:string)=>void; issueCard: (r:CardRecord)=>void;
+  updateCardStatus: (r:CardRecord,c:DbCard,s:'active'|'revoked')=>void;
+  reissueCard: (r:CardRecord,c:DbCard)=>void;
+  isIssuingIds: Set<string>; isRevokingIds: Set<string>; printSingle: (r:CardRecord)=>void;
+}) {
+  const dbCard = dbCardsMap.get(r.id);
+  const status = dbCard ? dbCard.status : 'unissued';
+  const sm = STATUS_META[status] || STATUS_META.unissued;
+  const isSelected = selectedIds.has(r.id);
+  const isIssuing = isIssuingIds.has(r.id);
+  const isRevoking = isRevokingIds.has(r.id);
+  return (
+    <div className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${isSelected?'bg-primary/5':'hover:bg-muted/40'}`}>
+      <button onClick={()=>toggleSelected(r.id)} className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isSelected?'bg-primary border-primary':'border-border'}`}>
+        {isSelected&&<span className="text-primary-foreground text-[8px]">✓</span>}
+      </button>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-foreground">{r.name}</p>
+        <p className="truncate text-[11px] text-muted-foreground">{[r.roleLabel, r.sectionClass].filter(Boolean).join(' · ') || '—'}</p>
+      </div>
+      <span className={`hidden sm:inline text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border shrink-0 ${sm.color}`}>{sm.label}</span>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <button onClick={()=>printSingle(r)} title="Print card" className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"><PrinterIcon className="w-4 h-4"/></button>
+        {!dbCard&&(
+          <button onClick={()=>issueCard(r)} disabled={isIssuing} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">{isIssuing?'…':'Issue'}</button>
+        )}
+        {dbCard?.status==='revoked'&&(
+          <button onClick={()=>updateCardStatus(r,dbCard,'active')} disabled={isRevoking} className="px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">Restore</button>
+        )}
+        {dbCard?.status==='active'&&(
+          <>
+            <button onClick={()=>{if(confirm(`Reissue card for ${r.name}? The current card stops working and a new card number + QR code are generated.`))reissueCard(r,dbCard)}} disabled={isRevoking} title="Replace lost/damaged card" className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">Reissue</button>
+            <button onClick={()=>{if(confirm(`Revoke card for ${r.name}?`))updateCardStatus(r,dbCard,'revoked')}} disabled={isRevoking} className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wide disabled:opacity-50 transition-colors">Revoke</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page Component ──────────────────────────────────────────────────────
 
 export default function CardStudioPage() {
@@ -607,6 +650,7 @@ export default function CardStudioPage() {
   const [bulkIssuing, setBulkIssuing] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{done:number;total:number}|null>(null);
   const [manageQuery, setManageQuery] = useState('');
+  const [manageView, setManageView] = useState<'list'|'grid'>('list'); // Manage tab: list by default, grid on demand
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedSchool, setSelectedSchool] = useState('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -1300,6 +1344,11 @@ export default function CardStudioPage() {
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:ml-auto w-full sm:w-auto">
+            {/* List (default) / Grid view toggle */}
+            <div className="flex items-center rounded-lg border border-border overflow-hidden bg-background">
+              <button onClick={()=>setManageView('list')} title="List view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='list'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>List</button>
+              <button onClick={()=>setManageView('grid')} title="Grid view" className={`px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${manageView==='grid'?'bg-primary text-primary-foreground':'text-muted-foreground hover:text-foreground'}`}>Grid</button>
+            </div>
             {filtered.length>0&&selectedIds.size===0&&(
               <button onClick={()=>setSelectedIds(new Set(filtered.map(r=>r.id)))}
                 className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wide border border-border text-muted-foreground hover:text-foreground rounded-lg transition-colors bg-background hover:bg-muted">
@@ -1413,15 +1462,25 @@ export default function CardStudioPage() {
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
-                </div>
+                {manageView==='grid'?(
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {list.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+                  </div>
+                ):(
+                  <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/60 bg-card">
+                    {list.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+                  </div>
+                )}
               </section>
             ))}
           </div>
-        ):(
+        ):manageView==='grid'?(
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map(r=><ManageCardPreview key={r.id} r={r} config={manageConfig} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
+          </div>
+        ):(
+          <div className="rounded-xl border border-border overflow-hidden divide-y divide-border/60 bg-card">
+            {filtered.map(r=><ManageCardRow key={r.id} r={r} dbCardsMap={dbCardsMap} selectedIds={selectedIds} toggleSelected={toggleSelected} issueCard={issueCard} updateCardStatus={updateCardStatus} reissueCard={reissueCard} isIssuingIds={isIssuingIds} isRevokingIds={isRevokingIds} printSingle={r=>printManageCards([r],`${r.name} — Access Card`)}/>)}
           </div>
         )}
       </div>
