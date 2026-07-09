@@ -455,7 +455,7 @@ export default function ClassDetailPage() {
       const res = await fetch('/api/portal-users/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, confirmDestroy }),
+        body: JSON.stringify({ ids, confirmDestroy, classId: id }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'Failed to delete');
@@ -1233,9 +1233,19 @@ export default function ClassDetailPage() {
                             <p className="text-[11px] font-bold uppercase tracking-wide text-amber-400/80">{student.roster_status ?? 'withdrawn'}</p>
                           </div>
                           {isStaff && (
-                            <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50 flex-shrink-0">
-                              {processingStudent === student.id ? '…' : 'Reinstate'}
-                            </button>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
+                                {processingStudent === student.id ? '…' : 'Reinstate'}
+                              </button>
+                              <button
+                                onClick={() => bulkHardDelete(false, [student.id])}
+                                disabled={hardDeleting}
+                                title="Permanently delete this student from the whole system"
+                                className="rounded-lg border border-red-500/30 bg-red-600/10 p-1.5 text-red-300 hover:bg-red-600/20 disabled:opacity-40 transition-colors"
+                              >
+                                <TrashIcon className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))}

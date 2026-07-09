@@ -16,7 +16,9 @@ function adminClient() {
 //   • teachers may only delete STUDENTS from their assigned school(s)
 //   • paid ID cards / published reports are protected: those ids come back under
 //     `needsConfirmation` (with what would be lost) unless { confirmDestroy: true }.
-// Body: { ids: string[]; confirmDestroy?: boolean }
+// Body: { ids: string[]; confirmDestroy?: boolean; classId?: string }
+// classId lets a teacher clean out OLD students of a class they own even when the
+// student's school_id is missing on legacy records — authorized by class ownership.
 // Returns: { deleted: string[]; blocked: {id,reason}[]; needsConfirmation: {id,name,valuables}[] }
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({} as Record<string, unknown>));
@@ -24,6 +26,7 @@ export async function POST(request: NextRequest) {
     ? [...new Set((body.ids as unknown[]).filter((x): x is string => typeof x === 'string'))]
     : [];
   const confirmDestroy = body.confirmDestroy === true;
+  const classId = typeof body.classId === 'string' ? body.classId : null;
 
   const supabase = await createServerClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
@@ -37,12 +40,32 @@ export async function POST(request: NextRequest) {
 
   const admin = adminClient();
 
-  // For teachers, pre-compute the set of schools they may act within.
+  // For teachers, pre-compute the schools they may act within, plus (when a classId is
+  // given and they own it) the exact members of that class — so legacy/withdrawn students
+  // with a missing school_id can still be cleaned by the teacher who owns their class.
   let assignedIds: string[] = [];
+  const classMemberIds = new Set<string>();
   if (caller.role === 'teacher') {
     const { data: assignments } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', caller.id);
     assignedIds = (assignments ?? []).map((a: any) => a.school_id).filter(Boolean);
     if (caller.school_id) assignedIds.push(caller.school_id);
+
+    if (classId) {
+      const { data: cls } = await admin.from('classes').select('id, teacher_id, school_id').eq('id', classId).maybeSingle();
+      // Ownership is ASSIGNMENT-based (same rule as /api/classes visibility): the teacher owns
+      // the class either because they are its teacher_id — which the
+      // sync_class_ownership_from_teacher_schools trigger keeps in step with teacher_schools —
+      // OR because the class belongs to a school they are assigned to (teacher_schools/profile).
+      const ownsClass = !!cls && (cls.teacher_id === caller.id || (!!cls.school_id && assignedIds.includes(cls.school_id)));
+      if (ownsClass) {
+        const [{ data: direct }, { data: roster }] = await Promise.all([
+          admin.from('portal_users').select('id').eq('class_id', classId).eq('role', 'student'),
+          (admin as any).from('class_term_rosters').select('student_id').eq('class_id', classId),
+        ]);
+        (direct ?? []).forEach((r: any) => r.id && classMemberIds.add(r.id));
+        (roster ?? []).forEach((r: any) => r.student_id && classMemberIds.add(r.student_id));
+      }
+    }
   }
 
   const deleted: string[] = [];
@@ -59,8 +82,9 @@ export async function POST(request: NextRequest) {
     // must go through the single-delete flow that handles class reassignment etc.
     if (pu.role !== 'student') { blocked.push({ id, reason: 'Only student accounts can be bulk-deleted here.' }); continue; }
 
-    if (caller.role === 'teacher' && (!pu.school_id || !assignedIds.includes(pu.school_id))) {
-      blocked.push({ id, reason: 'Outside your assigned school.' }); continue;
+    const inAssignedSchool = !!pu.school_id && assignedIds.includes(pu.school_id);
+    if (caller.role === 'teacher' && !inAssignedSchool && !classMemberIds.has(id)) {
+      blocked.push({ id, reason: 'Outside your assigned school / class.' }); continue;
     }
 
     // Safety gate — don't quietly destroy paid cards / published reports.
