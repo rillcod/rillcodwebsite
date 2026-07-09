@@ -13,18 +13,25 @@ export const dynamic = 'force-dynamic';
 // The student "Class Replays" library — every finished recording the caller may watch,
 // scoped exactly like the live-sessions list (school broadcast / their school / their
 // programmes). Each returns a short-lived signed R2 URL. Part of the learning path.
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const caller = await requireAuth();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (caller.role === 'parent') return NextResponse.json({ recordings: [] });
 
+  // Optional filters — a lesson-resources view passes ?lessonId=…, a session view ?sessionId=…
+  const { searchParams } = new URL(req.url);
+  const lessonId = searchParams.get('lessonId');
+  const sessionIdParam = searchParams.get('sessionId');
+
   const admin = adminClient();
   let query = admin
     .from('session_recordings')
-    .select('id, session_id, title, status, duration_seconds, size_bytes, r2_key, started_at, ended_at, school_id, program_id, live_sessions(id, title, scheduled_at, host_id, school_id, program_id, program:programs(name))')
+    .select('id, session_id, lesson_id, title, status, duration_seconds, size_bytes, r2_key, started_at, ended_at, school_id, program_id, live_sessions(id, title, scheduled_at, host_id, school_id, program_id, program:programs(name))')
     .eq('status', 'ready')
     .order('started_at', { ascending: false })
     .limit(200);
+  if (lessonId) query = query.eq('lesson_id', lessonId);
+  if (sessionIdParam) query = query.eq('session_id', sessionIdParam);
 
   // Candidate scoping (widen the set; canAccessLiveSession still gates each row below).
   if (caller.role === 'student') {
@@ -56,6 +63,7 @@ export async function GET(_req: NextRequest) {
     out.push({
       id: rec.id,
       session_id: rec.session_id,
+      lesson_id: (rec as any).lesson_id ?? null,
       title: rec.title || session?.title || 'Class Recording',
       program_name: session?.program?.name ?? null,
       session_date: session?.scheduled_at ?? rec.started_at,

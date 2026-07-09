@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { LiveKitRoom, VideoConference, ConnectionStateToast } from '@livekit/components-react';
 import '@livekit/components-styles';
 import '@livekit/components-styles/prefabs';
+import HostControls from './HostControls';
 
 interface LiveKitMeetingProps {
   sessionId: string;
@@ -27,6 +28,7 @@ function Overlay({ children }: { children: React.ReactNode }) {
 export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: LiveKitMeetingProps) {
   const [token, setToken]         = useState<string | null>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
+  const [isModerator, setIsModerator] = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [phase, setPhase]         = useState<Phase>('loading');
   const leftRef   = useRef(false);
@@ -47,6 +49,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
       if (!res.ok) throw new Error(j.error ?? 'Token error');
       setToken(j.token);
       setServerUrl(j.url);
+      setIsModerator(!!j.isModerator);
       setPhase('live');
     } catch (e: any) {
       setError(e.message ?? 'Failed to connect');
@@ -164,7 +167,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
       </div>
 
       {/* LiveKit VideoConference — camera, mic, layout, chat, screen share */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 relative">
         <LiveKitRoom
           token={token}
           serverUrl={serverUrl}
@@ -188,6 +191,7 @@ export default function LiveKitMeeting({ sessionId, sessionTitle, onClose }: Liv
         >
           <VideoConference />
           <ConnectionStateToast />
+          {isModerator && <HostControls sessionId={sessionId} />}
         </LiveKitRoom>
       </div>
     </div>

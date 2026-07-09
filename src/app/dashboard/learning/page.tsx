@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 import { withTimeout } from '@/lib/async-timeout';
 import { filterLessonsForClassPlans } from '@/lib/learning/lesson-plan-scope';
+import ClassReplays from '@/components/live-session/ClassReplays';
 import Link from 'next/link';
 import {
   RocketLaunchIcon, BookOpenIcon, ClockIcon,
@@ -656,6 +657,9 @@ export default function StudentLearningPage() {
                   </div>
                 </section>
               )}
+
+              {/* ── Class Replays (recorded live sessions) ── */}
+              <ClassReplays heading={isKids ? '🎬 Class Replays' : 'Class Replays'} />
 
               {/* ── Lesson Path ── */}
               <section>

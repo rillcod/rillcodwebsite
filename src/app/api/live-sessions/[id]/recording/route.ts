@@ -62,6 +62,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const action = String(body.action ?? 'start');
+  const lessonId = typeof body.lessonId === 'string' && body.lessonId ? body.lessonId : null;
 
   // Guard against duplicate takes — one active recording per session.
   const { data: existingRows } = await admin
@@ -77,6 +78,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (existing && existing.status === 'recording') {
       return NextResponse.json({ ok: true, alreadyRecording: true, recordingId: existing.id });
     }
+
+    // A recording is ALWAYS filed under a course/programme (its learning-path home) — never
+    // orphaned. Resolve it from the session, else from the tagged lesson's course.
+    let programId: string | null = session.program_id ?? null;
+    if (!programId && lessonId) {
+      const { data: lesson } = await admin
+        .from('lessons').select('course_id, courses(program_id)').eq('id', lessonId).maybeSingle();
+      programId = (lesson as any)?.courses?.program_id ?? null;
+    }
+    if (!programId) {
+      return NextResponse.json({
+        error: 'This session is not attached to a course/programme, so its recording cannot be filed. Attach a programme to the session (or tag a lesson) before recording.',
+      }, { status: 400 });
+    }
+
     const room = roomNameForSession(id);
     const r2Key = recordingR2Key(id);
     try {
@@ -84,8 +100,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       const { data: row, error } = await admin.from('session_recordings').insert({
         session_id: id,
         school_id: session.school_id ?? null,
-        program_id: session.program_id ?? null,
+        program_id: programId,
         class_id: null,
+        lesson_id: lessonId,
         title: (session as any).title ?? null,
         egress_id: info.egressId,
         r2_key: r2Key,

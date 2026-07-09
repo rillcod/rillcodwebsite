@@ -8449,6 +8449,7 @@ export type Database = {
           ended_at: string | null
           error: string | null
           id: string
+          lesson_id: string | null
           program_id: string | null
           r2_key: string | null
           school_id: string | null
@@ -8468,6 +8469,7 @@ export type Database = {
           ended_at?: string | null
           error?: string | null
           id?: string
+          lesson_id?: string | null
           program_id?: string | null
           r2_key?: string | null
           school_id?: string | null
@@ -8487,6 +8489,7 @@ export type Database = {
           ended_at?: string | null
           error?: string | null
           id?: string
+          lesson_id?: string | null
           program_id?: string | null
           r2_key?: string | null
           school_id?: string | null
@@ -8499,6 +8502,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "session_recordings_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "session_recordings_session_id_fkey"
             columns: ["session_id"]
