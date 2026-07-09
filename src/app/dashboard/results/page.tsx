@@ -633,6 +633,40 @@ function ResultsPageInner() {
           }
         : null;
 
+    // Fast review: step to the previous/next student in the filtered list (their report auto-loads).
+    const stepStudent = (dir: 1 | -1) => {
+        if (currentIdx < 0) return;
+        const target = filtered[currentIdx + dir];
+        if (target) loadStudentReport(target);
+    };
+    // Mobile-first: swipe left → next report, swipe right → previous (predominantly-horizontal only,
+    // so vertical scrolling of the report is unaffected).
+    const swipeStart = useRef<{ x: number; y: number } | null>(null);
+    const onReportTouchStart = (e: React.TouchEvent) => {
+        const t = e.touches[0];
+        swipeStart.current = { x: t.clientX, y: t.clientY };
+    };
+    const onReportTouchEnd = (e: React.TouchEvent) => {
+        const s = swipeStart.current;
+        if (!s) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - s.x, dy = t.clientY - s.y;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) stepStudent(dx < 0 ? 1 : -1);
+        swipeStart.current = null;
+    };
+    // Keyboard ← / → flip between reports so a whole class can be reviewed in seconds.
+    useEffect(() => {
+        if (!selectedStudent) return;
+        const onKey = (e: KeyboardEvent) => {
+            const t = e.target as HTMLElement | null;
+            if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+            if (e.key === 'ArrowRight') { e.preventDefault(); stepStudent(1); }
+            else if (e.key === 'ArrowLeft') { e.preventDefault(); stepStudent(-1); }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [selectedStudent?.id, currentIdx, filtered.length]); // eslint-disable-line
+
     const downloadSinglePDF = async () => {
         if (!reportToDisplay) return;
         setIsDownloadingPdf(true);
@@ -2037,13 +2071,39 @@ tbody tr:hover{background:#f3f4f6}
                                         </div>
                                     )}
 
+                                    {/* Fast review stepper — flip through the filtered class one report at a
+                                        time (← / → keys too). Bulk download stays available separately. */}
+                                    {selectedStudent && filtered.length > 1 && (
+                                        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-card/60 no-print">
+                                            <button
+                                                onClick={() => stepStudent(-1)}
+                                                disabled={currentIdx <= 0}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-[11px] font-black text-foreground disabled:opacity-40 hover:border-primary/50"
+                                            >
+                                                <ArrowLeftIcon className="w-3.5 h-3.5" /> Prev
+                                            </button>
+                                            <span className="text-[11px] font-bold text-muted-foreground truncate">
+                                                {currentIdx + 1} of {filtered.length}
+                                                <span className="hidden sm:inline"> · ← → keys</span>
+                                                <span className="sm:hidden"> · swipe</span>
+                                            </span>
+                                            <button
+                                                onClick={() => stepStudent(1)}
+                                                disabled={currentIdx >= filtered.length - 1}
+                                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-[11px] font-black text-foreground disabled:opacity-40 hover:border-primary/50"
+                                            >
+                                                Next <ArrowRightIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    )}
+
                                     {/* Report body */}
                                     {loadingReport ? (
                                         <div className="flex items-center justify-center h-72 bg-white/[0.02]">
                                             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     ) : reportToDisplay ? (
-                                         <div data-theme="light" className="overflow-auto p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh', background: '#e5e7eb', colorScheme: 'light' }}>
+                                         <div data-theme="light" onTouchStart={onReportTouchStart} onTouchEnd={onReportTouchEnd} className="overflow-auto p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh', background: '#e5e7eb', colorScheme: 'light' }}>
                                             <ScaledReportCard report={reportToDisplay} responsive={template === 'modern'}>
                                                 {template === 'standard' ? (
                                                     <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
