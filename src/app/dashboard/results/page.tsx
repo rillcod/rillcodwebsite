@@ -157,8 +157,12 @@ function ResultsPageInner() {
     const [filterGrade, setFilterGrade] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'has' | 'published' | 'draft' | 'none'>('all');
     const [filterParentEmail, setFilterParentEmail] = useState<'all' | 'has' | 'missing'>('all');
-    const [sortBy, setSortBy] = useState<'name' | 'grade' | 'status' | 'school'>('name');
+    const [sortBy, setSortBy] = useState<'name' | 'grade' | 'status' | 'school' | 'date'>('name');
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc'); // asc = A→Z / oldest first; desc = Z→A / newest first
     const [filterTeacher, setFilterTeacher] = useState(''); // admin: filter by class teacher (lms-isolation specificity)
+    // Report date/time range — filters students by when their report was last created/updated.
+    const [filterDateFrom, setFilterDateFrom] = useState('');
+    const [filterDateTo, setFilterDateTo] = useState('');
     // Academic period auto-locks to the CURRENT term/year (like the term-aware reports) so staff
     // aren't gated by a confirm screen every visit — they can still change it (unlock) below.
     const [periodDraft, setPeriodDraft] = useState({ year: getCurrentAcademicYear(), term: getCurrentTermLabel() });
@@ -628,22 +632,30 @@ function ResultsPageInner() {
                 filterParentEmail === 'has' ? hasParentEmail :
             /* missing */ !hasParentEmail;
         const matchTeacher = !filterTeacher || (s as any).classes?.teacher_id === filterTeacher;
-        return matchSearch && matchSchool && matchClass && matchGrade && matchStatus && matchParentEmail && matchTeacher;
+        // Date range — on the report's last updated timestamp. To-date is inclusive (end of day).
+        const reportTime = r?.updated_at ? new Date(r.updated_at).getTime() : NaN;
+        const matchDateFrom = !filterDateFrom || (Number.isFinite(reportTime) && reportTime >= new Date(filterDateFrom + 'T00:00:00').getTime());
+        const matchDateTo = !filterDateTo || (Number.isFinite(reportTime) && reportTime <= new Date(filterDateTo + 'T23:59:59.999').getTime());
+        return matchSearch && matchSchool && matchClass && matchGrade && matchStatus && matchParentEmail && matchTeacher && matchDateFrom && matchDateTo;
     }).sort((a, b) => {
+        const dir = sortDir === 'desc' ? -1 : 1;
         // Report status rank: needs-attention first (no report → draft → published) when sorting by status.
         const statusRank = (s: any) => { const r = reportsMap[s.id]; return !r ? 0 : r.is_published ? 2 : 1; };
-        if (sortBy === 'grade') return ((a as any).grade_level ?? '').localeCompare((b as any).grade_level ?? '') || (a.full_name ?? '').localeCompare(b.full_name ?? '');
-        if (sortBy === 'school') return studentSchoolName(a).localeCompare(studentSchoolName(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? '');
-        if (sortBy === 'status') return statusRank(a) - statusRank(b) || (a.full_name ?? '').localeCompare(b.full_name ?? '');
-        return (a.full_name ?? '').localeCompare(b.full_name ?? '');
+        const reportMs = (s: any) => { const r = reportsMap[s.id]; return r?.updated_at ? new Date(r.updated_at).getTime() : 0; };
+        if (sortBy === 'grade') return dir * (((a as any).grade_level ?? '').localeCompare((b as any).grade_level ?? '') || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+        if (sortBy === 'school') return dir * (studentSchoolName(a).localeCompare(studentSchoolName(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+        if (sortBy === 'status') return dir * ((statusRank(a) - statusRank(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+        if (sortBy === 'date') return dir * ((reportMs(a) - reportMs(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+        return dir * (a.full_name ?? '').localeCompare(b.full_name ?? '');
     });
 
     // Filter controls — shared select style + clear-all, so the sidebar stays neat.
     const selectCls = 'w-full px-3 py-2 bg-card shadow-sm border border-border rounded-xl text-xs text-foreground focus:outline-none focus:border-primary transition-colors';
-    const anyFilterActive = !!(search || filterSchool || filterClass || filterGrade || filterStatus !== 'all' || filterParentEmail !== 'all' || filterTeacher);
+    const anyFilterActive = !!(search || filterSchool || filterClass || filterGrade || filterStatus !== 'all' || filterParentEmail !== 'all' || filterTeacher || filterDateFrom || filterDateTo);
     const clearFilters = () => {
         setSearch(''); setFilterSchool(''); setFilterClass(''); setFilterGrade('');
         setFilterStatus('all'); setFilterParentEmail('all'); setFilterTeacher('');
+        setFilterDateFrom(''); setFilterDateTo('');
     };
 
     const stats = {
@@ -1621,15 +1633,34 @@ tbody tr:hover{background:#f3f4f6}
                                         {distinctTeachers.map(([tid, tname]) => <option key={tid} value={tid}>{tname}</option>)}
                                     </select>
                                 )}
-                                {/* Sort control */}
+                                {/* Report date range — by when the report was last created/updated */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="flex items-center gap-1.5">
+                                        <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">From</span>
+                                        <input type="date" value={filterDateFrom} max={filterDateTo || undefined} onChange={e => setFilterDateFrom(e.target.value)} title="Report date from" className={`${selectCls} flex-1`} />
+                                    </label>
+                                    <label className="flex items-center gap-1.5">
+                                        <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">To</span>
+                                        <input type="date" value={filterDateTo} min={filterDateFrom || undefined} onChange={e => setFilterDateTo(e.target.value)} title="Report date to" className={`${selectCls} flex-1`} />
+                                    </label>
+                                </div>
+                                {/* Sort control + direction */}
                                 <div className="flex items-center gap-2">
                                     <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">Sort by</span>
-                                    <select value={sortBy} onChange={e => setSortBy(e.target.value as 'name' | 'grade' | 'status' | 'school')} title="Sort the student list" className={selectCls}>
-                                        <option value="name">Name (A–Z)</option>
+                                    <select value={sortBy} onChange={e => setSortBy(e.target.value as 'name' | 'grade' | 'status' | 'school' | 'date')} title="Sort the student list" className={`${selectCls} flex-1`}>
+                                        <option value="name">Name</option>
                                         <option value="grade">Grade</option>
                                         <option value="status">Report status (needs first)</option>
                                         <option value="school">School</option>
+                                        <option value="date">Report date</option>
                                     </select>
+                                    <button
+                                        onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                                        title={sortDir === 'asc' ? 'Ascending (A→Z / oldest first)' : 'Descending (Z→A / newest first)'}
+                                        className="px-2.5 py-2 bg-card shadow-sm border border-border rounded-xl text-xs font-black text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors whitespace-nowrap"
+                                    >
+                                        {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
+                                    </button>
                                 </div>
                                 {anyFilterActive && (
                                     <p className="text-[10px] text-muted-foreground px-1">
