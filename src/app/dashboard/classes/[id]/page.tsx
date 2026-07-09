@@ -63,6 +63,10 @@ export default function ClassDetailPage() {
   const [checkedEnrollIds, setCheckedEnrollIds] = useState<Set<string>>(new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
 
+  // Tick-and-wipe: hard-delete withdrawn students entirely from the system.
+  const [checkedWithdrawnIds, setCheckedWithdrawnIds] = useState<Set<string>>(new Set());
+  const [hardDeleting, setHardDeleting] = useState(false);
+
   // Create-new-class inside enrol modal
   const [programsList, setProgramsList] = useState<any[]>([]);
   const [schoolsList, setSchoolsList] = useState<any[]>([]);
@@ -430,6 +434,51 @@ export default function ClassDetailPage() {
       alert(e.message);
     } finally {
       setProcessingStudent(null);
+    }
+  };
+
+  const toggleWithdrawn = (studentId: string) => {
+    setCheckedWithdrawnIds(prev => {
+      const next = new Set(prev);
+      if (next.has(studentId)) next.delete(studentId); else next.add(studentId);
+      return next;
+    });
+  };
+
+  // Permanently wipe the given (or ticked) withdrawn students from the whole system.
+  const bulkHardDelete = async (confirmDestroy = false, idsArg?: string[]) => {
+    const ids = idsArg ?? [...checkedWithdrawnIds];
+    if (ids.length === 0) return;
+    if (!confirmDestroy && !confirm(`Permanently delete ${ids.length} withdrawn student${ids.length > 1 ? 's' : ''} from the ENTIRE system?\n\nThis erases their account, records and history everywhere. This cannot be undone.`)) return;
+    setHardDeleting(true);
+    try {
+      const res = await fetch('/api/portal-users/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, confirmDestroy }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Failed to delete');
+
+      // Some accounts hold paid cards / published reports — confirm a second time to wipe those.
+      if (Array.isArray(json.needsConfirmation) && json.needsConfirmation.length > 0) {
+        const lines = json.needsConfirmation.map((n: any) => `• ${n.name}: ${n.valuables?.summary ?? 'has records'}`).join('\n');
+        if (confirm(`${json.deleted?.length ?? 0} deleted.\n\nThese still hold PAID cards or PUBLISHED reports:\n\n${lines}\n\nDelete these too — permanently?`)) {
+          const flaggedIds = json.needsConfirmation.map((n: any) => n.id);
+          await fetchData();
+          await bulkHardDelete(true, flaggedIds); // force-wipe only the flagged ones
+          return;
+        }
+      }
+      if (Array.isArray(json.blocked) && json.blocked.length > 0) {
+        alert(`${json.deleted?.length ?? 0} deleted. ${json.blocked.length} skipped:\n\n${json.blocked.map((b: any) => `• ${b.reason}`).join('\n')}`);
+      }
+      setCheckedWithdrawnIds(new Set());
+      await fetchData();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setHardDeleting(false);
     }
   };
 
@@ -1139,8 +1188,43 @@ export default function ClassDetailPage() {
                           </div>
                         );
                       })}
+                      {/* Tick-and-wipe bar for withdrawn students — select then permanently delete everywhere. */}
+                      {isStaff && visibleInactive.length > 0 && (
+                        <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5 sm:flex-row sm:items-center sm:justify-between backdrop-blur supports-[backdrop-filter]:bg-amber-500/10">
+                          <label className="flex items-center gap-2 text-[11px] font-bold text-amber-300/90 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 accent-red-600"
+                              checked={checkedWithdrawnIds.size > 0 && visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id))}
+                              ref={el => { if (el) el.indeterminate = checkedWithdrawnIds.size > 0 && !visibleInactive.every((s: any) => checkedWithdrawnIds.has(s.id)); }}
+                              onChange={e => {
+                                if (e.target.checked) setCheckedWithdrawnIds(new Set(visibleInactive.map((s: any) => s.id)));
+                                else setCheckedWithdrawnIds(new Set());
+                              }}
+                            />
+                            {checkedWithdrawnIds.size > 0 ? `${checkedWithdrawnIds.size} selected` : 'Select withdrawn to delete'}
+                          </label>
+                          <button
+                            onClick={() => bulkHardDelete(false)}
+                            disabled={checkedWithdrawnIds.size === 0 || hardDeleting}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-red-300 hover:bg-red-600/25 disabled:opacity-40 transition-colors"
+                          >
+                            <TrashIcon className="h-3.5 w-3.5" />
+                            {hardDeleting ? 'Wiping…' : 'Hard delete selected'}
+                          </button>
+                        </div>
+                      )}
                       {visibleInactive.map((student: any) => (
-                        <div key={`${student.id}-${student.roster_status ?? 'former'}`} className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                        <div key={`${student.id}-${student.roster_status ?? 'former'}`} className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${checkedWithdrawnIds.has(student.id) ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                          {isStaff && (
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 accent-red-600 flex-shrink-0"
+                              checked={checkedWithdrawnIds.has(student.id)}
+                              onChange={() => toggleWithdrawn(student.id)}
+                              title="Select for permanent deletion"
+                            />
+                          )}
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-400 flex-shrink-0">
                             {(student.full_name ?? '?')[0].toUpperCase()}
                           </div>
