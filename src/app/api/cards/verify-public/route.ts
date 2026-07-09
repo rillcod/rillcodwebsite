@@ -7,11 +7,23 @@ export async function GET(request: Request) {
   if (!code) return NextResponse.json({ error: 'code is required' }, { status: 400 });
 
   const admin = createAdminClient();
-  const { data: card, error } = await (admin as any)
+  const upper = code.toUpperCase();
+  const cardSelect = '*, portal_users!identity_cards_holder_id_fkey(id, full_name, email, school_id, school_name, section_class), schools(name)';
+  let { data: card, error } = await (admin as any)
     .from('identity_cards')
-    .select('*, portal_users!identity_cards_holder_id_fkey(id, full_name, email, school_id, school_name, section_class), schools(name)')
-    .eq('verification_code', code.toUpperCase())
+    .select(cardSelect)
+    .eq('verification_code', upper)
     .maybeSingle();
+
+  // Backward-compat: OLDER cards encoded the card_number (CARD-…) rather than the
+  // verification_code. Fall back to matching that so legacy cards still verify.
+  if (!error && !card) {
+    ({ data: card, error } = await (admin as any)
+      .from('identity_cards')
+      .select(cardSelect)
+      .eq('card_number', upper)
+      .maybeSingle());
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!card) return NextResponse.json({ valid: false, result: 'invalid' }, { status: 404 });

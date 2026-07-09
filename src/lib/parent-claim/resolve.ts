@@ -22,6 +22,12 @@ export async function resolveStudentFromCode(admin: AnySupabase, code: string): 
     .from('identity_cards').select('holder_id, holder_type').eq('verification_code', c).maybeSingle();
   if (card?.holder_id && card.holder_type === 'student') return card.holder_id as string;
 
+  // Backward-compat: OLDER cards printed the card_number (CARD-…) as their scannable code
+  // instead of the verification_code. Resolve those too so legacy cards still open results.
+  const { data: cardByNumber } = await admin
+    .from('identity_cards').select('holder_id, holder_type').eq('card_number', c).maybeSingle();
+  if (cardByNumber?.holder_id && cardByNumber.holder_type === 'student') return cardByNumber.holder_id as string;
+
   // Result-access (RC-…) code — resolves the scanned child on the /result-check page.
   const rc = normalizeAccessCardCode(code);
   if (rc) {
