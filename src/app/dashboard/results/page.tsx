@@ -163,6 +163,8 @@ function ResultsPageInner() {
     // Report date/time range — filters students by when their report was last created/updated.
     const [filterDateFrom, setFilterDateFrom] = useState('');
     const [filterDateTo, setFilterDateTo] = useState('');
+    // Which date to filter/sort by: the teacher-written Report Date, or the system created/updated timestamp.
+    const [dateBasis, setDateBasis] = useState<'report' | 'system'>('report');
     // Academic period auto-locks to the CURRENT term/year (like the term-aware reports) so staff
     // aren't gated by a confirm screen every visit — they can still change it (unlock) below.
     const [periodDraft, setPeriodDraft] = useState({ year: getCurrentAcademicYear(), term: getCurrentTermLabel() });
@@ -632,8 +634,8 @@ function ResultsPageInner() {
                 filterParentEmail === 'has' ? hasParentEmail :
             /* missing */ !hasParentEmail;
         const matchTeacher = !filterTeacher || (s as any).classes?.teacher_id === filterTeacher;
-        // Date range — on the teacher-assigned Report Date (falls back to last-updated). To-date inclusive (end of day).
-        const reportDateVal = (r as any)?.report_date || r?.updated_at;
+        // Date range — either the teacher-assigned Report Date or the system timestamp. To-date inclusive (end of day).
+        const reportDateVal = dateBasis === 'system' ? r?.updated_at : ((r as any)?.report_date || r?.updated_at);
         const reportTime = reportDateVal ? new Date(reportDateVal).getTime() : NaN;
         const matchDateFrom = !filterDateFrom || (Number.isFinite(reportTime) && reportTime >= new Date(filterDateFrom + 'T00:00:00').getTime());
         const matchDateTo = !filterDateTo || (Number.isFinite(reportTime) && reportTime <= new Date(filterDateTo + 'T23:59:59.999').getTime());
@@ -642,7 +644,7 @@ function ResultsPageInner() {
         const dir = sortDir === 'desc' ? -1 : 1;
         // Report status rank: needs-attention first (no report → draft → published) when sorting by status.
         const statusRank = (s: any) => { const r = reportsMap[s.id]; return !r ? 0 : r.is_published ? 2 : 1; };
-        const reportMs = (s: any) => { const r = reportsMap[s.id]; const v = r?.report_date || r?.updated_at; return v ? new Date(v).getTime() : 0; };
+        const reportMs = (s: any) => { const r = reportsMap[s.id]; const v = dateBasis === 'system' ? r?.updated_at : (r?.report_date || r?.updated_at); return v ? new Date(v).getTime() : 0; };
         if (sortBy === 'grade') return dir * (((a as any).grade_level ?? '').localeCompare((b as any).grade_level ?? '') || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
         if (sortBy === 'school') return dir * (studentSchoolName(a).localeCompare(studentSchoolName(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
         if (sortBy === 'status') return dir * ((statusRank(a) - statusRank(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
@@ -1634,16 +1636,25 @@ tbody tr:hover{background:#f3f4f6}
                                         {distinctTeachers.map(([tid, tname]) => <option key={tid} value={tid}>{tname}</option>)}
                                     </select>
                                 )}
-                                {/* Report date range — by when the report was last created/updated */}
-                                <div className="grid grid-cols-2 gap-2">
-                                    <label className="flex items-center gap-1.5">
-                                        <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">From</span>
-                                        <input type="date" value={filterDateFrom} max={filterDateTo || undefined} onChange={e => setFilterDateFrom(e.target.value)} title="Report date from" className={`${selectCls} flex-1`} />
-                                    </label>
-                                    <label className="flex items-center gap-1.5">
-                                        <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">To</span>
-                                        <input type="date" value={filterDateTo} min={filterDateFrom || undefined} onChange={e => setFilterDateTo(e.target.value)} title="Report date to" className={`${selectCls} flex-1`} />
-                                    </label>
+                                {/* Report date range + which date to use */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">Date by</span>
+                                        <select value={dateBasis} onChange={e => setDateBasis(e.target.value as 'report' | 'system')} title="Which date to filter and sort by" className={`${selectCls} flex-1`}>
+                                            <option value="report">Report date (teacher-set)</option>
+                                            <option value="system">System date (created/updated)</option>
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <label className="flex items-center gap-1.5">
+                                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">From</span>
+                                            <input type="date" value={filterDateFrom} max={filterDateTo || undefined} onChange={e => setFilterDateFrom(e.target.value)} title="Date from" className={`${selectCls} flex-1`} />
+                                        </label>
+                                        <label className="flex items-center gap-1.5">
+                                            <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest">To</span>
+                                            <input type="date" value={filterDateTo} min={filterDateFrom || undefined} onChange={e => setFilterDateTo(e.target.value)} title="Date to" className={`${selectCls} flex-1`} />
+                                        </label>
+                                    </div>
                                 </div>
                                 {/* Sort control + direction */}
                                 <div className="flex items-center gap-2">
