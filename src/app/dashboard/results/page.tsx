@@ -157,6 +157,7 @@ function ResultsPageInner() {
     const [filterGrade, setFilterGrade] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft' | 'none'>('all');
     const [filterParentEmail, setFilterParentEmail] = useState<'all' | 'has' | 'missing'>('all');
+    const [sortBy, setSortBy] = useState<'name' | 'grade' | 'status' | 'school'>('name');
     const [periodDraft, setPeriodDraft] = useState({ year: academicYearOptions()[0] ?? '', term: '' });
     const [confirmedPeriod, setConfirmedPeriod] = useState<{ year: string; term: string } | null>(null);
 
@@ -611,6 +612,13 @@ function ResultsPageInner() {
                 filterParentEmail === 'has' ? hasParentEmail :
             /* missing */ !hasParentEmail;
         return matchSearch && matchSchool && matchClass && matchGrade && matchStatus && matchParentEmail;
+    }).sort((a, b) => {
+        // Report status rank: needs-attention first (no report → draft → published) when sorting by status.
+        const statusRank = (s: any) => { const r = reportsMap[s.id]; return !r ? 0 : r.is_published ? 2 : 1; };
+        if (sortBy === 'grade') return ((a as any).grade_level ?? '').localeCompare((b as any).grade_level ?? '') || (a.full_name ?? '').localeCompare(b.full_name ?? '');
+        if (sortBy === 'school') return studentSchoolName(a).localeCompare(studentSchoolName(b)) || (a.full_name ?? '').localeCompare(b.full_name ?? '');
+        if (sortBy === 'status') return statusRank(a) - statusRank(b) || (a.full_name ?? '').localeCompare(b.full_name ?? '');
+        return (a.full_name ?? '').localeCompare(b.full_name ?? '');
     });
 
     // Filter controls — shared select style + clear-all, so the sidebar stays neat.
@@ -1587,6 +1595,16 @@ tbody tr:hover{background:#f3f4f6}
                                     >
                                         Clear filters
                                     </button>
+                                </div>
+                                {/* Sort control */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-widest whitespace-nowrap">Sort by</span>
+                                    <select value={sortBy} onChange={e => setSortBy(e.target.value as 'name' | 'grade' | 'status' | 'school')} title="Sort the student list" className={selectCls}>
+                                        <option value="name">Name (A–Z)</option>
+                                        <option value="grade">Grade</option>
+                                        <option value="status">Report status (needs first)</option>
+                                        <option value="school">School</option>
+                                    </select>
                                 </div>
                                 {anyFilterActive && (
                                     <p className="text-[10px] text-muted-foreground px-1">
