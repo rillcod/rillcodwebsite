@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { resolveAndGuardChild } from '@/lib/parent-claim/complete';
+import { looseNameMatch } from '@/lib/parent-claim/name-match';
 import { validateParentSuppliedRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { generateOtp, hashOtp, otpExpiry, OTP_TTL_MINUTES } from '@/lib/parent-claim/otp';
 import { checkCustomRateLimit, getClientIp } from '@/proxies/rateLimit.proxy';
@@ -56,7 +57,13 @@ export async function POST(request: Request) {
 
   const { data: student } = await admin
     .from('portal_users').select('full_name').eq('id', guard.studentId).maybeSingle();
-  const scannedChildName = student?.full_name || 'your child';
+  // PRIVACY: never disclose the child's real name to an UNVERIFIED caller (the OTP hasn't
+  // been entered yet). Only echo the actual name back when the caller already proved they
+  // know it (typed a matching child name); otherwise everything says "your child". This
+  // stops a code-holder who is not the parent from harvesting the child's name via the
+  // response or the code email/SMS. The real name is revealed only after /verify succeeds.
+  const callerKnowsName = !!childName && looseNameMatch(childName, student?.full_name ?? '');
+  const scannedChildName = callerKnowsName ? (student?.full_name || 'your child') : 'your child';
 
   // Anti-abuse: don't let the endpoint be used to email-bomb an address — cap codes
   // sent to the same email in a short window (in addition to the per-IP rate limit).
