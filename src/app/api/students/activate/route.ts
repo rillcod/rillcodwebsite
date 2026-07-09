@@ -7,6 +7,7 @@ import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { resolveOnlineSchool } from '@/lib/schools/resolve-online-school';
 import { ensureDefaultEnrollment } from '@/lib/enrollments/ensure-default-enrollment';
 import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-email';
+import { canonicalGrade } from '@/lib/classes/naming';
 import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import crypto from 'crypto';
@@ -629,6 +630,9 @@ export async function POST(req: NextRequest) {
     }
     const resolvedClassId = resolvedClass.id;
     const resolvedClassName = resolvedClass.name;
+    // Specific canonical grade (Basic 2 / JSS 1 …) — kept separate from the class/section so it
+    // sticks on the portal account instead of being re-derived from the class band.
+    const specificGrade = canonicalGrade(student.grade_level || student.current_class || student.section) || null;
 
     if (portalUserId) {
       // Reset password of the existing auth user
@@ -647,6 +651,7 @@ export async function POST(req: NextRequest) {
         school_id: resolvedSchoolId,
         school_name: resolvedSchoolName,
         section_class: resolvedClassName,
+        ...(specificGrade ? { grade: specificGrade } : {}),
         updated_at: new Date().toISOString(),
       };
       // Only set class_id when we actually resolved one — never wipe an existing
@@ -692,6 +697,7 @@ export async function POST(req: NextRequest) {
         class_id: resolvedClassId,
         enrollment_type: student.enrollment_type || 'in_person',
         section_class: resolvedClassName,
+        ...(specificGrade ? { grade: specificGrade } : {}),
         created_at: new Date().toISOString(),
       });
 

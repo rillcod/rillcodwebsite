@@ -22,6 +22,9 @@ export async function GET(
 ) {
   try {
     const { id: classId } = await context.params;
+    // Light mode (?light=1) skips the report-coverage/indicator enrichment — used by the
+    // Transfer screen, which only needs id/name/section, so roster loads are noticeably faster.
+    const light = new URL(_request.url).searchParams.get('light') === '1';
     const admin = adminClient();
     const serverSupabase = await createServerClient();
 
@@ -208,7 +211,7 @@ export async function GET(
       ...students.map((s: any) => s.id),
       ...formerStudents.map((s: any) => s.id),
     ].filter(Boolean);
-    const reportIndicatorEnabled = await isReportIndicatorEnabled(admin);
+    const reportIndicatorEnabled = light ? false : await isReportIndicatorEnabled(admin);
     if (reportIndicatorEnabled) {
       const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds);
       const termLabel = currentTermLabel();

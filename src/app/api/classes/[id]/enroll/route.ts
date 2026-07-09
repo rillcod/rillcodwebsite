@@ -637,6 +637,7 @@ export async function PUT(
 
   return NextResponse.json({
     enrolled: allowedIds.length,
+    enrolledIds: allowedIds,            // precise ids actually moved — lets the UI update optimistically without name-guessing
     skipped: studentIds.length - allowedIds.length,
     rejectedSchoolBoundary: rejectedNames,
     rejectedOtherTeacher,

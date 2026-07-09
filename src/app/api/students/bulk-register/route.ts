@@ -447,6 +447,11 @@ export async function POST(request: Request) {
         const effectiveTeacherId = resolvedClass.teacherId || batchClassTeacherId;
         if (effectiveClassId) touchedClassIds.add(effectiveClassId);
 
+        // Specific canonical grade = what the teacher typed per row (e.g. "Basic 2"), NOT the
+        // resolved band-class name. Falls back to the class name only when no row label exists,
+        // so grade stays separate from the section/cohort (modern convention).
+        const specificGrade = canonicalGrade(requestedClassLabel) || canonicalGrade(effectiveClassName) || null;
+
         // Ghost-row guard: if portal_users already has a NON-DELETED row with this email
         // but a DIFFERENT id (created outside the auth flow or by a stale import), that row
         // would become an unreachable duplicate. Soft-delete it so the auth user's row wins.
@@ -487,7 +492,7 @@ export async function POST(request: Request) {
             school_id: resolvedSchoolId,
             school_name: resolvedSchoolName,
             section_class: effectiveClassName,
-            grade: canonicalGrade(effectiveClassName),
+            grade: specificGrade,
             class_id: effectiveClassId,
             enrollment_type: 'in_person',
             is_active: true,
@@ -530,7 +535,7 @@ export async function POST(request: Request) {
           school_id: resolvedSchoolId,
           school_name: resolvedSchoolName,
           current_class: effectiveClassName,
-          grade_level: effectiveClassName,
+          grade_level: specificGrade,
           enrollment_type: 'in_person',
           status: 'approved', // Bulk-registered students are pre-approved
           gender: gender || null,

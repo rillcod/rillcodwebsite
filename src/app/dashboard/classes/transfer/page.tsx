@@ -24,6 +24,8 @@ type StudentRow = {
   full_name: string;
   email?: string | null;
   section_class?: string | null;
+  grade?: string | null;
+  grade_level?: string | null;
   school_id?: string | null;
 };
 
@@ -79,7 +81,7 @@ export default function ClassTransferPage() {
     setLoadingStudents(true);
     setSelected(new Set());
     try {
-      const res = await fetch(`/api/classes/${cid}/students`, { cache: 'no-store' });
+      const res = await fetch(`/api/classes/${cid}/students?light=1`, { cache: 'no-store' });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to load students');
       const { students: rows } = await res.json();
       setStudents(rows ?? []);
@@ -152,15 +154,18 @@ export default function ClassTransferPage() {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Transfer failed');
       const rej = [...(j.rejectedOtherTeacher ?? []), ...(j.rejectedSchoolBoundary ?? [])];
-      const rejectedNames = new Set(rej.map((n: string) => (n || '').toLowerCase()));
       const movedCount = j.enrolled ?? ids.length;
 
       // ── Optimistic UI: instantly drop the moved students from the roster and adjust the
-      //    class counts — no full refetch, so batch moves feel immediate. Rejected students
-      //    (another teacher's class / cross-school) stay in the list.
-      const movedIds = new Set(
-        students.filter((s) => selected.has(s.id) && !rejectedNames.has((s.full_name ?? '').toLowerCase())).map((s) => s.id),
-      );
+      //    class counts — no full refetch, so batch moves feel immediate. Prefer the exact
+      //    enrolledIds from the API (robust against duplicate names); fall back to name-diff.
+      const movedIds: Set<string> = Array.isArray(j.enrolledIds) && j.enrolledIds.length > 0
+        ? new Set<string>(j.enrolledIds)
+        : new Set<string>(
+            students
+              .filter((s) => selected.has(s.id) && !new Set(rej.map((n: string) => (n || '').toLowerCase())).has((s.full_name ?? '').toLowerCase()))
+              .map((s) => s.id),
+          );
       setStudents((prev) => prev.filter((s) => !movedIds.has(s.id)));
       setSelected(new Set());
       setClasses((prev) => prev.map((c) => {
@@ -350,7 +355,11 @@ export default function ClassTransferPage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-bold text-foreground truncate">{s.full_name}</span>
-                        {s.email && <span className="block text-xs text-muted-foreground truncate">{s.email}</span>}
+                        <span className="block text-xs text-muted-foreground truncate">
+                          {(s.grade || s.grade_level) && <span className="font-semibold text-primary/80">{s.grade || s.grade_level}</span>}
+                          {(s.grade || s.grade_level) && s.section_class ? ' · ' : ''}
+                          {s.section_class || (!s.grade && !s.grade_level ? (s.email ?? '') : '')}
+                        </span>
                       </span>
                     </button>
                   </li>

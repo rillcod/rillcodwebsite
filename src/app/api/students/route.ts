@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
+import { canonicalGrade } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -32,7 +34,8 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const primaryEmail = body.student_email || body.parent_email || body.studentEmail || body.parentEmail;
-    const fullName = (body.full_name || body.fullName || '').trim();
+    const rawName = (body.full_name || body.fullName || '').trim();
+    const fullName = cleanStudentName(rawName) || rawName; // canonical, noise-free name (matches bulk)
     const isForce = body.force === true;
 
     // 1. Check for duplicate email (Global) — only when an email was actually supplied,
@@ -89,19 +92,42 @@ export async function POST(request: Request) {
     //    (the "stray"). Soft block (requiresVerification) so staff can force it through for
     //    a genuinely different child who happens to share the name.
     if (fullName && !isForce) {
+      // Strong barricade — the SAME normalized key (word-order-, case-, and noise-insensitive)
+      // catches "Ada Ngozi" ≡ "Ngozi Ada" ≡ "Ada Ngozi 2", matching bulk-register. We scan the
+      // target school first (strict), then fall back to a global exact-ish name net.
+      const incomingKey = duplicateNameKey(fullName);
+      const dupSelect = 'id, full_name, grade_level, school_id, school_name';
+
+      // 1) Same-school scan by normalized key (fetch the school's students once).
+      let sameSchoolHit: any = null;
+      if (targetSchoolId && incomingKey) {
+        const { data: schoolStudents } = await supabase
+          .from('students')
+          .select(dupSelect)
+          .eq('school_id', targetSchoolId)
+          .neq('is_deleted', true);
+        sameSchoolHit = (schoolStudents ?? []).find(m => duplicateNameKey(m.full_name) === incomingKey) ?? null;
+      }
+
+      // 2) Global exact/reversed name net (catches cross-school twins / the "stray").
       const { data: nameMatches } = await supabase
         .from('students')
-        .select('id, full_name, grade_level, school_id, school_name')
+        .select(dupSelect)
         .ilike('full_name', fullName)
         .neq('is_deleted', true);
-      const sameSchool = targetSchoolId ? (nameMatches ?? []).find(m => m.school_id === targetSchoolId) : null;
-      const hit = sameSchool ?? (nameMatches ?? [])[0];
+      const globalHit = sameSchoolHit
+        ?? (targetSchoolId ? (nameMatches ?? []).find(m => m.school_id === targetSchoolId) : null)
+        ?? (nameMatches ?? []).find(m => incomingKey && duplicateNameKey(m.full_name) === incomingKey)
+        ?? (nameMatches ?? [])[0];
+
+      const hit = sameSchoolHit ?? globalHit;
+      const sameSchool = !!sameSchoolHit || (targetSchoolId && hit?.school_id === targetSchoolId);
       if (hit) {
         return NextResponse.json(
           {
             error: 'Duplicate Name Detected',
             message: sameSchool
-              ? `A student named "${hit.full_name}" is already registered in this school (${hit.grade_level || 'No Grade'}).`
+              ? `A student named "${hit.full_name}" is already registered in this school (${hit.grade_level || 'No Grade'}). If this is genuinely a different child, confirm to proceed.`
               : `A student named "${hit.full_name}" already exists at ${hit.school_name || 'another school'}. If this is a different child, confirm to proceed.`,
             requiresVerification: true,
           },
@@ -109,6 +135,12 @@ export async function POST(request: Request) {
         );
       }
     }
+
+    // Modern grade/section convention: grade_level = the SPECIFIC canonical grade
+    // (Basic 2, JSS 1 …), section = the cohort/class label (Alpha, Gold …). They are
+    // distinct — grade is never folded into the section, and vice-versa.
+    const specificGrade = canonicalGrade(body.grade_level || body.current_class) || null;
+    const sectionLabel = (body.section_class || body.section || '').trim() || null;
 
     // Map the incoming frontend fields cleanly to DB schema columns
     const newStudentData: any = {
@@ -122,8 +154,9 @@ export async function POST(request: Request) {
       parent_phone: body.parent_phone || body.parentPhone,
       school_id: targetSchoolId,
       school_name: body.school_name ?? null,
-      current_class: body.grade_level || body.current_class,
-      grade_level: body.grade_level || body.current_class,
+      current_class: sectionLabel || specificGrade, // cohort if given, else fall back to grade
+      section: sectionLabel,
+      grade_level: specificGrade,
       city: body.city,
       state: body.state,
       interests: body.interests,
