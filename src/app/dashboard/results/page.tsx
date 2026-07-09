@@ -139,6 +139,7 @@ function ResultsPageInner() {
     // ── Selection / view ───────────────────────────────────────────────────────
     const [selectedStudent, setSelectedStudent] = useState<PortalUser | null>(null);
     const [selectedReport, setSelectedReport] = useState<StudentReport | null>(null);
+    const [refreshTick, setRefreshTick] = useState(0);
     // All of the selected student's reports (across terms / academic sessions) so the
     // viewer can switch between them — a 3rd-term report must not hide the 2nd-term one.
     const [reportHistory, setReportHistory] = useState<StudentReport[]>([]);
@@ -492,7 +493,7 @@ function ResultsPageInner() {
 
         loadStaffData().catch(() => { if (!aborted) setLoading(false); });
         return () => { aborted = true; };
-    }, [profile?.id, authLoading, confirmedPeriod?.year, confirmedPeriod?.term]); // eslint-disable-line
+    }, [profile?.id, authLoading, confirmedPeriod?.year, confirmedPeriod?.term, refreshTick]); // eslint-disable-line
 
     // ── Auto-print when ?autoprint=1 is in the URL ────────────────────────────
     const autoPrintFired = useRef(false);
@@ -653,6 +654,27 @@ function ResultsPageInner() {
         const dx = t.clientX - s.x, dy = t.clientY - s.y;
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) stepStudent(dx < 0 ? 1 : -1);
         swipeStart.current = null;
+    };
+
+    // Publish ALL draft reports at once (no per-report preview) — for when there are many to push.
+    const [bulkPublishing, setBulkPublishing] = useState(false);
+    const handleBulkPublish = async () => {
+        if (!confirm('Publish ALL your draft reports now? They become visible to students/parents. You won\'t preview each one.')) return;
+        setBulkPublishing(true);
+        try {
+            const res = await fetch('/api/progress-reports/bulk-publish', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.error || 'Failed to publish');
+            alert(j.published ? `Published ${j.published} report${j.published !== 1 ? 's' : ''}.` : 'No drafts to publish.');
+            setRefreshTick(t => t + 1);
+            if (selectedStudent) loadStudentReport(selectedStudent);
+        } catch (e: any) {
+            alert(e.message || 'Failed to publish');
+        } finally {
+            setBulkPublishing(false);
+        }
     };
     // Keyboard ← / → flip between reports so a whole class can be reviewed in seconds.
     useEffect(() => {
@@ -1365,6 +1387,18 @@ tbody tr:hover{background:#f3f4f6}
                             >
                                 <PencilSquareIcon className="w-4 h-4" /> Create / Edit Report
                             </Link>
+                        )}
+                        {/* Publish all drafts at once — no per-report preview needed */}
+                        {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+                            <button
+                                onClick={handleBulkPublish}
+                                disabled={bulkPublishing}
+                                title="Publish every draft report at once — skips previewing each"
+                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-emerald-400 font-bold text-sm rounded-xl transition-all disabled:opacity-50"
+                            >
+                                <CheckIcon className="w-4 h-4" />
+                                {bulkPublishing ? 'Publishing…' : 'Publish All Drafts'}
+                            </button>
                         )}
                         {/* Print performance report — letterhead + grade table */}
                         {isStaff && students.length > 0 && (

@@ -163,9 +163,12 @@ export async function GET(request: NextRequest) {
     // Opt-in: attach THIS-term progress-report status (?with_reports=1) so lists (card studio,
     // students page) can flag who still needs a published report. Term-scoped for consistency.
     if (searchParams.get('with_reports') === '1' && rows.length) {
-      const { reportCoverageForStudents } = await import('@/lib/reports/coverage');
-      const { published, drafted } = await reportCoverageForStudents(admin, rows.map((r: any) => r.id));
-      rows = rows.map((r: any) => ({ ...r, has_published_report: published.has(r.id), has_draft_report: drafted.has(r.id) }));
+      const { isReportIndicatorEnabled } = await import('@/lib/server/app-settings');
+      if (await isReportIndicatorEnabled(admin)) {
+        const { reportCoverageForStudents } = await import('@/lib/reports/coverage');
+        const { published, drafted } = await reportCoverageForStudents(admin, rows.map((r: any) => r.id));
+        rows = rows.map((r: any) => ({ ...r, has_published_report: published.has(r.id), has_draft_report: drafted.has(r.id) }));
+      }
     }
 
     return NextResponse.json({ data: rows });

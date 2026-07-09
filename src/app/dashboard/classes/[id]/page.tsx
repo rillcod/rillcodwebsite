@@ -52,6 +52,7 @@ export default function ClassDetailPage() {
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
   const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
   const [showNeedsReportOnly, setShowNeedsReportOnly] = useState(false); // roster: only students needing a report
+  const [reportIndicatorEnabled, setReportIndicatorEnabled] = useState(true); // admin setting: show report status?
   // Inline identity edit (name + grade) on the roster — source of truth, round-trips everywhere.
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -136,6 +137,7 @@ export default function ClassDetailPage() {
       );
       setEnrollments(studentsRes.students ?? []);
       setFormerEnrollments(studentsRes.former_students ?? []);
+      setReportIndicatorEnabled((studentsRes as any).report_indicator_enabled !== false);
       if (isStaff) {
         const visJson = await fetchJsonWithTimeout(
           `/api/progression/path-visibility?class_id=${id}`,
@@ -973,7 +975,7 @@ export default function ClassDetailPage() {
                           {currentTermStudents.length} active
                           {inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
                           {offBandCount ? <span className="text-amber-400"> · {offBandCount} off-band</span> : ''}
-                          {currentTermStudents.length > 0 && (
+                          {reportIndicatorEnabled && currentTermStudents.length > 0 && (
                             <span className={needsReportCount ? 'text-amber-400' : 'text-emerald-400'}>
                               {' · '}{reportedCount}/{currentTermStudents.length} reports{' '}
                               {needsReportCount ? (
@@ -1073,8 +1075,8 @@ export default function ClassDetailPage() {
                                 )}
                                 {/* Progress-report indicator (THIS term) — green = published, amber = needs
                                     attention. Teachers get a one-tap link into the report builder for that
-                                    exact student; schools/others just see the status. */}
-                                {(() => {
+                                    exact student; schools/others just see the status. Admin-toggleable. */}
+                                {reportIndicatorEnabled && (() => {
                                   const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
                                   const title = student.has_published_report
                                     ? `Progress report published for ${student.report_term ?? 'this term'}`

@@ -1742,6 +1742,7 @@ function SettingsPageContent() {
                           { key: 'lms_gamification_enabled', label: 'Learning Rewards & Badges',    desc: 'XP points, badges, and leaderboard.' },
                           { key: 'lms_auto_certificates',    label: 'Automatic Certificates',       desc: 'Generate certificates when a student finishes a course.' },
                           { key: 'lms_course_locking',       label: 'Step-by-Step Learning Mode',  desc: 'Students must finish lessons in order before moving ahead.' },
+                          { key: 'show_report_indicator',    label: 'Progress Report Indicator',    desc: 'Show who still needs a published report on rosters, cards and the dashboard.' },
                         ].map(opt => (
                           <div key={opt.key} className="flex items-start justify-between py-2">
                             <div className="max-w-md"><p className="font-bold text-sm">{opt.label}</p><p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p></div>

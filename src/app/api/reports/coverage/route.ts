@@ -24,6 +24,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
+    const { isReportIndicatorEnabled } = await import('@/lib/server/app-settings');
+    if (!(await isReportIndicatorEnabled(admin))) {
+      return NextResponse.json({ enabled: false, termLabel: currentTermLabel(), total: 0, withReport: 0, pending: [] });
+    }
+
     let q = admin.from('portal_users')
       .select('id, full_name, school_name, class_id, section_class, classes:class_id(name)')
       .eq('role', 'student').eq('is_active', true);

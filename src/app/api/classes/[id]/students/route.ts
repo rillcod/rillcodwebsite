@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { reportCoverageForStudents, currentTermLabel } from '@/lib/reports/coverage';
+import { isReportIndicatorEnabled } from '@/lib/server/app-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -191,16 +192,19 @@ export async function GET(
       ...students.map((s: any) => s.id),
       ...formerStudents.map((s: any) => s.id),
     ].filter(Boolean);
-    const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds);
-    const termLabel = currentTermLabel();
-    const withReport = (s: any) => ({
-      ...s,
-      has_published_report: publishedSet.has(s.id),
-      has_draft_report: draftedSet.has(s.id),
-      report_term: termLabel,
-    });
-    students = students.map(withReport);
-    formerStudents = formerStudents.map(withReport);
+    const reportIndicatorEnabled = await isReportIndicatorEnabled(admin);
+    if (reportIndicatorEnabled) {
+      const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds);
+      const termLabel = currentTermLabel();
+      const withReport = (s: any) => ({
+        ...s,
+        has_published_report: publishedSet.has(s.id),
+        has_draft_report: draftedSet.has(s.id),
+        report_term: termLabel,
+      });
+      students = students.map(withReport);
+      formerStudents = formerStudents.map(withReport);
+    }
 
     // ── Sync current_students count from DB (not from local array) ───────────
     const { count: liveCount } = await admin
@@ -224,6 +228,7 @@ export async function GET(
         },
         max_students: cls.max_students,
         total: actualCount,
+        report_indicator_enabled: reportIndicatorEnabled,
       },
       { headers: { 'Cache-Control': 'no-store' } },
     );
