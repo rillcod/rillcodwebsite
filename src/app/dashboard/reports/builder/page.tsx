@@ -333,6 +333,46 @@ function TermYearFields({ term, period, set, prominent = false }: {
     );
 }
 
+// Single source of truth for the "locked reporting period" UI — used both in step 1
+// (editable via unlock) and read-only in the Session Settings bar. Keeps the lock
+// visuals + wording in ONE place (DRY) instead of repeating the chip markup.
+function ReportingPeriodLock({ term, period, set, unlocked, setUnlocked, readOnly = false }: {
+    term: string;
+    period: string;
+    set: React.Dispatch<React.SetStateAction<SessionConfig>>;
+    unlocked: boolean;
+    setUnlocked: (v: boolean) => void;
+    readOnly?: boolean;
+}) {
+    if (readOnly || !unlocked) {
+        return (
+            <div className="flex flex-wrap items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-3">
+                <span className="text-emerald-400">🔒</span>
+                <p className="text-[11px] text-emerald-300 font-bold">
+                    Creating <span className="underline">{term || '—'}</span> reports for <span className="underline">{period || '— set year —'}</span>.
+                </p>
+                {!readOnly && (
+                    <button type="button" onClick={() => setUnlocked(true)}
+                        className="ml-auto text-[10px] font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-300 underline underline-offset-2">
+                        Change period
+                    </button>
+                )}
+            </div>
+        );
+    }
+    return (
+        <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TermYearFields term={term} period={period} set={set} prominent />
+            </div>
+            <button type="button" onClick={() => setUnlocked(false)}
+                className="text-[10px] font-black uppercase tracking-wider text-primary hover:opacity-80 underline underline-offset-2">
+                🔒 Lock to this period
+            </button>
+        </>
+    );
+}
+
 function DurationField({ value, set, prominent = false, placeholder = false, alsoSetTerm = false }: {
     value: string;
     set: React.Dispatch<React.SetStateAction<SessionConfig>>;
@@ -1950,7 +1990,11 @@ function ReportBuilderInner() {
                                 className={INPUT} />
                         </Field>
                         {isSchoolSection(sessionConfig.school_section) ? (
-                            <TermYearFields term={sessionConfig.report_term} period={sessionConfig.report_period} set={setSessionConfig} />
+                            // Term & Academic Year live in the step-1 lock — read-only here to avoid a duplicate editor.
+                            <Field label="Term & Academic Year">
+                                <ReportingPeriodLock term={sessionConfig.report_term} period={sessionConfig.report_period}
+                                    set={setSessionConfig} unlocked={false} setUnlocked={() => {}} readOnly />
+                            </Field>
                         ) : (
                             <DurationField value={sessionConfig.course_duration} set={setSessionConfig} alsoSetTerm />
                         )}
@@ -2259,30 +2303,8 @@ function ReportBuilderInner() {
                             ) : isSchoolSection(sessionConfig.school_section) ? (
                                 <>
                                     {/* Locked to the current term (like the Results page). Unlock only to backfill another period. */}
-                                    {!periodUnlocked ? (
-                                        <div className="flex flex-wrap items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-4 py-3">
-                                            <span className="text-emerald-400">🔒</span>
-                                            <p className="text-[11px] text-emerald-300 font-bold">
-                                                Creating <span className="underline">{sessionConfig.report_term || '—'}</span> reports for <span className="underline">{sessionConfig.report_period || '— set year —'}</span>.
-                                            </p>
-                                            <button type="button" onClick={() => setPeriodUnlocked(true)}
-                                                className="ml-auto text-[10px] font-black uppercase tracking-wider text-emerald-400 hover:text-emerald-300 underline underline-offset-2">
-                                                Change period
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                <TermYearFields term={sessionConfig.report_term} period={sessionConfig.report_period} set={setSessionConfig} prominent />
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button type="button" onClick={() => setPeriodUnlocked(false)}
-                                                    className="text-[10px] font-black uppercase tracking-wider text-primary hover:opacity-80 underline underline-offset-2">
-                                                    🔒 Lock to this period
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
+                                    <ReportingPeriodLock term={sessionConfig.report_term} period={sessionConfig.report_period}
+                                        set={setSessionConfig} unlocked={periodUnlocked} setUnlocked={setPeriodUnlocked} />
                                 </>
                             ) : (
                                 <>
