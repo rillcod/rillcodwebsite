@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
 import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
+import { getAccountValuables } from '@/lib/students/account-valuables';
 
 function adminClient() {
     return createClient(
@@ -84,6 +85,7 @@ export async function DELETE(
     _req: NextRequest,
     context: { params: Promise<{ id: string }> },
 ) {
+    const delBody = await _req.json().catch(() => ({} as Record<string, unknown>));
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -136,6 +138,19 @@ export async function DELETE(
 
         if (!allowed) {
             return NextResponse.json({ error: 'You can only delete students from your assigned school' }, { status: 403 });
+        }
+    }
+
+    // Safety gate: warn before destroying a PAID ID card or a PUBLISHED progress report
+    // (with its term + year) unless the caller has explicitly confirmed.
+    if (delBody.confirmDestroy !== true && student?.user_id) {
+        const valuables = await getAccountValuables(admin, student.user_id, id);
+        if (valuables.hasValuables) {
+            return NextResponse.json({
+                requiresConfirmation: true,
+                error: `${valuables.summary} Deleting removes it permanently.`,
+                valuables,
+            }, { status: 409 });
         }
     }
 

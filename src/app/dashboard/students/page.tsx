@@ -756,11 +756,25 @@ export default function StudentsPage() {
   };
 
   // ── DELETE (enrolled portal student) ──────────────────────
-  const handleDeleteEnrolledStudent = async (id: string, name: string) => {
-    if (!confirm(`Delete ${name}'s portal account? This permanently removes their login, progress and all records.`)) return;
+  const handleDeleteEnrolledStudent = async (id: string, name: string, confirmDestroy = false) => {
+    if (!confirmDestroy && !confirm(`Delete ${name}'s portal account? This permanently removes their login, progress and all records.`)) return;
     setDeleting(id);
     try {
-      const res = await fetch(`/api/portal-users/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/portal-users/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmDestroy }),
+      });
+      if (res.status === 409) {
+        // Account holds a paid ID card and/or published reports — surface exactly what would be
+        // lost (incl. report term + year) and require an explicit second confirmation.
+        const j = await res.json().catch(() => ({}));
+        setDeleting(null);
+        if (confirm(`⚠ ${j.error}\n\nAre you SURE you want to permanently delete ${name}? This cannot be undone and the ID card was already paid for.`)) {
+          await handleDeleteEnrolledStudent(id, name, true);
+        }
+        return;
+      }
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error ?? 'Failed to delete student');

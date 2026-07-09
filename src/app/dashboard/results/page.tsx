@@ -2043,7 +2043,7 @@ tbody tr:hover{background:#f3f4f6}
                                             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     ) : reportToDisplay ? (
-                                         <div className="overflow-auto bg-muted p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh' }}>
+                                         <div data-theme="light" className="overflow-auto p-2 sm:p-6 lg:p-8" style={{ maxHeight: '75vh', background: '#e5e7eb', colorScheme: 'light' }}>
                                             <ScaledReportCard report={reportToDisplay} responsive={template === 'modern'}>
                                                 {template === 'standard' ? (
                                                     <ReportCard report={reportToDisplay} orgSettings={orgSettings} />
@@ -2239,7 +2239,9 @@ tbody tr:hover{background:#f3f4f6}
 
             {/* ══ Off-screen div — single PDF capture ══ */}
             <div className="print:hidden" style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
-                <div ref={printableRef}>
+                {/* Force LIGHT so the report renders/downloads correctly even when the app is in dark
+                    mode (otherwise inherited dark colours poisoned the PDF capture). */}
+                <div ref={printableRef} data-theme="light" style={{ background: '#ffffff', color: '#111827', colorScheme: 'light' }}>
                     {reportToDisplay && (
                         template === 'modern' ? (
                             <ModernReportCard report={reportToDisplay} orgSettings={orgSettings} />
@@ -2254,7 +2256,7 @@ tbody tr:hover{background:#f3f4f6}
 
             {/* ══ Off-screen div — batch PDF capture (one at a time) ══ */}
             <div className="print:hidden" style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none', zIndex: -100 }} aria-hidden="true">
-                <div ref={captureRef}>
+                <div ref={captureRef} data-theme="light" style={{ background: '#ffffff', color: '#111827', colorScheme: 'light' }}>
                     {captureReport && (
                         template === 'modern' ? (
                             <ModernReportCard report={captureReport} orgSettings={orgSettings} />

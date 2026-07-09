@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
 import { cleanStudentName } from '@/lib/students/clean-name';
 import { canonicalGrade } from '@/lib/classes/naming';
+import { getAccountValuables } from '@/lib/students/account-valuables';
 
 function adminClient() {
   return createClient(
@@ -191,6 +192,21 @@ export async function DELETE(
 
     if (!pu.school_id || !assignedIds.includes(pu.school_id)) {
       return NextResponse.json({ error: 'You can only delete students from your assigned school' }, { status: 403 });
+    }
+  }
+
+  // ── Safety gate: never let a same-name mix-up quietly destroy a PAID ID card or a
+  // PUBLISHED progress report. If the account holds either and the caller hasn't explicitly
+  // confirmed, return 409 with exactly what would be lost (incl. report term + year). ──
+  if (delBody.confirmDestroy !== true && pu) {
+    const { data: sRow } = await admin.from('students').select('id').eq('user_id', id).maybeSingle();
+    const valuables = await getAccountValuables(admin, id, (sRow as any)?.id ?? null);
+    if (valuables.hasValuables) {
+      return NextResponse.json({
+        requiresConfirmation: true,
+        error: `${valuables.summary} Deleting removes it permanently.`,
+        valuables,
+      }, { status: 409 });
     }
   }
 
