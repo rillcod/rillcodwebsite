@@ -76,7 +76,8 @@ export async function GET(request: Request) {
       id: card.id,
       card_number: card.card_number,
       holder_type: card.holder_type,
-      holder_id: card.portal_users?.id ?? null,
+      // NOTE: the holder's UUID is intentionally NOT returned — for legacy cards the raw
+      // UUID doubles as a result-access credential, so it must not be broadcast publicly.
       status: card.status,
       issued_at: card.issued_at,
       expires_at: card.expires_at,

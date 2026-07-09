@@ -256,6 +256,16 @@ export async function GET(
     if (viaCredential && viaCredential === student.id) authorized = true;
   }
   if (!authorized) {
+    // Backward-compat: the OLDEST cards encoded the student's raw UUID as the scannable
+    // code (QR → /verify/<uuid>). Possessing that UUID — which resolves to exactly this
+    // student — authorizes viewing their published results, the same as the RC code does
+    // for newer cards. The UUID is v4-random (not enumerable) and is no longer echoed by
+    // any public endpoint, so this keeps legacy cards working without a broad exposure.
+    const raw = String(accessCodeParam ?? id ?? '').trim().toLowerCase();
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    if (UUID_RE.test(raw) && raw === String(student.id).toLowerCase()) authorized = true;
+  }
+  if (!authorized) {
     await logResultAccessEvent(db, req, {
       action: 'result_check_blocked',
       studentId: student.id,
