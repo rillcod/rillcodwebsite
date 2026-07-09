@@ -8440,6 +8440,88 @@ export type Database = {
         }
         Relationships: []
       }
+      session_recordings: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          egress_id: string | null
+          ended_at: string | null
+          error: string | null
+          id: string
+          program_id: string | null
+          r2_key: string | null
+          school_id: string | null
+          session_id: string
+          size_bytes: number | null
+          started_at: string
+          started_by: string | null
+          status: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          egress_id?: string | null
+          ended_at?: string | null
+          error?: string | null
+          id?: string
+          program_id?: string | null
+          r2_key?: string | null
+          school_id?: string | null
+          session_id: string
+          size_bytes?: number | null
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          egress_id?: string | null
+          ended_at?: string | null
+          error?: string | null
+          id?: string
+          program_id?: string | null
+          r2_key?: string | null
+          school_id?: string | null
+          session_id?: string
+          size_bytes?: number | null
+          started_at?: string
+          started_by?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_recordings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_recordings_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_recordings_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
       showcase_items: {
         Row: {
           academic_year: string
