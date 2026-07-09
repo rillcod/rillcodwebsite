@@ -158,7 +158,25 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: data ?? [] });
+
+    let rows = data ?? [];
+    // Opt-in: attach progress-report status (?with_reports=1) so lists like the card studio can
+    // flag students who still need a published report. Bulk-queried, chunked.
+    if (searchParams.get('with_reports') === '1' && rows.length) {
+      const ids = rows.map((r: any) => r.id).filter(Boolean);
+      const published = new Set<string>();
+      for (let i = 0; i < ids.length; i += 300) {
+        const { data: reps } = await admin
+          .from('student_progress_reports')
+          .select('student_id')
+          .in('student_id', ids.slice(i, i + 300))
+          .eq('is_published', true);
+        for (const r of reps ?? []) if ((r as any).student_id) published.add((r as any).student_id);
+      }
+      rows = rows.map((r: any) => ({ ...r, has_published_report: published.has(r.id) }));
+    }
+
+    return NextResponse.json({ data: rows });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Unexpected error' }, { status: 500 });
   }

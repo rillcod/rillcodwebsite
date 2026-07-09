@@ -787,6 +787,10 @@ export default function ClassDetailPage() {
     return !bandCoversGrade(classBand, g);
   };
   const offBandCount = currentTermStudents.filter(isOffBand).length;
+  // Progress-report coverage — how many active students have a PUBLISHED report (the rest
+  // "need attention"). Powers the roster summary + per-student indicator.
+  const reportedCount = currentTermStudents.filter((s: any) => s.has_published_report).length;
+  const needsReportCount = currentTermStudents.length - reportedCount;
 
   // ── Roster search: filter both active and historical lists by name/email. ──
   const rosterQ = rosterSearch.trim().toLowerCase();
@@ -965,6 +969,11 @@ export default function ClassDetailPage() {
                           {currentTermStudents.length} active
                           {inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
                           {offBandCount ? <span className="text-amber-400"> · {offBandCount} off-band</span> : ''}
+                          {currentTermStudents.length > 0 && (
+                            <span className={needsReportCount ? 'text-amber-400' : 'text-emerald-400'}>
+                              {' · '}{reportedCount}/{currentTermStudents.length} reports{needsReportCount ? ` · ${needsReportCount} need one` : ' ✓'}
+                            </span>
+                          )}
                         </p>
                       </div>
                       {isStaff && (
@@ -1049,6 +1058,21 @@ export default function ClassDetailPage() {
                                 {student.grade && (
                                   <span className="ml-2 text-[10px] font-black uppercase tracking-wide text-muted-foreground align-middle">{student.grade}</span>
                                 )}
+                                {/* Progress-report indicator — green = published, amber = needs attention. */}
+                                <span
+                                  title={student.has_published_report
+                                    ? `Progress report published${student.published_reports > 1 ? ` (${student.published_reports})` : ''}`
+                                    : student.draft_reports
+                                      ? 'Report drafted but NOT published yet — needs attention'
+                                      : 'No progress report yet — needs attention'}
+                                  className={`ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide align-middle ${
+                                    student.has_published_report
+                                      ? 'bg-emerald-500/15 text-emerald-400'
+                                      : 'bg-amber-500/15 text-amber-400'
+                                  }`}
+                                >
+                                  {student.has_published_report ? '✓ Report' : student.draft_reports ? 'Draft only' : 'Needs report'}
+                                </span>
                                 {offBand && (
                                   <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="ml-2 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400 align-middle">
                                     Off-band

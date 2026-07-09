@@ -183,6 +183,37 @@ export async function GET(
       console.warn('[class_term_rosters] unable to enrich class roster', err);
     }
 
+    // ── Progress-report status per student — so the roster can flag who still needs a
+    // published report (the "needs attention" indicator). Counts the student's PUBLISHED
+    // reports (scoped to the class term when set) plus any draft, in one bulk query. ──
+    const allRosterIds = [
+      ...students.map((s: any) => s.id),
+      ...formerStudents.map((s: any) => s.id),
+    ].filter(Boolean);
+    const reportStatus: Record<string, { published: number; draft: number }> = {};
+    if (allRosterIds.length) {
+      let repQ = admin
+        .from('student_progress_reports')
+        .select('student_id, is_published, report_term')
+        .in('student_id', allRosterIds);
+      const { data: reps } = await repQ;
+      for (const r of reps ?? []) {
+        const sid = (r as any).student_id;
+        if (!sid) continue;
+        (reportStatus[sid] ??= { published: 0, draft: 0 });
+        if ((r as any).is_published) reportStatus[sid].published += 1;
+        else reportStatus[sid].draft += 1;
+      }
+    }
+    const withReport = (s: any) => ({
+      ...s,
+      published_reports: reportStatus[s.id]?.published ?? 0,
+      draft_reports: reportStatus[s.id]?.draft ?? 0,
+      has_published_report: (reportStatus[s.id]?.published ?? 0) > 0,
+    });
+    students = students.map(withReport);
+    formerStudents = formerStudents.map(withReport);
+
     // ── Sync current_students count from DB (not from local array) ───────────
     const { count: liveCount } = await admin
       .from('portal_users')

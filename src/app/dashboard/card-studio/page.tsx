@@ -547,10 +547,10 @@ export default function CardStudioPage() {
   const loadDesignStudents = (force = false) => {
     if (designStudentsLoaded && !force) return;
     setDesignStudentsLoading(true);
-    fetch('/api/portal-users?role=student&scoped=true&t=' + Date.now())
+    fetch('/api/portal-users?role=student&scoped=true&with_reports=1&t=' + Date.now())
       .then(r => r.json())
       .then(j => {
-        setDesignStudents((j.data ?? []).map((s: any) => ({ id:s.id,full_name:s.full_name,email:s.email??null,school_name:s.school_name??null,section_class:s.section_class??null })));
+        setDesignStudents((j.data ?? []).map((s: any) => ({ id:s.id,full_name:s.full_name,email:s.email??null,school_name:s.school_name??null,section_class:s.section_class??null,has_published_report:!!s.has_published_report })));
         setDesignStudentsLoaded(true);
       }).catch(()=>{}).finally(()=>setDesignStudentsLoading(false));
   };
@@ -1196,6 +1196,8 @@ export default function CardStudioPage() {
                               {sel&&<span className="text-primary-foreground text-[8px]">✓</span>}
                             </div>
                             <p className="text-[10px] font-bold text-foreground truncate flex-1">{s.full_name}</p>
+                            <span title={s.has_published_report ? 'Progress report published' : 'No published progress report — needs attention'}
+                              className={`w-2 h-2 rounded-full flex-shrink-0 ${s.has_published_report ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           </div>
                         );
                       })}
@@ -1220,6 +1222,8 @@ export default function CardStudioPage() {
                           <p className="text-[11px] font-bold text-foreground truncate">{s.full_name}</p>
                           <p className="text-[9px] text-muted-foreground truncate">{s.section_class||'—'}</p>
                         </div>
+                        <span title={s.has_published_report ? 'Progress report published' : 'No published progress report — needs attention'}
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${s.has_published_report ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                       </div>
                     );
                   })}
