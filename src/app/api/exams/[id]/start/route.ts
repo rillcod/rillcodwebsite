@@ -23,6 +23,17 @@ async function postHandler(req: Request, ctx: ApiContext) {
         throw new AppError('This exam is not part of your enrolled programme.', 403);
     }
 
+    // Attendance-eligibility gate ("lms_attendance_threshold"). Fails open when the policy
+    // is 0/unset, so it never wrongly blocks a student.
+    const { checkExamAttendanceEligibility } = await import('@/lib/server/attendance');
+    const att = await checkExamAttendanceEligibility(admin as any, ctx.user!.id);
+    if (!att.eligible) {
+        throw new AppError(
+            `You need at least ${att.threshold}% class attendance to sit this exam (you're at ${att.pct}%). Please attend more live classes.`,
+            403,
+        );
+    }
+
     const session = await examTakingService.startExam(id, ctx.user!.id);
     return NextResponse.json({ success: true, data: session });
 }
