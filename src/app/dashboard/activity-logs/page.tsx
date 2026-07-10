@@ -66,7 +66,10 @@ export default function ActivityLogsPage() {
   const { profile, loading: authLoading } = useAuth();
   const [logs, setLogs] = useState<(ActivityLog | AuditLog)[]>([]);
   const [loading, setLoading] = useState(true);
+  // Admins land on the Audit Trail (the populated, cross-cutting record of sensitive
+  // actions); teachers/school users default to their scoped Activity feed.
   const [type, setType] = useState<LogType>('activity');
+  const [typePinned, setTypePinned] = useState(false);
   const [search, setSearch] = useState('');
   const [eventFilter, setEventFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -76,6 +79,11 @@ export default function ActivityLogsPage() {
   const LIMIT = 50;
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
+
+  // Default admins to the Audit Trail tab once their role is known (unless they've picked one).
+  useEffect(() => {
+    if (!typePinned && profile?.role === 'admin') setType('audit');
+  }, [profile?.role, typePinned]);
 
   const load = useCallback(async () => {
     if (!isStaff) return;
@@ -154,7 +162,7 @@ export default function ActivityLogsPage() {
       {/* Tab Switch */}
       <div className="flex gap-2 bg-white/[0.03] border border-white/[0.08] rounded-xl p-1 w-fit">
         {([['activity', 'Activity Logs', ClipboardDocumentListIcon], ['audit', 'Audit Trail', ShieldCheckIcon]] as const).map(([t, label, Icon]) => (
-          <button key={t} onClick={() => { setType(t); setPage(1); }}
+          <button key={t} onClick={() => { setType(t); setTypePinned(true); setPage(1); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${type === t ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
             <Icon className="w-4 h-4" /> {label}
           </button>
