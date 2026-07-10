@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireLiveSessionUser, canManageLiveSession } from '@/lib/live-sessions/authz';
 import { r2Delete } from '@/lib/r2/client';
+import { logAudit } from '@/lib/audit/log';
 import type { Database } from '@/types/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -62,5 +63,12 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ rec
   if (key) { try { await r2Delete(key); } catch { /* object may already be gone */ } }
   const { error } = await ctx.admin.from('session_recordings').delete().eq('id', recordingId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(ctx.admin as any, {
+    action: 'delete_recording',
+    actorId: ctx.caller.id,
+    resourceType: 'session_recording',
+    resourceId: recordingId,
+    oldValue: key ?? null,
+  });
   return NextResponse.json({ ok: true, deleted: true });
 }

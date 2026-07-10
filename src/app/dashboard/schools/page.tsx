@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
+import SchoolWipeButton from '@/components/schools/SchoolWipeButton';
 import { createClient } from '@/lib/supabase/client';
 import {
   BuildingOfficeIcon, MagnifyingGlassIcon, PlusIcon,
@@ -724,9 +725,11 @@ export default function SchoolsPage() {
                               <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                             </button>
                             <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
-                              className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/15">
-                              <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
+                              title="Deactivate (soft) — records preserved, restorable"
+                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/10 hover:bg-amber-600/20 text-amber-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-amber-500/15">
+                              <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Deactivate'}
                             </button>
+                            <SchoolWipeButton school={{ id: s.id, name: s.name }} onWiped={() => setSchools(prev => prev.filter(x => x.id !== s.id))} />
                             {(s.status === 'pending' || !s.status) && (
                               <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
                                 className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-emerald-900/20">
@@ -756,9 +759,11 @@ export default function SchoolsPage() {
                             <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
                           </button>
                           <button onClick={() => handleDeleteSchool(s.id)} disabled={deleting === s.id}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-rose-500/15 whitespace-nowrap">
-                            <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Del'}
+                            title="Deactivate (soft) — records preserved, restorable"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-amber-600/10 hover:bg-amber-600/20 text-amber-400 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 border border-amber-500/15 whitespace-nowrap">
+                            <XCircleIcon className="w-3.5 h-3.5" /> {deleting === s.id ? '…' : 'Deactivate'}
                           </button>
+                          <SchoolWipeButton school={{ id: s.id, name: s.name }} onWiped={() => setSchools(prev => prev.filter(x => x.id !== s.id))} />
                           {(s.status === 'pending' || !s.status) && (
                             <button onClick={() => updateStatus(s.id, 'approved')} disabled={acting === s.id}
                               className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 whitespace-nowrap shadow-lg shadow-emerald-900/20">

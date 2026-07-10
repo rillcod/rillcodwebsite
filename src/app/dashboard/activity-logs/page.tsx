@@ -161,7 +161,7 @@ export default function ActivityLogsPage() {
 
       {/* Tab Switch */}
       <div className="flex gap-2 bg-white/[0.03] border border-white/[0.08] rounded-xl p-1 w-fit">
-        {([['activity', 'Activity Logs', ClipboardDocumentListIcon], ['audit', 'Audit Trail', ShieldCheckIcon]] as const).map(([t, label, Icon]) => (
+        {([['audit', 'Audit Trail', ShieldCheckIcon], ['activity', 'System Errors', ClipboardDocumentListIcon]] as const).map(([t, label, Icon]) => (
           <button key={t} onClick={() => { setType(t); setTypePinned(true); setPage(1); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${type === t ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-card-foreground/60 hover:text-card-foreground hover:bg-white/5'}`}>
             <Icon className="w-4 h-4" /> {label}

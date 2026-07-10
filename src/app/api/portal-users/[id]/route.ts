@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { logAudit } from '@/lib/audit/log';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
 import { cleanStudentName } from '@/lib/students/clean-name';
@@ -289,6 +290,16 @@ export async function DELETE(
 
   // Best-effort auth removal in case the SQL side could not reach auth.users.
   await admin.auth.admin.deleteUser(id).catch(() => {});
+
+  // Audit the deletion — who removed which account (survives the deleted user via SET NULL).
+  await logAudit(admin as any, {
+    action: 'delete_user',
+    actorId: caller.id,
+    resourceType: 'portal_user',
+    resourceId: id,
+    oldValue: `${pu?.role ?? 'user'} · ${pu?.email ?? id}`,
+    newValues: { role: pu?.role ?? null, school_id: pu?.school_id ?? null, reassignToTeacherId },
+  });
 
   return NextResponse.json({ success: true, hardDeleted: true });
 }
