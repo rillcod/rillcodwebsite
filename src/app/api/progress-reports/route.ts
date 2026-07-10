@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database, TablesInsert, TablesUpdate } from '@/types/supabase';
 import crypto from 'crypto';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 
 function adminClient() {
   return createClient<Database>(
@@ -74,6 +75,8 @@ function publishValidationIssues(report: PublishCandidate) {
   if (!scoreReady(metrics.classwork_score)) issues.push('classwork_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.practical_score)) issues.push('practical_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.attendance_score)) issues.push('attendance_score must be between 0 and 100 before publishing');
+  if (metrics.assignment_evidence_missing === true) issues.push('assignment evidence is missing; review and enter the real assignment score before publishing');
+  if (metrics.attendance_evidence_missing === true) issues.push('attendance evidence is missing; review and enter the real attendance score before publishing');
   if (!scoreReady(report.participation_score)) issues.push('participation_score must be between 0 and 100 before publishing');
   if (!scoreReady(metrics.assessment_score)) issues.push('assessment_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.overall_score)) issues.push('overall_score must be between 0 and 100 before publishing');
@@ -144,12 +147,19 @@ export async function POST(request: NextRequest) {
   if (updatePayload.student_id) {
     const { data: student } = await admin
       .from('portal_users')
-      .select('school_id, school_name')
+      .select('school_id, school_name, class_id')
       .eq('id', String(updatePayload.student_id))
       .maybeSingle();
     const studentSchoolId = student?.school_id ?? null;
     if (caller.role !== 'admin' && (!studentSchoolId || !allowedSchoolIds.includes(studentSchoolId))) {
       return NextResponse.json({ error: 'Forbidden student scope' }, { status: 403 });
+    }
+    if (caller.role === 'teacher') {
+      const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
+      const studentClassId = (student as any)?.class_id as string | null;
+      if (!studentClassId || !classScope.classIds.includes(studentClassId)) {
+        return NextResponse.json({ error: 'You can only create or update reports for students in classes you own.' }, { status: 403 });
+      }
     }
     if (studentSchoolId) {
       updatePayload.school_id = studentSchoolId;

@@ -1296,9 +1296,9 @@ function ReportBuilderInner() {
             const assignmentAvg = asgnGrades.length > 0
                 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length)
                 : 0;
-            const totalAsgn = allAssignments.data?.length || 8;
+            const totalAsgn = allAssignments.data?.length || 0;
             const gradedAsgn = subRes.data?.length || 0;
-            const assignmentPct = Math.round((gradedAsgn / totalAsgn) * 100);
+            const assignmentPct = totalAsgn > 0 ? Math.round((gradedAsgn / totalAsgn) * 100) : 0;
             // Evaluation score = best CBT score where exam_type = 'evaluation'
             const evalScore = topCbtScore(allCbt, 'evaluation', sessionConfig.course_id || null, statsProgramId);
             const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
@@ -1307,7 +1307,7 @@ function ReportBuilderInner() {
 
             setStudentStats({
                 attendance: attRes.data?.length || 0,
-                totalSessions: sessionIds.length || 12,
+                totalSessions: sessionIds.length,
                 assignments: gradedAsgn,
                 totalAssignments: totalAsgn,
                 cbtScore,
@@ -1479,11 +1479,13 @@ function ReportBuilderInner() {
                 const cbtScore = topCbtScore(scopedCbt, 'examination');
                 const asgnGrades = subRes.data?.filter((x: any) => x.grade != null).map(assignmentPctOf) as number[] || [];
                 const asgnAvg = asgnGrades.length > 0 ? Math.round(asgnGrades.reduce((a, b) => a + b, 0) / asgnGrades.length) : 0;
-                const totalAsgn = allAsgn.data?.length || 8;
-                const assigPct = Math.round((subRes.data?.length || 0) / totalAsgn * 100);
+                const totalAsgn = allAsgn.data?.length || 0;
+                const hasAssignmentEvidence = totalAsgn > 0;
+                const assigPct = hasAssignmentEvidence ? Math.round((subRes.data?.length || 0) / totalAsgn * 100) : 0;
                 const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
                 const projectPct = Math.min(100, Math.round((projectCount / 3) * 100));
-                const attPct = sessionIds.length > 0 ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 80;
+                const hasAttendanceEvidence = sessionIds.length > 0;
+                const attPct = hasAttendanceEvidence ? Math.min(100, Math.round((attRes.data?.length || 0) / sessionIds.length * 100)) : 0;
                 // Assessment: prefer explicit evaluation CBT, then blend project/submission consistency.
                 const evalScore = topCbtScore(scopedCbt, 'evaluation') || Math.min(100, Math.round(projectPct * 0.6 + assigPct * 0.4));
 
@@ -1543,7 +1545,7 @@ function ReportBuilderInner() {
                     practical_score:     practical,
                     attendance_score:    assignments,
                     participation_score: attendance,
-                    engagement_metrics:  { classwork_score: classwork, assessment_score: assessment },
+                    engagement_metrics:  { classwork_score: classwork, assessment_score: assessment, assignment_evidence_missing: !hasAssignmentEvidence, attendance_evidence_missing: !hasAttendanceEvidence },
                     overall_score: overall,
                     overall_grade: bulkWaecCode,
                     proficiency_level: overall >= 80 ? 'advanced' : overall >= 50 ? 'intermediate' : 'beginner',

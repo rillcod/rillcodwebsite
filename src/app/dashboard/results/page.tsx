@@ -711,7 +711,7 @@ function ResultsPageInner() {
     // Publish ALL draft reports at once (no per-report preview) — for when there are many to push.
     const [bulkPublishing, setBulkPublishing] = useState(false);
     const handleBulkPublish = async () => {
-        if (!confirm('Publish ALL your draft reports now? They become visible to students/parents. You won\'t preview each one.')) return;
+        if (!confirm('Validate and publish all ready drafts now? Incomplete drafts will stay unpublished and be reported back to you.')) return;
         setBulkPublishing(true);
         try {
             const res = await fetch('/api/progress-reports/bulk-publish', {
@@ -719,7 +719,10 @@ function ResultsPageInner() {
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.error || 'Failed to publish');
-            alert(j.published ? `Published ${j.published} report${j.published !== 1 ? 's' : ''}.` : 'No drafts to publish.');
+            const skipped = Number(j.skipped ?? 0);
+            const summary = j.published ? `Published ${j.published} report${j.published !== 1 ? 's' : ''}.` : 'No ready drafts were published.';
+            const skippedDetail = skipped ? ` ${skipped} incomplete draft${skipped !== 1 ? 's were' : ' was'} left unpublished.${j.failures?.[0]?.issues?.[0] ? ` First issue: ${j.failures[0].issues[0]}` : ''}` : '';
+            alert(summary + skippedDetail);
             setRefreshTick(t => t + 1);
             if (selectedStudent) loadStudentReport(selectedStudent);
         } catch (e: any) {

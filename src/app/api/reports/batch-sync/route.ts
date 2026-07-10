@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
+import { getCurrentAcademicYear } from '@/lib/reports/academic-period';
 
 function adminClient() {
   return createClient(
@@ -91,13 +93,25 @@ export async function POST(request: NextRequest) {
     .eq('id', course_id)
     .maybeSingle();
   const programId = (courseMeta as any)?.program_id ?? null;
+  const reportPeriod = typeof body.report_period === 'string' && body.report_period.trim()
+    ? body.report_period.trim()
+    : getCurrentAcademicYear();
   const teacherSchoolIds =
     caller.role === 'teacher'
       ? await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null)
       : [];
+  const teacherClassScope = caller.role === 'teacher'
+    ? await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null)
+    : null;
 
   if (caller.role === 'teacher' && teacherSchoolIds.length === 0) {
     return NextResponse.json({ error: 'No school scope assigned for this teacher' }, { status: 403 });
+  }
+  if (caller.role === 'teacher' && (!teacherClassScope || teacherClassScope.classIds.length === 0)) {
+    return NextResponse.json({ error: 'No owned class scope assigned for this teacher' }, { status: 403 });
+  }
+  if (caller.role === 'teacher' && class_id && !teacherClassScope!.classIds.includes(class_id)) {
+    return NextResponse.json({ error: 'You can only build reports for classes you own' }, { status: 403 });
   }
   
   // 1. Fetch Students in the specified School/Class
@@ -114,6 +128,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (caller.role === 'teacher') {
+    studentQuery = studentQuery.in('class_id', teacherClassScope!.classIds);
     studentQuery = studentQuery.in('school_id', teacherSchoolIds);
     if (school_id && !teacherSchoolIds.includes(school_id)) {
       return NextResponse.json({ error: 'Forbidden school scope' }, { status: 403 });
@@ -180,9 +195,10 @@ export async function POST(request: NextRequest) {
 
       // Assignments Submitted - 20%
       const gradedCount = subRes.data?.length || 0;
-      const assignmentScore = totalAssignmentsCount > 0
-        ? Math.round((gradedCount / totalAssignmentsCount) * 100) 
-        : 80; // Default to 80 if no assignments yet
+      const hasAssignmentEvidence = totalAssignmentsCount > 0;
+      const assignmentScore = hasAssignmentEvidence
+        ? Math.round((gradedCount / totalAssignmentsCount) * 100)
+        : 0; // No invented mark: teacher must review and enter evidence manually.
 
       // Attendance - 10%
       const attendanceScore = attRes.data?.length ? Math.min(100, attRes.data.length * 10) : 0;
@@ -210,16 +226,17 @@ export async function POST(request: NextRequest) {
         course_id: course_id,
         course_name: course_name,
         report_term: report_term,
+        report_period: reportPeriod,
         report_date: report_date,
         instructor_name: instructor_name || caller.full_name,
         theory_score: theoryScore,
         practical_score: practicalScore,
         attendance_score: assignmentScore,
         participation_score: attendanceScore,
-        engagement_metrics: { classwork_score: classworkScore, assessment_score: assessmentScore },
+        engagement_metrics: { classwork_score: classworkScore, assessment_score: assessmentScore, assignment_evidence_missing: !hasAssignmentEvidence },
         overall_score: overallScore,
         overall_grade: reportGrade,
-        is_published: publish_immediately,
+        is_published: false,
         updated_at: new Date().toISOString(),
       };
 
@@ -230,13 +247,13 @@ export async function POST(request: NextRequest) {
         .eq('student_id', student.id)
         .eq('course_id', course_id)
         .eq('report_term', report_term)
+        .eq('report_period', reportPeriod)
         .maybeSingle();
 
-      if (existing) {
-        await admin.from('student_progress_reports').update(payload).eq('id', existing.id);
-      } else {
-        await admin.from('student_progress_reports').insert(payload);
-      }
+      const { error: writeError } = existing
+        ? await admin.from('student_progress_reports').update(payload).eq('id', existing.id)
+        : await admin.from('student_progress_reports').insert(payload);
+      if (writeError) throw writeError;
       
       results.push({ student: student.full_name, status: 'success' });
     } catch (err: any) {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { reportCoverageForStudents, currentTermLabel } from '@/lib/reports/coverage';
+import { reportCoverageForStudents, currentAcademicPeriod, currentTermLabel } from '@/lib/reports/coverage';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +50,8 @@ export async function GET() {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const list = students ?? [];
     const ids = list.map((s: any) => s.id);
-    const { published, drafted } = await reportCoverageForStudents(admin, ids);
+    const academicPeriod = currentAcademicPeriod();
+    const { published, drafted } = await reportCoverageForStudents(admin, ids, academicPeriod);
 
     const pending = list
       .filter((s: any) => !published.has(s.id))
@@ -64,7 +65,8 @@ export async function GET() {
       .sort((a: any, b: any) => (a.className ?? '').localeCompare(b.className ?? '') || (a.full_name ?? '').localeCompare(b.full_name ?? ''));
 
     return NextResponse.json({
-      termLabel: currentTermLabel(),
+      termLabel: academicPeriod.termLabel,
+      periodLabel: academicPeriod.periodLabel,
       total: list.length,
       withReport: published.size,
       pendingCount: pending.length,

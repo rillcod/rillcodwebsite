@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getCurrentTermLabel } from '@/lib/reports/academic-period';
+import { getCurrentAcademicYear, getCurrentTermLabel } from '@/lib/reports/academic-period';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -12,7 +12,7 @@ type AnySupabase = SupabaseClient<any>;
 export async function reportCoverageForStudents(
   admin: AnySupabase,
   studentIds: string[],
-  opts?: { termLabel?: string | null; scopeToTerm?: boolean },
+  opts?: { termLabel?: string | null; periodLabel?: string | null; scopeToTerm?: boolean },
 ): Promise<{ published: Set<string>; drafted: Set<string> }> {
   const published = new Set<string>();
   const drafted = new Set<string>();
@@ -20,14 +20,16 @@ export async function reportCoverageForStudents(
   if (ids.length === 0) return { published, drafted };
 
   const term = opts?.scopeToTerm === false ? null : (opts?.termLabel ?? getCurrentTermLabel());
+  const period = opts?.scopeToTerm === false ? null : (opts?.periodLabel ?? getCurrentAcademicYear());
 
   for (let i = 0; i < ids.length; i += 300) {
     const batch = ids.slice(i, i + 300);
     let q = admin
       .from('student_progress_reports')
-      .select('student_id, is_published, report_term')
+      .select('student_id, is_published, report_term, report_period')
       .in('student_id', batch);
     if (term) q = q.eq('report_term', term);
+    if (period) q = q.eq('report_period', period);
     const { data } = await q;
     for (const r of data ?? []) {
       const sid = (r as any).student_id;
@@ -42,6 +44,10 @@ export async function reportCoverageForStudents(
 }
 
 /** The current term label, exposed so callers/UI can label the coverage ("Second Term"). */
+export function currentAcademicPeriod(): { termLabel: string; periodLabel: string } {
+  return { termLabel: getCurrentTermLabel(), periodLabel: getCurrentAcademicYear() };
+}
+
 export function currentTermLabel(): string {
   return getCurrentTermLabel();
 }

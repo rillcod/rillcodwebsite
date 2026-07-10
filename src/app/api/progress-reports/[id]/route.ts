@@ -6,6 +6,7 @@ import { queueService } from '@/services/queue.service';
 import { buildReportEmail, buildEmailTrackingPixelUrl, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import crypto from 'crypto';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 
 function adminClient() {
   return createClient<Database>(
@@ -76,6 +77,8 @@ function publishValidationIssues(report: Partial<ProgressReportRow>) {
   if (!scoreReady(metrics.classwork_score)) issues.push('classwork_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.practical_score)) issues.push('practical_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.attendance_score)) issues.push('attendance_score must be between 0 and 100 before publishing');
+  if (metrics.assignment_evidence_missing === true) issues.push('assignment evidence is missing; review and enter the real assignment score before publishing');
+  if (metrics.attendance_evidence_missing === true) issues.push('attendance evidence is missing; review and enter the real attendance score before publishing');
   if (!scoreReady(report.participation_score)) issues.push('participation_score must be between 0 and 100 before publishing');
   if (!scoreReady(metrics.assessment_score)) issues.push('assessment_score must be between 0 and 100 before publishing');
   if (!scoreReady(report.overall_score)) issues.push('overall_score must be between 0 and 100 before publishing');
@@ -128,24 +131,22 @@ async function syncStudentProfile(
 async function canModifyReport(caller: any, reportId: string) {
   if (caller.role === 'admin') return true;
   const admin = adminClient();
-  const teacherSchoolIds = await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null);
-  const { data: report } = await admin
-    .from('student_progress_reports')
-    .select('id, school_id, student_id, teacher_id')
-    .eq('id', reportId)
-    .maybeSingle();
-  if (!report) return false;
-  // Ownership: teachers can only modify their own reports
-  if ((report as any).teacher_id !== caller.id) return false;
-  const reportSchoolId = (report as any).school_id as string | null;
-  if (reportSchoolId) return teacherSchoolIds.includes(reportSchoolId);
-  const { data: student } = await admin
-    .from('portal_users')
-    .select('school_id')
-    .eq('id', (report as any).student_id)
-    .maybeSingle();
+  const [teacherClassScope, teacherSchoolIds] = await Promise.all([
+    getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null),
+    getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null),
+  ]);
+  const { data: report } = await admin.from('student_progress_reports')
+    .select('id, school_id, student_id, teacher_id').eq('id', reportId).maybeSingle();
+  if (!report || (report as any).teacher_id !== caller.id) return false;
+  const { data: student } = await admin.from('portal_users')
+    .select('school_id, class_id').eq('id', (report as any).student_id).maybeSingle();
   const studentSchoolId = (student as any)?.school_id as string | null;
-  return !!studentSchoolId && teacherSchoolIds.includes(studentSchoolId);
+  const studentClassId = (student as any)?.class_id as string | null;
+  const reportSchoolId = (report as any).school_id as string | null;
+  return !!studentClassId
+    && teacherClassScope.classIds.includes(studentClassId)
+    && !!(studentSchoolId || reportSchoolId)
+    && teacherSchoolIds.includes(studentSchoolId || reportSchoolId!);
 }
 
 // PATCH /api/progress-reports/[id] — update specific fields (e.g. course_name)
