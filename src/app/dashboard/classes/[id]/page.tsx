@@ -88,6 +88,7 @@ export default function ClassDetailPage() {
   const [creatingNewClass, setCreatingNewClass] = useState(false);
   const [transferRequests, setTransferRequests] = useState<any[]>([]);
   const [transferCandidate, setTransferCandidate] = useState<any | null>(null);
+  const [showBulkTransferModal, setShowBulkTransferModal] = useState(false);
   const [transferReason, setTransferReason] = useState('');
   const [transferBusy, setTransferBusy] = useState<string | null>(null);
   const [declineCandidate, setDeclineCandidate] = useState<any | null>(null);
@@ -317,6 +318,31 @@ export default function ClassDetailPage() {
     finally { setTransferBusy(null); }
   };
 
+  const submitAllTransferRequests = async () => {
+    const students = availableStudents.filter((student: any) => student.requires_transfer_request && !student.pending_transfer_request_id);
+    if (students.length === 0 || transferReason.trim().length < 10) return;
+    setTransferBusy('bulk');
+    const failures: string[] = [];
+    let sent = 0;
+    try {
+      for (const student of students) {
+        try {
+          const res = await fetch('/api/student-transfer-requests', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_id: student.id, to_class_id: id, reason: transferReason.trim() }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || 'Failed to request transfer');
+          sent += 1;
+        } catch (error: any) { failures.push(`${student.full_name}: ${error?.message || 'failed'}`); }
+      }
+      setShowBulkTransferModal(false);
+      setTransferReason('');
+      await Promise.all([loadTransferRequests(), loadAvailableStudents()]);
+      if (failures.length) alert(`${sent} request(s) sent. ${failures.length} failed:\n${failures.join('\n')}`);
+      else alert(`${sent} transfer request${sent === 1 ? '' : 's'} sent successfully.`);
+    } finally { setTransferBusy(null); }
+  };
   const decideTransfer = async (requestId: string, decision: 'approve' | 'decline', note: string | null = null) => {
     setTransferBusy(requestId);
     try {
@@ -2227,6 +2253,7 @@ export default function ClassDetailPage() {
         const unassigned = availableStudents.filter((s: any) => !s.class_id);
         const inOtherClass = availableStudents.filter((s: any) => s.class_id);
         const directlyEnrollable = availableStudents.filter((s: any) => !s.requires_transfer_request);
+        const requestableTransfers = availableStudents.filter((s: any) => s.requires_transfer_request && !s.pending_transfer_request_id);
         const seatsLeft = cls?.max_students ? Math.max(0, cls.max_students - enrollments.length) : Infinity;
         const isFull = seatsLeft <= 0;
         return (
@@ -2298,6 +2325,11 @@ export default function ClassDetailPage() {
                         {directlyEnrollable.length > 0 && selectedStudentIds.size === directlyEnrollable.length ? 'Deselect All' : 'Select Available'}
                       </button>
                       <div className="flex-1" />
+                      {requestableTransfers.length > 0 && (
+                        <button onClick={() => { setTransferReason(''); setShowBulkTransferModal(true); }} className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-[10px] font-bold text-slate-950 rounded-xl transition-all">
+                          Request all {requestableTransfers.length} transfers
+                        </button>
+                      )}
                       {selectedStudentIds.size > 0 && (
                         <button
                           onClick={() => syncSelectedStudents()}
@@ -2557,7 +2589,27 @@ export default function ClassDetailPage() {
           </div>
         </div>
       )}
-      <style dangerouslySetInnerHTML={{ __html: `
+      {showBulkTransferModal && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => transferBusy !== 'bulk' && setShowBulkTransferModal(false)} />
+          <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-card p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-300"><ArrowsRightLeftIcon className="h-5 w-5" /></div>
+              <div><h3 className="font-black text-foreground">Request all available transfers</h3><p className="mt-1 text-xs text-muted-foreground">One reason will be sent for every student owned by another teacher. Existing pending requests are skipped.</p></div>
+            </div>
+            <div className="mt-4 max-h-32 overflow-y-auto rounded-xl border border-border bg-background p-3 text-xs text-muted-foreground">
+              {availableStudents.filter((student: any) => student.requires_transfer_request && !student.pending_transfer_request_id).map((student: any) => <p key={student.id} className="py-0.5"><span className="font-bold text-foreground">{student.full_name}</span> · {student.current_teacher_name || 'Current teacher'}</p>)}
+            </div>
+            <label className="mt-4 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason for all requests</label>
+            <textarea autoFocus rows={4} value={transferReason} onChange={(event) => setTransferReason(event.target.value)} placeholder="Explain why these students should move (at least 10 characters)." className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-amber-500/50" />
+            <p className={`mt-1 text-[10px] ${transferReason.trim().length >= 10 ? 'text-emerald-400' : 'text-muted-foreground'}`}>{transferReason.trim().length}/10 minimum</p>
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={() => setShowBulkTransferModal(false)} disabled={transferBusy === 'bulk'} className="flex-1 rounded-xl border border-border px-4 py-2.5 text-xs font-black text-muted-foreground">Cancel</button>
+              <button type="button" onClick={submitAllTransferRequests} disabled={transferBusy === 'bulk' || transferReason.trim().length < 10} className="flex-[2] rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-950 disabled:opacity-40">{transferBusy === 'bulk' ? 'Sending requests...' : 'Send all requests'}</button>
+            </div>
+          </div>
+        </div>
+      )}      <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
           height: 8px;
