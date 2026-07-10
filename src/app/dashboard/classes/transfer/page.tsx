@@ -227,7 +227,7 @@ export default function ClassTransferPage() {
   return (
     <div className="space-y-6 pb-40 sm:pb-20">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <ArrowsRightLeftIcon className="w-5 h-5 text-primary" />
@@ -238,6 +238,9 @@ export default function ClassTransferPage() {
             Move students from one class to their correct class. Pick a class, select students, choose the destination.
           </p>
         </div>
+        <Link href="/dashboard/classes/transfer-requests" className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-sm rounded-xl transition-colors self-start">
+          <ArrowsRightLeftIcon className="w-4 h-4" /> Ownership Requests
+        </Link>
         <Link href="/dashboard/classes"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-xl transition-colors self-start">
           <ArrowLeftIcon className="w-4 h-4" /> Back to Classes

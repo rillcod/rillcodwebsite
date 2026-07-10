@@ -1141,6 +1141,9 @@ export default function ClassDetailPage() {
                           <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/50 transition-colors">
                             <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" /> Transfer / Move
                           </Link>
+                          <Link href={`/dashboard/classes/transfer-requests?class=${id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-black text-amber-400 hover:bg-amber-500/20 transition-colors">
+                            <ArrowsRightLeftIcon className="h-3.5 w-3.5" /> Ownership Requests
+                          </Link>
                           <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
                             Add Students
                           </button>

@@ -118,7 +118,14 @@ export default function ClassesPage() {
             Create and manage classes, track enrolment, and assign lessons and assessments.
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3 sm:flex-shrink-0">
+          <Link
+            href="/dashboard/classes/transfer-requests"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 font-bold text-sm rounded-xl transition-colors"
+          >
+            <ArrowsRightLeftIcon className="w-4 h-4" />
+            Transfer Requests
+          </Link>
           <Link
             href="/dashboard/classes/transfer"
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-xl transition-colors"
