@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
 import { canonicalGrade } from '@/lib/classes/naming';
+import { isAutoPortalsOn } from '@/lib/server/lms-policy';
 
 function adminClient() {
   return createClient(
@@ -191,8 +192,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create student registration' }, { status: 500 });
     }
 
+    // "Instant Student Access" (lms_auto_portals): when ON, the just-registered student is
+    // auto-activated into a portal account by the client; when OFF, they stay a pending
+    // application for staff to activate later. Explicit class placement always activates.
+    const autoActivate = await isAutoPortalsOn(supabase);
+
     return NextResponse.json(
-      { message: 'Student registration successful', student: newStudent },
+      { message: 'Student registration successful', student: newStudent, auto_activate: autoActivate },
       { status: 201 }
     );
 

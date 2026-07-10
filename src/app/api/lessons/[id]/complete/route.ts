@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { isCourseLockingOn, isAutoCertificatesOn } from '@/lib/server/lms-policy';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
@@ -34,7 +36,7 @@ export async function POST(
     // 2. Check if lesson exists and get course context
     const { data: lesson, error: lessonError } = await supabase
       .from('lessons')
-      .select('id, title, course_id, courses!course_id(program_id)')
+      .select('id, title, course_id, order_index, courses!course_id(program_id)')
       .eq('id', lessonId)
       .single();
 
@@ -43,6 +45,28 @@ export async function POST(
     }
 
     const programId = (lesson as any).courses?.program_id;
+    const admin = createAdminClient();
+
+    // "Step-by-Step Learning" (lms_course_locking): a lesson can only be completed once every
+    // EARLIER lesson in the same course is done — so the path unlocks in order.
+    if (await isCourseLockingOn(admin as any)) {
+      const myOrder = (lesson as any).order_index ?? 0;
+      const { data: earlier } = await admin
+        .from('lessons').select('id').eq('course_id', (lesson as any).course_id).lt('order_index', myOrder);
+      const earlierIds = (earlier ?? []).map((l: any) => l.id);
+      if (earlierIds.length > 0) {
+        const { data: doneRows } = await admin
+          .from('lesson_progress').select('lesson_id')
+          .eq('portal_user_id', profile.id).in('lesson_id', earlierIds).not('completed_at', 'is', null);
+        const doneIds = new Set((doneRows ?? []).map((r: any) => r.lesson_id));
+        if (earlierIds.some((lid: string) => !doneIds.has(lid))) {
+          return NextResponse.json(
+            { error: 'Finish the earlier lessons first — this course unlocks step by step.' },
+            { status: 403 },
+          );
+        }
+      }
+    }
 
     // 3. Verify enrollment
     const { data: enrollment } = await supabase
@@ -106,12 +130,37 @@ export async function POST(
       `Completed lesson: ${lesson.title}`
     );
 
+    // "Automatic Certificates" (lms_auto_certificates): when this completion finishes the WHOLE
+    // course (every lesson done), issue the course certificate automatically. Idempotent.
+    let certificateIssued = false;
+    if ((lesson as any).course_id && await isAutoCertificatesOn(admin as any)) {
+      try {
+        const { data: courseLessons } = await admin
+          .from('lessons').select('id').eq('course_id', (lesson as any).course_id);
+        const allIds = (courseLessons ?? []).map((l: any) => l.id);
+        if (allIds.length > 0) {
+          const { data: doneRows } = await admin
+            .from('lesson_progress').select('lesson_id')
+            .eq('portal_user_id', profile.id).in('lesson_id', allIds).not('completed_at', 'is', null);
+          const doneCount = new Set((doneRows ?? []).map((r: any) => r.lesson_id)).size;
+          if (doneCount >= allIds.length) {
+            const { certificateService } = await import('@/services/certificate.service');
+            await certificateService.issueCertificate(profile.id, (lesson as any).course_id);
+            certificateIssued = true;
+          }
+        }
+      } catch (certErr) {
+        console.error('[lesson complete] auto-certificate failed (non-fatal):', certErr);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Lesson marked as complete',
       xpAwarded: 10,
       totalPoints,
       newStreak: streak,
+      certificateIssued,
     });
   } catch (error: any) {
     console.error('Error marking lesson complete:', error);

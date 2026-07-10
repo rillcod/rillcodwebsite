@@ -175,7 +175,10 @@ export function AddStudentModal({ isOpen, onClose, onSuccess, initialData, class
 
                 if (!res.ok) throw new Error(json.error || 'Failed to add student');
 
-                if (json.student?.id) {
+                // Respect "Instant Student Access" (lms_auto_portals). When it's OFF the student
+                // stays a pending application — UNLESS placed straight into a class (explicit intent).
+                const shouldActivate = json.auto_activate !== false || !!classId;
+                if (json.student?.id && shouldActivate) {
                     const actRes = await fetch('/api/students/activate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
