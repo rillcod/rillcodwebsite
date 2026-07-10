@@ -12,94 +12,65 @@ async function requireStaff() {
 }
 
 /**
- * GET /api/activity-logs
- * Cursor-based pagination (Req 10): 20 rows per page ordered by created_at DESC, id DESC.
+ * GET /api/activity-logs — page-numbered log listing (matches the UI: page + limit + total).
  *
  * Query params:
- *   type              — 'activity' (default) | 'audit'
- *   cursor_created_at — ISO timestamp cursor
- *   cursor_id         — UUID cursor
+ *   type       — 'audit' (admin only, from audit_logs) | 'activity' (default, from activity_logs)
+ *   page       — 1-based page number (default 1)
+ *   limit      — rows per page (default 50, max 100)
  *   user_id, event_type, from, to — filters
+ *
+ * One code path serves both log types (config only) so ordering, filters and pagination never
+ * drift between them.
  */
 export async function GET(request: Request) {
   const user = await requireStaff();
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { searchParams } = new URL(request.url);
-  const type = searchParams.get('type') || 'activity';
-  const cursorCreatedAt = searchParams.get('cursor_created_at');
-  const cursorId = searchParams.get('cursor_id');
+  const type = searchParams.get('type') === 'audit' ? 'audit' : 'activity';
   const userId = searchParams.get('user_id');
   const eventType = searchParams.get('event_type');
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10) || 50));
+  const offset = (page - 1) * limit;
+
+  // The audit trail (sensitive deletes, approvals, role changes) is admin-only. Teachers/school
+  // users get the school-scoped activity feed instead.
+  if (type === 'audit' && user.role !== 'admin') {
+    return NextResponse.json({ error: 'Audit log is restricted to admins' }, { status: 403 });
+  }
 
   const db = createAdminClient();
+  // audit_logs has TWO FKs to portal_users (user_id + actor_id) so the embed MUST name one.
+  const cfg = type === 'audit'
+    ? { table: 'audit_logs', select: '*, portal_users!audit_logs_user_id_fkey(id, full_name, email, role)', eventCol: 'action' }
+    : { table: 'activity_logs', select: '*, portal_users(id, full_name, email, role)', eventCol: 'event_type' };
 
-  if (type === 'audit') {
-    // The audit trail records sensitive cross-school actions (deletes, payment
-    // approvals, role changes) — restrict it to platform admins. Teachers/schools
-    // get the school-scoped activity feed below, not the global audit log.
-    if (user.role !== 'admin') {
-      return NextResponse.json({ error: 'Audit log is restricted to admins' }, { status: 403 });
-    }
-    let q = db
-      .from('audit_logs')
-      // audit_logs has TWO FKs to portal_users (user_id + actor_id), so the embed MUST name
-      // one or PostgREST 300s ("could not embed / more than one relationship") — this was the
-      // 'failed to load'. Resolve the actor via user_id (kept in sync by logAudit).
-      .select('*, portal_users!audit_logs_user_id_fkey(id, full_name, email, role)')
+  const applyFilters = <T extends { eq: any; gte: any; lte: any }>(q: T): T => {
+    let out: any = q;
+    if (type === 'activity' && user.role !== 'admin' && user.school_id) out = out.eq('school_id', user.school_id);
+    if (userId) out = out.eq('user_id', userId);
+    if (eventType) out = out.eq(cfg.eventCol, eventType);
+    if (from) out = out.gte('created_at', from);
+    if (to) out = out.lte('created_at', to);
+    return out;
+  };
+
+  // Total (for page count) + this page's rows, same filters on both.
+  const countQ = applyFilters(db.from(cfg.table as any).select('id', { count: 'exact', head: true }) as any);
+  const rowsQ = applyFilters(
+    db.from(cfg.table as any)
+      .select(cfg.select)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
-      .limit(21);
+      .range(offset, offset + limit - 1) as any,
+  );
 
-    if (userId) q = q.eq('user_id', userId) as any;
-    if (eventType) q = q.eq('action', eventType) as any;
-    if (from) q = q.gte('created_at', from) as any;
-    if (to) q = q.lte('created_at', to) as any;
-    if (cursorCreatedAt && cursorId) {
-      q = q.or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`) as any;
-    }
-
-    const { data, error } = await q;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-    const rows = data ?? [];
-    const hasMore = rows.length === 21;
-    const page = hasMore ? rows.slice(0, 20) : rows;
-    const last = page[page.length - 1] as any;
-    return NextResponse.json({
-      data: page,
-      nextCursor: hasMore && last ? { created_at: last.created_at, id: last.id } : null,
-    });
-  }
-
-  // activity logs
-  let q = db
-    .from('activity_logs')
-    .select('*, portal_users(id, full_name, email, role)')
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
-    .limit(21);
-
-  if (user.role !== 'admin' && user.school_id) q = q.eq('school_id', user.school_id) as any;
-  if (userId) q = q.eq('user_id', userId) as any;
-  if (eventType) q = q.eq('event_type', eventType) as any;
-  if (from) q = q.gte('created_at', from) as any;
-  if (to) q = q.lte('created_at', to) as any;
-  if (cursorCreatedAt && cursorId) {
-    q = q.or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`) as any;
-  }
-
-  const { data, error } = await q;
+  const [{ count }, { data, error }] = await Promise.all([countQ, rowsQ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const rows = data ?? [];
-  const hasMore = rows.length === 21;
-  const page = hasMore ? rows.slice(0, 20) : rows;
-  const last = page[page.length - 1] as any;
-  return NextResponse.json({
-    data: page,
-    nextCursor: hasMore && last ? { created_at: last.created_at, id: last.id } : null,
-  });
+  return NextResponse.json({ data: data ?? [], total: count ?? 0, page, limit });
 }

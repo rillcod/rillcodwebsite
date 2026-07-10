@@ -27,13 +27,60 @@ interface AuditLog {
   id: string;
   user_id: string | null;
   action: string;
+  resource_type: string | null;
+  resource_id: string | null;
   table_name: string | null;
   record_id: string | null;
+  old_value: string | null;
+  new_value: string | null;
   old_values: Record<string, any> | null;
   new_values: Record<string, any> | null;
   ip_address: string | null;
   created_at: string;
   portal_users?: { full_name: string; email: string; role: string } | null;
+}
+
+// Plain-English label for an action code. Known actions get a hand-written phrase; anything
+// else is prettified from snake_case so the trail is always readable, never a raw code.
+const ACTION_PHRASES: Record<string, string> = {
+  delete_school: 'Deleted a school',
+  delete_user: 'Deleted an account',
+  delete_recording: 'Deleted a class recording',
+  delete_submission: 'Deleted a submission',
+  delete_receipt: 'Deleted a receipt',
+  grade_submission: 'Graded a submission',
+  accept_ai_grade: 'Accepted an AI grade',
+  override_grade: 'Overrode a grade',
+  result_check_verified: 'Result verified via code',
+  result_check_blocked: 'Result access blocked (wrong code)',
+  result_check_not_found: 'Result code not found',
+  code_sent: 'Verification code sent',
+  approve_payment: 'Approved a payment',
+  mark_paid: 'Marked an invoice paid',
+};
+
+function humanizeAction(action: string): string {
+  if (ACTION_PHRASES[action]) return ACTION_PHRASES[action];
+  const words = (action || 'action').replace(/[_-]+/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+// A short, readable "what changed" from the entry's before/after fields.
+function describeChange(log: AuditLog): string | null {
+  const ov = log.old_value?.trim();
+  const nv = log.new_value?.trim();
+  if (ov && nv) return `${ov} → ${nv}`;
+  if (ov) return ov;
+  if (nv) return nv;
+  const m = log.new_values;
+  if (m && typeof m === 'object') {
+    const parts = Object.entries(m)
+      .filter(([k]) => !k.startsWith('_'))
+      .slice(0, 3)
+      .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+    if (parts.length) return parts.join(' · ');
+  }
+  return null;
 }
 
 const EVENT_COLORS: Record<string, string> = {
@@ -205,10 +252,10 @@ export default function ActivityLogsPage() {
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">User</th>
                   {type === 'audit' && (
-                    <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">Table</th>
+                    <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">Item</th>
                   )}
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">
-                    {type === 'activity' ? 'Metadata' : 'Changes'}
+                    {type === 'activity' ? 'Metadata' : 'Details'}
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">IP</th>
                   <th className="text-left px-4 py-3 text-xs font-black uppercase tracking-wider text-card-foreground/40">Time</th>
@@ -216,13 +263,21 @@ export default function ActivityLogsPage() {
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {filteredLogs.map(log => {
-                  const event = 'event_type' in log ? log.event_type : (log as AuditLog).action;
+                  const isAudit = !('event_type' in log);
+                  const rawEvent = 'event_type' in log ? log.event_type : (log as AuditLog).action;
+                  const label = isAudit ? humanizeAction((log as AuditLog).action) : rawEvent;
                   const user = log.portal_users;
-                  const meta = 'metadata' in log ? (log as ActivityLog).metadata : (log as AuditLog).new_values;
                   const ip = log.ip_address ? String(log.ip_address) : null;
+                  // Readable "what changed" — friendly text for audit, compact JSON for activity.
+                  const change = isAudit
+                    ? describeChange(log as AuditLog)
+                    : (() => {
+                        const m = (log as ActivityLog).metadata;
+                        return m && Object.keys(m).length > 0 ? JSON.stringify(m) : null;
+                      })();
                   return (
                     <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-4 py-3"><EventBadge event={event} /></td>
+                      <td className="px-4 py-3"><EventBadge event={label} /></td>
                       <td className="px-4 py-3">
                         {user ? (
                           <div>
@@ -230,19 +285,17 @@ export default function ActivityLogsPage() {
                             <p className="text-card-foreground/40 text-[10px]">{user.email}</p>
                           </div>
                         ) : (
-                          <span className="text-card-foreground/30 text-xs">System</span>
+                          <span className="text-card-foreground/30 text-xs">{isAudit ? 'System / automatic' : 'System'}</span>
                         )}
                       </td>
                       {type === 'audit' && (
-                        <td className="px-4 py-3 text-xs font-mono text-card-foreground/60">
-                          {'table_name' in log ? (log as AuditLog).table_name ?? '—' : '—'}
+                        <td className="px-4 py-3 text-xs text-card-foreground/60 capitalize">
+                          {((log as AuditLog).resource_type || (log as AuditLog).table_name || '—').toString().replace(/_/g, ' ')}
                         </td>
                       )}
                       <td className="px-4 py-3">
-                        {meta && Object.keys(meta).length > 0 ? (
-                          <pre className="text-[10px] text-card-foreground/60 font-mono max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
-                            {JSON.stringify(meta)}
-                          </pre>
+                        {change ? (
+                          <span className="block text-xs text-card-foreground/70 max-w-[280px] truncate" title={change}>{change}</span>
                         ) : <span className="text-card-foreground/30 text-xs">—</span>}
                       </td>
                       <td className="px-4 py-3 text-xs font-mono text-card-foreground/40">{ip ?? '—'}</td>
