@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
@@ -47,6 +48,16 @@ export async function POST(request: NextRequest) {
         .update({ is_published: true, published_at: nowIso })
         .in('id', batch);
       if (!error) published += batch.length;
+    }
+
+    if (published > 0) {
+      await logAudit(admin as any, {
+        action: 'publish_progress_reports',
+        actorId: caller.id,
+        resourceType: 'progress_report',
+        newValue: `Published ${published} report(s)${term ? ` for ${term}` : ''}`,
+        newValues: { published, term },
+      });
     }
 
     return NextResponse.json({ published, term });

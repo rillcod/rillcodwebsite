@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
@@ -189,7 +190,7 @@ export async function DELETE(
 
   const { data: cls } = await admin
     .from('classes')
-    .select('school_id')
+    .select('school_id, name')
     .eq('id', id)
     .maybeSingle();
 
@@ -213,5 +214,12 @@ export async function DELETE(
   const { error } = await admin.from('classes').delete().eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await logAudit(admin as any, {
+    action: 'delete_class',
+    actorId: caller.id,
+    resourceType: 'class',
+    resourceId: id,
+    oldValue: (cls as any)?.name ?? null,
+  });
   return NextResponse.json({ success: true });
 }

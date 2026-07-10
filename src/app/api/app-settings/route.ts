@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
@@ -98,6 +99,15 @@ export async function PUT(request: NextRequest) {
     .upsert(rows, { onConflict: 'key' });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Audit platform-policy changes — who changed which settings to what.
+  await logAudit(adminClient() as any, {
+    action: 'update_platform_settings',
+    actorId: (caller as any)?.id ?? null,
+    resourceType: 'app_settings',
+    newValue: settings.map(s => `${s.key}=${s.value}`).join(', ').slice(0, 500),
+    newValues: Object.fromEntries(settings.map(s => [s.key, s.value])),
+  });
 
   return NextResponse.json({ success: true });
 }
