@@ -8,6 +8,7 @@ import { isParentCaptured } from '@/lib/parent-claim/captured';
 import { backfillParentLinkFromConsent } from '@/lib/parent-claim/consent-backfill';
 import { getStudentRecordGaps } from '@/lib/parent-claim/record-enrichment';
 import { resolveStudentFromCode } from '@/lib/parent-claim/resolve';
+import { logAudit } from '@/lib/audit/log';
 import { resolveLinkedPortalAccess, resendPortalLoginsForScan } from '@/lib/parent-claim/portal-access';
 import { accessCardCodeBody, accessCardCodeForStudent, accessCardCodeMatchesStudent, normalizeAccessCardCode } from '@/lib/access-card-code';
 import type { Database, Json } from '@/types/supabase';
@@ -67,16 +68,17 @@ async function logResultAccessEvent(
       ...(entry.details ?? {}),
     };
 
-    await db.from('audit_logs').insert({
+    await logAudit(db as any, {
       action: entry.action,
-      resource_type: RESULT_ACCESS_RESOURCE,
-      resource_id: entry.studentId ?? null,
-      table_name: entry.studentId ? 'portal_users' : null,
-      record_id: entry.studentId ?? null,
-      ip_address: getClientIp(req),
-      user_agent: req.headers.get('user-agent'),
-      new_values: newValues,
-      created_at: new Date().toISOString(),
+      // Public scan — no staff actor; ip/user-agent are the accountability context.
+      actorId: null,
+      resourceType: RESULT_ACCESS_RESOURCE,
+      resourceId: entry.studentId ?? null,
+      tableName: entry.studentId ? 'portal_users' : null,
+      recordId: entry.studentId ?? null,
+      ip: getClientIp(req),
+      userAgent: req.headers.get('user-agent'),
+      newValues: newValues as Record<string, unknown>,
     });
   } catch (err) {
     console.warn('[result-check audit] failed (non-fatal):', err);

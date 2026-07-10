@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
@@ -136,15 +137,15 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     const { error } = await admin.from('assignment_submissions').update(updateData as any).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Write audit log
-    await admin.from('audit_logs').insert({
-      actor_id: caller.id,
-      resource_type: 'assignment_submission',
-      resource_id: id,
+    // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
+    await logAudit(admin as any, {
       action: auditAction,
-      old_value: String(submission.grade ?? submission.ai_suggested_grade ?? ''),
-      new_value: String(updateData.grade ?? ''),
-    }).then(({ error }) => { if (error) console.error('[audit_log]', error.message); });
+      actorId: caller.id,
+      resourceType: 'assignment_submission',
+      resourceId: id,
+      oldValue: String(submission.grade ?? submission.ai_suggested_grade ?? ''),
+      newValue: String(updateData.grade ?? ''),
+    });
 
     // Send notifications (in-app and email) when graded
     if (studentId) {

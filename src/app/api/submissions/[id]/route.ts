@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
@@ -157,15 +158,15 @@ export async function PATCH(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Write audit log
-    await admin.from('audit_logs').insert({
-      actor_id: caller.id,
-      resource_type: 'assignment_submission',
-      resource_id: id,
+    // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
+    await logAudit(admin as any, {
       action: 'grade_submission',
-      old_value: String(sub.grade ?? ''),
-      new_value: String(allowed.grade ?? ''),
-    }).then(({ error }) => { if (error) console.error('[audit_log]', error.message); });
+      actorId: caller.id,
+      resourceType: 'assignment_submission',
+      resourceId: id,
+      oldValue: String(sub.grade ?? ''),
+      newValue: String(allowed.grade ?? ''),
+    });
 
     // Send notifications (in-app and email) when graded
     if ((body.status === 'graded' || body.grade != null) && data?.portal_user_id) {
@@ -260,15 +261,14 @@ export async function DELETE(
     const { error } = await admin.from('assignment_submissions').delete().eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Write audit log
-    await admin.from('audit_logs').insert({
-      actor_id: caller.id,
-      resource_type: 'assignment_submission',
-      resource_id: id,
+    // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
+    await logAudit(admin as any, {
       action: 'delete_submission',
-      old_value: String(sub.grade ?? ''),
-      new_value: '',
-    }).then(({ error }) => { if (error) console.error('[audit_log delete]', error.message); });
+      actorId: caller.id,
+      resourceType: 'assignment_submission',
+      resourceId: id,
+      oldValue: String(sub.grade ?? ''),
+    });
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
@@ -264,15 +265,15 @@ export async function POST(
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       
-      // Write audit log
-      await admin.from('audit_logs').insert({
-        actor_id: caller.id,
-        resource_type: 'assignment_submission',
-        resource_id: data.id,
+      // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
+      await logAudit(admin as any, {
         action: 'grade_submission',
-        old_value: String(existingSub?.grade ?? ''),
-        new_value: String(data.grade ?? ''),
-      }).then(({ error }) => { if (error) console.error('[audit_log]', error.message); });
+        actorId: caller.id,
+        resourceType: 'assignment_submission',
+        resourceId: data.id,
+        oldValue: String(existingSub?.grade ?? ''),
+        newValue: String(data.grade ?? ''),
+      });
 
       if (updatePayload.graded_by && data?.portal_user_id) {
         sendGradeNotifications(
@@ -309,15 +310,15 @@ export async function POST(
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-      // Write audit log
-      await admin.from('audit_logs').insert({
-        actor_id: caller.id,
-        resource_type: 'assignment_submission',
-        resource_id: data.id,
+      // Write audit log (standard helper — keeps user_id in sync so the actor resolves)
+      await logAudit(admin as any, {
         action: 'grade_submission',
-        old_value: String(existingSub?.grade ?? ''),
-        new_value: String(data.grade ?? ''),
-      }).then(({ error }) => { if (error) console.error('[audit_log]', error.message); });
+        actorId: caller.id,
+        resourceType: 'assignment_submission',
+        resourceId: data.id,
+        oldValue: String(existingSub?.grade ?? ''),
+        newValue: String(data.grade ?? ''),
+      });
 
       if (data?.portal_user_id) {
         sendGradeNotifications(

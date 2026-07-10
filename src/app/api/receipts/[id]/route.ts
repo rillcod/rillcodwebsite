@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
@@ -66,18 +67,14 @@ export async function DELETE(
     deleted_at: new Date().toISOString(),
   };
 
-  // Write to audit_logs table for queryable trail
-  await admin.from('audit_logs').insert({
-    actor_id: user.id,
-    user_id: user.id,
-    resource_type: 'receipt',
-    resource_id: id,
-    action: 'deleted',
-    old_value: `${(receipt as any).receipt_number} · ${(receipt as any).currency} ${(receipt as any).amount}`,
-    new_value: reason,
-  }).then(null, (err: unknown) => {
-    // Non-fatal — fall back to console log if audit_logs insert fails
-    console.warn('[RECEIPT DELETED — audit_logs insert failed]', err);
+  // Write to audit_logs table for queryable trail (standard helper)
+  await logAudit(admin as any, {
+    action: 'delete_receipt',
+    actorId: user.id,
+    resourceType: 'receipt',
+    resourceId: id,
+    oldValue: `${(receipt as any).receipt_number} · ${(receipt as any).currency} ${(receipt as any).amount}`,
+    newValue: reason,
   });
 
   // Structured server log as secondary trail
