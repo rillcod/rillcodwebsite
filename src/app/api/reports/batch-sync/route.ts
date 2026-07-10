@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { getCurrentAcademicYear } from '@/lib/reports/academic-period';
+import { evidencePercentage, isEvidenceWithinPeriod, relevantAssignmentsForReport } from '@/lib/reports/evidence';
 
 function adminClient() {
   return createClient(
@@ -96,6 +97,13 @@ export async function POST(request: NextRequest) {
   const reportPeriod = typeof body.report_period === 'string' && body.report_period.trim()
     ? body.report_period.trim()
     : getCurrentAcademicYear();
+  const { data: academicTerm } = await admin.from('academic_terms')
+    .select('id, start_date, end_date')
+    .eq('academic_year', reportPeriod).eq('term_label', report_term).maybeSingle();
+  const termId = (academicTerm as any)?.id ?? null;
+  if (!termId) {
+    return NextResponse.json({ error: 'No canonical academic term found for ' + report_term + ' ' + reportPeriod + '. Configure the academic term before generating reports.' }, { status: 400 });
+  }
   const teacherSchoolIds =
     caller.role === 'teacher'
       ? await getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null)
@@ -150,7 +158,7 @@ export async function POST(request: NextRequest) {
   // 2. Fetch Global data for calculations (Assignments in this course/school)
   let assignmentQuery = admin
     .from('assignments')
-    .select('id, max_points')
+    .select('id, max_points, class_id, term_id')
     .eq('course_id', course_id)
     .eq('is_active', true);
   if (caller.role === 'teacher') {
@@ -159,52 +167,60 @@ export async function POST(request: NextRequest) {
     assignmentQuery = assignmentQuery.eq('school_id', school_id) as typeof assignmentQuery;
   }
   const { data: allAssignments } = await assignmentQuery;
-    
-  const totalAssignmentsCount = allAssignments?.length || 0;
 
   // 3. Process each student
   const results = [];
   for (const student of students) {
     try {
-      // Parallel fetch student-specific data
-      const [attRes, subRes, cbtRes, labRes, portfolioRes] = await Promise.all([
-        // Attendance
-        admin.from('attendance').select('id, status').eq('user_id', student.id).eq('status', 'present'),
-        // Graded Submissions
+      const relevantAssignments = relevantAssignmentsForReport(allAssignments ?? [], student.class_id, termId);
+      const relevantAssignmentIds = new Set(relevantAssignments.map((assignment: any) => assignment.id));
+      let sessionQuery = admin.from('class_sessions').select('id').eq('class_id', student.class_id).eq('is_active', true);
+      if (termId) sessionQuery = sessionQuery.eq('term_id', termId);
+      const { data: classSessions } = await sessionQuery;
+      const sessionIds = (classSessions ?? []).map((session: any) => session.id);
+
+      const [attRes, subRes, cbtRes, labRes] = await Promise.all([
+        sessionIds.length
+          ? admin.from('attendance').select('id, status').eq('user_id', student.id).in('session_id', sessionIds).eq('status', 'present')
+          : Promise.resolve({ data: [] as any[] }),
         admin.from('assignment_submissions').select('grade, assignment_id, assignments!inner(course_id, assignment_type, max_points)').eq('portal_user_id', student.id).eq('status', 'graded').eq('assignments.course_id', course_id),
-        // CBT scores
-        admin.from('cbt_sessions').select('score, status, needs_grading, cbt_exams(course_id, program_id, metadata)').eq('user_id', student.id).order('score', { ascending: false }),
-        // Projects
-        admin.from('lab_projects').select('id').eq('user_id', student.id),
-        admin.from('portfolio_projects').select('id').eq('user_id', student.id),
+        admin.from('cbt_sessions').select('score, status, needs_grading, end_time, cbt_exams(course_id, program_id, metadata)').eq('user_id', student.id).order('score', { ascending: false }),
+        admin.from('lab_projects').select('id, assignment_id').eq('user_id', student.id),
       ]);
+      const scopedSubmissions = (subRes.data ?? []).filter((submission: any) => relevantAssignmentIds.has(submission.assignment_id));
+      const scopedCbtRows = (cbtRes.data ?? []).filter((session: any) =>
+        isEvidenceWithinPeriod(session.end_time, academicTerm?.start_date, academicTerm?.end_date),
+      );
+      const scopedLabProjects = (labRes.data ?? []).filter((project: any) => project.assignment_id && relevantAssignmentIds.has(project.assignment_id));
 
       // CALCULATION LOGIC (Matching the Report Builder's 6-component WAEC pattern)
       
       // Theory / Written Tests - 20% - Best CBT examination score
-      const theoryScore = topCbtScore(cbtRes.data || [], course_id, 'examination', programId);
+      const theoryScore = topCbtScore(scopedCbtRows, course_id, 'examination', programId);
 
       // Classwork - 10% - current proxy: graded homework/classwork average
-      const grades = (subRes.data || []).filter((s: any) => s.grade != null).map(assignmentPct) as number[];
+      const grades = scopedSubmissions.filter((s: any) => s.grade != null).map(assignmentPct) as number[];
       const asgnAvg = grades.length > 0 ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length) : 0;
       const classworkScore = asgnAvg;
       
       // Practical / Projects - 25%
-      const projectCount = (labRes.data?.length || 0) + (portfolioRes.data?.length || 0);
+      const projectCount = scopedLabProjects.length;
       const practicalScore = Math.min(100, Math.round((projectCount / 3) * 100));
 
       // Assignments Submitted - 20%
-      const gradedCount = subRes.data?.length || 0;
+      const gradedCount = scopedSubmissions.length;
+      const totalAssignmentsCount = relevantAssignments.length;
       const hasAssignmentEvidence = totalAssignmentsCount > 0;
       const assignmentScore = hasAssignmentEvidence
-        ? Math.round((gradedCount / totalAssignmentsCount) * 100)
+        ? evidencePercentage(gradedCount, totalAssignmentsCount)
         : 0; // No invented mark: teacher must review and enter evidence manually.
 
       // Attendance - 10%
-      const attendanceScore = attRes.data?.length ? Math.min(100, attRes.data.length * 10) : 0;
+      const hasAttendanceEvidence = sessionIds.length > 0;
+      const attendanceScore = hasAttendanceEvidence ? evidencePercentage(attRes.data?.length || 0, sessionIds.length) : 0;
 
       // Mid-term Assessment - 15% - best CBT evaluation score
-      const assessmentScore = topCbtScore(cbtRes.data || [], course_id, 'evaluation', programId) || asgnAvg;
+      const assessmentScore = topCbtScore(scopedCbtRows, course_id, 'evaluation', programId) || asgnAvg;
 
       const overallScore = computeWeightedScore({
         theory: theoryScore,
@@ -233,7 +249,19 @@ export async function POST(request: NextRequest) {
         practical_score: practicalScore,
         attendance_score: assignmentScore,
         participation_score: attendanceScore,
-        engagement_metrics: { classwork_score: classworkScore, assessment_score: assessmentScore, assignment_evidence_missing: !hasAssignmentEvidence },
+        engagement_metrics: {
+          classwork_score: classworkScore,
+          assessment_score: assessmentScore,
+          assignment_evidence_missing: !hasAssignmentEvidence,
+          attendance_evidence_missing: !hasAttendanceEvidence,
+          evidence: {
+            term_id: termId,
+            assignment_ids: [...relevantAssignmentIds],
+            session_ids: sessionIds,
+            lab_project_ids: scopedLabProjects.map((project: any) => project.id),
+            cbt_session_count: scopedCbtRows.length,
+          },
+        },
         overall_score: overallScore,
         overall_grade: reportGrade,
         is_published: false,
