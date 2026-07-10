@@ -45,7 +45,10 @@ export async function GET(request: Request) {
     }
     let q = db
       .from('audit_logs')
-      .select('*, portal_users(id, full_name, email, role)')
+      // audit_logs has TWO FKs to portal_users (user_id + actor_id), so the embed MUST name
+      // one or PostgREST 300s ("could not embed / more than one relationship") — this was the
+      // 'failed to load'. Resolve the actor via user_id (kept in sync by logAudit).
+      .select('*, portal_users!audit_logs_user_id_fkey(id, full_name, email, role)')
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(21);
