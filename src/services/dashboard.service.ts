@@ -443,27 +443,10 @@ export async function fetchAnalyticsOverview(opts: { schoolId?: string; schoolNa
         };
     }
 
-    // 2. If global admin, use optimized Materialized View
-    const [{ data, error }, totalPrograms, avgProgressMetric] = await Promise.all([
-        supabase
-            .from('admin_dashboard_stats')
-            .select('*')
-            .single(),
-        countActivePrograms(),
-        computeAverageProgress(),
-    ]);
-
-    if (!error && data) {
-        return {
-            totalStudents: data.total_students || 0,
-            activeStudents: data.total_students || 0,
-            totalTeachers: data.total_teachers || 0,
-            totalPrograms,
-            avgProgress: avgProgressMetric,
-        };
-    }
-
-    // 3. Fallback to original logic if view fails or name-based filter is used without ID
+    // 2. Global admin — compute LIVE counts. (We deliberately do NOT read the
+    // admin_dashboard_stats materialized view: nothing refreshes it, so it goes stale and
+    // reported wildly wrong totals, e.g. 12 students when there are 850. Live COUNT(*) with
+    // head:true is cheap and always correct.)
     let studAppsQ = db().from('students').select('id', { count: 'exact', head: true });
     let studentPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student');
     let teacherPortalQ = db().from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'teacher');
