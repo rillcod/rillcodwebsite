@@ -1,4 +1,4 @@
-﻿-- Block duplicate active student names within a school while permitting audited,
+-- Block duplicate active student names within a school while permitting audited,
 -- per-student exceptions for genuine twins or distinct children with the same name.
 
 alter table public.portal_users

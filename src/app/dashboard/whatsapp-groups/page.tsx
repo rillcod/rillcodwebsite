@@ -34,6 +34,8 @@ interface Group {
   link: string;
   description: string | null;
   group_type: string;
+  class_id: string | null;
+  owner_teacher_id: string | null;
   class_name: string | null;
   term: string | null;
   status: string;
@@ -588,7 +590,7 @@ export default function WhatsAppGroupsPage() {
 
     // 1. Class Group Gaps: Check if any active class lacks a WhatsApp group of type = 'class' matching its name
     classes.forEach(c => {
-      const hasGroup = groups.some(g => g.group_type === 'class' && (g.class_name === c.name || g.name.toLowerCase().includes(c.name.toLowerCase())));
+      const hasGroup = groups.some(g => g.group_type === 'class' && g.class_id === c.id);
       if (!hasGroup) {
         list.push({
           type: 'class_gap',
@@ -601,6 +603,7 @@ export default function WhatsAppGroupsPage() {
             setForm({
               name: `${c.name} - Class Group`,
               group_type: 'class',
+              class_id: c.id,
               class_name: c.name,
               school_id: c.school_id || '',
               status: 'active',
@@ -1451,10 +1454,15 @@ export default function WhatsAppGroupsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5" style={{ color: '#8696a0' }}>Class / Year</label>
-                  <input value={form.class_name ?? ''} onChange={e => setForm(f => ({ ...f, class_name: e.target.value }))}
-                    placeholder="e.g. JSS1A"
-                    className="w-full text-white text-[13px] rounded-xl px-3 py-2.5 outline-none"
-                    style={{ background: '#2a3942', caretColor: '#00a884' }} />
+                  <select value={form.class_id ?? ''} onChange={e => {
+                    const selectedClass = classes.find(c => c.id === e.target.value);
+                    setForm(f => ({ ...f, class_id: e.target.value || null, class_name: selectedClass?.name ?? null, school_id: selectedClass?.school_id ?? f.school_id }));
+                  }}
+                    className="w-full text-white text-[13px] rounded-xl px-3 py-2.5 outline-none appearance-none"
+                    style={{ background: '#2a3942' }}>
+                    <option value="">{form.group_type === 'class' ? 'Select owned class…' : 'No class'}</option>
+                    {classes.filter(c => !form.school_id || c.school_id === form.school_id).map(c => <option key={c.id} value={c.id}>{c.name}{c.portal_users?.full_name ? ` · ${c.portal_users.full_name}` : ''}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-widest mb-1.5" style={{ color: '#8696a0' }}>Term</label>
@@ -1495,7 +1503,7 @@ export default function WhatsAppGroupsPage() {
                 style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)' }}>
                 Cancel
               </button>
-              <button onClick={saveGroup} disabled={saving || !form.name?.trim() || !form.link?.trim()}
+              <button onClick={saveGroup} disabled={saving || !form.name?.trim() || !form.link?.trim() || (form.group_type === 'class' && !form.class_id)}
                 className="flex-1 py-3 rounded-xl text-white text-[13px] font-black flex items-center justify-center gap-2 disabled:opacity-40 transition-all active:scale-95"
                 style={{ background: '#00a884' }}>
                 {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : editGroup ? 'Update Group' : 'Save Group'}

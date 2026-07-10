@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { evaluateAndTrackMessage } from '@/lib/communication/abusePolicy';
+import { sendWhatsAppDetailed } from '@/lib/whatsapp/send';
 
 function adminClient() {
   return createClient(
@@ -48,115 +49,18 @@ function getWhatsAppConfig() {
   return { url, token };
 }
 
-// Send message via Meta WhatsApp Business API
+// Send through the unified WhatsApp transport.
 async function sendWhatsAppMessage(to: string, message: string) {
-  const { url, token } = getWhatsAppConfig();
-
-  if (!url || !token) {
-    console.warn('[WhatsApp] API credentials not configured. Message saved to DB only.');
-    return { success: false, reason: 'credentials_missing' };
-  }
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: normalizePhone(to),
-        type: 'text',
-        text: {
-          preview_url: false,
-          body: message
-        }
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('[WhatsApp API Error]', data);
-      
-      // Check if it's a "not a WhatsApp user" error
-      const errorMessage = data.error?.message || '';
-      const errorCode = data.error?.code;
-      
-      const isNotWhatsAppUser = errorMessage.toLowerCase().includes('not a whatsapp user') || 
-                                 errorMessage.toLowerCase().includes('phone number is not registered') ||
-                                 errorCode === 131026;
-      
-      // Check for rate limit errors
-      const isRateLimitError = errorCode === 80007 || 
-                                errorCode === 130429 ||
-                                errorMessage.toLowerCase().includes('rate limit') ||
-                                errorMessage.toLowerCase().includes('too many requests');
-      
-      return { 
-        success: false, 
-        reason: isNotWhatsAppUser ? 'not_whatsapp_user' : isRateLimitError ? 'rate_limit' : 'api_error',
-        error: data.error?.message || 'Unknown error',
-        errorCode,
-        isNotWhatsAppUser,
-        isRateLimitError
-      };
-    }
-
-    return { 
-      success: true, 
-      messageId: data.messages?.[0]?.id,
-      data 
-    };
-  } catch (error: any) {
-    console.error('[WhatsApp API Exception]', error);
-    return { 
-      success: false, 
-      reason: 'network_error',
-      error: error.message 
-    };
-  }
+  return sendWhatsAppDetailed({ to, message });
 }
 
 // Send a pre-approved WhatsApp template message (for initiating conversations)
 async function sendWhatsAppTemplate(
   to: string,
   templateName: string,
-  variables: string[], // ordered list of {{1}}, {{2}} values
+  variables: string[],
 ) {
-  const { url, token } = getWhatsAppConfig();
-  if (!url || !token) {
-    return { success: false, reason: 'credentials_missing' };
-  }
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: normalizePhone(to),
-        type: 'template',
-        template: {
-          name: templateName,
-          language: { code: 'en' },
-          components: variables.length > 0 ? [{
-            type: 'body',
-            parameters: variables.map(v => ({ type: 'text', text: v })),
-          }] : [],
-        },
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) return { success: false, error: data.error?.message, errorCode: data.error?.code };
-    return { success: true, messageId: data.messages?.[0]?.id };
-  } catch (err: any) {
-    return { success: false, reason: 'network_error', error: err.message };
-  }
+  return sendWhatsAppDetailed({ to, templateName, templateVariables: variables });
 }
 
 // POST /api/inbox/send — send a message (staff → WhatsApp; learner → inbound portal message)

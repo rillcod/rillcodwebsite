@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
-import { sendWhatsApp } from '@/lib/whatsapp/send';
+import { enqueueWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
+import { hasWhatsAppConsent } from '@/lib/whatsapp/consent';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,11 +86,12 @@ async function handle(req: NextRequest) {
         const childName  = rd.child_name  || 'your child';
         const prog       = progLabel(rd.program_category);
         const phone      = rd.parent_whatsapp;
-        if (!phone?.trim()) continue;
+        if (!phone?.trim() || !hasWhatsAppConsent(rd)) continue;
 
         const msg = `Hi ${parentName}! 👋 Just checking in — have you had a chance to review Rillcod's coding programmes for ${childName}? We'd love to welcome them to the ${prog} class! Reply here or call +234 811 660 0091`;
-        await sendWhatsApp(phone, msg);
-        await logInteraction(lead.contact_id, parentName, 'whatsapp_followup_1', `WhatsApp follow-up 1 sent to ${parentName} for ${childName} (${prog}).`);
+        const delivery = await enqueueWhatsApp(sb, { phone, messageBody: msg, sourceType: 'whatsapp_followup_1', sourceId: lead.id, idempotencyKey: `followup-1:${lead.id}` });
+        if (!delivery.queued) continue;
+        await logInteraction(lead.contact_id, parentName, 'whatsapp_followup_1', `WhatsApp follow-up 1 queued for ${parentName} for ${childName} (${prog}).`);
         results.followup1++;
       } catch { /* continue */ }
     }
@@ -115,11 +117,12 @@ async function handle(req: NextRequest) {
         const childName  = rd.child_name  || 'your child';
         const prog       = progLabel(rd.program_category);
         const phone      = rd.parent_whatsapp;
-        if (!phone?.trim()) continue;
+        if (!phone?.trim() || !hasWhatsAppConsent(rd)) continue;
 
         const msg = `Hi ${parentName}! 🚀 ${childName}'s spot in our ${prog} programme is still available. Spaces are limited — secure their place today! Call: +234 811 660 0091 or reply here.`;
-        await sendWhatsApp(phone, msg);
-        await logInteraction(lead.contact_id, parentName, 'whatsapp_followup_2', `WhatsApp follow-up 2 sent to ${parentName} for ${childName} (${prog}).`);
+        const delivery = await enqueueWhatsApp(sb, { phone, messageBody: msg, sourceType: 'whatsapp_followup_2', sourceId: lead.id, idempotencyKey: `followup-2:${lead.id}` });
+        if (!delivery.queued) continue;
+        await logInteraction(lead.contact_id, parentName, 'whatsapp_followup_2', `WhatsApp follow-up 2 queued for ${parentName} for ${childName} (${prog}).`);
         results.followup2++;
       } catch { /* continue */ }
     }

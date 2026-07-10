@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getTeacherSchoolIds } from '@/lib/auth-utils';
-import type { Database } from '@/types/supabase';
 
 function adminClient() {
-  return createClient<Database>(
+  return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
@@ -67,7 +66,10 @@ export async function GET(req: NextRequest) {
     schools = (sc ?? []) as { id: string; name: string }[];
   }
 
-  return NextResponse.json({ data: data ?? [], schools, caller_role: caller.role });
+  const visible = caller.role === 'teacher'
+    ? (data ?? []).filter((group: any) => !group.class_id || group.owner_teacher_id === caller.id)
+    : (data ?? []);
+  return NextResponse.json({ data: visible, schools, caller_role: caller.role });
 }
 
 // ── POST /api/whatsapp-groups ────────────────────────────────────────────────
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
   if (caller.role === 'school') return NextResponse.json({ error: 'Only teachers and admins can create groups' }, { status: 403 });
 
   const body = await req.json();
-  const { name, link, description, group_type, class_name, term, member_count, school_id } = body;
+  const { name, link, description, group_type, class_name, class_id, term, member_count, school_id } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
   if (!link?.trim())  return NextResponse.json({ error: 'Group link is required' }, { status: 400 });
@@ -87,19 +89,31 @@ export async function POST(req: NextRequest) {
 
   const admin = adminClient();
 
+  let linkedClass: { id: string; name: string; school_id: string | null; teacher_id: string | null } | null = null;
+  if (class_id) {
+    const { data } = await admin.from('classes').select('id, name, school_id, teacher_id').eq('id', class_id).maybeSingle();
+    linkedClass = data as { id: string; name: string; school_id: string | null; teacher_id: string | null } | null;
+    if (!linkedClass) return NextResponse.json({ error: 'Selected class was not found' }, { status: 404 });
+    if (caller.role === 'teacher' && linkedClass.teacher_id !== caller.id) {
+      return NextResponse.json({ error: 'You can attach a WhatsApp group only to a class you own' }, { status: 403 });
+    }
+  } else if ((group_type || 'general') === 'class') {
+    return NextResponse.json({ error: 'Select the owned class for a class WhatsApp group' }, { status: 400 });
+  }
+
   // Resolve school_id and school_name
   let resolvedSchoolId: string | null = null;
   let resolvedSchoolName: string | null = null;
 
   if (caller.role === 'admin') {
-    resolvedSchoolId = school_id || null;
+    resolvedSchoolId = linkedClass?.school_id || school_id || null;
   } else {
     const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id ?? '');
     if (school_id) {
       if (!schoolIds.includes(school_id)) return NextResponse.json({ error: 'Not your school' }, { status: 403 });
-      resolvedSchoolId = school_id;
+      resolvedSchoolId = linkedClass?.school_id || school_id;
     } else {
-      resolvedSchoolId = caller.school_id;
+      resolvedSchoolId = linkedClass?.school_id || caller.school_id;
     }
   }
 
@@ -113,7 +127,9 @@ export async function POST(req: NextRequest) {
     link: link.trim(),
     description: description?.trim() || null,
     group_type: group_type || 'general',
-    class_name: class_name?.trim() || null,
+    class_id: linkedClass?.id ?? null,
+    owner_teacher_id: linkedClass?.teacher_id ?? (caller.role === 'teacher' ? caller.id : null),
+    class_name: linkedClass?.name ?? class_name?.trim() ?? null,
     term: term?.trim() || null,
     member_count: member_count ? Number(member_count) : null,
     school_id: resolvedSchoolId,
@@ -137,10 +153,21 @@ export async function PATCH(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
   const admin = adminClient();
-  const { data: existing } = await admin.from('whatsapp_groups').select('created_by, school_id').eq('id', id).single();
+  const { data: existing } = await admin.from('whatsapp_groups').select('created_by, school_id, class_id, group_type').eq('id', id).single();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (caller.role !== 'admin' && existing.created_by !== caller.id) {
     return NextResponse.json({ error: 'Only the creator or admin can edit this group' }, { status: 403 });
+  }
+
+  if ('class_id' in rest && rest.class_id) {
+    const { data: targetClass } = await admin.from('classes').select('id, teacher_id').eq('id', rest.class_id).maybeSingle();
+    if (!targetClass) return NextResponse.json({ error: 'Selected class was not found' }, { status: 404 });
+    if (caller.role === 'teacher' && targetClass.teacher_id !== caller.id) {
+      return NextResponse.json({ error: 'You can attach a group only to a class you own' }, { status: 403 });
+    }
+  }
+  if ((rest.group_type === 'class' || (rest.group_type == null && (existing as any).group_type === 'class')) && !('class_id' in rest ? rest.class_id : (existing as any).class_id)) {
+    return NextResponse.json({ error: 'Class groups require an owned class' }, { status: 400 });
   }
 
   // Validate link if being updated
@@ -149,7 +176,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Strip unknown keys; whitelist safe columns
-  const allowed = ['name','link','description','group_type','class_name','term','status','member_count','last_broadcast_at'];
+  const allowed = ['name','link','description','group_type','class_id','class_name','term','status','member_count','last_broadcast_at'];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in rest) updates[key] = rest[key] ?? null;

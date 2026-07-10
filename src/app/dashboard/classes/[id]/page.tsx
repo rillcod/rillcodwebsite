@@ -30,7 +30,7 @@ function enrollSkipMessage(json: any, requested: number): string | null {
   if (totalSkipped <= 0 && school.length === 0 && otherTeacher.length === 0) return null;
   const lines: string[] = [`⚠ ${totalSkipped || school.length + otherTeacher.length} not added:`];
   if (school.length) lines.push(`• Different school (blocked): ${school.join(', ')}`);
-  if (otherTeacher.length) lines.push(`• Owned by another teacher — needs an admin: ${otherTeacher.join(', ')}`);
+  if (otherTeacher.length) lines.push(`• Owned by another teacher - use the transfer request: ${otherTeacher.join(', ')}`);
   const accounted = school.length + otherTeacher.length;
   if (totalSkipped > accounted) lines.push(`• ${totalSkipped - accounted} skipped (already enrolled or ineligible).`);
   return lines.join('\n');
@@ -86,6 +86,12 @@ export default function ClassDetailPage() {
   const [schoolsList, setSchoolsList] = useState<any[]>([]);
   const [newClassForm, setNewClassForm] = useState({ name: '', program_id: '', school_id: '', max_students: '' });
   const [creatingNewClass, setCreatingNewClass] = useState(false);
+  const [transferRequests, setTransferRequests] = useState<any[]>([]);
+  const [transferCandidate, setTransferCandidate] = useState<any | null>(null);
+  const [transferReason, setTransferReason] = useState('');
+  const [transferBusy, setTransferBusy] = useState<string | null>(null);
+  const [declineCandidate, setDeclineCandidate] = useState<any | null>(null);
+  const [declineNote, setDeclineNote] = useState('');
 
   const [editingSession, setEditingSession] = useState<any>(null);
   const [sessionForm, setSessionForm] = useState({ topic: '', session_date: '', start_time: '', end_time: '', notes: '' });
@@ -119,9 +125,10 @@ export default function ClassDetailPage() {
 
   // Broadcast State
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
-  const [broadcastForm, setBroadcastForm] = useState({ text: '', mediaUrl: '' });
+  const [broadcastForm, setBroadcastForm] = useState({ text: '', mediaUrl: '', use_template: false, template_name: '', template_variables: '' });
   const [broadcasting, setBroadcasting] = useState(false);
   const [reachableStudents, setReachableStudents] = useState<any[]>([]);
+  const [broadcastAudience, setBroadcastAudience] = useState<any | null>(null);
   const [loadingReachable, setLoadingReachable] = useState(false);
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'teacher';
@@ -285,9 +292,48 @@ export default function ClassDetailPage() {
     }
   };
 
+  const loadTransferRequests = async () => {
+    if (!profile || !['admin', 'teacher'].includes(profile.role)) return;
+    try {
+      const res = await fetch('/api/student-transfer-requests', { cache: 'no-store' });
+      const json = await res.json();
+      if (res.ok) setTransferRequests(json.requests ?? []);
+    } catch { /* non-blocking panel */ }
+  };
+
+  const submitTransferRequest = async () => {
+    if (!transferCandidate || transferReason.trim().length < 10) return;
+    setTransferBusy(transferCandidate.id);
+    try {
+      const res = await fetch('/api/student-transfer-requests', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: transferCandidate.id, to_class_id: id, reason: transferReason.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to request transfer');
+      setTransferCandidate(null); setTransferReason('');
+      await Promise.all([loadTransferRequests(), loadAvailableStudents()]);
+    } catch (e: any) { alert(e.message); }
+    finally { setTransferBusy(null); }
+  };
+
+  const decideTransfer = async (requestId: string, decision: 'approve' | 'decline', note: string | null = null) => {
+    setTransferBusy(requestId);
+    try {
+      const res = await fetch('/api/student-transfer-requests', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId, decision, note }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || ('Failed to ' + decision + ' transfer'));
+      setDeclineCandidate(null); setDeclineNote('');
+      await Promise.all([loadTransferRequests(), fetchData()]);
+    } catch (e: any) { alert(e.message); }
+    finally { setTransferBusy(null); }
+  };
   useEffect(() => {
     if (authLoading) return;
-    if (profile && id) fetchData();
+    if (profile && id) { fetchData(); void loadTransferRequests(); }
     else setLoading(false);
   }, [id, profile?.id, authLoading]);
 
@@ -337,7 +383,7 @@ export default function ClassDetailPage() {
   const syncSelectedStudents = async (idsToEnroll?: string[]) => {
     const ids = idsToEnroll ?? (selectedStudentIds.size > 0
       ? Array.from(selectedStudentIds)
-      : availableStudents.map((s: any) => s.id));
+      : availableStudents.filter((s: any) => !s.requires_transfer_request).map((s: any) => s.id));
     if (ids.length === 0) return;
     setProcessingStudent('loading');
     try {
@@ -373,7 +419,7 @@ export default function ClassDetailPage() {
     }
     setCreatingNewClass(true);
     try {
-      const body: any = { name: newClassForm.name.trim(), program_id: newClassForm.program_id, status: 'active' };
+      const body: any = { name: newClassForm.name.trim(), program_id: newClassForm.program_id, status: 'active', teacher_id: profile?.role === 'teacher' ? profile.id : cls.teacher_id, school_id: newClassForm.school_id || cls.school_id };
       if (newClassForm.school_id) body.school_id = newClassForm.school_id;
       if (newClassForm.max_students) body.max_students = parseInt(newClassForm.max_students);
       const clsRes = await fetch('/api/classes', {
@@ -545,38 +591,20 @@ export default function ClassDetailPage() {
     if (!id) return;
     setLoadingReachable(true);
     try {
-      // Get students with phone number information
-      const supabase = createClient();
-      const { data: students } = await supabase
-        .from('portal_users')
-        .select(`
-          id, 
-          full_name, 
-          email, 
-          phone,
-          student_id,
-          students(parent_phone, parent_name, phone)
-        `)
-        .eq('class_id', id)
-        .eq('role', 'student');
-
-      if (students) {
-        // Filter students who have reachable phone numbers
-        const reachable = students.filter(student => {
-          const studentPhone = student.phone || student.students?.phone;
-          const parentPhone = student.students?.parent_phone;
-          return studentPhone || parentPhone;
-        });
-        setReachableStudents(reachable);
-      }
+      const res = await fetch(`/api/classes/${id}/broadcast`, { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Could not resolve WhatsApp audience');
+      const eligible = new Set<string>(json.eligible_student_ids ?? []);
+      setReachableStudents(enrollments.filter((student: any) => eligible.has(student.id || student.portal_user_id)));
+      setBroadcastAudience(json);
     } catch (error) {
-      console.error('Error loading reachable students:', error);
+      console.error('Error loading WhatsApp audience:', error);
       setReachableStudents([]);
+      setBroadcastAudience(null);
     } finally {
       setLoadingReachable(false);
     }
   };
-
   const handleBroadcast = async () => {
     if (!broadcastForm.text.trim()) return;
     setBroadcasting(true);
@@ -584,7 +612,7 @@ export default function ClassDetailPage() {
         const res = await fetch(`/api/classes/${id}/broadcast`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(broadcastForm)
+            body: JSON.stringify({ ...broadcastForm, template_variables: broadcastForm.template_variables.split(',').map(v => v.trim()).filter(Boolean) })
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to broadcast');
@@ -594,7 +622,7 @@ export default function ClassDetailPage() {
         alert(message);
         
         setShowBroadcastModal(false);
-        setBroadcastForm({ text: '', mediaUrl: '' });
+        setBroadcastForm({ text: '', mediaUrl: '', use_template: false, template_name: '', template_variables: '' });
         setReachableStudents([]);
     } catch (err: any) {
         alert(err.message);
@@ -916,6 +944,8 @@ export default function ClassDetailPage() {
     },
   ];
   const selectedOperation = operationCards.find(card => card.id === activeOperation) ?? operationCards[0];
+  const pendingIncomingTransfers = transferRequests.filter((request: any) => request.status === 'pending' && (profile?.role === 'admin' || request.from_teacher_id === profile?.id));
+  const pendingOutgoingTransfers = profile?.role === 'admin' ? [] : transferRequests.filter((request: any) => request.status === 'pending' && request.requested_by === profile?.id);
 
   return (
     <div className="text-foreground">
@@ -1032,6 +1062,28 @@ export default function ClassDetailPage() {
 
               {activeOperation === 'roster' && (
                 <div className="rounded-2xl border border-border bg-background p-4">
+                  {(pendingIncomingTransfers.length > 0 || pendingOutgoingTransfers.length > 0) && (
+                    <div className="mb-5 space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                      <div><h3 className="text-sm font-black text-foreground">Student transfer requests</h3><p className="text-xs text-muted-foreground">Moves happen only after the current owning teacher approves.</p></div>
+                      {pendingIncomingTransfers.map((request: any) => (
+                        <div key={request.id} className="rounded-xl border border-amber-500/20 bg-background p-3">
+                          <p className="text-sm font-bold text-foreground">{request.student?.full_name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{request.requester?.full_name} requests transfer from <strong>{request.from_class?.name}</strong> to <strong>{request.to_class?.name}</strong>.</p>
+                          <p className="mt-2 rounded-lg bg-muted px-2 py-1.5 text-xs text-foreground">“{request.reason}”</p>
+                          <div className="mt-3 flex gap-2">
+                            <button disabled={transferBusy === request.id} onClick={() => decideTransfer(request.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50">Approve & Move</button>
+                            <button disabled={transferBusy === request.id} onClick={() => { setDeclineCandidate(request); setDeclineNote(''); }} className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-black text-rose-300 disabled:opacity-50">Decline</button>
+                          </div>
+                        </div>
+                      ))}
+                      {pendingOutgoingTransfers.map((request: any) => (
+                        <div key={request.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
+                          <div><p className="text-sm font-bold text-foreground">{request.student?.full_name}</p><p className="text-xs text-muted-foreground">Awaiting {request.from_teacher?.full_name} · {request.from_class?.name} → {request.to_class?.name}</p></div>
+                          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-300">Pending</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {/* One consolidated roster: active + withdrawn (badged), searchable, with
                       inline per-row Move / Withdraw / Reinstate so no shuttling between pages. */}
                   <div className="mb-4 space-y-3">
@@ -2174,6 +2226,7 @@ export default function ClassDetailPage() {
       {showStudentModal && (() => {
         const unassigned = availableStudents.filter((s: any) => !s.class_id);
         const inOtherClass = availableStudents.filter((s: any) => s.class_id);
+        const directlyEnrollable = availableStudents.filter((s: any) => !s.requires_transfer_request);
         const seatsLeft = cls?.max_students ? Math.max(0, cls.max_students - enrollments.length) : Infinity;
         const isFull = seatsLeft <= 0;
         return (
@@ -2229,20 +2282,20 @@ export default function ClassDetailPage() {
                     <div className="px-6 pt-2 pb-2 flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => {
-                          if (selectedStudentIds.size === availableStudents.length) {
+                          if (selectedStudentIds.size === directlyEnrollable.length) {
                             setSelectedStudentIds(new Set());
                           } else {
-                            if (availableStudents.length > seatsLeft) {
+                            if (directlyEnrollable.length > seatsLeft) {
                               alert(`This class only has ${seatsLeft} seat(s) remaining. Selecting the first ${seatsLeft} available students.`);
-                              setSelectedStudentIds(new Set(availableStudents.slice(0, seatsLeft).map((s: any) => s.id)));
+                              setSelectedStudentIds(new Set(directlyEnrollable.slice(0, seatsLeft).map((s: any) => s.id)));
                             } else {
-                              setSelectedStudentIds(new Set(availableStudents.map((s: any) => s.id)));
+                              setSelectedStudentIds(new Set(directlyEnrollable.map((s: any) => s.id)));
                             }
                           }
                         }}
                         className="px-3 py-1.5 bg-card shadow-sm hover:bg-muted border border-border text-[10px] font-bold text-muted-foreground hover:text-foreground rounded-xl transition-all"
                       >
-                        {selectedStudentIds.size === availableStudents.length ? 'Deselect All' : 'Select Available'}
+                        {directlyEnrollable.length > 0 && selectedStudentIds.size === directlyEnrollable.length ? 'Deselect All' : 'Select Available'}
                       </button>
                       <div className="flex-1" />
                       {selectedStudentIds.size > 0 && (
@@ -2298,59 +2351,64 @@ export default function ClassDetailPage() {
                       const hasMore = filtUnassigned.length > visibleUnassigned.length || filtInOther.length > visibleInOther.length;
 
                       const renderStudent = (student: any, color: 'orange' | 'amber') => {
-                        const isChecked = selectedStudentIds.has(student.id);
-                        const isBlocked = !isChecked && selectedStudentIds.size >= seatsLeft;
+                        const requiresRequest = Boolean(student.requires_transfer_request);
+                        const isChecked = !requiresRequest && selectedStudentIds.has(student.id);
+                        const isBlocked = !requiresRequest && !isChecked && selectedStudentIds.size >= seatsLeft;
                         return (
-                          <div 
-                            key={student.id} 
+                          <div
+                            key={student.id}
                             onClick={() => {
+                              if (requiresRequest) return;
                               if (isBlocked) {
                                 alert(`Cannot select more students. This class has reached its maximum enrollment capacity (${cls.max_students} students max).`);
                                 return;
                               }
-                              setSelectedStudentIds(prev => { 
-                                const n = new Set(prev); 
-                                if (n.has(student.id)) n.delete(student.id); else n.add(student.id); 
-                                return n; 
+                              setSelectedStudentIds(prev => {
+                                const n = new Set(prev);
+                                if (n.has(student.id)) n.delete(student.id); else n.add(student.id);
+                                return n;
                               });
                             }}
-                            className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all active:scale-[0.99] ${
-                              isBlocked 
-                                ? 'opacity-40 cursor-not-allowed bg-rose-500/[0.02] border-rose-500/10'
-                                : isChecked
-                                  ? color === 'orange' 
-                                    ? 'bg-primary/15 border-primary/40' 
-                                    : 'bg-amber-500/10 border-amber-500/40'
-                                  : color === 'orange' 
-                                    ? 'bg-card shadow-sm border-border hover:border-primary/20' 
-                                    : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20'
+                            className={`flex items-center gap-3 p-3 border rounded-xl transition-all ${
+                              requiresRequest
+                                ? 'bg-amber-500/[0.04] border-amber-500/25'
+                                : isBlocked
+                                  ? 'opacity-40 cursor-not-allowed bg-rose-500/[0.02] border-rose-500/10'
+                                  : isChecked
+                                    ? color === 'orange' ? 'bg-primary/15 border-primary/40 cursor-pointer' : 'bg-amber-500/10 border-amber-500/40 cursor-pointer'
+                                    : color === 'orange' ? 'bg-card shadow-sm border-border hover:border-primary/20 cursor-pointer' : 'bg-card shadow-sm border-amber-500/10 hover:border-amber-500/20 cursor-pointer'
                             }`}
                           >
-                            <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                              isChecked
-                                ? color === 'orange' 
-                                  ? 'bg-primary border-primary' 
-                                  : 'bg-amber-500 border-amber-400'
-                                : 'border-border'
-                            }`}>
-                              {isChecked && <CheckIconOutline className="w-3 h-3 text-foreground" />}
+                            <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isChecked ? 'bg-primary border-primary' : requiresRequest ? 'border-amber-400/60 bg-amber-500/10' : 'border-border'}`}>
+                              {isChecked ? <CheckIconOutline className="w-3 h-3 text-foreground" /> : requiresRequest ? <ArrowsRightLeftIcon className="w-3 h-3 text-amber-300" /> : null}
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="text-xs text-muted-foreground truncate">{student.email}</p>
-                                {student.school_name && <span className="text-[9px] font-bold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20 flex-shrink-0">{student.school_name}</span>}
-                                {student.section_class && <span className="text-[9px] font-bold text-amber-400/60 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20 flex-shrink-0">{student.section_class}</span>}
+                                {student.school_name && <span className="text-[9px] font-bold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20">{student.school_name}</span>}
                               </div>
-                              {student.class_id && <p className="text-[9px] text-amber-400/70 mt-0.5">Currently in: {(student.classes as any)?.name ?? 'another class'}</p>}
+                              {student.class_id && (
+                                <div className="mt-1 text-[10px] text-amber-300/90">
+                                  <p><span className="font-black">Class:</span> {student.current_class_name || student.section_class || 'Another class'}</p>
+                                  <p><span className="font-black">Owner:</span> {student.current_teacher_name || 'Unknown teacher'}{student.current_teacher_email ? ` · ${student.current_teacher_email}` : ''}</p>
+                                </div>
+                              )}
                             </div>
-                            {isBlocked && (
-                              <span className="text-[8px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full flex-shrink-0">Blocked</span>
-                            )}
+                            {requiresRequest ? (
+                              student.pending_transfer_request_id ? (
+                                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-300">Request pending</span>
+                              ) : (
+                                <button type="button" onClick={(event) => { event.stopPropagation(); setTransferCandidate(student); setTransferReason(''); }} className="rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-slate-950 hover:bg-amber-400">
+                                  Request transfer
+                                </button>
+                              )
+                            ) : isBlocked ? (
+                              <span className="text-[8px] font-black uppercase tracking-widest text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full">Full</span>
+                            ) : null}
                           </div>
                         );
                       };
-
                       if (filtered.length === 0) return (
                         <div className="py-12 text-center">
                           <p className="text-sm text-muted-foreground">No students match "{studentSearch}"</p>
@@ -2371,7 +2429,7 @@ export default function ClassDetailPage() {
                           {filtInOther.length > 0 && (
                             <div>
                               <p className="text-[10px] font-black text-amber-400/60 uppercase tracking-widest mb-2">
-                                In another class — will reassign ({filtInOther.length})
+                                In another class — move or request ({filtInOther.length})
                                 {filtInOther.length > visibleInOther.length && <span className="text-amber-400/30"> — showing {visibleInOther.length}</span>}
                               </p>
                               <div className="space-y-1.5">{visibleInOther.map(s => renderStudent(s, 'amber'))}</div>
@@ -2459,6 +2517,46 @@ export default function ClassDetailPage() {
       })()}
 
 
+
+
+      {declineCandidate && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => !transferBusy && setDeclineCandidate(null)} />
+          <div className="relative w-full max-w-md rounded-2xl border border-rose-500/25 bg-card p-6 shadow-2xl">
+            <h3 className="font-black text-foreground">Decline transfer request?</h3>
+            <p className="mt-2 text-xs text-muted-foreground">{declineCandidate.student?.full_name} will remain in {declineCandidate.from_class?.name}. The requesting teacher will be notified.</p>
+            <label className="mt-4 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason (optional)</label>
+            <textarea autoFocus rows={3} value={declineNote} onChange={(event) => setDeclineNote(event.target.value)} placeholder="Give the other teacher helpful context." className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-rose-500/50" />
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={() => setDeclineCandidate(null)} disabled={!!transferBusy} className="flex-1 rounded-xl border border-border px-4 py-2.5 text-xs font-black text-muted-foreground">Keep pending</button>
+              <button type="button" onClick={() => decideTransfer(declineCandidate.id, 'decline', declineNote.trim() || null)} disabled={!!transferBusy} className="flex-[2] rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-40">{transferBusy ? 'Declining…' : 'Decline request'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {transferCandidate && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => !transferBusy && setTransferCandidate(null)} />
+          <div className="relative w-full max-w-lg rounded-2xl border border-amber-500/25 bg-card p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-300"><ArrowsRightLeftIcon className="h-5 w-5" /></div>
+              <div><h3 className="font-black text-foreground">Request student transfer</h3><p className="mt-1 text-xs text-muted-foreground">The current teacher will review this request. Approval moves the student automatically.</p></div>
+            </div>
+            <div className="mt-5 rounded-xl border border-border bg-background p-4 text-sm">
+              <p className="font-black text-foreground">{transferCandidate.full_name}</p>
+              <p className="mt-2 text-xs text-muted-foreground"><span className="font-bold text-foreground">Current:</span> {transferCandidate.current_class_name || transferCandidate.section_class} · {transferCandidate.current_teacher_name}</p>
+              <p className="mt-1 text-xs text-muted-foreground"><span className="font-bold text-foreground">Requested:</span> {cls?.name} · {cls?.portal_users?.full_name || profile?.full_name || 'Class owner'}</p>
+            </div>
+            <label className="mt-4 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason for transfer</label>
+            <textarea autoFocus rows={4} value={transferReason} onChange={(event) => setTransferReason(event.target.value)} placeholder="Explain why this student should move (at least 10 characters)." className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-amber-500/50" />
+            <p className={`mt-1 text-[10px] ${transferReason.trim().length >= 10 ? 'text-emerald-400' : 'text-muted-foreground'}`}>{transferReason.trim().length}/10 minimum</p>
+            <div className="mt-5 flex gap-3">
+              <button type="button" onClick={() => setTransferCandidate(null)} disabled={!!transferBusy} className="flex-1 rounded-xl border border-border px-4 py-2.5 text-xs font-black text-muted-foreground">Cancel</button>
+              <button type="button" onClick={submitTransferRequest} disabled={!!transferBusy || transferReason.trim().length < 10} className="flex-[2] rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-950 disabled:opacity-40">{transferBusy ? 'Sending request…' : 'Send to current teacher'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
@@ -2592,7 +2690,7 @@ export default function ClassDetailPage() {
             if (!broadcasting) {
               setShowBroadcastModal(false);
               setReachableStudents([]);
-              setBroadcastForm({ text: '', mediaUrl: '' });
+              setBroadcastForm({ text: '', mediaUrl: '', use_template: false, template_name: '', template_variables: '' });
             }
           }} />
           <div className="relative w-full max-w-lg bg-card border border-[#25D366]/25 rounded-2xl shadow-2xl shadow-[#25D366]/5 overflow-hidden scale-in-center">
@@ -2611,7 +2709,7 @@ export default function ClassDetailPage() {
               ) : (
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-muted-foreground font-medium">
-                    {reachableStudents.length} of {enrollments.length} students have valid parent or student phone numbers.
+                    {reachableStudents.length} of {enrollments.length} students have WhatsApp consent and a valid phone number.
                   </p>
                   {reachableStudents.length === 0 && (
                     <div className="flex items-center gap-2 text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg mt-2 font-bold uppercase tracking-wide">
@@ -2640,6 +2738,22 @@ export default function ClassDetailPage() {
                 />
               </div>
               
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
+                <label className="flex items-center justify-between gap-3 text-xs font-bold text-foreground">
+                  <span><span className="block">Use approved Meta template</span><span className="text-[10px] font-normal text-muted-foreground">Recommended when the parent has not messaged within 24 hours.</span></span>
+                  <input type="checkbox" checked={broadcastForm.use_template} onChange={(e) => setBroadcastForm({ ...broadcastForm, use_template: e.target.checked })} className="h-4 w-4 accent-[#25D366]" />
+                </label>
+                {broadcastForm.use_template && (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input value={broadcastForm.template_name} onChange={(e) => setBroadcastForm({ ...broadcastForm, template_name: e.target.value })} placeholder="Approved template name" className="rounded-lg border border-border bg-[#080d19] px-3 py-2 text-xs text-foreground outline-none focus:border-[#25D366]" />
+                    <input value={broadcastForm.template_variables} onChange={(e) => setBroadcastForm({ ...broadcastForm, template_variables: e.target.value })} placeholder="Variables, comma separated" className="rounded-lg border border-border bg-[#080d19] px-3 py-2 text-xs text-foreground outline-none focus:border-[#25D366]" />
+                  </div>
+                )}
+                {broadcastAudience?.statuses && Object.keys(broadcastAudience.statuses).length > 0 && (
+                  <p className="text-[10px] text-muted-foreground">Recent delivery queue: {Object.entries(broadcastAudience.statuses).map(([status, count]) => `${status} ${count}`).join(' · ')}</p>
+                )}
+              </div>
+
               {!loadingReachable && reachableStudents.length > 0 && (
                 <div className="border border-white/5 rounded-2xl p-4 bg-white/[0.01]">
                   <p className="text-[10px] font-black text-[#25D366] uppercase tracking-widest mb-3 flex items-center justify-between">
@@ -2689,7 +2803,7 @@ export default function ClassDetailPage() {
                 onClick={() => {
                   setShowBroadcastModal(false);
                   setReachableStudents([]);
-                  setBroadcastForm({ text: '', mediaUrl: '' });
+                  setBroadcastForm({ text: '', mediaUrl: '', use_template: false, template_name: '', template_variables: '' });
                 }} 
                 disabled={broadcasting}
                 className="flex-1 py-3 bg-card hover:bg-white/5 text-muted-foreground hover:text-foreground font-black text-xs uppercase tracking-wider rounded-xl border border-white/5 transition-all">
@@ -2697,13 +2811,13 @@ export default function ClassDetailPage() {
               </button>
               <button
                 onClick={handleBroadcast}
-                disabled={broadcasting || !broadcastForm.text.trim() || reachableStudents.length === 0}
+                disabled={broadcasting || !broadcastForm.text.trim() || reachableStudents.length === 0 || (broadcastForm.use_template && !broadcastForm.template_name.trim())}
                 className="flex-[2] py-3 bg-[#25D366] hover:bg-[#1fbc55] disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-xl shadow-[#25D366]/20 flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
               >
                 {broadcasting ? (
                   <>
                     <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                    Broadcasting...
+                    Queueing...
                   </>
                 ) : loadingReachable ? (
                   <>
@@ -2713,7 +2827,7 @@ export default function ClassDetailPage() {
                 ) : reachableStudents.length === 0 ? (
                   'No Reachable Students'
                 ) : (
-                  `Send to ${reachableStudents.length} Recipient${reachableStudents.length !== 1 ? 's' : ''}`
+                  `Queue for ${reachableStudents.length} Student${reachableStudents.length !== 1 ? 's' : ''}`
                 )}
               </button>
             </div>

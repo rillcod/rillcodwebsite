@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
-import { sendWhatsApp } from '@/lib/whatsapp/send';
+import { enqueueWhatsApp } from '@/lib/whatsapp/send';
 import { getAllowedSchoolIds } from '@/lib/auth/school-scope';
+import { hasWhatsAppConsent } from '@/lib/whatsapp/consent';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
 
   const results = {
     sent:   0,
+    queued: 0,
     failed: 0,
     total:  (leads ?? []).length,
   };
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
     const parentPhone = (rd.parent_whatsapp || rd.parent_phone || '').trim();
     const parentName  = (rd.parent_name || '').trim() || 'Parent/Guardian';
 
-    if (!parentPhone) {
+    if (!parentPhone || !hasWhatsAppConsent(rd)) {
       results.failed++;
       continue;
     }
@@ -96,10 +98,14 @@ export async function POST(req: NextRequest) {
     const personalised = message.replace(/\{\{name\}\}/gi, parentName);
 
     try {
-      const ok = await sendWhatsApp(parentPhone, personalised);
+      const delivery = await enqueueWhatsApp(sb, {
+        recipientUserId: null, phone: parentPhone, messageBody: personalised,
+        sourceType: 'lead_bulk', sourceId: lead.id, schoolId: lead.school_id, createdBy: profile.id,
+        idempotencyKey: `lead-bulk:${lead.id}:${now}`,
+      });
 
-      if (ok) {
-        results.sent++;
+      if (delivery.queued) {
+        results.queued++;
 
         // Log in crm_interactions if the lead is linked to a CRM contact
         const contactId = lead.contact_id as string | null;
@@ -111,7 +117,7 @@ export async function POST(req: NextRequest) {
               contact_type: 'form_lead',
               type:         'whatsapp',
               direction:    'outbound',
-              content:      personalised,
+              content:      `Queued for WhatsApp delivery: ${personalised}`,
               staff_id:     profile.id,
               staff_name:   profile.full_name,
               created_at:   now,

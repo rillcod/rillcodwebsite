@@ -1,4 +1,4 @@
-﻿import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type TeacherClassScope = {
   assignedSchoolIds: string[];
@@ -15,12 +15,12 @@ export function isTeacherClassVisible(
   includeAllAssignedClasses = false,
 ): boolean {
   if (!cls.school_id || !assignedSchoolIds.includes(cls.school_id)) return false;
-  return includeAllAssignedClasses || cls.teacher_id === teacherId || cls.teacher_id === null;
+  return includeAllAssignedClasses || cls.teacher_id === teacherId;
 }
 
 /**
  * Resolve the teacher's class boundary once for every consuming API.
- * Isolation ON: owned classes plus unowned classes in assigned schools.
+ * Isolation ON: only classes owned by the teacher.
  * Isolation OFF: every class in assigned schools.
  */
 export async function getTeacherClassScope(

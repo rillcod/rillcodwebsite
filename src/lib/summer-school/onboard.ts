@@ -101,18 +101,8 @@ export async function ensureClassWithTutor(
   gradeRange?: string | null,
   granularity?: BandGranularity,
 ): Promise<string | null> {
-  // Resolve a tutor: an existing teacher for this class name globally, then for
-  // the school, then any teacher in the system.
+  // Resolve only an active teacher already assigned to this school.
   let tutorId: string | null = null;
-
-  const { data: globalClass } = await admin
-    .from('classes')
-    .select('teacher_id')
-    .eq('name', className)
-    .not('teacher_id', 'is', null)
-    .limit(1)
-    .maybeSingle();
-  if (globalClass?.teacher_id) tutorId = globalClass.teacher_id;
 
   if (!tutorId) {
     const { data: ts } = await admin
@@ -135,15 +125,6 @@ export async function ensureClassWithTutor(
     tutorId = (t as any)?.id ?? null;
   }
 
-  if (!tutorId) {
-    const { data: tGlobal } = await admin
-      .from('portal_users')
-      .select('id')
-      .eq('role', 'teacher')
-      .limit(1)
-      .maybeSingle();
-    tutorId = (tGlobal as any)?.id ?? null;
-  }
 
   // Link the teacher to the school so class membership is consistent.
   if (tutorId && schoolId) {
@@ -213,6 +194,11 @@ export async function ensureClassWithTutor(
       await admin.from('classes').update(patch).eq('id', existing.id);
     }
     return existing.id;
+  }
+
+  if (!tutorId) {
+    console.error(`[ensureClassWithTutor] ${schoolName} has no active assigned teacher; class creation blocked.`);
+    return null;
   }
 
   const { data: created, error } = await admin

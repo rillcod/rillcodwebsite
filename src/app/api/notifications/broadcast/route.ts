@@ -41,6 +41,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Title and message are required' }, { status: 400 });
   }
 
+  if (sender.role === 'teacher' && target !== 'students') {
+    return NextResponse.json({ error: 'Teachers can broadcast only to students in classes they own. Use admin or school communication for wider audiences.' }, { status: 403 });
+  }
+
   // Build target user query
   const targetRoles: string[] = target === 'all'
     ? ['student', 'parent', 'teacher', 'school', 'admin']
@@ -56,19 +60,14 @@ export async function POST(req: NextRequest) {
     .in('role', targetRoles)
     .eq('is_active', true);
 
-  // Teachers are scoped to all their assigned schools (teacher_schools + primary)
+  // Teacher broadcasts follow class ownership, not broad school assignment.
   if (sender.role === 'teacher') {
-    const { data: tsRows } = await db.from('teacher_schools').select('school_id').eq('teacher_id', sender.id);
-    const teacherSchoolIds = new Set<string>();
-    if (sender.school_id) teacherSchoolIds.add(sender.school_id);
-    for (const r of tsRows ?? []) {
-      if ((r as any).school_id) teacherSchoolIds.add((r as any).school_id);
+    const { data: ownedClasses } = await db.from('classes').select('id').eq('teacher_id', sender.id);
+    const classIds = (ownedClasses ?? []).map((row) => row.id);
+    if (classIds.length === 0) {
+      return NextResponse.json({ error: 'You do not own any classes to broadcast to' }, { status: 403 });
     }
-    const ids = Array.from(teacherSchoolIds);
-    if (ids.length === 0) {
-      return NextResponse.json({ error: 'No school assignment found for this teacher' }, { status: 403 });
-    }
-    userQuery = userQuery.in('school_id', ids);
+    userQuery = userQuery.in('class_id', classIds);
   } else if (school_id) {
     userQuery = userQuery.eq('school_id', school_id);
   }

@@ -25,6 +25,16 @@ async function getCaller(): Promise<Caller | null> {
   return caller as Caller;
 }
 
+async function teacherCanOwnSchool(teacherId: string, schoolId: string): Promise<boolean> {
+  const admin = adminClient();
+  const { data: teacher } = await admin.from('portal_users')
+    .select('id, role, school_id, is_active, is_deleted').eq('id', teacherId).maybeSingle();
+  if (!teacher || teacher.role !== 'teacher' || teacher.is_active === false || teacher.is_deleted === true) return false;
+  if (teacher.school_id === schoolId) return true;
+  const { data: assignment } = await admin.from('teacher_schools').select('teacher_id')
+    .eq('teacher_id', teacherId).eq('school_id', schoolId).maybeSingle();
+  return Boolean(assignment);
+}
 /**
  * Returns true when the caller can manage (write/delete) the given class.
  * - admin:  always
@@ -112,7 +122,7 @@ export async function PATCH(
   // Fetch the class to check school access
   const { data: cls } = await admin
     .from('classes')
-    .select('school_id, name')
+    .select('school_id, name, teacher_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -127,6 +137,20 @@ export async function PATCH(
   }
 
   const body = await request.json();
+  if (('teacher_id' in body && typeof body.teacher_id !== 'string') || ('school_id' in body && typeof body.school_id !== 'string')) {
+    return NextResponse.json({ error: 'Class school and primary owner cannot be cleared' }, { status: 400 });
+  }
+  if ('teacher_id' in body && caller.role !== 'admin') {
+    return NextResponse.json({ error: 'Only an admin can transfer primary class ownership' }, { status: 403 });
+  }
+  const effectiveSchoolId = typeof body.school_id === 'string' ? body.school_id : cls.school_id;
+  const effectiveTeacherId = typeof body.teacher_id === 'string' ? body.teacher_id : cls.teacher_id;
+  if (!effectiveSchoolId || !effectiveTeacherId) {
+    return NextResponse.json({ error: 'Every class requires a school and a primary teacher owner' }, { status: 400 });
+  }
+  if (('teacher_id' in body || 'school_id' in body) && !(await teacherCanOwnSchool(effectiveTeacherId, effectiveSchoolId))) {
+    return NextResponse.json({ error: 'Class owner must be an active teacher assigned to the selected school' }, { status: 400 });
+  }
 
   // ── Field whitelist — current_students excluded (managed by enroll route only) ──
   const allowed: Record<string, unknown> = {};
@@ -190,7 +214,7 @@ export async function DELETE(
 
   const { data: cls } = await admin
     .from('classes')
-    .select('school_id, name')
+    .select('school_id, name, teacher_id')
     .eq('id', id)
     .maybeSingle();
 

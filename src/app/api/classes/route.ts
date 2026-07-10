@@ -43,6 +43,15 @@ async function teacherSchoolIds(caller: Caller): Promise<string[]> {
   return ids;
 }
 
+async function teacherCanOwnSchool(admin: ReturnType<typeof adminClient>, teacherId: string, schoolId: string) {
+  const { data: teacher } = await admin.from('portal_users')
+    .select('id, role, school_id, is_active, is_deleted').eq('id', teacherId).maybeSingle();
+  if (!teacher || teacher.role !== 'teacher' || teacher.is_active === false || teacher.is_deleted === true) return false;
+  if (teacher.school_id === schoolId) return true;
+  const { data: assignment } = await admin.from('teacher_schools').select('id')
+    .eq('teacher_id', teacherId).eq('school_id', schoolId).maybeSingle();
+  return !!assignment;
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/classes
 // Returns classes visible to the current user with accurate student counts.
@@ -232,7 +241,14 @@ export async function POST(request: NextRequest) {
         );
       }
       insertRow.school_id = schoolId;
-      if ('teacher_id' in body) insertRow.teacher_id = body.teacher_id ?? null;
+      const ownerId = typeof body.teacher_id === 'string' ? body.teacher_id : null;
+      if (!ownerId) {
+        return NextResponse.json({ error: 'teacher_id is required. Every class must have a primary owner.' }, { status: 400 });
+      }
+      if (!await teacherCanOwnSchool(admin, ownerId, schoolId)) {
+        return NextResponse.json({ error: 'The selected class owner is not an active teacher assigned to this school.' }, { status: 400 });
+      }
+      insertRow.teacher_id = ownerId;
     }
 
     insertRow.created_at = new Date().toISOString();

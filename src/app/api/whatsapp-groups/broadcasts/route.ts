@@ -55,8 +55,14 @@ export async function POST(req: NextRequest) {
 
   const admin = adminClient();
   const { data: group } = await admin.from('whatsapp_groups')
-    .select('name, school_id, school_name').eq('id', group_id).single();
+    .select('name, school_id, school_name, class_id, owner_teacher_id').eq('id', group_id).single();
   if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+  if (caller.role === 'teacher' && (group as any).class_id && (group as any).owner_teacher_id !== caller.id) {
+    return NextResponse.json({ error: 'Only the class owner can publish to this group' }, { status: 403 });
+  }
+  if (caller.role === 'school' && (group as any).school_id !== caller.school_id) {
+    return NextResponse.json({ error: 'This group is outside your school' }, { status: 403 });
+  }
 
   // Stamp last_broadcast_at on the group
   await admin.from('whatsapp_groups').update({
@@ -111,6 +117,12 @@ export async function DELETE(req: NextRequest) {
   const { data: group } = await admin
     .from('whatsapp_groups').select('created_by').eq('id', groupId).single();
   if (!group) return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+  if (caller.role === 'teacher' && (group as any).class_id && (group as any).owner_teacher_id !== caller.id) {
+    return NextResponse.json({ error: 'Only the class owner can publish to this group' }, { status: 403 });
+  }
+  if (caller.role === 'school' && (group as any).school_id !== caller.school_id) {
+    return NextResponse.json({ error: 'This group is outside your school' }, { status: 403 });
+  }
   if (caller.role !== 'admin' && group.created_by !== caller.id) {
     return NextResponse.json({ error: 'Only the group creator or admin can clear history' }, { status: 403 });
   }

@@ -4,6 +4,7 @@ import { queueService } from '@/services/queue.service';
 import { notificationsService } from '@/services/notifications.service';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
 import { publishDueNewsletters } from '@/lib/newsletters/push';
+import { processWhatsAppOutbox } from '@/lib/whatsapp/send';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,14 @@ async function handleRequest(req: Request) {
         newslettersPublished = (await publishDueNewsletters(admin)).count;
     } catch (err) {
         console.error('[process-notifications] newsletter publish sweep failed:', err);
+    }
+
+    let whatsapp = { processed: 0, sent: 0, retried: 0, failed: 0, unavailable: false };
+    try {
+        const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+        whatsapp = await processWhatsAppOutbox(admin, 25);
+    } catch (err) {
+        console.error('[process-notifications] WhatsApp outbox sweep failed:', err);
     }
 
     const batchSize = 10;
@@ -54,6 +63,7 @@ async function handleRequest(req: Request) {
         processed,
         failed,
         newslettersPublished,
+        whatsapp,
         remaining: await queueService.getQueueLength()
     });
 }

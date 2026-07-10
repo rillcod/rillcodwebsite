@@ -1,11 +1,11 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { isTeacherClassVisible } from './teacher-class-scope';
 
 describe('teacher class isolation', () => {
   const assigned = ['hilltop'];
 
-  it('shows an unowned assigned-school class to Sulemani', () => {
-    expect(isTeacherClassVisible({ teacher_id: null, school_id: 'hilltop' }, 'sulemani', assigned)).toBe(true);
+  it('blocks an unowned class until ownership is repaired', () => {
+    expect(isTeacherClassVisible({ teacher_id: null, school_id: 'hilltop' }, 'sulemani', assigned)).toBe(false);
   });
 
   it('shows the teacher-owned class and blocks another teacher owner', () => {

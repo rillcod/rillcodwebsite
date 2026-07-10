@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { sendWhatsAppDetailed } from '@/lib/whatsapp/send';
 
 function adminClient() {
   return createClient(
@@ -63,10 +64,8 @@ export async function POST(req: NextRequest) {
       const body = JSON.parse(rawBody);
       return handleWebhookBody(body);
     } else {
-      // No secret configured — log warning but process (dev mode)
-      console.warn('[WhatsApp Webhook] WHATSAPP_APP_SECRET not set — signature check skipped');
-      const body = await req.json();
-      return handleWebhookBody(body);
+      console.error('[WhatsApp Webhook] WHATSAPP_APP_SECRET not set - webhook disabled');
+      return NextResponse.json({ error: 'Webhook signature verification is not configured' }, { status: 503 });
     }
   } catch (error: any) {
     console.error('[WhatsApp Webhook] Error:', error);
@@ -271,6 +270,12 @@ async function handleWebhookBody(body: any): Promise<NextResponse> {
           updated_at: new Date().toISOString(),
         })
         .filter('metadata->>whatsapp_message_id', 'eq', messageId);
+
+      await admin.from('whatsapp_outbox').update({
+        status: ['sent','delivered','read','failed'].includes(newStatus) ? newStatus : 'sent',
+        last_error: newStatus === 'failed' ? JSON.stringify(status.errors ?? []) : null,
+        updated_at: new Date().toISOString(),
+      }).eq('meta_message_id', messageId);
     }
   }
 
@@ -291,30 +296,9 @@ async function sendOptConfirmation(
   let status = 'pending';
   let waMessageId: string | null = null;
 
-  const API_URL = process.env.WHATSAPP_API_URL;
-  const API_TOKEN = process.env.WHATSAPP_API_TOKEN;
-  if (API_URL && API_TOKEN) {
-    try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${API_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: phone.replace(/\D/g, ''),
-          type: 'text',
-          text: { body, preview_url: false },
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        waMessageId = data.messages?.[0]?.id ?? null;
-        status = 'sent';
-      }
-    } catch (e) {
-      console.error('[WhatsApp Webhook] Opt confirmation send failed:', e);
-    }
-  }
+  const delivery = await sendWhatsAppDetailed({ to: phone, message: body });
+  if (delivery.success) { status = 'sent'; waMessageId = delivery.messageId ?? null; }
+  else console.error('[WhatsApp Webhook] Opt confirmation send failed:', delivery.error || delivery.reason);
 
   await admin.from('whatsapp_messages').insert({
     conversation_id: conversationId,

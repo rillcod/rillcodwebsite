@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
+import { requiresTeacherTransferRequest } from '@/lib/students/transfer-policy';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,7 +132,7 @@ export async function GET(
   // Fetch the class to determine its school
   const { data: cls } = await admin
     .from('classes')
-    .select('school_id')
+    .select('school_id, teacher_id')
     .eq('id', classId)
     .single();
 
@@ -145,7 +146,7 @@ export async function GET(
 
   let query = admin
     .from('portal_users')
-    .select('id, full_name, email, school_id, school_name, section_class, class_id, classes:class_id(id, name)')
+    .select('id, full_name, email, school_id, school_name, section_class, class_id, primary_teacher_id, classes:class_id(id, name, teacher_id)')
     .eq('role', 'student')
     .or('is_active.eq.true,is_active.is.null');
 
@@ -175,9 +176,31 @@ export async function GET(
   const { data: allData, error } = await query.order('full_name');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Exclude students already IN this class; unassigned students sort first
+  const ownerIds = [...new Set((allData ?? []).map((row: any) => row.classes?.teacher_id ?? row.primary_teacher_id).filter(Boolean))];
+  const { data: owners } = ownerIds.length
+    ? await admin.from('portal_users').select('id, full_name, email').in('id', ownerIds)
+    : { data: [] as any[] };
+  const ownerMap = new Map((owners ?? []).map((owner: any) => [owner.id, owner]));
+  const { data: pendingRows } = caller.role === 'teacher'
+    ? await admin.from('student_transfer_requests').select('id, student_id, status').eq('requested_by', caller.id).eq('to_class_id', classId).eq('status', 'pending')
+    : { data: [] as any[] };
+  const pendingByStudent = new Map((pendingRows ?? []).map((row: any) => [row.student_id, row.id]));
+
+  // Exclude students already IN this class; unassigned students sort first.
   const students = (allData ?? [])
     .filter((u: any) => u.class_id !== classId)
+    .map((u: any) => {
+      const currentTeacherId = u.classes?.teacher_id ?? u.primary_teacher_id ?? null;
+      return {
+        ...u,
+        current_class_name: u.classes?.name ?? u.section_class ?? null,
+        current_teacher_id: currentTeacherId,
+        current_teacher_name: ownerMap.get(currentTeacherId)?.full_name ?? null,
+        current_teacher_email: ownerMap.get(currentTeacherId)?.email ?? null,
+        requires_transfer_request: requiresTeacherTransferRequest({ actorRole: caller.role, currentTeacherId, destinationTeacherId: cls?.teacher_id ?? null }),
+        pending_transfer_request_id: pendingByStudent.get(u.id) ?? null,
+      };
+    })
     .sort((a: any, b: any) => {
       if (!a.class_id && b.class_id) return -1;
       if (a.class_id && !b.class_id) return 1;
@@ -230,6 +253,10 @@ export async function POST(
   }
 
   // ── School boundary guard (hard reject) ──────────────────────────────────
+  if (caller.role === 'teacher' && cls.teacher_id !== caller.id) {
+    return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
+  }
+
   let studentProfile: any = null;
   if (caller.role !== 'admin' && cls.school_id) {
     const { data: clsSchool } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
@@ -264,7 +291,7 @@ export async function POST(
       if (currentClass?.teacher_id && currentClass.teacher_id !== caller.id) {
         return NextResponse.json(
           {
-            error: `"${studentProfile?.full_name ?? studentId}" is already in "${currentClass.name}" which belongs to another teacher. Only an admin can reassign them.`,
+            error: `"${studentProfile?.full_name ?? studentId}" is already in "${currentClass.name}" which belongs to another teacher. Send a transfer request to its current owner.`,
           },
           { status: 409 },
         );
@@ -424,6 +451,10 @@ export async function PUT(
   }
 
   // ── School boundary guard — filter out cross-school students ─────────────
+  if (caller.role === 'teacher' && cls.teacher_id !== caller.id) {
+    return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
+  }
+
   let allowedIds: string[] = studentIds;
   let rejectedNames: string[] = [];
 
@@ -493,7 +524,7 @@ export async function PUT(
         if (allowedIds.length === 0) {
           return NextResponse.json(
             {
-              error: `Cannot move students: ${rejectedOtherTeacher.length} student(s) already belong to another teacher's class and can only be moved by an admin.`,
+              error: `Cannot move students: ${rejectedOtherTeacher.length} student(s) belong to another teacher's class. Send transfer requests to their current owners.`,
               protectedStudents: rejectedOtherTeacher,
             },
             { status: 409 },
