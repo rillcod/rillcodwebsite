@@ -271,6 +271,10 @@ export async function DELETE(
         .in('class_id', classIds).eq('role', 'student');
       await admin.from('student_progress_reports').update({ teacher_id: target.id }).eq('teacher_id', id);
       await admin.from('lesson_plans').update({ created_by: target.id }).eq('created_by', id);
+      // Registration batches (who bulk-registered the students) follow the replacement teacher
+      // too — so the class's registration history stays attributed to its NEW owner rather
+      // than being nulled by the FK safety-net on wipe.
+      await admin.from('registration_batches').update({ created_by: target.id }).eq('created_by', id);
     }
   }
 
