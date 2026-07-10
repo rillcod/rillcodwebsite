@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database, TablesInsert, TablesUpdate } from '@/types/supabase';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { generateProgressReportVerificationCode, progressReportPublishIssues } from '@/lib/reports/publication';
+import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 
 function adminClient() {
   return createClient<Database>(
@@ -43,12 +44,15 @@ export async function POST(request: NextRequest) {
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
+  if (body.is_published === true) {
+    return NextResponse.json({ error: 'Save the report as a draft, then publish it through the validated publish endpoint.' }, { status: 400 });
+  }
   let targetId = body.existing_id;
 
   // Whitelist allowed fields to prevent unintended column injection
   const ALLOWED_FIELDS: Array<keyof TablesUpdate<'student_progress_reports'>> = [
     // Identity (teacher_id intentionally excluded — set on insert only, never updated)
-    'student_id', 'student_name', 'school_id', 'school_name', 'course_id', 'course_name',
+    'student_id', 'student_name', 'school_id', 'school_name', 'course_id', 'course_name', 'term_id',
     'section_class', 'student_grade', 'gender',
     // Session metadata
     'report_term', 'report_date', 'report_period', 'instructor_name',
@@ -121,6 +125,21 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const termLabel = String(updatePayload.report_term ?? insertPayload.report_term ?? '').trim();
+  const periodLabel = String(updatePayload.report_period ?? insertPayload.report_period ?? '').trim();
+  if (termLabel && periodLabel) {
+    const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
+      .eq('term_label', termLabel).eq('academic_year', periodLabel).maybeSingle();
+    if (!canonicalTerm?.id) return NextResponse.json({ error: `No canonical academic term exists for ${periodLabel} ${termLabel}` }, { status: 400 });
+    updatePayload.term_id = canonicalTerm.id;
+    insertPayload.term_id = canonicalTerm.id;
+  }
+  if (caller.role === 'teacher' && updatePayload.course_id) {
+    const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
+    if (!(await assertTeacherReportCourseScope(admin, caller.id, String(updatePayload.course_id), classScope.classIds))) {
+      return NextResponse.json({ error: 'You are not assigned to this course through an owned class or direct course assignment.' }, { status: 403 });
+    }
+  }
   if (updatePayload.is_published === true || insertPayload.is_published === true) {
     const issues = progressReportPublishIssues(targetId ? updatePayload : insertPayload);
     if (issues.length > 0) {

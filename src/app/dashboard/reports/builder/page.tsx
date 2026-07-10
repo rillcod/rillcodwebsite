@@ -32,8 +32,9 @@ function WhatsAppIcon({ className }: { className?: string }) {
 
 
 import { cn } from '@/lib/utils';
-import { getActivityCap } from '@/lib/grading';
+import { computeWeightedScore, getActivityCap, getWAECGrade } from '@/lib/grading';
 import { fetchJsonWithTimeout, withTimeout } from '@/lib/async-timeout';
+import { BuilderField as Field, BuilderSection as Section, EvidenceEditorPanel, NarrativeEditorPanel, EvidenceStatusBanner, PublishControls } from '@/components/reports/builder/workflow-panels';
 
 type StudentReport = Database['public']['Tables']['student_progress_reports']['Row'];
 type PortalUser = Database['public']['Tables']['portal_users']['Row'];
@@ -67,7 +68,6 @@ interface SessionConfig {
 const GRADE_OPTIONS = ['Excellent', 'Very Good', 'Good', 'Fair', 'Poor', 'Not Specified'];
 
 // ── WAEC 6-component weights ──────────────────────────────────────────────────
-const WAEC_WEIGHTS = { theory: 0.20, classwork: 0.10, practical: 0.25, assignments: 0.20, attendance: 0.10, assessment: 0.15 };
 
 // ── Activity qualifier quick-picks (curriculum-mapped, no overlap) ────────────
 const CLASSWORK_PICKS = [
@@ -281,26 +281,6 @@ function getMilestoneSuggestions(courseName: string): string[] {
 }
 
 const INPUT = 'w-full px-4 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors';
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-    return (
-        <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-            {children}
-        </div>
-    );
-}
-
-function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
-    return (
-        <div className="bg-card shadow-sm border border-border rounded-xl overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-3 bg-muted/20 border-b border-border">
-                <span>{icon}</span>
-                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{title}</h3>
-            </div>
-            <div className="p-5 space-y-4">{children}</div>
-        </div>
-    );
-}
 
 // ── Shared reporting-period selectors ──────────────────────────────────────────
 // Term + Academic Year for school sections; Duration for cohort (online/bootcamp).
@@ -1339,14 +1319,14 @@ function ReportBuilderInner() {
     }
 
     // ── WAEC weighted overall (6 components, mirrors grading.ts SCORE_WEIGHTS) ──
-    const rawOverallScore = Math.round(
-        (parseFloat(form.theory_score)        || 0) * WAEC_WEIGHTS.theory      +  // 20%
-        (parseFloat(form.classwork_score)     || 0) * WAEC_WEIGHTS.classwork   +  // 10%
-        (parseFloat(form.practical_score)     || 0) * WAEC_WEIGHTS.practical   +  // 25%
-        (parseFloat(form.attendance_score)    || 0) * WAEC_WEIGHTS.assignments +  // 20%
-        (parseFloat(form.participation_score) || 0) * WAEC_WEIGHTS.attendance  +  // 10%
-        (parseFloat(form.assessment_score)    || 0) * WAEC_WEIGHTS.assessment     // 15%
-    );
+    const rawOverallScore = computeWeightedScore({
+        theory: parseFloat(form.theory_score) || 0,
+        classwork: parseFloat(form.classwork_score) || 0,
+        practical: parseFloat(form.practical_score) || 0,
+        assignments: parseFloat(form.attendance_score) || 0,
+        attendance: parseFloat(form.participation_score) || 0,
+        assessment: parseFloat(form.assessment_score) || 0,
+    });
     // Activity cap: students with low assignment submission % are grade-capped.
     // When no assignments exist (totalAssignments=0) pct defaults to 100 → no cap.
     // All staff (admin, teacher, school) bypass the cap — manual grade entry is authoritative.
@@ -1360,12 +1340,7 @@ function ReportBuilderInner() {
     const overallGradeObj = reportGrade(overallScore); // kept for Standard report card
     const overallGradeLetter = overallGradeObj.g;      // e.g. "A", "B" etc.
     // WAEC code for ModernReportCard:
-    function localWaecCode(s: number): string {
-        if (s >= 75) return 'A1'; if (s >= 70) return 'B2'; if (s >= 65) return 'B3';
-        if (s >= 60) return 'C4'; if (s >= 55) return 'C5'; if (s >= 50) return 'C6';
-        if (s >= 45) return 'D7'; if (s >= 40) return 'E8'; return 'F9';
-    }
-    const waecCode = localWaecCode(overallScore);
+    const waecCode = getWAECGrade(overallScore).code;
 
     const scoreValue = (value: string) => Number.parseFloat(value);
     const scoreReady = (value: string) => Number.isFinite(scoreValue(value)) && scoreValue(value) >= 0 && scoreValue(value) <= 100;
@@ -1511,21 +1486,9 @@ function ReportBuilderInner() {
                     return q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
                 })(), { data: null, error: null }, 'bulk existing report lookup');
 
-                const overall = Math.round(
-                    theory      * WAEC_WEIGHTS.theory      +
-                    classwork   * WAEC_WEIGHTS.classwork   +
-                    practical   * WAEC_WEIGHTS.practical   +
-                    assignments * WAEC_WEIGHTS.assignments +
-                    attendance  * WAEC_WEIGHTS.attendance  +
-                    assessment  * WAEC_WEIGHTS.assessment
-                );
+                const overall = computeWeightedScore({ theory, classwork, practical, assignments, attendance, assessment });
                 // Grade code for display (A1–F9); letter grade kept for Standard report card
-                const bulkWaecCode = (() => {
-                    if (overall >= 75) return 'A1'; if (overall >= 70) return 'B2';
-                    if (overall >= 65) return 'B3'; if (overall >= 60) return 'C4';
-                    if (overall >= 55) return 'C5'; if (overall >= 50) return 'C6';
-                    if (overall >= 45) return 'D7'; if (overall >= 40) return 'E8'; return 'F9';
-                })();
+                const bulkWaecCode = getWAECGrade(overall).code;
 
                 const payload: any = {
                     student_id: isPrePortal ? null : s.id,
@@ -1629,7 +1592,7 @@ function ReportBuilderInner() {
                     : null,
                 course_completed: overallScore >= 45 ? `Completed — ${sessionConfig.report_term}` : null,
                 proficiency_level: form.proficiency_level as 'beginner' | 'intermediate' | 'advanced',
-                is_published: publish ? true : form.is_published,
+                is_published: false,
                 photo_url: form.photo_url || null,
                 // Payment / school section fields
                 school_section: sessionConfig.school_section || null,
@@ -2049,7 +2012,7 @@ function ReportBuilderInner() {
                         <div className="flex items-center justify-between mb-2">
                             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                 Learning Milestones
-                                <span className="ml-1.5 text-[9px] text-primary/60 font-normal normal-case">({sessionConfig.learning_milestones.length} added)</span>
+                                <span className="ml-1.5 text-[11px] text-primary/60 font-normal normal-case">({sessionConfig.learning_milestones.length} added)</span>
                             </label>
                             <button type="button" onClick={() => setShowMilestoneSuggestions(v => !v)}
                                 className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all">
@@ -2060,7 +2023,7 @@ function ReportBuilderInner() {
                         {/* AI-based milestone suggestions dropdown */}
                         {showMilestoneSuggestions && (
                             <div className="mb-3 bg-card border border-primary/20 p-3">
-                                <p className="text-[9px] font-black text-primary/60 uppercase tracking-widest mb-2">
+                                <p className="text-[11px] font-black text-primary/60 uppercase tracking-widest mb-2">
                                     Suggested milestones for <strong className="text-primary">{sessionConfig.course_name || 'your course'}</strong>
                                     <span className="text-muted-foreground/40 ml-1">· click to add</span>
                                 </p>
@@ -2688,7 +2651,7 @@ function ReportBuilderInner() {
                                             <div key={groupName}>
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <span className="text-[10px] font-black text-primary/80 uppercase tracking-widest">{groupName}</span>
-                                                    <span className="text-[9px] text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{(items as any[]).length}</span>
+                                                    <span className="text-[11px] text-muted-foreground bg-card shadow-sm px-2 py-0.5 rounded-full">{(items as any[]).length}</span>
                                                     <div className="flex-1 h-px bg-card shadow-sm" />
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2703,12 +2666,12 @@ function ReportBuilderInner() {
                                                                     <div className="flex items-center gap-1.5 flex-wrap">
                                                                         <p className="font-semibold text-foreground text-sm truncate">{s.full_name ?? 'Unnamed'}</p>
                                                                         {(s as any).grade_level && (
-                                                                            <span className="text-[9px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{(s as any).grade_level}</span>
+                                                                            <span className="text-[11px] px-1.5 py-0.5 bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded font-black uppercase shrink-0">{(s as any).grade_level}</span>
                                                                         )}
                                                                     </div>
                                                                     <p className="text-xs text-muted-foreground truncate">{s.school_name ?? s.email}</p>
                                                                     {(s as any)._source === 'students_table' && (
-                                                                        <span className="text-[9px] text-amber-400 font-semibold">Pre-portal</span>
+                                                                        <span className="text-[11px] text-amber-400 font-semibold">Pre-portal</span>
                                                                     )}
                                                                 </div>
                                                                 <span className="ml-auto text-[10px] text-muted-foreground font-mono flex-shrink-0">#{idx + 1}</span>
@@ -2911,38 +2874,38 @@ function ReportBuilderInner() {
                             <div className="bg-card border border-border px-5 py-3 space-y-2">
                                 <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-black text-primary/70 uppercase tracking-widest">Score Sources — Auto-filled from Platform</span>
-                                    <span className="text-[9px] text-muted-foreground">auto-suggested when score is 0</span>
+                                    <span className="text-[11px] text-muted-foreground">auto-suggested when score is 0</span>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
                                     <div className="bg-indigo-500/5 border border-indigo-500/20 px-2.5 py-2">
-                                        <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Theory (20%)</p>
+                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Theory (20%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.cbtScore > 0 ? `${studentStats.cbtScore}%` : '—'}</p>
-                                        <p className="text-[8px] text-muted-foreground">{studentStats.pendingCbt > 0 ? `${studentStats.pendingCbt} CBT pending` : 'CBT exam'}</p>
+                                        <p className="text-[10px] text-muted-foreground">{studentStats.pendingCbt > 0 ? `${studentStats.pendingCbt} CBT pending` : 'CBT exam'}</p>
                                     </div>
                                     <div className="bg-cyan-500/5 border border-cyan-500/20 px-2.5 py-2">
-                                        <p className="text-[8px] font-black text-cyan-400 uppercase tracking-widest mb-1">Classwork (10%)</p>
+                                        <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-1">Classwork (10%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.assignmentAvg > 0 ? `${studentStats.assignmentAvg}%` : '—'}</p>
-                                        <p className="text-[8px] text-muted-foreground">Graded asgn avg</p>
+                                        <p className="text-[10px] text-muted-foreground">Graded asgn avg</p>
                                     </div>
                                     <div className="bg-primary/5 border border-primary/20 px-2.5 py-2">
-                                        <p className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">Practical (25%)</p>
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Practical (25%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.projects} project{studentStats.projects !== 1 ? 's' : ''}</p>
-                                        <p className="text-[8px] text-muted-foreground">Lab + portfolio</p>
+                                        <p className="text-[10px] text-muted-foreground">Lab + portfolio</p>
                                     </div>
                                     <div className="bg-emerald-500/5 border border-emerald-500/20 px-2.5 py-2">
-                                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Assignments (20%)</p>
+                                        <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Assignments (20%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.assignments}/{studentStats.totalAssignments}</p>
-                                        <p className="text-[8px] text-muted-foreground">{studentStats.assignmentPct}% submitted</p>
+                                        <p className="text-[10px] text-muted-foreground">{studentStats.assignmentPct}% submitted</p>
                                     </div>
                                     <div className="bg-amber-500/5 border border-amber-500/20 px-2.5 py-2">
-                                        <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest mb-1">Attendance (10%)</p>
+                                        <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Attendance (10%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.attendance}/{studentStats.totalSessions}</p>
-                                        <p className="text-[8px] text-muted-foreground">Sessions present</p>
+                                        <p className="text-[10px] text-muted-foreground">Sessions present</p>
                                     </div>
                                     <div className="bg-rose-500/5 border border-rose-500/20 px-2.5 py-2">
-                                        <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1">Assessment (15%)</p>
+                                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Assessment (15%)</p>
                                         <p className="text-[11px] font-black text-foreground">{studentStats.evalScore > 0 ? `${studentStats.evalScore}%` : '—'}</p>
-                                        <p className="text-[8px] text-muted-foreground">{studentStats.pendingCbt > 0 ? 'Ready scores only' : 'CBT evaluation'}</p>
+                                        <p className="text-[10px] text-muted-foreground">{studentStats.pendingCbt > 0 ? 'Ready scores only' : 'CBT evaluation'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -2953,6 +2916,11 @@ function ReportBuilderInner() {
                             </div>
                         )}
 
+                        <EvidenceStatusBanner
+                            loading={fetchingStats}
+                            assignments={studentStats.totalAssignments}
+                            sessions={studentStats.totalSessions}
+                        />
                         {/* Activity cap notice — shown only when a cap is actively reducing the score */}
                         {!fetchingStats && selectedStudent && activityCap.maxScore < 100 && rawOverallScore > activityCap.maxScore && (
                             <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
@@ -3027,7 +2995,7 @@ function ReportBuilderInner() {
                                                         <div className={cn("w-8 h-8 mb-1 relative overflow-hidden", t.color)}>
                                                             <div className={cn("absolute inset-0.5 border-[0.5px]", t.border, "opacity-40")} />
                                                         </div>
-                                                        <span className="text-[8px] font-black uppercase tracking-tighter text-foreground">{t.name}</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-tighter text-foreground">{t.name}</span>
                                                         {modernTemplateId === t.id && (
                                                             <div className="absolute top-1 right-1">
                                                                 <CheckCircleIcon className="w-3 h-3 text-primary" />
@@ -3143,7 +3111,7 @@ function ReportBuilderInner() {
                                     <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/10 border-b border-border">
                                         <span className="text-[10px]">📖</span>
                                         <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex-1">Module (this student)</h3>
-                                        <span className="text-[9px] text-muted-foreground/50">Overrides session default</span>
+                                        <span className="text-[11px] text-muted-foreground/50">Overrides session default</span>
                                     </div>
                                     <div className="p-4 grid grid-cols-2 gap-3">
                                         <Field label="Current Module">
@@ -3176,11 +3144,11 @@ function ReportBuilderInner() {
                                 </div>
 
                                 {/* Scores — 6 weighted components */}
-                                <Section title="Performance Scores" icon="📊">
+                                <EvidenceEditorPanel title="Performance Scores" icon="📊">
                                     <div className="space-y-4">
                                         {/* Quick-apply score profiles */}
                                         <div className="flex flex-wrap gap-2 pb-3 border-b border-border">
-                                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest self-center flex-shrink-0">Quick:</span>
+                                            <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest self-center flex-shrink-0">Quick:</span>
                                             {([
                                                 { label: 'Excellent',   scores: [90, 85, 88, 85, 90, 88], color: 'emerald' },
                                                 { label: 'Good',        scores: [75, 72, 75, 70, 78, 72], color: 'primary' },
@@ -3199,7 +3167,7 @@ function ReportBuilderInner() {
                                                         assessment_score:    String(scores[5]),
                                                         proficiency_level:   scores[0] >= 80 ? 'advanced' : scores[0] >= 50 ? 'intermediate' : 'beginner',
                                                     }))}
-                                                    className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider border rounded-xl transition-all ${
+                                                    className={`px-3 py-1 text-[11px] font-black uppercase tracking-wider border rounded-xl transition-all ${
                                                         color === 'emerald' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
                                                         : color === 'primary' ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/20'
                                                         : color === 'amber' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
@@ -3226,8 +3194,8 @@ function ReportBuilderInner() {
                                                     <div className="flex justify-between items-baseline">
                                                         <div className="flex items-center gap-1.5">
                                                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                                                            <label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{label}</label>
-                                                            <span className="text-[8px] text-muted-foreground/40 font-bold">{weight}</span>
+                                                            <label className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{label}</label>
+                                                            <span className="text-[10px] text-muted-foreground/40 font-bold">{weight}</span>
                                                         </div>
                                                         <span className="text-[11px] font-black tabular-nums" style={{ color }}>{val}%</span>
                                                     </div>
@@ -3239,8 +3207,8 @@ function ReportBuilderInner() {
                                                             style={{ background: `linear-gradient(to right, ${color} ${val}%, rgba(255,255,255,0.06) ${val}%)` }}
                                                         />
                                                         <div className="flex items-center gap-px flex-shrink-0">
-                                                            <button type="button" onClick={() => nudge(-5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−5</button>
-                                                            <button type="button" onClick={() => nudge(-1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−1</button>
+                                                            <button type="button" onClick={() => nudge(-5)} className="px-1 py-0.5 text-[10px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−5</button>
+                                                            <button type="button" onClick={() => nudge(-1)} className="px-1 py-0.5 text-[10px] font-black text-muted-foreground/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all">−1</button>
                                                             <input
                                                                 type="text" inputMode="numeric" pattern="[0-9]*"
                                                                 value={parseInt(String(form[key])) === 0 ? '' : String(parseInt(String(form[key])) || '')}
@@ -3251,11 +3219,11 @@ function ReportBuilderInner() {
                                                                 }}
                                                                 onFocus={e => { if (!e.target.value) e.target.select(); }}
                                                                 className="w-9 text-center py-0.5 bg-card border border-border rounded-xl text-[10px] font-black text-foreground focus:outline-none focus:border-primary" />
-                                                            <button type="button" onClick={() => nudge(1)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+1</button>
-                                                            <button type="button" onClick={() => nudge(5)} className="px-1 py-0.5 text-[8px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+5</button>
+                                                            <button type="button" onClick={() => nudge(1)} className="px-1 py-0.5 text-[10px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+1</button>
+                                                            <button type="button" onClick={() => nudge(5)} className="px-1 py-0.5 text-[10px] font-black text-muted-foreground/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all">+5</button>
                                                         </div>
                                                     </div>
-                                                    <p className="text-[8px] text-muted-foreground/40 italic">{hint}</p>
+                                                    <p className="text-[10px] text-muted-foreground/40 italic">{hint}</p>
                                                 </div>
                                             );
                                         })}
@@ -3263,12 +3231,12 @@ function ReportBuilderInner() {
                                         {/* Overall — weighted score display */}
                                         <div className="mt-1 pt-3 border-t border-border flex items-center justify-between">
                                             <div>
-                                                <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Weighted Overall</p>
+                                                <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Weighted Overall</p>
                                                 <p className="text-2xl font-black text-foreground tabular-nums">{overallScore}<span className="text-sm text-muted-foreground/50 ml-0.5">%</span></p>
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <div className="text-right">
-                                                    <p className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Grade</p>
+                                                    <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest mb-0.5">Grade</p>
                                                     <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">{overallScore >= 45 ? 'Pass' : 'Below Pass'}</span>
                                                 </div>
                                                 <div className="w-12 h-12 flex flex-col items-center justify-center font-black border-2 border-primary/40 bg-primary/10 text-primary rounded-xl">
@@ -3281,8 +3249,8 @@ function ReportBuilderInner() {
                                         {/* Dynamic Weighted Contribution Progress Bar */}
                                         <div className="mt-2.5 space-y-1.5 bg-white/[0.01] border border-white/[0.04] p-3 rounded-2xl">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[8px] font-black text-muted-foreground uppercase tracking-widest">Weight Contributions</span>
-                                                <span className="text-[8px] text-muted-foreground font-bold">Sum: {overallScore}% / 100%</span>
+                                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Weight Contributions</span>
+                                                <span className="text-[10px] text-muted-foreground font-bold">Sum: {overallScore}% / 100%</span>
                                             </div>
                                             <div className="w-full h-2 bg-white/[0.04] rounded-full overflow-hidden flex">
                                                 <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.theory_score)) || 0) * 0.20}%` }} title={`Theory: ${Math.round((parseInt(String(form.theory_score)) || 0) * 0.20)}%`} />
@@ -3292,7 +3260,7 @@ function ReportBuilderInner() {
                                                 <div className="h-full bg-amber-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.participation_score)) || 0) * 0.10}%` }} title={`Attendance: ${Math.round((parseInt(String(form.participation_score)) || 0) * 0.10)}%`} />
                                                 <div className="h-full bg-rose-500 transition-all duration-300" style={{ width: `${(parseInt(String(form.assessment_score)) || 0) * 0.15}%` }} title={`Assessment: ${Math.round((parseInt(String(form.assessment_score)) || 0) * 0.15)}%`} />
                                             </div>
-                                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[8px] text-muted-foreground/60 leading-none">
+                                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground/60 leading-none">
                                                 <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-indigo-500" /> Theory ({Math.round((parseInt(String(form.theory_score)) || 0) * 0.20)}%)</span>
                                                 <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-cyan-500" /> Classwork ({Math.round((parseInt(String(form.classwork_score)) || 0) * 0.10)}%)</span>
                                                 <span className="flex items-center gap-0.5"><span className="w-1 h-1 rounded-full bg-violet-500" /> Practical ({Math.round((parseInt(String(form.practical_score)) || 0) * 0.25)}%)</span>
@@ -3302,7 +3270,7 @@ function ReportBuilderInner() {
                                             </div>
                                         </div>
                                     </div>
-                                </Section>
+                                </EvidenceEditorPanel>
 
                                 {/* Activity Qualifiers — aligned to grading components */}
                                 <Section title="Activity Qualifiers" icon="🏅">
@@ -3328,7 +3296,7 @@ function ReportBuilderInner() {
                                                         {picks.map(p => (
                                                             <button key={p} type="button"
                                                                 onClick={() => setForm(f => ({ ...f, [key]: p }))}
-                                                                className={`px-2 py-0.5 text-[9px] font-bold border transition-all ${
+                                                                className={`px-2 py-0.5 text-[11px] font-bold border transition-all ${
                                                                     val === p
                                                                         ? 'bg-primary/20 border-primary/50 text-primary'
                                                                         : 'bg-muted/30 border-border text-muted-foreground hover:border-primary/30 hover:text-foreground/80'
@@ -3383,7 +3351,7 @@ function ReportBuilderInner() {
                                 </Section>
 
                                 {/* Evaluation */}
-                                <Section title="Report-Visible Evaluation" icon="✍️">
+                                <NarrativeEditorPanel title="Report-Visible Evaluation" icon="✍️">
                                     <div className="space-y-5">
                                         <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground leading-relaxed">
                                             These two comments are printed on the report card and shown to parents. Use <span className="font-black text-primary">Draft Text</span> for a starting point, then review and edit it in your own voice before publishing.
@@ -3420,14 +3388,14 @@ function ReportBuilderInner() {
                                             <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
                                                 <SparklesIcon className="w-3.5 h-3.5" /> Optional Phrase Bank
                                             </p>
-                                            <p className="text-[9px] text-muted-foreground mt-0.5">Only phrases inserted into the two comment boxes above will appear on the report.</p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">Only phrases inserted into the two comment boxes above will appear on the report.</p>
                                         </div>
                                         <div className="w-full h-px bg-border/40" />
                                         <div>
                                             <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
                                                 <RocketLaunchIcon className="w-3.5 h-3.5" /> African Innovation Phrase Bank
                                             </p>
-                                            <p className="text-[9px] text-muted-foreground mt-0.5">Quick-insert local agritech, energy, and fintech remarks:</p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">Quick-insert local agritech, energy, and fintech remarks:</p>
                                         </div>
                                         <div className="flex flex-wrap gap-1.5">
                                             {[
@@ -3444,7 +3412,7 @@ function ReportBuilderInner() {
                                                         const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
                                                         return { ...f, key_strengths: `${current}${divider}${item.text}` };
                                                     })}
-                                                    className="px-2 py-1 text-[9px] font-bold bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all"
+                                                    className="px-2 py-1 text-[11px] font-bold bg-cyan-500/5 hover:bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 rounded-xl transition-all"
                                                 >
                                                     + {item.label}
                                                 </button>
@@ -3464,7 +3432,7 @@ function ReportBuilderInner() {
                                                     <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
                                                         <SparklesIcon className="w-3.5 h-3.5 animate-pulse" /> Faith / Values Analogies
                                                     </p>
-                                                    <p className="text-[9px] text-muted-foreground mt-0.5">Use only where the school/client wants values-based wording. These insert into Strengths.</p>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Use only where the school/client wants values-based wording. These insert into Strengths.</p>
                                                 </div>
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {[
@@ -3482,7 +3450,7 @@ function ReportBuilderInner() {
                                                                 const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
                                                                 return { ...f, key_strengths: `${current}${divider}${item.text}` };
                                                             })}
-                                                            className="px-2 py-1 text-[9px] font-bold bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl transition-all"
+                                                            className="px-2 py-1 text-[11px] font-bold bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl transition-all"
                                                         >
                                                             + {item.label}
                                                         </button>
@@ -3495,7 +3463,7 @@ function ReportBuilderInner() {
                                             <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1">
                                                 <ExclamationTriangleIcon className="w-3.5 h-3.5" /> Actionable Recommendations Bank
                                             </p>
-                                            <p className="text-[9px] text-muted-foreground mt-0.5">Quick-insert localized growth recommendations:</p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">Quick-insert localized growth recommendations:</p>
                                         </div>
                                         <div className="flex flex-wrap gap-1.5">
                                             {[
@@ -3512,20 +3480,20 @@ function ReportBuilderInner() {
                                                         const divider = current ? (current.endsWith('.') ? ' ' : '. ') : '';
                                                         return { ...f, areas_for_growth: `${current}${divider}${item.text}` };
                                                     })}
-                                                    className="px-2 py-1 text-[9px] font-bold bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl transition-all"
+                                                    className="px-2 py-1 text-[11px] font-bold bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl transition-all"
                                                 >
                                                     + {item.label}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
-                                </Section>
+                                </NarrativeEditorPanel>
                             </div>
 
                         </div>
 
                         {/* Sticky Action Bar */}
-                        <div className="sticky bottom-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border transition-all mt-6 -mx-3 sm:-mx-6 lg:-mx-8">
+                        <PublishControls>
                             {/* Success / Error flash banner in the action bar */}
                             {(success || error) && (
                                 <div className={`px-4 py-2 flex items-center gap-2 text-xs font-bold border-b ${
@@ -3549,17 +3517,17 @@ function ReportBuilderInner() {
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-xs font-black text-foreground truncate leading-none">{selectedStudent?.full_name ?? 'Student'}</p>
-                                            <p className="text-[9px] text-muted-foreground leading-none mt-0.5 truncate">
+                                            <p className="text-[11px] text-muted-foreground leading-none mt-0.5 truncate">
                                                 {form.section_class || sessionConfig.section_class || selectedStudent?.section_class || ''}
                                             </p>
                                         </div>
                                         {existingReport && (
-                                            <span className={`flex-shrink-0 text-[8px] px-1.5 py-0.5 rounded-full font-black ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                            <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-black ${form.is_published ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                                 {form.is_published ? '✓ Published' : 'Draft'}
                                             </span>
                                         )}
                                         {isDirty && (
-                                            <span className="flex-shrink-0 text-[8px] px-1.5 py-0.5 rounded-full font-black bg-orange-500/20 text-orange-400 animate-pulse">
+                                            <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-black bg-orange-500/20 text-orange-400 animate-pulse">
                                                 ● Unsaved
                                             </span>
                                         )}
@@ -3649,7 +3617,7 @@ function ReportBuilderInner() {
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        </PublishControls>
                     </div>
                 )
                 }
@@ -3791,19 +3759,19 @@ function ReportBuilderInner() {
                         </button>
                         <div className="min-w-0 mr-2">
                             <h3 className="text-foreground font-black text-sm truncate">{form.student_name}</h3>
-                            <p className="text-[9px] text-muted-foreground uppercase tracking-[0.2em] font-bold hidden sm:block">Report Card Preview</p>
+                            <p className="text-[11px] text-muted-foreground uppercase tracking-[0.2em] font-bold hidden sm:block">Report Card Preview</p>
                         </div>
                         <div className="flex bg-muted/30 border border-border p-0.5 rounded-lg flex-shrink-0">
                             <button onClick={() => setReportStyle('standard')}
-                                className={`px-2 sm:px-4 py-1.5 text-[9px] font-black uppercase transition-all rounded-md ${reportStyle === 'standard' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+                                className={`px-2 sm:px-4 py-1.5 text-[11px] font-black uppercase transition-all rounded-md ${reportStyle === 'standard' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                                 Standard
                             </button>
                             <button onClick={() => setReportStyle('modern')}
-                                className={`px-2 sm:px-4 py-1.5 text-[9px] font-black uppercase transition-all rounded-md ${reportStyle === 'modern' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+                                className={`px-2 sm:px-4 py-1.5 text-[11px] font-black uppercase transition-all rounded-md ${reportStyle === 'modern' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                                 Modern
                             </button>
                             <button onClick={() => setReportStyle('printable')}
-                                className={`px-2 sm:px-4 py-1.5 text-[9px] font-black uppercase transition-all rounded-md ${reportStyle === 'printable' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+                                className={`px-2 sm:px-4 py-1.5 text-[11px] font-black uppercase transition-all rounded-md ${reportStyle === 'printable' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                                 Printable
                             </button>
                         </div>
@@ -3826,7 +3794,7 @@ function ReportBuilderInner() {
                                         <div className={cn("absolute inset-0", t.color)} />
                                         <div className={cn("absolute inset-1 border-[0.5px]", t.border, "opacity-40")} />
                                         <span className={cn(
-                                            "relative z-10 text-[8px] font-black uppercase tracking-tighter",
+                                            "relative z-10 text-[10px] font-black uppercase tracking-tighter",
                                             t.id === 'executive' ? "text-slate-800" : "text-white"
                                         )}>{t.name}</span>
                                         {modernTemplateId === t.id && (

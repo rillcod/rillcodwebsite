@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { generateProgressReportVerificationCode, progressReportPublishIssues } from '@/lib/reports/publication';
+import { publishProgressReport } from '@/lib/reports/publish-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,22 +35,10 @@ export async function POST(request: NextRequest) {
 
     const failures: Array<{ id: string; student_name: string | null; issues: string[] }> = [];
     const publishedIds: string[] = [];
-    const now = new Date().toISOString();
 
     for (const draft of drafts as any[]) {
-      const issues = progressReportPublishIssues(draft as Record<string, unknown>);
-      if (issues.length) {
-        failures.push({ id: draft.id, student_name: draft.student_name ?? null, issues });
-        continue;
-      }
-      const verificationCode = draft.verification_code || await generateProgressReportVerificationCode(admin);
-      const { error } = await admin.from('student_progress_reports').update({
-        is_published: true,
-        published_at: now,
-        verification_code: verificationCode,
-        updated_at: now,
-      }).eq('id', draft.id).eq('is_published', false);
-      if (error) failures.push({ id: draft.id, student_name: draft.student_name ?? null, issues: [error.message] });
+      const result = await publishProgressReport(admin, draft.id);
+      if (!result.ok) failures.push({ id: draft.id, student_name: draft.student_name ?? null, issues: result.issues ?? [result.error] });
       else publishedIds.push(draft.id);
     }
 

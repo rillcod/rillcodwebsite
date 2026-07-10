@@ -6,7 +6,7 @@ import { queueService } from '@/services/queue.service';
 import { buildReportEmail, buildEmailTrackingPixelUrl, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
-import { generateProgressReportVerificationCode, progressReportPublishIssues } from '@/lib/reports/publication';
+import { publishProgressReport } from '@/lib/reports/publish-service';
 
 function adminClient() {
   return createClient<Database>(
@@ -133,26 +133,22 @@ export async function PATCH(
   allowed.updated_at = new Date().toISOString();
 
   const admin = adminClient();
+  let data: any;
+  let error: any;
   if (allowed.is_published === true) {
-    const { data: currentReport } = await admin
-      .from('student_progress_reports')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    const issues = progressReportPublishIssues({ ...(currentReport ?? {}), ...allowed });
-    if (issues.length > 0) {
-      return NextResponse.json({ error: 'Report is not ready to publish', issues }, { status: 400 });
-    }
-    if (!currentReport?.verification_code) {
-      allowed.verification_code = await generateProgressReportVerificationCode(admin);
-    }
-  }
-  const { data, error } = await admin
+    const publishResult = await publishProgressReport(admin, id, allowed as Record<string, unknown>);
+    if (!publishResult.ok) return NextResponse.json({ error: publishResult.error, issues: publishResult.issues }, { status: publishResult.status });
+    data = publishResult.report;
+  } else {
+    const updateResult = await admin
     .from('student_progress_reports')
     .update(allowed as TablesUpdate<'student_progress_reports'>)
-    .eq('id', id)
-    .select('id, student_id, course_name, overall_score, overall_grade, is_published, verification_code')
-    .single();
+      .eq('id', id)
+      .select('id, student_id, course_name, overall_score, overall_grade, is_published, verification_code')
+      .single();
+    data = updateResult.data;
+    error = updateResult.error;
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

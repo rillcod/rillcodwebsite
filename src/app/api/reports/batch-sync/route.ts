@@ -5,6 +5,7 @@ import { computeWeightedScore, getWAECGrade } from '@/lib/grading';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { getCurrentAcademicYear } from '@/lib/reports/academic-period';
 import { evidencePercentage, isEvidenceWithinPeriod, relevantAssignmentsForReport } from '@/lib/reports/evidence';
+import { assertTeacherReportCourseScope } from '@/lib/reports/scope';
 
 function adminClient() {
   return createClient(
@@ -120,6 +121,9 @@ export async function POST(request: NextRequest) {
   }
   if (caller.role === 'teacher' && class_id && !teacherClassScope!.classIds.includes(class_id)) {
     return NextResponse.json({ error: 'You can only build reports for classes you own' }, { status: 403 });
+  }
+  if (caller.role === 'teacher' && !(await assertTeacherReportCourseScope(admin, caller.id, course_id, teacherClassScope!.classIds))) {
+    return NextResponse.json({ error: 'You are not assigned to this course through an owned class or direct course assignment.' }, { status: 403 });
   }
   
   // 1. Fetch Students in the specified School/Class
@@ -242,6 +246,7 @@ export async function POST(request: NextRequest) {
         course_id: course_id,
         course_name: course_name,
         report_term: report_term,
+        term_id: termId,
         report_period: reportPeriod,
         report_date: report_date,
         instructor_name: instructor_name || caller.full_name,

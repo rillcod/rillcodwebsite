@@ -51,7 +51,9 @@ export async function GET() {
     const list = students ?? [];
     const ids = list.map((s: any) => s.id);
     const academicPeriod = currentAcademicPeriod();
-    const { published, drafted } = await reportCoverageForStudents(admin, ids, academicPeriod);
+    const { data: canonicalTerm } = await admin.from('academic_terms').select('id')
+      .eq('term_label', academicPeriod.termLabel).eq('academic_year', academicPeriod.periodLabel).maybeSingle();
+    const { published, drafted } = await reportCoverageForStudents(admin, ids, { ...academicPeriod, termId: canonicalTerm?.id ?? null });
 
     const pending = list
       .filter((s: any) => !published.has(s.id))
