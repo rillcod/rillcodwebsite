@@ -157,13 +157,11 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
       'PATCH /api/lesson-plans/[id] (progression_term_status_update)',
       'GET /api/cron/term-scheduler (release weeks)',
       'GET /api/progression/audit',
-      'GET /api/progression/marker-integrity',
     ],
     appPaths: [
       { label: 'Lesson plans (link syllabus, then generate progression)', path: '/dashboard/lesson-plans' },
       { label: 'Student progression (end of term / promote)', path: '/dashboard/progression' },
       { label: 'Progression audit log', path: '/dashboard/progression/audit' },
-      { label: 'Marker integrity monitor', path: '/dashboard/progression/marker-integrity' },
     ],
     codeRefs: ['src/lib/progression/termStatus.ts', 'src/app/api/lesson-plans/[id]/generate-progression/route.ts'],
   },
@@ -210,7 +208,6 @@ export const LEARNING_QA_SYSTEM_ORDER: QaSystemLayer[] = [
     apiRoutes: ['/api/assignments (and related)', '/api/curriculum-projects'],
     appPaths: [
       { label: 'Curriculum → Generate tab', path: '/dashboard/curriculum?tab=generate' },
-      { label: 'Project seed registry (CRUD)', path: '/dashboard/progression/project-registry' },
     ],
   },
 ];
