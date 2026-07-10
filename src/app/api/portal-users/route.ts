@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 
 const NO_MATCH_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -53,25 +54,16 @@ export async function GET(request: NextRequest) {
     // For teachers/school: scope to their school(s) when scoped=true
     if (scoped && caller.role !== 'admin') {
       if (caller.role === 'teacher') {
-        // Class-privacy: when isolation is ON, a teacher sees only students in their OWN
+        // Class-privacy: when isolation is ON, a teacher sees students in owned/unowned
         // classes (+ students they authored reports for), never the whole school.
         const isolated = await isTeacherIsolationOn(admin);
-        // Step 1 — resolve teacher's assigned school IDs
-        const { data: schoolRows } = await admin
-          .from('teacher_schools')
-          .select('school_id')
-          .eq('teacher_id', caller.id);
-        const assignedIds = (schoolRows ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
-        if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
+        // Shared isolation boundary: owned classes plus unowned classes in assigned schools.
+        const classScope = await getTeacherClassScope(admin, caller.id, caller.school_id, !isolated);
+        const assignedIds = classScope.assignedSchoolIds;
+        const myClassIds = classScope.classIds;
+        const myClassNames = classScope.classNames;
 
         if (assignedIds.length === 0) return NextResponse.json({ data: [] });
-
-        // Step 2 — try to narrow by teacher's personal classes (teacher_id match)
-        let classQ = admin.from('classes').select('id, name').eq('teacher_id', caller.id);
-        classQ = classQ.in('school_id', assignedIds) as any;
-        const { data: myClasses } = await classQ;
-        const myClassIds = (myClasses ?? []).map((c: any) => c.id);
-        const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
 
         // Always include students this teacher has authored reports for — ensures
         // visibility is preserved even when students are moved to another class

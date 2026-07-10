@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { canonicalGrade } from '@/lib/classes/naming';
 import { isAutoPortalsOn } from '@/lib/server/lms-policy';
+import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 
 function adminClient() {
   return createClient(
@@ -280,20 +282,12 @@ export async function GET(request: Request) {
         return NextResponse.json({ data: [] });
       }
     } else if (caller.role === 'teacher') {
-      // Step 1 — school: resolve teacher's assigned schools (outer boundary)
-      const { data: schoolRows } = await supabase
-        .from('teacher_schools')
-        .select('school_id')
-        .eq('teacher_id', caller.id);
-      const assignedIds = (schoolRows ?? []).map((a: any) => a.school_id).filter(Boolean) as string[];
-      if (caller.school_id && !assignedIds.includes(caller.school_id)) assignedIds.push(caller.school_id);
-
-      // Step 2 — class: teacher's classes within those schools
-      let classQ = supabase.from('classes').select('id, name').eq('teacher_id', caller.id);
-      if (assignedIds.length > 0) classQ = classQ.in('school_id', assignedIds) as any;
-      const { data: myClasses } = await classQ;
-      const myClassIds = (myClasses ?? []).map((c: any) => c.id);
-      const myClassNames = (myClasses ?? []).map((c: any) => c.name).filter(Boolean) as string[];
+      // Shared isolation boundary: owned classes plus unowned classes in assigned schools.
+      const isolated = await isTeacherIsolationOn(supabase as any);
+      const classScope = await getTeacherClassScope(supabase as any, caller.id, caller.school_id, !isolated);
+      const assignedIds = classScope.assignedSchoolIds;
+      const myClassIds = classScope.classIds;
+      const myClassNames = classScope.classNames;
 
       const userIdSet = new Set<string>();
 

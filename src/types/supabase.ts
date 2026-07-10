@@ -7167,6 +7167,10 @@ export type Database = {
           created_by: string | null
           current_module: string | null
           date_of_birth: string | null
+          duplicate_name_exception_approved_at: string | null
+          duplicate_name_exception_approved_by: string | null
+          duplicate_name_exception_key: string | null
+          duplicate_name_exception_reason: string | null
           email: string
           email_verified: boolean | null
           enrollment_type: string | null
@@ -7202,6 +7206,10 @@ export type Database = {
           created_by?: string | null
           current_module?: string | null
           date_of_birth?: string | null
+          duplicate_name_exception_approved_at?: string | null
+          duplicate_name_exception_approved_by?: string | null
+          duplicate_name_exception_key?: string | null
+          duplicate_name_exception_reason?: string | null
           email: string
           email_verified?: boolean | null
           enrollment_type?: string | null
@@ -7237,6 +7245,10 @@ export type Database = {
           created_by?: string | null
           current_module?: string | null
           date_of_birth?: string | null
+          duplicate_name_exception_approved_at?: string | null
+          duplicate_name_exception_approved_by?: string | null
+          duplicate_name_exception_key?: string | null
+          duplicate_name_exception_reason?: string | null
           email?: string
           email_verified?: boolean | null
           enrollment_type?: string | null

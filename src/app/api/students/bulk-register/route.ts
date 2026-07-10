@@ -17,6 +17,7 @@ interface StudentEntry {
   password: string;
   class_name?: string; // maps to portal_users.section_class
   gender?: string | null;
+  duplicate_exception_reason?: string | null;
 }
 
 type ResolvedClass = {
@@ -182,7 +183,6 @@ export async function POST(request: Request) {
     const programId: string | null = (body.program_id as string | undefined) ?? null;
     const batchClassId: string | null = (body.class_id as string | undefined) ?? null;
     const batchClassName: string | null = (body.class_name as string | undefined) ?? null;
-    const allowSameName: boolean = body.allow_same_name === true; // user confirmed different students share a name
 
     let programName: string | null = null;
     if (programId) {
@@ -307,11 +307,10 @@ export async function POST(request: Request) {
       if (key) existingByKey.set(key, { id: s.id, email: s.email, full_name: s.full_name });
     }
 
-    // allowNameSwap: caller explicitly confirmed this is a different student from the name-swapped match
-    const allowNameSwap: boolean = body.allow_name_swap === true;
-
     for (const student of students) {
       const { full_name, email, password, class_name, gender } = student;
+      const duplicateExceptionReason = student.duplicate_exception_reason?.trim() || null;
+      const hasDuplicateException = !!duplicateExceptionReason && duplicateExceptionReason.length >= 10;
 
       if (!full_name?.trim() || !email?.trim() || !password) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: 'Missing fields' });
@@ -358,25 +357,25 @@ export async function POST(request: Request) {
         }
       }
 
-      // 1. Exact name match — block unless caller confirmed same name = different student
+      // 1. Exact name match — block unless this row has an audited exception
       const exactMatch = existingByName.get(nameKey);
-      if (exactMatch && !allowSameName) {
+      if (exactMatch && !hasDuplicateException) {
         results.push({
           full_name, email, password, class_name,
           status: 'skipped',
-          error: `Already registered at this school as "${exactMatch.full_name}" (login: ${exactMatch.email}). If this is a different student with the same name, re-upload with "allow same name" confirmed.`,
+          error: `Already registered at this school as "${exactMatch.full_name}" (login: ${exactMatch.email}). Duplicate names cannot be created through bulk registration.`,
           userId: exactMatch.id,
         });
         continue;
       }
 
-      // 2. Swapped first/last name — block unless caller confirmed it's intentional
+      // 2. Swapped first/last name — block unless this row has an audited exception
       const swapMatch = !exactMatch ? existingByReversedName.get(nameKey) : null;
-      if (swapMatch && !allowNameSwap && !allowSameName) {
+      if (swapMatch && !hasDuplicateException) {
         results.push({
           full_name, email, password, class_name,
           status: 'name_swap_conflict',
-          error: `Possible duplicate: "${full_name}" looks like "${swapMatch.full_name}" with first and last name swapped (existing login: ${swapMatch.email}). Confirm this is a different student to proceed.`,
+          error: `Possible duplicate: "${full_name}" looks like "${swapMatch.full_name}" with first and last name swapped (existing login: ${swapMatch.email}). Duplicate names cannot be created through bulk registration.`,
           userId: swapMatch.id,
         });
         continue;
@@ -385,11 +384,11 @@ export async function POST(request: Request) {
       // 2b. Normalized-key match — catches spelling-noise variants the exact/reversed
       // checks miss ("Uche Sunday" vs "Uche Sunday 5", invisible chars, "34." prefixes).
       const keyMatch = (!exactMatch && !swapMatch) ? existingByKey.get(duplicateNameKey(full_name)) : null;
-      if (keyMatch && !allowSameName) {
+      if (keyMatch && !hasDuplicateException) {
         results.push({
           full_name, email, password, class_name,
           status: 'skipped',
-          error: `Already registered at this school as "${keyMatch.full_name}" (login: ${keyMatch.email}). This looks like the same student — confirm "allow same name" only if it is genuinely a different child.`,
+          error: `Already registered at this school as "${keyMatch.full_name}" (login: ${keyMatch.email}). Duplicate names cannot be created through bulk registration.`,
           userId: keyMatch.id,
         });
         continue;
@@ -497,6 +496,12 @@ export async function POST(request: Request) {
             enrollment_type: 'in_person',
             is_active: true,
             gender: gender || null,
+            ...(hasDuplicateException ? {
+              duplicate_name_exception_reason: duplicateExceptionReason,
+              duplicate_name_exception_key: duplicateNameKey(full_name),
+              duplicate_name_exception_approved_by: user.id,
+              duplicate_name_exception_approved_at: new Date().toISOString(),
+            } : {}),
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'id' },
@@ -515,6 +520,20 @@ export async function POST(request: Request) {
           continue;
         }
 
+        if (hasDuplicateException) {
+          await supabaseAdmin.from('audit_logs').insert({
+            user_id: user.id,
+            action: 'student_duplicate_name_exception',
+            table_name: 'portal_users',
+            record_id: authUserId,
+            new_values: {
+              student_name: cleanStudentName(full_name) || full_name.trim(),
+              student_email: normalizeEmail(email),
+              school_id: resolvedSchoolId,
+              reason: duplicateExceptionReason,
+            },
+          });
+        }
         // For NEW students only: stamp primary_teacher_id so the DB trigger protects them
         // going forward. Never do this for existing students (status = 'updated').
         if (status === 'created' && effectiveTeacherId) {

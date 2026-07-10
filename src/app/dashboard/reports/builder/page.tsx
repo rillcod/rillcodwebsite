@@ -992,9 +992,23 @@ function ReportBuilderInner() {
         // Classes from student records (section_class field)
         ...students.filter(schoolScoped).map(s => (s as any).section_class).filter(Boolean),
         // Teacher-created classes (from classes table)
-        ...teacherClasses.map(c => c.name),
+        ...teacherClasses.filter((c) => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => c.name),
     ])].sort() as string[];
 
+    function selectReportSection(sectionName: string) {
+        const matchingClass = teacherClasses.find((c) => c.name === sectionName && (
+            !sessionConfig.school_id || c.school_id === sessionConfig.school_id
+        ));
+        const matchingSchool = matchingClass?.school_id
+            ? schools.find((school) => school.id === matchingClass.school_id)
+            : null;
+        setSessionConfig((current) => ({
+            ...current,
+            section_class: sectionName,
+            ...(matchingClass?.school_id ? { school_id: matchingClass.school_id } : {}),
+            ...(matchingSchool?.name ? { school_name: matchingSchool.name } : {}),
+        }));
+    }
     const distinctGrades = [...new Set(
         students.filter(schoolScoped).map(s => (s as any).grade_level).filter(Boolean)
     )].sort() as string[];
@@ -2002,7 +2016,11 @@ function ReportBuilderInner() {
                         <Field label="School">
                             <select
                                 value={sessionConfig.school_name}
-                                onChange={e => setSessionConfig(s => ({ ...s, school_name: e.target.value }))}
+                                onChange={e => {
+                                    const name = e.target.value;
+                                    const match = schools.find((school) => school.name === name);
+                                    setSessionConfig((current) => ({ ...current, school_name: name, school_id: match?.id }));
+                                }}
                                 className={INPUT}>
                                 <option value="">— Select a school —</option>
                                 {schools.map(sc => <option key={sc.id} value={sc.name}>{sc.name}</option>)}
@@ -2011,7 +2029,7 @@ function ReportBuilderInner() {
                         <Field label="Section">
                             <select
                                 value={sessionConfig.section_class}
-                                onChange={e => setSessionConfig(s => ({ ...s, section_class: e.target.value }))}
+                                onChange={e => selectReportSection(e.target.value)}
                                 className={INPUT}>
                                 <option value="">— Select class —</option>
                                 {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
@@ -2361,7 +2379,7 @@ function ReportBuilderInner() {
                                 <Field label="Section *">
                                     <select
                                         value={sessionConfig.section_class}
-                                        onChange={e => setSessionConfig(s => ({ ...s, section_class: e.target.value }))}
+                                        onChange={e => selectReportSection(e.target.value)}
                                         className={INPUT}>
                                         <option value="">— Select class —</option>
                                         {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
+import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +44,22 @@ export async function GET() {
     scopeSchoolIds = [...ids];
   }
   const inScope = (schoolId?: string | null) => !scopeSchoolIds || (schoolId != null && scopeSchoolIds.includes(schoolId));
+  let visibleStudentIds: Set<string> | null = null;
+  if (profile.role === 'teacher' && await isTeacherIsolationOn(sb)) {
+    const classScope = await getTeacherClassScope(sb, user.id, profile.school_id);
+    visibleStudentIds = new Set<string>();
+    if (classScope.classIds.length > 0) {
+      const { data: classStudents } = await sb.from('portal_users').select('id').eq('role', 'student').in('class_id', classScope.classIds);
+      for (const row of classStudents ?? []) visibleStudentIds.add(row.id);
+    }
+    if (classScope.classNames.length > 0) {
+      const { data: sectionStudents } = await sb.from('portal_users').select('id').eq('role', 'student').is('class_id', null)
+        .in('school_id', classScope.assignedSchoolIds).in('section_class', classScope.classNames);
+      for (const row of sectionStudents ?? []) visibleStudentIds.add(row.id);
+    }
+    const { data: authored } = await sb.from('student_progress_reports').select('student_id').eq('teacher_id', user.id);
+    for (const row of authored ?? []) if (row.student_id) visibleStudentIds.add(row.student_id);
+  }
   if (scopeSchoolIds && scopeSchoolIds.length === 0) {
     return NextResponse.json({ records: [], count: 0, scope: profile.role });
   }

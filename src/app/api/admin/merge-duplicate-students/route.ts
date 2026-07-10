@@ -45,6 +45,9 @@ interface StudentRow {
   created_at: string | null;
 }
 
+type ReportStats = { total: number; published: number; drafts: number; thirdTerm: number };
+const EMPTY_REPORT_STATS: ReportStats = { total: 0, published: 0, drafts: 0, thirdTerm: 0 };
+
 function groupKey(s: StudentRow): string | null {
   const email = (s.parent_email || '').trim().toLowerCase();
   const name = (s.full_name || '').trim().replace(/\s+/g, ' ').toLowerCase();
@@ -72,6 +75,27 @@ export async function POST(req: NextRequest) {
       .or('is_deleted.is.null,is_deleted.eq.false')
       .limit(5000);
 
+    // Reports are keyed to portal_users.id, not students.id. Score every candidate
+    // before selecting a survivor so even one Third Term draft/published report wins.
+    const portalIds = ((rows ?? []) as StudentRow[]).map((row) => row.user_id).filter(Boolean) as string[];
+    const reportStats = new Map<string, ReportStats>();
+    for (let i = 0; i < portalIds.length; i += 500) {
+      const { data: reports, error: reportsError } = await admin
+        .from('student_progress_reports')
+        .select('student_id, is_published, report_term, report_period')
+        .in('student_id', portalIds.slice(i, i + 500));
+      if (reportsError) throw reportsError;
+      for (const row of reports ?? []) {
+        if (!row.student_id) continue;
+        const stats = reportStats.get(row.student_id) ?? { ...EMPTY_REPORT_STATS };
+        stats.total += 1;
+        if (row.is_published) stats.published += 1; else stats.drafts += 1;
+        if (`${row.report_term ?? ''} ${row.report_period ?? ''}`.toLowerCase().includes('third')) stats.thirdTerm += 1;
+        reportStats.set(row.student_id, stats);
+      }
+    }
+    const statsFor = (student: StudentRow): ReportStats =>
+      student.user_id ? (reportStats.get(student.user_id) ?? EMPTY_REPORT_STATS) : EMPTY_REPORT_STATS;
     // Group by parent email + normalized name.
     const groups = new Map<string, StudentRow[]>();
     for (const s of (rows ?? []) as StudentRow[]) {
@@ -86,7 +110,7 @@ export async function POST(req: NextRequest) {
       duplicateRows: 0,
       merged: 0,
       loginsDeactivated: 0,
-      details: [] as Array<{ child: string; kept: string; removed: string[] }>,
+      details: [] as Array<{ child: string; kept: string; keptReports: ReportStats; removed: Array<{ id: string; reports: ReportStats }>; reason: string }>,
     };
 
     for (const [, members] of groups) {
@@ -94,11 +118,18 @@ export async function POST(req: NextRequest) {
       report.duplicateGroups++;
       report.duplicateRows += members.length - 1;
 
-      // Canonical: prefer a row with a portal account, then the oldest.
+      // Canonical priority: any published or draft report wins (one Third Term is enough),
+      // then published count, total reports, Third Term evidence, portal login, oldest.
       const sorted = [...members].sort((a, b) => {
-        const au = a.user_id ? 0 : 1;
-        const bu = b.user_id ? 0 : 1;
-        if (au !== bu) return au - bu;
+        const ar = statsFor(a), br = statsFor(b);
+        const comparisons = [
+          Number(br.total > 0) - Number(ar.total > 0),
+          br.published - ar.published,
+          br.total - ar.total,
+          br.thirdTerm - ar.thirdTerm,
+          Number(!!b.user_id) - Number(!!a.user_id),
+        ];
+        for (const comparison of comparisons) if (comparison !== 0) return comparison;
         return new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
       });
       const canonical = sorted[0];
@@ -107,7 +138,13 @@ export async function POST(req: NextRequest) {
       report.details.push({
         child: `${canonical.full_name} <${canonical.parent_email}>`,
         kept: canonical.id,
-        removed: dups.map(d => d.id),
+        keptReports: statsFor(canonical),
+        removed: dups.map((d) => ({ id: d.id, reports: statsFor(d) })),
+        reason: statsFor(canonical).total > 0
+          ? 'Kept report-bearing account (published and draft reports protected; Third Term alone qualifies).'
+          : canonical.user_id
+            ? 'No reports found; kept portal-linked account.'
+            : 'No reports or portal accounts found; kept oldest record.',
       });
 
       if (dryRun) continue;

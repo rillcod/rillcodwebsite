@@ -107,6 +107,8 @@ interface GeneratedStudent {
   password: string;
   class_name?: string;
   gender?: 'male' | 'female' | '';
+  duplicate_exception_reason?: string;
+  duplicate_exception_confirmed?: boolean;
 }
 
 interface RegisterResult extends GeneratedStudent {
@@ -246,8 +248,6 @@ export default function BulkRegisterPage() {
   const [dbDupNames, setDbDupNames] = useState<Set<string>>(new Set()); // names already in DB at selected school
   const [dbSwapNames, setDbSwapNames] = useState<Map<string, string>>(new Map()); // incoming name → existing swapped name
   const [checkingDups, setCheckingDups] = useState(false);
-  const [nameSwapOverride, setNameSwapOverride] = useState(false); // user confirmed swapped names are different students
-  const [dupOverride, setDupOverride] = useState(false); // user confirmed they want to proceed despite name matches
   const [activeTab, setActiveTab] = useState<'register' | 'vault' | 'unified'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
   // Vault/history batch actions
@@ -1368,6 +1368,11 @@ export default function BulkRegisterPage() {
     return () => clearTimeout(timer);
   }, [preview, step, selectedSchoolId, supabase]);
 
+  function studentNameKey(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/)
+      .filter((token) => token && !/^\d+$/.test(token)).sort().join(' ');
+  }
+
   // ── Detect duplicate emails in the current preview ───────────────────────
   function dupEmails(rows: GeneratedStudent[]): Set<string> {
     const seen = new Map<string, number>();
@@ -1411,6 +1416,14 @@ export default function BulkRegisterPage() {
     setPreview((prev) => prev.map((r) => r.id === id ? { ...r, class_name: normalised || undefined } : r));
   }
 
+  function updateDuplicateException(id: number, confirmed: boolean) {
+    setPreview((prev) => prev.map((row) => row.id === id ? {
+      ...row,
+      duplicate_exception_confirmed: confirmed,
+      duplicate_exception_reason: confirmed ? (row.duplicate_exception_reason ?? '') : undefined,
+    } : row));
+  }
+
   function removeRow(id: number) {
     setPreview((prev) => prev.filter((r) => r.id !== id));
   }
@@ -1433,8 +1446,6 @@ export default function BulkRegisterPage() {
     setDbDupNames(new Set());
     setDbSwapNames(new Map());
     setDbEmailConflicts(new Map());
-    setDupOverride(false);
-    setNameSwapOverride(false);
     setStep('preview');
   }, [namesText, defaultClass]);  
 
@@ -1471,8 +1482,6 @@ export default function BulkRegisterPage() {
           students: batch,
           class_id: selectedRegistryClass || null,
           class_name: effectiveClassCode || null,
-          allow_same_name: dupOverride,
-          allow_name_swap: nameSwapOverride,
         };
         if (selectedSchoolId) {
           body.school_id = selectedSchoolId;
@@ -1564,6 +1573,19 @@ export default function BulkRegisterPage() {
   );
 
   const dups = dupEmails(preview);
+  const batchNameCounts = new Map<string, number>();
+  preview.forEach((row) => {
+    const key = studentNameKey(row.full_name);
+    if (key) batchNameCounts.set(key, (batchNameCounts.get(key) ?? 0) + 1);
+  });
+  const hasNameConflict = (row: GeneratedStudent) => {
+    const norm = row.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
+    const key = studentNameKey(row.full_name);
+    return dbDupNames.has(norm) || dbSwapNames.has(norm) || (!!key && (batchNameCounts.get(key) ?? 0) > 1);
+  };
+  const unresolvedNameExceptions = preview.filter((row) => hasNameConflict(row) && (
+    !row.duplicate_exception_confirmed || (row.duplicate_exception_reason?.trim().length ?? 0) < 10
+  ));
   const incompleteRows = preview.filter((r) => !r.full_name.trim() || !r.email.trim());
   const validCount = preview.length - incompleteRows.length;
   const previewClasses = [...new Set(preview.map((s) => s.class_name).filter(Boolean))];
@@ -2003,18 +2025,9 @@ Yusuf Ibrahim SS1A`}
                         <div className="space-y-1">
                           <p className="text-yellow-400 font-bold">{dbDupNames.size} name{dbDupNames.size !== 1 ? 's' : ''} already exist at this school:</p>
                           <p className="text-yellow-300 font-mono">{[...dbDupNames].map(n => preview.find(s => s.full_name.trim().toLowerCase() === n)?.full_name ?? n).join(', ')}</p>
-                          <p className="text-yellow-400/80">If these are different students who happen to share a name, tick the box below to register them anyway. If they are the same students, remove those rows first.</p>
+                          <p className="text-yellow-400/80">For a genuine twin or different child, confirm the exception on that student row and enter a distinguishing reason. Otherwise remove the duplicate row.</p>
                         </div>
                       </div>
-                      <label className="flex items-center gap-2 pl-6 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={dupOverride}
-                          onChange={(e) => setDupOverride(e.target.checked)}
-                          className="accent-yellow-500 w-3.5 h-3.5"
-                        />
-                        <span className="text-yellow-400 font-bold">These are different students — register anyway</span>
-                      </label>
                     </div>
                   )}
                   {!checkingDups && dbSwapNames.size > 0 && (
@@ -2033,18 +2046,9 @@ Yusuf Ibrahim SS1A`}
                               );
                             })}
                           </div>
-                          <p className="text-rose-300/60">This usually means the same student's first and last name were entered in reverse order. If this is genuinely a different student, confirm below.</p>
+                          <p className="text-rose-300/60">This usually means the same student's first and last name were reversed. Confirm a per-student exception only for a genuine twin or different child.</p>
                         </div>
                       </div>
-                      <label className="flex items-center gap-2 pl-6 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={nameSwapOverride}
-                          onChange={(e) => setNameSwapOverride(e.target.checked)}
-                          className="accent-rose-500 w-3.5 h-3.5"
-                        />
-                        <span className="text-rose-400 font-bold">Different student, not a name swap — register anyway</span>
-                      </label>
                     </div>
                   )}
                   {incompleteRows.length > 0 && (
@@ -2084,6 +2088,7 @@ Yusuf Ibrahim SS1A`}
                           const emailDup = dups.has(s.email.toLowerCase());
                           const incomplete = !s.full_name.trim() || !s.email.trim();
                           const dbDup = dbDupNames.has(s.full_name.trim().toLowerCase());
+                          const nameConflict = hasNameConflict(s);
                           return (
                             <tr
                               key={s.id}
@@ -2107,6 +2112,17 @@ Yusuf Ibrahim SS1A`}
                                     <span className="shrink-0 px-1.5 py-0.5 bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-[9px] font-black uppercase tracking-tight rounded-xl" title="Already registered at this school">EXISTS</span>
                                   )}
                                 </div>
+                                {nameConflict && (
+                                  <div className="mt-2 space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
+                                    <label className="flex items-center gap-2 text-[10px] font-bold text-amber-300">
+                                      <input type="checkbox" checked={!!s.duplicate_exception_confirmed} onChange={(e) => updateDuplicateException(s.id, e.target.checked)} className="accent-amber-500" />
+                                      Confirmed twin / different child
+                                    </label>
+                                    {s.duplicate_exception_confirmed && (
+                                      <input className={inp} value={s.duplicate_exception_reason ?? ''} onChange={(e) => updateField(s.id, 'duplicate_exception_reason', e.target.value)} placeholder="Reason (minimum 10 characters)" />
+                                    )}
+                                  </div>
+                                )}
                               </td>
  
                               {/* Class */}
@@ -2175,6 +2191,7 @@ Yusuf Ibrahim SS1A`}
                         const emailDup = dups.has(s.email.toLowerCase());
                         const incomplete = !s.full_name.trim() || !s.email.trim();
                         const dbDup = dbDupNames.has(s.full_name.trim().toLowerCase());
+                        const nameConflict = hasNameConflict(s);
                         return (
                           <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-yellow-500/10' : emailDup ? 'bg-rose-500/5' : dbDup ? 'bg-yellow-500/10' : ''}`}>
                             <div className="flex items-center justify-between">
@@ -2183,6 +2200,15 @@ Yusuf Ibrahim SS1A`}
                             </div>
                             <div className="space-y-2">
                               <input className={inp} value={s.full_name} onChange={(e) => updateField(s.id, 'full_name', e.target.value)} onBlur={(e) => onNameBlur(s.id, e.target.value)} placeholder="Full Name" />
+                              {nameConflict && (
+                                <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
+                                  <label className="flex items-center gap-2 text-[10px] font-bold text-amber-300">
+                                    <input type="checkbox" checked={!!s.duplicate_exception_confirmed} onChange={(e) => updateDuplicateException(s.id, e.target.checked)} className="accent-amber-500" />
+                                    Confirmed twin / different child
+                                  </label>
+                                  {s.duplicate_exception_confirmed && <input className={inp} value={s.duplicate_exception_reason ?? ''} onChange={(e) => updateField(s.id, 'duplicate_exception_reason', e.target.value)} placeholder="Reason (minimum 10 characters)" />}
+                                </div>
+                              )}
                               <div className="flex gap-2">
                                 <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
                                 <select className={`${inp} w-28`} value={s.gender ?? ''} onChange={(e) => updateField(s.id, 'gender', e.target.value)}>
@@ -2231,7 +2257,7 @@ Yusuf Ibrahim SS1A`}
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={handleRegister}
-                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || (dbDupNames.size > 0 && !dupOverride) || (dbSwapNames.size > 0 && !nameSwapOverride) || checkingDups || validCount === 0}
+                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || unresolvedNameExceptions.length > 0 || checkingDups || validCount === 0}
                       className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                     >
                       {registering
@@ -2242,11 +2268,9 @@ Yusuf Ibrahim SS1A`}
                             ? 'Fix duplicate emails first'
                             : dbEmailConflicts.size > 0
                               ? 'Fix email conflicts first'
-                              : dbDupNames.size > 0 && !dupOverride
-                                ? 'Tick the box above to confirm same-name students'
-                                : dbSwapNames.size > 0 && !nameSwapOverride
-                                  ? 'Confirm the name-swap check above to continue'
-                                  : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                              : unresolvedNameExceptions.length > 0
+                                ? 'Confirm each twin and enter a reason'
+                                : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
                     </button>
                     {registering && registerProgress && (
                       <div className="space-y-1">

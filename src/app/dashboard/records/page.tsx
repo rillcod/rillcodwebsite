@@ -93,6 +93,7 @@ export default function RecordsPage() {
   const [view, setView] = useState<'table' | 'cards'>('table');
   const [sortKey, setSortKey] = useState<SortKey>('registered');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (authLoading || !isStaff) return;
@@ -166,6 +167,30 @@ export default function RecordsPage() {
       && (fAccount === 'all' || r.account === fAccount);
   }).sort(compareRows), [regs, q, fSchool, fClass, fSource, fBatch, fAccount, sortKey, sortDir]);
 
+  const activeRows: Array<Rec | Reg> = tab === 'people' ? peopleFiltered : regsFiltered;
+  const rowSelectionKey = (row: Rec | Reg) => `${tab}:${row.id}`;
+  const selectedVisibleRows = activeRows.filter((row) => selectedRows.has(rowSelectionKey(row)));
+  const allVisibleSelected = activeRows.length > 0 && selectedVisibleRows.length === activeRows.length;
+
+  function toggleRow(row: Rec | Reg) {
+    const key = rowSelectionKey(row);
+    setSelectedRows((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelectedRows((current) => {
+      const next = new Set(current);
+      for (const row of activeRows) {
+        const key = rowSelectionKey(row);
+        if (allVisibleSelected) next.delete(key); else next.add(key);
+      }
+      return next;
+    });
+  }
   async function copy(text: string, id: string) {
     try { await navigator.clipboard.writeText(text); setCopied(id); setTimeout(() => setCopied(''), 1200); } catch { /* ignore */ }
   }
@@ -188,9 +213,9 @@ export default function RecordsPage() {
     a.download = `${tab}_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   }
 
-  function printList() {
+  function printList(explicitRows?: Array<Rec | Reg>) {
     const isPeople = tab === 'people';
-    const data = isPeople ? peopleFiltered : regsFiltered;
+    const data = explicitRows ?? (isPeople ? peopleFiltered : regsFiltered);
     if (data.length === 0) return;
     const title = isPeople ? 'People Records List' : 'Registration Credentials List';
     const columns = isPeople
@@ -219,6 +244,17 @@ export default function RecordsPage() {
     win?.document.write(html);
     win?.document.close();
   }
+
+  useEffect(() => {
+    const onPrintShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+        event.preventDefault();
+        printList(selectedVisibleRows.length > 0 ? selectedVisibleRows : activeRows);
+      }
+    };
+    window.addEventListener('keydown', onPrintShortcut);
+    return () => window.removeEventListener('keydown', onPrintShortcut);
+  });
 
   async function printCards(items: Reg[] = regsFiltered) {
     const valid = items.filter(r => r.portalUserId && r.account !== 'Deleted' && String(r.status || '').toLowerCase() !== 'failed');
@@ -280,7 +316,8 @@ export default function RecordsPage() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => location.reload()} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground"><ArrowPathIcon className="w-4 h-4" /> Refresh</button>
-          <button onClick={printList} disabled={activeCount === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-border bg-card hover:bg-muted disabled:opacity-40 text-xs font-bold text-foreground"><PrinterIcon className="w-4 h-4" /> Print List</button>
+          <button onClick={() => printList()} disabled={activeCount === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-border bg-card hover:bg-muted disabled:opacity-40 text-xs font-bold text-foreground"><PrinterIcon className="w-4 h-4" /> Print Filtered</button>
+          <button onClick={() => printList(selectedVisibleRows)} disabled={selectedVisibleRows.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 disabled:opacity-40 text-xs font-black text-primary"><PrinterIcon className="w-4 h-4" /> Print Selected ({selectedVisibleRows.length})</button>
           {tab === 'registrations' && (
             <button onClick={() => printCards()} disabled={regsFiltered.length === 0} className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 disabled:opacity-40 text-xs font-black text-amber-200"><RectangleGroupIcon className="w-4 h-4" /> Print Cards</button>
           )}
@@ -341,6 +378,15 @@ export default function RecordsPage() {
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2">
+        <label className="flex items-center gap-2 text-xs font-bold text-foreground">
+          <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} disabled={activeRows.length === 0} className="accent-primary" />
+          Select all filtered ({activeRows.length})
+        </label>
+        {selectedVisibleRows.length > 0 && <span className="text-xs text-primary font-black">{selectedVisibleRows.length} selected</span>}
+        {selectedVisibleRows.length > 0 && <button onClick={() => setSelectedRows(new Set())} className="text-xs font-bold text-muted-foreground hover:text-foreground">Clear selection</button>}
+        <span className="ml-auto text-[10px] text-muted-foreground">Ctrl/Cmd + P prints selected rows, or all filtered rows when none are selected.</span>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sort</span>
@@ -371,6 +417,7 @@ export default function RecordsPage() {
           {(tab === 'people' ? peopleFiltered : regsFiltered).map((row: any) => (
             <div key={`${tab}-${row.id}`} className="rounded-2xl border border-border bg-card p-4 hover:bg-muted/60 transition-colors">
               <div className="flex items-start justify-between gap-3">
+                <input type="checkbox" checked={selectedRows.has(rowSelectionKey(row))} onChange={() => toggleRow(row)} className="mt-1 accent-primary" aria-label={`Select ${row.name}`} />
                 <div className="min-w-0">
                   <p className="font-black text-foreground truncate">{row.name || 'Unnamed'}</p>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">{row.email || '—'}</p>
@@ -425,11 +472,12 @@ export default function RecordsPage() {
           {tab === 'people' ? (
             <table className="w-full text-sm min-w-[820px]">
               <thead className="sticky top-0 z-10 bg-muted text-[10px] uppercase tracking-widest text-muted-foreground shadow-sm">
-                <tr>{['Name', 'Type', 'Email', 'School', 'Class', 'Program', 'Source', 'Status', 'Registered'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
+                <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered records" /></th>{['Name', 'Type', 'Email', 'School', 'Class', 'Program', 'Source', 'Status', 'Registered'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {peopleFiltered.map(r => (
                   <tr key={`${r.type}-${r.id}`} onClick={() => router.push(r.href)} className="border-t border-border even:bg-muted/30 hover:bg-primary/5 cursor-pointer transition-colors">
+                    <td className="px-3 py-2.5"><input type="checkbox" checked={selectedRows.has(rowSelectionKey(r))} onChange={() => toggleRow(r)} onClick={(e) => e.stopPropagation()} className="accent-primary" aria-label={`Select ${r.name}`} /></td>
                     <td className="px-3 py-2.5 font-bold text-foreground whitespace-nowrap">{r.name}</td>
                     <td className="px-3 py-2.5"><span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${TYPE_COLOR[r.type] ?? 'bg-muted text-foreground border-border'}`}>{r.type}</span></td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.email || '—'}</td>
@@ -441,17 +489,18 @@ export default function RecordsPage() {
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : '—'}</td>
                   </tr>
                 ))}
-                {peopleFiltered.length === 0 && <tr><td colSpan={9} className="px-3 py-12 text-center text-muted-foreground text-sm">No records match your filters.</td></tr>}
+                {peopleFiltered.length === 0 && <tr><td colSpan={10} className="px-3 py-12 text-center text-muted-foreground text-sm">No records match your filters.</td></tr>}
               </tbody>
             </table>
           ) : (
             <table className="w-full text-sm min-w-[980px]">
               <thead className="sticky top-0 z-10 bg-muted text-[10px] uppercase tracking-widest text-muted-foreground shadow-sm">
-                <tr>{['Name', 'Login Email', 'Password', 'Class', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered', 'Result Check'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
+                <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered registrations" /></th>{['Name', 'Login Email', 'Password', 'Class', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered', 'Result Check'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {regsFiltered.map(r => (
                   <tr key={r.id} className="border-t border-border even:bg-muted/30 hover:bg-primary/5 transition-colors">
+                    <td className="px-3 py-2.5"><input type="checkbox" checked={selectedRows.has(rowSelectionKey(r))} onChange={() => toggleRow(r)} className="accent-primary" aria-label={`Select ${r.name}`} /></td>
                     <td className="px-3 py-2.5 font-bold text-foreground whitespace-nowrap">{r.name}</td>
                     <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap"><button onClick={() => copy(r.email, r.id + 'e')} className="hover:text-foreground" title="Copy email">{r.email || '—'}{copied === r.id + 'e' && ' ✓'}</button></td>
                     <td className="px-3 py-2.5 whitespace-nowrap font-mono"><button onClick={() => copy(r.password, r.id + 'p')} className="text-amber-300 hover:text-amber-200" title="Click to copy password">{showPw ? (r.password || '—') : '••••••'}{copied === r.id + 'p' && ' ✓'}</button></td>
@@ -473,7 +522,7 @@ export default function RecordsPage() {
                     </td>
                   </tr>
                 ))}
-                {regsFiltered.length === 0 && <tr><td colSpan={11} className="px-3 py-12 text-center text-muted-foreground text-sm">{regsLoaded ? 'No registrations match your filters.' : 'Loading…'}</td></tr>}
+                {regsFiltered.length === 0 && <tr><td colSpan={12} className="px-3 py-12 text-center text-muted-foreground text-sm">{regsLoaded ? 'No registrations match your filters.' : 'Loading…'}</td></tr>}
               </tbody>
             </table>
           )}

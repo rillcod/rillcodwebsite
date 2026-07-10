@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { buildClassName, parseGrades, formatGradeRange, gradeBand, bandForGrade, parseBandLabel, canonicalTier } from '@/lib/classes/naming';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 
 function adminClient() {
   return createClient(
@@ -85,7 +86,13 @@ export async function GET(request: NextRequest) {
       const isIsolated = await isTeacherIsolationOn(admin);
 
       if (isIsolated || mineOnly) {
-        query = query.eq('teacher_id', caller.id) as any;
+        const scope = await getTeacherClassScope(admin, caller.id, caller.school_id);
+        if (schoolFilter && !scope.assignedSchoolIds.includes(schoolFilter)) {
+          return NextResponse.json({ data: [] });
+        }
+        if (scope.classIds.length === 0) return NextResponse.json({ data: [] });
+        query = query.in('id', scope.classIds) as any;
+        if (schoolFilter) query = query.eq('school_id', schoolFilter) as any;
       } else {
         const scopedIds = await teacherSchoolIds(caller);
 
