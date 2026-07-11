@@ -221,18 +221,18 @@ export async function POST(request: Request) {
 
   const owner_school_id = owner_type === 'school' ? String(body.owner_school_id || '').trim() : null;
   const owner_user_id = owner_type === 'individual' ? String(body.owner_user_id || '').trim() : null;
-  if (owner_type === 'school' && !owner_school_id) {
-    return NextResponse.json({ error: 'owner_school_id required for school owner' }, { status: 400 });
-  }
-  if (owner_type === 'individual' && !owner_user_id) {
-    return NextResponse.json({ error: 'owner_user_id required for individual owner' }, { status: 400 });
-  }
 
   const db = createAdminClient();
   if (owner_type === 'school') {
+    if (!owner_school_id) {
+      return NextResponse.json({ error: 'owner_school_id required for school owner' }, { status: 400 });
+    }
     const { data: owner } = await db.from('schools').select('id').eq('id', owner_school_id).maybeSingle();
     if (!owner) return NextResponse.json({ error: 'Owner school not found' }, { status: 404 });
   } else {
+    if (!owner_user_id) {
+      return NextResponse.json({ error: 'owner_user_id required for individual owner' }, { status: 400 });
+    }
     const { data: owner } = await db.from('portal_users').select('id').eq('id', owner_user_id).maybeSingle();
     if (!owner) return NextResponse.json({ error: 'Owner user not found' }, { status: 404 });
   }
