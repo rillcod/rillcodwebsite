@@ -157,9 +157,10 @@ export async function POST(request: Request) {
       parent_phone: body.parent_phone || body.parentPhone,
       school_id: targetSchoolId,
       school_name: body.school_name ?? null,
-      current_class: sectionLabel || specificGrade, // cohort if given, else fall back to grade
+      current_class: sectionLabel,
       section: sectionLabel,
       grade_level: specificGrade,
+      grade: specificGrade,
       city: body.city,
       state: body.state,
       interests: body.interests,

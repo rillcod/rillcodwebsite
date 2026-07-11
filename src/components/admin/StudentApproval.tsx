@@ -109,7 +109,7 @@ export default function StudentApproval() {
         is_deleted: false,
         school_id: student.school_id,
         school_name: student.school_name,
-        section_class: student.grade,
+        grade: student.grade,
         phone: student.parent_phone,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

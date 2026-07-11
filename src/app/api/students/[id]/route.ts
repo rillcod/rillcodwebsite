@@ -58,10 +58,10 @@ export async function PATCH(
         if (!allowed) return NextResponse.json({ error: 'You can only edit students from your assigned school' }, { status: 403 });
     }
 
-    // Whitelist updatable fields
+    // Whitelist updatable fields. students has current_class/section (not section_class).
     const allowed: Record<string, any> = {};
     const fields = ['full_name', 'name', 'parent_name', 'parent_email', 'parent_phone',
-        'school_name', 'school_id', 'grade_level', 'section_class', 'city', 'state',
+        'school_name', 'school_id', 'grade_level', 'city', 'state',
         'gender', 'date_of_birth', 'enrollment_type', 'status'];
     fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
     if (body.full_name) allowed.name = body.full_name; // keep name in sync
@@ -73,18 +73,29 @@ export async function PATCH(
     }
     if ('grade_level' in allowed) {
       allowed.grade_level = allowed.grade_level ? cleanGrade(String(allowed.grade_level)) : null;
+      allowed.grade = allowed.grade_level;
+    }
+    // API may send section_class for the cohort — map onto students.current_class / section.
+    const sectionLabel = body.section_class !== undefined
+      ? (typeof body.section_class === 'string' ? body.section_class.trim() || null : null)
+      : (body.current_class !== undefined
+        ? (typeof body.current_class === 'string' ? body.current_class.trim() || null : null)
+        : undefined);
+    if (sectionLabel !== undefined) {
+      allowed.current_class = sectionLabel;
+      allowed.section = sectionLabel;
     }
     allowed.updated_at = new Date().toISOString();
 
     const { data, error } = await adminClient().from('students').update(allowed).eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    if (data?.user_id && ('gender' in body || 'date_of_birth' in body || 'full_name' in body || 'section_class' in body || 'grade_level' in body)) {
+    if (data?.user_id && ('gender' in body || 'date_of_birth' in body || 'full_name' in body || 'section_class' in body || 'current_class' in body || 'grade_level' in body)) {
         await syncStudentIdentityAcrossStores(adminClient(), data.user_id, {
             gender: allowed.gender,
             date_of_birth: allowed.date_of_birth,
             full_name: allowed.full_name,
-            section_class: allowed.section_class,
+            section_class: sectionLabel !== undefined ? sectionLabel : undefined,
             grade: allowed.grade_level,
         }, 'overwrite');
         await harmonizeStudentParentIdentity(adminClient(), { studentUserId: data.user_id });

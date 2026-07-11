@@ -1034,7 +1034,7 @@ export default function StudentsPage() {
       full_name: s.full_name || s.name || 'N/A',
       email: s.email || s.student_email || null,
       school_name: s.school_name || null,
-      section_class: s.current_module || s.section_class || s.grade_level || null,
+      section_class: (s.class_id && classMap[s.class_id]) || s.section_class || s.current_module || null,
       card_number: dbCard?.card_number || holderCode(portalId),
       expires_at: dbCard?.expires_at || null,
       verification_code: dbCard?.verification_code || null,
@@ -1057,7 +1057,7 @@ export default function StudentsPage() {
         full_name: s.full_name || s.name || 'N/A',
         email: s.email || s.student_email || null,
         school_name: s.school_name || null,
-        section_class: s.section_class || s.grade_level || null,
+        section_class: (s.class_id && classMap[s.class_id]) || s.section_class || null,
       };
     });
     const { buildBulkPrintHtml } = await import('@/lib/cards/printCard');
@@ -1074,6 +1074,8 @@ export default function StudentsPage() {
   const normalizedEnrolled = portalStudents.map(s => ({
     ...s, _source: 'enrolled' as const,
     status: s.is_active ? 'active' : 'inactive',
+    // portal_users.grade is canonical; expose as grade_level for shared filters/UI.
+    grade_level: s.grade || s.grade_level || null,
   }));
   const combined = [...normalizedApplications, ...normalizedEnrolled];
 
@@ -1938,10 +1940,8 @@ export default function StudentsPage() {
                             <Chip icon={BuildingOfficeIcon} text={s.school_name} />
                             {isEnrolled ? (
                               <>
-                                <Chip icon={AcademicCapIcon} text={s.section_class} />
-                                {s.class_id && classMap[s.class_id] && (
-                                  <Chip icon={BookOpenIcon} text={classMap[s.class_id]} />
-                                )}
+                                <Chip icon={AcademicCapIcon} text={s.grade_level || s.grade} />
+                                <Chip icon={BookOpenIcon} text={(s.class_id && classMap[s.class_id]) || s.section_class} />
                                 <Chip icon={EnvelopeIcon} text={s.email} />
                                 <span className="text-[9px] font-black font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider select-all" title="Student Access Code">
                                   RC-{s.id.slice(0, 8).toUpperCase()}
@@ -2093,8 +2093,8 @@ export default function StudentsPage() {
                                 <div className="space-y-3.5">
                                   <InfoRow label="Email" value={s.email} icon={<EnvelopeIcon className="w-3 h-3 text-muted-foreground" />} />
                                   <InfoRow label="School" value={s.school_name} />
-                                  <InfoRow label="Grade / Class" value={s.section_class} />
-                                  <InfoRow label="Enrolled Class" value={s.class_id && classMap[s.class_id] ? classMap[s.class_id] : undefined} />
+                                  <InfoRow label="Grade" value={s.grade_level || s.grade} />
+                                  <InfoRow label="Class" value={(s.class_id && classMap[s.class_id]) || s.section_class} />
                                   <InfoRow label="Status" value={s.is_active ? 'Active' : 'Inactive'} />
                                 </div>
                               </div>

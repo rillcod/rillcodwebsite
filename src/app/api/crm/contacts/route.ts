@@ -313,7 +313,7 @@ export async function PUT(req: NextRequest) {
       ...(email !== undefined && { email: email?.trim().toLowerCase() || null }),
       ...(phone !== undefined && { phone: phone?.trim() || null }),
       ...(school_name !== undefined && { school_name: school_name?.trim() || null }),
-      ...(grade !== undefined && { section_class: grade?.trim() || null }),
+      ...(grade !== undefined && { grade: grade?.trim() || null }),
       ...(metadataUpdate !== undefined && { metadata: metadataUpdate }),
       updated_at: new Date().toISOString(),
     }).eq('id', id).select().single();

@@ -649,7 +649,7 @@ export async function POST(req: NextRequest) {
     const resolvedClassName = resolvedClass.name;
     // Specific canonical grade (Basic 2 / JSS 1 …) — kept separate from the class/section so it
     // sticks on the portal account instead of being re-derived from the class band.
-    const specificGrade = cleanGrade(student.grade_level || student.current_class || student.section) || null;
+    const specificGrade = cleanGrade(student.grade_level) || null;
 
     if (portalUserId) {
       // Reset password of the existing auth user
@@ -725,7 +725,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Link student record to portal user + ensure status is approved, update student_email, parent_email, school_id and school_name
+    // Link student record to portal user + keep grade vs cohort fields distinct
     await supabaseAdmin.from('students').update({
       user_id: portalUserId,
       status: 'approved',
@@ -735,6 +735,8 @@ export async function POST(req: NextRequest) {
       parent_email: student.parent_email || originalStudentEmail || null,
       school_id: resolvedSchoolId,
       school_name: resolvedSchoolName,
+      ...(specificGrade ? { grade_level: specificGrade, grade: specificGrade } : {}),
+      ...(resolvedClassName ? { current_class: resolvedClassName, section: resolvedClassName } : {}),
     }).eq('id', studentId);
 
     // Resolve and link any completed payment transactions to this portal user
@@ -815,7 +817,7 @@ export async function POST(req: NextRequest) {
         full_name: student.full_name || student.name || '',
         email: loginEmail,
         password: tempPassword,
-        class_name: resolvedClassName || student.grade_level || student.current_class || null,
+        class_name: resolvedClassName || null,
         status: 'created',
       }).select('id').single();
       regResultId = insertedResult?.id ?? null;

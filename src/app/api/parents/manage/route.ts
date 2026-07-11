@@ -105,7 +105,7 @@ export async function POST(req: Request) {
     for (const sid of studentIdList) {
       const { data: ps } = await admin
         .from('portal_users')
-        .select('full_name, school_id, school_name, section_class, email')
+        .select('full_name, school_id, school_name, section_class, grade, email')
         .eq('id', sid)
         .single();
 
@@ -118,6 +118,8 @@ export async function POST(req: Request) {
           school_id: ps.school_id,
           school_name: ps.school_name,
           current_class: ps.section_class,
+          grade: (ps as any).grade ?? null,
+          grade_level: (ps as any).grade ?? null,
           parent_email: cleanEmail,
           parent_name: full_name,
           parent_phone: phone ?? null,
@@ -271,7 +273,7 @@ export async function PATCH(req: Request) {
     if (student_id) {
       const { data: ps } = await admin
         .from('portal_users')
-        .select('full_name, school_id, school_name, section_class, email')
+        .select('full_name, school_id, school_name, section_class, grade, email')
         .eq('id', student_id)
         .single();
 
@@ -285,6 +287,8 @@ export async function PATCH(req: Request) {
           school_id: ps?.school_id || undefined,
           school_name: ps?.school_name || undefined,
           current_class: ps?.section_class || undefined,
+          grade: (ps as any)?.grade || undefined,
+          grade_level: (ps as any)?.grade || undefined,
           parent_email: cleanEmail || oldEmail,
           parent_name: full_name ?? parent.full_name,
           parent_phone: phone ?? parent.phone,
@@ -523,7 +527,7 @@ export async function GET(req: Request) {
     // ── Picker data (students, teachers, classes, schools) ───────────────────
     let portalStudentsQuery = admin
       .from('portal_users')
-      .select('id, full_name, school_name, school_id, section_class, classes!portal_users_class_id_fkey(name)')
+      .select('id, full_name, school_name, school_id, section_class, grade, classes!portal_users_class_id_fkey(name)')
       .eq('role', 'student')
       .order('full_name')
       .limit(2000);
@@ -579,7 +583,7 @@ export async function GET(req: Request) {
         full_name: ps.full_name,
         school_name: ps.school_name,
         parent_email: linkedSet.has(ps.id) ? 'linked' : null,
-        grade_level: classFromFK || ps.section_class || null,
+        grade_level: ps.grade || null,
         section: null,
         current_class: classFromFK || ps.section_class || null,
       };

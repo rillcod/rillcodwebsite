@@ -931,12 +931,13 @@ export async function PATCH(request: Request) {
         .eq('email', (currentResult as any).email)
         .maybeSingle();
       if (existingUser && canAccessSchool(patchCaller, assignedSchoolIds, (existingUser as any).school_id)) {
+        // Per-row class_name in registration vault is the grade code, not the cohort name.
+        const gradeOnly = cleanGrade(r.class_name) || null;
         await supabaseAdmin.from('portal_users')
-          .update({ full_name: r.full_name, section_class: r.class_name || null, grade: cleanGrade(r.class_name) })
+          .update({ full_name: r.full_name, ...(gradeOnly ? { grade: gradeOnly } : {}) })
           .eq('id', existingUser.id);
-        // Keep students table in sync
         await supabaseAdmin.from('students')
-          .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, section: r.class_name || null, grade_level: cleanGrade(r.class_name) })
+          .update({ full_name: r.full_name, name: r.full_name, ...(gradeOnly ? { grade_level: gradeOnly, grade: gradeOnly } : {}) })
           .eq('user_id', existingUser.id);
       }
       return NextResponse.json({ success: true });
@@ -1055,12 +1056,14 @@ export async function PATCH(request: Request) {
             .maybeSingle();
 
           if (existingUser && canAccessSchool(patchCaller, assignedSchoolIds, (existingUser as any).school_id)) {
+            // class_name in vault = grade code; do not overwrite section_class / current_class.
+            const gradeOnly = cleanGrade(r.class_name) || null;
             await supabaseAdmin.from('portal_users')
-              .update({ full_name: r.full_name, section_class: r.class_name || null })
+              .update({ full_name: r.full_name, ...(gradeOnly ? { grade: gradeOnly } : {}) })
               .eq('id', existingUser.id);
-            
+
             await supabaseAdmin.from('students')
-              .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, grade_level: cleanGrade(r.class_name) })
+              .update({ full_name: r.full_name, name: r.full_name, ...(gradeOnly ? { grade_level: gradeOnly, grade: gradeOnly } : {}) })
               .eq('user_id', existingUser.id);
           }
        }

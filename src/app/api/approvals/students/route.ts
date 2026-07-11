@@ -7,6 +7,7 @@ import { generateUniqueStudentLoginEmail } from '@/lib/students/generate-login-e
 import { studentApprovalPaymentState } from '@/lib/registration/payment-state';
 import { logAudit } from '@/lib/audit/log';
 import { generateTempPassword } from '@/lib/utils/password';
+import { cleanGrade } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -385,7 +386,8 @@ export async function POST(request: Request) {
   const resolvedSchoolId: string | null = resolvedSchool.id;
   const resolvedSchoolName: string | null = resolvedSchool.name;
 
-  const resolvedClassName = student.current_class || student.grade_level || null;
+  // Specific grade stays on grade / grade_level — never write it into section_class.
+  const specificGrade = cleanGrade(student.grade_level) || cleanGrade(student.current_class) || null;
 
   // ── Detect summer school students and ensure their class exists ───
   const isSummerStudent = student.enrollment_type === 'summer_school'
@@ -408,12 +410,19 @@ export async function POST(request: Request) {
     [
       ...(isSummerStudent ? ['Summer School 2026'] : []),
       student.current_class,
-      student.grade_level,
+      student.section,
     ],
     // Programme (tier) is the explicit choice; grade drives the band. Never age.
     isSummerStudent ? 'AI Summer School' : (student.course_interest ?? null),
-    student.current_class ?? student.grade_level ?? null,
+    specificGrade,
   );
+
+  let resolvedClassName: string | null = null;
+  if (resolvedClassId) {
+    const { data: cls } = await admin.from('classes').select('name').eq('id', resolvedClassId).maybeSingle();
+    resolvedClassName = (cls as { name?: string } | null)?.name ?? null;
+  }
+  if (!resolvedClassName && isSummerStudent) resolvedClassName = 'Summer School 2026';
 
   // Enforce correct enrollment_type for summer students
   const effectiveEnrollmentType = isSummerStudent ? 'summer_school' : (student.enrollment_type || 'in_person');
@@ -436,6 +445,7 @@ export async function POST(request: Request) {
       enrollment_type: effectiveEnrollmentType,
       date_of_birth: student.date_of_birth || null,
       section_class: resolvedClassName,
+      ...(specificGrade ? { grade: specificGrade } : {}),
       is_active: true,
       updated_at: new Date().toISOString(),
     }).eq('id', existingPortal.id);
@@ -450,7 +460,7 @@ export async function POST(request: Request) {
       user_metadata: { full_name: student.full_name, role: 'student' },
     });
 
-    // Link student row to the portal user and update student_email + parent_email
+    // Link student row to the portal user and keep grade vs cohort fields distinct
     await admin.from('students').update({
       user_id: existingPortal.id,
       status: 'approved',
@@ -459,6 +469,10 @@ export async function POST(request: Request) {
       student_email: loginEmail,
       parent_email: student.parent_email || originalStudentEmail || null,
       enrollment_type: effectiveEnrollmentType,
+      school_id: resolvedSchoolId,
+      school_name: resolvedSchoolName,
+      ...(specificGrade ? { grade_level: specificGrade, grade: specificGrade } : {}),
+      ...(resolvedClassName ? { current_class: resolvedClassName, section: resolvedClassName } : {}),
     }).eq('id', id);
 
     // Resolve and link any completed payment transactions to this portal user
@@ -475,7 +489,7 @@ export async function POST(request: Request) {
     }
 
     void ensureDefaultEnrollment(admin, existingPortal.id, {
-      grade: resolvedClassName,
+      grade: specificGrade,
       enrollmentType: effectiveEnrollmentType,
     });
     void sendStudentCredentialsEmail(
@@ -553,6 +567,7 @@ export async function POST(request: Request) {
     enrollment_type: effectiveEnrollmentType,
     date_of_birth: student.date_of_birth || null,
     section_class: resolvedClassName,
+    ...(specificGrade ? { grade: specificGrade } : {}),
     is_active: true,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'id' });
@@ -561,7 +576,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Portal account synchronization failed: ${portalErr.message}` }, { status: 500 });
   }
 
-  // Link student row to the portal user and update student_email + parent_email
+  // Link student row to the portal user and keep grade vs cohort fields distinct
   await admin.from('students').update({
     user_id: authUserId,
     status: 'approved',
@@ -570,6 +585,10 @@ export async function POST(request: Request) {
     student_email: loginEmail,
     parent_email: student.parent_email || originalStudentEmail || null,
     enrollment_type: effectiveEnrollmentType,
+    school_id: resolvedSchoolId,
+    school_name: resolvedSchoolName,
+    ...(specificGrade ? { grade_level: specificGrade, grade: specificGrade } : {}),
+    ...(resolvedClassName ? { current_class: resolvedClassName, section: resolvedClassName } : {}),
   }).eq('id', id);
 
   // Resolve and link any completed payment transactions to this portal user
@@ -586,7 +605,7 @@ export async function POST(request: Request) {
   }
 
   void ensureDefaultEnrollment(admin, authUserId, {
-    grade: resolvedClassName,
+    grade: specificGrade,
     enrollmentType: effectiveEnrollmentType,
   });
   void sendStudentCredentialsEmail(

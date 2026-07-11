@@ -151,7 +151,7 @@ export async function resolveOrCreateStudentRowId(
 
   const { data: pu } = await admin
     .from('portal_users')
-    .select('id, full_name, email, school_id, school_name, section_class, phone')
+    .select('id, full_name, email, school_id, school_name, section_class, grade, phone')
     .eq('id', portalUserId)
     .maybeSingle();
   if (!pu) return null;
@@ -170,9 +170,10 @@ export async function resolveOrCreateStudentRowId(
       user_id: (pu as any).id,
       school_id: (pu as any).school_id ?? null,
       school_name: (pu as any).school_name ?? null,
-      grade: (pu as any).section_class ?? null,
-      grade_level: (pu as any).section_class ?? null,
+      grade: (pu as any).grade ?? null,
+      grade_level: (pu as any).grade ?? null,
       current_class: (pu as any).section_class ?? null,
+      section: (pu as any).section_class ?? null,
       status: 'approved',
       is_active: true,
       is_deleted: false,
