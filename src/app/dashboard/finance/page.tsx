@@ -276,7 +276,6 @@ function KpiCard({ label, value, sub, color }: { label: string; value: string; s
 type TabKey =
   | 'today'
   | 'invoices'
-  | 'payments'
   | 'billing'
   | 'collections'
   | 'reconciliation'
@@ -308,7 +307,6 @@ type TabDef = {
 const ALL_TABS: TabDef[] = [
   { key: 'today', label: 'Today', icon: BanknotesIcon },
   { key: 'invoices', label: 'Invoices', icon: DocumentTextIcon, roles: ['admin', 'school'] },
-  { key: 'payments', label: 'Payments', icon: BanknotesIcon },
   { key: 'billing', label: 'Billing', icon: CalendarDaysIcon, roles: ['admin', 'school'] },
   { key: 'collections', label: 'Collections', icon: BoltIcon, roles: ['admin', 'school'] },
   { key: 'reconciliation', label: 'Reconciliation', icon: BuildingOfficeIcon, adminOnly: true },
@@ -327,8 +325,9 @@ const LEGACY_TAB_MAP: Record<string, TabKey> = {
   reminders: 'settings',
   setup: 'settings',
   invoices: 'invoices',
-  transactions: 'payments',
-  money: 'payments',
+  transactions: 'today',
+  payments: 'today',
+  money: 'today',
   'school-billing': 'billing',
 };
 
@@ -2029,7 +2028,7 @@ export default function FinancePage() {
           </div>
           <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
             <p className="font-bold text-foreground">No finance tools for this account</p>
-            <p className="mt-2">Use <Link className="text-primary underline font-semibold" href="/dashboard/finance?workspace=payments">Payments</Link> for your personal ledger, or{' '}
+            <p className="mt-2">Use <Link className="text-primary underline font-semibold" href="/dashboard/finance?workspace=today">Today</Link> for your ledger, or{' '}
               <Link className="text-primary underline font-semibold" href="/dashboard/my-payments">My payments</Link> /{' '}
               <Link className="text-primary underline font-semibold" href="/dashboard/parent-invoices">Invoices &amp; payments</Link> to pay.</p>
             <Link href="/dashboard" className="inline-block mt-4 text-primary font-bold underline">Back to dashboard</Link>
@@ -2039,7 +2038,7 @@ export default function FinancePage() {
     );
   }
 
-  const showSticky = tab === 'today' || tab === 'payments' || tab === 'collections';
+  const showSticky = tab === 'today' || tab === 'collections';
 
   return (
     <div className={`min-h-screen bg-background ${showSticky ? 'pb-20 sm:pb-0' : ''}`}>
@@ -2086,14 +2085,12 @@ export default function FinancePage() {
         <div className="min-h-[400px] space-y-6">
           {tab === 'today' && (
             <>
-              {(profile.role === 'admin' || profile.role === 'school') && <OverviewTab profile={profile} />}
               <MoneyHubPage />
             </>
           )}
           {tab === 'invoices' && (
-            <OperationsHub embedded defaultTab={pickOpsTab(tabParam, opsParam || 'invoices', profile.role, tab)} />
+            <OperationsHub embedded workspace="invoices" defaultTab={pickOpsTab(tabParam, opsParam || 'invoices', profile.role, tab)} />
           )}
-          {tab === 'payments' && <MoneyHubPage />}
           {tab === 'billing' && (
             <>
               <BillingCyclesTab profile={profile} />
@@ -2102,7 +2099,7 @@ export default function FinancePage() {
           )}
           {tab === 'collections' && (
             <>
-              <OperationsHub embedded defaultTab={pickOpsTab(tabParam, opsParam || 'approvals', profile.role, tab)} />
+              <OperationsHub embedded workspace="collections" defaultTab={pickOpsTab(tabParam, opsParam || 'approvals', profile.role, tab)} />
               {isAdmin && <AutomationTab />}
             </>
           )}
@@ -2121,7 +2118,7 @@ export default function FinancePage() {
           )}
         </div>
       </div>
-      {showSticky && (tab === 'today' || tab === 'payments' || tab === 'collections') && (
+      {showSticky && (tab === 'today' || tab === 'collections') && (
         <FinanceStickyActions workspace={tab} role={profile.role} />
       )}
     </div>

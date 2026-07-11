@@ -35,6 +35,7 @@ type OpsTab =
 interface OperationsHubProps {
   embedded?: boolean;
   defaultTab?: OpsTab;
+  workspace?: 'invoices' | 'collections';
 }
 
 /**
@@ -66,10 +67,10 @@ interface OperationsHubProps {
  *                             (uses /api/admin/billing-health,
  *                              /api/admin/test-email)
  *
- * Day-to-day viewing for any role lives at /dashboard/money.
- * Admin audit lives at /dashboard/finance/reconciliation.
+ * Day-to-day activity for every role lives in the Finance Center Today workspace.
+ * Admin audit lives in the Finance Center Reconciliation workspace.
  */
-export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: OperationsHubProps) {
+export function OperationsHub({ embedded = false, defaultTab = 'invoices', workspace = 'invoices' }: OperationsHubProps) {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const isSchool = profile?.role === 'school';
@@ -92,8 +93,12 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
   }, [defaultTab, isSchool]);
 
   useEffect(() => {
-    if (opsParam) setTab(opsParam);
-  }, [opsParam]);
+    if (!opsParam) return;
+    const allowed = workspace === 'collections'
+      ? ['approvals']
+      : ['invoices', 'receipts', 'billing_docs'];
+    if (allowed.includes(opsParam)) setTab(opsParam);
+  }, [opsParam, workspace]);
 
   const switchTab = (next: OpsTab) => {
     setTab(next);
@@ -108,8 +113,8 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
         <p className="text-sm font-bold text-foreground">Staff-only area</p>
         <p className="text-xs text-muted-foreground mt-1">
           Open{' '}
-          <Link href="/dashboard/money" className="text-primary font-bold hover:underline">
-          Money Hub
+          <Link href="/dashboard/finance" className="text-primary font-bold hover:underline">
+          Finance Center
         </Link>{' '}
         for your payment activity.
         </p>
@@ -182,7 +187,9 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
       hint: 'Admin-only: billing health & email delivery tests',
       show: isAdmin,
     },
-  ] as TabDef[]).filter((t) => t.show);
+  ] as TabDef[]).filter((t) => t.show && (
+    workspace === 'collections' ? t.k === 'approvals' : ['invoices', 'receipts', 'billing_docs'].includes(t.k)
+  ));
 
   return (
     <div className={embedded ? 'space-y-6' : 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6'}>
@@ -198,44 +205,6 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
           </p>
         </div>
       )}
-
-      {/* Cross-links: Money Hub + Reconciliation */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Link
-          href="/dashboard/money"
-          className="group rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 hover:border-emerald-500/60 transition-colors flex items-center gap-3"
-        >
-          <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-400" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Money Hub</p>
-            <p className="text-sm font-black text-foreground">
-              Day-to-day: activity, receipts, outstanding.
-            </p>
-          </div>
-          <span className="text-[11px] font-black text-emerald-400 group-hover:translate-x-0.5 transition-transform">
-            Open →
-          </span>
-        </Link>
-        {profile?.role === 'admin' && (
-          <Link
-            href="/dashboard/finance/reconciliation"
-            className="group rounded-xl border border-primary/30 bg-primary/5 p-4 hover:border-primary/60 transition-colors flex items-center gap-3"
-          >
-            <CheckBadgeIcon className="w-5 h-5 text-primary" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                Reconciliation
-              </p>
-              <p className="text-sm font-black text-foreground">
-                Audit ledger: commission, stream splits, missing receipts.
-              </p>
-            </div>
-            <span className="text-[11px] font-black text-primary group-hover:translate-x-0.5 transition-transform">
-              Open →
-            </span>
-          </Link>
-        )}
-      </div>
 
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2">

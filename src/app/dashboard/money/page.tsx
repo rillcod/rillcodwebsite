@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function MoneyRedirectPage() {
-  redirect('/dashboard/finance?workspace=payments');
+export default function LegacyMoneyPage() {
+  redirect('/dashboard/finance?workspace=today');
 }
