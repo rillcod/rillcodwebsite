@@ -84,7 +84,7 @@ export async function createInvoice(
   }, 0);
   if (!Number.isFinite(itemTotal)) return financeFail('validation', 'Every invoice line must have a valid numeric total');
   if (Math.abs(itemTotal - amount) > 0.01) {
-    return financeFail('validation', Invoice amount () must equal line-item total ());
+    return financeFail('validation', `Invoice amount (${amount}) must equal line-item total (${itemTotal})`);
   }
 
   const stream =
