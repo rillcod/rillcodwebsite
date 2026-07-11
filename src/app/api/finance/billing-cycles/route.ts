@@ -116,23 +116,42 @@ export async function PATCH(request: Request) {
     updates.status = body.status;
   }
 
+  const db = createAdminClient();
+
   if (typeof body.owner_type === 'string') {
     if (!allowedOwnerType.includes(body.owner_type as (typeof allowedOwnerType)[number])) {
       return NextResponse.json({ error: 'Invalid owner_type' }, { status: 400 });
     }
     updates.owner_type = body.owner_type;
     if (body.owner_type === 'school') {
-      if (!body.owner_school_id) {
+      const ownerSchoolId = String(body.owner_school_id || '').trim();
+      if (!ownerSchoolId) {
         return NextResponse.json({ error: 'owner_school_id required for school owner' }, { status: 400 });
       }
-      updates.owner_school_id = body.owner_school_id;
-      updates.school_id = body.owner_school_id;
+      const { data: owner } = await db.from('schools').select('id').eq('id', ownerSchoolId).maybeSingle();
+      if (!owner) return NextResponse.json({ error: 'Owner school not found' }, { status: 404 });
+      updates.owner_school_id = ownerSchoolId;
+      updates.school_id = ownerSchoolId;
       updates.owner_user_id = null;
     } else {
-      if (!body.owner_user_id) {
+      const ownerUserId = String(body.owner_user_id || '').trim();
+      if (!ownerUserId) {
         return NextResponse.json({ error: 'owner_user_id required for individual owner' }, { status: 400 });
       }
-      updates.owner_user_id = body.owner_user_id;
+      const { data: owner } = await db
+        .from('portal_users')
+        .select('id, role')
+        .eq('id', ownerUserId)
+        .maybeSingle();
+      if (!owner) return NextResponse.json({ error: 'Owner user not found' }, { status: 404 });
+      const role = String(owner.role || '').toLowerCase();
+      if (!['student', 'parent'].includes(role)) {
+        return NextResponse.json(
+          { error: 'Individual billing owners must be a student or parent account' },
+          { status: 400 },
+        );
+      }
+      updates.owner_user_id = ownerUserId;
       updates.owner_school_id = null;
       updates.school_id = null;
     }
@@ -141,8 +160,6 @@ export async function PATCH(request: Request) {
   if (Object.keys(updates).length === 1) {
     return NextResponse.json({ error: 'No editable fields provided' }, { status: 400 });
   }
-
-  const db = createAdminClient();
 
   if (body.status === 'paid') {
     const { data: cycle } = await db
@@ -157,6 +174,15 @@ export async function PATCH(request: Request) {
         { status: 409 },
       );
     }
+
+    // Persist any non-status edits first (owner/term/amount) before payment verification.
+    const sideUpdates = { ...updates };
+    delete sideUpdates.status;
+    if (Object.keys(sideUpdates).length > 1) {
+      const { error: sideErr } = await db.from('billing_cycles').update(sideUpdates).eq('id', id);
+      if (sideErr) return NextResponse.json({ error: sideErr.message }, { status: 500 });
+    }
+
     try {
       const payment = await verifyInvoicePayment({
         invoiceId: cycle.invoice_id,
@@ -219,29 +245,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'New billing cycles must start as due or past_due' }, { status: 400 });
   }
 
-  const owner_school_id = owner_type === 'school' ? String(body.owner_school_id || '').trim() : null;
-  const owner_user_id = owner_type === 'individual' ? String(body.owner_user_id || '').trim() : null;
+  const rawSchoolId = owner_type === 'school' ? String(body.owner_school_id || '').trim() : '';
+  const rawUserId = owner_type === 'individual' ? String(body.owner_user_id || '').trim() : '';
 
   const db = createAdminClient();
+  let owner_school_id: string | null = null;
+  let owner_user_id: string | null = null;
+
   if (owner_type === 'school') {
-    if (!owner_school_id) {
+    if (!rawSchoolId) {
       return NextResponse.json({ error: 'owner_school_id required for school owner' }, { status: 400 });
     }
-    const { data: owner } = await db.from('schools').select('id').eq('id', owner_school_id).maybeSingle();
+    const { data: owner } = await db.from('schools').select('id').eq('id', rawSchoolId).maybeSingle();
     if (!owner) return NextResponse.json({ error: 'Owner school not found' }, { status: 404 });
+    owner_school_id = rawSchoolId;
   } else {
-    if (!owner_user_id) {
+    if (!rawUserId) {
       return NextResponse.json({ error: 'owner_user_id required for individual owner' }, { status: 400 });
     }
-    const { data: owner } = await db.from('portal_users').select('id').eq('id', owner_user_id).maybeSingle();
+    const { data: owner } = await db
+      .from('portal_users')
+      .select('id, role')
+      .eq('id', rawUserId)
+      .maybeSingle();
     if (!owner) return NextResponse.json({ error: 'Owner user not found' }, { status: 404 });
+    const role = String(owner.role || '').toLowerCase();
+    if (!['student', 'parent'].includes(role)) {
+      return NextResponse.json(
+        { error: 'Individual billing owners must be a student or parent account' },
+        { status: 400 },
+      );
+    }
+    owner_user_id = rawUserId;
   }
+
   const now = new Date().toISOString();
   const insertPayload = {
     owner_type,
-    owner_school_id: owner_type === 'school' ? owner_school_id : null,
-    owner_user_id: owner_type === 'individual' ? owner_user_id : null,
-    school_id: owner_type === 'school' ? owner_school_id : null,
+    owner_school_id,
+    owner_user_id,
+    school_id: owner_school_id,
     term_label,
     term_start_date,
     due_date,
@@ -257,14 +300,15 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Auto-generate linked invoice for this cycle (school or individual).
+  // New cycles are only due/past_due, so the invoice starts as sent (not paid).
   const invoiceInsert: Record<string, unknown> = {
     invoice_number: `BCY-${Date.now().toString(36).toUpperCase()}`,
-    school_id: owner_type === 'school' ? owner_school_id : null,
-    portal_user_id: owner_type === 'individual' ? owner_user_id : null,
+    school_id: owner_school_id,
+    portal_user_id: owner_user_id,
     amount: amount_due,
     currency,
     due_date,
-    status: status === 'paid' ? 'paid' : 'sent',
+    status: 'sent',
     stream: owner_type === 'school' ? 'school' : 'individual',
     billing_cycle_id: data.id,
     notes: `Auto-generated from billing cycle: ${term_label}`,

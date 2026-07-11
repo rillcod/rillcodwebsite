@@ -661,8 +661,14 @@ export function BillingCyclesTab({ profile }: { profile: any }) {
                 </select>
               </label>
               <label className="text-xs text-muted-foreground">Status
-                <select value={form.status} onChange={e => setForm(prev => ({ ...prev, status: e.target.value }))} className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground">
-                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+                <select
+                  value={form.status}
+                  onChange={e => setForm(prev => ({ ...prev, status: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground"
+                >
+                  {(editingId ? STATUS_OPTIONS : (['due', 'past_due'] as const)).map(s => (
+                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                  ))}
                 </select>
               </label>
             </div>
