@@ -366,7 +366,9 @@ export async function fetchClasses(teacherId?: string, schoolId?: string) {
         .from('classes')
         .select(`
       id, name, description, status, max_students, current_students,
-      start_date, end_date, schedule, teacher_id, program_id, school_id, created_at,
+      start_date, end_date, schedule, teacher_id, program_id, school_id, term_id, created_at,
+      qa_grade_key, qa_grade_band, band_lvl, band_low, band_high,
+      academic_terms ( id, academic_year, term_label, term_number ),
       programs ( id, name ),
       portal_users!classes_teacher_id_fkey ( id, full_name )
     `)
@@ -377,7 +379,7 @@ export async function fetchClasses(teacherId?: string, schoolId?: string) {
     if (error) {
         const { data: f, error: e2 } = await db()
             .from('classes')
-            .select('id, name, description, status, max_students, current_students, start_date, schedule, teacher_id, program_id, school_id, created_at')
+            .select('id, name, description, status, max_students, current_students, start_date, schedule, teacher_id, program_id, school_id, term_id, created_at, qa_grade_key, qa_grade_band, band_lvl, band_low, band_high')
             .order('created_at', { ascending: false });
         if (e2) throw e2;
         return f ?? [];

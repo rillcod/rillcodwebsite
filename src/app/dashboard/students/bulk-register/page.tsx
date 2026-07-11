@@ -9,6 +9,13 @@ import Link from 'next/link';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { qrDataUrls } from '@/lib/cards/qr';
 import {
+  SINGLE_GRADES,
+  canonicalGrade,
+  composeClassName,
+} from '@/lib/classes/naming';
+import { isBulkGradeHeader, parseBulkGrade, stripBulkGrade } from '@/lib/students/bulk-grade';
+import { bulkClassCoversGrade, bulkGradeBand } from '@/lib/students/bulk-placement';
+import {
   UserGroupIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -41,34 +48,6 @@ import { UserOptions } from 'jspdf-autotable';
 // Fix for jspdf-autotable types
 interface jsPDFWithPlugin extends jsPDF {
   autoTable: (options: UserOptions) => jsPDF;
-}
-
-// ─── Class detection ─────────────────────────────────────────────────────────
-//
-// Recognises Nigerian school class codes wherever they appear in a line:
-//   JSS1 · JSS2A · JSS 3B · SS1 · SS2C · SSS3 · BASIC 1 · BASIC 6A
-//
-const CLASS_RE = /\b(JSS\s*[123]|SS[S]?\s*[123]|BASIC\s*[1-6])([A-Za-z])?\b/i;
-
-function detectClass(text: string): string | null {
-  const m = text.match(CLASS_RE);
-  if (!m) return null;
-  const base = m[1].replace(/\s+/g, ' ').trim().toUpperCase();
-  const section = (m[2] ?? '').toUpperCase();
-  return base + section;
-}
-
-function detectArm(text: string): string | null {
-  const match = text.match(CLASS_RE);
-  return match?.[2] ? match[2].toUpperCase() : null;
-}
-function isClassHeader(line: string): boolean {
-  const clean = line.trim().replace(/[:\-–—.]/g, '').trim();
-  return CLASS_RE.test(clean) && clean.replace(CLASS_RE, '').trim() === '';
-}
-
-function stripClass(name: string): string {
-  return name.replace(CLASS_RE, '').replace(/\s{2,}/g, ' ').trim();
 }
 
 // ─── Name helpers ────────────────────────────────────────────────────────────
@@ -111,6 +90,7 @@ interface GeneratedStudent {
   password: string;
   class_name?: string;
   class_arm?: string;
+  class_id?: string;
   gender?: 'male' | 'female' | '';
   duplicate_exception_reason?: string;
   duplicate_exception_confirmed?: boolean;
@@ -141,49 +121,26 @@ interface ClassOption {
   section_class: string | null;
   school_id?: string | null;
   qa_grade_key?: string | null;
+  qa_grade_band?: string | null;
+  band_lvl?: string | null;
+  band_low?: number | null;
+  band_high?: number | null;
+  teacher_id?: string | null;
   term_id?: string | null;
   program_id?: string | null;
   academic_terms?: { term_label?: string; academic_year?: string } | null;
   isRegistry?: boolean; // from teacher's class registry
 }
 
-// Standard Nigerian school class codes shown in every dropdown
-const STANDARD_CLASSES: ClassOption[] = [
-  { id: 'std-kg', name: 'Kindergarten (KG)', section_class: 'KG' },
-  { id: 'std-b1', name: 'Basic 1', section_class: 'BASIC 1' },
-  { id: 'std-b2', name: 'Basic 2', section_class: 'BASIC 2' },
-  { id: 'std-b3', name: 'Basic 3', section_class: 'BASIC 3' },
-  { id: 'std-b4', name: 'Basic 4', section_class: 'BASIC 4' },
-  { id: 'std-b5', name: 'Basic 5', section_class: 'BASIC 5' },
-  { id: 'std-b6', name: 'Basic 6', section_class: 'BASIC 6' },
-  { id: 'std-jss1', name: 'JSS 1', section_class: 'JSS1' },
-  { id: 'std-jss1a', name: 'JSS 1A', section_class: 'JSS1A' },
-  { id: 'std-jss1b', name: 'JSS 1B', section_class: 'JSS1B' },
-  { id: 'std-jss1c', name: 'JSS 1C', section_class: 'JSS1C' },
-  { id: 'std-jss2', name: 'JSS 2', section_class: 'JSS2' },
-  { id: 'std-jss2a', name: 'JSS 2A', section_class: 'JSS2A' },
-  { id: 'std-jss2b', name: 'JSS 2B', section_class: 'JSS2B' },
-  { id: 'std-jss2c', name: 'JSS 2C', section_class: 'JSS2C' },
-  { id: 'std-jss3', name: 'JSS 3', section_class: 'JSS3' },
-  { id: 'std-jss3a', name: 'JSS 3A', section_class: 'JSS3A' },
-  { id: 'std-jss3b', name: 'JSS 3B', section_class: 'JSS3B' },
-  { id: 'std-jss3c', name: 'JSS 3C', section_class: 'JSS3C' },
-  { id: 'std-ss1', name: 'SS 1', section_class: 'SS1' },
-  { id: 'std-ss1a', name: 'SS 1A', section_class: 'SS1A' },
-  { id: 'std-ss1b', name: 'SS 1B', section_class: 'SS1B' },
-  { id: 'std-ss1c', name: 'SS 1C', section_class: 'SS1C' },
-  { id: 'std-ss2', name: 'SS 2', section_class: 'SS2' },
-  { id: 'std-ss2a', name: 'SS 2A', section_class: 'SS2A' },
-  { id: 'std-ss2b', name: 'SS 2B', section_class: 'SS2B' },
-  { id: 'std-ss2c', name: 'SS 2C', section_class: 'SS2C' },
-  { id: 'std-ss3', name: 'SS 3', section_class: 'SS3' },
-  { id: 'std-ss3a', name: 'SS 3A', section_class: 'SS3A' },
-  { id: 'std-ss3b', name: 'SS 3B', section_class: 'SS3B' },
-  { id: 'std-ss3c', name: 'SS 3C', section_class: 'SS3C' },
-  { id: 'std-sss1', name: 'SSS 1', section_class: 'SSS1' },
-  { id: 'std-sss2', name: 'SSS 2', section_class: 'SSS2' },
-  { id: 'std-sss3', name: 'SSS 3', section_class: 'SSS3' },
-];
+type AcademicTermOption = {
+  id: string;
+  academic_year: string;
+  term_number: number;
+  term_label: string;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+};
 
 let _idCounter = 0;
 function nextId() { return ++_idCounter; }
@@ -198,22 +155,24 @@ function buildStudentList(rawLines: string[], fallbackClass?: string): Generated
     const line = raw.trim();
     if (!line) continue;
 
-    if (isClassHeader(line)) {
-      contextClass = detectClass(line);
+    if (isBulkGradeHeader(line)) {
+      const parsed = parseBulkGrade(line);
+      contextClass = parsed?.grade ?? null;
+      contextArm = parsed?.arm ?? null;
       continue;
     }
 
-    const inlineClass = detectClass(line);
-    const namePart = inlineClass ? stripClass(line) : line;
+    const inline = parseBulkGrade(line);
+    const namePart = inline ? stripBulkGrade(line) : line;
     if (!namePart) continue;
 
     // Priority: inline class > header context > fallback default class
-    const resolvedClass = inlineClass ?? contextClass ?? (fallbackClass ? (detectClass(fallbackClass) || fallbackClass.trim().toUpperCase()) || undefined : undefined);
+    const resolvedClass = inline?.grade ?? contextClass ?? canonicalGrade(fallbackClass) ?? undefined;
     const first = extractFirstName(namePart);
     const email = makeEmail(first, usedEmails);
     usedEmails.add(email);
 
-    students.push({ id: nextId(), full_name: namePart, email, password: generatePassword(), class_name: resolvedClass || undefined, class_arm: detectArm(line) || contextArm || undefined });
+    students.push({ id: nextId(), full_name: namePart, email, password: generatePassword(), class_name: resolvedClass || undefined, class_arm: inline?.arm || contextArm || undefined });
   }
   return students;
 }
@@ -236,8 +195,8 @@ export default function BulkRegisterPage() {
   // ── Batch Settings ───────────────────────────────────────────────────────
   const [schools, setSchools] = useState<School[]>([]);
   const [programmes, setProgrammes] = useState<Programme[]>([]);
-  const [classOptions, setClassOptions] = useState<ClassOption[]>(STANDARD_CLASSES); // standard codes
   const [registryClasses, setRegistryClasses] = useState<ClassOption[]>([]); // teacher's created classes
+  const [academicTerms, setAcademicTerms] = useState<AcademicTermOption[]>([]);
 
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [selectedSchoolName, setSelectedSchoolName] = useState('');
@@ -245,6 +204,9 @@ export default function BulkRegisterPage() {
   const [selectedRegistryClass, setSelectedRegistryClass] = useState(''); // class id
   const [defaultClass, setDefaultClass] = useState(''); // canonical academic grade
   const [selectedArm, setSelectedArm] = useState(''); // separate school arm
+  const [selectedTermId, setSelectedTermId] = useState('');
+  const [bandClassSelections, setBandClassSelections] = useState<Record<string, string>>({});
+  const [creatingBand, setCreatingBand] = useState<string | null>(null);
   const [customBatchName, setCustomBatchName] = useState(''); // free-text name label
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [hasRecoverable, setHasRecoverable] = useState(false);
@@ -1184,19 +1146,12 @@ export default function BulkRegisterPage() {
 
   const isAdmin = profile?.role === 'admin';
 
-  /**
-   * The fallback class code applied to students whose names don't contain a class:
-   * - Registry class section_class takes priority if selected
-   * - Otherwise the manually picked standard code is used
-   * Both fields can be set independently; registry class wins if both are filled
-   */
   const selectedRegisteredClass = registryClasses.find((candidate) => candidate.id === selectedRegistryClass);
-  // Grade and arm stay independent of the registered section. Grade is optional —
-  // only what the teacher picks in Grade Level (or what paste detection finds).
   const effectiveClassCode = defaultClass.trim();
   const filteredRegistryClasses = registryClasses.filter(c =>
     (!selectedSchoolId || c.school_id === selectedSchoolId) &&
-    (!selectedProgramId || !c.program_id || c.program_id === selectedProgramId)
+    (!selectedProgramId || c.program_id === selectedProgramId) &&
+    (!selectedTermId || c.term_id === selectedTermId)
   );
 
   // Clear registry class if it's no longer valid for the selected school
@@ -1206,7 +1161,9 @@ export default function BulkRegisterPage() {
     }
   }, [selectedSchoolId, filteredRegistryClasses, selectedRegistryClass]);
 
-  const batchPlacementReady = Boolean(selectedSchoolId && selectedRegistryClass);
+  // A school is the only batch-level placement prerequisite. Grade can come
+  // from the pasted text; class placement is resolved per band in review.
+  const batchPlacementReady = Boolean(selectedSchoolId && selectedTermId);
 
   const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -1224,6 +1181,11 @@ export default function BulkRegisterPage() {
         section_class: c.section_class ?? null,
         school_id: c.school_id ?? null,
         qa_grade_key: c.qa_grade_key ?? null,
+        qa_grade_band: c.qa_grade_band ?? null,
+        band_lvl: c.band_lvl ?? null,
+        band_low: c.band_low ?? null,
+        band_high: c.band_high ?? null,
+        teacher_id: c.teacher_id ?? null,
         term_id: c.term_id ?? null,
         program_id: c.program_id ?? null,
         academic_terms: c.academic_terms ?? null,
@@ -1279,6 +1241,13 @@ export default function BulkRegisterPage() {
         .select('id, name')
         .order('name');
       setProgrammes(progs ?? []);
+
+      const termsResponse = await fetch('/api/settings/academic-year', { cache: 'no-store' });
+      const termsJson = termsResponse.ok ? await termsResponse.json() : { terms: [] };
+      const terms = (termsJson.terms ?? []) as AcademicTermOption[];
+      const currentTerm = terms.find((term) => term.is_current) ?? terms[0];
+      setAcademicTerms(terms);
+      if (currentTerm) setSelectedTermId((current) => current || currentTerm.id);
     }
 
     loadData().catch(console.error);
@@ -1420,15 +1389,6 @@ export default function BulkRegisterPage() {
     });
   }
 
-  /**
-   * On class blur: normalise the typed value if it matches a known class pattern.
-   * Freeform text (e.g. "Grade 7") is kept as-is.
-   */
-  function onClassBlur(id: number, raw: string) {
-    const normalised = (detectClass(raw) ?? raw.trim().toUpperCase()) || undefined;
-    setPreview((prev) => prev.map((r) => r.id === id ? { ...r, class_name: normalised || undefined } : r));
-  }
-
   function updateDuplicateException(id: number, confirmed: boolean) {
     setPreview((prev) => prev.map((row) => row.id === id ? {
       ...row,
@@ -1450,18 +1410,95 @@ export default function BulkRegisterPage() {
 
   // ── Build preview ────────────────────────────────────────────────────────
   const handlePreview = useCallback(async () => {
-    if (!batchPlacementReady) { toast.error('Select a school and registered section before reviewing students. Grade and arm are optional.'); setSettingsOpen(true); return; }
-    // Use only the standard class code (defaultClass) as the fallback arm label.
-    // The registry class (Hilltop etc.) is an internal grouping — it must NOT
-    // bleed into the printed credentials or the class_name field.
+    if (!batchPlacementReady) { toast.error('Select a school and academic term before reviewing students.'); setSettingsOpen(true); return; }
     const built = buildStudentList(namesText.split('\n'), defaultClass.trim() || undefined);
     if (!built.length) return;
+    const nextSelections: Record<string, string> = {};
+    const bandGrades = new Map<string, string>();
+    for (const student of built) {
+      const band = bulkGradeBand(student.class_name);
+      if (band && student.class_name) bandGrades.set(band, student.class_name);
+    }
+    for (const [band, grade] of bandGrades) {
+      const selected = selectedRegisteredClass && bulkClassCoversGrade(selectedRegisteredClass, grade)
+        ? selectedRegisteredClass
+        : filteredRegistryClasses.find((candidate) => bulkClassCoversGrade(candidate, grade));
+      if (selected) nextSelections[band] = selected.id;
+    }
     setPreview(built);
+    setBandClassSelections(nextSelections);
     setDbDupNames(new Set());
     setDbSwapNames(new Map());
     setDbEmailConflicts(new Map());
     setStep('preview');
-  }, [namesText, defaultClass, batchPlacementReady]);
+  }, [namesText, defaultClass, batchPlacementReady, filteredRegistryClasses, selectedRegisteredClass]);
+
+  async function createBandClass(band: string) {
+    if (!selectedProgramId) {
+      toast.error('Select a programme before creating a suggested band class.');
+      return;
+    }
+    if (!selectedTermId) {
+      toast.error('Select an academic term before creating a class.');
+      return;
+    }
+    const programmeName = programmes.find((programme) => programme.id === selectedProgramId)?.name ?? null;
+    const suggestion = composeClassName({
+      schoolName: selectedSchoolName,
+      programme: programmeName,
+      grade: band,
+      granularity: 'fixed',
+    }).name;
+    if (!confirm(`Create the suggested class "${suggestion}" for the selected term?`)) return;
+
+    const term = academicTerms.find((candidate) => candidate.id === selectedTermId);
+    setCreatingBand(band);
+    try {
+      const response = await fetch('/api/classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          auto_name: true,
+          auto_assign_teacher: true,
+          grade: band,
+          band_granularity: 'fixed',
+          program_id: selectedProgramId,
+          school_id: selectedSchoolId,
+          teacher_id: profile?.role === 'teacher' ? profile.id : undefined,
+          term_id: selectedTermId,
+          start_date: term?.start_date ?? undefined,
+          end_date: term?.end_date ?? undefined,
+          status: 'active',
+        }),
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Failed to create class');
+      const created = json.data;
+      const option: ClassOption = {
+        id: created.id,
+        name: created.name,
+        section_class: created.name,
+        school_id: created.school_id,
+        program_id: created.program_id,
+        teacher_id: created.teacher_id,
+        term_id: created.term_id,
+        qa_grade_key: created.qa_grade_key ?? null,
+        qa_grade_band: created.qa_grade_band ?? band,
+        band_lvl: created.band_lvl ?? null,
+        band_low: created.band_low ?? null,
+        band_high: created.band_high ?? null,
+        academic_terms: term ? { term_label: term.term_label, academic_year: term.academic_year } : null,
+        isRegistry: true,
+      };
+      setRegistryClasses((current) => current.some((item) => item.id === option.id) ? current : [option, ...current]);
+      setBandClassSelections((current) => ({ ...current, [band]: option.id }));
+      toast.success(json.reused ? `Using existing class: ${option.name}` : `Created class: ${option.name}`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create class');
+    } finally {
+      setCreatingBand(null);
+    }
+  }
 
   // ── Register ─────────────────────────────────────────────────────────────
   const handleRegister = async () => {
@@ -1469,12 +1506,25 @@ export default function BulkRegisterPage() {
     if (!valid.length) return;
 
     // Grade is mandatory per student — from the pasted text (header/inline code),
-    // the Class cell, or the batch Grade Level fallback applied at preview time.
+    // the Grade cell, or the batch Grade Level fallback applied at preview time.
     const noGrade = valid.filter((s) => !(s.class_name ?? '').trim());
     if (noGrade.length > 0) {
-      toast.error(`${noGrade.length} student${noGrade.length !== 1 ? 's have' : ' has'} no grade. Fill the Class cell or set a batch Grade Level.`);
+      toast.error(`${noGrade.length} student${noGrade.length !== 1 ? 's have' : ' has'} no grade. Fill the Grade field or set a batch Grade Level.`);
       return;
     }
+    const withoutClass = valid.filter((student) => {
+      const band = bulkGradeBand(student.class_name);
+      return !band || !bandClassSelections[band];
+    });
+    if (withoutClass.length > 0) {
+      toast.error('Select or create a class for every grade band before registering.');
+      return;
+    }
+    const placed = valid.map((student) => {
+      const band = bulkGradeBand(student.class_name)!;
+      return { ...student, class_id: bandClassSelections[band] };
+    });
+    const selectedClassIds = [...new Set(placed.map((student) => student.class_id))];
 
     // ── Pre-check for duplicate emails within the batch ───────────────────
     const batchEmails = valid.map(s => s.email.toLowerCase());
@@ -1495,17 +1545,17 @@ export default function BulkRegisterPage() {
     try {
       const BATCH = 10;
       const allResults: RegisterResult[] = [];
-      for (let i = 0; i < valid.length; i += BATCH) {
-        const batch = valid.slice(i, i + BATCH);
+      for (let i = 0; i < placed.length; i += BATCH) {
+        const batch = placed.slice(i, i + BATCH);
         setRegisterProgress({ done: i, total: valid.length, current: batch[0]?.full_name ?? '' });
 
         const body: Record<string, any> = {
           batch_id: persistentBatchId,
           students: batch,
-          class_id: selectedRegistryClass || null,
-          class_name: selectedRegisteredClass?.name || null,
+          class_ids: selectedClassIds,
           grade_name: effectiveClassCode || null,
           class_arm: selectedArm || null,
+          term_id: selectedTermId || null,
         };
         if (selectedSchoolId) {
           body.school_id = selectedSchoolId;
@@ -1616,6 +1666,20 @@ export default function BulkRegisterPage() {
   // (header/inline codes) or supplied by the batch Grade Level selector.
   const missingGradeRows = preview.filter((r) => r.full_name.trim() && r.email.trim() && !(r.class_name ?? '').trim());
   const previewClasses = [...new Set(preview.map((s) => s.class_name).filter(Boolean))];
+  const previewBandGrades = new Map<string, { grade: string; count: number }>();
+  preview.forEach((student) => {
+    if (!student.full_name.trim() || !student.email.trim() || !student.class_name) return;
+    const band = bulkGradeBand(student.class_name);
+    if (!band) return;
+    const current = previewBandGrades.get(band);
+    previewBandGrades.set(band, { grade: student.class_name, count: (current?.count ?? 0) + 1 });
+  });
+  const previewBands = [...previewBandGrades.entries()].map(([band, details]) => ({
+    band,
+    ...details,
+    matches: filteredRegistryClasses.filter((candidate) => bulkClassCoversGrade(candidate, details.grade)),
+  }));
+  const missingClassBands = previewBands.filter(({ band }) => !bandClassSelections[band]);
 
   const successCount = results?.filter((r) => r.status === 'created' || r.status === 'updated').length ?? 0;
   const skipCount = results?.filter((r) => r.status === 'skipped').length ?? 0;
@@ -1757,6 +1821,8 @@ export default function BulkRegisterPage() {
                                 const opt = e.target.options[e.target.selectedIndex];
                                 setSelectedSchoolId(e.target.value);
                                 setSelectedSchoolName(e.target.value ? opt.text : '');
+                                setSelectedRegistryClass('');
+                                setBandClassSelections({});
                               }}
                               className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                             >
@@ -1778,7 +1844,11 @@ export default function BulkRegisterPage() {
                           </label>
                           <select
                             value={selectedProgramId}
-                            onChange={(e) => setSelectedProgramId(e.target.value)}
+                            onChange={(e) => {
+                              setSelectedProgramId(e.target.value);
+                              setSelectedRegistryClass('');
+                              setBandClassSelections({});
+                            }}
                             className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                           >
                             <option value="">— No auto-enrolment —</option>
@@ -1800,57 +1870,40 @@ export default function BulkRegisterPage() {
                       {/* Row 2: Registry class (primary) + Standard code fallback */}
                       <div className="sm:grid sm:grid-cols-2 gap-5 space-y-5 sm:space-y-0">
 
-                        {/* Teacher's created class — primary class assignment */}
+                        {/* Canonical term + optional existing-class shortcut */}
                         <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
-                              <AcademicCapIcon className="w-3.5 h-3.5" />
-                              Place in Class
-                            </label>
-                            <Link
-                              href="/dashboard/classes/add"
-                              className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl text-primary text-[10px] font-bold transition-colors"
-                              title="Create a new class"
-                            >
-                              <PlusIcon className="w-3 h-3" /> New Class
-                            </Link>
-                          </div>
+                          <label className="text-muted-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-1.5 mb-1">
+                            <ClockIcon className="w-3.5 h-3.5" />
+                            Academic Term
+                          </label>
                           <p className="text-white/25 text-[11px] mb-2">
-                            Choose one of your classes — all students in this batch will be added to it.
+                            Classes and rosters will be created or selected inside this term.
                           </p>
-                          {filteredRegistryClasses.length > 0 ? (
-                            <select
-                              value={selectedRegistryClass}
-                              onChange={(e) => {
-                                const classId = e.target.value;
-                                setSelectedRegistryClass(classId);
-                                const destination = filteredRegistryClasses.find((candidate) => candidate.id === classId);
-                                if (destination?.program_id) setSelectedProgramId(destination.program_id);
-                                if (!defaultClass && destination?.qa_grade_key) setDefaultClass(destination.qa_grade_key);
-                              }}
-                              disabled={!selectedSchoolId}
-                              className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              <option value="">— No class selected —</option>
-                              {filteredRegistryClasses.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label || ''} ${c.academic_terms.academic_year || ''}` : c.term_id ? ' · assigned term' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <div className="px-3 py-2.5 bg-white/3 border border-border rounded-xl text-white/25 text-sm italic">
-                              {!selectedSchoolId ? 'Select a school first.' : 'No classes found for this school.'}
-                            </div>
-                          )}
-                          {selectedRegistryClass && (() => {
-                            const rc = filteredRegistryClasses.find((c) => c.id === selectedRegistryClass);
-                            return rc ? (
-                              <p className="text-primary/70 text-[11px] mt-1.5">
-                                Official section: <span className="font-mono font-bold">{rc.section_class ?? rc.name}</span>
-                              </p>
-                            ) : null;
-                          })()}
+                          <select value={selectedTermId} onChange={(event) => { setSelectedTermId(event.target.value); setSelectedRegistryClass(''); setBandClassSelections({}); }} className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50">
+                            <option value="">— Select a term —</option>
+                            {academicTerms.map((term) => (
+                              <option key={term.id} value={term.id}>
+                                {term.term_label} · {term.academic_year}{term.is_current ? ' · Current' : ''}
+                              </option>
+                            ))}
+                          </select>
+                          <label className="mt-3 mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Existing class shortcut (optional)</label>
+                          <select
+                            value={selectedRegistryClass}
+                            onChange={(event) => {
+                              const classId = event.target.value;
+                              setSelectedRegistryClass(classId);
+                              const destination = filteredRegistryClasses.find((candidate) => candidate.id === classId);
+                              if (destination?.program_id) setSelectedProgramId(destination.program_id);
+                            }}
+                            disabled={!selectedSchoolId || !selectedTermId}
+                            className="w-full px-3 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground disabled:opacity-40"
+                          >
+                            <option value="">Suggest per grade band in review</option>
+                            {filteredRegistryClasses.map((candidate) => (
+                              <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                            ))}
+                          </select>
                         </div>
 
                         {/* Fallback standard class code */}
@@ -1868,19 +1921,24 @@ export default function BulkRegisterPage() {
                             className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                           >
                             <option value="">— No grade —</option>
-                            <optgroup label="Primary School">
-                              {classOptions.filter((c) => (c.id.startsWith('std-kg') || c.id.startsWith('std-b')) && !/\\d[A-D]$/.test(c.section_class || '')).map((c) => (
-                                <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                            <optgroup label="Nursery">
+                              {SINGLE_GRADES.filter((grade) => grade.startsWith('Nursery')).map((grade) => (
+                                <option key={grade} value={grade}>{grade}</option>
                               ))}
                             </optgroup>
-                            <optgroup label="Junior Secondary (JSS)">
-                              {classOptions.filter((c) => c.id.startsWith('std-jss') && !/\\d[A-D]$/.test(c.section_class || '')).map((c) => (
-                                <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                            <optgroup label="Basic">
+                              {SINGLE_GRADES.filter((grade) => grade.startsWith('Basic')).map((grade) => (
+                                <option key={grade} value={grade}>{grade}</option>
                               ))}
                             </optgroup>
-                            <optgroup label="Senior Secondary (SS / SSS)">
-                              {classOptions.filter((c) => c.id.startsWith('std-ss') && !/\\d[A-D]$/.test(c.section_class || '')).map((c) => (
-                                <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
+                            <optgroup label="Junior Secondary">
+                              {SINGLE_GRADES.filter((grade) => grade.startsWith('JSS')).map((grade) => (
+                                <option key={grade} value={grade}>{grade}</option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Senior Secondary">
+                              {SINGLE_GRADES.filter((grade) => grade.startsWith('SS ')).map((grade) => (
+                                <option key={grade} value={grade}>{grade}</option>
                               ))}
                             </optgroup>
                           </select>
@@ -1977,7 +2035,7 @@ Yusuf Ibrahim SS1A`}
                     <ul className="space-y-1.5 text-muted-foreground text-xs list-disc list-inside">
                       <li>Grade header: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A</span> — applies to names below</li>
                       <li>Inline: <span className="font-mono bg-primary/20 px-1 rounded">John Doe SS2B</span></li>
-                      <li>Supported: <span className="font-mono bg-primary/20 px-1 rounded">JSS1–3 · SS1–3 · SSS1–3 · BASIC 1–6</span></li>
+                      <li>Supported: <span className="font-mono bg-primary/20 px-1 rounded">NURSERY/KG 1–3 · BASIC 1–6 · JSS 1–3 · SS/SSS 1–3</span></li>
                       <li>Grade-arm codes normalize to grade: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A · SS1C</span></li>
                       <li>Every student must end up with a grade — from the text above, or the <em>Grade Level</em> fallback. Arm stays separate. Official section always comes from the registered section selector</li>
                     </ul>
@@ -2026,6 +2084,59 @@ Yusuf Ibrahim SS1A`}
                     )}
                   </div>
                 )}
+
+                <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+                  <div>
+                    <h3 className="text-sm font-black text-foreground">Class placement by grade band</h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Existing classes are suggested for the selected school, programme and term. Confirm creation only where a band class is missing.
+                    </p>
+                  </div>
+                  {previewBands.length === 0 ? (
+                    <p className="text-xs text-rose-400">Set a canonical grade for each student to see class suggestions.</p>
+                  ) : (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {previewBands.map(({ band, count, matches }) => {
+                        const programmeName = programmes.find((programme) => programme.id === selectedProgramId)?.name ?? null;
+                        const suggestedName = composeClassName({
+                          schoolName: selectedSchoolName,
+                          programme: programmeName,
+                          grade: band,
+                          granularity: 'fixed',
+                        }).name;
+                        return (
+                          <div key={band} className="rounded-xl border border-border bg-card p-3">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <div>
+                                <p className="text-xs font-black text-foreground">{band}</p>
+                                <p className="text-[10px] text-muted-foreground">{count} student{count !== 1 ? 's' : ''}</p>
+                              </div>
+                              {bandClassSelections[band] && <CheckCircleIcon className="h-4 w-4 text-emerald-400" />}
+                            </div>
+                            <select
+                              value={bandClassSelections[band] ?? ''}
+                              onChange={(event) => {
+                                if (event.target.value === '__create__') void createBandClass(band);
+                                else setBandClassSelections((current) => ({ ...current, [band]: event.target.value }));
+                              }}
+                              disabled={creatingBand === band}
+                              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground disabled:opacity-50"
+                            >
+                              <option value="">— Select a class —</option>
+                              {matches.map((candidate) => (
+                                <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                              ))}
+                              <option value="__create__" disabled={!selectedProgramId}>
+                                {selectedProgramId ? `＋ Create ${suggestedName || band}` : 'Select a programme to create this class'}
+                              </option>
+                            </select>
+                            {creatingBand === band && <p className="mt-1 text-[10px] text-primary">Creating class…</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 {/* Stats bar */}
                 <div className="flex flex-wrap gap-3">
@@ -2115,7 +2226,7 @@ Yusuf Ibrahim SS1A`}
                         <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />
                         <span className="text-rose-400 font-bold">{missingGradeRows.length} student{missingGradeRows.length !== 1 ? 's have' : ' has'} no grade</span>
                       </div>
-                      <span className="pl-6 text-rose-300/80">Every student needs a grade. Type it in the Class cell (e.g. JSS2A), add a grade header in the pasted text, or go back and pick a Grade Level for the batch.</span>
+                      <span className="pl-6 text-rose-300/80">Every student needs a grade. Pick it in the Grade field, add a grade header in the pasted text, or go back and set a batch Grade Level.</span>
                     </div>
                   )}
                 </div>
@@ -2137,7 +2248,7 @@ Yusuf Ibrahim SS1A`}
                         <tr className="text-muted-foreground uppercase tracking-wider text-[10px]">
                           <th className="text-left px-3 py-2.5 border-b border-border w-8">#</th>
                           <th className="text-left px-2 py-2.5 border-b border-border w-[25%]">Full Name</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[10%]">Class</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[10%]">Grade</th>
                           <th className="text-left px-2 py-2.5 border-b border-border w-[10%]">Gender</th>
                           <th className="text-left px-2 py-2.5 border-b border-border w-[26%]">Email</th>
                           <th className="text-left px-2 py-2.5 border-b border-border w-[20%]">Temp Password</th>
@@ -2186,15 +2297,16 @@ Yusuf Ibrahim SS1A`}
                                 )}
                               </td>
  
-                              {/* Class */}
+                              {/* Canonical grade */}
                               <td className="px-2 py-1.5 align-middle">
-                                <input
+                                <select
                                   className={`${inp} font-mono ${!incomplete && !(s.class_name ?? '').trim() ? 'border-rose-500/60 bg-rose-500/5' : ''}`}
                                   value={s.class_name ?? ''}
                                   onChange={(e) => updateField(s.id, 'class_name', e.target.value)}
-                                  onBlur={(e) => onClassBlur(s.id, e.target.value)}
-                                  placeholder="e.g. JSS2A"
-                                />
+                                >
+                                  <option value="">Grade</option>
+                                  {SINGLE_GRADES.map((grade) => <option key={grade} value={grade}>{grade}</option>)}
+                                </select>
                               </td>
  
                               {/* Gender */}
@@ -2271,7 +2383,10 @@ Yusuf Ibrahim SS1A`}
                                 </div>
                               )}
                               <div className="flex gap-2">
-                                <input className={`${inp} font-mono w-24 ${!incomplete && !(s.class_name ?? '').trim() ? 'border-rose-500/60 bg-rose-500/5' : ''}`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
+                                <select className={`${inp} font-mono w-28 ${!incomplete && !(s.class_name ?? '').trim() ? 'border-rose-500/60 bg-rose-500/5' : ''}`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)}>
+                                  <option value="">Grade</option>
+                                  {SINGLE_GRADES.map((grade) => <option key={grade} value={grade}>{grade}</option>)}
+                                </select>
                                 <select className={`${inp} w-28`} value={s.gender ?? ''} onChange={(e) => updateField(s.id, 'gender', e.target.value)}>
                                   <option value="">Gender</option>
                                   <option value="male">Male</option>
@@ -2318,7 +2433,7 @@ Yusuf Ibrahim SS1A`}
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={handleRegister}
-                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || unresolvedNameExceptions.length > 0 || missingGradeRows.length > 0 || checkingDups || validCount === 0}
+                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || unresolvedNameExceptions.length > 0 || missingGradeRows.length > 0 || missingClassBands.length > 0 || checkingDups || validCount === 0}
                       className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                     >
                       {registering
@@ -2333,7 +2448,9 @@ Yusuf Ibrahim SS1A`}
                                 ? 'Confirm each twin and enter a reason'
                                 : missingGradeRows.length > 0
                                   ? 'Set a grade for every student first'
-                                  : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                                  : missingClassBands.length > 0
+                                    ? 'Select or create each band class'
+                                    : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
                     </button>
                     {registering && registerProgress && (
                       <div className="space-y-1">

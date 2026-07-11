@@ -206,7 +206,7 @@ export function fixedBand(grade: string | null | undefined): CanonicalBand | nul
   const { lvl, n } = g;
   if (lvl === 'JSS' || lvl === 'JS') return { lvl: 'JSS', low: 1, high: 3, label: 'JSS 1-3' };
   if (lvl === 'SS' || lvl === 'SSS') return { lvl: 'SS', low: 1, high: 3, label: 'SS 1-3' };
-  if (lvl === 'Nursery' || lvl === 'KG') return { lvl, low: 1, high: 2, label: `${lvl} 1-2` };
+  if (lvl === 'Nursery' || lvl === 'KG') return { lvl: 'Nursery', low: 1, high: 3, label: 'Nursery 1-3' };
   const low = n <= 3 ? 1 : 4;
   const high = n <= 3 ? 3 : 6;
   return { lvl, low, high, label: bandLabel(lvl, low, high) };

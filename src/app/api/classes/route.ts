@@ -75,7 +75,8 @@ export async function GET(request: NextRequest) {
       .select(`
         id, name, description, status, max_students, current_students,
         start_date, end_date, schedule, teacher_id, program_id, current_course_id, school_id, term_id, created_at,
-        qa_grade_key, qa_track_hint, qa_spine_lane,
+        qa_grade_key, qa_grade_band, qa_track_hint, qa_spine_lane,
+        band_lvl, band_low, band_high,
         academic_terms ( id, academic_year, term_label, term_number ),
         programs ( id, name ),
         portal_users!classes_teacher_id_fkey ( id, full_name ),
@@ -241,9 +242,36 @@ export async function POST(request: NextRequest) {
         );
       }
       insertRow.school_id = schoolId;
-      const ownerId = typeof body.teacher_id === 'string' ? body.teacher_id : null;
+      let ownerId = typeof body.teacher_id === 'string' && body.teacher_id ? body.teacher_id : null;
+      // Inline canonical creation (for example from bulk registration) may ask
+      // the server to choose an existing teacher already assigned to the school.
+      if (!ownerId && body.auto_assign_teacher === true) {
+        const { data: assignments } = await admin
+          .from('teacher_schools')
+          .select('teacher_id')
+          .eq('school_id', schoolId);
+        for (const assignment of assignments ?? []) {
+          const candidateId = (assignment as { teacher_id?: string }).teacher_id;
+          if (candidateId && await teacherCanOwnSchool(admin, candidateId, schoolId)) {
+            ownerId = candidateId;
+            break;
+          }
+        }
+        if (!ownerId) {
+          const { data: schoolTeacher } = await admin
+            .from('portal_users')
+            .select('id')
+            .eq('role', 'teacher')
+            .eq('school_id', schoolId)
+            .eq('is_active', true)
+            .eq('is_deleted', false)
+            .limit(1)
+            .maybeSingle();
+          ownerId = (schoolTeacher as { id?: string } | null)?.id ?? null;
+        }
+      }
       if (!ownerId) {
-        return NextResponse.json({ error: 'teacher_id is required. Every class must have a primary owner.' }, { status: 400 });
+        return NextResponse.json({ error: 'No assigned teacher is available to own this class.' }, { status: 400 });
       }
       if (!await teacherCanOwnSchool(admin, ownerId, schoolId)) {
         return NextResponse.json({ error: 'The selected class owner is not an active teacher assigned to this school.' }, { status: 400 });
@@ -301,12 +329,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Class name is required' }, { status: 400 });
     }
 
-    const { data: existingClass } = await admin
+    let existingQuery = admin
       .from('classes')
       .select()
       .eq('school_id', insertRow.school_id as string)
-      .eq('name', String(insertRow.name))
-      .maybeSingle();
+      .eq('name', String(insertRow.name));
+    // A class owns one canonical term. When a term is supplied, reuse only a
+    // class from that same term so historical rosters are never repurposed.
+    if (insertRow.term_id) existingQuery = existingQuery.eq('term_id', insertRow.term_id as string);
+    const { data: existingClass } = await existingQuery.limit(1).maybeSingle();
     if (existingClass) {
       if (!(existingClass as any).teacher_id && insertRow.teacher_id) {
         await admin

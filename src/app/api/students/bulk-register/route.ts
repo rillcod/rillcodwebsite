@@ -5,6 +5,7 @@ import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
 import { buildClassName, gradeBand, canonicalGrade } from '@/lib/classes/naming';
 import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
+import { validateBulkClassPlacement } from '@/lib/students/bulk-placement';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +18,7 @@ interface StudentEntry {
   password: string;
   class_name?: string; // incoming grade/header code; never the official section
   class_arm?: string | null;
+  class_id?: string | null; // selected canonical section for this student's grade band
   gender?: string | null;
   duplicate_exception_reason?: string | null;
 }
@@ -26,6 +28,9 @@ type ResolvedClass = {
   name: string | null;
   teacherId: string | null;
   grade: string | null;
+  schoolId: string | null;
+  programId: string | null;
+  termId: string | null;
 };
 
 type CallerProfile = {
@@ -186,6 +191,10 @@ export async function POST(request: Request) {
     const batchClassId: string | null = (body.class_id as string | undefined) ?? null;
     const batchClassName: string | null = (body.class_name as string | undefined) ?? null;
     const batchGradeName: string | null = (body.grade_name as string | undefined) ?? null;
+    const selectedTermId: string | null = (body.term_id as string | undefined) ?? null;
+    const batchSelectedClassIds = Array.isArray(body.class_ids)
+      ? [...new Set(body.class_ids.filter((value: unknown): value is string => typeof value === 'string' && !!value))]
+      : [];
     const batchClassArm: string | null = typeof body.class_arm === 'string' && body.class_arm.trim() ? body.class_arm.trim().toUpperCase() : null;
     if (batchClassArm && !/^[A-Z0-9]{1,4}$/.test(batchClassArm)) throw new HttpError('Class arm must be 1-4 letters or numbers.', 400);
 
@@ -209,21 +218,43 @@ export async function POST(request: Request) {
       batchClassTeacherId = batchClass.teacher_id ?? null;
     }
     const autoClassCache = new Map<string, ResolvedClass>();
-    const resolveClassForStudent = async (gradeOrClass: string | null | undefined): Promise<ResolvedClass> => {
-      if (batchClassId) {
-        // Grade is optional and independent of the registered section. Only use an
-        // explicit per-student or batch grade — never invent one from the class key.
+    const selectedClassCache = new Map<string, any>();
+    if (batchClassId && batchClass) selectedClassCache.set(batchClassId, batchClass);
+    const resolveClassForStudent = async (
+      gradeOrClass: string | null | undefined,
+      studentClassId?: string | null,
+    ): Promise<ResolvedClass> => {
+      const selectedClassId = studentClassId || batchClassId;
+      if (selectedClassId) {
+        let selected = selectedClassCache.get(selectedClassId);
+        if (!selected) {
+          selected = await requireClassAccess(selectedClassId, caller, assignedSchoolIds, user.id);
+          selectedClassCache.set(selectedClassId, selected);
+        }
+        const placementError = validateBulkClassPlacement(selected, {
+          schoolId: resolvedSchoolId,
+          programId,
+          termId: selectedTermId,
+        });
+        if (placementError) throw new HttpError(placementError, 400);
         return {
-          id: batchClassId,
-          name: batchClass.name,
-          teacherId: batchClassTeacherId,
+          id: selectedClassId,
+          name: selected.name,
+          teacherId: selected.teacher_id ?? null,
           grade: canonicalGrade(gradeOrClass) || canonicalGrade(batchGradeName) || null,
+          schoolId: selected.school_id ?? null,
+          programId: selected.program_id ?? null,
+          termId: selected.term_id ?? null,
         };
       }
 
       const placementLabel = (gradeOrClass || batchClassName || '').trim();
       if (!programName || !placementLabel || !resolvedSchoolName) {
-        return { id: null, name: null, teacherId: null, grade: canonicalGrade(placementLabel) || canonicalGrade(batchGradeName) || null };
+        return {
+          id: null, name: null, teacherId: null,
+          grade: canonicalGrade(placementLabel) || canonicalGrade(batchGradeName) || null,
+          schoolId: resolvedSchoolId, programId, termId: null,
+        };
       }
 
       const band = gradeBand(placementLabel);
@@ -250,18 +281,27 @@ export async function POST(request: Request) {
       if (classId) {
         const { data: cls } = await supabaseAdmin
           .from('classes')
-          .select('name, teacher_id')
+          .select('name, teacher_id, school_id, program_id, term_id')
           .eq('id', classId)
           .maybeSingle();
         teacherId = (cls as any)?.teacher_id ?? null;
         className = (cls as any)?.name ?? standardName;
       }
 
-      const resolved = { id: classId, name: className, teacherId, grade: canonicalGrade(placementLabel) || canonicalGrade(batchGradeName) || null };
+      const resolved = {
+        id: classId,
+        name: className,
+        teacherId,
+        grade: canonicalGrade(placementLabel) || canonicalGrade(batchGradeName) || null,
+        schoolId: resolvedSchoolId,
+        programId,
+        termId: null,
+      };
       autoClassCache.set(cacheKey, resolved);
       return resolved;
     };
     const touchedClassIds = new Set<string>();
+    const rosterAssignments = new Map<string, { cls: ResolvedClass; studentIds: Set<string> }>();
 
     const results: Array<{
       full_name: string;
@@ -322,7 +362,7 @@ export async function POST(request: Request) {
     }
 
     for (const student of students) {
-      const { full_name, email, password, class_name, class_arm, gender } = student;
+      const { full_name, email, password, class_name, class_arm, class_id, gender } = student;
       const duplicateExceptionReason = student.duplicate_exception_reason?.trim() || null;
       const hasDuplicateException = !!duplicateExceptionReason && duplicateExceptionReason.length >= 10;
 
@@ -463,7 +503,7 @@ export async function POST(request: Request) {
         }
 
         const requestedClassLabel = class_name || batchClassName || null;
-        const resolvedClass = await resolveClassForStudent(requestedClassLabel);
+        const resolvedClass = await resolveClassForStudent(requestedClassLabel, class_id);
         const effectiveClassId = resolvedClass.id;
         const effectiveClassName = resolvedClass.name || requestedClassLabel || null;
         const effectiveTeacherId = resolvedClass.teacherId || batchClassTeacherId;
@@ -662,6 +702,15 @@ export async function POST(request: Request) {
           if (keyNew) existingByKey.set(keyNew, rec);
         }
 
+        if (resolvedClass.id) {
+          const assignment = rosterAssignments.get(resolvedClass.id) ?? {
+            cls: resolvedClass,
+            studentIds: new Set<string>(),
+          };
+          assignment.studentIds.add(authUserId);
+          rosterAssignments.set(resolvedClass.id, assignment);
+        }
+
         results.push({ full_name, email, password, class_name: effectiveClass, class_arm: class_arm || batchClassArm || null, status, userId: authUserId, cardIssued, cardId });
       } catch (err: any) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: err.message });
@@ -704,14 +753,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // The selected registered section owns the batch roster for its canonical term.
-    if (batchClass?.id) {
-      const rosterStudentIds = results.filter((result) => ['created', 'updated'].includes(result.status) && result.userId).map((result) => result.userId as string);
-      for (const studentId of rosterStudentIds) {
-        let rosterQuery = (supabaseAdmin as any).from('class_term_rosters').select('id').eq('class_id', batchClass.id).eq('student_id', studentId).limit(1);
-        rosterQuery = batchClass.term_id ? rosterQuery.eq('term_id', batchClass.term_id) : rosterQuery.is('term_id', null);
+    // Each selected section owns the roster for its own canonical term. Mixed-grade
+    // imports may therefore write several class rosters in one registration batch.
+    for (const [classId, assignment] of rosterAssignments) {
+      for (const studentId of assignment.studentIds) {
+        let rosterQuery = (supabaseAdmin as any).from('class_term_rosters').select('id').eq('class_id', classId).eq('student_id', studentId).limit(1);
+        rosterQuery = assignment.cls.termId ? rosterQuery.eq('term_id', assignment.cls.termId) : rosterQuery.is('term_id', null);
         const { data: existingRoster } = await rosterQuery.maybeSingle();
-        const rosterPayload = { class_id: batchClass.id, student_id: studentId, school_id: batchClass.school_id, program_id: batchClass.program_id, term_id: batchClass.term_id ?? null, status: 'active', ended_at: null, updated_by: user.id };
+        const rosterPayload = {
+          class_id: classId,
+          student_id: studentId,
+          school_id: assignment.cls.schoolId,
+          program_id: assignment.cls.programId,
+          term_id: assignment.cls.termId,
+          status: 'active',
+          ended_at: null,
+          updated_by: user.id,
+        };
         const { error: rosterError } = existingRoster?.id
           ? await (supabaseAdmin as any).from('class_term_rosters').update({ ...rosterPayload, reinstated_at: new Date().toISOString() }).eq('id', existingRoster.id)
           : await (supabaseAdmin as any).from('class_term_rosters').insert({ ...rosterPayload, started_at: new Date().toISOString(), created_by: user.id });
@@ -750,8 +808,13 @@ export async function POST(request: Request) {
     const batchId = body.batch_id;
     if (batchId) {
       try {
-        const singleTouchedClassId = touchedClassIds.size === 1 ? Array.from(touchedClassIds)[0] : null;
-        const singleTouchedClassName = results.length > 0
+        const batchIsSingleClass = batchSelectedClassIds.length
+          ? batchSelectedClassIds.length === 1
+          : touchedClassIds.size === 1;
+        const singleTouchedClassId = batchSelectedClassIds.length === 1
+          ? batchSelectedClassIds[0]
+          : touchedClassIds.size === 1 ? Array.from(touchedClassIds)[0] : null;
+        const singleTouchedClassName = batchIsSingleClass && results.length > 0
           ? Array.from(new Set(results.map((r) => r.class_name).filter(Boolean)))[0] ?? null
           : null;
         // 1. Upsert batch metadata
@@ -762,7 +825,7 @@ export async function POST(request: Request) {
           school_name: resolvedSchoolName,
           program_id: programId,
           class_id: batchClassId || singleTouchedClassId,
-          class_name: batchClassName || singleTouchedClassName,
+          class_name: batchClassId ? batchClassName : singleTouchedClassName,
         }, { onConflict: 'id' });
         if (batchErr) throw batchErr;
 
@@ -791,9 +854,13 @@ export async function POST(request: Request) {
         }
         
         // 4. Update student count on batch
+        const { count: archivedCount } = await supabaseAdmin
+          .from('registration_results')
+          .select('id', { count: 'exact', head: true })
+          .eq('batch_id', batchId);
         const { error: countErr } = await supabaseAdmin
           .from('registration_batches')
-          .update({ student_count: historyEntries.length })
+          .update({ student_count: archivedCount ?? historyEntries.length })
           .eq('id', batchId);
         if (countErr) throw countErr;
           
