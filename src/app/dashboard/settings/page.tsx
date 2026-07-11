@@ -1743,6 +1743,7 @@ function SettingsPageContent() {
                           { key: 'lms_auto_certificates',    label: 'Automatic Certificates',       desc: 'Generate certificates when a student finishes a course.' },
                           { key: 'lms_course_locking',       label: 'Step-by-Step Learning Mode',  desc: 'Students must finish lessons in order before moving ahead.' },
                           { key: 'show_report_indicator',    label: 'Progress Report Indicator',    desc: 'Show who still needs a published report on rosters, cards and the dashboard.' },
+                          { key: 'allow_paste_claim_students', label: 'Allow Paste-Name Claim', desc: 'Sensitive: lets admins/teachers paste names and immediately claim existing students into a class (including kids under another teacher). Off by default.' },
                         ].map(opt => (
                           <div key={opt.key} className="flex items-start justify-between py-2">
                             <div className="max-w-md"><p className="font-bold text-sm">{opt.label}</p><p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p></div>
@@ -1761,7 +1762,7 @@ function SettingsPageContent() {
                     </div>
                     <div className="pt-4 flex flex-col sm:flex-row gap-3">
                       <button onClick={saveAiSettings} disabled={aiSaving} className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary shadow-lg shadow-primary/20 disabled:opacity-50 rounded-xl text-sm font-black text-white transition-all uppercase tracking-widest">{aiSaving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckCircleIcon className="w-4 h-4" />}{aiSaving ? 'Saving…' : 'Save Settings'}</button>
-                      <button onClick={() => { if (confirm('Reset all LMS policies to defaults?')) setAiSettings(p => ({ ...p, lms_teacher_isolation: 'false', lms_auto_portals: 'true', lms_gamification_enabled: 'true', lms_auto_certificates: 'false', lms_course_locking: 'true', lms_messaging_policy: 'open', brand_primary_color: '#1A3A8F' })); }} className="px-6 py-3 border border-border text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl text-sm font-bold transition-all">Reset Defaults</button>
+                      <button onClick={() => { if (confirm('Reset all LMS policies to defaults?')) setAiSettings(p => ({ ...p, lms_teacher_isolation: 'false', lms_auto_portals: 'true', lms_gamification_enabled: 'true', lms_auto_certificates: 'false', lms_course_locking: 'true', lms_messaging_policy: 'open', brand_primary_color: '#1A3A8F', show_report_indicator: 'true', allow_paste_claim_students: 'false' })); }} className="px-6 py-3 border border-border text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl text-sm font-bold transition-all">Reset Defaults</button>
                     </div>
                   </div>
                 )}

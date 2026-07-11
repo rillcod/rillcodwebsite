@@ -16,6 +16,7 @@ export interface LmsPolicies {
   autoCertificates: boolean;     // lms_auto_certificates   — issue a certificate when a course is completed
   courseLocking: boolean;        // lms_course_locking      — lessons unlock in order
   reportIndicator: boolean;      // show_report_indicator   — report-status badges/dots
+  pasteClaim: boolean;           // allow_paste_claim_students — paste names → force-claim (sensitive)
   messagingPolicy: MessagingPolicy; // lms_messaging_policy
   attendanceThreshold: number;   // lms_attendance_threshold — min % attendance for exam eligibility
 }
@@ -27,6 +28,7 @@ export const LMS_POLICY_DEFAULTS: LmsPolicies = {
   autoCertificates: false,
   courseLocking: true,
   reportIndicator: true,
+  pasteClaim: false,
   messagingPolicy: 'open',
   attendanceThreshold: 75,
 };
@@ -34,6 +36,7 @@ export const LMS_POLICY_DEFAULTS: LmsPolicies = {
 const KEYS = [
   'lms_teacher_isolation', 'lms_auto_portals', 'lms_gamification_enabled',
   'lms_auto_certificates', 'lms_course_locking', 'show_report_indicator',
+  'allow_paste_claim_students',
   'lms_messaging_policy', 'lms_attendance_threshold',
 ];
 
@@ -51,6 +54,7 @@ export async function getLmsPolicies(admin: AnySupabase): Promise<LmsPolicies> {
       autoCertificates: bool('lms_auto_certificates', LMS_POLICY_DEFAULTS.autoCertificates),
       courseLocking: bool('lms_course_locking', LMS_POLICY_DEFAULTS.courseLocking),
       reportIndicator: bool('show_report_indicator', LMS_POLICY_DEFAULTS.reportIndicator),
+      pasteClaim: bool('allow_paste_claim_students', LMS_POLICY_DEFAULTS.pasteClaim),
       messagingPolicy: (['open', 'support_only', 'restricted'] as const).includes(msg as MessagingPolicy)
         ? (msg as MessagingPolicy) : LMS_POLICY_DEFAULTS.messagingPolicy,
       attendanceThreshold: Number.isFinite(Number(m.get('lms_attendance_threshold')))
@@ -66,6 +70,7 @@ export const isAutoPortalsOn        = (a: AnySupabase) => getBoolSetting(a, 'lms
 export const isCourseLockingOn      = (a: AnySupabase) => getBoolSetting(a, 'lms_course_locking', LMS_POLICY_DEFAULTS.courseLocking);
 export const isAutoCertificatesOn   = (a: AnySupabase) => getBoolSetting(a, 'lms_auto_certificates', LMS_POLICY_DEFAULTS.autoCertificates);
 export const isGamificationOn       = (a: AnySupabase) => getBoolSetting(a, 'lms_gamification_enabled', LMS_POLICY_DEFAULTS.gamification);
+export const isPasteClaimOn         = (a: AnySupabase) => getBoolSetting(a, 'allow_paste_claim_students', LMS_POLICY_DEFAULTS.pasteClaim);
 
 /** Attendance % required for exam eligibility (0 = no gate). */
 export async function getAttendanceThreshold(admin: AnySupabase): Promise<number> {

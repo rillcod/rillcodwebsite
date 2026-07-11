@@ -18,3 +18,9 @@ export async function getBoolSetting(admin: AnySupabase, key: string, defaultVal
  * suppressed everywhere, giving admins full control over when the indicator appears. Default ON.
  */
 export const isReportIndicatorEnabled = (admin: AnySupabase) => getBoolSetting(admin, 'show_report_indicator', true);
+
+/**
+ * Paste-names claim — sensitive: lets admins/teachers force-claim existing students into a class
+ * (including kids currently under another teacher). Default OFF; admin enables in LMS Settings.
+ */
+export const isPasteClaimEnabled = (admin: AnySupabase) => getBoolSetting(admin, 'allow_paste_claim_students', false);

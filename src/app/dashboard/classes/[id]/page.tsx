@@ -59,16 +59,22 @@ export default function ClassDetailPage() {
 
   // Student Management State
   const [showStudentModal, setShowStudentModal] = useState(false);
-  const [enrolMode, setEnrolMode] = useState<'current' | 'create'>('current');
+  const [enrolMode, setEnrolMode] = useState<'current' | 'create' | 'paste'>('current');
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [processingStudent, setProcessingStudent] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [studentSearch, setStudentSearch] = useState(''); // Search/filter in enrollment modal
   const [showMoreStudents, setShowMoreStudents] = useState(false); // Pagination control
+  const [pasteNamesText, setPasteNamesText] = useState('');
+  const [pastePreview, setPastePreview] = useState<any | null>(null);
+  const [pasteMatching, setPasteMatching] = useState(false);
+  const [pasteClaiming, setPasteClaiming] = useState(false);
+  const [pasteResult, setPasteResult] = useState<any | null>(null);
   const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
   const [showNeedsReportOnly, setShowNeedsReportOnly] = useState(false); // roster: only students needing a report
   const [reportIndicatorEnabled, setReportIndicatorEnabled] = useState(true); // admin setting: show report status?
+  const [pasteClaimEnabled, setPasteClaimEnabled] = useState(false); // admin setting: paste-name claim (sensitive, off by default)
   // Inline identity edit (name + grade) on the roster — source of truth, round-trips everywhere.
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -169,6 +175,7 @@ export default function ClassDetailPage() {
       setEnrollments(studentsRes.students ?? []);
       setFormerEnrollments(studentsRes.former_students ?? []);
       setReportIndicatorEnabled((studentsRes as any).report_indicator_enabled !== false);
+      setPasteClaimEnabled((studentsRes as any).paste_claim_enabled === true);
       if (isStaff) {
         const visJson = await fetchJsonWithTimeout(
           `/api/progression/path-visibility?class_id=${id}`,
@@ -371,7 +378,6 @@ export default function ClassDetailPage() {
   const loadAvailableStudents = async () => {
     if (!cls) return;
     setProcessingStudent('loading');
-    setEnrolMode('current');
     try {
       const [enrollJson, progJson, schJson] = await Promise.all([
         fetchJsonWithTimeout(`/api/classes/${id}/enroll`, { students: [], error: null }, 'class enrollable students'),
@@ -408,6 +414,78 @@ export default function ClassDetailPage() {
       alert(e.message);
     } finally {
       setProcessingStudent(null);
+    }
+  };
+
+  const resetPasteClaimState = () => {
+    setPasteNamesText('');
+    setPastePreview(null);
+    setPasteResult(null);
+    setPasteMatching(false);
+    setPasteClaiming(false);
+  };
+
+  const matchPastedNames = async () => {
+    if (!id || !pasteNamesText.trim()) {
+      alert('Paste at least one student name (one per line).');
+      return;
+    }
+    setPasteMatching(true);
+    setPasteResult(null);
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll/by-names`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names: pasteNamesText, confirm: false }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to match names');
+      setPastePreview(json);
+    } catch (e: any) {
+      alert(e.message || 'Failed to match names');
+      setPastePreview(null);
+    } finally {
+      setPasteMatching(false);
+    }
+  };
+
+  const claimPastedNames = async () => {
+    if (!id || !pasteNamesText.trim()) return;
+    const claimCount = pastePreview?.claimable?.length ?? 0;
+    if (claimCount === 0) {
+      alert('No claimable matches. Run Match first, or fix ambiguous / unmatched names.');
+      return;
+    }
+    if (!confirm(
+      `Move ${claimCount} student${claimCount === 1 ? '' : 's'} into this class now?\n\nThis makes you the owner immediately — even if they are currently in another teacher's class.`,
+    )) return;
+
+    setPasteClaiming(true);
+    try {
+      const res = await fetch(`/api/classes/${id}/enroll/by-names`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names: pasteNamesText, confirm: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to claim students');
+      setPasteResult(json);
+      setPastePreview(null);
+      await Promise.all([fetchData(), loadAvailableStudents()]);
+      const s = json.summary ?? {};
+      const parts = [
+        s.claimed ? `${s.claimed} claimed` : null,
+        s.alreadyHere ? `${s.alreadyHere} already here` : null,
+        s.ambiguous ? `${s.ambiguous} ambiguous` : null,
+        s.unmatched ? `${s.unmatched} not found` : null,
+        s.failed ? `${s.failed} failed` : null,
+        json.capacityStopped ? 'stopped at capacity' : null,
+      ].filter(Boolean);
+      alert(parts.length ? `Claim complete: ${parts.join(' · ')}` : 'Claim complete.');
+    } catch (e: any) {
+      alert(e.message || 'Failed to claim students');
+    } finally {
+      setPasteClaiming(false);
     }
   };
 
@@ -1004,17 +1082,18 @@ export default function ClassDetailPage() {
       <div className="space-y-6 pb-20">
 
         {/* ── Class Operations Canvas ────────────────────────────────────────── */}
-        <div className="overflow-x-clip rounded-3xl border border-border bg-card shadow-sm">
-          <div className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-background p-5 sm:p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:rounded-3xl">
+          <div className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-background p-4 sm:p-5 md:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <button onClick={() => router.back()} className="rounded-xl p-1.5 transition-colors hover:bg-muted">
+                <div className="mb-2 flex flex-wrap items-center gap-2 sm:mb-3">
+                  <button type="button" onClick={() => router.back()} className="rounded-xl p-1.5 transition-colors hover:bg-muted" aria-label="Go back">
                     <ArrowLeftIcon className="h-4 w-4 text-muted-foreground" />
                   </button>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
                     <AcademicCapIcon className="h-3.5 w-3.5" />
-                    My Class Workspace
+                    <span className="hidden sm:inline">Class Workspace</span>
+                    <span className="sm:hidden">Workspace</span>
                   </span>
                   <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
                     cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' :
@@ -1024,60 +1103,89 @@ export default function ClassDetailPage() {
                     {cls.status}
                   </span>
                 </div>
-                <h1 className="break-words text-2xl font-black tracking-tight text-foreground sm:text-4xl">{cls.name}</h1>
-                <p className="mt-2 max-w-2xl break-words text-sm text-muted-foreground">
+                <h1 className="break-words text-xl font-black tracking-tight text-foreground sm:text-2xl md:text-4xl">{cls.name}</h1>
+                <p className="mt-1.5 max-w-2xl break-words text-xs text-muted-foreground sm:mt-2 sm:text-sm">
                   {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
                 </p>
               </div>
 
               {isStaff && (
-                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 lg:justify-end">
+                <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap lg:justify-end">
                   <Link href={`/dashboard/classes/${id}/edit`}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/40 hover:bg-muted">
-                    <PencilIcon className="w-4 h-4 text-primary" /> Setup
+                    className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 py-2.5 text-[11px] font-black text-foreground transition-colors hover:border-primary/40 hover:bg-muted sm:gap-2 sm:px-4 sm:text-xs">
+                    <PencilIcon className="h-3.5 w-3.5 flex-shrink-0 text-primary sm:h-4 sm:w-4" /> Setup
                   </Link>
                   <button
+                    type="button"
                     onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-xs font-black text-emerald-400 transition-colors hover:bg-emerald-500 hover:text-white">
+                    className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-2 py-2.5 text-[11px] font-black text-emerald-400 transition-colors hover:bg-emerald-500 hover:text-white sm:px-4 sm:text-xs">
                     Broadcast
                   </button>
                   <Link href={`/dashboard/attendance?class_id=${id}`}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5">
-                    <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+                    className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-2 py-2.5 text-[11px] font-black text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5 sm:gap-2 sm:px-4 sm:text-xs">
+                    <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 flex-shrink-0 sm:h-4 sm:w-4" />
+                    <span className="truncate">Attendance</span>
                   </Link>
                 </div>
               )}
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3 lg:grid-cols-4">
               {[
-                { label: 'Active Students', value: currentTermStudents.length, hint: `${cls.max_students ?? '∞'} capacity`, tone: 'text-primary' },
-                { label: 'Historical', value: inactiveTermStudents.length, hint: 'paused / former', tone: 'text-amber-400' },
-                { label: 'Open Work', value: openAssignments + activeExamCount, hint: 'assignments + exams', tone: 'text-emerald-400' },
-                { label: 'Marked Grades', value: gradedSubmissionCount, hint: 'submissions scored', tone: 'text-cyan-400' },
+                { label: 'Active', value: currentTermStudents.length, hint: `${cls.max_students ?? '∞'} capacity`, tone: 'text-primary' },
+                { label: 'Withdrawn', value: inactiveTermStudents.length, hint: 'paused / former', tone: 'text-amber-400' },
+                { label: 'Open work', value: openAssignments + activeExamCount, hint: 'assignments + exams', tone: 'text-emerald-400' },
+                { label: 'Marked', value: gradedSubmissionCount, hint: 'submissions scored', tone: 'text-cyan-400' },
               ].map(metric => (
-                <div key={metric.label} className="rounded-2xl border border-border bg-background/70 p-4">
-                  <p className={`text-2xl font-black ${metric.tone}`}>{metric.value}</p>
-                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{metric.hint}</p>
+                <div key={metric.label} className="min-w-0 rounded-xl border border-border bg-background/70 p-3 sm:rounded-2xl sm:p-4">
+                  <p className={`text-xl font-black sm:text-2xl ${metric.tone}`}>{metric.value}</p>
+                  <p className="mt-1 truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
+                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-[11px]">{metric.hint}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
-            <div className="border-b border-rose-500/20 bg-rose-500/10 px-5 py-3 text-sm font-semibold text-rose-400">
+            <div className="border-b border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-400 sm:px-5">
               Class capacity has been reached. Move students to another class or increase capacity before adding more.
             </div>
           )}
 
-          <div className="grid gap-0 lg:grid-cols-[280px_1fr]">
-            <div className="border-b border-border bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+          {/* Mobile work-mode tabs — horizontal, no truncation of labels */}
+          <div className="border-b border-border lg:hidden">
+            <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {operationCards.map(card => {
+                const active = activeOperation === card.id;
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => setActiveOperation(card.id)}
+                    className={`inline-flex flex-shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all ${
+                      active
+                        ? 'border-primary/40 bg-primary/10 text-foreground shadow-sm'
+                        : 'border-border bg-background text-muted-foreground'
+                    }`}
+                  >
+                    <card.icon className={`h-4 w-4 flex-shrink-0 ${active ? card.tone : ''}`} />
+                    <span className="text-xs font-black">{card.title}</span>
+                    <span className="hidden text-[10px] text-muted-foreground sm:inline">{card.stat}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid min-w-0 gap-0 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]">
+            {/* Desktop sidebar work modes */}
+            <aside className="hidden border-b border-border bg-muted/20 p-4 lg:block lg:border-b-0 lg:border-r">
               <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Choose work mode</p>
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+              <div className="grid grid-cols-1 gap-2">
                 {operationCards.map(card => (
                   <button
                     key={card.id}
+                    type="button"
                     onClick={() => setActiveOperation(card.id)}
                     className={`rounded-2xl border p-3 text-left transition-all ${
                       activeOperation === card.id
@@ -1086,7 +1194,7 @@ export default function ClassDetailPage() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border">
+                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-card">
                         <card.icon className={`h-4 w-4 ${card.tone}`} />
                       </div>
                       <div className="min-w-0">
@@ -1098,33 +1206,36 @@ export default function ClassDetailPage() {
                   </button>
                 ))}
               </div>
-            </div>
+            </aside>
 
-            <div className="min-h-[320px] p-5 sm:p-6">
-              <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
+            <div className="min-h-[280px] min-w-0 p-3 sm:min-h-[320px] sm:p-5 md:p-6">
+              <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Operations Canvas</p>
-                  <h2 className="mt-1 text-xl font-black text-foreground">{selectedOperation.title}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{selectedOperation.desc}</p>
+                  <h2 className="mt-1 break-words text-lg font-black text-foreground sm:text-xl">{selectedOperation.title}</h2>
+                  <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{selectedOperation.desc}</p>
                 </div>
-                <span className="rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                <span className="w-fit flex-shrink-0 rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                   {termLabel}
                 </span>
               </div>
 
               {activeOperation === 'roster' && (
-                <div className="rounded-2xl border border-border bg-background p-4">
+                <div className="min-w-0 space-y-4 rounded-2xl border border-border bg-background p-3 sm:p-4">
                   {(pendingIncomingTransfers.length > 0 || pendingOutgoingTransfers.length > 0) && (
-                    <div className="mb-5 space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                      <div><h3 className="text-sm font-black text-foreground">Student transfer requests</h3><p className="text-xs text-muted-foreground">Moves happen only after the current owning teacher approves.</p></div>
+                    <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
+                      <div>
+                        <h3 className="text-sm font-black text-foreground">Student transfer requests</h3>
+                        <p className="text-xs text-muted-foreground">Moves happen only after the current owning teacher approves.</p>
+                      </div>
                       {pendingIncomingTransfers.map((request: any) => (
                         <div key={request.id} className="rounded-xl border border-amber-500/20 bg-background p-3">
                           <p className="break-words text-sm font-bold text-foreground">{request.student?.full_name}</p>
                           <p className="mt-1 break-words text-xs text-muted-foreground">{request.requester?.full_name} requests transfer from <strong>{request.from_class?.name}</strong> to <strong>{request.to_class?.name}</strong>.</p>
                           <p className="mt-2 break-words rounded-lg bg-muted px-2 py-1.5 text-xs text-foreground">“{request.reason}”</p>
                           <div className="mt-3 flex flex-wrap gap-2">
-                            <button disabled={transferBusy === request.id} onClick={() => decideTransfer(request.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50">Approve & Move</button>
-                            <button disabled={transferBusy === request.id} onClick={() => { setDeclineCandidate(request); setDeclineNote(''); }} className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-black text-rose-300 disabled:opacity-50">Decline</button>
+                            <button type="button" disabled={transferBusy === request.id} onClick={() => decideTransfer(request.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50">Approve & Move</button>
+                            <button type="button" disabled={transferBusy === request.id} onClick={() => { setDeclineCandidate(request); setDeclineNote(''); }} className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-black text-rose-300 disabled:opacity-50">Decline</button>
                           </div>
                         </div>
                       ))}
@@ -1139,13 +1250,12 @@ export default function ClassDetailPage() {
                       ))}
                     </div>
                   )}
-                  {/* One consolidated roster: active + withdrawn (badged), searchable, with
-                      inline per-row Move / Withdraw / Reinstate so no shuttling between pages. */}
-                  <div className="mb-4 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
+
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-3">
+                      <div className="min-w-0">
                         <h3 className="text-sm font-black text-foreground">Class Roster</h3>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="mt-0.5 break-words text-xs text-muted-foreground">
                           {currentTermStudents.length} active
                           {inactiveTermStudents.length ? ` · ${inactiveTermStudents.length} withdrawn` : ''}
                           {offBandCount ? <span className="text-amber-400"> · {offBandCount} off-band</span> : ''}
@@ -1154,11 +1264,12 @@ export default function ClassDetailPage() {
                               {' · '}{reportedCount}/{currentTermStudents.length} reports{' '}
                               {needsReportCount ? (
                                 <button
+                                  type="button"
                                   onClick={() => setShowNeedsReportOnly(v => !v)}
                                   className={`underline decoration-dotted underline-offset-2 ${showNeedsReportOnly ? 'font-black text-amber-300' : ''}`}
                                   title="Show only students who still need a report"
                                 >
-                                  · {needsReportCount} need one{showNeedsReportOnly ? ' (filtered — tap to clear)' : ''}
+                                  · {needsReportCount} need one{showNeedsReportOnly ? ' (filtered)' : ''}
                                 </button>
                               ) : ' ✓'}
                             </span>
@@ -1166,27 +1277,35 @@ export default function ClassDetailPage() {
                         </p>
                       </div>
                       {isStaff && (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/50 transition-colors">
-                            <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" /> Transfer / Move
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                          <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50">
+                            <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" />
+                            <span className="sm:hidden">Transfer</span>
+                            <span className="hidden sm:inline">Transfer / Move</span>
                           </Link>
-                          <Link href={`/dashboard/classes/transfer-requests?class=${id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-black text-amber-400 hover:bg-amber-500/20 transition-colors">
-                            <ArrowsRightLeftIcon className="h-3.5 w-3.5" /> Ownership Requests
+                          <Link href={`/dashboard/classes/transfer-requests?class=${id}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-black text-amber-400 transition-colors hover:bg-amber-500/20">
+                            <ArrowsRightLeftIcon className="h-3.5 w-3.5" />
+                            <span className="sm:hidden">Requests</span>
+                            <span className="hidden sm:inline">Ownership Requests</span>
                           </Link>
-                          <button onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }} className="rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground">
+                          <button
+                            type="button"
+                            onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
+                            className="col-span-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground sm:col-span-1"
+                          >
                             Add Students
                           </button>
                         </div>
                       )}
                     </div>
-                    {rosterShowSearch && (
+                    {(rosterShowSearch || currentTermStudents.length + inactiveTermStudents.length > 0) && (
                       <div className="relative">
                         <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                           value={rosterSearch}
                           onChange={(e) => setRosterSearch(e.target.value)}
                           placeholder="Search this class…"
-                          className="w-full rounded-xl border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary/50"
+                          className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary/50"
                         />
                       </div>
                     )}
@@ -1202,7 +1321,7 @@ export default function ClassDetailPage() {
                       <p className="text-sm font-semibold text-muted-foreground">No students match “{rosterSearch}”.</p>
                     </div>
                   ) : (
-                    <div className="grid max-h-[60vh] gap-2 overflow-y-auto overflow-x-hidden pr-1">
+                    <div className="grid max-h-[min(70vh,40rem)] gap-2 overflow-y-auto overflow-x-hidden overscroll-contain pr-0.5 sm:pr-1">
                       {visibleCurrent.map((student: any) => {
                         const offBand = isOffBand(student);
                         if (editingStudentId === student.id) {
@@ -1212,42 +1331,44 @@ export default function ClassDetailPage() {
                           ]));
                           return (
                             <div key={student.id} className="space-y-2 rounded-xl border border-primary/40 bg-primary/5 p-3">
-                              <div className="flex flex-col gap-2 sm:flex-row">
+                              <div className="flex flex-col gap-2">
                                 <input
                                   value={editName}
                                   onChange={(e) => setEditName(e.target.value)}
                                   placeholder="Full name"
-                                  className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                                  className="min-w-0 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
                                 />
-                                <select
-                                  value={editGrade}
-                                  onChange={(e) => setEditGrade(e.target.value)}
-                                  title="Grade (separate from the class/section)"
-                                  className="min-w-0 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 sm:max-w-[10rem]"
-                                >
-                                  <option value="">No grade</option>
-                                  {gradeOpts.map((g) => <option key={g} value={g}>{g}</option>)}
-                                </select>
-                                <select value={editClassId} onChange={(e) => setEditClassId(e.target.value)} title="Registered section / class" className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                                  <option value={id || ''}>{cls.name} · current section</option>
-                                  {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
-                                </select>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                  <select
+                                    value={editGrade}
+                                    onChange={(e) => setEditGrade(e.target.value)}
+                                    title="Grade (separate from the class/section)"
+                                    className="min-w-0 rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50"
+                                  >
+                                    <option value="">No grade</option>
+                                    {gradeOpts.map((g) => <option key={g} value={g}>{g}</option>)}
+                                  </select>
+                                  <select value={editClassId} onChange={(e) => setEditClassId(e.target.value)} title="Registered section / class" className="min-w-0 rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50">
+                                    <option value={id || ''}>{cls.name} · current section</option>
+                                    {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
+                                  </select>
+                                </div>
                               </div>
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-[10px] text-muted-foreground">Grade and section are independent. Preview both choices, then Save Placement. Updates apply everywhere — portal, records &amp; login.</p>
-                                <div className="flex items-center gap-2">
-                                  <button onClick={() => setEditingStudentId(null)} disabled={savingIdentity} className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black text-muted-foreground">Cancel</button>
-                                  <button onClick={() => saveIdentity(student.id)} disabled={savingIdentity} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground disabled:opacity-50">{savingIdentity ? 'Saving…' : 'Save'}</button>
+                                <p className="text-[10px] text-muted-foreground">Grade and section are independent. Save updates the portal, records &amp; login.</p>
+                                <div className="grid grid-cols-2 gap-2 sm:flex">
+                                  <button type="button" onClick={() => setEditingStudentId(null)} disabled={savingIdentity} className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-black text-muted-foreground">Cancel</button>
+                                  <button type="button" onClick={() => saveIdentity(student.id)} disabled={savingIdentity} className="rounded-lg bg-primary px-3 py-2 text-xs font-black text-primary-foreground disabled:opacity-50">{savingIdentity ? 'Saving…' : 'Save'}</button>
                                 </div>
                               </div>
                             </div>
                           );
                         }
                         return (
-                          <div key={student.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-start">
-                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                          <div key={student.id} className="min-w-0 rounded-xl border border-border bg-card p-3">
+                            <div className="flex min-w-0 items-start gap-3">
                               <div className="relative flex-shrink-0">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
                                   {(student.full_name ?? '?')[0].toUpperCase()}
                                 </div>
                                 {reportIndicatorEnabled && (
@@ -1285,24 +1406,26 @@ export default function ClassDetailPage() {
                                     </span>
                                   )}
                                 </div>
-                                <p className="truncate text-xs text-muted-foreground">{student.email}</p>
+                                <p className="mt-0.5 truncate text-xs text-muted-foreground">{student.email}</p>
                               </div>
                             </div>
                             {isStaff && (
-                              <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:w-auto sm:max-w-[min(100%,28rem)] sm:justify-end">
+                              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/60 pt-3 sm:flex sm:flex-wrap sm:items-center">
                                 <button
+                                  type="button"
                                   onClick={() => beginEditIdentity(student)}
                                   title="Edit name / grade"
-                                  className="rounded-lg border border-border bg-background p-2 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                                 >
                                   <PencilSquareIconOutline className="h-3.5 w-3.5" />
+                                  Edit
                                 </button>
                                 <select
                                   aria-label={`Change grade or section for ${student.full_name}`}
                                   value=""
                                   disabled={movingStudent === student.id}
                                   onChange={(event) => void moveStudentToClass(student, event.target.value)}
-                                  className="min-w-0 flex-1 basis-[10rem] rounded-lg border border-border bg-background px-2 py-2 text-[10px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:flex-none sm:basis-auto sm:max-w-[14rem]"
+                                  className="col-span-2 min-w-0 rounded-lg border border-border bg-background px-2 py-2.5 text-[10px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:col-span-1 sm:min-w-[10rem] sm:flex-1 sm:max-w-[16rem]"
                                 >
                                   <option value="">{movingStudent === student.id ? 'Moving…' : 'Change grade / section'}</option>
                                   {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.qa_grade_key || 'Grade'} · {destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
@@ -1310,15 +1433,16 @@ export default function ClassDetailPage() {
                                 <Link
                                   href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`}
                                   title="Request a move to a class owned by another teacher"
-                                  className="inline-flex flex-shrink-0 items-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
+                                  className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
                                 >
                                   Transfer
                                 </Link>
                                 <button
+                                  type="button"
                                   onClick={() => removeStudent(student.id)}
                                   disabled={processingStudent === student.id}
                                   title="Withdraw from this class (keeps class history)"
-                                  className="inline-flex flex-shrink-0 items-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-2 text-[10px] font-black uppercase tracking-wide text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
+                                  className="inline-flex items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
                                 >
                                   {processingStudent === student.id ? '…' : 'Withdraw'}
                                 </button>
@@ -1327,7 +1451,6 @@ export default function ClassDetailPage() {
                           </div>
                         );
                       })}
-                      {/* Tick-and-wipe bar for withdrawn students — select then permanently delete everywhere. */}
                       {isStaff && visibleInactive.length > 0 && (
                         <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5 backdrop-blur supports-[backdrop-filter]:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
                           <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-300/90">
@@ -1344,9 +1467,10 @@ export default function ClassDetailPage() {
                             {checkedWithdrawnIds.size > 0 ? `${checkedWithdrawnIds.size} selected` : 'Select withdrawn to delete'}
                           </label>
                           <button
+                            type="button"
                             onClick={() => bulkHardDelete(false)}
                             disabled={checkedWithdrawnIds.size === 0 || hardDeleting}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-red-300 transition-colors hover:bg-red-600/25 disabled:opacity-40"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-300 transition-colors hover:bg-red-600/25 disabled:opacity-40"
                           >
                             <TrashIcon className="h-3.5 w-3.5" />
                             {hardDeleting ? 'Wiping…' : 'Hard delete selected'}
@@ -1354,8 +1478,8 @@ export default function ClassDetailPage() {
                         </div>
                       )}
                       {visibleInactive.map((student: any) => (
-                        <div key={`${student.id}-${student.roster_status ?? 'former'}`} className={`flex flex-col gap-3 rounded-xl border p-3 transition-colors sm:flex-row sm:items-center ${checkedWithdrawnIds.has(student.id) ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/20 bg-amber-500/5'}`}>
-                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div key={`${student.id}-${student.roster_status ?? 'former'}`} className={`min-w-0 rounded-xl border p-3 transition-colors ${checkedWithdrawnIds.has(student.id) ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                          <div className="flex min-w-0 items-center gap-3">
                             {isStaff && (
                               <input
                                 type="checkbox"
@@ -1365,7 +1489,7 @@ export default function ClassDetailPage() {
                                 title="Select for permanent deletion"
                               />
                             )}
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-400">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-400">
                               {(student.full_name ?? '?')[0].toUpperCase()}
                             </div>
                             <div className="min-w-0 flex-1">
@@ -1374,17 +1498,19 @@ export default function ClassDetailPage() {
                             </div>
                           </div>
                           {isStaff && (
-                            <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-                              <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-2 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
+                            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-amber-500/20 pt-3">
+                              <button type="button" onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
                                 {processingStudent === student.id ? '…' : 'Reinstate'}
                               </button>
                               <button
+                                type="button"
                                 onClick={() => bulkHardDelete(false, [student.id])}
                                 disabled={hardDeleting}
                                 title="Permanently delete this student from the whole system"
-                                className="rounded-lg border border-red-500/30 bg-red-600/10 p-2 text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
+                                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-600/10 px-2.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
                               >
                                 <TrashIcon className="h-3.5 w-3.5" />
+                                Delete
                               </button>
                             </div>
                           )}
@@ -1396,32 +1522,33 @@ export default function ClassDetailPage() {
               )}
 
               {activeOperation === 'teaching' && (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <div className="rounded-2xl border border-border bg-background p-4">
+                <div className="grid min-w-0 gap-3 sm:gap-4 xl:grid-cols-2">
+                  <div className="min-w-0 rounded-2xl border border-border bg-background p-3 sm:p-4">
                     <h3 className="text-sm font-black text-foreground">Course Focus</h3>
                     <p className="mb-3 mt-1 text-xs text-muted-foreground">Choose the course students should see now.</p>
                     <select
                       value={cls?.current_course_id || ''}
                       onChange={(e) => handleSaveCourseFocus(e.target.value || null)}
                       disabled={!isStaff || updatingCourseFocus || programCourses.length === 0}
-                      className="w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+                      className="w-full min-w-0 rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none disabled:opacity-50 sm:px-4"
                     >
                       <option value="">Show all courses</option>
                       {programCourses.map((course: any) => <option key={course.id} value={course.id}>{course.title}</option>)}
                     </select>
                   </div>
-                  <div className="rounded-2xl border border-border bg-background p-4">
+                  <div className="min-w-0 rounded-2xl border border-border bg-background p-3 sm:p-4">
                     <h3 className="text-sm font-black text-foreground">Next Session</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 break-words text-xs text-muted-foreground">
                       {latestSession ? `${latestSession.topic ?? 'Session'} · ${new Date(latestSession.session_date).toLocaleDateString()}` : 'No session recorded yet.'}
                     </p>
                     {isStaff && (
                       <button
+                        type="button"
                         onClick={() => {
                           setEditingSession({ id: 'new', class_id: id });
                           setSessionForm({ topic: '', session_date: new Date().toISOString().split('T')[0], start_time: '09:00', end_time: '11:00', notes: '' });
                         }}
-                        className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground"
+                        className="mt-4 w-full rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-primary-foreground sm:w-auto"
                       >
                         Record Session
                       </button>
@@ -1431,21 +1558,21 @@ export default function ClassDetailPage() {
               )}
 
               {activeOperation === 'assessment' && (
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-3">
                   {[
                     { label: 'Assignments', value: items.assignments.length, action: 'New Assignment', href: `/dashboard/assignments/new?class_id=${id}` },
                     { label: 'CBT Exams', value: items.cbt.length, action: 'New Exam', href: `/dashboard/cbt/new?class_id=${id}${cls?.program_id ? `&program_id=${cls.program_id}` : ''}` },
                     { label: 'Gradebook', value: gradedSubmissionCount, action: 'Open Gradebook', onClick: () => setActiveTab('gradebook') },
                   ].map(card => (
-                    <div key={card.label} className="rounded-2xl border border-border bg-background p-4">
-                      <p className="text-3xl font-black text-foreground">{card.value}</p>
+                    <div key={card.label} className="min-w-0 rounded-2xl border border-border bg-background p-3 sm:p-4">
+                      <p className="text-2xl font-black text-foreground sm:text-3xl">{card.value}</p>
                       <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{card.label}</p>
                       {'href' in card ? (
-                        <Link href={card.href as string} className="mt-4 inline-flex rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/40">
+                        <Link href={card.href as string} className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground hover:border-primary/40 sm:w-auto">
                           {card.action}
                         </Link>
                       ) : (
-                        <button onClick={card.onClick} className="mt-4 rounded-xl border border-border bg-card px-3 py-2 text-xs font-black text-foreground hover:border-primary/40">
+                        <button type="button" onClick={card.onClick} className="mt-4 w-full rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground hover:border-primary/40 sm:w-auto">
                           {card.action}
                         </button>
                       )}
@@ -1455,17 +1582,18 @@ export default function ClassDetailPage() {
               )}
 
               {activeOperation === 'communication' && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Link href={`/dashboard/attendance?class_id=${id}`} className="rounded-2xl border border-border bg-background p-5 transition-colors hover:border-primary/40">
-                    <ClipboardDocumentCheckIcon className="mb-4 h-8 w-8 text-primary" />
+                <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2">
+                  <Link href={`/dashboard/attendance?class_id=${id}`} className="min-w-0 rounded-2xl border border-border bg-background p-4 transition-colors hover:border-primary/40 sm:p-5">
+                    <ClipboardDocumentCheckIcon className="mb-3 h-7 w-7 text-primary sm:mb-4 sm:h-8 sm:w-8" />
                     <h3 className="text-sm font-black text-foreground">Attendance Desk</h3>
                     <p className="mt-1 text-xs text-muted-foreground">Mark roll call and review term attendance history.</p>
                   </Link>
                   <button
+                    type="button"
                     onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
-                    className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 text-left transition-colors hover:border-emerald-500/40"
+                    className="min-w-0 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-left transition-colors hover:border-emerald-500/40 sm:p-5"
                   >
-                    <CloudArrowUpIcon className="mb-4 h-8 w-8 text-emerald-400" />
+                    <CloudArrowUpIcon className="mb-3 h-7 w-7 text-emerald-400 sm:mb-4 sm:h-8 sm:w-8" />
                     <h3 className="text-sm font-black text-foreground">Broadcast Desk</h3>
                     <p className="mt-1 text-xs text-muted-foreground">Send class update to reachable students and parents.</p>
                   </button>
@@ -2156,7 +2284,7 @@ export default function ClassDetailPage() {
                   {isStaff && (
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => { setShowStudentModal(true); loadAvailableStudents(); }}
+                        onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
                         title="Enrol existing student"
                         className="w-8 h-8 bg-white/5 hover:bg-primary hover:text-white border border-white/5 text-muted-foreground transition-all flex items-center justify-center rounded-xl"
                       >
@@ -2303,34 +2431,52 @@ export default function ClassDetailPage() {
         const isFull = seatsLeft <= 0;
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowStudentModal(false)} />
-            <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setShowStudentModal(false); resetPasteClaimState(); }} />
+            <div className={`bg-card border border-border rounded-xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh] ${enrolMode === 'paste' ? 'max-w-2xl' : 'max-w-lg'}`}>
 
               {/* Header */}
-              <div className="px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0">
-                <div>
+              <div className="px-4 sm:px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0 gap-3">
+                <div className="min-w-0">
                   <h3 className="font-bold text-foreground">Enrol Students</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {availableStudents.length} eligible · {selectedStudentIds.size} selected
-                    {cls?.max_students ? ` (Capacity limit: ${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left)` : ''}
+                  <p className="text-xs text-muted-foreground mt-0.5 break-words">
+                    {enrolMode === 'paste'
+                      ? 'Paste existing names to claim them into this class'
+                      : `${availableStudents.length} eligible · ${selectedStudentIds.size} selected${cls?.max_students ? ` (${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left)` : ''}`}
                   </p>
                 </div>
-                <button onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setShowMoreStudents(false); }} className="w-8 h-8 flex items-center justify-center bg-card shadow-sm rounded-xl text-muted-foreground hover:text-foreground transition-colors text-lg">&times;</button>
+                <button
+                  type="button"
+                  onClick={() => { setShowStudentModal(false); setEnrolMode('current'); setStudentSearch(''); setShowMoreStudents(false); resetPasteClaimState(); }}
+                  className="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-card shadow-sm rounded-xl text-muted-foreground hover:text-foreground transition-colors text-lg"
+                >
+                  &times;
+                </button>
               </div>
 
               {/* Mode tabs */}
-              <div className="px-6 pt-4 pb-1 flex gap-2 flex-shrink-0">
+              <div className="px-4 sm:px-6 pt-4 pb-1 flex flex-wrap gap-2 flex-shrink-0">
                 <button
+                  type="button"
                   onClick={() => setEnrolMode('current')}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-foreground shadow-lg shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'current' ? 'bg-primary text-foreground shadow-lg shadow-primary/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
-                  Enrol into {cls?.name ?? 'this class'}
+                  Pick from list
                 </button>
+                {pasteClaimEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => { setEnrolMode('paste'); setPasteResult(null); }}
+                    className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'paste' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  >
+                    Paste names
+                  </button>
+                )}
                 <button
+                  type="button"
                   onClick={() => setEnrolMode('create')}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
+                  className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'create' ? 'bg-emerald-600 text-foreground shadow-lg shadow-emerald-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                 >
-                  + Create New Class
+                  + New class
                 </button>
               </div>
 
@@ -2532,6 +2678,132 @@ export default function ClassDetailPage() {
                     </button>
                   </div>
                 </>
+              )}
+
+              {/* Paste names → claim into this class */}
+              {enrolMode === 'paste' && pasteClaimEnabled && (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-3 custom-scrollbar sm:px-6">
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
+                      Paste names of kids who <strong className="text-amber-100">already exist</strong> at this school.
+                      Matching students are moved into <strong className="text-amber-100">{cls?.name ?? 'this class'}</strong> now and you become the owner — even if they are currently in another teacher&apos;s class.
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student names (one per line)</label>
+                      <textarea
+                        value={pasteNamesText}
+                        onChange={(e) => { setPasteNamesText(e.target.value); setPastePreview(null); setPasteResult(null); }}
+                        rows={10}
+                        placeholder={'Ada Okonkwo\nChinedu Eze\nFatima Abdullahi'}
+                        className="w-full resize-y rounded-xl border border-border bg-background px-3 py-3 font-mono text-sm leading-relaxed text-foreground outline-none focus:border-amber-500/50"
+                      />
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {pasteNamesText.split(/\r?\n/).filter((l) => l.trim()).length} line{pasteNamesText.split(/\r?\n/).filter((l) => l.trim()).length !== 1 ? 's' : ''}
+                        {cls?.max_students ? ` · ${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left` : ''}
+                      </p>
+                    </div>
+
+                    {pastePreview && (
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Match preview</p>
+                        {(pastePreview.claimable?.length ?? 0) > 0 && (
+                          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                            <p className="mb-2 text-xs font-black text-emerald-400">Will claim ({pastePreview.claimable.length})</p>
+                            <ul className="max-h-36 space-y-1 overflow-y-auto text-xs text-foreground">
+                              {pastePreview.claimable.map((row: any) => (
+                                <li key={`c-${row.input}`} className="break-words">
+                                  <span className="font-bold">{row.input}</span>
+                                  {row.student?.full_name && row.student.full_name !== row.input ? (
+                                    <span className="text-muted-foreground"> → {row.student.full_name}</span>
+                                  ) : null}
+                                  {row.student?.email ? <span className="text-muted-foreground"> · {row.student.email}</span> : null}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {(pastePreview.alreadyHere?.length ?? 0) > 0 && (
+                          <div className="rounded-xl border border-border bg-muted/30 p-3">
+                            <p className="mb-2 text-xs font-black text-muted-foreground">Already in this class ({pastePreview.alreadyHere.length})</p>
+                            <p className="break-words text-xs text-muted-foreground">{pastePreview.alreadyHere.map((r: any) => r.input).join(' · ')}</p>
+                          </div>
+                        )}
+                        {(pastePreview.ambiguous?.length ?? 0) > 0 && (
+                          <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+                            <p className="mb-2 text-xs font-black text-amber-400">Ambiguous — skipped ({pastePreview.ambiguous.length})</p>
+                            <ul className="space-y-2 text-xs">
+                              {pastePreview.ambiguous.map((row: any) => (
+                                <li key={`a-${row.input}`} className="break-words">
+                                  <span className="font-bold text-foreground">{row.input}</span>
+                                  <span className="text-muted-foreground"> matches {[...(row.candidates ?? [])].map((c: any) => c.full_name).join(', ')}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {(pastePreview.unmatched?.length ?? 0) > 0 && (
+                          <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
+                            <p className="mb-2 text-xs font-black text-rose-300">Not found — register as new ({pastePreview.unmatched.length})</p>
+                            <p className="mb-2 break-words text-xs text-muted-foreground">{pastePreview.unmatched.map((r: any) => r.input).join(' · ')}</p>
+                            <Link
+                              href="/dashboard/students/bulk-register"
+                              className="inline-flex text-xs font-black text-primary hover:underline"
+                            >
+                              Open Bulk Register for new students →
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {pasteResult && (
+                      <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs text-foreground">
+                        <p className="font-black">Last claim result</p>
+                        <p className="mt-1 text-muted-foreground">
+                          {pasteResult.summary?.claimed ?? 0} claimed · {pasteResult.summary?.alreadyHere ?? 0} already here · {pasteResult.summary?.failed ?? 0} failed
+                          {pasteResult.capacityStopped ? ' · stopped at capacity' : ''}
+                        </p>
+                        {(pasteResult.unmatched?.length ?? 0) > 0 && (
+                          <Link href="/dashboard/students/bulk-register" className="mt-2 inline-flex font-black text-primary hover:underline">
+                            Register unmatched names in Bulk Register →
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-shrink-0 flex-col gap-2 border-t border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <button
+                      type="button"
+                      onClick={() => { setShowStudentModal(false); setEnrolMode('current'); resetPasteClaimState(); }}
+                      className="rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => void matchPastedNames()}
+                        disabled={pasteMatching || pasteClaiming || !pasteNamesText.trim()}
+                        className="rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground disabled:opacity-40"
+                      >
+                        {pasteMatching ? 'Matching…' : 'Match names'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void claimPastedNames()}
+                        disabled={pasteClaiming || pasteMatching || !(pastePreview?.claimable?.length > 0) || isFull}
+                        className="rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-950 disabled:opacity-40"
+                      >
+                        {pasteClaiming
+                          ? 'Claiming…'
+                          : isFull
+                            ? 'Class full'
+                            : `Claim into my class${pastePreview?.claimable?.length ? ` (${pastePreview.claimable.length})` : ''}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Create-new-class mode */}

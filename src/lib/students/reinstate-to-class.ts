@@ -143,8 +143,14 @@ export async function reinstateStudentToClass(
     }
   }
 
-  // Teacher may only manage their own destination class
-  if (actor.role === 'teacher' && cls.teacher_id && cls.teacher_id !== actor.id) {
+  // Destination ownership: teachers normally may only manage their own class.
+  // forceCrossTeacher (paste-claim / admin) allows any authorised staff with school access.
+  if (
+    actor.role === 'teacher'
+    && cls.teacher_id
+    && cls.teacher_id !== actor.id
+    && !force
+  ) {
     return {
       ok: false,
       code: 'FORBIDDEN',

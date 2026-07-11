@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { reportCoverageForStudents, currentTermLabel } from '@/lib/reports/coverage';
-import { isReportIndicatorEnabled } from '@/lib/server/app-settings';
+import { isReportIndicatorEnabled, isPasteClaimEnabled } from '@/lib/server/app-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -212,6 +212,7 @@ export async function GET(
       ...formerStudents.map((s: any) => s.id),
     ].filter(Boolean);
     const reportIndicatorEnabled = light ? false : await isReportIndicatorEnabled(admin);
+    const pasteClaimEnabled = light ? false : await isPasteClaimEnabled(admin);
     if (reportIndicatorEnabled) {
       const { published: publishedSet, drafted: draftedSet } = await reportCoverageForStudents(admin, allRosterIds);
       const termLabel = currentTermLabel();
@@ -248,6 +249,7 @@ export async function GET(
         max_students: cls.max_students,
         total: actualCount,
         report_indicator_enabled: reportIndicatorEnabled,
+        paste_claim_enabled: pasteClaimEnabled,
       },
       { headers: { 'Cache-Control': 'no-store' } },
     );
