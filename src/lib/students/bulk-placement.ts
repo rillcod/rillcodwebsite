@@ -65,34 +65,29 @@ export function buildBulkPlacementPool<T extends BulkPlacementClass & { id: stri
     termId?: string | null;
   },
 ): { pool: T[]; preferredIds: Set<string>; usingProgrammeFallback: boolean } {
+  // Section picker always lists every class at the school. Programme/term only rank.
   const schoolClasses = classes.filter(
     (c) => !opts.schoolId || !c.school_id || c.school_id === opts.schoolId,
   );
-  const programmeClasses = schoolClasses.filter((c) =>
-    bulkClassMatchesProgramme(c, opts.programId, opts.programName),
-  );
-  const programmePool = programmeClasses.length > 0 ? programmeClasses : schoolClasses;
-  const usingProgrammeFallback =
-    Boolean(opts.programId) && programmeClasses.length === 0 && schoolClasses.length > 0;
 
   const preferredIds = new Set(
-    programmePool
+    schoolClasses
       .filter((c) => {
-        const programExact = !opts.programId || !c.program_id || c.program_id === opts.programId;
+        const programOk = bulkClassMatchesProgramme(c, opts.programId, opts.programName);
         const termOk = !opts.termId || !c.term_id || c.term_id === opts.termId;
-        return programExact && termOk;
+        return programOk && termOk;
       })
       .map((c) => c.id),
   );
 
-  const pool = [...programmePool].sort((a, b) => {
+  const pool = [...schoolClasses].sort((a, b) => {
     const aPreferred = preferredIds.has(a.id) ? 0 : 1;
     const bPreferred = preferredIds.has(b.id) ? 0 : 1;
     if (aPreferred !== bPreferred) return aPreferred - bPreferred;
     return (a.name || '').localeCompare(b.name || '');
   });
 
-  return { pool, preferredIds, usingProgrammeFallback };
+  return { pool, preferredIds, usingProgrammeFallback: false };
 }
 
 export function validateBulkClassPlacement(

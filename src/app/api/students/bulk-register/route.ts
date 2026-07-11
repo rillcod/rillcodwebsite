@@ -98,7 +98,7 @@ async function requireBatchAccess(batchId: string, caller: CallerProfile, assign
   return batch as any;
 }
 
-async function requireClassAccess(classId: string, caller: CallerProfile, assignedSchoolIds: Set<string>, userId: string) {
+async function requireClassAccess(classId: string, caller: CallerProfile, assignedSchoolIds: Set<string>, _userId: string) {
   const { data: cls, error } = await supabaseAdmin
     .from('classes')
     .select('school_id, name, teacher_id, term_id, program_id, qa_grade_key, qa_grade_band')
@@ -110,10 +110,7 @@ async function requireClassAccess(classId: string, caller: CallerProfile, assign
   if (!canAccessSchool(caller, assignedSchoolIds, (cls as any).school_id)) {
     throw new HttpError('You are not assigned to this class school.', 403);
   }
-  if (caller.role === 'teacher' && (cls as any).teacher_id && (cls as any).teacher_id !== userId) {
-    throw new HttpError('You can only assign students to classes you own.', 403);
-  }
-
+  // Teachers may place into any class at their assigned school — same visibility as Classes.
   return cls as any;
 }
 

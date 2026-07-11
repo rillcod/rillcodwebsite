@@ -63,17 +63,20 @@ describe('bulk registration placement', () => {
     )).toBe(true);
   });
 
-  it('falls back to school classes when programme metadata matches nothing', () => {
+  it('lists every school class and only ranks programme/term matches', () => {
     const classes = [
       { id: '1', name: 'Young Innov 3', school_id: 's1', program_id: 'stale', term_id: 'old' },
+      { id: '2', name: 'Teen Dev JSS', school_id: 's1', program_id: 'yi', term_id: 't1' },
     ];
-    const { pool, usingProgrammeFallback } = buildBulkPlacementPool(classes, {
+    const { pool, preferredIds, usingProgrammeFallback } = buildBulkPlacementPool(classes, {
       schoolId: 's1',
       programId: 'yi',
-      programName: 'Teen Developers',
+      programName: 'Young Innovators',
       termId: 't1',
     });
-    expect(usingProgrammeFallback).toBe(true);
-    expect(pool.map((c) => c.id)).toEqual(['1']);
+    expect(usingProgrammeFallback).toBe(false);
+    expect(pool.map((c) => c.id).sort()).toEqual(['1', '2']);
+    expect(preferredIds.has('1')).toBe(true); // name matches Young Innovators
+    expect(preferredIds.has('2')).toBe(true); // program id matches
   });
 });

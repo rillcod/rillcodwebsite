@@ -4,17 +4,15 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { fetchClasses } from '@/services/dashboard.service';
 import Link from 'next/link';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { qrDataUrls } from '@/lib/cards/qr';
 import {
   SINGLE_GRADES,
   canonicalGrade,
-  composeClassName,
 } from '@/lib/classes/naming';
 import { isBulkGradeHeader, parseBulkGrade, stripBulkGrade } from '@/lib/students/bulk-grade';
-import { bulkClassCoversGrade, bulkGradeBand, buildBulkPlacementPool } from '@/lib/students/bulk-placement';
+import { buildBulkPlacementPool, bulkGradeBand } from '@/lib/students/bulk-placement';
 import { duplicateNameKey } from '@/lib/students/clean-name';
 import {
   UserGroupIcon,
@@ -223,7 +221,6 @@ export default function BulkRegisterPage() {
   const [selectedArm, setSelectedArm] = useState(''); // separate school arm
   const [selectedTermId, setSelectedTermId] = useState('');
   const [bandClassSelections, setBandClassSelections] = useState<Record<string, string>>({});
-  const [creatingBand, setCreatingBand] = useState<string | null>(null);
   const [customBatchName, setCustomBatchName] = useState(''); // free-text name label
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [hasRecoverable, setHasRecoverable] = useState(false);
@@ -1170,7 +1167,6 @@ export default function BulkRegisterPage() {
   const {
     pool: placementPool,
     preferredIds: preferredRegistryIds,
-    usingProgrammeFallback,
   } = buildBulkPlacementPool(registryClasses, {
     schoolId: selectedSchoolId,
     programId: selectedProgramId,
@@ -1198,27 +1194,15 @@ export default function BulkRegisterPage() {
   const refreshOwnedClasses = useCallback(async () => {
     if (!profile || !canAccess) return [] as ClassOption[];
 
-    // Restore the cea1f33 / band-placement load path that listed owned sections:
-    // fetchClasses(teacherId) via the shared dashboard service.
-    const teacherId = profile.role === 'teacher' ? profile.id : undefined;
-    const fromService = await fetchClasses(teacherId, undefined).catch(() => [] as any[]);
+    // Exact same source as the Classes page — that is where the teacher's real
+    // created sections already appear.
+    const params = new URLSearchParams();
+    if (selectedSchoolId) params.set('school_id', selectedSchoolId);
+    const res = await fetch(`/api/classes?${params.toString()}`, { cache: 'no-store' });
+    const json = res.ok ? await res.json() : { data: [] };
+    const rows = Array.isArray(json.data) ? json.data : [];
 
-    // Also merge Classes-page school list so sections still appear if client RLS
-    // or teacher_schools gaps hide rows from fetchClasses alone.
-    const schoolParams = new URLSearchParams();
-    if (selectedSchoolId) schoolParams.set('school_id', selectedSchoolId);
-    const schoolRes = await fetch(`/api/classes?${schoolParams.toString()}`, { cache: 'no-store' });
-    const schoolJson = schoolRes.ok ? await schoolRes.json() : { data: [] };
-    const fromApi = Array.isArray(schoolJson.data) ? schoolJson.data : [];
-
-    const byId = new Map<string, any>();
-    for (const row of [...fromService, ...fromApi]) {
-      if (!row?.id) continue;
-      if (profile.role === 'teacher' && row.teacher_id && row.teacher_id !== profile.id) continue;
-      byId.set(row.id, row);
-    }
-
-    const mapped: ClassOption[] = [...byId.values()].map((c: any) => ({
+    const mapped: ClassOption[] = rows.map((c: any) => ({
       id: c.id,
       name: c.name,
       section_class: c.section_class ?? c.name ?? null,
@@ -1434,38 +1418,18 @@ export default function BulkRegisterPage() {
   // ── Build preview ────────────────────────────────────────────────────────
   const handlePreview = useCallback(async () => {
     if (!batchPlacementReady) { toast.error('Select a school and academic term before reviewing students.'); setSettingsOpen(true); return; }
-    const freshClasses = await refreshOwnedClasses();
+    await refreshOwnedClasses();
     const built = buildStudentList(namesText.split('\n'), defaultClass.trim() || undefined);
     if (!built.length) return;
 
-    const progName = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
-    const { pool } = buildBulkPlacementPool(freshClasses, {
-      schoolId: selectedSchoolId,
-      programId: selectedProgramId,
-      programName: progName,
-      termId: selectedTermId,
-    });
-    const selectedClass = pool.find((candidate) => candidate.id === selectedRegistryClass) ?? null;
-
+    const sectionId = selectedRegistryClass || '';
+    const withSection = sectionId
+      ? built.map((student) => ({ ...student, class_id: sectionId }))
+      : built;
     const nextSelections: Record<string, string> = {};
-    const bandGrades = new Map<string, string>();
-    for (const student of built) {
-      const band = bulkGradeBand(student.class_name);
-      if (band && student.class_name) bandGrades.set(band, student.class_name);
-    }
-    for (const [band, grade] of bandGrades) {
-      const selected = selectedClass && bulkClassCoversGrade(selectedClass, grade)
-        ? selectedClass
-        : pool.find((candidate) => bulkClassCoversGrade(candidate, grade));
-      if (selected) nextSelections[band] = selected.id;
-    }
-    if (selectedRegistryClass) {
-      nextSelections[BATCH_SECTION_KEY] = selectedRegistryClass;
-      for (const band of bandGrades.keys()) {
-        if (!nextSelections[band]) nextSelections[band] = selectedRegistryClass;
-      }
-    }
-    setPreview(built);
+    if (sectionId) nextSelections[BATCH_SECTION_KEY] = sectionId;
+
+    setPreview(withSection);
     setBandClassSelections(nextSelections);
     setDbDupNames(new Set());
     setDbSwapNames(new Map());
@@ -1477,79 +1441,8 @@ export default function BulkRegisterPage() {
     defaultClass,
     batchPlacementReady,
     refreshOwnedClasses,
-    programmes,
-    selectedProgramId,
-    selectedSchoolId,
-    selectedTermId,
     selectedRegistryClass,
   ]);
-
-  async function createBandClass(band: string) {
-    if (!selectedProgramId) {
-      toast.error('Select a programme before creating a suggested band class.');
-      return;
-    }
-    if (!selectedTermId) {
-      toast.error('Select an academic term before creating a class.');
-      return;
-    }
-    const programmeName = programmes.find((programme) => programme.id === selectedProgramId)?.name ?? null;
-    const suggestion = composeClassName({
-      schoolName: selectedSchoolName,
-      programme: programmeName,
-      grade: band,
-      granularity: 'fixed',
-    }).name;
-    if (!confirm(`Create the suggested class "${suggestion}" for the selected term?`)) return;
-
-    const term = academicTerms.find((candidate) => candidate.id === selectedTermId);
-    setCreatingBand(band);
-    try {
-      const response = await fetch('/api/classes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          auto_name: true,
-          auto_assign_teacher: true,
-          grade: band,
-          band_granularity: 'fixed',
-          program_id: selectedProgramId,
-          school_id: selectedSchoolId,
-          teacher_id: profile?.role === 'teacher' ? profile.id : undefined,
-          term_id: selectedTermId,
-          start_date: term?.start_date ?? undefined,
-          end_date: term?.end_date ?? undefined,
-          status: 'active',
-        }),
-      });
-      const json = await response.json();
-      if (!response.ok) throw new Error(json.error || 'Failed to create class');
-      const created = json.data;
-      const option: ClassOption = {
-        id: created.id,
-        name: created.name,
-        section_class: created.name,
-        school_id: created.school_id,
-        program_id: created.program_id,
-        teacher_id: created.teacher_id,
-        term_id: created.term_id,
-        qa_grade_key: created.qa_grade_key ?? null,
-        qa_grade_band: created.qa_grade_band ?? band,
-        band_lvl: created.band_lvl ?? null,
-        band_low: created.band_low ?? null,
-        band_high: created.band_high ?? null,
-        academic_terms: term ? { term_label: term.term_label, academic_year: term.academic_year } : null,
-        isRegistry: true,
-      };
-      setRegistryClasses((current) => current.some((item) => item.id === option.id) ? current : [option, ...current]);
-      setBandClassSelections((current) => ({ ...current, [band]: option.id }));
-      toast.success(json.reused ? `Using existing class: ${option.name}` : `Created class: ${option.name}`);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create class');
-    } finally {
-      setCreatingBand(null);
-    }
-  }
 
   // ── Register ─────────────────────────────────────────────────────────────
   const handleRegister = async () => {
@@ -1719,25 +1612,6 @@ export default function BulkRegisterPage() {
   // (header/inline codes) or supplied by the batch Grade Level selector.
   const missingGradeRows = preview.filter((r) => r.full_name.trim() && r.email.trim() && !(r.class_name ?? '').trim());
   const previewClasses = [...new Set(preview.map((s) => s.class_name).filter(Boolean))];
-  const previewBandGrades = new Map<string, { grade: string; count: number }>();
-  preview.forEach((student) => {
-    if (!student.full_name.trim() || !student.email.trim() || !student.class_name) return;
-    const band = bulkGradeBand(student.class_name);
-    if (!band) return;
-    const current = previewBandGrades.get(band);
-    previewBandGrades.set(band, { grade: student.class_name, count: (current?.count ?? 0) + 1 });
-  });
-  const previewBands = [...previewBandGrades.entries()].map(([band, details]) => {
-    const matches = placementPool.filter((candidate) => bulkClassCoversGrade(candidate, details.grade));
-    const matchIds = new Set(matches.map((c) => c.id));
-    const others = placementPool.filter((candidate) => !matchIds.has(candidate.id));
-    return {
-      band,
-      ...details,
-      matches,
-      others,
-    };
-  });
   const batchSectionId = bandClassSelections[BATCH_SECTION_KEY] || selectedRegistryClass || '';
   const studentsMissingSection = preview.filter((student) =>
     student.full_name.trim() &&
@@ -1974,14 +1848,14 @@ export default function BulkRegisterPage() {
                           >
                             <option value="">— Select your class section —</option>
                             {placementPool.filter((c) => preferredRegistryIds.has(c.id)).length > 0 && (
-                              <optgroup label="Matches selected term">
+                              <optgroup label="Best match for programme/term">
                                 {placementPool.filter((c) => preferredRegistryIds.has(c.id)).map((candidate) => (
                                   <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
                                 ))}
                               </optgroup>
                             )}
                             {placementPool.filter((c) => !preferredRegistryIds.has(c.id)).length > 0 && (
-                              <optgroup label="Your other classes in this programme">
+                              <optgroup label="All other classes at this school">
                                 {placementPool.filter((c) => !preferredRegistryIds.has(c.id)).map((candidate) => (
                                   <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
                                 ))}
@@ -1992,7 +1866,10 @@ export default function BulkRegisterPage() {
                             <p className="text-[11px] text-amber-400 mt-1">Select a school first to load your class sections.</p>
                           )}
                           {selectedSchoolId && placementPool.length === 0 && (
-                            <p className="text-[11px] text-amber-400 mt-1">No class sections found yet. Create one on Classes, or use Review to create a band class.</p>
+                            <p className="text-[11px] text-amber-400 mt-1">No classes found for this school. Create one on Classes, then refresh.</p>
+                          )}
+                          {selectedSchoolId && placementPool.length > 0 && (
+                            <p className="text-[11px] text-muted-foreground mt-1">{placementPool.length} class section{placementPool.length !== 1 ? 's' : ''} available.</p>
                           )}
                         </div>
 
@@ -2179,19 +2056,13 @@ Yusuf Ibrahim SS1A`}
                   <div>
                     <h3 className="text-sm font-black text-foreground">Class section</h3>
                     <p className="text-[11px] text-muted-foreground">
-                      Choose the registered class section for these students. This is required before registration.
+                      Pick the real class section you created. Grade stays separate on each student row below.
                     </p>
-                    {usingProgrammeFallback && (
-                      <p className="text-[11px] text-amber-400 mt-1">
-                        No class matched this programme exactly — showing all your classes at this school so you can still pick yours.
-                      </p>
-                    )}
                   </div>
 
-                  {/* Always-visible batch section picker */}
                   <div className="rounded-xl border border-border bg-card p-3">
                     <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                      {previewBands.length > 0 ? 'Default section for all bands' : 'Section for this batch'}
+                      Your class section
                     </label>
                     <select
                       value={batchSectionId}
@@ -2205,92 +2076,47 @@ Yusuf Ibrahim SS1A`}
                             return next;
                           }
                           next[BATCH_SECTION_KEY] = classId;
-                          for (const { band } of previewBands) next[band] = classId;
                           return next;
                         });
-                        const destination = placementPool.find((candidate) => candidate.id === classId);
+                        // Apply this section to every student row
+                        if (classId) {
+                          setPreview((rows) => rows.map((row) => ({ ...row, class_id: classId })));
+                        }
+                        const destination = placementPool.find((candidate) => candidate.id === classId)
+                          ?? registryClasses.find((candidate) => candidate.id === classId);
                         if (destination?.program_id) setSelectedProgramId(destination.program_id);
                       }}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground"
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground"
                     >
-                      <option value="">— Select a class section —</option>
-                      {placementPool.map((candidate) => (
-                        <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                      ))}
+                      <option value="">— Select your class section —</option>
+                      {placementPool.filter((c) => preferredRegistryIds.has(c.id)).length > 0 && (
+                        <optgroup label="Best match for programme/term">
+                          {placementPool.filter((c) => preferredRegistryIds.has(c.id)).map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {placementPool.filter((c) => !preferredRegistryIds.has(c.id)).length > 0 && (
+                        <optgroup label="All other classes at this school">
+                          {placementPool.filter((c) => !preferredRegistryIds.has(c.id)).map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
-                    {placementPool.length === 0 && (
-                      <p className="mt-1 text-[10px] text-amber-400">
-                        No class sections loaded. Confirm the school, or create the section on Classes and return to Review.
+                    {placementPool.length === 0 ? (
+                      <p className="mt-2 text-[11px] text-amber-400">
+                        No classes found for this school yet. Open Classes, create your section, then come back and refresh Review.
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        {placementPool.length} class section{placementPool.length !== 1 ? 's' : ''} available.
                       </p>
                     )}
                   </div>
-
-                  {previewBands.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Set a grade on each student below if you want band-specific section suggestions. You can still assign one section above for the whole batch.
-                    </p>
-                  ) : (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {previewBands.map(({ band, count, matches, others }) => {
-                        const programmeName = programmes.find((programme) => programme.id === selectedProgramId)?.name ?? null;
-                        const suggestedName = composeClassName({
-                          schoolName: selectedSchoolName,
-                          programme: programmeName,
-                          grade: band,
-                          granularity: 'fixed',
-                        }).name;
-                        const hasAnySection = matches.length + others.length > 0;
-                        return (
-                          <div key={band} className="rounded-xl border border-border bg-card p-3">
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                              <div>
-                                <p className="text-xs font-black text-foreground">{band}</p>
-                                <p className="text-[10px] text-muted-foreground">{count} student{count !== 1 ? 's' : ''}</p>
-                              </div>
-                              {bandClassSelections[band] && <CheckCircleIcon className="h-4 w-4 text-emerald-400" />}
-                            </div>
-                            <select
-                              value={bandClassSelections[band] ?? ''}
-                              onChange={(event) => {
-                                if (event.target.value === '__create__') void createBandClass(band);
-                                else setBandClassSelections((current) => ({ ...current, [band]: event.target.value }));
-                              }}
-                              disabled={creatingBand === band}
-                              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground disabled:opacity-50"
-                            >
-                              <option value="">— Select a class —</option>
-                              {matches.length > 0 && (
-                                <optgroup label="Suggested for this band">
-                                  {matches.map((candidate) => (
-                                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              {others.length > 0 && (
-                                <optgroup label="Your other classes in this programme">
-                                  {others.map((candidate) => (
-                                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              <option value="__create__" disabled={!selectedProgramId}>
-                                {selectedProgramId ? `＋ Create ${suggestedName || band}` : 'Select a programme to create this class'}
-                              </option>
-                            </select>
-                            {!hasAnySection && (
-                              <p className="mt-1 text-[10px] text-amber-400">
-                                No class available for this band yet. Use the default section above, or create one.
-                              </p>
-                            )}
-                            {creatingBand === band && <p className="mt-1 text-[10px] text-primary">Creating class…</p>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
                   {studentsMissingSection.length > 0 && (
                     <p className="text-xs text-rose-400">
-                      {studentsMissingSection.length} student{studentsMissingSection.length !== 1 ? 's' : ''} still need a class section.
+                      Select a class section above before registering ({studentsMissingSection.length} student{studentsMissingSection.length !== 1 ? 's' : ''} waiting).
                     </p>
                   )}
                 </div>
