@@ -135,13 +135,15 @@ export async function POST(req: NextRequest) {
     const childGender = str('child_gender') || null;
 
     const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
-    const childMatches = (childLinksByLead[lead.id] ?? []).map((link) => ({
-      childIndex: link.child_index,
-      studentId: link.student_portal_user_id,
-      studentName: link.student_name,
-      studentClass: link.student_class,
-      confidence: link.link_status,
-    }));
+    const childMatches = (childLinksByLead[lead.id] ?? [])
+      .filter((link) => ['approved', 'onboarded'].includes(link.link_status))
+      .map((link) => ({
+        childIndex: link.child_index,
+        studentId: link.student_portal_user_id,
+        studentName: link.student_name,
+        studentClass: link.student_class,
+        confidence: link.link_status,
+      }));
 
     if (!parentEmail || !parentEmail.includes('@')) {
       results.no_email++;

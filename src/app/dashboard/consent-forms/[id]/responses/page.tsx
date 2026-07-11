@@ -80,11 +80,26 @@ function fmtTime(iso: string) {
 }
 
 const STATUS_CFG = {
-  new:       { label: 'New',       cls: 'bg-amber-500/15 text-amber-400 border-amber-500/20' },
-  contacted: { label: 'Contacted', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
-  enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
+  new:       { label: 'New',       cls: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20' },
+  contacted: { label: 'Contacted', cls: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20' },
+  enrolled:  { label: 'Enrolled',  cls: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' },
   lost:      { label: 'Lost',      cls: 'bg-muted text-muted-foreground border-border' },
 } as const;
+
+const btnQuiet =
+  'inline-flex items-center justify-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50 whitespace-nowrap';
+const btnQuietMuted =
+  'inline-flex items-center justify-center gap-1 rounded-md border border-transparent px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 whitespace-nowrap';
+const btnQuietDanger =
+  'inline-flex items-center justify-center gap-1 rounded-md border border-transparent px-2 py-1 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-50 whitespace-nowrap';
+const btnPrimary =
+  'inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 whitespace-nowrap';
+const btnSecondary =
+  'inline-flex items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50 whitespace-nowrap';
+const metaLabel = 'text-[10px] font-medium uppercase tracking-wide text-muted-foreground';
+const metaValue = 'text-xs text-foreground';
+const metaOk = 'text-xs font-medium text-emerald-700 dark:text-emerald-400';
+const metaWarn = 'text-xs font-medium text-amber-700 dark:text-amber-400';
 
 // ── Print helpers (self-contained) ────────────────────────────────────────────
 
@@ -990,9 +1005,9 @@ export default function ResponsesPage() {
   }
 
   // ── Smart lead score ──────────────────────────────────────────────────────
-  function leadScore(lead: FormLead): { label: 'Hot' | 'Warm' | 'Cold'; cls: string } {
-    if (lead.status === 'enrolled') return { label: 'Hot', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
-    if (lead.status === 'lost')     return { label: 'Cold', cls: 'text-muted-foreground bg-muted/40 border-border/30' };
+  function leadScore(lead: FormLead): { label: 'Hot' | 'Warm' | 'Cold'; tone: string } {
+    if (lead.status === 'enrolled') return { label: 'Hot', tone: 'text-emerald-700 dark:text-emerald-400' };
+    if (lead.status === 'lost')     return { label: 'Cold', tone: 'text-muted-foreground' };
     const rd = (lead.response_data ?? {}) as Record<string, string>;
     let score = 0;
     if (rd.parent_email || lead.email) score += 1;
@@ -1002,9 +1017,9 @@ export default function ResponsesPage() {
     if (lead.matched_parent_id) score += 2;
     if (lead.matched_student_id) score += 1;
     if (lead.status === 'contacted') score += 1;
-    if (score >= 5) return { label: 'Hot',  cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
-    if (score >= 2) return { label: 'Warm', cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
-    return { label: 'Cold', cls: 'text-blue-400 bg-blue-500/10 border-blue-500/20' };
+    if (score >= 5) return { label: 'Hot',  tone: 'text-emerald-700 dark:text-emerald-400' };
+    if (score >= 2) return { label: 'Warm', tone: 'text-amber-700 dark:text-amber-400' };
+    return { label: 'Cold', tone: 'text-blue-700 dark:text-blue-400' };
   }
 
   // ── Programme suggestion by age ───────────────────────────────────────────
@@ -1164,58 +1179,53 @@ export default function ResponsesPage() {
         <div className="flex items-start gap-4">
           <button
             onClick={() => router.push('/dashboard/consent-forms')}
-            className="mt-0.5 p-2 rounded-xl hover:bg-muted transition-colors shrink-0"
+            className="mt-0.5 p-2 rounded-md hover:bg-muted transition-colors shrink-0"
           >
             <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
           </button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-black text-primary uppercase tracking-widest">Consent Forms</span>
-              <span className="text-muted-foreground text-xs">›</span>
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Responses</span>
+              <span className="text-[11px] font-medium text-muted-foreground">Consent Forms</span>
+              <span className="text-muted-foreground text-xs">/</span>
+              <span className="text-[11px] font-medium text-muted-foreground">Responses</span>
             </div>
             {loading ? (
-              <div className="h-7 w-64 bg-muted animate-pulse rounded-lg" />
+              <div className="h-7 w-64 bg-muted animate-pulse rounded-md" />
             ) : (
-              <h1 className="text-2xl font-black truncate">{form?.title ?? 'Responses'}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight truncate">{form?.title ?? 'Responses'}</h1>
             )}
             {form && (
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                {form.schools?.name && (
-                  <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                    🏫 {form.schools.name}
-                  </span>
-                )}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
+                {form.schools?.name && <span>{form.schools.name}</span>}
                 {form.form_type !== 'general' && (
-                  <span className="text-[9px] font-black uppercase tracking-widest text-primary">
-                    {form.form_type === 'assessment' ? '🔍 Assessment' : '📋 Registration'}
+                  <span>
+                    {form.form_type === 'assessment' ? 'Assessment' : 'Registration'}
                   </span>
                 )}
                 {form.due_date && (
-                  <span className="text-[10px] text-muted-foreground">
-                    · Due {new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  <span>
+                    Due {new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 )}
-                {form.is_public && (
-                  <span className="text-[9px] font-black text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">Public</span>
-                )}
+                {form.is_public && <span>Public form</span>}
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
             <button
               onClick={load}
-              className="p-2 rounded-xl hover:bg-muted transition-colors"
+              className={btnSecondary}
               title="Refresh"
             >
-              <ArrowPathIcon className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+              <ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
             {form && (
               <>
                 <button
                   onClick={exportCsv}
                   disabled={exporting}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50 disabled:opacity-50"
+                  className={btnSecondary}
                   title="Download leads as CSV"
                 >
                   <ArrowDownTrayIcon className="w-3.5 h-3.5" />
@@ -1223,20 +1233,18 @@ export default function ResponsesPage() {
                 </button>
                 <button
                   onClick={() => printDataSheet(form, leads, sigs, appBase)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50"
+                  className={btnSecondary}
                 >
-                  <PrinterIcon className="w-3.5 h-3.5" /> Data Sheet
+                  <PrinterIcon className="w-3.5 h-3.5" />
+                  Data sheet
                 </button>
                 <button
                   onClick={downloadBrandedQr}
                   disabled={downloadingQr || !form}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50 disabled:opacity-50"
+                  className={btnSecondary}
                   title="Download branded QR code for this form"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                  </svg>
-                  {downloadingQr ? '…' : 'QR'}
+                  {downloadingQr ? 'Preparing…' : 'Download QR'}
                 </button>
               </>
             )}
@@ -1244,14 +1252,14 @@ export default function ResponsesPage() {
               <button
                 onClick={runDedup}
                 disabled={deduping}
-                className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors border border-border/50 disabled:opacity-50"
+                className={btnSecondary}
                 title="Merge duplicate CRM contacts"
               >
-                {deduping ? '…' : '🔗 Dedup CRM'}
+                {deduping ? 'Deduping…' : 'Dedup CRM'}
               </button>
             )}
             {dedupResult && (
-              <span className="text-[9px] font-bold text-emerald-400">✓ {dedupResult.merged} merged</span>
+              <span className="text-xs text-emerald-700 dark:text-emerald-400">{dedupResult.merged} merged</span>
             )}
           </div>
         </div>
@@ -1311,10 +1319,12 @@ export default function ResponsesPage() {
 
         {/* Bulk portal result banner */}
         {bulkPortalResult && (
-          <div className="flex items-center gap-3 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm">
-            <span className="text-emerald-400 font-black">🏦 Portals:</span>
-            <span className="text-foreground">{bulkPortalResult.created} created · {bulkPortalResult.skipped} skipped · {bulkPortalResult.no_email} no email · {bulkPortalResult.errors} errors</span>
-            <button onClick={() => setBulkPortalResult(null)} className="ml-auto text-muted-foreground hover:text-foreground text-xs">✕</button>
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/40 border border-border rounded-md text-sm">
+            <span className="font-medium text-foreground">Portal accounts</span>
+            <span className="text-muted-foreground">
+              {bulkPortalResult.created} created · {bulkPortalResult.skipped} skipped · {bulkPortalResult.no_email} no email · {bulkPortalResult.errors} errors
+            </span>
+            <button onClick={() => setBulkPortalResult(null)} className="ml-auto text-muted-foreground hover:text-foreground text-xs">Dismiss</button>
           </div>
         )}
 
@@ -1322,24 +1332,24 @@ export default function ResponsesPage() {
         {(() => {
           const portalLogLeads = leads.filter(l => !!(l.response_data as Record<string, unknown>)?.portal_created_at);
           return (
-            <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
+            <div className="flex gap-1 p-1 bg-muted rounded-md w-fit">
               <button
                 onClick={() => setActiveTab('leads')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === 'leads' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'leads' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                Public Registrations ({leads.length})
+                Registrations ({leads.length})
               </button>
               <button
                 onClick={() => setActiveTab('signed')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === 'signed' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'signed' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                Portal Signatures ({sigs.length})
+                Signatures ({sigs.length})
               </button>
               <button
                 onClick={() => setActiveTab('portal-log')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${activeTab === 'portal-log' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'portal-log' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                🏦 Portal Log {portalLogLeads.length > 0 && `(${portalLogLeads.length})`}
+                Portal log{portalLogLeads.length > 0 ? ` (${portalLogLeads.length})` : ''}
               </button>
             </div>
           );
@@ -1354,7 +1364,7 @@ export default function ResponsesPage() {
               placeholder="Search by name, email, phone…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full bg-card border border-border text-foreground pl-9 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-card border border-border text-foreground pl-9 pr-4 py-2 rounded-md text-sm focus:outline-none focus:border-primary transition-colors"
             />
           </div>
 
@@ -1365,7 +1375,7 @@ export default function ResponsesPage() {
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                  className="bg-card border border-border text-foreground text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-primary transition-colors"
+                  className="bg-card border border-border text-foreground text-xs font-medium px-3 py-2 rounded-md focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="all">All Status</option>
                   <option value="new">New</option>
@@ -1377,7 +1387,7 @@ export default function ResponsesPage() {
               <select
                 value={progFilter}
                 onChange={e => setProgFilter(e.target.value)}
-                className="bg-card border border-border text-foreground text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-primary transition-colors"
+                className="bg-card border border-border text-foreground text-xs font-medium px-3 py-2 rounded-md focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="all">All Programmes</option>
                 <option value="young_innovators">Young Innovators</option>
@@ -1387,7 +1397,7 @@ export default function ResponsesPage() {
                 <select
                   value={schoolFilter}
                   onChange={e => setSchoolFilter(e.target.value)}
-                  className="bg-card border border-border text-foreground text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-primary transition-colors"
+                  className="bg-card border border-border text-foreground text-xs font-medium px-3 py-2 rounded-md focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="all">All Schools</option>
                   {uniqueSchools.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1400,7 +1410,7 @@ export default function ResponsesPage() {
             <select
               value={classFilter}
               onChange={e => setClassFilter(e.target.value)}
-              className="bg-card border border-border text-foreground text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-primary transition-colors"
+              className="bg-card border border-border text-foreground text-xs font-medium px-3 py-2 rounded-md focus:outline-none focus:border-primary transition-colors"
             >
               <option value="all">All Classes / Grades</option>
               {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
@@ -1412,54 +1422,54 @@ export default function ResponsesPage() {
           </span>
         </div>
 
-        {/* Bulk action bar */}
+                {/* Bulk action bar */}
         {activeTab === 'leads' && selected.size > 0 && (
-          <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl">
-            <span className="text-xs font-black text-primary">{selected.size} selected</span>
-            <div className="flex items-center gap-2 ml-auto">
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-card border border-border rounded-md">
+            <span className="text-xs font-medium text-foreground">{selected.size} selected</span>
+            <div className="flex flex-wrap items-center gap-2 ml-auto">
               <select
                 value={bulkStatus}
                 onChange={e => setBulkStatus(e.target.value as FormLead['status'])}
-                className="bg-card border border-border text-foreground text-xs font-bold px-2.5 py-1.5 rounded-lg focus:outline-none focus:border-primary"
+                className="bg-background border border-border text-foreground text-xs font-medium px-2.5 py-1.5 rounded-md focus:outline-none focus:border-primary"
               >
-                <option value="new">→ New</option>
-                <option value="contacted">→ Contacted</option>
-                <option value="enrolled">→ Enrolled</option>
-                <option value="lost">→ Lost</option>
+                <option value="new">Mark as New</option>
+                <option value="contacted">Mark as Contacted</option>
+                <option value="enrolled">Mark as Enrolled</option>
+                <option value="lost">Mark as Lost</option>
               </select>
               <button
                 onClick={applyBulkStatus}
                 disabled={bulkUpdating}
-                className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-black rounded-lg disabled:opacity-50 transition-colors"
+                className={btnPrimary}
               >
-                {bulkUpdating ? 'Updating…' : 'Apply'}
+                {bulkUpdating ? 'Updating…' : 'Update status'}
               </button>
               <button
                 onClick={bulkCreatePortals}
                 disabled={bulkPortalLoading}
-                className="px-3 py-1.5 bg-emerald-500/15 text-emerald-400 text-xs font-black rounded-lg border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 whitespace-nowrap"
-                title="Create portal accounts for selected leads WITHOUT sending logins (send later with ↻ Send logins)"
+                className={btnSecondary}
+                title="Create portal accounts for selected leads without sending logins"
               >
-                {bulkPortalLoading ? '…Creating' : '🏦 Create (silent)'}
+                {bulkPortalLoading ? 'Creating…' : 'Create portals'}
               </button>
               <button
                 onClick={bulkSendLogins}
                 disabled={bulkSendingLogins}
-                className="px-3 py-1.5 bg-amber-500/15 text-amber-400 text-xs font-black rounded-lg border border-amber-500/20 hover:bg-amber-500/25 transition-colors disabled:opacity-50 whitespace-nowrap"
-                title="Send / resend login credentials to selected leads that already have a portal account"
+                className={btnSecondary}
+                title="Send or resend login credentials to selected leads"
               >
-                {bulkSendingLogins ? '…Logins' : '↻ Send logins'}
+                {bulkSendingLogins ? 'Sending…' : 'Send logins'}
               </button>
               <button
                 onClick={() => setWaBlastOpen(true)}
-                className="px-3 py-1.5 bg-emerald-500/15 text-emerald-400 text-xs font-black rounded-lg border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors whitespace-nowrap"
+                className={btnSecondary}
                 title="Send WhatsApp to selected leads"
               >
-                💬 WhatsApp
+                WhatsApp message
               </button>
               <button
                 onClick={() => setSelected(new Set())}
-                className="px-3 py-1.5 bg-muted text-muted-foreground text-xs font-bold rounded-lg hover:bg-muted/80 transition-colors"
+                className={btnQuietMuted}
               >
                 Clear
               </button>
@@ -1504,23 +1514,23 @@ export default function ResponsesPage() {
                           className="rounded accent-primary cursor-pointer"
                         />
                       </th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3 w-8">#</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Date</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Parent / Guardian</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child&apos;s School</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Programme</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Score</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3 w-8">#</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Date</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Parent / Guardian</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Child</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Child&apos;s School</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Programme</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Score</th>
                       {form?.form_type === 'assessment' && (
                         <>
-                          <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Prior Coding</th>
-                          <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Goal</th>
-                          <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Schedule</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Prior Coding</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Goal</th>
+                          <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Schedule</th>
                         </>
                       )}
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Match</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Status</th>
-                      <th className="text-right text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Actions</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Match</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Status</th>
+                      <th className="text-right text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
@@ -1532,11 +1542,6 @@ export default function ResponsesPage() {
 
                       const isPending  = lead.match_status === 'pending_review';
                       const isApproved = lead.match_status === 'approved';
-                      const confCls: Record<string, string> = {
-                        high:   'bg-rose-500/10 text-rose-400 border-rose-500/20',
-                        medium: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-                        low:    'bg-muted text-muted-foreground border-border/40',
-                      };
 
                       return (
                         <tr key={lead.id} className={`transition-colors group ${isPending ? 'bg-amber-500/5 hover:bg-amber-500/10' : 'hover:bg-muted/20'} ${selected.has(lead.id) ? 'bg-primary/5' : ''}`}>
@@ -1568,19 +1573,19 @@ export default function ResponsesPage() {
                             )}
                             {rd.parent_whatsapp && (
                               <a href={`https://wa.me/${waNum}`} target="_blank" rel="noopener noreferrer"
-                                className="text-[10px] text-emerald-400 hover:text-emerald-300 transition-colors">
-                                💬 {rd.parent_whatsapp}
+                                className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                                {rd.parent_whatsapp}
                               </a>
                             )}
                           </td>
 
                           {/* Child */}
                           <td className="px-4 py-3 min-w-[140px]">
-                            <p className="text-sm font-bold text-foreground">{rd.child_name || '—'}</p>
-                            <p className="text-[10px] text-muted-foreground">
+                            <p className="text-sm font-medium text-foreground">{rd.child_name || '—'}</p>
+                            <p className="text-[11px] text-muted-foreground">
                               {[
-                                rd.child_gender && (rd.child_gender === 'male' ? '👦 Male' : '👧 Female'),
-                                rd.child_age && `Age ${rd.child_age}`,
+                                rd.child_gender === 'male' ? 'Male' : rd.child_gender === 'female' ? 'Female' : null,
+                                rd.child_age ? `Age ${rd.child_age}` : null,
                                 rd.child_class,
                               ].filter(Boolean).join(' · ') || '—'}
                             </p>
@@ -1596,9 +1601,9 @@ export default function ResponsesPage() {
                           {/* Programme */}
                           <td className="px-4 py-3">
                             {rd.program_category ? (
-                              <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20">
-                                {rd.program_category === 'young_innovators' ? '🚀 Young' : '💻 Teen'}
-                              </span>
+                              <p className="text-xs font-medium text-foreground">
+                                {rd.program_category === 'young_innovators' ? 'Young Innovators' : rd.program_category === 'teen_developers' ? 'Teen Developers' : progLabel(rd.program_category)}
+                              </p>
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
@@ -1607,16 +1612,18 @@ export default function ResponsesPage() {
                           {/* Score */}
                           <td className="px-4 py-3">
                             {(() => {
-                              const { label, cls } = leadScore(lead);
+                              const { label, tone } = leadScore(lead);
                               const ageHint = suggestProg(rd.child_age);
                               const programMismatch = ageHint && rd.program_category &&
                                 ((ageHint === 'Young Innovators' && rd.program_category !== 'young_innovators') ||
                                  (ageHint === 'Teen Developers' && rd.program_category !== 'teen_developers'));
                               return (
-                                <div className="space-y-1">
-                                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full border ${cls}`}>{label}</span>
+                                <div className="space-y-0.5">
+                                  <p className={`text-xs font-medium ${tone}`}>{label}</p>
                                   {programMismatch && (
-                                    <p className="text-[8px] text-amber-400" title={`Age ${rd.child_age} → ${ageHint} suggested`}>⚠ {ageHint}?</p>
+                                    <p className="text-[11px] text-amber-700 dark:text-amber-400" title={`Age ${rd.child_age} suggests ${ageHint}`}>
+                                      Check programme
+                                    </p>
                                   )}
                                 </div>
                               );
@@ -1643,42 +1650,50 @@ export default function ResponsesPage() {
                           )}
 
                           {/* Match */}
-                          <td className="px-4 py-3 min-w-[140px]">
+                          <td className="px-4 py-3 min-w-[160px]">
                             {isPending && lead.match_candidate ? (
-                              <div className="space-y-1.5">
-                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${confCls[lead.match_confidence ?? 'low']}`}>
-                                  ⚠ {lead.match_confidence} match
-                                </span>
-                                <p className="text-[10px] text-foreground font-bold leading-tight">{lead.match_candidate.full_name}</p>
-                                <p className="text-[10px] text-muted-foreground">{lead.match_candidate.section_class ?? '—'}</p>
-                                <div className="flex gap-1 pt-0.5">
+                              <div className="space-y-2">
+                                <div>
+                                  <p className={metaLabel}>Possible match</p>
+                                  <p className="text-xs font-medium text-foreground leading-snug mt-0.5">
+                                    {lead.match_candidate.full_name}
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {[lead.match_candidate.section_class, lead.match_confidence ? `${lead.match_confidence} confidence` : null]
+                                      .filter(Boolean)
+                                      .join(' · ')}
+                                  </p>
+                                </div>
+                                <div className="flex gap-1.5">
                                   <button
                                     disabled={reviewingId === lead.id}
                                     onClick={() => reviewLead(lead.id, 'approve')}
-                                    className="flex-1 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[9px] font-black rounded-lg border border-emerald-500/20 transition-colors disabled:opacity-40"
-                                    title={`Link to ${lead.match_candidate.full_name}`}
+                                    className={btnQuiet}
+                                    title={`Confirm match with ${lead.match_candidate.full_name}`}
                                   >
-                                    {reviewingId === lead.id ? '…' : '✓ Same'}
+                                    {reviewingId === lead.id ? '…' : 'Confirm'}
                                   </button>
                                   <button
                                     disabled={reviewingId === lead.id}
                                     onClick={() => reviewLead(lead.id, 'reject')}
-                                    className="flex-1 py-1 bg-muted hover:bg-muted/80 text-muted-foreground text-[9px] font-black rounded-lg transition-colors disabled:opacity-40"
+                                    className={btnQuietMuted}
                                   >
-                                    ✗ New
+                                    Dismiss
                                   </button>
                                 </div>
                               </div>
                             ) : isApproved ? (
-                              <span title="The suggested student match was approved; portal links are shown separately" className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                                ✓ Match approved
-                              </span>
+                              <div>
+                                <p className={metaLabel}>Match</p>
+                                <p className={`${metaOk} mt-0.5`}>Approved</p>
+                              </div>
                             ) : lead.contact_id ? (
-                              <span title="A CRM/marketing contact exists — no portal account created yet" className="text-[9px] font-black text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
-                                CRM contact
-                              </span>
+                              <div>
+                                <p className={metaLabel}>CRM</p>
+                                <p className="text-xs text-foreground mt-0.5">Contact saved</p>
+                              </div>
                             ) : (
-                              <span className="text-[10px] text-muted-foreground">—</span>
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </td>
 
@@ -1688,7 +1703,7 @@ export default function ResponsesPage() {
                               value={status}
                               disabled={updatingId === lead.id}
                               onChange={e => updateStatus(lead.id, e.target.value as FormLead['status'])}
-                              className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border cursor-pointer disabled:opacity-50 outline-none ${cfg.cls}`}
+                              className={`text-xs font-medium px-2.5 py-1.5 rounded-md border cursor-pointer disabled:opacity-50 outline-none ${cfg.cls}`}
                               style={{ background: 'transparent' }}
                             >
                               {Object.entries(STATUS_CFG).map(([val, c]) => (
@@ -1698,170 +1713,177 @@ export default function ResponsesPage() {
                           </td>
 
                           {/* Actions */}
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col items-end gap-1.5">
-                              <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <td className="px-4 py-3 min-w-[220px]">
+                            <div className="flex flex-col items-stretch gap-3 text-left">
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {waNum && (
                                   <a href={`https://wa.me/${waNum}`} target="_blank" rel="noopener noreferrer"
-                                    className="text-[10px] bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 px-2 py-1 rounded-lg font-bold transition-colors border border-emerald-500/20"
+                                    className={btnQuietMuted}
                                     title="WhatsApp">
-                                    💬
+                                    WhatsApp
                                   </a>
                                 )}
                                 {(lead.email || rd.parent_email) && (
                                   <a href={`mailto:${lead.email ?? rd.parent_email}`}
-                                    className="text-[10px] bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-lg font-bold transition-colors"
+                                    className={btnQuietMuted}
                                     title="Email">
-                                    ✉️
+                                    Email
                                   </a>
                                 )}
                                 {form && (
                                   <button
                                     onClick={() => printFilledForm(form, lead, appBase)}
-                                    className="text-[10px] bg-muted hover:bg-muted/80 text-muted-foreground px-2 py-1 rounded-lg font-bold transition-colors flex items-center gap-1"
+                                    className={btnQuietMuted}
                                     title="Print submission"
                                   >
-                                    <PrinterIcon className="w-3 h-3" />
+                                    <PrinterIcon className="w-3.5 h-3.5" />
+                                    Print
                                   </button>
                                 )}
                               </div>
-                              {/* Create / manage portal account */}
+
                               {(lead.email || rd.parent_email) && (() => {
                                 const ps = portalStatus[lead.id];
                                 const hasAccount = ps === 'created' || ps === 'exists' || !!(lead.matched_parent_id);
                                 const parentName  = rd.parent_name || 'Parent/Guardian';
+                                const credsSent = Array.isArray(rd.portal_credentials_sent) && rd.portal_credentials_sent.length > 0;
 
                                 if (hasAccount) {
-                                  const credsSent = Array.isArray(rd.portal_credentials_sent) && rd.portal_credentials_sent.length > 0;
                                   return (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                      ✓ Parent portal linked
-                                    </span>
-                                    <span
-                                      title={credsSent ? 'Login credentials have been sent to this parent' : 'Account created — login not sent yet'}
-                                      className={`text-[9px] font-black px-2 py-0.5 rounded-full whitespace-nowrap border ${credsSent ? 'text-emerald-400/90 bg-emerald-500/5 border-emerald-500/15' : 'text-amber-400 bg-amber-500/10 border-amber-500/20'}`}
-                                    >
-                                      {credsSent ? '✓ Sent' : '⚠ Not sent'}
-                                    </span>
-                                    <button
-                                      disabled={resendingPortalId === lead.id}
-                                      onClick={() => resendCredentials(lead.id, parentName)}
-                                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors disabled:opacity-50 whitespace-nowrap"
-                                      title="Send / resend login credentials to the parent (and student logins) by WhatsApp + email"
-                                    >
-                                      {resendingPortalId === lead.id ? '…' : '↻ Send login'}
-                                    </button>
-                                    <button
-                                      disabled={deletingPortalId === lead.id}
-                                      onClick={() => deletePortalAccount(lead.id, parentName)}
-                                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
-                                      title="Delete portal account entirely — removes auth, login access and all links"
-                                    >
-                                      {deletingPortalId === lead.id ? (
-                                        <>
-                                          <svg className="animate-spin h-2.5 w-2.5 text-rose-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                          </svg>
-                                          <span>Removing…</span>
-                                        </>
-                                      ) : '✕ Remove'}
-                                    </button>
-                                  </div>
-                                );
+                                    <div className="space-y-1.5 border-t border-border/60 pt-2">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                          <p className={metaLabel}>Parent portal</p>
+                                          <p className={`${metaOk} mt-0.5`}>Linked</p>
+                                          <p className={`mt-0.5 ${credsSent ? metaOk : metaWarn}`}>
+                                            {credsSent ? 'Login sent' : 'Login not sent'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        <button
+                                          disabled={resendingPortalId === lead.id}
+                                          onClick={() => resendCredentials(lead.id, parentName)}
+                                          className={btnQuiet}
+                                          title="Send or resend login credentials"
+                                        >
+                                          {resendingPortalId === lead.id ? 'Sending…' : 'Send login'}
+                                        </button>
+                                        <button
+                                          disabled={deletingPortalId === lead.id}
+                                          onClick={() => deletePortalAccount(lead.id, parentName)}
+                                          className={btnQuietDanger}
+                                          title="Remove portal account"
+                                        >
+                                          {deletingPortalId === lead.id ? 'Removing…' : 'Remove'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
                                 }
 
                                 return (
-                                  <button
-                                    disabled={creatingPortalId === lead.id}
-                                    onClick={() => openClassPicker(lead.id, parentName)}
-                                    className="text-[9px] font-black px-2 py-0.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
-                                    title="Create parent + student portal accounts (choose a class)"
-                                  >
-                                    {creatingPortalId === lead.id ? (
-                                      <>
-                                        <svg className="animate-spin h-2.5 w-2.5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <span>Creating…</span>
-                                      </>
-                                    ) : '+ Portal Account'}
-                                  </button>
+                                  <div className="border-t border-border/60 pt-2">
+                                    <p className={metaLabel}>Parent portal</p>
+                                    <button
+                                      disabled={creatingPortalId === lead.id}
+                                      onClick={() => openClassPicker(lead.id, parentName)}
+                                      className={`${btnQuiet} mt-1.5`}
+                                      title="Create parent and student portal accounts"
+                                    >
+                                      {creatingPortalId === lead.id ? 'Creating…' : 'Create account'}
+                                    </button>
+                                  </div>
                                 );
                               })()}
 
-                              {/* Revert — undo account creation, keep the submission (only when an account exists) */}
-                              {(lead.matched_parent_id || lead.matched_student_id) && (
-                                <button
-                                  disabled={revertingLeadId === lead.id}
-                                  onClick={() => revertLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
-                                  className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/5 hover:bg-amber-500/20 text-amber-500/90 hover:text-amber-400 border border-amber-500/20 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
-                                  title="Undo the account creation (delete parent + student logins) but keep the submission so you can process it again"
-                                >
-                                  {revertingLeadId === lead.id ? 'Reverting…' : '↺ Revert account'}
-                                </button>
-                              )}
-
-                              {/* Permanent delete — erases the submission AND the accounts (stronger) */}
-                              <button
-                                disabled={deletingLeadId === lead.id}
-                                onClick={() => deleteLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
-                                className="text-[9px] font-black px-2 py-0.5 rounded-full bg-rose-500/5 hover:bg-rose-500/20 text-rose-400/80 hover:text-rose-400 border border-rose-500/15 transition-colors disabled:opacity-50 whitespace-nowrap flex items-center justify-center gap-1"
-                                title="Permanently delete the submission AND any account created from it (cannot be undone)"
-                              >
-                                {deletingLeadId === lead.id ? 'Deleting…' : '🗑 Delete permanently'}
-                              </button>
-
-                              {/* Child link status — handles single and multi-child */}
                               {lead.matched_parent_id && (() => {
                                 const childrenArr = Array.isArray(rd.children)
                                   ? (rd.children as Array<Record<string, string>>)
                                   : null;
                                 const count = childrenArr ? childrenArr.length : 1;
-                                if (count === 1) {
-                                  return lead.matched_student_id ? (
-                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                      {rd.child_gender === 'male' ? '👦' : rd.child_gender === 'female' ? '👧' : '🧒'} {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} · Portal linked
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => openLinkChild(lead.id, rd.child_name || '', 0)}
-                                      className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors whitespace-nowrap"
-                                      title="Link this parent to their child's student record"
-                                    >
-                                      ⚠ Link Child
-                                    </button>
-                                  );
-                                }
-                                // Multi-child — show a slot for each child
-                                return (
-                                  <>
-                                    {childrenArr!.map((child, ci) => {
-                                      const isLinked = ci === 0
-                                        ? !!lead.matched_student_id
-                                        : !!(additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci);
-                                      const linkedName = ci === 0
-                                        ? (lead.match_candidate?.full_name ?? child.name)
-                                        : (additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci)?.studentName ?? child.name;
-                                      return isLinked ? (
-                                        <span key={ci} className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                          {child.gender === 'male' ? '👦' : child.gender === 'female' ? '👧' : '🧒'} {linkedName} · Portal linked
-                                        </span>
-                                      ) : (
-                                        <button key={ci}
-                                          onClick={() => openLinkChild(lead.id, child.name || '', ci)}
-                                          className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 transition-colors whitespace-nowrap"
-                                          title={`Link Child ${ci + 1} to a student record`}
-                                        >
-                                          ⚠ Link Child {ci + 1}
-                                        </button>
+                                const primaryLink = (lead.child_links ?? []).find((link) =>
+                                  link.child_index === 0 && ['approved', 'onboarded'].includes(link.link_status),
+                                );
+                                const primaryLinked = !!lead.matched_student_id || !!primaryLink;
+                                const primaryName = primaryLink?.student_name
+                                  ?? lead.match_candidate?.full_name
+                                  ?? rd.child_name
+                                  ?? 'Child';
+
+                                const rows = count === 1
+                                  ? [{
+                                      key: 0,
+                                      name: String(primaryName),
+                                      linked: primaryLinked,
+                                      openName: rd.child_name || '',
+                                    }]
+                                  : childrenArr!.map((child, ci) => {
+                                      const activeLink = (lead.child_links ?? []).find((link) =>
+                                        link.child_index === ci && ['approved', 'onboarded'].includes(link.link_status),
                                       );
-                                    })}
-                                  </>
+                                      const linked = ci === 0
+                                        ? primaryLinked
+                                        : !!(additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci) || !!activeLink;
+                                      const name = ci === 0
+                                        ? (primaryName || child.name)
+                                        : (activeLink?.student_name
+                                          ?? (additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci)?.studentName
+                                          ?? child.name);
+                                      return {
+                                        key: ci,
+                                        name: String(name || `Child ${ci + 1}`),
+                                        linked,
+                                        openName: child.name || '',
+                                      };
+                                    });
+
+                                return (
+                                  <div className="space-y-1.5 border-t border-border/60 pt-2">
+                                    <p className={metaLabel}>{count > 1 ? 'Children' : 'Child'}</p>
+                                    {rows.map((row) => (
+                                      <div key={row.key} className="flex items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <p className={`${metaValue} truncate`}>{row.name}</p>
+                                          <p className={row.linked ? metaOk : metaWarn}>
+                                            {row.linked ? 'Linked' : 'Not linked'}
+                                          </p>
+                                        </div>
+                                        {!row.linked && (
+                                          <button
+                                            onClick={() => openLinkChild(lead.id, row.openName, row.key)}
+                                            className={btnQuiet}
+                                            title={`Link ${row.name} to a student record`}
+                                          >
+                                            Link
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
                                 );
                               })()}
+
+                              <div className="flex flex-wrap gap-1 border-t border-border/60 pt-2">
+                                {(lead.matched_parent_id || lead.matched_student_id) && (
+                                  <button
+                                    disabled={revertingLeadId === lead.id}
+                                    onClick={() => revertLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
+                                    className={btnQuietMuted}
+                                    title="Undo account creation but keep the submission"
+                                  >
+                                    {revertingLeadId === lead.id ? 'Reverting…' : 'Revert'}
+                                  </button>
+                                )}
+                                <button
+                                  disabled={deletingLeadId === lead.id}
+                                  onClick={() => deleteLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
+                                  className={btnQuietDanger}
+                                  title="Permanently delete this submission and related accounts"
+                                >
+                                  {deletingLeadId === lead.id ? 'Deleting…' : 'Delete'}
+                                </button>
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -1887,19 +1909,17 @@ export default function ResponsesPage() {
             <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
               {/* Summary bar */}
               <div className="flex items-center gap-4 px-5 py-3 border-b border-border/50 bg-muted/20">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">🏦</div>
                 <div>
-                  <p className="text-sm font-black text-foreground">{logLeads.length} parent portal account{logLeads.length !== 1 ? 's' : ''} created</p>
-                  <p className="text-[10px] text-muted-foreground">Full audit trail — credentials sent via email and WhatsApp at time of creation</p>
+                  <p className="text-sm font-semibold text-foreground">{logLeads.length} parent portal account{logLeads.length !== 1 ? 's' : ''} created</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Audit trail of portal credentials sent by email and WhatsApp</p>
                 </div>
               </div>
 
               {logLeads.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <div className="w-12 h-12 rounded-full bg-muted/40 flex items-center justify-center text-2xl">🏦</div>
-                  <p className="text-muted-foreground text-sm font-bold">No portal accounts have been created yet</p>
+                  <p className="text-muted-foreground text-sm font-medium">No portal accounts have been created yet</p>
                   <p className="text-[11px] text-muted-foreground text-center max-w-xs leading-relaxed">
-                    Select leads and click <strong>🏦 Portals</strong> in the bulk action bar, or use the <strong>+ Portal Account</strong> button on individual leads.
+                    Select leads and use <strong>Create portals</strong> in the bulk bar, or <strong>Create account</strong> on an individual lead.
                   </p>
                 </div>
               ) : (
@@ -1907,13 +1927,13 @@ export default function ResponsesPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-border/50 bg-muted/30">
-                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3 w-8">#</th>
-                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Created At</th>
-                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Parent</th>
-                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child(ren)</th>
-                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Credentials Sent</th>
-                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Created By</th>
-                        <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Lead Status</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3 w-8">#</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Created At</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Parent</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Child(ren)</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Credentials Sent</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Created By</th>
+                        <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Lead Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/30">
@@ -1957,8 +1977,8 @@ export default function ResponsesPage() {
                                   <span className="text-[9px] text-muted-foreground">None recorded</span>
                                 ) : (
                                   channels.map(ch => (
-                                    <span key={ch} className={`text-[9px] font-black px-1.5 py-0.5 rounded-full border ${ch === 'email' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
-                                      {ch === 'email' ? '✉ Email' : '💬 WhatsApp'}
+                                    <span key={ch} className="text-xs font-medium text-muted-foreground">
+                                      {ch === 'email' ? 'Email' : 'WhatsApp'}
                                     </span>
                                   ))
                                 )}
@@ -1968,7 +1988,7 @@ export default function ResponsesPage() {
                               <p className="text-xs text-muted-foreground">{createdBy}</p>
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>
+                              <span className={`text-xs font-medium px-2 py-1 rounded-md border ${cfg.cls}`}>{cfg.label}</span>
                             </td>
                           </tr>
                         );
@@ -1994,11 +2014,11 @@ export default function ResponsesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border/50 bg-muted/30">
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3 w-8">#</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Signed</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Parent / Guardian</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Child</th>
-                      <th className="text-left text-[10px] font-black text-muted-foreground uppercase tracking-widest px-4 py-3">Programme</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3 w-8">#</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Signed</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Parent / Guardian</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Child</th>
+                      <th className="text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-4 py-3">Programme</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
@@ -2014,7 +2034,7 @@ export default function ResponsesPage() {
                           <td className="px-4 py-3 min-w-[180px]">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-bold text-foreground">{s.portal_users?.full_name ?? '—'}</p>
-                              <span className="text-[9px] font-black bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded-full">Signed</span>
+                              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
                             </div>
                             {s.portal_users?.email && (
                               <a href={`mailto:${s.portal_users.email}`} className="text-[10px] text-muted-foreground hover:text-primary transition-colors">
@@ -2033,8 +2053,8 @@ export default function ResponsesPage() {
                           </td>
                           <td className="px-4 py-3">
                             {rd.program_category ? (
-                              <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20">
-                                {rd.program_category === 'young_innovators' ? '🚀 Young' : '💻 Teen'}
+                              <span className="text-xs font-medium text-foreground">
+                                {rd.program_category === 'young_innovators' ? 'Young Innovators' : rd.program_category === 'teen_developers' ? 'Teen Developers' : progLabel(String(rd.program_category))}
                               </span>
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
@@ -2057,7 +2077,7 @@ export default function ResponsesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => !creatingPortalId && setClassModal(null)}>
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div>
-              <h3 className="text-lg font-black text-foreground">Place {classModal.parentName.split(' ')[0]}'s child in a class</h3>
+              <h3 className="text-lg font-semibold text-foreground">Choose a class for {classModal.parentName.split(' ')[0]}&apos;s child</h3>
               <p className="text-xs text-muted-foreground mt-1">Pick an existing class (preferred) or type a new one. Leave blank to auto-assign by programme.</p>
             </div>
 
@@ -2107,7 +2127,7 @@ export default function ResponsesPage() {
                   createPortalAccount(m.leadId, m.parentName, existing ? { classId: existing.id } : (name ? { className: name } : undefined));
                 }}
                 disabled={!!creatingPortalId}
-                className="flex-[2] px-4 py-2 bg-primary hover:bg-primary/90 text-white text-sm font-black rounded-xl transition-colors disabled:opacity-50"
+                className={btnPrimary + ' flex-[2] text-sm'}
               >
                 {creatingPortalId ? 'Creating…' : classChoice.trim() ? 'Create & Assign Class' : 'Create & Auto-Assign'}
               </button>
@@ -2124,7 +2144,7 @@ export default function ResponsesPage() {
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
               <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-lg shrink-0">🔑</div>
               <div>
-                <p className="text-sm font-black text-foreground">Portal Account Created</p>
+                <p className="text-sm font-semibold text-foreground">Portal account created</p>
                 <p className="text-[11px] text-muted-foreground">For {credsModal.parentName}</p>
               </div>
             </div>
@@ -2137,7 +2157,7 @@ export default function ResponsesPage() {
 
               {/* Email */}
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Email</p>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Email</p>
                 <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
                   <span className="flex-1 text-sm font-mono text-foreground select-all">{credsModal.email}</span>
                   <button
@@ -2151,7 +2171,7 @@ export default function ResponsesPage() {
 
               {/* Password */}
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Temporary Password</p>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Temporary Password</p>
                 <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
                   <span className="flex-1 text-sm font-mono font-black text-amber-400 select-all tracking-wide">{credsModal.password}</span>
                   <button
@@ -2171,7 +2191,7 @@ export default function ResponsesPage() {
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/20 transition-colors"
                 >
-                  💬 Share via WhatsApp
+                  Share via WhatsApp
                 </a>
               </div>
             </div>
@@ -2180,7 +2200,7 @@ export default function ResponsesPage() {
             <div className="px-5 pb-5">
               <button
                 onClick={() => setCredsModal(null)}
-                className="w-full py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
+                className="w-full py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded-md transition-colors"
               >
                 Done
               </button>
@@ -2202,17 +2222,16 @@ export default function ResponsesPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
               <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center text-lg shrink-0">🧒</div>
                 <div>
-                  <p className="text-sm font-black text-foreground">
-                    {isMulti ? `Link Child ${linkChildIndex + 1} to Parent Account` : 'Link Child to Parent Account'}
+                  <p className="text-sm font-semibold text-foreground">
+                    {isMulti ? `Link child ${linkChildIndex + 1}` : 'Link child'}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Finding student for: <strong>{displayName}</strong>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Match a student account for <span className="font-medium text-foreground">{displayName}</span>
                     {displayClass ? ` · ${displayClass}` : ''}
                   </p>
                 </div>
-                <button onClick={() => setLinkChildLeadId(null)} className="ml-auto text-muted-foreground hover:text-foreground">✕</button>
+                <button onClick={() => setLinkChildLeadId(null)} className="ml-auto text-muted-foreground hover:text-foreground text-sm">Close</button>
               </div>
 
               <div className="px-5 py-4 space-y-3">
@@ -2248,19 +2267,19 @@ export default function ResponsesPage() {
                         setLinkChildLeadId(null);
                         await createPortalAccount(linkChildLeadId, pn, { childIndex });
                       }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-xs font-black rounded-xl transition-colors disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium rounded-md transition-colors disabled:opacity-50"
                     >
-                      {creatingPortalId ? 'Creating…' : `➕ Create account for ${displayName.split(' ').slice(0, 2).join(' ')}`}
+                      {creatingPortalId ? 'Creating…' : `Create account for ${displayName.split(' ').slice(0, 2).join(' ')}`}
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {studentOptions.some(student => student.already_linked) && (
-                      <p className="text-[10px] leading-relaxed text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                        Linked students are locked. Unlink them from their current parent first, then reopen this picker.
+                      <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
+                        Some students are already linked to another parent. Unlink them first, then try again.
                       </p>
                     )}
-                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                    <div className="space-y-1 max-h-60 overflow-y-auto">
                     {studentOptions.slice(0, 30).map(s => (
                       <button
                         key={s.id}
@@ -2269,37 +2288,23 @@ export default function ResponsesPage() {
                         title={s.already_linked
                           ? `Unlink from ${s.linked_parent || 'the current parent'} before linking here`
                           : `Link ${s.full_name} to this parent`}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed group border ${s.suggested ? 'bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/15' : 'bg-muted border-transparent hover:bg-muted/80'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed group border ${s.suggested ? 'border-border bg-muted/40 hover:bg-muted/70' : 'border-transparent hover:bg-muted/50'}`}
                       >
-                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs shrink-0">👤</div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-bold truncate flex items-center gap-1.5 ${s.already_linked ? 'text-muted-foreground/70' : 'text-foreground'}`}>
+                          <p className={`text-sm font-medium truncate ${s.already_linked ? 'text-muted-foreground' : 'text-foreground'}`}>
                             {s.full_name}
-                            {s.suggested && <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-full shrink-0">Likely match</span>}
-                            {s.already_linked && (
-                              <span
-                                title={s.linked_parent ? `Already linked to ${s.linked_parent}` : 'Already linked to a parent'}
-                                className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded-full shrink-0"
-                              >
-                                🔒 Linked
-                              </span>
-                            )}
                           </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {[s.section_class, s.school_name].filter(Boolean).join(' · ') || '—'}
-                            {s.already_linked && <span className="text-amber-500"> · unlink from {s.linked_parent || 'current parent'} first</span>}
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {[
+                              s.section_class,
+                              s.school_name,
+                              s.suggested ? 'Suggested match' : null,
+                              s.already_linked ? `Linked to ${s.linked_parent || 'another parent'}` : null,
+                            ].filter(Boolean).join(' · ') || '—'}
                           </p>
                         </div>
-                        <span className={`text-[9px] font-black text-primary transition-opacity shrink-0 flex items-center gap-1 ${linkingStudentId === s.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                          {linkingStudentId === s.id ? (
-                            <>
-                              <svg className="animate-spin h-2.5 w-2.5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              <span>…</span>
-                            </>
-                          ) : s.already_linked ? 'Unlink first' : 'Link →'}
+                        <span className={`text-xs font-medium shrink-0 ${s.already_linked ? 'text-muted-foreground' : 'text-primary opacity-0 group-hover:opacity-100 transition-opacity'}`}>
+                          {linkingStudentId === s.id ? 'Linking…' : s.already_linked ? 'Unavailable' : 'Link'}
                         </span>
                       </button>
                     ))}
@@ -2311,7 +2316,7 @@ export default function ResponsesPage() {
               <div className="px-5 pb-5">
                 <button
                   onClick={() => setLinkChildLeadId(null)}
-                  className="w-full py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors"
+                  className="w-full py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded-md transition-colors"
                 >
                   Cancel
                 </button>
@@ -2321,42 +2326,45 @@ export default function ResponsesPage() {
         );
       })()}
 
-      {/* ── WhatsApp Blast Modal ─────────────────────────────────────────────── */}
+      {/* ── WhatsApp message modal ─────────────────────────────────────────── */}
       {waBlastOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg">
             <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-lg shrink-0">💬</div>
               <div>
-                <p className="text-sm font-black text-foreground">WhatsApp Blast</p>
-                <p className="text-[11px] text-muted-foreground">Sending to {selected.size} selected lead{selected.size !== 1 ? 's' : ''}</p>
+                <p className="text-sm font-semibold text-foreground">WhatsApp message</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Send to {selected.size} selected lead{selected.size === 1 ? '' : 's'}
+                </p>
               </div>
-              <button onClick={() => setWaBlastOpen(false)} className="ml-auto text-muted-foreground hover:text-foreground">✕</button>
+              <button onClick={() => setWaBlastOpen(false)} className="ml-auto text-muted-foreground hover:text-foreground text-sm">Close</button>
             </div>
             <div className="px-5 py-4 space-y-3">
-              <p className="text-[10px] text-muted-foreground font-bold">Use <code className="bg-muted px-1 rounded">{'{{name}}'}</code> to personalise with the parent&apos;s name.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Use <code className="bg-muted px-1 rounded">{'{{name}}'}</code> to personalise with the parent&apos;s name.
+              </p>
               <textarea
                 value={waMessage}
                 onChange={e => setWaMessage(e.target.value)}
-                placeholder={`Hi {{name}}! 👋 Just following up about your child's registration at Rillcod Technologies. We'd love to confirm their spot! Call +234 811 660 0091 or reply here.`}
+                placeholder={`Hi {{name}}, following up about your child's registration at Rillcod Technologies. We would love to confirm their spot. Call +234 811 660 0091 or reply here.`}
                 rows={5}
                 maxLength={1000}
-                className="w-full bg-background border border-border text-foreground text-sm px-3 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500 resize-none transition-colors"
+                className="w-full bg-background border border-border text-foreground text-sm px-3 py-2.5 rounded-md focus:outline-none focus:border-primary resize-none transition-colors"
               />
-              <div className="flex justify-between text-[9px] text-muted-foreground">
+              <div className="flex justify-between text-[11px] text-muted-foreground">
                 <span>{waMessage.length}/1000</span>
-                {waResult && <span className="text-emerald-400 font-black">✓ Sent {waResult.sent}/{waResult.total}</span>}
+                {waResult && <span className="text-emerald-700 dark:text-emerald-400">Sent {waResult.sent}/{waResult.total}</span>}
               </div>
             </div>
             <div className="px-5 pb-5 flex gap-2">
               <button
                 onClick={sendBulkWhatsApp}
                 disabled={waSending || !waMessage.trim()}
-                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black font-black text-xs rounded-xl transition-colors"
+                className={btnPrimary + ' flex-1'}
               >
-                {waSending ? 'Sending…' : `Send to ${selected.size} Parent${selected.size !== 1 ? 's' : ''} →`}
+                {waSending ? 'Sending…' : `Send to ${selected.size}`}
               </button>
-              <button onClick={() => setWaBlastOpen(false)} className="px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition-colors">
+              <button onClick={() => setWaBlastOpen(false)} className={btnSecondary}>
                 Cancel
               </button>
             </div>

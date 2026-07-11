@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { canAccessSchool } from '@/lib/auth/school-scope';
-import { listLeadChildLinksForLeads } from '@/lib/consent/lead-child-links';
+import { listLeadChildLinksForLeads, syncLeadChildrenFromParentOwnership } from '@/lib/consent/lead-child-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,14 +72,33 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .order('submitted_at', { ascending: false });
     leads = fallback.data ?? [];
   }
+  // Heal display gaps: if the parent already owns matching children in
+  // parent_student_links, promote them into canonical consent child links.
+  for (const lead of leads ?? []) {
+    if (!lead?.matched_parent_id) continue;
+    try {
+      await syncLeadChildrenFromParentOwnership(admin as any, lead);
+    } catch {
+      // Non-fatal — staff can still link manually.
+    }
+  }
+
   const childLinksByLead = await listLeadChildLinksForLeads(
     admin as any,
     (leads ?? []).map((lead: any) => lead.id),
   );
-  leads = (leads ?? []).map((lead: any) => ({
-    ...lead,
-    child_links: childLinksByLead[lead.id] ?? [],
-  }));
+  leads = (leads ?? []).map((lead: any) => {
+    const child_links = childLinksByLead[lead.id] ?? [];
+    const primary = child_links.find((link: any) =>
+      link.child_index === 0 && ['approved', 'onboarded'].includes(link.link_status),
+    );
+    return {
+      ...lead,
+      child_links,
+      // Keep scalar cache visible even if the DB trigger has not refreshed yet.
+      matched_student_id: lead.matched_student_id ?? primary?.student_portal_user_id ?? null,
+    };
+  });
 
   // Find parent links to support multi-child persistence on frontend reload
   const parentIds = (leads ?? []).map((l: any) => l.matched_parent_id).filter(Boolean);

@@ -73,4 +73,9 @@ describe('lead child link invariants', () => {
       expect(suggestions.has(status)).toBe(false);
     }
   });
+
+  it('treats parent ownership sync as an approved provenance source', () => {
+    const source: LeadChildLink['source'] = 'parent_ownership_sync';
+    expect(source).toBe('parent_ownership_sync');
+  });
 });

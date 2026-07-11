@@ -13,7 +13,12 @@ import {
   syncStudentFromLeadResponse,
 } from '@/lib/sync/student-parent-identity';
 import { logAudit } from '@/lib/audit/log';
-import { upsertLeadChildLink } from '@/lib/consent/lead-child-links';
+import {
+  clearLeadChildLinks,
+  listLeadChildLinks,
+  removeLeadChildLink,
+  upsertLeadChildLink,
+} from '@/lib/consent/lead-child-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +78,19 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
       .update({ match_status: 'new_prospect', match_candidate_id: null } as any)
       .eq('id', leadId);
     if (rejectErr) return NextResponse.json({ error: rejectErr.message }, { status: 500 });
+    // Clear relational candidate suggestions so portal/create cannot link them later.
+    try {
+      const existingLinks = await listLeadChildLinks(sb as any, leadId);
+      const hasOnlyCandidates = existingLinks.length > 0
+        && existingLinks.every((link) => link.link_status === 'candidate');
+      if (hasOnlyCandidates) {
+        await clearLeadChildLinks(sb as any, leadId);
+      } else {
+        for (const link of existingLinks.filter((row) => row.link_status === 'candidate')) {
+          await removeLeadChildLink(sb as any, leadId, link.child_index);
+        }
+      }
+    } catch { /* non-fatal */ }
     await logAudit(sb as any, {
       action: 'consent_match_rejected',
       actorId: user.id,
