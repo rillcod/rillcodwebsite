@@ -50,8 +50,8 @@ export default function ResultGate({
     return (
       <>
         {staffUnlocked && !captured && (
-          <div className="rounded-2xl border border-[var(--rc-blue)]/20 bg-[var(--rc-blue)]/5 px-5 py-3 text-center">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--rc-blue)]">
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-3 text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
               Staff view — result shown without the parent gate
             </p>
           </div>
@@ -77,11 +77,11 @@ export default function ResultGate({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-[1.5rem] border border-amber-500/25 bg-gradient-to-br from-amber-50/90 to-white/80 p-5 text-center sm:p-6">
-        <p className="rc-display text-lg font-bold tracking-tight text-[var(--rc-ink)] sm:text-xl">
+      <div className="rounded-[1.5rem] border border-amber-500/25 bg-amber-500/10 p-5 text-center sm:p-6">
+        <p className="rc-display text-lg font-bold tracking-tight text-foreground sm:text-xl">
           Result protected
         </p>
-        <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-[var(--rc-muted)] sm:text-sm">
+        <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground sm:text-sm">
           Link your parent account below to unlock this report and receive parent + student portal logins.
           Once verified, future scans open instantly.
         </p>

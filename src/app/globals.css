@@ -749,17 +749,34 @@ select {
   display: none;
 }
 
-/* ── Result Checker surface ─────────────────────────────────── */
+/* ── Result Checker surface (theme-aware) ───────────────────── */
 .result-check-scope {
-  --rc-sky: #e8eef8;
-  --rc-ink: #0c1a33;
-  --rc-muted: #5a6b86;
-  --rc-blue: #1a3a8f;
-  --rc-red: #c41e3a;
-  --rc-panel: rgba(255, 255, 255, 0.78);
-  --rc-panel-solid: #ffffff;
+  --rc-sky: var(--background);
+  --rc-ink: var(--foreground);
+  --rc-muted: var(--muted-foreground);
+  --rc-blue: var(--brand-blue);
+  --rc-red: var(--brand-red);
+  --rc-panel: color-mix(in srgb, var(--card) 86%, transparent);
+  --rc-panel-solid: var(--card);
+  --rc-border: color-mix(in srgb, var(--border) 80%, transparent);
+  --rc-surface: color-mix(in srgb, var(--card) 92%, transparent);
+  --rc-shadow: 0 20px 60px -28px color-mix(in srgb, var(--foreground) 35%, transparent);
+  --rc-mesh-blue: color-mix(in srgb, var(--brand-blue) 22%, transparent);
+  --rc-mesh-red: color-mix(in srgb, var(--brand-red) 12%, transparent);
+  --rc-mesh-mid: color-mix(in srgb, var(--background) 70%, var(--muted));
   font-family: var(--font-rc-body), system-ui, sans-serif;
   color: var(--rc-ink);
+  background: var(--rc-sky);
+}
+
+.dark .result-check-scope {
+  --rc-panel: color-mix(in srgb, var(--card) 78%, transparent);
+  --rc-surface: color-mix(in srgb, var(--card) 88%, transparent);
+  --rc-border: color-mix(in srgb, var(--border) 90%, transparent);
+  --rc-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.65);
+  --rc-mesh-blue: color-mix(in srgb, var(--primary) 28%, transparent);
+  --rc-mesh-red: color-mix(in srgb, var(--accent) 16%, transparent);
+  --rc-mesh-mid: color-mix(in srgb, var(--background) 55%, var(--muted));
 }
 
 .result-check-scope .rc-display {
@@ -768,9 +785,9 @@ select {
 
 .result-check-scope .rc-mesh {
   background:
-    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(26, 58, 143, 0.22), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(196, 30, 58, 0.12), transparent 50%),
-    linear-gradient(180deg, #f4f7fc 0%, #e8eef8 45%, #dfe8f6 100%);
+    radial-gradient(ellipse 80% 50% at 20% -10%, var(--rc-mesh-blue), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 10%, var(--rc-mesh-red), transparent 50%),
+    linear-gradient(180deg, var(--background) 0%, var(--rc-mesh-mid) 55%, var(--background) 100%);
 }
 
 @keyframes rc-breeze {
@@ -786,8 +803,8 @@ select {
   100% { transform: translateX(220%) skewX(-16deg); }
 }
 @keyframes rc-soft-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 30, 58, 0.35); }
-  50% { box-shadow: 0 0 0 12px rgba(196, 30, 58, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-red) 35%, transparent); }
+  50% { box-shadow: 0 0 0 12px transparent; }
 }
 
 .result-check-scope .rc-breeze {
@@ -811,12 +828,37 @@ select {
   animation: rc-fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.22s both;
 }
 
+.result-check-scope .rc-panel {
+  border: 1px solid var(--rc-border);
+  background: var(--rc-panel);
+  box-shadow: var(--rc-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.result-check-scope .rc-surface {
+  border: 1px solid var(--rc-border);
+  background: var(--rc-surface);
+}
+
+.result-check-scope .rc-input {
+  border: 1px solid color-mix(in srgb, var(--rc-blue) 18%, var(--border));
+  background: var(--rc-panel-solid);
+  color: var(--rc-ink);
+}
+.result-check-scope .rc-input::placeholder {
+  color: color-mix(in srgb, var(--rc-muted) 55%, transparent);
+}
+.result-check-scope .rc-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
 .result-check-scope .rc-cta {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: linear-gradient(135deg, var(--rc-red) 0%, #a01830 55%, var(--rc-blue) 140%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--rc-red) 0%, color-mix(in srgb, var(--rc-red) 70%, #000) 55%, var(--primary) 140%);
+  color: var(--primary-foreground);
   transition: transform 0.25s ease, filter 0.25s ease;
 }
 .result-check-scope .rc-cta::after {
@@ -855,3 +897,4 @@ select {
     display: none;
   }
 }
+

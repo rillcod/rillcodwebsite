@@ -216,12 +216,12 @@ export default function ParentClaim({
 
   if (step === 'cta') {
     return (
-      <div className="space-y-5 rounded-[1.5rem] border border-white/70 bg-white/80 p-5 shadow-[0_16px_40px_-24px_rgba(12,26,51,0.35)] backdrop-blur-sm sm:p-7">
+      <div className="rc-panel space-y-5 rounded-[1.5rem] p-5 sm:p-7">
         <div className="space-y-2 text-center sm:text-left">
-          <p className="rc-display text-xl font-bold tracking-tight text-[var(--rc-ink)] sm:text-2xl">
+          <p className="rc-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             Are you the parent / guardian?
           </p>
-          <p className="text-sm leading-relaxed text-[var(--rc-muted)]">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             {SKIP_OTP
               ? 'Enter your details once to unlock the full result — we’ll create and link your parent account automatically.'
               : 'Confirm it’s you with a quick code to unlock the full result — your parent account is then created and linked automatically.'}
@@ -234,7 +234,7 @@ export default function ParentClaim({
         >
           Link this child to my account
         </button>
-        <p className="text-center text-[11px] text-[var(--rc-muted)]">
+        <p className="text-center text-[11px] text-muted-foreground">
           Takes under a minute · Secure parent verification
         </p>
       </div>

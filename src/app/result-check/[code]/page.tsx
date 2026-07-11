@@ -71,9 +71,7 @@ type QuickCheckResponse = {
 
 function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <section
-      className={`rc-fade-up rounded-[1.75rem] border border-white/60 bg-[var(--rc-panel)] p-5 shadow-[0_20px_60px_-28px_rgba(12,26,51,0.4)] backdrop-blur-md sm:p-7 ${className}`}
-    >
+    <section className={`rc-fade-up rc-panel rounded-[1.75rem] p-5 sm:p-7 ${className}`}>
       {children}
     </section>
   );
@@ -180,21 +178,21 @@ export default function ResultQuickCheckPage() {
     <ResultCheckShell compact>
       {loading && (
         <Panel className="space-y-4 text-center">
-          <ArrowPathIcon className="mx-auto h-10 w-10 animate-spin text-[var(--rc-blue)]" />
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--rc-muted)]">
+          <ArrowPathIcon className="mx-auto h-10 w-10 animate-spin text-primary" />
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
             Verifying access code…
           </p>
         </Panel>
       )}
 
       {!loading && data?.error && !data.student && (
-        <Panel className="space-y-5 border-rose-200/80 bg-rose-50/80 text-center">
+        <Panel className="space-y-5 border-rose-500/30 bg-rose-500/10 text-center">
           <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-rose-500" />
           <div>
-            <h1 className="rc-display text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="rc-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Result access not verified
             </h1>
-            <p className="mt-2 text-sm text-[var(--rc-muted)]">{data.error}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{data.error}</p>
           </div>
           <Link
             href="/result-check"
@@ -209,11 +207,11 @@ export default function ResultQuickCheckPage() {
         <Panel className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--rc-blue)]/10 ring-1 ring-[var(--rc-blue)]/20">
-                <ShieldCheckIcon className="h-7 w-7 text-[var(--rc-blue)]" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheckIcon className="h-7 w-7 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--rc-muted)]">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                   {data.card.holder_type
                     ? `${data.card.holder_type.charAt(0).toUpperCase()}${data.card.holder_type.slice(1)} ID Card`
                     : 'Identity Card'}
@@ -221,12 +219,12 @@ export default function ResultQuickCheckPage() {
                 <h1 className="rc-display text-2xl font-bold tracking-tight sm:text-3xl">
                   {data.card.holder_name || 'Card Holder'}
                 </h1>
-                <p className="mt-1 truncate text-sm text-[var(--rc-muted)]">
+                <p className="mt-1 truncate text-sm text-muted-foreground">
                   {[data.card.school_name, data.card.section_class].filter(Boolean).join(' · ') || 'Rillcod Technologies'}
                 </p>
               </div>
             </div>
-            <div className="w-fit rounded-full bg-white/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--rc-muted)] ring-1 ring-black/5">
+            <div className="w-fit rounded-full bg-card/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground ring-1 ring-border">
               {displayCode}
             </div>
           </div>
@@ -239,7 +237,7 @@ export default function ResultQuickCheckPage() {
             }`}
           >
             {data.cardResult === 'ok' ? (
-              <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600" />
+              <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
             ) : (
               <ExclamationTriangleIcon className="h-6 w-6 shrink-0 text-rose-500" />
             )}
@@ -253,7 +251,7 @@ export default function ResultQuickCheckPage() {
                       ? 'Card expired'
                       : 'Card status unknown'}
               </p>
-              <p className="mt-1 text-xs text-[var(--rc-muted)]">Verified against the Rillcod Technologies card ledger.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Verified against the Rillcod Technologies card ledger.</p>
             </div>
           </div>
 
@@ -279,8 +277,8 @@ export default function ResultQuickCheckPage() {
                   : '—',
               },
             ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-black/5 bg-white/70 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--rc-muted)]">{item.label}</p>
+              <div key={item.label} className="rounded-2xl border border-border bg-card/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{item.label}</p>
                 <p className="mt-1 text-sm font-semibold">{item.value}</p>
               </div>
             ))}
@@ -292,40 +290,40 @@ export default function ResultQuickCheckPage() {
         <Panel className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--rc-blue)]/10 ring-1 ring-[var(--rc-blue)]/20">
-                <AcademicCapIcon className="h-7 w-7 text-[var(--rc-blue)]" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+                <AcademicCapIcon className="h-7 w-7 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--rc-muted)]">Student</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Student</p>
                 <h1 className="rc-display text-2xl font-bold tracking-tight sm:text-3xl">
                   {data.student.full_name}
                 </h1>
-                <p className="mt-1 truncate text-sm text-[var(--rc-muted)]">
+                <p className="mt-1 truncate text-sm text-muted-foreground">
                   {[data.student.school_name, data.student.class_name].filter(Boolean).join(' · ') || 'Rillcod learner'}
                 </p>
               </div>
             </div>
-            <div className="w-fit rounded-full bg-white/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--rc-muted)] ring-1 ring-black/5">
+            <div className="w-fit rounded-full bg-card/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground ring-1 ring-border">
               {displayCode}
             </div>
           </div>
 
           <div className="flex items-start gap-3 rounded-[1.25rem] border border-emerald-500/25 bg-emerald-500/10 p-4 sm:p-5">
-            <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600" />
+            <CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <div>
               <p className="text-sm font-bold">Verified by Rillcod Technologies</p>
-              <p className="mt-1 text-xs text-[var(--rc-muted)]">This is a genuine Rillcod result access code.</p>
+              <p className="mt-1 text-xs text-muted-foreground">This is a genuine Rillcod result access code.</p>
             </div>
           </div>
 
           {data.consentPending && data.formUrl && (
-            <div className="flex flex-col gap-3 rounded-[1.25rem] border border-black/5 bg-white/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-[var(--rc-muted)]">
+            <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">
                 Your school has an optional form you can complete — not required to view results.
               </p>
               <a
                 href={data.formUrl}
-                className="whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--rc-blue)] hover:underline"
+                className="whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.16em] text-primary hover:underline"
               >
                 Open {data.form?.title || 'school form'} →
               </a>
@@ -341,16 +339,16 @@ export default function ResultQuickCheckPage() {
               onClaimLinked={() => void loadResultCheck()}
             >
               {reports.length === 0 ? (
-                <div className="rounded-[1.25rem] border border-black/5 bg-white/70 p-8 text-center">
-                  <DocumentChartBarIcon className="mx-auto mb-3 h-10 w-10 text-[var(--rc-muted)]" />
+                <div className="rounded-[1.25rem] border border-border bg-card/70 p-8 text-center">
+                  <DocumentChartBarIcon className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
                   <p className="text-sm font-bold uppercase tracking-[0.16em]">No published result yet</p>
-                  <p className="mt-2 text-xs text-[var(--rc-muted)]">The result will appear here once the school publishes it.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">The result will appear here once the school publishes it.</p>
                 </div>
               ) : (
                 <>
-                  <div className="flex flex-col gap-3 rounded-[1.25rem] border border-black/5 bg-white/70 p-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border bg-card/70 p-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--rc-muted)]">Official report card</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Official report card</p>
                       <p className="mt-1 truncate text-sm font-semibold">
                         {selectedReport?.course_name || selectedReport?.label || 'Published Progress Report'}
                       </p>
@@ -360,7 +358,7 @@ export default function ResultQuickCheckPage() {
                         <select
                           value={selectedReport?.id || ''}
                           onChange={(event) => setSelectedReportId(event.target.value)}
-                          className="rounded-xl border border-black/10 bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:border-[var(--rc-blue)]"
+                          className="rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-semibold outline-none focus:border-primary"
                           aria-label="Select report term"
                         >
                           {reports.map((report) => (
@@ -376,7 +374,7 @@ export default function ResultQuickCheckPage() {
                       <button
                         type="button"
                         onClick={printReport}
-                        className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.14em] transition hover:bg-[var(--rc-sky)]"
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold uppercase tracking-[0.14em] transition hover:bg-muted"
                       >
                         <PrinterIcon className="h-4 w-4" />
                         Print
@@ -394,14 +392,14 @@ export default function ResultQuickCheckPage() {
                   </div>
 
                   {downloadError && (
-                    <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-700">
+                    <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-300">
                       {downloadError}
                     </div>
                   )}
 
                   {selectedReport && (
-                    <div className="relative overflow-hidden rounded-[1.25rem] border border-black/5 bg-white p-2 sm:p-5">
-                      <div className="pointer-events-none absolute right-3 top-3 z-20 rounded-full border border-emerald-200 bg-white/95 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-emerald-700 shadow-sm print:hidden sm:right-7 sm:top-7 sm:px-4 sm:py-2 sm:text-[9px]">
+                    <div className="relative overflow-hidden rounded-[1.25rem] border border-border bg-card p-2 sm:p-5">
+                      <div className="pointer-events-none absolute right-3 top-3 z-20 rounded-full border border-emerald-500/30 bg-card/95 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400 shadow-sm print:hidden sm:right-7 sm:top-7 sm:px-4 sm:py-2 sm:text-[9px]">
                         Verified by Rillcod Technologies
                       </div>
                       <div ref={reportRef} className="mx-auto w-full bg-white" style={{ maxWidth: '210mm' }}>
@@ -416,10 +414,10 @@ export default function ResultQuickCheckPage() {
             </ResultGate>
           </div>
 
-          <div className="border-t border-black/5 pt-4">
+          <div className="border-t border-border pt-4">
             <Link
               href="/result-check"
-              className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--rc-muted)] transition hover:text-[var(--rc-ink)]"
+              className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground transition hover:text-foreground"
             >
               Check another result code
             </Link>
