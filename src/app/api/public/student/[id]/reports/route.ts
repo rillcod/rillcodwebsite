@@ -318,7 +318,7 @@ export async function GET(
     report_period: report.report_period,
     report_term: report.report_term,
     course_name: report.course_name,
-    published_at: report.updated_at,
+    published_at: report.published_at || report.updated_at,
   }));
 
   // Backfill parent_student_links from a completed consent lead when staff matched the

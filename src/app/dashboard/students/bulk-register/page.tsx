@@ -1191,8 +1191,9 @@ export default function BulkRegisterPage() {
    * Both fields can be set independently; registry class wins if both are filled
    */
   const selectedRegisteredClass = registryClasses.find((candidate) => candidate.id === selectedRegistryClass);
-  // Grade/code and section are independent: this value is academic grade only.
-  const effectiveClassCode = defaultClass || selectedRegisteredClass?.qa_grade_key || '';
+  // Grade and arm stay independent of the registered section. Grade is optional —
+  // only what the teacher picks in Grade Level (or what paste detection finds).
+  const effectiveClassCode = defaultClass.trim();
   const filteredRegistryClasses = registryClasses.filter(c =>
     (!selectedSchoolId || c.school_id === selectedSchoolId) &&
     (!selectedProgramId || !c.program_id || c.program_id === selectedProgramId)
@@ -1205,7 +1206,7 @@ export default function BulkRegisterPage() {
     }
   }, [selectedSchoolId, filteredRegistryClasses, selectedRegistryClass]);
 
-  const batchPlacementReady = Boolean(selectedSchoolId && selectedRegistryClass && effectiveClassCode);
+  const batchPlacementReady = Boolean(selectedSchoolId && selectedRegistryClass);
 
   const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -1449,7 +1450,7 @@ export default function BulkRegisterPage() {
 
   // ── Build preview ────────────────────────────────────────────────────────
   const handlePreview = useCallback(async () => {
-    if (!batchPlacementReady) { toast.error('Select a school, registered section and grade before reviewing students. Arm is optional.'); setSettingsOpen(true); return; }
+    if (!batchPlacementReady) { toast.error('Select a school and registered section before reviewing students. Grade and arm are optional.'); setSettingsOpen(true); return; }
     // Use only the standard class code (defaultClass) as the fallback arm label.
     // The registry class (Hilltop etc.) is an internal grouping — it must NOT
     // bleed into the printed credentials or the class_name field.
@@ -1466,6 +1467,14 @@ export default function BulkRegisterPage() {
   const handleRegister = async () => {
     const valid = preview.filter((s) => s.full_name.trim() && s.email.trim());
     if (!valid.length) return;
+
+    // Grade is mandatory per student — from the pasted text (header/inline code),
+    // the Class cell, or the batch Grade Level fallback applied at preview time.
+    const noGrade = valid.filter((s) => !(s.class_name ?? '').trim());
+    if (noGrade.length > 0) {
+      toast.error(`${noGrade.length} student${noGrade.length !== 1 ? 's have' : ' has'} no grade. Fill the Class cell or set a batch Grade Level.`);
+      return;
+    }
 
     // ── Pre-check for duplicate emails within the batch ───────────────────
     const batchEmails = valid.map(s => s.email.toLowerCase());
@@ -1603,6 +1612,9 @@ export default function BulkRegisterPage() {
   ));
   const incompleteRows = preview.filter((r) => !r.full_name.trim() || !r.email.trim());
   const validCount = preview.length - incompleteRows.length;
+  // Grade is mandatory per student — either detected from the pasted text
+  // (header/inline codes) or supplied by the batch Grade Level selector.
+  const missingGradeRows = preview.filter((r) => r.full_name.trim() && r.email.trim() && !(r.class_name ?? '').trim());
   const previewClasses = [...new Set(preview.map((s) => s.class_name).filter(Boolean))];
 
   const successCount = results?.filter((r) => r.status === 'created' || r.status === 'updated').length ?? 0;
@@ -1845,17 +1857,17 @@ export default function BulkRegisterPage() {
                         <div>
                           <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
                             <AcademicCapIcon className="w-3.5 h-3.5" />
-                            Grade Level <span className="text-rose-400/80 normal-case font-normal ml-1">(required)</span>
+                            Grade Level <span className="text-muted-foreground/70 normal-case font-normal ml-1">(optional if grades are in the text)</span>
                           </label>
                           <p className="text-white/25 text-[11px] mb-2">
-                            Select the arm (e.g. JSS2A, SS1B) — applies to any student whose name doesn&apos;t include a class code.
+                            Academic grade only (e.g. JSS 2, Basic 4) — separate from arm. Fallback for any student whose pasted name has no grade code; every student must end up with a grade.
                           </p>
                           <select
                             value={defaultClass}
                             onChange={(e) => setDefaultClass(e.target.value)}
                             className="w-full px-3 py-2.5 bg-card shadow-sm border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors"
                           >
-                            <option value="">— No default code —</option>
+                            <option value="">— No grade —</option>
                             <optgroup label="Primary School">
                               {classOptions.filter((c) => (c.id.startsWith('std-kg') || c.id.startsWith('std-b')) && !/\\d[A-D]$/.test(c.section_class || '')).map((c) => (
                                 <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
@@ -1879,13 +1891,12 @@ export default function BulkRegisterPage() {
                               {['A', 'B', 'C', 'D'].map((arm) => <option key={arm} value={arm}>Arm {arm}</option>)}
                             </select>
                             <p className="mt-1 text-[11px] text-muted-foreground">Stored independently. Example display: {effectiveClassCode || 'JSS 2'}{selectedArm || ''}.</p>
-                          </div>                          {defaultClass && !selectedRegistryClass && (
+                          </div>
+                          {defaultClass && (
                             <p className="text-emerald-400/60 text-[11px] mt-1.5">
-                              Official grade: <span className="font-mono font-bold">{defaultClass}</span>.
+                              Batch grade: <span className="font-mono font-bold">{defaultClass}</span>
+                              {selectedArm ? <> · Arm <span className="font-mono font-bold">{selectedArm}</span></> : null}.
                             </p>
-                          )}
-                          {selectedRegistryClass && defaultClass && (
-                            <p className="text-white/25 text-[11px] mt-1.5 italic">Registry class takes priority — this code is a secondary fallback.</p>
                           )}
                         </div>
 
@@ -1968,7 +1979,7 @@ Yusuf Ibrahim SS1A`}
                       <li>Inline: <span className="font-mono bg-primary/20 px-1 rounded">John Doe SS2B</span></li>
                       <li>Supported: <span className="font-mono bg-primary/20 px-1 rounded">JSS1–3 · SS1–3 · SSS1–3 · BASIC 1–6</span></li>
                       <li>Grade-arm codes normalize to grade: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A · SS1C</span></li>
-                      <li>Fallback: use the <em>Grade Level</em> setting above. Official section always comes from the registered section selector</li>
+                      <li>Every student must end up with a grade — from the text above, or the <em>Grade Level</em> fallback. Arm stays separate. Official section always comes from the registered section selector</li>
                     </ul>
                   </div>
                 </div>
@@ -1988,7 +1999,7 @@ Yusuf Ibrahim SS1A`}
               <div className="space-y-5">
 
                 {/* Batch settings summary */}
-                {(selectedSchoolId || selectedProgramId || defaultClass) && (
+                {(selectedSchoolId || selectedProgramId || effectiveClassCode || selectedArm) && (
                   <div className="flex flex-wrap gap-2 text-xs">
                     {selectedSchoolId && (
                       <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-primary">
@@ -2005,7 +2016,12 @@ Yusuf Ibrahim SS1A`}
                     {effectiveClassCode && (
                       <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-foreground font-mono">
                         <AcademicCapIcon className="w-3.5 h-3.5" />
-                        Class: {effectiveClassCode}
+                        Grade: {effectiveClassCode}
+                      </span>
+                    )}
+                    {selectedArm && (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-300 font-mono">
+                        Arm: {selectedArm}
                       </span>
                     )}
                   </div>
@@ -2093,6 +2109,15 @@ Yusuf Ibrahim SS1A`}
                       <span className="text-yellow-400">{incompleteRows.length} row{incompleteRows.length !== 1 ? 's' : ''} incomplete (will be skipped)</span>
                     </div>
                   )}
+                  {missingGradeRows.length > 0 && (
+                    <div className="flex flex-col gap-1 px-4 py-3 bg-rose-500/10 rounded-xl border border-rose-500/30 text-xs w-full">
+                      <div className="flex items-center gap-2">
+                        <ExclamationTriangleIcon className="w-4 h-4 text-rose-400" />
+                        <span className="text-rose-400 font-bold">{missingGradeRows.length} student{missingGradeRows.length !== 1 ? 's have' : ' has'} no grade</span>
+                      </div>
+                      <span className="pl-6 text-rose-300/80">Every student needs a grade. Type it in the Class cell (e.g. JSS2A), add a grade header in the pasted text, or go back and pick a Grade Level for the batch.</span>
+                    </div>
+                  )}
                 </div>
  
                 {/* Editable table */}
@@ -2164,7 +2189,7 @@ Yusuf Ibrahim SS1A`}
                               {/* Class */}
                               <td className="px-2 py-1.5 align-middle">
                                 <input
-                                  className={`${inp} font-mono`}
+                                  className={`${inp} font-mono ${!incomplete && !(s.class_name ?? '').trim() ? 'border-rose-500/60 bg-rose-500/5' : ''}`}
                                   value={s.class_name ?? ''}
                                   onChange={(e) => updateField(s.id, 'class_name', e.target.value)}
                                   onBlur={(e) => onClassBlur(s.id, e.target.value)}
@@ -2246,7 +2271,7 @@ Yusuf Ibrahim SS1A`}
                                 </div>
                               )}
                               <div className="flex gap-2">
-                                <input className={`${inp} font-mono w-24`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
+                                <input className={`${inp} font-mono w-24 ${!incomplete && !(s.class_name ?? '').trim() ? 'border-rose-500/60 bg-rose-500/5' : ''}`} value={s.class_name ?? ''} onChange={(e) => updateField(s.id, 'class_name', e.target.value)} onBlur={(e) => onClassBlur(s.id, e.target.value)} placeholder="Class" />
                                 <select className={`${inp} w-28`} value={s.gender ?? ''} onChange={(e) => updateField(s.id, 'gender', e.target.value)}>
                                   <option value="">Gender</option>
                                   <option value="male">Male</option>
@@ -2293,7 +2318,7 @@ Yusuf Ibrahim SS1A`}
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={handleRegister}
-                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || unresolvedNameExceptions.length > 0 || checkingDups || validCount === 0}
+                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || unresolvedNameExceptions.length > 0 || missingGradeRows.length > 0 || checkingDups || validCount === 0}
                       className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                     >
                       {registering
@@ -2306,7 +2331,9 @@ Yusuf Ibrahim SS1A`}
                               ? 'Fix email conflicts first'
                               : unresolvedNameExceptions.length > 0
                                 ? 'Confirm each twin and enter a reason'
-                                : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                                : missingGradeRows.length > 0
+                                  ? 'Set a grade for every student first'
+                                  : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
                     </button>
                     {registering && registerProgress && (
                       <div className="space-y-1">

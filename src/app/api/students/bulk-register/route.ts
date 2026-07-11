@@ -211,12 +211,19 @@ export async function POST(request: Request) {
     const autoClassCache = new Map<string, ResolvedClass>();
     const resolveClassForStudent = async (gradeOrClass: string | null | undefined): Promise<ResolvedClass> => {
       if (batchClassId) {
-        return { id: batchClassId, name: batchClass.name, teacherId: batchClassTeacherId, grade: canonicalGrade(gradeOrClass) || canonicalGrade(batchGradeName) || canonicalGrade(batchClass.qa_grade_key) || null };
+        // Grade is optional and independent of the registered section. Only use an
+        // explicit per-student or batch grade — never invent one from the class key.
+        return {
+          id: batchClassId,
+          name: batchClass.name,
+          teacherId: batchClassTeacherId,
+          grade: canonicalGrade(gradeOrClass) || canonicalGrade(batchGradeName) || null,
+        };
       }
 
       const placementLabel = (gradeOrClass || batchClassName || '').trim();
       if (!programName || !placementLabel || !resolvedSchoolName) {
-        return { id: null, name: null, teacherId: null, grade: canonicalGrade(placementLabel) || null };
+        return { id: null, name: null, teacherId: null, grade: canonicalGrade(placementLabel) || canonicalGrade(batchGradeName) || null };
       }
 
       const band = gradeBand(placementLabel);
@@ -250,7 +257,7 @@ export async function POST(request: Request) {
         className = (cls as any)?.name ?? standardName;
       }
 
-      const resolved = { id: classId, name: className, teacherId, grade: canonicalGrade(placementLabel) || null };
+      const resolved = { id: classId, name: className, teacherId, grade: canonicalGrade(placementLabel) || canonicalGrade(batchGradeName) || null };
       autoClassCache.set(cacheKey, resolved);
       return resolved;
     };
@@ -321,6 +328,17 @@ export async function POST(request: Request) {
 
       if (!full_name?.trim() || !email?.trim() || !password) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: 'Missing fields' });
+        continue;
+      }
+
+      // Grade is mandatory: each row must carry its own grade code, or the batch
+      // must supply one (grade_name from the Grade Level selector). Kept separate
+      // from the registered section and from the arm. batchClassName only counts
+      // on the legacy no-class_id path, where it actually feeds grade resolution —
+      // when a registered class is selected its name never contributes to grade.
+      const hasGradeSource = !!(class_name?.trim() || batchGradeName?.trim() || (!batchClassId && batchClassName?.trim()));
+      if (!hasGradeSource) {
+        results.push({ full_name, email, password, class_name, status: 'failed', error: 'No grade provided for this student. Include a grade code (e.g. JSS2A) or set a batch Grade Level.' });
         continue;
       }
 
@@ -419,12 +437,10 @@ export async function POST(request: Request) {
             signupErr.message.toLowerCase().includes('exists')
           ) {
             // User exists — resolve by portal profile first, then page through auth users.
+            // The password reset is DEFERRED until after the ghost-row guard so a row
+            // skipped for a protected-account conflict never touches live credentials.
             authUserId = (userWithEmail as any)?.id ?? await findAuthUserIdByEmail(email);
             if (authUserId) {
-              await supabaseAdmin.auth.admin.updateUserById(authUserId, {
-                password,
-                user_metadata: { must_change_password: true },
-              });
               status = 'updated';
             } else {
               results.push({
@@ -467,15 +483,22 @@ export async function POST(request: Request) {
           .ilike('email', email.trim())
           .eq('is_deleted', false)
           .neq('id', authUserId);
-        for (const ghost of (ghostRows ?? [])) {
-          // Don't silently nuke a protected student — flag instead
-          if (ghost.primary_teacher_id) {
-            results.push({
-              full_name, email, password, class_name, status: 'skipped',
-              error: `Duplicate account conflict: existing protected account (${ghost.id}) for this email. Resolve in Class Health & Repair first.`,
+        // Don't silently nuke a protected student — flag and skip this row entirely.
+        const protectedGhost = (ghostRows ?? []).find((g) => g.primary_teacher_id);
+        if (protectedGhost) {
+          // Roll back the auth user we just created so it doesn't become an orphan.
+          if (status === 'created') {
+            await supabaseAdmin.auth.admin.deleteUser(authUserId).catch((deleteErr) => {
+              console.error('[BulkRegister] Failed to rollback auth user after protected-ghost conflict:', deleteErr);
             });
-            continue;
           }
+          results.push({
+            full_name, email, password, class_name, status: 'skipped',
+            error: `Duplicate account conflict: existing protected account (${protectedGhost.id}) for this email. Resolve in Class Health & Repair first.`,
+          });
+          continue;
+        }
+        for (const ghost of (ghostRows ?? [])) {
           await supabaseAdmin.from('portal_users')
             .update({ is_deleted: true, is_active: false, class_id: null })
             .eq('id', ghost.id);
@@ -484,6 +507,23 @@ export async function POST(request: Request) {
           await supabaseAdmin.from('students')
             .update({ status: 'inactive', is_deleted: true, is_active: false })
             .eq('user_id', ghost.id);
+        }
+
+        // Existing auth user, past every skip/conflict gate — NOW reset the password to
+        // the freshly printed credential and force a change on next login. Failing here
+        // fails the row before any profile mutation, so credentials never print wrong.
+        if (status === 'updated') {
+          const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+            password,
+            user_metadata: { must_change_password: true },
+          });
+          if (pwErr) {
+            results.push({
+              full_name, email, password, class_name, status: 'failed',
+              error: `Password reset failed for existing account: ${pwErr.message}`,
+            });
+            continue;
+          }
         }
 
         // Upsert into portal_users — never include primary_teacher_id here so that

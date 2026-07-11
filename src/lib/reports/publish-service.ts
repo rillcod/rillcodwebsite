@@ -18,7 +18,8 @@ export async function publishProgressReport(admin: any, reportId: string, change
   const { data, error } = await admin.from('student_progress_reports').update({
     ...changes,
     is_published: true,
-    published_at: now,
+    // Keep the original publish timestamp on re-publish of an already-live report.
+    published_at: current.published_at || now,
     verification_code: verificationCode,
     updated_at: now,
   }).eq('id', reportId).select('*').single();

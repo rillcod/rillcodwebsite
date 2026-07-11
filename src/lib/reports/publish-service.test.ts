@@ -12,5 +12,5 @@ function mockAdmin(report: any) {
 
 describe('publishProgressReport', () => {
   it('rejects an incomplete report without writing', async () => { const mock = mockAdmin({ ...complete, key_strengths: '' }); const result = await publishProgressReport(mock.admin, 'r1'); expect(result.ok).toBe(false); expect(mock.writes).toHaveLength(0); });
-  it('publishes a valid report through one guarded update', async () => { const mock = mockAdmin(complete); const result = await publishProgressReport(mock.admin, 'r1'); expect(result.ok).toBe(true); expect(mock.writes).toHaveLength(1); expect(mock.writes[0]).toMatchObject({ is_published: true, verification_code: 'RPT-EXISTING' }); });
+  it('publishes a valid report through one guarded update', async () => { const mock = mockAdmin(complete); const result = await publishProgressReport(mock.admin, 'r1'); expect(result.ok).toBe(true); expect(mock.writes).toHaveLength(1); expect(mock.writes[0]).toMatchObject({ is_published: true, verification_code: 'RPT-EXISTING' }); expect(mock.writes[0].published_at).toEqual(expect.any(String)); });
 });

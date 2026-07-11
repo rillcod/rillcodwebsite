@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       academic_terms: {
@@ -1738,10 +1763,10 @@ export type Database = {
           qa_spine_lane: number | null
           qa_track_hint: string | null
           schedule: string | null
-          school_id: string | null
+          school_id: string
           start_date: string | null
           status: string | null
-          teacher_id: string | null
+          teacher_id: string
           term_id: string | null
           tier: string | null
           updated_at: string | null
@@ -1765,10 +1790,10 @@ export type Database = {
           qa_spine_lane?: number | null
           qa_track_hint?: string | null
           schedule?: string | null
-          school_id?: string | null
+          school_id: string
           start_date?: string | null
           status?: string | null
-          teacher_id?: string | null
+          teacher_id: string
           term_id?: string | null
           tier?: string | null
           updated_at?: string | null
@@ -1792,10 +1817,10 @@ export type Database = {
           qa_spine_lane?: number | null
           qa_track_hint?: string | null
           schedule?: string | null
-          school_id?: string | null
+          school_id?: string
           start_date?: string | null
           status?: string | null
-          teacher_id?: string | null
+          teacher_id?: string
           term_id?: string | null
           tier?: string | null
           updated_at?: string | null
@@ -7162,6 +7187,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          class_arm: string | null
           class_id: string | null
           created_at: string | null
           created_by: string | null
@@ -7201,6 +7227,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          class_arm?: string | null
           class_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -7240,6 +7267,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          class_arm?: string | null
           class_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -7294,6 +7322,20 @@ export type Database = {
           {
             foreignKeyName: "portal_users_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "portal_users_duplicate_name_exception_approved_by_fkey"
+            columns: ["duplicate_name_exception_approved_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portal_users_duplicate_name_exception_approved_by_fkey"
+            columns: ["duplicate_name_exception_approved_by"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
@@ -7908,6 +7950,7 @@ export type Database = {
       }
       registration_batches: {
         Row: {
+          class_arm: string | null
           class_id: string | null
           class_name: string | null
           created_at: string | null
@@ -7919,6 +7962,7 @@ export type Database = {
           student_count: number | null
         }
         Insert: {
+          class_arm?: string | null
           class_id?: string | null
           class_name?: string | null
           created_at?: string | null
@@ -7930,6 +7974,7 @@ export type Database = {
           student_count?: number | null
         }
         Update: {
+          class_arm?: string | null
           class_id?: string | null
           class_name?: string | null
           created_at?: string | null
@@ -7945,6 +7990,7 @@ export type Database = {
       registration_results: {
         Row: {
           batch_id: string
+          class_arm: string | null
           class_name: string | null
           created_at: string | null
           email: string
@@ -7956,6 +8002,7 @@ export type Database = {
         }
         Insert: {
           batch_id: string
+          class_arm?: string | null
           class_name?: string | null
           created_at?: string | null
           email: string
@@ -7967,6 +8014,7 @@ export type Database = {
         }
         Update: {
           batch_id?: string
+          class_arm?: string | null
           class_name?: string | null
           created_at?: string | null
           email?: string
@@ -9024,6 +9072,7 @@ export type Database = {
           practical_score: number | null
           proficiency_level: string | null
           projects_grade: string | null
+          published_at: string | null
           report_date: string | null
           report_period: string | null
           report_term: string | null
@@ -9074,6 +9123,7 @@ export type Database = {
           practical_score?: number | null
           proficiency_level?: string | null
           projects_grade?: string | null
+          published_at?: string | null
           report_date?: string | null
           report_period?: string | null
           report_term?: string | null
@@ -9124,6 +9174,7 @@ export type Database = {
           practical_score?: number | null
           proficiency_level?: string | null
           projects_grade?: string | null
+          published_at?: string | null
           report_date?: string | null
           report_period?: string | null
           report_term?: string | null
@@ -9340,6 +9391,135 @@ export type Database = {
           },
         ]
       }
+      student_transfer_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          from_class_id: string
+          from_teacher_id: string
+          id: string
+          reason: string
+          requested_by: string
+          school_id: string
+          status: string
+          student_id: string
+          to_class_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          from_class_id: string
+          from_teacher_id: string
+          id?: string
+          reason: string
+          requested_by: string
+          school_id: string
+          status?: string
+          student_id: string
+          to_class_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          from_class_id?: string
+          from_teacher_id?: string
+          id?: string
+          reason?: string
+          requested_by?: string
+          school_id?: string
+          status?: string
+          student_id?: string
+          to_class_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_transfer_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_from_class_id_fkey"
+            columns: ["from_class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_from_teacher_id_fkey"
+            columns: ["from_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_from_teacher_id_fkey"
+            columns: ["from_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "student_transfer_requests_to_class_id_fkey"
+            columns: ["to_class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_xp_ledger: {
         Row: {
           created_at: string
@@ -9451,6 +9631,7 @@ export type Database = {
           approved_by: string | null
           avatar_url: string | null
           city: string | null
+          class_arm: string | null
           country: string | null
           course_interest: string | null
           created_at: string | null
@@ -9500,6 +9681,7 @@ export type Database = {
           approved_by?: string | null
           avatar_url?: string | null
           city?: string | null
+          class_arm?: string | null
           country?: string | null
           course_interest?: string | null
           created_at?: string | null
@@ -9549,6 +9731,7 @@ export type Database = {
           approved_by?: string | null
           avatar_url?: string | null
           city?: string | null
+          class_arm?: string | null
           country?: string | null
           course_interest?: string | null
           created_at?: string | null
@@ -10787,6 +10970,7 @@ export type Database = {
       }
       whatsapp_groups: {
         Row: {
+          class_id: string | null
           class_name: string | null
           created_at: string
           created_by: string | null
@@ -10797,12 +10981,14 @@ export type Database = {
           link: string
           member_count: number | null
           name: string
+          owner_teacher_id: string | null
           school_id: string | null
           school_name: string | null
           status: string
           term: string | null
         }
         Insert: {
+          class_id?: string | null
           class_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -10813,12 +10999,14 @@ export type Database = {
           link: string
           member_count?: number | null
           name: string
+          owner_teacher_id?: string | null
           school_id?: string | null
           school_name?: string | null
           status?: string
           term?: string | null
         }
         Update: {
+          class_id?: string | null
           class_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -10829,12 +11017,20 @@ export type Database = {
           link?: string
           member_count?: number | null
           name?: string
+          owner_teacher_id?: string | null
           school_id?: string | null
           school_name?: string | null
           status?: string
           term?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_groups_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_groups_created_by_fkey"
             columns: ["created_by"]
@@ -10845,6 +11041,20 @@ export type Database = {
           {
             foreignKeyName: "whatsapp_groups_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_groups_owner_teacher_id_fkey"
+            columns: ["owner_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_groups_owner_teacher_id_fkey"
+            columns: ["owner_teacher_id"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
@@ -10901,6 +11111,124 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_outbox: {
+        Row: {
+          attempts: number
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          idempotency_key: string | null
+          last_error: string | null
+          max_attempts: number
+          message_body: string
+          meta_message_id: string | null
+          next_attempt_at: string
+          phone: string
+          recipient_user_id: string | null
+          school_id: string | null
+          sent_at: string | null
+          source_id: string | null
+          source_type: string | null
+          status: string
+          template_language: string
+          template_name: string | null
+          template_variables: Json
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          idempotency_key?: string | null
+          last_error?: string | null
+          max_attempts?: number
+          message_body: string
+          meta_message_id?: string | null
+          next_attempt_at?: string
+          phone: string
+          recipient_user_id?: string | null
+          school_id?: string | null
+          sent_at?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          template_language?: string
+          template_name?: string | null
+          template_variables?: Json
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          idempotency_key?: string | null
+          last_error?: string | null
+          max_attempts?: number
+          message_body?: string
+          meta_message_id?: string | null
+          next_attempt_at?: string
+          phone?: string
+          recipient_user_id?: string | null
+          school_id?: string | null
+          sent_at?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          template_language?: string
+          template_name?: string | null
+          template_variables?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_outbox_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_outbox_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_outbox_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_outbox_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_outbox_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_outbox_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -10992,6 +11320,39 @@ export type Database = {
         Returns: boolean
       }
       check_timetable_conflicts: { Args: { p_slot: Json }; Returns: Json }
+      claim_whatsapp_outbox: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          idempotency_key: string | null
+          last_error: string | null
+          max_attempts: number
+          message_body: string
+          meta_message_id: string | null
+          next_attempt_at: string
+          phone: string
+          recipient_user_id: string | null
+          school_id: string | null
+          sent_at: string | null
+          source_id: string | null
+          source_type: string | null
+          status: string
+          template_language: string
+          template_name: string | null
+          template_variables: Json
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       class_qa_path_offset: {
         Args: { p_class_id: string; p_school_id: string }
         Returns: number
@@ -11010,6 +11371,36 @@ export type Database = {
       current_academic_term: { Args: never; Returns: string }
       current_user_email: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
+      decide_student_transfer_request: {
+        Args: {
+          p_actor_id: string
+          p_approve: boolean
+          p_note?: string
+          p_request_id: string
+        }
+        Returns: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          from_class_id: string
+          from_teacher_id: string
+          id: string
+          reason: string
+          requested_by: string
+          school_id: string
+          status: string
+          student_id: string
+          to_class_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "student_transfer_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_at_risk_students:
         | {
             Args: { p_days_inactive?: number; p_school_id?: string }
@@ -11086,6 +11477,7 @@ export type Database = {
         Returns: string[]
       }
       hard_delete_portal_user: { Args: { p_id: string }; Returns: Json }
+      hard_delete_school: { Args: { p_school: string }; Returns: Json }
       increment_download_count: {
         Args: { file_id: string }
         Returns: undefined
@@ -11109,6 +11501,10 @@ export type Database = {
       refresh_dashboard_stats: { Args: never; Returns: undefined }
       resolve_academic_term: {
         Args: { p_term: string; p_year: string }
+        Returns: string
+      }
+      student_duplicate_name_key: {
+        Args: { raw_name: string }
         Returns: string
       }
       term_id_for_date: { Args: { p_date: string }; Returns: string }
@@ -11244,6 +11640,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

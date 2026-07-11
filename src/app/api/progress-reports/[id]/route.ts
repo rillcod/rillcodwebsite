@@ -131,6 +131,8 @@ export async function PATCH(
   ];
   fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
   allowed.updated_at = new Date().toISOString();
+  // Unpublishing clears the stamp so the next publish records a fresh published_at.
+  if (allowed.is_published === false) allowed.published_at = null;
 
   const admin = adminClient();
   let data: any;
