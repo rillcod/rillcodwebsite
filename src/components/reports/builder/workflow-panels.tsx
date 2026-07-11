@@ -15,7 +15,7 @@ export const NarrativeEditorPanel = BuilderSection;
 export const ReportPreviewPanel = BuilderSection;
 
 export function EvidenceStatusBanner({ loading, assignments, sessions }: { loading: boolean; assignments: number; sessions: number }) {
-  if (loading) return <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-primary">Loading assessment evidence… Publishing remains locked until evidence is ready.</div>;
+  if (loading) return <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm text-primary">Loading assessment evidenceÂ… Publishing remains locked until evidence is ready.</div>;
   const missing: string[] = [];
   if (assignments === 0) missing.push('assignments');
   if (sessions === 0) missing.push('attendance sessions');

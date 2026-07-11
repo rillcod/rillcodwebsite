@@ -2601,7 +2601,7 @@ export default function ClassDetailPage() {
               <div><h3 className="font-black text-foreground">Request all available transfers</h3><p className="mt-1 text-xs text-muted-foreground">One reason will be sent for every student owned by another teacher. Existing pending requests are skipped.</p></div>
             </div>
             <div className="mt-4 max-h-32 overflow-y-auto rounded-xl border border-border bg-background p-3 text-xs text-muted-foreground">
-              {availableStudents.filter((student: any) => student.requires_transfer_request && !student.pending_transfer_request_id).map((student: any) => <p key={student.id} className="py-0.5"><span className="font-bold text-foreground">{student.full_name}</span> · {student.current_teacher_name || 'Current teacher'}</p>)}
+              {availableStudents.filter((student: any) => student.requires_transfer_request && !student.pending_transfer_request_id).map((student: any) => <p key={student.id} className="py-0.5"><span className="font-bold text-foreground">{student.full_name}</span> Â· {student.current_teacher_name || 'Current teacher'}</p>)}
             </div>
             <label className="mt-4 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reason for all requests</label>
             <textarea autoFocus rows={4} value={transferReason} onChange={(event) => setTransferReason(event.target.value)} placeholder="Explain why these students should move (at least 10 characters)." className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-amber-500/50" />
