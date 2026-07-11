@@ -192,11 +192,13 @@ const SUB_STATUS: Record<SubStatus, { label: string; cls: string }> = {
 };
 
 const INV_STATUS: Record<InvoiceStatus, { label: string; cls: string }> = {
-  draft:     { label: 'Draft',     cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
-  sent:      { label: 'Sent',      cls: 'bg-primary/20 text-primary border-primary/30' },
-  paid:      { label: 'Paid',      cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  overdue:   { label: 'Overdue',   cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
-  cancelled: { label: 'Cancelled', cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
+  draft:          { label: 'Draft',          cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
+  sent:           { label: 'Sent',           cls: 'bg-primary/20 text-primary border-primary/30' },
+  partially_paid: { label: 'Partially paid', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  paid:           { label: 'Paid',           cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  overdue:        { label: 'Overdue',        cls: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
+  void:           { label: 'Void',           cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
+  cancelled:      { label: 'Cancelled',      cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
 };
 
 const TX_STATUS: Record<string, { label: string; cls: string }> = {
