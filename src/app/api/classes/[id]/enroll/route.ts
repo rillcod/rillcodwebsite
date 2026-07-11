@@ -340,7 +340,19 @@ export async function POST(
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  await admin.from('students').update({ class_id: classId }).eq('user_id', studentId);
+  const { data: canonicalStudent } = await admin.from('portal_users')
+    .select('school_id, school_name, section_class, grade')
+    .eq('id', studentId)
+    .single();
+  const { error: registrySyncError } = await admin.from('students').update({
+    school_id: canonicalStudent?.school_id ?? cls.school_id,
+    school_name: canonicalStudent?.school_name ?? null,
+    section: canonicalStudent?.section_class ?? cls.name,
+    current_class: canonicalStudent?.section_class ?? cls.name,
+    grade: canonicalStudent?.grade ?? null,
+    grade_level: canonicalStudent?.grade ?? null,
+  }).eq('user_id', studentId);
+  if (registrySyncError) return NextResponse.json({ error: `Student moved, but registry sync failed: ${registrySyncError.message}` }, { status: 500 });
 
   await upsertClassTermRoster(admin, cls, [studentId], 'active', caller.id);
 

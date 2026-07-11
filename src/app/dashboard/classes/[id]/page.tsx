@@ -45,6 +45,8 @@ export default function ClassDetailPage() {
   const [cls, setCls] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [destinationClasses, setDestinationClasses] = useState<any[]>([]);
+  const [movingStudent, setMovingStudent] = useState<string | null>(null);
   const [formerEnrollments, setFormerEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +156,8 @@ export default function ClassDetailPage() {
       if (!clsData) throw new Error(String(clsJson.error || 'Class not found'));
       setCls(clsData);
       setSessions(sessRes.data ?? []);
+      const destinationJson = await fetchJsonWithTimeout(`/api/classes?mine=true${clsData.school_id ? `&school_id=${clsData.school_id}` : ''}`, { data: [] }, 'destination classes');
+      setDestinationClasses((destinationJson.data ?? []).filter((candidate: any) => candidate.id !== id && candidate.status !== 'archived'));
 
       const program_id = clsData.program_id;
       const studentsRes = await fetchJsonWithTimeout(
@@ -508,6 +512,22 @@ export default function ClassDetailPage() {
     }
   };
 
+  const moveStudentToClass = async (student: any, destinationClassId: string) => {
+    if (!destinationClassId || destinationClassId === id) return;
+    const destination = destinationClasses.find((candidate: any) => candidate.id === destinationClassId);
+    if (!destination) return;
+    const term = destination.academic_terms ? `${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : 'its assigned term';
+    if (!window.confirm(`Move ${student.full_name} to ${destination.name} (${term})? This updates the official grade, section and term roster.`)) return;
+    setMovingStudent(student.id);
+    try {
+      const res = await fetch(`/api/classes/${destinationClassId}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId: student.id }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to move student');
+      await fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to move student. If another teacher owns the destination, use Transfer for approval.');
+    } finally { setMovingStudent(null); }
+  };
   const removeStudent = async (studentId: string) => {
     if (!confirm('Remove student from this class?')) return;
     setProcessingStudent(studentId);
@@ -1267,13 +1287,11 @@ export default function ClassDetailPage() {
                                 >
                                   <PencilSquareIconOutline className="h-3.5 w-3.5" />
                                 </button>
-                                <Link
-                                  href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`}
-                                  title="Transfer / move this student"
-                                  className="rounded-lg border border-border bg-background px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-foreground hover:border-primary/50 transition-colors"
-                                >
-                                  Move
-                                </Link>
+                                <select aria-label={`Change grade or section for ${student.full_name}`} value="" disabled={movingStudent === student.id} onChange={(event) => void moveStudentToClass(student, event.target.value)} className="max-w-[12rem] rounded-lg border border-border bg-background px-2 py-1.5 text-[10px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:max-w-[15rem]">
+                                  <option value="">{movingStudent === student.id ? 'Moving…' : 'Change grade / section'}</option>
+                                  {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.qa_grade_key || 'Grade'} · {destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
+                                </select>
+                                <Link href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`} title="Request a move to a class owned by another teacher" className="rounded-lg border border-border bg-background px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-foreground hover:border-primary/50 transition-colors">Transfer</Link>
                                 <button
                                   onClick={() => removeStudent(student.id)}
                                   disabled={processingStudent === student.id}
