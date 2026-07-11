@@ -209,14 +209,14 @@ export async function POST(request: Request) {
   if (!['school', 'individual'].includes(owner_type)) {
     return NextResponse.json({ error: 'owner_type must be school or individual' }, { status: 400 });
   }
-  if (!term_label || !term_start_date || !due_date || !Number.isFinite(amount_due)) {
+  if (!term_label || !term_start_date || !due_date || !Number.isFinite(amount_due) || amount_due <= 0) {
     return NextResponse.json({ error: 'term_label, term_start_date, due_date, amount_due are required' }, { status: 400 });
   }
   if (!['NGN', 'USD'].includes(currency)) {
     return NextResponse.json({ error: 'currency must be NGN or USD' }, { status: 400 });
   }
-  if (!['due', 'past_due', 'paid', 'cancelled', 'rolled_over'].includes(status)) {
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+  if (!['due', 'past_due'].includes(status)) {
+    return NextResponse.json({ error: 'New billing cycles must start as due or past_due' }, { status: 400 });
   }
 
   const owner_school_id = owner_type === 'school' ? String(body.owner_school_id || '').trim() : null;
@@ -229,6 +229,13 @@ export async function POST(request: Request) {
   }
 
   const db = createAdminClient();
+  if (owner_type === 'school') {
+    const { data: owner } = await db.from('schools').select('id').eq('id', owner_school_id).maybeSingle();
+    if (!owner) return NextResponse.json({ error: 'Owner school not found' }, { status: 404 });
+  } else {
+    const { data: owner } = await db.from('portal_users').select('id').eq('id', owner_user_id).maybeSingle();
+    if (!owner) return NextResponse.json({ error: 'Owner user not found' }, { status: 404 });
+  }
   const now = new Date().toISOString();
   const insertPayload = {
     owner_type,
@@ -269,16 +276,22 @@ export async function POST(request: Request) {
     .select('id, invoice_number, status')
     .single();
   if (invoiceErr) {
+    await db.from('billing_cycles').delete().eq('id', data.id);
     return NextResponse.json(
-      { error: `Billing cycle created but invoice generation failed: ${invoiceErr.message}`, data },
+      { error: 'Invoice generation failed; billing cycle was rolled back: ' + invoiceErr.message },
       { status: 500 },
     );
   }
 
-  await db
+  const { error: linkError } = await db
     .from('billing_cycles')
     .update({ invoice_id: invoice.id, updated_at: new Date().toISOString() })
     .eq('id', data.id);
+  if (linkError) {
+    await db.from('invoices').delete().eq('id', invoice.id);
+    await db.from('billing_cycles').delete().eq('id', data.id);
+    return NextResponse.json({ error: 'Billing cycle invoice link failed; creation was rolled back: ' + linkError.message }, { status: 500 });
+  }
 
   return NextResponse.json({ data: { ...data, invoice_id: invoice.id }, invoice }, { status: 201 });
 }
