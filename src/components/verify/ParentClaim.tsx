@@ -216,18 +216,27 @@ export default function ParentClaim({
 
   if (step === 'cta') {
     return (
-      <div className={box}>
-        <div className="space-y-1">
-          <p className="text-sm font-black text-foreground">Are you the parent / guardian?</p>
-          <p className="text-xs text-muted-foreground">
+      <div className="space-y-5 rounded-[1.5rem] border border-white/70 bg-white/80 p-5 shadow-[0_16px_40px_-24px_rgba(12,26,51,0.35)] backdrop-blur-sm sm:p-7">
+        <div className="space-y-2 text-center sm:text-left">
+          <p className="rc-display text-xl font-bold tracking-tight text-[var(--rc-ink)] sm:text-2xl">
+            Are you the parent / guardian?
+          </p>
+          <p className="text-sm leading-relaxed text-[var(--rc-muted)]">
             {SKIP_OTP
-              ? 'Enter your details once to unlock the full result — we’ll create & link your parent account automatically.'
-              : 'Confirm it’s you with a quick code to unlock the full result — your parent account is then created & linked automatically.'}
+              ? 'Enter your details once to unlock the full result — we’ll create and link your parent account automatically.'
+              : 'Confirm it’s you with a quick code to unlock the full result — your parent account is then created and linked automatically.'}
           </p>
         </div>
-        <button onClick={() => setStep('form')} className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all">
+        <button
+          type="button"
+          onClick={() => setStep('form')}
+          className="rc-cta rc-cta-pulse flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-sm font-bold tracking-wide sm:text-base"
+        >
           Link this child to my account
         </button>
+        <p className="text-center text-[11px] text-[var(--rc-muted)]">
+          Takes under a minute · Secure parent verification
+        </p>
       </div>
     );
   }
@@ -245,7 +254,7 @@ export default function ParentClaim({
         <div className="flex gap-2">
           <button onClick={() => setStep('form')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
           <button onClick={verify} disabled={loading || otp.length !== 6}
-            className="flex-1 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50">
+            className="rc-cta flex-1 rounded-xl px-6 py-3 text-sm font-bold tracking-wide disabled:opacity-50">
             {loading ? 'Verifying…' : 'Verify & link'}
           </button>
         </div>
@@ -339,7 +348,7 @@ export default function ParentClaim({
       <div className="flex gap-2">
         <button onClick={() => setStep('cta')} className="px-4 py-2.5 border border-border rounded-xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-foreground">Back</button>
         <button onClick={startOrSubmit} disabled={loading || !formValid}
-          className="flex-1 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50">
+          className="rc-cta flex-1 rounded-xl px-6 py-3 text-sm font-bold tracking-wide disabled:opacity-50">
           {loading ? (SKIP_OTP ? 'Linking…' : 'Sending…') : (SKIP_OTP ? 'Create & link my account' : 'Send verification code')}
         </button>
       </div>

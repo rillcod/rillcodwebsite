@@ -748,3 +748,110 @@ select {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Result Checker surface ─────────────────────────────────── */
+.result-check-scope {
+  --rc-sky: #e8eef8;
+  --rc-ink: #0c1a33;
+  --rc-muted: #5a6b86;
+  --rc-blue: #1a3a8f;
+  --rc-red: #c41e3a;
+  --rc-panel: rgba(255, 255, 255, 0.78);
+  --rc-panel-solid: #ffffff;
+  font-family: var(--font-rc-body), system-ui, sans-serif;
+  color: var(--rc-ink);
+}
+
+.result-check-scope .rc-display {
+  font-family: var(--font-rc-display), var(--font-rc-body), system-ui, sans-serif;
+}
+
+.result-check-scope .rc-mesh {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(26, 58, 143, 0.22), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(196, 30, 58, 0.12), transparent 50%),
+    linear-gradient(180deg, #f4f7fc 0%, #e8eef8 45%, #dfe8f6 100%);
+}
+
+@keyframes rc-breeze {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(18px, -14px, 0) scale(1.06); }
+}
+@keyframes rc-fade-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes rc-shine {
+  0% { transform: translateX(-120%) skewX(-16deg); }
+  100% { transform: translateX(220%) skewX(-16deg); }
+}
+@keyframes rc-soft-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 30, 58, 0.35); }
+  50% { box-shadow: 0 0 0 12px rgba(196, 30, 58, 0); }
+}
+
+.result-check-scope .rc-breeze {
+  animation: rc-breeze 14s ease-in-out infinite;
+}
+.result-check-scope .rc-breeze-delay {
+  animation: rc-breeze 18s ease-in-out infinite reverse;
+  animation-delay: -4s;
+}
+.result-check-scope .rc-breeze-slow {
+  animation: rc-breeze 22s ease-in-out infinite;
+  animation-delay: -8s;
+}
+.result-check-scope .rc-fade-up {
+  animation: rc-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.result-check-scope .rc-fade-up-delay {
+  animation: rc-fade-up 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+.result-check-scope .rc-fade-up-late {
+  animation: rc-fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.22s both;
+}
+
+.result-check-scope .rc-cta {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(135deg, var(--rc-red) 0%, #a01830 55%, var(--rc-blue) 140%);
+  color: #fff;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+.result-check-scope .rc-cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.28) 50%, transparent 60%);
+  transform: translateX(-120%) skewX(-16deg);
+  pointer-events: none;
+}
+.result-check-scope .rc-cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+.result-check-scope .rc-cta:hover::after {
+  animation: rc-shine 0.85s ease;
+}
+.result-check-scope .rc-cta:active {
+  transform: translateY(0);
+}
+.result-check-scope .rc-cta-pulse {
+  animation: rc-soft-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-check-scope .rc-breeze,
+  .result-check-scope .rc-breeze-delay,
+  .result-check-scope .rc-breeze-slow,
+  .result-check-scope .rc-fade-up,
+  .result-check-scope .rc-fade-up-delay,
+  .result-check-scope .rc-fade-up-late,
+  .result-check-scope .rc-cta-pulse {
+    animation: none !important;
+  }
+  .result-check-scope .rc-cta::after {
+    display: none;
+  }
+}
