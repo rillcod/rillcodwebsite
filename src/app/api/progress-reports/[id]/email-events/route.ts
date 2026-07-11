@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
+import { canAccessProgressReport } from '@/lib/reports/access';
 
 function adminClient() {
   return createClient<Database>(
@@ -55,8 +56,8 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   } else if (caller.role === 'teacher') {
-    const ownsReport = report.teacher_id === caller.id;
-    if (!ownsReport) {
+    const access = await canAccessProgressReport(db, caller, report as any);
+    if (!access.ok) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

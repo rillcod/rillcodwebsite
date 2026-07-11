@@ -12,6 +12,7 @@ import ModernReportCard from '@/components/reports/ModernReportCard';
 import PrintableReport from '@/components/reports/PrintableReport';
 import { generateReportPDF, ScaledReportCard, shareReportCard, printElement } from '@/lib/pdf-utils';
 import { ACADEMIC_TERM_OPTIONS, getCurrentTermLabel, getCurrentAcademicYear, academicYearOptions } from '@/lib/reports/academic-period';
+import { fetchAcademicTerms } from '@/lib/reports/academic-terms';
 import { SINGLE_GRADES } from '@/lib/classes/naming';
 import {
     ArrowLeftIcon, CheckIcon, ArrowPathIcon, ExclamationTriangleIcon,
@@ -712,12 +713,26 @@ function ReportBuilderInner() {
         // Default the academic session (Sept–Aug Nigerian calendar) and the current
         // term when none is set, so school reports always carry a session/term and a
         // new year never collides with the previous one's same-named term.
-        setSessionConfig(s => ({
-            ...s,
-            report_date: new Date().toISOString().split('T')[0],
-            report_period: s.report_period || getCurrentAcademicYear(),
-            report_term: s.report_term && s.report_term !== 'First Term' ? s.report_term : getCurrentTermLabel(),
-        }));
+        setSessionConfig(s => {
+            const calYear = getCurrentAcademicYear();
+            const calTerm = getCurrentTermLabel();
+            const yearStart = (y: string) => {
+                const m = y.match(/(\d{4})/);
+                return m ? Number(m[1]) : 0;
+            };
+            // Roll forward when localStorage still holds a prior academic year — otherwise
+            // teachers stay stuck on last year's term after calendar rollover.
+            const staleYear = !!s.report_period && yearStart(s.report_period) > 0
+                && yearStart(s.report_period) < yearStart(calYear);
+            return {
+                ...s,
+                report_date: new Date().toISOString().split('T')[0],
+                report_period: staleYear ? calYear : (s.report_period || calYear),
+                report_term: staleYear
+                    ? calTerm
+                    : (s.report_term && s.report_term !== 'First Term' ? s.report_term : calTerm),
+            };
+        });
     }, [profile?.id, prefStudentId]);
 
     // ── Dynamic preview scale based on container width ────────────────────────
@@ -994,18 +1009,37 @@ function ReportBuilderInner() {
         setSessionProgramId(matchingClass.program_id || linkedCourse?.program_id || '');
         setGradeFilter(matchingClass.qa_grade_key || '');
         setClassFilter(matchingClass.name);
-        setSessionConfig((current) => ({
-            ...current,
-            class_id: matchingClass.id,
-            term_id: matchingClass.term_id || term?.id || '',
-            section_class: matchingClass.name,
-            school_id: matchingClass.school_id || current.school_id,
-            school_name: matchingSchool?.name || current.school_name,
-            report_term: term?.term_label || current.report_term,
-            report_period: term?.academic_year || current.report_period,
-            course_id: linkedCourse?.id || '',
-            course_name: linkedCourse?.title || '',
-        }));
+        // Reporting period is independent of the class's stored term_id. Selecting a
+        // section must NOT snap the teacher back to an old class term — that blocked
+        // new-term grading after unlock / calendar rollover.
+        setSessionConfig((current) => {
+            const keepPeriod = periodUnlocked
+                || (!!current.report_term && !!current.report_period);
+            const report_term = keepPeriod
+                ? current.report_term
+                : (term?.term_label || current.report_term);
+            const report_period = keepPeriod
+                ? current.report_period
+                : (term?.academic_year || current.report_period);
+            const sameAsClassTerm = !!matchingClass.term_id
+                && report_term === (term?.term_label || '')
+                && report_period === (term?.academic_year || '');
+            return {
+                ...current,
+                class_id: matchingClass.id,
+                // Keep current term_id when keeping period; resolve via effect when labels change.
+                term_id: sameAsClassTerm
+                    ? (matchingClass.term_id || term?.id || current.term_id || '')
+                    : (current.term_id || matchingClass.term_id || term?.id || ''),
+                section_class: matchingClass.name,
+                school_id: matchingClass.school_id || current.school_id,
+                school_name: matchingSchool?.name || current.school_name,
+                report_term,
+                report_period,
+                course_id: linkedCourse?.id || '',
+                course_name: linkedCourse?.title || '',
+            };
+        });
     }
     const appliedUrlScope = useRef(false);
     useEffect(() => {
@@ -1015,13 +1049,50 @@ function ReportBuilderInner() {
             setError('The requested section is not registered or is outside your teaching scope.');
             return;
         }
-        if (prefTermId && linkedClass.term_id && linkedClass.term_id !== prefTermId) {
-            setError('The requested term does not match this registered section.');
-            return;
-        }
         appliedUrlScope.current = true;
-        selectReportSection(linkedClass.id);
+        let cancelled = false;
+        void (async () => {
+            // Prefer URL term over the class row's stored term_id (often stale after rollover).
+            if (prefTermId) {
+                try {
+                    const terms = await fetchAcademicTerms();
+                    const wanted = terms.find((t) => t.id === prefTermId);
+                    if (wanted && !cancelled) {
+                        setPeriodUnlocked(true);
+                        setSessionConfig((s) => ({
+                            ...s,
+                            term_id: wanted.id,
+                            report_term: wanted.term_label,
+                            report_period: wanted.academic_year,
+                        }));
+                    }
+                } catch { /* ignore */ }
+            }
+            if (!cancelled) selectReportSection(linkedClass.id);
+        })();
+        return () => { cancelled = true; };
     }, [prefClassId, prefTermId, teacherClasses]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Keep sessionConfig.term_id in sync with the chosen report_term + academic year so
+    // coverage filters and "Start Grading" don't stay pinned to an old class term_id.
+    useEffect(() => {
+        const termLabel = sessionConfig.report_term?.trim();
+        const yearLabel = sessionConfig.report_period?.trim();
+        if (!termLabel || !yearLabel) return;
+        let cancelled = false;
+        void (async () => {
+            try {
+                const terms = await fetchAcademicTerms();
+                if (cancelled) return;
+                const match = terms.find((t) => t.term_label === termLabel && t.academic_year === yearLabel);
+                if (match?.id && match.id !== sessionConfig.term_id) {
+                    setSessionConfig((s) => (s.term_id === match.id ? s : { ...s, term_id: match.id }));
+                }
+            } catch { /* ignore */ }
+        })();
+        return () => { cancelled = true; };
+    }, [sessionConfig.report_term, sessionConfig.report_period]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const distinctGrades = [...new Set(
         students.filter(schoolScoped).map(s => (s as any).grade_level).filter(Boolean)
     )].sort() as string[];
@@ -1054,13 +1125,13 @@ function ReportBuilderInner() {
 
         // Pre-portal student (from students table, no portal_users record) — look up by name
         const isPrePortal = s.id?.startsWith('students-');
-        const isTeacher = profile?.role === 'teacher';
-        // Base lookup (pre-portal students keyed by name, portal students by id).
+        // Look up by student — do NOT filter by teacher_id. Server dedup is teacher-
+        // independent; hiding another teacher's report made class handoffs look stuck
+        // and blocked new-term grading with a silent/empty form + 409 on save.
         const baseSelect = () => {
             let q = isPrePortal
                 ? db.from('student_progress_reports').select('*').eq('student_name', s.full_name ?? '')
                 : db.from('student_progress_reports').select('*').eq('student_id', s.id);
-            if (isTeacher && profile?.id && !isPrePortal) q = q.eq('teacher_id', profile.id) as typeof q;
             return q;
         };
 
@@ -1233,8 +1304,9 @@ function ReportBuilderInner() {
             // 1. Resolve class ID for attendance lookup
             const studentSchoolId = s.school_id;
             const studentClassName = (s as any).section_class;
-            let targetClassId = (s as any).class_id;
-            let targetTermId: string | null = null;
+            let targetClassId = (s as any).class_id || sessionConfig.class_id || null;
+            // Prefer the session reporting term (unlocked new term), not the class row's stale term_id.
+            let targetTermId: string | null = sessionConfig.term_id || null;
             if (!targetClassId && studentClassName) {
                 const { data: clsData } = await withTimeout(
                     db.from('classes')
@@ -1243,8 +1315,8 @@ function ReportBuilderInner() {
                     'class lookup for stats',
                 );
                 targetClassId = clsData?.id;
-                targetTermId = (clsData as any)?.term_id ?? null;
-            } else if (targetClassId) {
+                if (!targetTermId) targetTermId = (clsData as any)?.term_id ?? null;
+            } else if (targetClassId && !targetTermId) {
                 const { data: clsData } = await withTimeout(
                     db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle(),
                     { data: null, error: null },
@@ -1432,8 +1504,8 @@ function ReportBuilderInner() {
                 // 1. Fetch Stats (Attendance, Assignments, CBT)
                 const studentSchoolId = s.school_id;
                 const studentClassName = (s as any).section_class;
-                let targetClassId = (s as any).class_id;
-                let targetTermId: string | null = null;
+                let targetClassId = (s as any).class_id || sessionConfig.class_id || null;
+                let targetTermId: string | null = sessionConfig.term_id || null;
                 if (!targetClassId && studentClassName) {
                     const { data: clsData } = await withTimeout(
                         db.from('classes').select('id, term_id').eq('name', studentClassName).eq('school_id', studentSchoolId || '').maybeSingle(),
@@ -1441,8 +1513,8 @@ function ReportBuilderInner() {
                         'bulk class lookup',
                     );
                     targetClassId = clsData?.id;
-                    targetTermId = (clsData as any)?.term_id ?? null;
-                } else if (targetClassId) {
+                    if (!targetTermId) targetTermId = (clsData as any)?.term_id ?? null;
+                } else if (targetClassId && !targetTermId) {
                     const { data: clsData } = await withTimeout(
                         db.from('classes').select('term_id').eq('id', targetClassId).maybeSingle(),
                         { data: null, error: null },
@@ -1515,7 +1587,6 @@ function ReportBuilderInner() {
                     if (sessionConfig.report_term)   q = q.eq('report_term', sessionConfig.report_term) as typeof q;
                     if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period) as typeof q;
                     if (sessionConfig.course_id)     q = q.eq('course_id', sessionConfig.course_id) as typeof q;
-                    if (profile?.role === 'teacher' && profile?.id) q = q.eq('teacher_id', profile.id) as typeof q;
                     return q.order('updated_at', { ascending: false }).limit(1).maybeSingle();
                 })(), { data: null, error: null }, 'bulk existing report lookup');
 

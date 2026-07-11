@@ -65,13 +65,14 @@ export default function ProgressPage() {
       const p = profile;
 
       try {
+        let assignedSchoolIds: string[] = [];
+
         if (isStaff) {
           // 1. Fetch schools for staff to populate filter
           const { data: schData } = await supabase.from('schools').select('id, name').order('name');
           if (!cancelled) setSchools(schData ?? []);
 
           // 2. Resolve school metadata for non-admins
-          let assignedSchoolIds: string[] = [];
           let assignedSchoolNames: string[] = [];
 
           if (role === 'school' && p.school_id) {
@@ -182,17 +183,19 @@ export default function ProgressPage() {
               if (!cancelled) setScoreReports(reports ?? []);
             }
           } else if (isStaff) {
-            // For staff, fetch recent published reports scoped to their own records
+            // School-scoped published reports (not teacher_id) so class handoffs still show.
             let rQuery = supabase
               .from('student_progress_reports')
               .select('report_term, report_date, overall_score, theory_score, practical_score, course_name, student_name, school_name')
               .eq('is_published', true)
               .order('report_date', { ascending: true })
               .limit(200);
-            if (profile?.role === 'teacher') {
-              rQuery = rQuery.eq('teacher_id', profile.id);
-            } else if (profile?.school_id) {
-              rQuery = rQuery.eq('school_id', profile.school_id);
+            if (profile?.role === 'teacher' || profile?.role === 'school') {
+              if (assignedSchoolIds.length > 0) {
+                rQuery = rQuery.in('school_id', assignedSchoolIds);
+              } else if (profile.school_id) {
+                rQuery = rQuery.eq('school_id', profile.school_id);
+              }
             }
             const { data: reports } = await rQuery;
             if (!cancelled) setScoreReports(reports ?? []);

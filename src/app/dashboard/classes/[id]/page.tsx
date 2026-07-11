@@ -1273,7 +1273,7 @@ export default function ClassDetailPage() {
                                       : `No ${student.report_term ?? 'current-term'} progress report yet — needs attention`;
                                   const reportBadgeClass = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`;
                                   return isStaff ? (
-                                    <Link href={`/dashboard/reports/builder?student=${student.id}&class=${id}${cls.term_id ? `&term=${cls.term_id}` : ''}`} title={`${title} — click to open the report builder`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
+                                    <Link href={`/dashboard/reports/builder?student=${student.id}&class=${id}`} title={`${title} — click to open the report builder`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
                                       {label}
                                     </Link>
                                   ) : (

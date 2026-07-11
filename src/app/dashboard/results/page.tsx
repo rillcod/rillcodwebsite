@@ -464,9 +464,8 @@ function ResultsPageInner() {
                             .eq('report_period', confirmedPeriod.year) as typeof reportsQuery;
                     }
 
-                    if (profile?.role === 'teacher') {
-                        reportsQuery = reportsQuery.eq('teacher_id', profile.id);
-                    }
+                    // Do not filter by teacher_id — class-scoped students already limit the
+                    // list; hiding prior-teacher authorship made handoffs look empty.
 
                     const { data, error } = await withTimeout(
                         reportsQuery,
@@ -543,7 +542,8 @@ function ResultsPageInner() {
                 .eq('report_term', confirmedPeriod.term)
                 .eq('report_period', confirmedPeriod.year) as typeof reportQuery;
         }
-        if (profile?.role === 'teacher') reportQuery = reportQuery.eq('teacher_id', profile.id) as typeof reportQuery;
+        // Load any report for this student in the period — not only ones authored by
+        // the current teacher (class handoff / takeover).
         const { data } = await withTimeout(
             reportQuery,
             { data: [], error: null },

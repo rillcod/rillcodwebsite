@@ -5,8 +5,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { queueService } from '@/services/queue.service';
 import { buildReportEmail, buildEmailTrackingPixelUrl, isInAppEmail } from '@/lib/email/rillcod-transactional-email';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
-import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 import { publishProgressReport } from '@/lib/reports/publish-service';
+import { canAccessProgressReport } from '@/lib/reports/access';
 
 function adminClient() {
   return createClient<Database>(
@@ -28,17 +28,6 @@ async function requireStaff() {
   return profile;
 }
 
-async function getTeacherSchoolIds(admin: ReturnType<typeof createClient>, teacherId: string, fallbackSchoolId: string | null) {
-  const ids = new Set<string>();
-  if (fallbackSchoolId) ids.add(fallbackSchoolId);
-  const { data } = await admin.from('teacher_schools').select('school_id').eq('teacher_id', teacherId);
-  for (const row of data ?? []) {
-    const sid = (row as { school_id: string | null }).school_id;
-    if (sid) ids.add(sid);
-  }
-  return Array.from(ids);
-}
-
 async function syncStudentProfile(
   admin: ReturnType<typeof adminClient>,
   studentId: string,
@@ -55,9 +44,8 @@ async function syncStudentProfile(
 
   if (fields.sectionClass && blank(current?.section_class)) {
     portalUpdate.section_class = fields.sectionClass;
-    studentsUpdate.section_class = fields.sectionClass;
     studentsUpdate.current_class = fields.sectionClass;
-    studentsUpdate.grade_level   = fields.sectionClass;
+    studentsUpdate.section = fields.sectionClass;
   }
   if (fields.studentName && blank(current?.full_name)) {
     portalUpdate.full_name   = fields.studentName;
@@ -81,22 +69,20 @@ async function syncStudentProfile(
 async function canModifyReport(caller: any, reportId: string) {
   if (caller.role === 'admin') return true;
   const admin = adminClient();
-  const [teacherClassScope, teacherSchoolIds] = await Promise.all([
-    getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null),
-    getTeacherSchoolIds(admin as any, caller.id, caller.school_id ?? null),
-  ]);
   const { data: report } = await admin.from('student_progress_reports')
     .select('id, school_id, student_id, teacher_id').eq('id', reportId).maybeSingle();
-  if (!report || (report as any).teacher_id !== caller.id) return false;
-  const { data: student } = await admin.from('portal_users')
-    .select('school_id, class_id').eq('id', (report as any).student_id).maybeSingle();
-  const studentSchoolId = (student as any)?.school_id as string | null;
-  const studentClassId = (student as any)?.class_id as string | null;
-  const reportSchoolId = (report as any).school_id as string | null;
-  return !!studentClassId
-    && teacherClassScope.classIds.includes(studentClassId)
-    && !!(studentSchoolId || reportSchoolId)
-    && teacherSchoolIds.includes(studentSchoolId || reportSchoolId!);
+  if (!report) return false;
+
+  const access = await canAccessProgressReport(admin, caller, report as any, { transferOwnership: true });
+  if (!access.ok) return false;
+
+  // Class-owner takeover: transfer authorship so publish/unpublish stays unblocked.
+  if ((report as any).teacher_id !== caller.id) {
+    await admin.from('student_progress_reports')
+      .update({ teacher_id: caller.id, updated_at: new Date().toISOString() } as any)
+      .eq('id', reportId);
+  }
+  return true;
 }
 
 // PATCH /api/progress-reports/[id] — update specific fields (e.g. course_name)

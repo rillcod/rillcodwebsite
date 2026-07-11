@@ -3,6 +3,7 @@ import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { publishProgressReport } from '@/lib/reports/publish-service';
+import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const admin = adminClient();
-    const { data: caller } = await admin.from('portal_users').select('id, role').eq('id', user.id).single();
+    const { data: caller } = await admin.from('portal_users').select('id, role, school_id').eq('id', user.id).single();
     if (!caller || !['admin', 'teacher'].includes(caller.role)) {
       return NextResponse.json({ error: 'Only admins and teachers can publish reports' }, { status: 403 });
     }
@@ -26,7 +27,24 @@ export async function POST(request: NextRequest) {
     const reportIds = Array.isArray(body.reportIds) ? body.reportIds.filter((value: unknown) => typeof value === 'string') : null;
 
     let query = admin.from('student_progress_reports').select('*').eq('is_published', false);
-    if (caller.role === 'teacher') query = query.eq('teacher_id', caller.id);
+    if (caller.role === 'teacher') {
+      // Class-owned students, not only reports this teacher authored — so handoffs
+      // still get bulk-published after term/class transfer.
+      const classScope = await getTeacherClassScope(admin as any, caller.id, caller.school_id ?? null);
+      if (classScope.classIds.length === 0) {
+        return NextResponse.json({ published: 0, skipped: 0, failures: [], message: 'No owned classes to publish for.' });
+      }
+      const { data: students } = await admin
+        .from('portal_users')
+        .select('id')
+        .eq('role', 'student')
+        .in('class_id', classScope.classIds);
+      const studentIds = (students ?? []).map((s: any) => s.id).filter(Boolean);
+      if (studentIds.length === 0) {
+        return NextResponse.json({ published: 0, skipped: 0, failures: [], message: 'No students in your classes.' });
+      }
+      query = query.in('student_id', studentIds);
+    }
     if (term) query = query.eq('report_term', term);
     if (reportIds?.length) query = query.in('id', reportIds);
     const { data: drafts, error: findError } = await query;
@@ -37,6 +55,12 @@ export async function POST(request: NextRequest) {
     const publishedIds: string[] = [];
 
     for (const draft of drafts as any[]) {
+      // Transfer authorship to current class owner before publish so ownership stays consistent.
+      if (caller.role === 'teacher' && draft.teacher_id !== caller.id) {
+        await admin.from('student_progress_reports')
+          .update({ teacher_id: caller.id, updated_at: new Date().toISOString() })
+          .eq('id', draft.id);
+      }
       const result = await publishProgressReport(admin, draft.id);
       if (!result.ok) failures.push({ id: draft.id, student_name: draft.student_name ?? null, issues: result.issues ?? [result.error] });
       else publishedIds.push(draft.id);

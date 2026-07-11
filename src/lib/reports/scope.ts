@@ -8,12 +8,17 @@ export type ReportCourseScopeInput = {
 };
 
 export function teacherCanReportCourse(input: ReportCourseScopeInput): boolean {
-  if (input.courseTeacherId) return input.courseTeacherId === input.actorId;
-  return input.ownedClasses.some(cls =>
+  // Class ownership wins: if the teacher owns a class linked to this course
+  // (current_course_id or shared programme), they can grade — even when
+  // courses.teacher_id still points at a previous teacher after handoff.
+  const ownsViaClass = input.ownedClasses.some(cls =>
     cls.current_course_id === input.courseId
     || (!!input.courseProgramId && cls.program_id === input.courseProgramId
       && (!input.courseSchoolId || cls.school_id === input.courseSchoolId)),
   );
+  if (ownsViaClass) return true;
+  if (input.courseTeacherId) return input.courseTeacherId === input.actorId;
+  return false;
 }
 
 export async function assertTeacherReportCourseScope(admin: any, actorId: string, courseId: string, ownedClassIds: string[]): Promise<boolean> {

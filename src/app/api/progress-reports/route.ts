@@ -181,11 +181,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (caller.role !== 'admin') {
-      // Non-admin teachers can only edit their own reports. When the existing report
-      // belongs to another teacher this is a duplicate attempt — block it clearly
-      // (rather than silently creating a twin) so one report per student/term/course holds.
+      // Non-admin teachers can only edit their own reports — OR take over when they
+      // currently own the student's class (class handoff / term rollover). Blocking
+      // with a 409 while the client hides the other teacher's report made grading
+      // look "tied" to the previous teacher and blocked new-term work.
       if ((existingReport as any).teacher_id !== caller.id) {
-        return NextResponse.json({ error: 'A progress report for this student already exists for this term and course (created by another teacher). Ask an admin to update it.' }, { status: 409 });
+        if (caller.role === 'teacher' && updatePayload.student_id) {
+          // Scope already verified above: student.class_id ∈ caller's owned classes.
+          (updatePayload as any).teacher_id = caller.id;
+          if (!(updatePayload as any).instructor_name && (insertPayload as any).instructor_name) {
+            (updatePayload as any).instructor_name = (insertPayload as any).instructor_name;
+          }
+        } else {
+          return NextResponse.json({ error: 'A progress report for this student already exists for this term and course (created by another teacher). Ask an admin to update it.' }, { status: 409 });
+        }
       }
     } else {
       // Admin editing: preserve original authorship — never overwrite teacher_id or instructor_name
@@ -270,9 +279,8 @@ async function syncStudentProfile(
 
   if (fields.sectionClass && blank(current?.section_class)) {
     portalUpdate.section_class = fields.sectionClass;
-    studentsUpdate.section_class = fields.sectionClass;
     studentsUpdate.current_class = fields.sectionClass;
-    studentsUpdate.grade_level   = fields.sectionClass;
+    studentsUpdate.section = fields.sectionClass;
   }
   if (fields.studentName && blank(current?.full_name)) {
     portalUpdate.full_name   = fields.studentName;
