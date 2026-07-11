@@ -84,9 +84,10 @@ const BLANK = {
 interface SchoolInvoiceBuilderPanelProps {
   /** Pre-load an existing school invoice for editing (passed from OperationsHub via ?edit_invoice=) */
   editInvoiceId?: string;
+  onSaved?: () => void;
 }
 
-export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilderPanelProps = {}) {
+export function SchoolInvoiceBuilderPanel({ editInvoiceId, onSaved }: SchoolInvoiceBuilderPanelProps = {}) {
   const { profile } = useAuth();
   const db = createClient();
   const isAdmin = profile?.role === 'admin';
@@ -134,7 +135,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
         
         const restoredTiers: PricingTier[] = hasMultipleItems
           ? positiveItems.map((it) => ({
-              label: it.description.split('—')[0]?.trim().split('–')[0]?.trim() ?? 'Students',
+              label: it.description.split('â€”')[0]?.trim().split('â€“')[0]?.trim() ?? 'Students',
               count: String(it.quantity),
               rate: String(it.unit_price),
             }))
@@ -283,7 +284,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
       notes: [
         `${['First','Second','Third'][parseInt(form.term_number)-1]} Term ${form.academic_year}/${parseInt(form.academic_year)+1}`,
         form.notes,
-      ].filter(Boolean).join(' · '),
+      ].filter(Boolean).join(' Â· '),
       currency: form.currency,
     });
   }, [form, computed, schools, accounts, editingInvoiceId]);
@@ -409,8 +410,13 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
       };
 
       if (editingInvoiceId) {
-        const { error } = await db.from('invoices').update(invPayload).eq('id', editingInvoiceId);
-        if (error) throw error;
+        const response = await fetch('/api/invoices/' + editingInvoiceId, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(invPayload),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Failed to update invoice');
         if (!opts?.silent) toast.success('Invoice updated.');
       } else {
         // Hard duplicate guard: block same school + same term + same year
@@ -436,22 +442,21 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
           return;
         }
 
-        const docRef = opts?.docRef || `SINV-${Date.now().toString(36).toUpperCase()}`;
-        const insertPayload = {
-          ...invPayload,
-          invoice_number: docRef,
-          school_id: form.school_id,
-          stream: 'school',
-        };
-        const { error } = await db
-          .from('invoices')
-          .insert(insertPayload);
-        if (error) throw error;
-        if (!opts?.silent) toast.success(`Invoice ${docRef} saved.`);
+        const response = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...invPayload, school_id: form.school_id, stream: 'school' }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Failed to create invoice');
+        if (!opts?.silent) toast.success('Invoice ' + (result.data?.invoice_number || '') + ' saved.');
       }
 
       setEditingInvoiceId(null);
-      if (!opts?.silent) setForm({ ...BLANK });
+      if (!opts?.silent) {
+        setForm({ ...BLANK });
+        onSaved?.();
+      }
     } catch (e: unknown) {
       toast.error((e as Error).message || 'Failed to save invoice');
     } finally {
@@ -474,7 +479,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
     return (
       <div className="flex items-center justify-center py-16 gap-3">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">Loading invoice…</p>
+        <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">Loading invoiceâ€¦</p>
       </div>
     );
   }
@@ -487,7 +492,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
         </p>
         <p className="text-foreground font-bold text-sm">
           {editingInvoiceId
-            ? 'Update this partner-school invoice — adjust figures and click Update.'
+            ? 'Update this partner-school invoice â€” adjust figures and click Update.'
             : 'Build a rich partner-school invoice with revenue-share split and live preview.'}
         </p>
         {editingInvoiceId && (
@@ -497,7 +502,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
               onClick={() => { setEditingInvoiceId(null); setForm({ ...BLANK }); }}
               className="ml-1 hover:text-amber-200 transition-colors"
               title="Discard and start a new invoice"
-            >✕</button>
+            >âœ•</button>
           </div>
         )}
         {!editingInvoiceId && (
@@ -519,7 +524,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                 onChange={(e) => setForm((f) => ({ ...f, school_id: e.target.value }))}
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               >
-                <option value="">— Select partner school —</option>
+                <option value="">â€” Select partner school â€”</option>
                 {schools.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -590,7 +595,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                 }
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               >
-                <option value="NGN">NGN (₦)</option>
+                <option value="NGN">NGN (â‚¦)</option>
                 <option value="USD">USD ($)</option>
               </select>
             </div>
@@ -611,7 +616,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                   />
                 </div>
                 <div>
-                  <Lbl>Rate per Child (₦)</Lbl>
+                  <Lbl>Rate per Child (â‚¦)</Lbl>
                   <input
                     type="number"
                     min={0}
@@ -628,7 +633,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
 
             {form.pricing_mode === 'fixed_package' && (
               <div className="sm:col-span-2">
-                <Lbl>Fixed Package Price (₦)</Lbl>
+                <Lbl>Fixed Package Price (â‚¦)</Lbl>
                 <input
                   type="number"
                   min={0}
@@ -644,7 +649,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
 
             {form.pricing_mode === 'tiered' && (
               <div className="sm:col-span-2 lg:col-span-4 space-y-3">
-                <Lbl>Student Tiers (group label · count · rate per student)</Lbl>
+                <Lbl>Student Tiers (group label Â· count Â· rate per student)</Lbl>
                 <div className="space-y-2">
                   {form.tiers.map((tier, idx) => (
                     <div key={idx} className="flex items-center gap-2">
@@ -679,7 +684,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                       <input
                         type="number"
                         min={0}
-                        placeholder="Rate ₦"
+                        placeholder="Rate â‚¦"
                         value={tier.rate}
                         onChange={(e) =>
                           setForm((f) => {
@@ -700,7 +705,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                         className="p-2 text-muted-foreground hover:text-red-400 disabled:opacity-25 transition-colors shrink-0"
                         title="Remove tier"
                       >
-                        ✕
+                        âœ•
                       </button>
                     </div>
                   ))}
@@ -759,7 +764,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
             </div>
 
             <div>
-              <Lbl>Deposit Made (₦)</Lbl>
+              <Lbl>Deposit Made (â‚¦)</Lbl>
               <input
                 type="number"
                 min={0}
@@ -779,7 +784,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                 }
                 className="w-full px-3 py-2 bg-card border border-border text-sm rounded-md focus:outline-none focus:border-primary"
               >
-                <option value="">— Select payment account —</option>
+                <option value="">â€” Select payment account â€”</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.label} ({a.bank_name})
@@ -820,7 +825,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
             <div className="bg-card border border-border rounded-xl p-4">
               {loadingCount ? (
                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <ArrowPathIcon className="w-4 h-4 animate-spin" /> Counting students…
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" /> Counting studentsâ€¦
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-5 items-center">
@@ -828,8 +833,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                     computed.computedTiers.map((t, i) => (
                       <Stat
                         key={i}
-                        label={`${t.label} (${t.count}×)`}
-                        value={`₦${t.total.toLocaleString()}`}
+                        label={`${t.label} (${t.count}Ã—)`}
+                        value={`â‚¦${t.total.toLocaleString()}`}
                         tone="primary"
                       />
                     ))
@@ -839,13 +844,13 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                       {!computed.isFixed && (
                         <Stat
                           label="Rate / Child"
-                          value={`₦${computed.ratePerChild.toLocaleString()}`}
+                          value={`â‚¦${computed.ratePerChild.toLocaleString()}`}
                         />
                       )}
                       {computed.isFixed && (
                         <Stat
                           label="Fixed Package"
-                          value={`₦${computed.fixedPrice.toLocaleString()}`}
+                          value={`â‚¦${computed.fixedPrice.toLocaleString()}`}
                           tone="primary"
                         />
                       )}
@@ -853,25 +858,25 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                   )}
                   <Stat
                     label="Invoice Total"
-                    value={`₦${computed.subtotal.toLocaleString()}`}
+                    value={`â‚¦${computed.subtotal.toLocaleString()}`}
                   />
                   {computed.revenueShareOn && (
                     <>
                       <Stat
                         label={`Rillcod ${computed.quotaPct}%`}
-                        value={`₦${computed.rillcodShare.toLocaleString()}`}
+                        value={`â‚¦${computed.rillcodShare.toLocaleString()}`}
                         tone="primary"
                       />
                       <Stat
                         label={`School ${100 - computed.quotaPct}%`}
-                        value={`₦${computed.schoolShare.toLocaleString()}`}
+                        value={`â‚¦${computed.schoolShare.toLocaleString()}`}
                       />
                     </>
                   )}
                   {computed.deposit > 0 && (
                     <Stat
                       label="Less Deposit"
-                      value={`−₦${computed.deposit.toLocaleString()}`}
+                      value={`âˆ’â‚¦${computed.deposit.toLocaleString()}`}
                       tone="emerald"
                     />
                   )}
@@ -880,7 +885,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
                       {computed.revenueShareOn ? 'Rillcod Outstanding' : 'Total Outstanding'}
                     </p>
                     <p className="text-2xl font-black text-foreground">
-                      ₦{computed.balance.toLocaleString()}
+                      â‚¦{computed.balance.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -927,8 +932,8 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
               <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-400">
                 <CheckBadgeIcon className="w-3 h-3" />
                 {computed.revenueShareOn
-                  ? `Rillcod will collect ₦${computed.balance.toLocaleString()}`
-                  : `Total due ₦${computed.balance.toLocaleString()}`}
+                  ? `Rillcod will collect â‚¦${computed.balance.toLocaleString()}`
+                  : `Total due â‚¦${computed.balance.toLocaleString()}`}
               </span>
             )}
           </div>
@@ -943,7 +948,7 @@ export function SchoolInvoiceBuilderPanel({ editInvoiceId }: SchoolInvoiceBuilde
   );
 }
 
-// ── UI primitives ────────────────────────────────────────────────────
+// â”€â”€ UI primitives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function Lbl({ children }: { children: React.ReactNode }) {
   return (

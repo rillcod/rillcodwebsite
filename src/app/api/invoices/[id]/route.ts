@@ -86,7 +86,7 @@ export async function PATCH(
 
   const { id } = await context.params;
   const body = await req.json();
-  const { due_date, notes, status, items, amount, portal_user_id } = body;
+  const { due_date, notes, status, items, amount, portal_user_id, metadata } = body;
 
   const admin = adminClient();
 
@@ -116,6 +116,10 @@ export async function PATCH(
   if (items !== undefined) update.items = items;
   if (amount !== undefined) update.amount = parseFloat(amount);
   if (portal_user_id !== undefined) update.portal_user_id = portal_user_id || null;
+  if (metadata !== undefined) {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return NextResponse.json({ error: 'metadata must be an object' }, { status: 400 });
+    update.metadata = metadata;
+  }
 
   // Keep the stored amount consistent with line items so the printed document
   // never disagrees with the ledger total.

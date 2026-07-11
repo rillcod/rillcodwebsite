@@ -10,14 +10,10 @@ import {
   DocumentTextIcon,
   ArrowTrendingUpIcon,
 } from '@/lib/icons';
-import { AccountsPanel } from './AccountsPanel';
 import { ApprovalsPanel } from './ApprovalsPanel';
 import { InvoicesPanel } from './InvoicesPanel';
 import { ReceiptsPanel } from './ReceiptsPanel';
-import { ReceiptBuilderPanel } from './ReceiptBuilderPanel';
-import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
 import { SchoolBillingDocsPanel } from './SchoolBillingDocsPanel';
-import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
 import { ReceiptPercentIcon, BuildingOfficeIcon, ShieldCheckIcon, CalendarDaysIcon } from '@/lib/icons';
 
@@ -25,12 +21,9 @@ type OpsTab =
   | 'approvals'
   | 'invoices'
   | 'receipts'
-  | 'receipt_builder'
-  | 'school_invoice_builder'
   | 'billing_docs'
   | 'billing_cycles'
-  | 'accounts'
-  | 'diagnostics';
+;
 
 interface OperationsHubProps {
   embedded?: boolean;
@@ -81,12 +74,6 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
   const opsParam = searchParams.get('ops') as OpsTab | null;
   const [tab, setTab] = useState<OpsTab>(opsParam || defaultTab);
 
-  // When arriving with ?edit_invoice=<id>, switch to the school invoice builder
-  useEffect(() => {
-    if (editInvoiceId && isAdmin) {
-      setTab('school_invoice_builder');
-    }
-  }, [editInvoiceId, isAdmin]);
 
   useEffect(() => {
     setTab(isSchool ? 'invoices' : defaultTab);
@@ -152,20 +139,6 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       show: isAdmin,
     },
     {
-      k: 'receipt_builder',
-      label: 'Build Receipt',
-      Icon: ReceiptPercentIcon,
-      hint: 'Manual receipt builder with live preview (offline payments)',
-      show: isAdmin,
-    },
-    {
-      k: 'school_invoice_builder',
-      label: 'School Invoice',
-      Icon: BuildingOfficeIcon,
-      hint: 'Partner-school invoice builder with revenue split & preview',
-      show: isAdmin,
-    },
-    {
       k: 'billing_docs',
       label: 'Billing Docs',
       Icon: DocumentTextIcon,
@@ -173,20 +146,6 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
       show: isAdmin,
     },
 
-    {
-      k: 'accounts',
-      label: 'Accounts',
-      Icon: BanknotesIcon,
-      hint: 'Bank accounts for collections',
-      show: isAdmin,
-    },
-    {
-      k: 'diagnostics',
-      label: 'Diagnostics',
-      Icon: ShieldCheckIcon,
-      hint: 'Admin-only: billing health & email delivery tests',
-      show: isAdmin,
-    },
   ] as TabDef[]).filter((t) => t.show && (
     workspace === 'collections' ? t.k === 'approvals' : ['invoices', 'receipts', 'billing_docs'].includes(t.k)
   ));
@@ -233,11 +192,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
         {tab === 'approvals' && <ApprovalsPanel />}
         {tab === 'invoices' && <InvoicesPanel />}
         {tab === 'receipts' && <ReceiptsPanel />}
-        {tab === 'receipt_builder' && isAdmin && <ReceiptBuilderPanel />}
-        {tab === 'school_invoice_builder' && isAdmin && <SchoolInvoiceBuilderPanel editInvoiceId={editInvoiceId ?? undefined} />}
         {tab === 'billing_docs' && isAdmin && <SchoolBillingDocsPanel />}
-        {tab === 'accounts' && isAdmin && <AccountsPanel />}
-        {tab === 'diagnostics' && isAdmin && <DiagnosticsPanel />}
       </div>
     </div>
   );

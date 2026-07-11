@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const {
     school_id, portal_user_id, amount, currency, notes, due_date, items, status,
-    stream: streamFromBody, billing_cycle_id,
+    stream: streamFromBody, billing_cycle_id, metadata,
   } = body;
 
   const effectiveSchoolId = caller.role === 'admin' ? (school_id || null) : caller.school_id;

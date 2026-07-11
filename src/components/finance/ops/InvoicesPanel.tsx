@@ -30,6 +30,7 @@ import {
 import { formatMoney, formatShortDate } from '@/lib/finance/formatters';
 import { DocPreviewModal, type DocPreviewData } from './DocPreviewModal';
 import { buildSchoolInvoiceHTML } from '@/lib/finance/templates/html/school-invoice-html';
+import { SchoolInvoiceBuilderPanel } from './SchoolInvoiceBuilderPanel';
 
 interface InvoiceRow {
   id: string;
@@ -90,6 +91,9 @@ export function InvoicesPanel() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'paid' | 'overdue'>('all');
   const [streamFilter, setStreamFilter] = useState<'all' | FinanceStream>('all');
   const [showForm, setShowForm] = useState(false);
+  const [showGeneratorChoice, setShowGeneratorChoice] = useState(false);
+  const [showSchoolGenerator, setShowSchoolGenerator] = useState(false);
+  const [editingSchoolInvoiceId, setEditingSchoolInvoiceId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [emailingId, setEmailingId] = useState<string | null>(null);
   const [emailOverride, setEmailOverride] = useState('');
@@ -370,10 +374,10 @@ export function InvoicesPanel() {
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         {canCreateInvoices && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => setShowGeneratorChoice(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-black text-xs uppercase tracking-widest rounded-md hover:bg-primary/90"
           >
-            <PlusIcon className="w-4 h-4" /> Quick invoice
+            <PlusIcon className="w-4 h-4" /> Create premium invoice
           </button>
         )}
 
@@ -501,17 +505,23 @@ export function InvoicesPanel() {
                   </button>
 
                   {canManageInvoices && (
-                    <Link
-                      href={
-                        classifyInvoiceStream(inv) === 'school'
-                          ? `/dashboard/finance?workspace=invoices&ops=school_invoice_builder&edit_invoice=${inv.id}`
-                          : `/dashboard/payments/invoices/${inv.id}/edit`
-                      }
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
-                      title={classifyInvoiceStream(inv) === 'school' ? 'Edit in School Invoice Builder' : 'Edit invoice'}
-                    >
-                      <PencilSquareIcon className="w-3 h-3" /> Edit
-                    </Link>
+                    classifyInvoiceStream(inv) === 'school' ? (
+                      <button
+                        onClick={() => { setEditingSchoolInvoiceId(inv.id); setShowSchoolGenerator(true); }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
+                        title="Edit premium school invoice"
+                      >
+                        <PencilSquareIcon className="w-3 h-3" /> Edit
+                      </button>
+                    ) : (
+                      <Link
+                        href={`/dashboard/payments/invoices/${inv.id}/edit`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"
+                        title="Edit invoice"
+                      >
+                        <PencilSquareIcon className="w-3 h-3" /> Edit
+                      </Link>
+                    )
                   )}
 
                   {canManageInvoices && inv.status !== 'paid' && (
@@ -606,6 +616,38 @@ export function InvoicesPanel() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+
+      {showGeneratorChoice && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border border-border bg-card p-5 sm:p-7">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div><p className="text-lg font-black text-foreground">Create premium invoice</p><p className="text-sm text-muted-foreground">Choose the payer. Both options use the same invoice, payment and receipt lifecycle.</p></div>
+              <button onClick={() => setShowGeneratorChoice(false)} className="p-2 rounded-xl hover:bg-muted"><XMarkIcon className="w-5 h-5" /></button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <button onClick={() => { setShowGeneratorChoice(false); setShowForm(true); }} className="text-left rounded-2xl border border-border p-5 hover:border-primary hover:bg-primary/5 transition-colors">
+                <UserIcon className="w-7 h-7 text-primary mb-3" /><p className="font-black text-foreground">Individual invoice</p><p className="text-xs text-muted-foreground mt-1">One student, parent or individual payer with flexible line items.</p>
+              </button>
+              <button onClick={() => { setShowGeneratorChoice(false); setEditingSchoolInvoiceId(null); setShowSchoolGenerator(true); }} className="text-left rounded-2xl border border-border p-5 hover:border-primary hover:bg-primary/5 transition-colors">
+                <BuildingOfficeIcon className="w-7 h-7 text-primary mb-3" /><p className="font-black text-foreground">School / partner invoice</p><p className="text-xs text-muted-foreground mt-1">Premium term, cohort, package, commission and deposit calculations.</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSchoolGenerator && (
+        <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+          <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur px-4 sm:px-6 py-3 flex items-center justify-between">
+            <div><p className="font-black text-foreground">Premium school invoice</p><p className="text-xs text-muted-foreground">Unified invoice generator</p></div>
+            <button onClick={() => { setShowSchoolGenerator(false); setEditingSchoolInvoiceId(null); }} className="p-2 rounded-xl border border-border hover:bg-muted"><XMarkIcon className="w-5 h-5" /></button>
+          </div>
+          <div className="max-w-6xl mx-auto p-4 sm:p-6">
+            <SchoolInvoiceBuilderPanel editInvoiceId={editingSchoolInvoiceId ?? undefined} onSaved={() => { setShowSchoolGenerator(false); setEditingSchoolInvoiceId(null); load(); }} />
+          </div>
         </div>
       )}
 

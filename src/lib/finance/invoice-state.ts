@@ -1,4 +1,4 @@
-export const OPEN_INVOICE_STATUSES = ['pending', 'sent', 'overdue', 'partially_paid', 'draft'] as const;
+export const OPEN_INVOICE_STATUSES = ['pending', 'sent', 'overdue', 'partially_paid'] as const;
 export const CLOSED_INVOICE_STATUSES = ['paid', 'cancelled', 'void'] as const;
 
 export const INVOICE_STATUSES = [

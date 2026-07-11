@@ -291,7 +291,7 @@ type TabKey =
   | 'automation'
   | 'reminders'
   | 'setup';
-type FinanceOpsTab = 'approvals' | 'invoices' | 'receipts' | 'receipt_builder' | 'school_invoice_builder' | 'accounts' | 'diagnostics';
+type FinanceOpsTab = 'approvals' | 'invoices' | 'receipts' | 'billing_docs';
 
 type PortalRole = 'admin' | 'school' | 'teacher' | string;
 
@@ -352,7 +352,7 @@ function pickOpsTab(urlTab: string | null, opsParam: string | null, role: Portal
     || (workspace === 'collections' ? 'approvals' : null)) as FinanceOpsTab | null;
   const allowed: FinanceOpsTab[] = role === 'school'
     ? ['invoices', 'receipts']
-    : ['invoices', 'receipts', 'approvals', 'receipt_builder', 'school_invoice_builder', 'accounts', 'diagnostics'];
+    : ['invoices', 'receipts', 'billing_docs', 'approvals'];
   return requested && allowed.includes(requested) ? requested : (role === 'school' ? 'invoices' : workspace === 'invoices' ? 'invoices' : 'approvals');
 }
 
