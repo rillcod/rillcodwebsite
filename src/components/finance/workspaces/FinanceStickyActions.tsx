@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { BanknotesIcon, DocumentTextIcon, BoltIcon } from '@heroicons/react/24/outline';
+import { BanknotesIcon, DocumentTextIcon, BoltIcon } from '@/lib/icons';
 
 type Props = {
   workspace: 'today' | 'payments' | 'collections';
