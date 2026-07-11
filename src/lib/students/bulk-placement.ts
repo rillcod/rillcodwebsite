@@ -27,7 +27,7 @@ export function bulkClassCoversGrade(cls: BulkPlacementClass, grade: string): bo
   // Legacy sections often lack qa_* fields — match by class name when possible.
   const className = (cls.name || '').toLowerCase();
   if (!className) return false;
-  const gradeCanon = canonicalGrade(grade).toLowerCase();
+  const gradeCanon = canonicalGrade(grade)?.toLowerCase();
   if (gradeCanon && className.includes(gradeCanon)) return true;
   if (band && className.includes(band.toLowerCase())) return true;
   // "Basic 1-3" style in names vs student "Basic 2"
