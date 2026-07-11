@@ -6,6 +6,14 @@ import { buildClassName, gradeBand, cleanGrade } from '@/lib/classes/naming';
 import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
 import { validateBulkClassPlacement } from '@/lib/students/bulk-placement';
+import {
+  buildNameLookupMaps,
+  duplicateBlockMessage,
+  findNameDuplicate,
+  findSchoolNameKeyConflicts,
+  loadSchoolStudentsForNameCheck,
+  registerCreatedNameInMaps,
+} from '@/lib/students/duplicate-name-barricade';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -316,49 +324,26 @@ export async function POST(request: Request) {
       cardId?: string | null;
     }> = [];
 
-    // ── Duplicate barricade: existing students at this school (by id AND by name) ──
-    // Rule: same full_name + same school = strict duplicate, even across different
-    // school_ids. We match on school_id and, as a safety net, school_name — using
-    // SEPARATE typed filters. (The old single .or() string-interpolated the school
-    // name, so a name containing a comma/parenthesis broke the filter and let
-    // duplicates slip through; a null school_id also became a literal `eq.null`.)
-    const dupCols = 'id, full_name, email, school_id, school_name';
-    const existingStudentsMap = new Map<string, { id: string; full_name: string; email: string }>();
-    if (resolvedSchoolId) {
-      const { data } = await supabaseAdmin
-        .from('portal_users').select(dupCols)
-        .eq('role', 'student').eq('is_deleted', false)
-        .eq('school_id', resolvedSchoolId);
-      for (const s of data ?? []) existingStudentsMap.set(s.id, s as any);
-    }
-    if (resolvedSchoolName) {
-      const { data } = await supabaseAdmin
-        .from('portal_users').select(dupCols)
-        .eq('role', 'student').eq('is_deleted', false)
-        .ilike('school_name', resolvedSchoolName);
-      for (const s of data ?? []) existingStudentsMap.set(s.id, s as any);
-    }
-    const existingStudents = [...existingStudentsMap.values()];
-
-    // Build lookup maps for exact name AND reversed-name (first/last swapped)
-    const existingByName = new Map<string, { id: string; email: string; full_name: string }>();
-    const existingByReversedName = new Map<string, { id: string; email: string; full_name: string }>();
-    // Normalized key map — the STRONG barricade. duplicateNameKey ignores word order,
-    // casing, invisible/bidi chars, "34." index prefixes and trailing disambiguator
-    // numbers, so "Uche Sunday" ≡ "Uche Sunday 5" ≡ "5 Uche Sunday" all collapse and a
-    // re-upload can no longer create a same-child twin with a slightly different spelling.
-    const existingByKey = new Map<string, { id: string; email: string; full_name: string }>();
-    for (const s of (existingStudents ?? [])) {
-      const norm = s.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
-      existingByName.set(norm, { id: s.id, email: s.email, full_name: s.full_name });
-      // Build reversed version: "Ada Ngozi" → "Ngozi Ada"
-      const parts = norm.split(/\s+/);
-      if (parts.length >= 2) {
-        const reversed = [...parts].reverse().join(' ');
-        existingByReversedName.set(reversed, { id: s.id, email: s.email, full_name: s.full_name });
-      }
-      const key = duplicateNameKey(s.full_name);
-      if (key) existingByKey.set(key, { id: s.id, email: s.email, full_name: s.full_name });
+    // ── Duplicate barricade: same normalized name at this school (emails irrelevant) ──
+    // 1) RPC keyed lookup (same key as the DB trigger) for the names in this batch
+    // 2) Paged full-school scan as a safety net / for exact+swap maps + within-batch updates
+    const batchNameKeys = students
+      .map((s) => duplicateNameKey(s.full_name))
+      .filter((k): k is string => !!k);
+    const rpcConflicts = await findSchoolNameKeyConflicts(
+      supabaseAdmin as any,
+      resolvedSchoolId,
+      resolvedSchoolName,
+      batchNameKeys,
+    );
+    const existingStudents = await loadSchoolStudentsForNameCheck(
+      supabaseAdmin as any,
+      resolvedSchoolId,
+      resolvedSchoolName,
+    );
+    const nameMaps = buildNameLookupMaps(existingStudents);
+    for (const [key, hit] of rpcConflicts) {
+      if (!nameMaps.byKey.has(key)) nameMaps.byKey.set(key, hit);
     }
 
     for (const student of students) {
@@ -382,9 +367,7 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const nameKey = full_name.trim().replace(/\s+/g, ' ').toLowerCase();
-
-      // 3. Email Check: Check if email is already in use by a different student or role
+      // Email check: already in use by a different student or role
       const emailKey = normalizeEmail(email);
       const { data: userWithEmail } = await supabaseAdmin
         .from('portal_users')
@@ -422,39 +405,14 @@ export async function POST(request: Request) {
         }
       }
 
-      // 1. Exact name match — block unless this row has an audited exception
-      const exactMatch = existingByName.get(nameKey);
-      if (exactMatch && !hasDuplicateException) {
+      // Same-school name duplicate — emails do not matter. Twin exception needs ≥10 char reason.
+      const nameDup = findNameDuplicate(nameMaps, full_name);
+      if (nameDup && !hasDuplicateException) {
         results.push({
           full_name, email, password, class_name,
-          status: 'skipped',
-          error: `Already registered at this school as "${exactMatch.full_name}" (login: ${exactMatch.email}). Duplicate names cannot be created through bulk registration.`,
-          userId: exactMatch.id,
-        });
-        continue;
-      }
-
-      // 2. Swapped first/last name — block unless this row has an audited exception
-      const swapMatch = !exactMatch ? existingByReversedName.get(nameKey) : null;
-      if (swapMatch && !hasDuplicateException) {
-        results.push({
-          full_name, email, password, class_name,
-          status: 'name_swap_conflict',
-          error: `Possible duplicate: "${full_name}" looks like "${swapMatch.full_name}" with first and last name swapped (existing login: ${swapMatch.email}). Duplicate names cannot be created through bulk registration.`,
-          userId: swapMatch.id,
-        });
-        continue;
-      }
-
-      // 2b. Normalized-key match — catches spelling-noise variants the exact/reversed
-      // checks miss ("Uche Sunday" vs "Uche Sunday 5", invisible chars, "34." prefixes).
-      const keyMatch = (!exactMatch && !swapMatch) ? existingByKey.get(duplicateNameKey(full_name)) : null;
-      if (keyMatch && !hasDuplicateException) {
-        results.push({
-          full_name, email, password, class_name,
-          status: 'skipped',
-          error: `Already registered at this school as "${keyMatch.full_name}" (login: ${keyMatch.email}). Duplicate names cannot be created through bulk registration.`,
-          userId: keyMatch.id,
+          status: nameDup.kind === 'swap' ? 'name_swap_conflict' : 'skipped',
+          error: duplicateBlockMessage(nameDup.kind, full_name, nameDup.hit),
+          userId: nameDup.hit.id,
         });
         continue;
       }
@@ -687,19 +645,14 @@ export async function POST(request: Request) {
           console.error('[BulkRegister] Card auto-issue failed:', cardErr);
         }
 
-        // ── Within-batch barricade: register the just-created student into the in-memory
-        // dedup maps so a LATER row in the SAME upload with the same name (or a spelling
-        // variant / swapped names) is caught. Without this, the maps only reflected the DB
-        // as it was BEFORE the batch, so two "John Doe" rows in one file both slipped through.
+        // Within-batch barricade: later rows in this upload hit the same maps.
         {
           const createdName = cleanStudentName(full_name) || full_name.trim();
-          const normNew = createdName.replace(/\s+/g, ' ').toLowerCase();
-          const rec = { id: authUserId, email: emailKey, full_name: createdName };
-          existingByName.set(normNew, rec);
-          const partsNew = normNew.split(/\s+/);
-          if (partsNew.length >= 2) existingByReversedName.set([...partsNew].reverse().join(' '), rec);
-          const keyNew = duplicateNameKey(createdName);
-          if (keyNew) existingByKey.set(keyNew, rec);
+          registerCreatedNameInMaps(nameMaps, createdName, {
+            id: authUserId,
+            email: emailKey,
+            full_name: createdName,
+          });
         }
 
         if (resolvedClass.id) {

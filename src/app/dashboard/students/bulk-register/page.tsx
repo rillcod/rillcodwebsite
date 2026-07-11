@@ -15,6 +15,7 @@ import {
 } from '@/lib/classes/naming';
 import { isBulkGradeHeader, parseBulkGrade, stripBulkGrade } from '@/lib/students/bulk-grade';
 import { bulkClassCoversGrade, bulkGradeBand } from '@/lib/students/bulk-placement';
+import { duplicateNameKey } from '@/lib/students/clean-name';
 import {
   UserGroupIcon,
   CheckCircleIcon,
@@ -220,6 +221,7 @@ export default function BulkRegisterPage() {
   const [selectedResultIds, setSelectedResultIds] = useState<string[]>([]);
   const [dbDupNames, setDbDupNames] = useState<Set<string>>(new Set()); // names already in DB at selected school
   const [dbSwapNames, setDbSwapNames] = useState<Map<string, string>>(new Map()); // incoming name → existing swapped name
+  const [dbDupNameKeys, setDbDupNameKeys] = useState<Set<string>>(new Set()); // normalized keys (order/casing/disambiguator)
   const [checkingDups, setCheckingDups] = useState(false);
   const [activeTab, setActiveTab] = useState<'register' | 'vault' | 'unified'>('register');
   const [isSingleModalOpen, setIsSingleModalOpen] = useState(false);
@@ -1260,86 +1262,49 @@ export default function BulkRegisterPage() {
     }
   }, [activeTab, schools, unifiedSchoolId, fetchUnifiedCredentials]);
 
-  // ── Debounced DB Duplicate Checking ──────────────────────────────────────
+  // ── Debounced DB Duplicate Checking (server-side, not capped at ~1000 rows) ──
   useEffect(() => {
     if (step !== 'preview' || !selectedSchoolId || preview.length === 0) return;
 
     const timer = setTimeout(async () => {
       setCheckingDups(true);
       try {
-        // Names check
-        const { data: nameData } = await supabase
-          .from('portal_users')
-          .select('full_name')
-          .eq('school_id', selectedSchoolId)
-          .eq('role', 'student')
-          .eq('is_deleted', false);
-
-        // Emails check
-        const previewEmails = preview.map(s => s.email.toLowerCase()).filter(Boolean);
-        const { data: emailData } = await supabase
-          .from('portal_users')
-          .select('email, full_name, role')
-          .in('email', previewEmails)
-          .eq('is_deleted', false);
+        const res = await fetch('/api/students/bulk-register/check-duplicates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            school_id: selectedSchoolId,
+            school_name: selectedSchoolName || null,
+            names: preview.map((s) => s.full_name),
+            emails: preview.map((s) => s.email.toLowerCase()),
+          }),
+        });
+        const data = res.ok ? await res.json() : { nameConflicts: [], emailConflicts: [] };
 
         const dupSet = new Set<string>();
         const swapMap = new Map<string, string>();
-        if (nameData) {
-          const existingNames = new Map<string, string>(
-            nameData.map((s: any) => [s.full_name.trim().replace(/\s+/g, ' ').toLowerCase(), s.full_name.trim()])
-          );
-          for (const s of preview) {
-            const norm = s.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
-            if (!norm) continue;
-            if (existingNames.has(norm)) {
-              dupSet.add(norm);
-            } else {
-              const parts = norm.split(/\s+/);
-              if (parts.length >= 2) {
-                const reversed = [...parts].reverse().join(' ');
-                if (existingNames.has(reversed)) {
-                  swapMap.set(norm, existingNames.get(reversed)!);
-                }
-              }
-            }
+        const keySet = new Set<string>();
+        for (const c of data.nameConflicts ?? []) {
+          const norm = String(c.full_name ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+          if (c.name_key) keySet.add(c.name_key);
+          if (c.kind === 'swap') {
+            if (norm) swapMap.set(norm, c.existing_full_name);
+          } else if (norm) {
+            dupSet.add(norm);
           }
         }
         setDbDupNames(dupSet);
         setDbSwapNames(swapMap);
+        setDbDupNameKeys(keySet);
 
         const emailConflicts = new Map<string, { full_name: string; role: string }>();
-        if (emailData) {
-          const takenEmailsMap = new Map<string, { full_name: string; role: string }>(
-            emailData.map((u: any) => [u.email.toLowerCase(), { full_name: u.full_name, role: u.role }])
-          );
-          for (const s of preview) {
-            const emailKey = s.email.toLowerCase();
-            const existingUser = takenEmailsMap.get(emailKey);
-            if (existingUser) {
-              const normExistingName = existingUser.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
-              const normIncomingName = s.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
-              
-              const isSameName = normExistingName === normIncomingName;
-              
-              let isReversedName = false;
-              const incomingParts = normIncomingName.split(/\s+/);
-              if (incomingParts.length >= 2) {
-                const reversedIncoming = [...incomingParts].reverse().join(' ');
-                if (normExistingName === reversedIncoming) {
-                  isReversedName = true;
-                }
-              }
-              
-              const nameMatches = isSameName || isReversedName;
-              if (existingUser.role !== 'student' || !nameMatches) {
-                emailConflicts.set(emailKey, { full_name: existingUser.full_name, role: existingUser.role });
-              }
-            }
-          }
+        for (const c of data.emailConflicts ?? []) {
+          if (c.email) emailConflicts.set(String(c.email).toLowerCase(), {
+            full_name: c.full_name,
+            role: c.role,
+          });
         }
         setDbEmailConflicts(emailConflicts);
-
       } catch (err) {
         console.error('Error verifying duplicates:', err);
       } finally {
@@ -1348,11 +1313,10 @@ export default function BulkRegisterPage() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [preview, step, selectedSchoolId, supabase]);
+  }, [preview, step, selectedSchoolId, selectedSchoolName]);
 
   function studentNameKey(name: string): string {
-    return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/)
-      .filter((token) => token && !/^\d+$/.test(token)).sort().join(' ');
+    return duplicateNameKey(name);
   }
 
   // ── Detect duplicate emails in the current preview ───────────────────────
@@ -1429,6 +1393,7 @@ export default function BulkRegisterPage() {
     setBandClassSelections(nextSelections);
     setDbDupNames(new Set());
     setDbSwapNames(new Map());
+    setDbDupNameKeys(new Set());
     setDbEmailConflicts(new Map());
     setStep('preview');
   }, [namesText, defaultClass, batchPlacementReady, filteredRegistryClasses, selectedRegisteredClass]);
@@ -1655,7 +1620,10 @@ export default function BulkRegisterPage() {
   const hasNameConflict = (row: GeneratedStudent) => {
     const norm = row.full_name.trim().replace(/\s+/g, ' ').toLowerCase();
     const key = studentNameKey(row.full_name);
-    return dbDupNames.has(norm) || dbSwapNames.has(norm) || (!!key && (batchNameCounts.get(key) ?? 0) > 1);
+    return dbDupNames.has(norm)
+      || dbSwapNames.has(norm)
+      || (!!key && dbDupNameKeys.has(key))
+      || (!!key && (batchNameCounts.get(key) ?? 0) > 1);
   };
   const unresolvedNameExceptions = preview.filter((row) => hasNameConflict(row) && (
     !row.duplicate_exception_confirmed || (row.duplicate_exception_reason?.trim().length ?? 0) < 10
@@ -2259,7 +2227,8 @@ Yusuf Ibrahim SS1A`}
                         {preview.map((s, i) => {
                           const emailDup = dups.has(s.email.toLowerCase());
                           const incomplete = !s.full_name.trim() || !s.email.trim();
-                          const dbDup = dbDupNames.has(s.full_name.trim().toLowerCase());
+                          const dbDup = dbDupNames.has(s.full_name.trim().replace(/\s+/g, ' ').toLowerCase())
+                            || dbDupNameKeys.has(studentNameKey(s.full_name));
                           const nameConflict = hasNameConflict(s);
                           return (
                             <tr
@@ -2363,7 +2332,8 @@ Yusuf Ibrahim SS1A`}
                       {preview.map((s, i) => {
                         const emailDup = dups.has(s.email.toLowerCase());
                         const incomplete = !s.full_name.trim() || !s.email.trim();
-                        const dbDup = dbDupNames.has(s.full_name.trim().toLowerCase());
+                        const dbDup = dbDupNames.has(s.full_name.trim().replace(/\s+/g, ' ').toLowerCase())
+                          || dbDupNameKeys.has(studentNameKey(s.full_name));
                         const nameConflict = hasNameConflict(s);
                         return (
                           <div key={s.id} className={`p-4 space-y-3 ${incomplete ? 'bg-yellow-500/10' : emailDup ? 'bg-rose-500/5' : dbDup ? 'bg-yellow-500/10' : ''}`}>
