@@ -79,7 +79,7 @@ const BLANK = {
  * offsets and a live HTML preview of the actual printable invoice.
  *
  * Saves into public.invoices with stream=school so it flows through the
- * finance_ledger, Money Hub and reconciliation dashboard seamlessly.
+ * the canonical finance ledger, Today workspace and Reconciliation workspace seamlessly.
  */
 interface SchoolInvoiceBuilderPanelProps {
   /** Pre-load an existing school invoice for editing (passed from OperationsHub via ?edit_invoice=) */

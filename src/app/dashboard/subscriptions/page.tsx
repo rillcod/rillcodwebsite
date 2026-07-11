@@ -1,5 +1,1 @@
-import { redirect } from 'next/navigation';
-
-export default function SubscriptionsRedirectPage() {
-  redirect('/dashboard/finance?workspace=billing');
-}
+export { default } from '../finance/page';

@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -20,6 +20,8 @@ import { OperationsHub } from '@/components/finance/ops/OperationsHub';
 import BalanceRemindersPanel from '@/components/finance/BalanceRemindersPanel';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
 import MoneyHubPage from '@/components/finance/MoneyHub';
+import ParentFinancePortal from '@/components/finance/ParentFinancePortal';
+import IndividualFinancePortal from '@/components/finance/IndividualFinancePortal';
 import { FinanceStickyActions } from '@/components/finance/workspaces/FinanceStickyActions';
 import { ReconciliationFindingsPanel } from '@/components/finance/workspaces/ReconciliationFindingsPanel';
 
@@ -313,6 +315,20 @@ const ALL_TABS: TabDef[] = [
   { key: 'reports', label: 'Reports', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
   { key: 'settings', label: 'Settings', icon: CreditCardIcon, roles: ['admin'] },
 ];
+
+const LEGACY_PATH_WORKSPACE: Record<string, TabKey> = {
+  '/dashboard/payments': 'collections',
+  '/dashboard/transactions': 'today',
+  '/dashboard/finance/reconciliation': 'reconciliation',
+  '/dashboard/billing': 'settings',
+  '/dashboard/billing-automation': 'collections',
+  '/dashboard/school-billing': 'billing',
+  '/dashboard/subscriptions': 'billing',
+  '/dashboard/balance-reminders': 'settings',
+  '/dashboard/my-payments': 'today',
+  '/dashboard/parent-invoices': 'today',
+  '/dashboard/money': 'today',
+};
 
 const LEGACY_TAB_MAP: Record<string, TabKey> = {
   my_money: 'today',
@@ -1980,6 +1996,7 @@ function SetupTab({ profile }: { profile: any }) {
 export default function FinancePage() {
   const { profile, loading: authLoading, profileLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [tab, setTab] = useState<TabKey>('today');
@@ -2003,8 +2020,8 @@ export default function FinancePage() {
   useEffect(() => {
     if (!profile) return;
     const isAdminUser = profile.role === 'admin';
-    setTab(pickTab(tabParam, workspaceParam, profile.role, isAdminUser));
-  }, [tabParam, workspaceParam, profile?.id, profile?.role]);
+    setTab(pickTab(tabParam, workspaceParam || LEGACY_PATH_WORKSPACE[pathname] || null, profile.role, isAdminUser));
+  }, [tabParam, workspaceParam, pathname, profile?.id, profile?.role]);
 
   if (authLoading || profileLoading || !profile) {
     return (
@@ -2085,7 +2102,13 @@ export default function FinancePage() {
         <div className="min-h-[400px] space-y-6">
           {tab === 'today' && (
             <>
-              <MoneyHubPage />
+              {profile.role === 'parent' ? (
+                <ParentFinancePortal />
+              ) : profile.role === 'student' ? (
+                <IndividualFinancePortal />
+              ) : (
+                <MoneyHubPage />
+              )}
             </>
           )}
           {tab === 'invoices' && (

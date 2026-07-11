@@ -379,7 +379,6 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Finance' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: CreditCardIcon },
-          { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
