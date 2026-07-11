@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Unified Money hub — /dashboard/money
+ * Unified Money hub â€” /dashboard/money
  *
  * One page for every role (admin, school, teacher, student, parent).
  * The finance system is otherwise scattered across 5+ routes; this hub
@@ -12,7 +12,7 @@
  *   - Outstanding invoices with pay / remind actions
  *   - Deep-links to power surfaces (Finance Ops, Bulk invoicing, Subscriptions)
  *
- * All data is read through existing APIs — no DB changes.
+ * All data is read through existing APIs â€” no DB changes.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -48,6 +48,8 @@ interface Transaction {
   payment_method: string | null;
   payment_status: string;
   transaction_reference: string | null;
+  description?: string;
+  source?: string;
   external_transaction_id: string | null;
   paid_at: string | null;
   created_at: string;
@@ -111,7 +113,7 @@ const formatMoney = (amount: number, currency = 'NGN') => {
 };
 
 const formatDate = (iso?: string | null) => {
-  if (!iso) return '—';
+  if (!iso) return 'â€”';
   return new Date(iso).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
@@ -294,7 +296,7 @@ export default function MoneyHubPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-xs font-black uppercase tracking-widest">Loading your finances…</span>
+          <span className="text-xs font-black uppercase tracking-widest">Loading your financesâ€¦</span>
         </div>
       </div>
     );
@@ -404,8 +406,8 @@ export default function MoneyHubPage() {
                           {(inv as any).portal_users?.full_name || 'Student'}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
-                          {formatMoney(inv.amount, inv.currency)} · Due {formatDate(inv.due_date)}
-                          {isOv && <span className="text-rose-400 font-black"> · OVERDUE</span>}
+                          {formatMoney(inv.amount, inv.currency)} Â· Due {formatDate(inv.due_date)}
+                          {isOv && <span className="text-rose-400 font-black"> Â· OVERDUE</span>}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -436,7 +438,7 @@ export default function MoneyHubPage() {
             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 overflow-hidden">
               <div className="px-4 py-3 border-b border-emerald-500/20 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <h2 className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Cleared — Paid Students</h2>
+                <h2 className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Cleared â€” Paid Students</h2>
                 <span className="ml-auto text-[10px] text-emerald-400/60">{paidForTeacher.length}</span>
               </div>
               <ul className="divide-y divide-emerald-500/10">
@@ -447,7 +449,7 @@ export default function MoneyHubPage() {
                       <p className="text-sm font-black text-foreground truncate">{(inv as any).portal_users?.full_name || 'Student'}</p>
                       <p className="text-[10px] text-muted-foreground">{formatMoney(inv.amount, inv.currency)}</p>
                     </div>
-                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">✓ Paid</span>
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">âœ“ Paid</span>
                   </li>
                 ))}
               </ul>
@@ -456,16 +458,16 @@ export default function MoneyHubPage() {
 
           {/* Evidence review banner */}
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-start gap-3">
-            <span className="text-lg leading-none mt-0.5">💡</span>
+            <span className="text-lg leading-none mt-0.5">ðŸ’¡</span>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-black text-amber-400 uppercase tracking-widest mb-1">Payment Evidence Submissions</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Students and parents who paid through the school can submit their receipt number, grade level, and date of payment from their parent portal.
-                Review and approve these submissions from <strong className="text-foreground">Finance → Approvals</strong>.
+                Review and approve these submissions from <strong className="text-foreground">Finance â†’ Approvals</strong>.
               </p>
               <a href="/dashboard/finance?tab=operations&ops=approvals"
                 className="inline-flex items-center gap-1 mt-2 text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors">
-                Go to Finance &amp; Review Evidence →
+                Go to Finance &amp; Review Evidence â†’
               </a>
             </div>
           </div>
@@ -476,7 +478,7 @@ export default function MoneyHubPage() {
           </p>
         </div>
 
-        {/* ── Mark as Paid modal ─────────────────────────────────────── */}
+        {/* â”€â”€ Mark as Paid modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {markPaidInv && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-sm p-4">
             <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
@@ -533,7 +535,7 @@ export default function MoneyHubPage() {
                   className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-primary-foreground text-sm font-black transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {markingPaid ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  {markingPaid ? 'Confirming…' : 'Confirm Payment'}
+                  {markingPaid ? 'Confirmingâ€¦' : 'Confirm Payment'}
                 </button>
               </div>
             </div>
@@ -547,7 +549,7 @@ export default function MoneyHubPage() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6">
 
-        {/* ── Header ─────────────────────────────────────────────────── */}
+        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {(paymentParam === 'success' || paymentParam === 'cancelled') && (
           <div className={`rounded-2xl border p-4 flex items-start gap-3 ${
             paymentParam === 'cancelled'
@@ -575,7 +577,7 @@ export default function MoneyHubPage() {
           </div>
         )}
 
-        {/* ── Header ─────────────────────────────────────────────────── */}
+        {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <Link href="/dashboard" className="w-10 h-10 inline-flex items-center justify-center rounded-xl bg-card border border-border hover:bg-muted transition-colors" aria-label="Back to dashboard">
@@ -617,7 +619,7 @@ export default function MoneyHubPage() {
           </div>
         )}
 
-        {/* ── Stream tabs (admin only — schools see their own stream implicitly) ── */}
+        {/* â”€â”€ Stream tabs (admin only â€” schools see their own stream implicitly) â”€â”€ */}
         {isAdmin && (
           <div
             role="tablist"
@@ -655,7 +657,7 @@ export default function MoneyHubPage() {
           </div>
         )}
 
-        {/* ── Fee status hero (student / parent) ────────────────────── */}
+        {/* â”€â”€ Fee status hero (student / parent) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {(role === 'student' || role === 'parent') && (() => {
           const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()));
           const overdue = outstanding.filter(i => i.due_date && new Date(i.due_date) < new Date());
@@ -671,12 +673,12 @@ export default function MoneyHubPage() {
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-black ${isOver ? 'text-rose-400' : 'text-amber-400'}`}>
                   {isOver
-                    ? `${overdue.length} invoice${overdue.length !== 1 ? 's' : ''} overdue — action required`
+                    ? `${overdue.length} invoice${overdue.length !== 1 ? 's' : ''} overdue â€” action required`
                     : `${outstanding.length} outstanding invoice${outstanding.length !== 1 ? 's' : ''}`}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Total due: <span className="font-black text-foreground">{formatMoney(outstanding.reduce((s, i) => s + Number(i.amount || 0), 0))}</span>
-                  {' · '}
+                  {' Â· '}
                   {role === 'parent' ? 'Pay your child\'s fees to keep their access active.' : 'Pay promptly to maintain your course access.'}
                 </p>
               </div>
@@ -690,7 +692,7 @@ export default function MoneyHubPage() {
           );
         })()}
 
-        {/* ── School balance banner ──────────────────────────────────── */}
+        {/* â”€â”€ School balance banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {isSchool && (() => {
           const outstanding = scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase()));
           if (outstanding.length === 0) return null;
@@ -704,11 +706,11 @@ export default function MoneyHubPage() {
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-black ${overdue.length > 0 ? 'text-rose-400' : 'text-indigo-400'}`}>
                   {overdue.length > 0
-                    ? `Overdue balance — ${formatMoney(totalDue)}`
-                    : `Outstanding balance — ${formatMoney(totalDue)}`}
+                    ? `Overdue balance â€” ${formatMoney(totalDue)}`
+                    : `Outstanding balance â€” ${formatMoney(totalDue)}`}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {outstanding.length} open invoice{outstanding.length !== 1 ? 's' : ''} · Remit via bank transfer or contact Rillcod.
+                  {outstanding.length} open invoice{outstanding.length !== 1 ? 's' : ''} Â· Remit via bank transfer or contact Rillcod.
                 </p>
               </div>
               <a
@@ -721,7 +723,7 @@ export default function MoneyHubPage() {
           );
         })()}
 
-        {/* ── Summary tiles ──────────────────────────────────────────── */}
+        {/* â”€â”€ Summary tiles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <SummaryTile
             label={isAdmin ? 'Revenue Collected' : 'Total Paid'}
@@ -768,7 +770,7 @@ export default function MoneyHubPage() {
           )}
         </section>
 
-        {/* ── Quick actions (role-aware) ─────────────────────────────── */}
+        {/* â”€â”€ Quick actions (role-aware) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {isAdmin && (
             <>
@@ -799,7 +801,7 @@ export default function MoneyHubPage() {
           )}
         </section>
 
-        {/* ── Outstanding invoices (payers) ──────────────────────────── */}
+        {/* â”€â”€ Outstanding invoices (payers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {!isAdmin && scopedInvoices.filter(i => !['paid', 'cancelled', 'void', 'draft'].includes((i.status || '').toLowerCase())).length > 0 && (
           <section className="rounded-2xl border border-border bg-card overflow-hidden">
             <div className="px-4 sm:px-5 py-3 border-b border-border flex items-center justify-between gap-2">
@@ -839,7 +841,7 @@ export default function MoneyHubPage() {
                           {(isAdmin || isSchool) && <StreamChip stream={invStream(inv)} />}
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Due {formatDate(inv.due_date)} · {formatMoney(inv.amount, inv.currency)}
+                          Due {formatDate(inv.due_date)} Â· {formatMoney(inv.amount, inv.currency)}
                         </p>
                       </div>
                       <Link
@@ -855,7 +857,7 @@ export default function MoneyHubPage() {
           </section>
         )}
 
-        {/* ── Transaction ledger ──────────────────────────────────────── */}
+        {/* â”€â”€ Transaction ledger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="px-4 sm:px-5 py-3 border-b border-border flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
             <div className="flex items-center gap-2">
@@ -873,7 +875,7 @@ export default function MoneyHubPage() {
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Ref, method, invoice…"
+                  placeholder="Ref, method, invoiceâ€¦"
                   className="w-full pl-8 pr-3 py-2 text-sm bg-background border border-border rounded-lg outline-none focus:border-primary min-h-[40px]"
                 />
               </div>
@@ -924,12 +926,12 @@ export default function MoneyHubPage() {
                         {(isAdmin || isSchool) && <StreamChip stream={txStream(t)} />}
                       </div>
                       <p className="text-[11px] text-muted-foreground font-mono truncate">
-                        {t.transaction_reference || t.external_transaction_id || '—'}
+                        {t.transaction_reference || t.external_transaction_id || 'â€”'}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {t.invoices?.invoice_number ? `Invoice ${t.invoices.invoice_number} · ` : ''}
-                        {(t.payment_method || 'gateway').toUpperCase()} · {formatDate(t.paid_at || t.created_at)}
-                      </p>
+                        {t.description || (t.invoices?.invoice_number
+                          ? `Invoice ${t.invoices.invoice_number}`
+                          : t.courses?.title || '—')}
                       {isStaff && t.portal_users?.full_name && (
                         <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                           Payer: {t.portal_users.full_name}
@@ -977,12 +979,12 @@ export default function MoneyHubPage() {
                       >
                         <td className="px-3 py-3 text-muted-foreground">{formatDate(t.paid_at || t.created_at)}</td>
                         <td className="px-3 py-3 font-mono text-[12px] text-foreground truncate max-w-[180px]">
-                          {t.transaction_reference || t.external_transaction_id || '—'}
+                          {t.transaction_reference || t.external_transaction_id || 'â€”'}
                         </td>
                         {isStaff && (
                           <td className="px-3 py-3 text-foreground">
                             <div className="min-w-0">
-                              <p className="font-bold truncate">{t.portal_users?.full_name || '—'}</p>
+                              <p className="font-bold truncate">{t.portal_users?.full_name || 'â€”'}</p>
                               {t.portal_users?.email && <p className="text-[10px] text-muted-foreground truncate">{t.portal_users.email}</p>}
                             </div>
                           </td>
@@ -990,7 +992,7 @@ export default function MoneyHubPage() {
                         <td className="px-3 py-3 text-foreground truncate max-w-[180px]">
                           {t.invoices?.invoice_number
                             ? `Invoice ${t.invoices.invoice_number}`
-                            : t.courses?.title || '—'}
+                            : t.courses?.title || 'â€”'}
                         </td>
                         {(isAdmin || isSchool) && (
                           <td className="px-3 py-3"><StreamChip stream={txStream(t)} /></td>
@@ -1016,7 +1018,7 @@ export default function MoneyHubPage() {
                               {busyRow === t.id ? 'Opening' : 'Receipt'}
                             </button>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">—</span>
+                            <span className="text-[10px] text-muted-foreground">â€”</span>
                           )}
                         </td>
                       </motion.tr>
@@ -1028,9 +1030,9 @@ export default function MoneyHubPage() {
           )}
         </section>
 
-        {/* ── Footer helper line ─────────────────────────────────────── */}
+        {/* â”€â”€ Footer helper line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <p className="text-[11px] text-muted-foreground text-center py-2">
-          Payments are reconciled nightly. Receipts are issued automatically for every successful payment —
+          Payments are reconciled nightly. Receipts are issued automatically for every successful payment â€”
           if a receipt isn&apos;t showing, tap <Download className="w-3 h-3 inline" /> to re-issue it.
         </p>
       </div>
@@ -1038,9 +1040,9 @@ export default function MoneyHubPage() {
   );
 }
 
-/* ════════════════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
  * Small presentation helpers
- * ════════════════════════════════════════════════════════════════════════ */
+ * â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 function SummaryTile({
   label, amount, count, icon: Icon, gradient, accent,

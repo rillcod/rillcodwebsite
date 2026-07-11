@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { describeLedgerEntry } from '@/lib/finance/ledger-description';
 
 /**
  * GET /api/payments/transactions
@@ -86,5 +87,6 @@ export async function GET(req: NextRequest) {
     ? { created_at: last.created_at, id: last.id }
     : null;
 
-  return NextResponse.json({ data: page, nextCursor });
+  const enrichedPage = page.map((row: any) => ({ ...row, ...describeLedgerEntry(row) }));
+  return NextResponse.json({ data: enrichedPage, nextCursor });
 }

@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   // Collision-resistant number; max+1 generation races under concurrent requests.
-  const invoice_number = INV--;
+  const invoice_number = 'INV-' + new Date().getFullYear() + '-' + crypto.randomUUID().slice(0, 8).toUpperCase();
 
   const invoiceItems = items.length > 0 ? items : [
     { description: description ?? (subscription_id ? 'Subscription Fee' : 'Invoice'), quantity: 1, unit_price: validated.amount, total: validated.amount },
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       .is('invoice_id', null);
     if (linkError) {
       await db.from('invoices').delete().eq('id', (invoice as any).id);
-      return NextResponse.json({ error: Invoice could not be linked to its billing cycle: ${linkError.message}` }, { status: 500 });
+      return NextResponse.json({ error: 'Invoice could not be linked to its billing cycle: ' + linkError.message }, { status: 500 });
     }
   }
 

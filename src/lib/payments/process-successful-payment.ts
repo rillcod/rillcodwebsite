@@ -47,7 +47,7 @@ export async function processSuccessfulPayment(reference: string, method: string
         }
         if (!existingTx?.receipt_url) {
             const { paymentsService } = await import('@/services/payments.service');
-            await paymentsService.generateReceipt(existingTx.id);
+            await paymentsService.generateReceipt(existingTx!.id);
         }
         return;
     }
