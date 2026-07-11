@@ -162,6 +162,17 @@ async function resolveClassForStudent(
     }
   }
 
+  // classes.teacher_id is required. Do not create an ownerless class when no
+  // teacher can be resolved; activation can continue without a class assignment.
+  if (!tutorId) {
+    console.error(`[resolveClassForStudent] Cannot create class "${className}": no teacher is available.`);
+    return {
+      id: null,
+      name: className,
+      error: 'No teacher is available to own the automatically created class',
+    };
+  }
+
   const { data: newCls, error: createErr } = await supabaseAdmin
     .from('classes')
     .insert({
