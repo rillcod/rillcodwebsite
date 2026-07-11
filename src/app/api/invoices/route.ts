@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getParentLinkScope } from '@/lib/parents/links';
-import { validateInvoiceInput } from '@/lib/finance/invoice-input';
 
 function adminClient() {
   return createClient(
@@ -87,9 +86,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ data: data ?? [] });
 }
 
-// POST /api/invoices — create invoice.
-// Callers may pass an explicit `stream` ('school' | 'individual'); otherwise
-// we classify from (school_id / portal_user_id / billing_cycle_id).
+// POST /api/invoices — create invoice via shared createInvoice service.
 export async function POST(request: NextRequest) {
   const caller = await requireWriter();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -100,10 +97,6 @@ export async function POST(request: NextRequest) {
     stream: streamFromBody, billing_cycle_id,
   } = body;
 
-  const validated = validateInvoiceInput({ amount, currency, status, due_date, items });
-  if (!validated.ok) return NextResponse.json({ error: validated.error }, { status: 400 });
-
-  const admin = adminClient();
   const effectiveSchoolId = caller.role === 'admin' ? (school_id || null) : caller.school_id;
   if (caller.role !== 'admin' && !effectiveSchoolId) {
     return NextResponse.json({ error: 'Your account is not linked to a school.' }, { status: 403 });
@@ -112,42 +105,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden: cannot create invoices for another school' }, { status: 403 });
   }
   if (portal_user_id && effectiveSchoolId) {
-    const { data: payer } = await admin
+    const admin = adminClient();
+    const { data: payer, error: payerErr } = await admin
       .from('portal_users')
       .select('school_id')
       .eq('id', portal_user_id)
       .maybeSingle();
+    if (payerErr) return NextResponse.json({ error: payerErr.message }, { status: 500 });
     if (!payer) return NextResponse.json({ error: 'Payer not found' }, { status: 404 });
     if (caller.role !== 'admin' && payer.school_id !== effectiveSchoolId) {
       return NextResponse.json({ error: 'Forbidden: payer belongs to another school' }, { status: 403 });
     }
   }
 
-  const { classifyInvoiceStream } = await import('@/lib/finance/streams');
-  const stream = classifyInvoiceStream({
-    stream: streamFromBody ?? null,
-    school_id: effectiveSchoolId ?? null,
-    portal_user_id: portal_user_id ?? null,
-    billing_cycle_id: billing_cycle_id ?? null,
+  const { createInvoice } = await import('@/lib/finance/create-invoice');
+  const { financeResultToResponse } = await import('@/lib/finance/write-result');
+  const result = await createInvoice({
+    school_id: effectiveSchoolId,
+    portal_user_id: portal_user_id || null,
+    amount,
+    currency,
+    notes: notes || null,
+    due_date,
+    items,
+    status,
+    stream: streamFromBody === 'school' || streamFromBody === 'individual' ? streamFromBody : undefined,
+    billing_cycle_id: billing_cycle_id || null,
   });
 
-  const { data, error } = await admin
-    .from('invoices')
-    .insert([{
-      school_id: effectiveSchoolId || null,
-      portal_user_id: portal_user_id || null,
-      amount: validated.amount,
-      currency: validated.currency,
-      notes: notes || null,
-      due_date: validated.dueDate,
-      items: validated.items,
-      status: validated.status,
-      stream,
-      billing_cycle_id: billing_cycle_id || null,
-    }])
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+  const { body: payload, status: httpStatus } = financeResultToResponse(result);
+  if (result.ok) return NextResponse.json({ success: true, data: result.data, effects: result.effects }, { status: 201 });
+  return NextResponse.json(payload, { status: httpStatus });
 }

@@ -1,1 +1,5 @@
-export { default } from '@/components/finance/MoneyHub';
+import { redirect } from 'next/navigation';
+
+export default function MoneyRedirectPage() {
+  redirect('/dashboard/finance?workspace=payments');
+}

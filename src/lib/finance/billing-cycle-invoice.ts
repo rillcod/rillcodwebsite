@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createInvoice } from '@/lib/finance/create-invoice';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -21,6 +22,8 @@ export async function ensureBillingCycleInvoice(
         .from('invoices')
         .update({
           status: 'paid',
+          amount_paid: Number(transaction.amount) || 0,
+          amount_remaining: 0,
           payment_transaction_id: transaction.id,
           updated_at: new Date().toISOString(),
         })
@@ -34,51 +37,68 @@ export async function ensureBillingCycleInvoice(
       .maybeSingle();
     if (existing?.id) return existing.id;
 
-    // Pull a friendly term label for the line item.
-    let termLabel: string | null = null;
-    try {
-      const { data: cycle } = await admin
-        .from('billing_cycles')
-        .select('term_label')
-        .eq('id', billingCycleId)
-        .maybeSingle();
-      termLabel = (cycle as any)?.term_label ?? null;
-    } catch { /* optional */ }
+    // Cycle may already have an invoice from create_billing_cycle_with_invoice
+    const { data: cycle } = await admin
+      .from('billing_cycles')
+      .select('term_label, invoice_id')
+      .eq('id', billingCycleId)
+      .maybeSingle();
+    if (cycle?.invoice_id) {
+      await admin
+        .from('invoices')
+        .update({
+          status: 'paid',
+          amount_paid: Number(transaction.amount) || 0,
+          amount_remaining: 0,
+          payment_transaction_id: transaction.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', cycle.invoice_id);
+      await admin.from('payment_transactions').update({ invoice_id: cycle.invoice_id }).eq('id', transaction.id);
+      return cycle.invoice_id;
+    }
 
     const amt = Number(transaction.amount) || 0;
     const rawRef = String(transaction.transaction_reference || transaction.id);
     const invoiceNumber = `INV-CYC-${rawRef.replace(/[^a-zA-Z0-9-]/g, '').slice(0, 44)}`;
+    const termLabel = (cycle as any)?.term_label ?? null;
 
-    const { data: inv, error } = await admin
-      .from('invoices')
-      .insert({
-        invoice_number: invoiceNumber,
-        amount: amt,
-        currency: transaction.currency || 'NGN',
-        status: 'paid',
-        due_date: null,
-        stream: 'school',
-        school_id: transaction.school_id ?? null,
-        payment_transaction_id: transaction.id,
-        billing_cycle_id: billingCycleId,
-        items: [{
-          description: termLabel ? `Billing cycle settlement — ${termLabel}` : 'Billing cycle settlement',
-          quantity: 1,
-          unit_price: amt,
-          total: amt,
-        }],
-        metadata: { source: 'billing_cycle_payment', billing_cycle_id: billingCycleId },
-      })
-      .select('id')
-      .single();
+    const result = await createInvoice({
+      invoice_number: invoiceNumber,
+      amount: amt,
+      currency: transaction.currency || 'NGN',
+      status: 'sent',
+      stream: 'school',
+      school_id: transaction.school_id ?? null,
+      billing_cycle_id: billingCycleId,
+      items: [{
+        description: termLabel ? `Billing cycle settlement — ${termLabel}` : 'Billing cycle settlement',
+        quantity: 1,
+        unit_price: amt,
+        total: amt,
+      }],
+      notes: 'Billing cycle payment',
+    });
 
-    if (error || !inv?.id) {
-      console.error('[ensureBillingCycleInvoice] insert failed:', error?.message);
+    if (!result.ok) {
+      console.error('[ensureBillingCycleInvoice] create failed:', result.error.message);
       return null;
     }
 
-    await admin.from('payment_transactions').update({ invoice_id: inv.id }).eq('id', transaction.id);
-    return inv.id;
+    const invId = String(result.data.id);
+    await admin
+      .from('invoices')
+      .update({
+        payment_transaction_id: transaction.id,
+        amount_paid: amt,
+        amount_remaining: 0,
+        status: 'paid',
+        metadata: { source: 'billing_cycle_payment', billing_cycle_id: billingCycleId },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', invId);
+    await admin.from('payment_transactions').update({ invoice_id: invId }).eq('id', transaction.id);
+    return invId;
   } catch (err) {
     console.error('[ensureBillingCycleInvoice] failed:', err);
     return null;

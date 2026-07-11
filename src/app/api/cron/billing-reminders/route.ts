@@ -154,12 +154,12 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
       nextAmount = gross;
     }
 
-    await db.from('billing_cycles').insert({
+    const { createBillingCycleWithInvoice } = await import('@/lib/finance/create-invoice');
+    const created = await createBillingCycleWithInvoice({
       subscription_id: cycle.subscription_id,
-      owner_type: cycle.owner_type,
+      owner_type: cycle.owner_type as 'school' | 'individual',
       owner_school_id: cycle.owner_school_id,
       owner_user_id: cycle.owner_user_id,
-      school_id: cycle.school_id,
       term_label: nextLabel,
       term_start_date: termStart,
       due_date: dueDate,
@@ -167,9 +167,21 @@ async function maybeRollOverPaidCycles(db: ReturnType<typeof createAdminClient>)
       currency: cycleCurrency,
       status: 'due',
       items: itemsPayload,
+    });
+    if (!created.ok) {
+      console.error('[billing-reminders] rollover failed', cycle.id, created.error.message);
+      continue;
+    }
+
+    const newCycleId = String(created.data.cycle.id);
+    await db.from('billing_cycles').update({
+      items: itemsPayload,
       rillcod_retain_amount: rillcodRetain,
       school_settlement_amount: schoolSettlement,
-    });
+      amount_due: nextAmount,
+      currency: cycleCurrency,
+      updated_at: new Date().toISOString(),
+    }).eq('id', newCycleId);
 
     await db.from('billing_cycles').update({ status: 'rolled_over', updated_at: new Date().toISOString() }).eq('id', cycle.id);
   }
@@ -193,6 +205,13 @@ async function handleRequest(request: Request) {
   const webUrl = env.NEXT_PUBLIC_APP_URL;
 
   await maybeRollOverPaidCycles(db);
+
+  try {
+    const { markOverdueInvoices } = await import('@/lib/finance/overdue');
+    await markOverdueInvoices();
+  } catch (e: any) {
+    console.error('[billing-reminders] overdue mark failed:', e?.message);
+  }
 
   // Promote overdue cycles: 'due' → 'past_due' once the due date has passed.
   // Nothing else flips this status automatically, so dashboards showed
@@ -271,23 +290,37 @@ async function handleRequest(request: Request) {
     }
 
     const text = `Billing notice: ${cycle.term_label} payment is due. Amount: NGN ${Number(cycle.amount_due || 0).toLocaleString()}. Mobile: ${mobileUrl} ${webUrl ? `Web: ${webUrl}` : ''}`;
+    const stream = cycle.owner_type === 'school' ? 'school_billing' : 'individual_billing';
+    const { deliverReminder } = await import('@/lib/finance/reminders/orchestrator');
+    const stage = `week_${week}`;
 
     for (const userId of inAppUsers) {
       try {
-        await notificationsService.logNotification(
-          userId,
-          'Billing Notice - Action Required',
-          text,
-          'billing_reminder',
-        );
+        const result = await deliverReminder({
+          stream,
+          action: 'billing_cycle_reminder',
+          entityType: 'billing_cycle',
+          entityId: cycle.id,
+          stage: `${stage}_in_app_${userId}`,
+          channel: 'in_app',
+          deliver: async () => {
+            await notificationsService.logNotification(
+              userId,
+              'Billing Notice - Action Required',
+              text,
+              'billing_reminder',
+            );
+          },
+        });
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,
           week_number: week,
           channel: 'in_app',
           target: userId,
-          status: 'sent',
+          status: result.status === 'success' ? 'sent' : result.status,
+          error_message: result.error ?? null,
         });
-        anyDelivered = true;
+        if (result.status === 'success') anyDelivered = true;
       } catch (err: any) {
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,
@@ -302,36 +335,47 @@ async function handleRequest(request: Request) {
 
     if (emailTarget) {
       try {
-        const billingToken = createPublicBillingToken(cycle.id);
-        const payUrl = `${webUrl || 'https://rillcod.com'}/api/payments/public-billing?token=${encodeURIComponent(billingToken)}`;
-        const isOverdue = cycle.due_date ? new Date(cycle.due_date) < new Date() : false;
-        const richHtml = buildSubscriptionEmail({
-          recipientName: schoolName || 'Client',
-          plan:          cycle.term_label,
-          status:        isOverdue ? 'suspended' : 'expiring',
-          expiryDate:    cycle.due_date || undefined,
-          amount:        Number(cycle.amount_due || 0),
-          currency:      'NGN',
-          schoolName:    schoolName || undefined,
-          portalUrl:     payUrl,
-        });
-        await notificationsService.sendExternalEmail({
-          to:        emailTarget,
-          subject:   isOverdue
-            ? `Urgent: Billing Overdue — Action Required (Rillcod Technologies)`
-            : `Billing Reminder — Payment Due Soon (Rillcod Technologies)`,
-          html:      richHtml,
-          fromName:  'Rillcod Technologies Finance',
-          fromEmail: 'support@rillcod.com',
+        const result = await deliverReminder({
+          stream,
+          action: 'billing_cycle_reminder',
+          entityType: 'billing_cycle',
+          entityId: cycle.id,
+          stage,
+          channel: 'email',
+          deliver: async () => {
+            const billingToken = createPublicBillingToken(cycle.id);
+            const payUrl = `${webUrl || 'https://rillcod.com'}/api/payments/public-billing?token=${encodeURIComponent(billingToken)}`;
+            const isOverdue = cycle.due_date ? new Date(cycle.due_date) < new Date() : false;
+            const richHtml = buildSubscriptionEmail({
+              recipientName: schoolName || 'Client',
+              plan: cycle.term_label,
+              status: isOverdue ? 'suspended' : 'expiring',
+              expiryDate: cycle.due_date || undefined,
+              amount: Number(cycle.amount_due || 0),
+              currency: 'NGN',
+              schoolName: schoolName || undefined,
+              portalUrl: payUrl,
+            });
+            await notificationsService.sendExternalEmail({
+              to: emailTarget!,
+              subject: isOverdue
+                ? `Urgent: Billing Overdue — Action Required (Rillcod Technologies)`
+                : `Billing Reminder — Payment Due Soon (Rillcod Technologies)`,
+              html: richHtml,
+              fromName: 'Rillcod Technologies Finance',
+              fromEmail: 'support@rillcod.com',
+            });
+          },
         });
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,
           week_number: week,
           channel: 'email',
           target: emailTarget,
-          status: 'sent',
+          status: result.status === 'success' ? 'sent' : result.status,
+          error_message: result.error ?? null,
         });
-        anyDelivered = true;
+        if (result.status === 'success') anyDelivered = true;
       } catch (err: any) {
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,
@@ -346,18 +390,29 @@ async function handleRequest(request: Request) {
 
     if (whatsappTarget) {
       try {
-        await notificationsService.sendExternalWhatsApp({
-          to: whatsappTarget,
-          body: text,
+        const result = await deliverReminder({
+          stream,
+          action: 'billing_cycle_reminder',
+          entityType: 'billing_cycle',
+          entityId: cycle.id,
+          stage,
+          channel: 'whatsapp',
+          deliver: async () => {
+            await notificationsService.sendExternalWhatsApp({
+              to: whatsappTarget!,
+              body: text,
+            });
+          },
         });
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,
           week_number: week,
           channel: 'whatsapp',
           target: whatsappTarget,
-          status: 'sent',
+          status: result.status === 'success' ? 'sent' : result.status,
+          error_message: result.error ?? null,
         });
-        anyDelivered = true;
+        if (result.status === 'success') anyDelivered = true;
       } catch (err: any) {
         await db.from('billing_reminder_logs').insert({
           billing_cycle_id: cycle.id,

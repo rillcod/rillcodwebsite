@@ -91,7 +91,7 @@ export async function processSuccessfulPayment(reference: string, method: string
     if (isPlainInvoicePayment) {
         const { data: invoice, error: invFetchErr } = await (supabase as any)
             .from('invoices')
-            .select('id, amount, status, payment_transaction_id, billing_cycle_id, school_id, invoice_number')
+            .select('id, amount, original_amount, amount_paid, amount_remaining, status, payment_transaction_id, billing_cycle_id, school_id, invoice_number')
             .eq('id', (transaction as any).invoice_id)
             .maybeSingle();
         if (invFetchErr || !invoice) {
@@ -99,16 +99,20 @@ export async function processSuccessfulPayment(reference: string, method: string
             throw new Error(`Invoice ${(transaction as any).invoice_id} not found for payment ${reference}`);
         }
 
-        const expected = Number(invoice.amount) || 0;
+        const remaining = Number(
+            invoice.amount_remaining != null
+                ? invoice.amount_remaining
+                : Math.max(0, Number(invoice.original_amount ?? invoice.amount ?? 0) - Number(invoice.amount_paid ?? 0)),
+        );
+        const expected = remaining > 0 ? remaining : Number(invoice.amount) || 0;
         const received = Number(transaction.amount) || 0;
-        // Underpayment blocks settlement. Overpayment is tolerated: gateway fee
-        // gross-ups and legacy rows that stored the fee-inclusive amount both
-        // pay MORE than the invoice, never less.
-        if (received + 1 < expected) {
+        // Underpayment beyond remaining blocks settlement. Overpayment of remaining is tolerated.
+        if (received + 1 < expected && remaining > 0) {
             console.error('Invoice payment amount mismatch:', {
                 invoice_id: invoice.id,
                 expected,
                 received,
+                remaining,
                 reference,
             });
             try {
@@ -116,12 +120,12 @@ export async function processSuccessfulPayment(reference: string, method: string
                 void notifyStaffOfPayment({
                     schoolId: (transaction as any).school_id ?? null,
                     title: 'Payment needs review',
-                    message: `Payment ${reference} received ${received} but invoice ${invoice.invoice_number || invoice.id} expects ${expected}. The invoice was NOT marked paid.`,
-                    actionUrl: '/dashboard/finance?tab=operations&ops=approvals',
+                    message: `Payment ${reference} received ${received} but invoice ${invoice.invoice_number || invoice.id} remaining is ${expected}. The invoice was NOT settled.`,
+                    actionUrl: '/dashboard/finance?workspace=collections',
                 });
             } catch { /* best-effort alert */ }
             throw new Error(
-                `Payment ${reference} amount (${received}) is below invoice ${invoice.invoice_number || invoice.id} amount (${expected}).`,
+                `Payment ${reference} amount (${received}) is below invoice ${invoice.invoice_number || invoice.id} remaining (${expected}).`,
             );
         }
         validatedInvoice = invoice;
@@ -431,25 +435,39 @@ export async function processSuccessfulPayment(reference: string, method: string
         }
     } else if ((transaction as any).invoice_id && validatedInvoice) {
         const invoice = validatedInvoice;
-
-        const { error: invUpdateErr } = await (supabase as any)
-            .from('invoices')
-            .update({
-                status: 'paid',
-                payment_transaction_id: transaction.id,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', invoice.id)
-            .neq('status', 'paid');
-        if (invUpdateErr) {
-            console.error('Failed to mark invoice paid:', invUpdateErr);
-            throw new Error(`Failed to mark invoice ${invoice.id} paid: ${invUpdateErr.message}`);
+        const { allocatePaymentToInvoice } = await import('@/lib/finance/allocate-payment');
+        const alloc = await allocatePaymentToInvoice({
+            transactionId: transaction.id,
+            invoiceId: invoice.id,
+            amount: Number(transaction.amount) || 0,
+        });
+        if (!alloc.ok) {
+            // Fallback for pre-migration environments: mark paid like before
+            if (/does not exist|allocate_payment_to_invoice/i.test(alloc.error.message)) {
+                const { error: invUpdateErr } = await (supabase as any)
+                    .from('invoices')
+                    .update({
+                        status: 'paid',
+                        payment_transaction_id: transaction.id,
+                        amount_paid: Number(invoice.original_amount ?? invoice.amount ?? 0),
+                        amount_remaining: 0,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', invoice.id)
+                    .neq('status', 'paid');
+                if (invUpdateErr) {
+                    console.error('Failed to mark invoice paid:', invUpdateErr);
+                    throw new Error(`Failed to mark invoice ${invoice.id} paid: ${invUpdateErr.message}`);
+                }
+            } else {
+                throw new Error(alloc.error.message);
+            }
         }
-        await syncRosterBillingForInvoice(supabase as any, invoice.id, 'paid');
 
-        // Keep the linked billing cycle in step with its invoice. Previously
-        // paying the invoice left the cycle 'due' — schools still saw a
-        // balance and could pay twice.
+        const settledStatus = alloc.ok ? alloc.data.invoice_status : 'paid';
+        await syncRosterBillingForInvoice(supabase as any, invoice.id, settledStatus === 'paid' ? 'paid' : 'partially_paid');
+
+        // Keep the linked billing cycle in step when fully paid.
         let cycleId: string | null = invoice.billing_cycle_id ?? null;
         if (!cycleId) {
             const { data: linkedCycle } = await (supabase as any)
@@ -459,7 +477,7 @@ export async function processSuccessfulPayment(reference: string, method: string
                 .maybeSingle();
             cycleId = linkedCycle?.id ?? null;
         }
-        if (cycleId) {
+        if (cycleId && settledStatus === 'paid') {
             const { data: cycle } = await (supabase as any)
                 .from('billing_cycles')
                 .select('id, sticky_notice_id')

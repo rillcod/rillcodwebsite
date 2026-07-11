@@ -96,6 +96,9 @@ export async function GET(request: NextRequest) {
 
   const enrichedRows = rows.map((row) => ({ ...row, ...describeLedgerEntry({ payment_method: row.method, school_id: row.school_id, portal_user_id: row.portal_user_id, invoices: row.invoice_number ? { invoice_number: row.invoice_number, stream: row.stream } : null }) }));
 
+  const { runReconciliationRules } = await import('@/lib/finance/reconciliation-rules');
+  const rules = await runReconciliationRules({ limit: 200 });
+
   return NextResponse.json({
     data: enrichedRows,
     summary: {
@@ -107,7 +110,9 @@ export async function GET(request: NextRequest) {
       missingReceipts,
       pending,
       refunded,
+      findings: rules.summary,
     },
+    findings: rules.findings,
   });
 }
 

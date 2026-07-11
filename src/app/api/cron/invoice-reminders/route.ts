@@ -74,14 +74,34 @@ async function run(triggeredBy: 'cron' | 'manual') {
 
   result.invoices_scanned = (invoices ?? []).length;
 
+  // Shared overdue marking (also used by billing-reminders)
+  if (config.auto_overdue_enabled) {
+    try {
+      const { markOverdueInvoices } = await import('@/lib/finance/overdue');
+      const overdue = await markOverdueInvoices();
+      result.overdue_marked = overdue.updated;
+    } catch (e: any) {
+      console.error('[invoice-reminders] overdue mark failed:', e?.message);
+      result.errors++;
+    }
+  }
+
   // Stop ~10s before the 60s serverless cap. The reminder_N_sent_at markers make
   // this resumable — the next scheduled run continues with invoices not yet reached.
   const DEADLINE = Date.now() + 50_000;
+
+  const { shouldSuppressInvoiceReminder } = await import('@/lib/finance/reminders/orchestrator');
 
   for (const inv of (invoices ?? [])) {
     if (Date.now() > DEADLINE) break;
     const student = inv.portal_users as any;
     if (!student?.email) { result.skipped++; continue; }
+
+    // Cycle-linked invoices are reminded by billing-reminders (cycle wins).
+    if (await shouldSuppressInvoiceReminder(inv.id)) {
+      result.skipped++;
+      continue;
+    }
 
     const createdDaysAgo = daysAgo(inv.created_at);
     const dueDaysUntil = inv.due_date ? daysUntil(inv.due_date) : null;
@@ -119,31 +139,54 @@ async function run(triggeredBy: 'cron' | 'manual') {
     if (reminderToSend) {
       try {
         const { html, subject } = buildInvoiceReminderEmail(inv, reminderToSend, { appUrl: APP_URL });
+        const { deliverReminder } = await import('@/lib/finance/reminders/orchestrator');
 
         let delivered = false;
 
         if (config.notify_email) {
-          // sendEmail returns false when the user opted out of email; that is
-          // not a delivery for reminder purposes.
-          const sent = await notificationsService.sendEmail(student.id, {
-            to:        student.email,
-            subject,
-            html,
-            fromName:  'Rillcod Technologies Finance',
-            fromEmail: 'support@rillcod.com',
+          const emailResult = await deliverReminder({
+            stream: 'invoice',
+            action: `invoice_reminder_${reminderToSend}`,
+            entityType: 'invoice',
+            entityId: inv.id,
+            stage: `reminder_${reminderToSend}`,
+            channel: 'email',
+            metadata: { invoice_number: inv.invoice_number },
+            deliver: async () => {
+              const sent = await notificationsService.sendEmail(student.id, {
+                to: student.email,
+                subject,
+                html,
+                fromName: 'Rillcod Technologies Finance',
+                fromEmail: 'support@rillcod.com',
+              });
+              if (sent === false) throw new Error('email opted out or failed');
+            },
           });
-          if (sent !== false) delivered = true;
+          if (emailResult.status === 'success') delivered = true;
         }
 
         if (config.notify_in_app) {
-          const { error: notifErr } = await db.from('notifications').insert({
-            user_id: student.id,
-            title: subject,
-            message: `Amount due: ${inv.currency === 'NGN' ? '₦' : inv.currency}${Number(inv.amount ?? 0).toLocaleString()}`,
-            type: reminderToSend === 3 ? 'warning' : 'info',
-            link: '/dashboard/my-payments',
-          } as any);
-          if (!notifErr) delivered = true;
+          const inAppResult = await deliverReminder({
+            stream: 'invoice',
+            action: `invoice_reminder_${reminderToSend}`,
+            entityType: 'invoice',
+            entityId: inv.id,
+            stage: `reminder_${reminderToSend}`,
+            channel: 'in_app',
+            metadata: { invoice_number: inv.invoice_number },
+            deliver: async () => {
+              const { error: notifErr } = await db.from('notifications').insert({
+                user_id: student.id,
+                title: subject,
+                message: `Amount due: ${inv.currency === 'NGN' ? '₦' : inv.currency}${Number(inv.amount ?? 0).toLocaleString()}`,
+                type: reminderToSend === 3 ? 'warning' : 'info',
+                link: '/dashboard/my-payments',
+              } as any);
+              if (notifErr) throw new Error(notifErr.message);
+            },
+          });
+          if (inAppResult.status === 'success') delivered = true;
         }
 
         // Only stamp the reminder marker when at least one channel actually

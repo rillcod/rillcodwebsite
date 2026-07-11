@@ -36,6 +36,9 @@ interface InvoiceRow {
   invoice_number: string;
   status: string;
   amount: number;
+  amount_paid?: number | null;
+  amount_remaining?: number | null;
+  original_amount?: number | null;
   currency: string;
   created_at: string;
   due_date?: string | null;
@@ -60,9 +63,11 @@ interface StudentOption {
 const INVOICE_STATUS_STYLES: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground border-border',
   sent: 'bg-primary/10 text-primary border-primary/30',
+  partially_paid: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
   paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
   overdue: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
   cancelled: 'bg-muted text-muted-foreground border-border',
+  void: 'bg-muted text-muted-foreground border-border',
 };
 
 /**
@@ -114,7 +119,10 @@ export function InvoicesPanel() {
       const res = await fetch('/api/invoices/mark-paid', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId: inv.id, amount: inv.amount }),
+        body: JSON.stringify({
+          invoiceId: inv.id,
+          amount: inv.amount_remaining != null ? Number(inv.amount_remaining) : inv.amount,
+        }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -460,6 +468,11 @@ export function InvoicesPanel() {
                     <span className="font-black text-foreground">
                       {formatMoney(inv.amount, inv.currency)}
                     </span>
+                    {inv.amount_remaining != null && Number(inv.amount_remaining) > 0.01 && Number(inv.amount_remaining) < Number(inv.amount) && (
+                      <span className="text-xs font-bold text-amber-400">
+                        Remaining {formatMoney(inv.amount_remaining, inv.currency)}
+                      </span>
+                    )}
                     {inv.schools?.name && (
                       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <BuildingOfficeIcon className="w-3 h-3" /> {inv.schools.name}
@@ -490,7 +503,7 @@ export function InvoicesPanel() {
                     <Link
                       href={
                         classifyInvoiceStream(inv) === 'school'
-                          ? `/dashboard/finance?tab=operations&edit_invoice=${inv.id}`
+                          ? `/dashboard/finance?workspace=invoices&ops=school_invoice_builder&edit_invoice=${inv.id}`
                           : `/dashboard/payments/invoices/${inv.id}/edit`
                       }
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-md"

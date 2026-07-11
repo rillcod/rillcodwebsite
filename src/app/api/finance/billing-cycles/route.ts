@@ -279,65 +279,36 @@ export async function POST(request: Request) {
     owner_user_id = rawUserId;
   }
 
-  const now = new Date().toISOString();
-  const insertPayload = {
-    owner_type,
+  const { createBillingCycleWithInvoice } = await import('@/lib/finance/create-invoice');
+  const { financeResultToResponse } = await import('@/lib/finance/write-result');
+  const result = await createBillingCycleWithInvoice({
+    owner_type: owner_type as 'school' | 'individual',
     owner_school_id,
     owner_user_id,
-    school_id: owner_school_id,
     term_label,
     term_start_date,
     due_date,
     amount_due,
     currency,
-    status,
+    status: status as 'due' | 'past_due',
     items: Array.isArray(body.items) ? body.items : [],
-    created_at: now,
-    updated_at: now,
-  };
+    actor_id: caller.id,
+  });
 
-  const { data, error } = await db.from('billing_cycles').insert(insertPayload).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Auto-generate linked invoice for this cycle (school or individual).
-  // New cycles are only due/past_due, so the invoice starts as sent (not paid).
-  const invoiceInsert: Record<string, unknown> = {
-    invoice_number: `BCY-${Date.now().toString(36).toUpperCase()}`,
-    school_id: owner_school_id,
-    portal_user_id: owner_user_id,
-    amount: amount_due,
-    currency,
-    due_date,
-    status: 'sent',
-    stream: owner_type === 'school' ? 'school' : 'individual',
-    billing_cycle_id: data.id,
-    notes: `Auto-generated from billing cycle: ${term_label}`,
-    items: Array.isArray(body.items) ? body.items : [],
-  };
-  const { data: invoice, error: invoiceErr } = await db
-    .from('invoices')
-    .insert(invoiceInsert as any)
-    .select('id, invoice_number, status')
-    .single();
-  if (invoiceErr) {
-    await db.from('billing_cycles').delete().eq('id', data.id);
-    return NextResponse.json(
-      { error: 'Invoice generation failed; billing cycle was rolled back: ' + invoiceErr.message },
-      { status: 500 },
-    );
+  if (!result.ok) {
+    const mapped = financeResultToResponse(result);
+    return NextResponse.json(mapped.body, { status: mapped.status });
   }
 
-  const { error: linkError } = await db
-    .from('billing_cycles')
-    .update({ invoice_id: invoice.id, updated_at: new Date().toISOString() })
-    .eq('id', data.id);
-  if (linkError) {
-    await db.from('invoices').delete().eq('id', invoice.id);
-    await db.from('billing_cycles').delete().eq('id', data.id);
-    return NextResponse.json({ error: 'Billing cycle invoice link failed; creation was rolled back: ' + linkError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ data: { ...data, invoice_id: invoice.id }, invoice }, { status: 201 });
+  return NextResponse.json(
+    {
+      success: true,
+      data: { ...result.data.cycle, invoice_id: result.data.invoice.id },
+      invoice: result.data.invoice,
+      effects: result.effects,
+    },
+    { status: 201 },
+  );
 }
 
 /**

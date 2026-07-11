@@ -215,9 +215,20 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
       })
       .select('id, receipt_number')
       .single();
-    if (insErr) throw new AppError(`Failed to record receipt: ${insErr.message}`, 500);
-    receiptId = inserted?.id;
-    receiptNumber = inserted?.receipt_number;
+    if (insErr) {
+      // Unique(transaction_id) race — another writer won; reload and continue.
+      const { data: raced } = await supabase
+        .from('receipts')
+        .select('id, receipt_number')
+        .eq('transaction_id', transactionId)
+        .maybeSingle();
+      if (!raced) throw new AppError(`Failed to record receipt: ${insErr.message}`, 500);
+      receiptId = raced.id;
+      receiptNumber = raced.receipt_number;
+    } else {
+      receiptId = inserted?.id;
+      receiptNumber = inserted?.receipt_number;
+    }
   }
 
   if (receiptNumber) templateInput.receiptNumber = receiptNumber;

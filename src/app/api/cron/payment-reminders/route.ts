@@ -145,31 +145,46 @@ async function handle(req: NextRequest) {
     const amountStr = `₦${balanceDue.toLocaleString()}`;
 
     let delivered = false;
+    const { deliverReminder } = await import('@/lib/finance/reminders/orchestrator');
 
     if (settings.channelEmail) try {
-      const html = buildRillcodTransactionalEmailHtml({
-        eyebrow: 'Summer School',
-        title: 'A quick reminder about your balance',
-        bodyHtml: `<p style="margin:0 0 10px;">Dear ${parentName}, thank you for enrolling <strong>${p.full_name}</strong> in the Rillcod AI Summer School 2026.</p>
+      const emailResult = await deliverReminder({
+        stream: 'summer_school',
+        action: 'summer_balance_reminder',
+        entityType: 'prospective_student',
+        entityId: p.id,
+        stage: `count_${sentSoFar + 1}`,
+        channel: 'email',
+        dedupe: true,
+        metadata: { balance_due: balanceDue },
+        deliver: async () => {
+          const html = buildRillcodTransactionalEmailHtml({
+            eyebrow: 'Summer School',
+            title: 'A quick reminder about your balance',
+            bodyHtml: `<p style="margin:0 0 10px;">Dear ${parentName}, thank you for enrolling <strong>${p.full_name}</strong> in the Rillcod AI Summer School 2026.</p>
           <p style="margin:0 0 16px;">This is a friendly reminder that <strong>${amountStr}</strong> remains on your installment plan. Clearing it keeps your child's seat and access uninterrupted.</p>
           <div style="text-align:center;margin:0 0 8px;"><a href="${payLink}" style="display:inline-block;padding:13px 28px;background:#7c3aed;color:#fff;font-size:14px;font-weight:800;text-decoration:none;border-radius:8px;">Pay Balance Online →</a></div>`,
-        summaryRows: [
-          { label: 'Student', value: p.full_name },
-          { label: 'Outstanding', value: amountStr },
-          { label: 'Total tuition', value: `₦${totalTuition.toLocaleString()}` },
-          { label: 'Programme', value: 'AI Summer School 2026' },
-        ],
-        footerNote: 'rillcod technologies limited • summer school admissions',
+            summaryRows: [
+              { label: 'Student', value: p.full_name },
+              { label: 'Outstanding', value: amountStr },
+              { label: 'Total tuition', value: `₦${totalTuition.toLocaleString()}` },
+              { label: 'Programme', value: 'AI Summer School 2026' },
+            ],
+            footerNote: 'rillcod technologies limited • summer school admissions',
+          });
+          await notificationsService.sendExternalEmail({
+            to,
+            subject: `Reminder: Summer School balance for ${p.full_name}`,
+            html,
+            fromName: 'Rillcod Technologies',
+            fromEmail: 'support@rillcod.com',
+          });
+        },
       });
-      await notificationsService.sendExternalEmail({
-        to,
-        subject: `Reminder: Summer School balance for ${p.full_name}`,
-        html,
-        fromName: 'Rillcod Technologies',
-        fromEmail: 'support@rillcod.com',
-      });
-      report.remindedEmail++;
-      delivered = true;
+      if (emailResult.status === 'success') {
+        report.remindedEmail++;
+        delivered = true;
+      }
     } catch (emailErr) {
       console.error('[payment-reminders] email failed:', emailErr);
     }
@@ -177,14 +192,28 @@ async function handle(req: NextRequest) {
     // WhatsApp (best-effort).
     if (settings.channelWhatsapp && p.parent_phone) {
       try {
-        const { sendWhatsApp } = await import('@/lib/whatsapp/send');
-        const ok = await sendWhatsApp(p.parent_phone, [
-          `Hello ${parentName}! 👋`,
-          `Friendly reminder: ${amountStr} is still due on ${p.full_name}'s Rillcod Summer School installment plan.`,
-          `Pay online: ${payLink}`,
-          'Thank you!',
-        ].join('\n'));
-        if (ok) { report.remindedWhatsapp++; delivered = true; }
+        const waResult = await deliverReminder({
+          stream: 'summer_school',
+          action: 'summer_balance_reminder',
+          entityType: 'prospective_student',
+          entityId: p.id,
+          stage: `count_${sentSoFar + 1}`,
+          channel: 'whatsapp',
+          deliver: async () => {
+            const { sendWhatsApp } = await import('@/lib/whatsapp/send');
+            const ok = await sendWhatsApp(p.parent_phone, [
+              `Hello ${parentName}! 👋`,
+              `Friendly reminder: ${amountStr} is still due on ${p.full_name}'s Rillcod Summer School installment plan.`,
+              `Pay online: ${payLink}`,
+              'Thank you!',
+            ].join('\n'));
+            if (!ok) throw new Error('WhatsApp send failed');
+          },
+        });
+        if (waResult.status === 'success') {
+          report.remindedWhatsapp++;
+          delivered = true;
+        }
       } catch { /* non-fatal */ }
     }
 

@@ -47,11 +47,28 @@ export async function POST(request: Request) {
   const { data: school } = await db.from('schools').select('id').eq('id', school_id).maybeSingle();
   if (!school) return NextResponse.json({ error: 'School not found' }, { status: 404 });
   if (billing_cycle_id) {
-    const { data: cycle } = await db.from('billing_cycles').select('id, school_id').eq('id', billing_cycle_id).maybeSingle();
+    const { data: cycle } = await db
+      .from('billing_cycles')
+      .select('id, school_id, owner_school_id')
+      .eq('id', billing_cycle_id)
+      .maybeSingle();
     if (!cycle) return NextResponse.json({ error: 'Billing cycle not found' }, { status: 404 });
-    if (cycle.school_id !== school_id) return NextResponse.json({ error: 'Billing cycle belongs to another school' }, { status: 409 });
-    const { data: existingCycleSettlement } = await db.from('school_settlements').select('id').eq('billing_cycle_id', billing_cycle_id).neq('status', 'void').maybeSingle();
-    if (existingCycleSettlement) return NextResponse.json({ error: 'An active settlement already exists for this billing cycle', settlement_id: existingCycleSettlement.id }, { status: 409 });
+    const cycleSchoolId = cycle.school_id || cycle.owner_school_id;
+    if (cycleSchoolId !== school_id) {
+      return NextResponse.json({ error: 'Billing cycle belongs to another school' }, { status: 409 });
+    }
+    const { data: existingCycleSettlement } = await db
+      .from('school_settlements')
+      .select('id')
+      .eq('billing_cycle_id', billing_cycle_id)
+      .neq('status', 'void')
+      .maybeSingle();
+    if (existingCycleSettlement) {
+      return NextResponse.json(
+        { error: 'An active settlement already exists for this billing cycle', settlement_id: existingCycleSettlement.id },
+        { status: 409 },
+      );
+    }
   }
   const { data, error } = await db
     .from('school_settlements')

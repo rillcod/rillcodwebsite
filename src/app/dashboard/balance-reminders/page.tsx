@@ -1,5 +1,5 @@
-import BalanceRemindersPanel from '@/components/finance/BalanceRemindersPanel';
+import { redirect } from 'next/navigation';
 
-export default function BalanceRemindersPage() {
-  return <BalanceRemindersPanel />;
+export default function BalanceRemindersRedirectPage() {
+  redirect('/dashboard/finance?workspace=settings');
 }

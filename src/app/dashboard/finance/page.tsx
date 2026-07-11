@@ -14,12 +14,14 @@ import {
   BoltIcon, BellIcon, EnvelopeIcon, InformationCircleIcon, CheckBadgeIcon,
   ExclamationTriangleIcon, CalendarDaysIcon, ChevronDownIcon, ChevronUpIcon,
   EyeIcon, ArrowTrendingUpIcon, ArrowRightIcon, ReceiptPercentIcon,
-  DocumentArrowDownIcon, PaperClipIcon,
+  DocumentArrowDownIcon, PaperClipIcon, DocumentTextIcon,
 } from '@/lib/icons';
 import { OperationsHub } from '@/components/finance/ops/OperationsHub';
 import BalanceRemindersPanel from '@/components/finance/BalanceRemindersPanel';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
 import MoneyHubPage from '@/components/finance/MoneyHub';
+import { FinanceStickyActions } from '@/components/finance/workspaces/FinanceStickyActions';
+import { ReconciliationFindingsPanel } from '@/components/finance/workspaces/ReconciliationFindingsPanel';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
 const TERMS = ['First Term', 'Second Term', 'Third Term'] as const;
@@ -65,7 +67,7 @@ function relDate(iso: string | null | undefined) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type SubStatus = 'active' | 'cancelled' | 'expired' | 'suspended';
-type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+type InvoiceStatus = 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue' | 'void' | 'cancelled';
 type TxStatus = 'completed' | 'success' | 'pending' | 'processing' | 'failed' | 'refunded';
 type SettlementStatus = 'pending' | 'paid' | 'void';
 
@@ -266,8 +268,17 @@ function KpiCard({ label, value, sub, color }: { label: string; value: string; s
   );
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────────────
+// ─── WORKSPACES (Phase 3 shell; legacy ?tab= still accepted) ─────────────────
 type TabKey =
+  | 'today'
+  | 'invoices'
+  | 'payments'
+  | 'billing'
+  | 'collections'
+  | 'reconciliation'
+  | 'reports'
+  | 'settings'
+  // legacy aliases kept for URL normalization
   | 'my_money'
   | 'overview'
   | 'billing_cycles'
@@ -291,16 +302,31 @@ type TabDef = {
 };
 
 const ALL_TABS: TabDef[] = [
-  { key: 'my_money', label: 'Today & ledger', icon: BanknotesIcon },
-  { key: 'overview', label: 'Overview', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
-  { key: 'billing_cycles', label: 'Billing cycles', icon: CalendarDaysIcon, roles: ['admin', 'school'] },
-  { key: 'operations', label: 'Financial records', icon: ReceiptPercentIcon, roles: ['admin', 'school'] },
-  { key: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon, roles: ['admin'] },
-  { key: 'settlements', label: 'Settlements', icon: BuildingOfficeIcon, adminOnly: true },
-  { key: 'automation', label: 'Automation', icon: BoltIcon, adminOnly: true },
-  { key: 'reminders', label: 'Balance reminders', icon: BoltIcon, adminOnly: true },
-  { key: 'setup', label: 'Setup', icon: CreditCardIcon, roles: ['admin'] },
+  { key: 'today', label: 'Today', icon: BanknotesIcon },
+  { key: 'invoices', label: 'Invoices', icon: DocumentTextIcon, roles: ['admin', 'school'] },
+  { key: 'payments', label: 'Payments', icon: BanknotesIcon },
+  { key: 'billing', label: 'Billing', icon: CalendarDaysIcon, roles: ['admin', 'school'] },
+  { key: 'collections', label: 'Collections', icon: BoltIcon, roles: ['admin', 'school'] },
+  { key: 'reconciliation', label: 'Reconciliation', icon: BuildingOfficeIcon, adminOnly: true },
+  { key: 'reports', label: 'Reports', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
+  { key: 'settings', label: 'Settings', icon: CreditCardIcon, roles: ['admin'] },
 ];
+
+const LEGACY_TAB_MAP: Record<string, TabKey> = {
+  my_money: 'today',
+  overview: 'reports',
+  billing_cycles: 'billing',
+  operations: 'invoices',
+  subscriptions: 'billing',
+  settlements: 'reconciliation',
+  automation: 'collections',
+  reminders: 'settings',
+  setup: 'settings',
+  invoices: 'invoices',
+  transactions: 'payments',
+  money: 'payments',
+  'school-billing': 'billing',
+};
 
 function tabVisible(t: TabDef, role: PortalRole, isAdmin: boolean) {
   if (t.adminOnly && !isAdmin) return false;
@@ -308,21 +334,23 @@ function tabVisible(t: TabDef, role: PortalRole, isAdmin: boolean) {
   return true;
 }
 
-function pickTab(urlTab: string | null, role: PortalRole, isAdmin: boolean): TabKey {
+function pickTab(urlTab: string | null, workspaceParam: string | null, role: PortalRole, isAdmin: boolean): TabKey {
   const visible = ALL_TABS.filter(x => tabVisible(x, role, isAdmin));
   const keys = visible.map(x => x.key);
-  if (keys.length === 0) return 'overview'; // unused; page shows no-access state instead
-  const normalized = urlTab === 'invoices' || urlTab === 'transactions' ? 'operations' : urlTab;
+  if (keys.length === 0) return 'today';
+  const raw = workspaceParam || urlTab;
+  const normalized = raw ? (LEGACY_TAB_MAP[raw] ?? raw) : null;
   if (normalized && keys.includes(normalized as TabKey)) return normalized as TabKey;
   return keys[0] as TabKey;
 }
 
-function pickOpsTab(urlTab: string | null, opsParam: string | null, role: PortalRole): FinanceOpsTab {
-  const requested = (opsParam || (urlTab === 'invoices' ? 'invoices' : null)) as FinanceOpsTab | null;
+function pickOpsTab(urlTab: string | null, opsParam: string | null, role: PortalRole, workspace: TabKey): FinanceOpsTab {
+  const requested = (opsParam || (urlTab === 'invoices' || workspace === 'invoices' ? 'invoices' : null)
+    || (workspace === 'collections' ? 'approvals' : null)) as FinanceOpsTab | null;
   const allowed: FinanceOpsTab[] = role === 'school'
     ? ['invoices', 'receipts']
     : ['invoices', 'receipts', 'approvals', 'receipt_builder', 'school_invoice_builder', 'accounts', 'diagnostics'];
-  return requested && allowed.includes(requested) ? requested : (role === 'school' ? 'invoices' : 'approvals');
+  return requested && allowed.includes(requested) ? requested : (role === 'school' ? 'invoices' : workspace === 'invoices' ? 'invoices' : 'approvals');
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -832,10 +860,16 @@ function SubscriptionsTab({ profile }: { profile: any }) {
   }
 
   async function del(id: string) {
-    if (!confirm('Delete this subscription?')) return;
-    const { error } = await createClient().from('subscriptions').delete().eq('id', id);
-    if (error) toast.error(error.message);
-    else { toast.success('Deleted'); load(); }
+    if (!confirm('Cancel this subscription? It will be marked cancelled (not deleted).')) return;
+    try {
+      const res = await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'Cancel failed');
+      toast.success('Subscription cancelled');
+      load();
+    } catch (err: any) {
+      toast.error(err.message ?? 'Cancel failed');
+    }
   }
 
   const academicYears = buildAcademicYears();
@@ -1328,6 +1362,9 @@ const DEFAULT_CONFIG: AutoConfig = {
 function AutomationTab() {
   const [config, setConfig] = useState<AutoConfig>(DEFAULT_CONFIG);
   const [logs, setLogs] = useState<AutoLog[]>([]);
+  const [failedAutomation, setFailedAutomation] = useState<
+    { id: string; stream: string; action: string; entity_id: string; channel: string; error: string | null; created_at: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
@@ -1341,6 +1378,17 @@ function AutomationTab() {
     ]);
     if (cfgRes.ok) { const j = await cfgRes.json(); if (j.config) setConfig(j.config); }
     if (logRes.ok) { const j = await logRes.json(); setLogs(j.logs ?? []); }
+    try {
+      const { data } = await createClient()
+        .from('finance_automation_log')
+        .select('id, stream, action, entity_id, channel, error, created_at')
+        .eq('status', 'failed')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setFailedAutomation((data as any) ?? []);
+    } catch {
+      setFailedAutomation([]);
+    }
     setLoading(false);
   }, []);
 
@@ -1455,6 +1503,28 @@ function AutomationTab() {
         {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <CheckBadgeIcon className="w-4 h-4" />}
         Save Settings
       </button>
+
+      {/* Failed automation deliveries */}
+      {failedAutomation.length > 0 && (
+        <div className="bg-card border border-rose-500/20 rounded-2xl p-5">
+          <h3 className="font-black text-foreground text-sm uppercase tracking-widest mb-4">
+            Failed automation ({failedAutomation.length})
+          </h3>
+          <div className="space-y-2">
+            {failedAutomation.map(row => (
+              <div key={row.id} className="flex items-start justify-between gap-3 py-2 border-b border-border last:border-0 text-sm">
+                <div>
+                  <p className="text-foreground font-bold">{row.stream} · {row.action}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {row.channel} · {row.entity_id.slice(0, 8)}… · {relDate(row.created_at)}
+                  </p>
+                  {row.error && <p className="text-xs text-rose-400 mt-0.5">{row.error}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Run History */}
       {logs.length > 0 && (
@@ -1909,15 +1979,17 @@ export default function FinancePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState<TabKey>('overview');
+  const [tab, setTab] = useState<TabKey>('today');
   const tabParam = searchParams.get('tab');
+  const workspaceParam = searchParams.get('workspace');
   const opsParam = searchParams.get('ops');
 
-  // Update URL on tab change
+  // Update URL on workspace change
   function switchTab(key: TabKey) {
     setTab(key);
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', key);
+    url.searchParams.set('workspace', key);
+    url.searchParams.delete('tab');
     window.history.replaceState({}, '', url.toString());
   }
 
@@ -1928,8 +2000,8 @@ export default function FinancePage() {
   useEffect(() => {
     if (!profile) return;
     const isAdminUser = profile.role === 'admin';
-    setTab(pickTab(tabParam, profile.role, isAdminUser));
-  }, [tabParam, profile?.id, profile?.role]);
+    setTab(pickTab(tabParam, workspaceParam, profile.role, isAdminUser));
+  }, [tabParam, workspaceParam, profile?.id, profile?.role]);
 
   if (authLoading || profileLoading || !profile) {
     return (
@@ -1953,7 +2025,7 @@ export default function FinancePage() {
           </div>
           <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
             <p className="font-bold text-foreground">No finance tools for this account</p>
-            <p className="mt-2">Use <Link className="text-primary underline font-semibold" href="/dashboard/money">My Money</Link> for your personal ledger, or{' '}
+            <p className="mt-2">Use <Link className="text-primary underline font-semibold" href="/dashboard/finance?workspace=payments">Payments</Link> for your personal ledger, or{' '}
               <Link className="text-primary underline font-semibold" href="/dashboard/my-payments">My payments</Link> /{' '}
               <Link className="text-primary underline font-semibold" href="/dashboard/parent-invoices">Invoices &amp; payments</Link> to pay.</p>
             <Link href="/dashboard" className="inline-block mt-4 text-primary font-bold underline">Back to dashboard</Link>
@@ -1963,8 +2035,10 @@ export default function FinancePage() {
     );
   }
 
+  const showSticky = tab === 'today' || tab === 'payments' || tab === 'collections';
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background ${showSticky ? 'pb-20 sm:pb-0' : ''}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-6">
@@ -1983,7 +2057,7 @@ export default function FinancePage() {
           </p>
         </div>
 
-        {/* Tab Bar */}
+        {/* Workspace nav */}
         <div className="mb-6 -mx-4 sm:mx-0">
           <div className="flex overflow-x-auto gap-1 px-4 sm:px-0 pb-1 scrollbar-hide">
             {visibleTabs.map(({ key, label, icon: Icon }) => (
@@ -2004,19 +2078,48 @@ export default function FinancePage() {
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div className="min-h-[400px]">
-          {tab === 'my_money' && <MoneyHubPage />}
-          {tab === 'overview' && <OverviewTab profile={profile} />}
-          {tab === 'billing_cycles' && <BillingCyclesTab profile={profile} />}
-          {tab === 'operations' && <OperationsHub embedded defaultTab={pickOpsTab(tabParam, opsParam, profile.role)} />}
-          {tab === 'subscriptions' && <SubscriptionsTab profile={profile} />}
-          {tab === 'settlements' && isAdmin && <SettlementsTab profile={profile} />}
-          {tab === 'automation' && isAdmin && <AutomationTab />}
-          {tab === 'reminders' && isAdmin && <BalanceRemindersPanel embedded />}
-          {tab === 'setup' && <SetupTab profile={profile} />}
+        {/* Workspace content */}
+        <div className="min-h-[400px] space-y-6">
+          {tab === 'today' && (
+            <>
+              {(profile.role === 'admin' || profile.role === 'school') && <OverviewTab profile={profile} />}
+              <MoneyHubPage />
+            </>
+          )}
+          {tab === 'invoices' && (
+            <OperationsHub embedded defaultTab={pickOpsTab(tabParam, opsParam || 'invoices', profile.role, tab)} />
+          )}
+          {tab === 'payments' && <MoneyHubPage />}
+          {tab === 'billing' && (
+            <>
+              <BillingCyclesTab profile={profile} />
+              {isAdmin && <SubscriptionsTab profile={profile} />}
+            </>
+          )}
+          {tab === 'collections' && (
+            <>
+              <OperationsHub embedded defaultTab={pickOpsTab(tabParam, opsParam || 'approvals', profile.role, tab)} />
+              {isAdmin && <AutomationTab />}
+            </>
+          )}
+          {tab === 'reconciliation' && isAdmin && (
+            <>
+              <ReconciliationFindingsPanel />
+              <SettlementsTab profile={profile} />
+            </>
+          )}
+          {tab === 'reports' && <OverviewTab profile={profile} />}
+          {tab === 'settings' && (
+            <>
+              <SetupTab profile={profile} />
+              {isAdmin && <BalanceRemindersPanel embedded />}
+            </>
+          )}
         </div>
       </div>
+      {showSticky && (tab === 'today' || tab === 'payments' || tab === 'collections') && (
+        <FinanceStickyActions workspace={tab} role={profile.role} />
+      )}
     </div>
   );
 }

@@ -48,7 +48,7 @@ export async function verifyInvoicePayment(input: {
   const db: any = createAdminClient();
   const { data: invoice } = await db
     .from('invoices')
-    .select('id, invoice_number, amount, currency, status, payment_transaction_id, portal_user_id, school_id')
+    .select('id, invoice_number, amount, original_amount, amount_paid, amount_remaining, currency, status, payment_transaction_id, portal_user_id, school_id')
     .eq('id', input.invoiceId)
     .maybeSingle();
 
@@ -57,11 +57,16 @@ export async function verifyInvoicePayment(input: {
     throw new AppError(`Cannot verify payment for a ${invoice.status} invoice.`, 409);
   }
 
-  const invoiceAmount = Number(invoice.amount) || 0;
+  const remaining = Number(
+    invoice.amount_remaining != null
+      ? invoice.amount_remaining
+      : Math.max(0, Number(invoice.original_amount ?? invoice.amount ?? 0) - Number(invoice.amount_paid ?? 0)),
+  );
+  const invoiceAmount = remaining > 0 ? remaining : Number(invoice.amount) || 0;
   const amount = input.amount == null ? invoiceAmount : Number(input.amount);
   if (!Number.isFinite(amount) || amount <= 0) throw new AppError('Enter a valid payment amount.', 400);
-  if (Math.abs(amount - invoiceAmount) > 1) {
-    throw new AppError(`Payment amount (${amount}) does not match invoice amount (${invoiceAmount}).`, 400);
+  if (amount > invoiceAmount + 1) {
+    throw new AppError(`Payment amount (${amount}) exceeds invoice remaining (${invoiceAmount}).`, 400);
   }
 
   let transactionId = invoice.payment_transaction_id as string | null;

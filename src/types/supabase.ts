@@ -4147,6 +4147,51 @@ export type Database = {
           },
         ]
       }
+      finance_automation_log: {
+        Row: {
+          action: string
+          attempt: number
+          channel: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          error: string | null
+          id: string
+          metadata: Json
+          stage: string | null
+          status: string
+          stream: string
+        }
+        Insert: {
+          action: string
+          attempt?: number
+          channel?: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          error?: string | null
+          id?: string
+          metadata?: Json
+          stage?: string | null
+          status?: string
+          stream: string
+        }
+        Update: {
+          action?: string
+          attempt?: number
+          channel?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          error?: string | null
+          id?: string
+          metadata?: Json
+          stage?: string | null
+          status?: string
+          stream?: string
+        }
+        Relationships: []
+      }
       flagged_content: {
         Row: {
           content_id: string
@@ -5229,6 +5274,8 @@ export type Database = {
       invoices: {
         Row: {
           amount: number
+          amount_paid: number
+          amount_remaining: number
           billing_cycle_id: string | null
           created_at: string | null
           currency: string | null
@@ -5238,6 +5285,7 @@ export type Database = {
           items: Json | null
           metadata: Json | null
           notes: string | null
+          original_amount: number
           payment_link: string | null
           payment_transaction_id: string | null
           portal_user_id: string | null
@@ -5251,6 +5299,8 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          amount_paid?: number
+          amount_remaining?: number
           billing_cycle_id?: string | null
           created_at?: string | null
           currency?: string | null
@@ -5260,6 +5310,7 @@ export type Database = {
           items?: Json | null
           metadata?: Json | null
           notes?: string | null
+          original_amount?: number
           payment_link?: string | null
           payment_transaction_id?: string | null
           portal_user_id?: string | null
@@ -5273,6 +5324,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_paid?: number
+          amount_remaining?: number
           billing_cycle_id?: string | null
           created_at?: string | null
           currency?: string | null
@@ -5282,6 +5335,7 @@ export type Database = {
           items?: Json | null
           metadata?: Json | null
           notes?: string | null
+          original_amount?: number
           payment_link?: string | null
           payment_transaction_id?: string | null
           portal_user_id?: string | null
@@ -6996,6 +7050,79 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_allocations: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          invoice_id: string
+          payment_transaction_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_id: string
+          payment_transaction_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string
+          payment_transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_payment_transaction_id_fkey"
+            columns: ["payment_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "finance_ledger"
+            referencedColumns: ["transaction_id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_payment_transaction_id_fkey"
+            columns: ["payment_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -11424,6 +11551,15 @@ export type Database = {
       }
     }
     Functions: {
+      allocate_payment_to_invoice: {
+        Args: {
+          p_actor_id?: string
+          p_amount: number
+          p_invoice_id: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
       canonical_grade: { Args: { input: string }; Returns: string }
       check_course_completion: {
         Args: { p_course_id: string; p_user_id: string }
@@ -11466,6 +11602,23 @@ export type Database = {
       class_qa_path_offset: {
         Args: { p_class_id: string; p_school_id: string }
         Returns: number
+      }
+      create_billing_cycle_with_invoice: {
+        Args: {
+          p_actor_id?: string
+          p_amount_due: number
+          p_currency?: string
+          p_due_date: string
+          p_items?: Json
+          p_owner_school_id: string
+          p_owner_type: string
+          p_owner_user_id: string
+          p_status?: string
+          p_subscription_id?: string
+          p_term_label: string
+          p_term_start_date: string
+        }
+        Returns: Json
       }
       create_parent_and_link: {
         Args: {
