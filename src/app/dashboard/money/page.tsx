@@ -138,7 +138,7 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-export default function MoneyHubPage() {
+export function MoneyHubPage() {
   const { profile, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const role = profile?.role as Role | undefined;
@@ -1101,3 +1101,5 @@ function iconForMethod(method?: string | null) {
   if (m.includes('cash')) return <Wallet className="w-3.5 h-3.5 text-amber-400" />;
   return <Receipt className="w-3.5 h-3.5 text-muted-foreground" />;
 }
+
+export default MoneyHubPage;

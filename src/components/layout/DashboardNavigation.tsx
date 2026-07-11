@@ -185,7 +185,6 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Finance' },
           { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
-          { name: 'Money Overview', href: '/dashboard/money', icon: CreditCardIcon },
 
           { divider: true, label: 'System' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },
@@ -235,7 +234,7 @@ export default function DashboardNavigation() {
           { name: 'Students', href: '/dashboard/students', icon: UserGroupIcon },
           { name: 'Resend Credentials', href: '/dashboard/students/resend-credentials', icon: EnvelopeIcon },
           { name: 'Parents', href: '/dashboard/parents', icon: UserPlusIcon },
-          { name: 'Student Fees', href: '/dashboard/money', icon: BanknotesIcon },
+          { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
           { name: 'Card Studio & ID Cards', href: '/dashboard/card-studio', icon: CreditCardIcon },
           { name: 'Card Designer', href: '/dashboard/card-studio?tab=design&type=student', icon: SparklesIcon },
           { name: 'Study Groups', href: '/dashboard/study-groups', icon: UserGroupIcon },
@@ -312,7 +311,7 @@ export default function DashboardNavigation() {
 
           { divider: true, label: 'Account' },
           { name: 'My Access Card', href: '/dashboard/my-card', icon: CreditCardIcon },
-          { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
+          { name: 'Finance Center', href: '/dashboard/finance', icon: CreditCardIcon },
           { name: 'WhatsApp Inbox', href: '/dashboard/inbox', icon: ChatBubbleLeftRightIcon },
           { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
           { name: 'Newsletters', href: '/dashboard/newsletters', icon: DocumentTextIcon },
@@ -349,8 +348,7 @@ export default function DashboardNavigation() {
           { name: 'Performance', href: '/dashboard/progress', icon: PresentationChartLineIcon },
 
           { divider: true, label: 'Finance' },
-          { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
-          { name: 'My Billing', href: '/dashboard/finance?tab=billing_cycles', icon: BanknotesIcon },
+          { name: 'Finance Center', href: '/dashboard/finance', icon: CreditCardIcon },
 
           { divider: true, label: 'More' },
           { name: 'Consent Forms', href: '/dashboard/consent-forms', icon: ClipboardDocumentCheckIcon },
@@ -380,7 +378,7 @@ export default function DashboardNavigation() {
           { name: 'Access Cards', href: '/dashboard/my-card', icon: CreditCardIcon },
 
           { divider: true, label: 'Finance' },
-          { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
+          { name: 'Finance Center', href: '/dashboard/finance', icon: CreditCardIcon },
           { name: 'Invoices & Payments', href: '/dashboard/parent-invoices', icon: BanknotesIcon },
 
           { divider: true, label: 'More' },

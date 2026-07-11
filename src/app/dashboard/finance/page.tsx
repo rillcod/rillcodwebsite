@@ -19,6 +19,7 @@ import {
 import { OperationsHub } from '@/components/finance/ops/OperationsHub';
 import { BalanceRemindersPanel } from '@/app/dashboard/balance-reminders/page';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
+import { MoneyHubPage } from '@/app/dashboard/money/page';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
 const TERMS = ['First Term', 'Second Term', 'Third Term'] as const;
@@ -267,6 +268,7 @@ function KpiCard({ label, value, sub, color }: { label: string; value: string; s
 
 // ─── TABS ─────────────────────────────────────────────────────────────────────
 type TabKey =
+  | 'my_money'
   | 'overview'
   | 'billing_cycles'
   | 'operations'
@@ -289,6 +291,7 @@ type TabDef = {
 };
 
 const ALL_TABS: TabDef[] = [
+  { key: 'my_money', label: 'Today & ledger', icon: BanknotesIcon },
   { key: 'overview', label: 'Overview', icon: ArrowTrendingUpIcon, roles: ['admin', 'school'] },
   { key: 'billing_cycles', label: 'Billing cycles', icon: CalendarDaysIcon, roles: ['admin', 'school'] },
   { key: 'operations', label: 'Financial records', icon: ReceiptPercentIcon, roles: ['admin', 'school'] },
@@ -1945,7 +1948,7 @@ export default function FinancePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-              {profile.role === 'school' ? 'My Billing' : 'Finance Ops'}
+              Finance Center
             </h1>
           </div>
           <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
@@ -1966,12 +1969,12 @@ export default function FinancePage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-            {profile.role === 'school' ? 'My Billing' : 'Finance Ops'}
+            Finance Center
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {profile.role === 'school'
-              ? 'Your school\u2019s invoices, receipts and downloadable billing records'
-              : 'Control panel \u2014 billing, payments, subscriptions, settlements, reconciliation'}
+              ? 'Daily billing, invoices, receipts and payment records for your school'
+              : 'One workspace for daily collections, billing, payments, reconciliation and controls'}
             {profile.role === 'school' && profile.school_id && (
               <span className="ml-2 inline-flex items-center gap-1 text-primary font-bold">
                 <BuildingOfficeIcon className="w-3.5 h-3.5" /> Your school
@@ -2003,6 +2006,7 @@ export default function FinancePage() {
 
         {/* Tab Content */}
         <div className="min-h-[400px]">
+          {tab === 'my_money' && <MoneyHubPage />}
           {tab === 'overview' && <OverviewTab profile={profile} />}
           {tab === 'billing_cycles' && <BillingCyclesTab profile={profile} />}
           {tab === 'operations' && <OperationsHub embedded defaultTab={pickOpsTab(tabParam, opsParam, profile.role)} />}
