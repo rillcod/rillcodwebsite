@@ -270,7 +270,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
 
     return NextResponse.json({
       success: true, alreadyExisted: true, parentId: existing.id,
-      newStudents: newStudents.map(s => ({ name: s.name, email: s.email })),
+      email: existing.email,
+      // Staff-only: return plaintext temp passwords so the dashboard can display/copy them.
+      newStudents: newStudents.map(s => ({ name: s.name, email: s.email, password: s.password })),
       studentsOnboarded: newStudents.length,
     });
   }
@@ -499,7 +501,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
 
   return NextResponse.json({
     success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail,
-    newStudents: newStudents.map(s => ({ name: s.name, email: s.email })),
+    // Staff-only: return plaintext temp passwords so the dashboard can display/copy them.
+    newStudents: newStudents.map(s => ({ name: s.name, email: s.email, password: s.password })),
     studentsOnboarded: newStudents.length,
   });
 }
@@ -807,5 +810,13 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
     resourceId: leadId,
     newValues: { channels: channelsSent, students_sent: students.length },
   });
-  return NextResponse.json({ success: true, channels: channelsSent, studentsSent: students.length });
+  return NextResponse.json({
+    success: true,
+    channels: channelsSent,
+    studentsSent: students.length,
+    email: parent.email,
+    tempPassword: parentPw,
+    parentName: parent.full_name || 'Parent',
+    students,
+  });
 }

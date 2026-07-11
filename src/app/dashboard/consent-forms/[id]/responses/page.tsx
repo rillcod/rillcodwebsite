@@ -562,15 +562,29 @@ export default function ResponsesPage() {
 
   const [updatingId, setUpdatingId]     = useState<string | null>(null);
   const [creatingPortalId, setCreatingPortalId] = useState<string | null>(null);
+  const [creatingPhase, setCreatingPhase] = useState<'parent' | 'students' | null>(null);
   const [deletingPortalId, setDeletingPortalId] = useState<string | null>(null);
   const [resendingPortalId, setResendingPortalId] = useState<string | null>(null);
   const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null);
   const [revertingLeadId, setRevertingLeadId] = useState<string | null>(null);
   const [portalStatus, setPortalStatus] = useState<Record<string, 'created' | 'exists'>>({});
-  const [credsModal, setCredsModal] = useState<{ email: string; password: string; parentName: string } | null>(null);
+  const [credsModal, setCredsModal] = useState<{
+    parentName: string;
+    email: string | null;
+    password: string | null;
+    students: Array<{ name: string; email: string; password: string }>;
+    note?: string;
+    created?: { parent: boolean; studentNames: string[]; mode?: 'created' | 'resent' };
+  } | null>(null);
 
   // Class picker for portal creation — prefer existing classes as suggestions.
-  const [classModal, setClassModal] = useState<{ leadId: string; parentName: string } | null>(null);
+  const [classModal, setClassModal] = useState<{
+    leadId: string;
+    parentName: string;
+    parentEmail: string | null;
+    childNames: string[];
+    parentExists: boolean;
+  } | null>(null);
   const [classChoice, setClassChoice] = useState('');
   const [schoolClasses, setSchoolClasses] = useState<{ id: string; name: string }[]>([]);
   const [classesLoading, setClassesLoading] = useState(false);
@@ -696,8 +710,18 @@ export default function ResponsesPage() {
 
   // Open the class picker (loads existing classes — preferred as suggestions).
   async function openClassPicker(leadId: string, parentName: string) {
-    setClassModal({ leadId, parentName });
+    const lead = leads.find(l => l.id === leadId);
+    const rd = (lead?.response_data ?? {}) as Record<string, unknown>;
+    const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
+    const childNames = childrenArr?.length
+      ? childrenArr.map((c, i) => c.name || `Child ${i + 1}`).filter(Boolean)
+      : [String(rd.child_name || 'Child')];
+    const parentEmail = (lead?.email || (rd.parent_email as string) || null) as string | null;
+    const parentExists = !!(lead?.matched_parent_id || portalStatus[leadId] === 'exists' || portalStatus[leadId] === 'created');
+
+    setClassModal({ leadId, parentName, parentEmail, childNames, parentExists });
     setClassChoice('');
+    setCreatingPhase(null);
     setClassesLoading(true);
     try {
       const db = createClient();
@@ -722,6 +746,18 @@ export default function ResponsesPage() {
     if (activeLinkActions.current.has(actionKey)) return;
     activeLinkActions.current.add(actionKey);
     setCreatingPortalId(leadId);
+
+    const lead = leads.find(l => l.id === leadId);
+    const parentAlreadyLinked = !!(lead?.matched_parent_id || portalStatus[leadId]);
+    // Student-only create (from link-child modal) vs full parent+student create
+    const studentOnly = typeof options?.childIndex === 'number' && parentAlreadyLinked;
+    setCreatingPhase(studentOnly || parentAlreadyLinked ? 'students' : 'parent');
+
+    // Advance the UI phase while the request runs so staff see which account type is in focus.
+    const phaseTimer = !studentOnly && !parentAlreadyLinked
+      ? window.setTimeout(() => setCreatingPhase('students'), 900)
+      : null;
+
     try {
       const { childIndex, ...classOpt } = options ?? {};
       const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, {
@@ -739,19 +775,50 @@ export default function ResponsesPage() {
       }
       setClassModal(null);
       setPortalStatus(prev => ({ ...prev, [leadId]: json.alreadyExisted ? 'exists' : 'created' }));
-      if (json.studentsOnboarded) {
-        toast.success(`${json.studentsOnboarded} student account(s) created & linked${json.newStudents?.length ? `: ${json.newStudents.map((s: any) => s.name).join(', ')}` : ''}.`);
+      const students = Array.isArray(json.newStudents)
+        ? (json.newStudents as Array<{ name: string; email: string; password?: string }>)
+          .filter((s) => s.email && s.password)
+          .map((s) => ({ name: s.name, email: s.email, password: String(s.password) }))
+        : [];
+
+      const parentCreated = !json.alreadyExisted;
+      if (parentCreated && students.length > 0) {
+        toast.success(`Parent account + ${students.length} student account(s) created.`);
+      } else if (parentCreated) {
+        toast.success('Parent account created.');
+      } else if (students.length > 0) {
+        toast.success(`Student account(s) created: ${students.map((s) => s.name).join(', ')}.`);
       }
+
       if (!json.alreadyExisted) {
         setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_parent_id: json.parentId } : l));
-        setCredsModal({ email: json.email, password: json.tempPassword, parentName });
+        setCredsModal({
+          parentName,
+          email: json.email ?? null,
+          password: json.tempPassword ?? null,
+          students,
+          note: 'Credentials were also sent by WhatsApp and email when available.',
+          created: { parent: true, studentNames: students.map((s) => s.name), mode: 'created' },
+        });
       } else {
         setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_parent_id: json.parentId ?? l.matched_parent_id } : l));
+        if (students.length > 0) {
+          setCredsModal({
+            parentName,
+            email: json.email ?? null,
+            password: null,
+            students,
+            note: 'Parent account already existed — only new student logins are shown below.',
+            created: { parent: false, studentNames: students.map((s) => s.name), mode: 'created' },
+          });
+        }
       }
       await refreshLeadState(leadId);
     } finally {
+      if (phaseTimer) window.clearTimeout(phaseTimer);
       activeLinkActions.current.delete(actionKey);
       setCreatingPortalId(null);
+      setCreatingPhase(null);
     }
   }
 
@@ -763,8 +830,21 @@ export default function ResponsesPage() {
       const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, { method: 'PUT' });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { alert(json.error ?? 'Failed to send credentials'); return; }
-      const ch = (json.channels ?? []).join(' + ') || 'no channel (no phone/email)';
-      alert(`Credentials sent via ${ch}${json.studentsSent ? ` · ${json.studentsSent} student login(s) included` : ''}.`);
+      const students = Array.isArray(json.students)
+        ? (json.students as Array<{ name: string; email: string; password: string }>)
+        : [];
+      setCredsModal({
+        parentName: json.parentName || parentName,
+        email: json.email ?? null,
+        password: json.tempPassword ?? null,
+        students,
+        note: `Fresh passwords sent via ${(json.channels ?? []).join(' + ') || 'no channel'}. Parent and student logins are listed below.`,
+        created: {
+          parent: !!(json.email && json.tempPassword),
+          studentNames: students.map((s) => s.name),
+          mode: 'resent',
+        },
+      });
     } finally {
       setResendingPortalId(null);
     }
@@ -1169,56 +1249,236 @@ export default function ResponsesPage() {
     );
   }
 
+  // Shared portal / child action panel (desktop table + mobile cards)
+  const renderLeadActions = (lead: FormLead) => {
+    const rd = lead.response_data as Record<string, string>;
+    const waNum = rd.parent_whatsapp?.replace(/\D/g, '');
+    const parentName = rd.parent_name || 'Parent/Guardian';
+    const hasEmail = !!(lead.email || rd.parent_email);
+    const ps = portalStatus[lead.id];
+    const hasAccount = ps === 'created' || ps === 'exists' || !!lead.matched_parent_id;
+    const credsSent = Array.isArray(rd.portal_credentials_sent) && rd.portal_credentials_sent.length > 0;
+
+    const childrenArr = Array.isArray(rd.children)
+      ? (rd.children as Array<Record<string, string>>)
+      : null;
+    const childCount = childrenArr ? childrenArr.length : 1;
+    const primaryLink = (lead.child_links ?? []).find((link) =>
+      link.child_index === 0 && ['approved', 'onboarded'].includes(link.link_status),
+    );
+    const primaryLinked = !!lead.matched_student_id || !!primaryLink;
+    const primaryName = primaryLink?.student_name
+      ?? lead.match_candidate?.full_name
+      ?? rd.child_name
+      ?? 'Child';
+    const childRows = childCount === 1
+      ? [{
+          key: 0,
+          name: String(primaryName),
+          linked: primaryLinked,
+          openName: rd.child_name || '',
+        }]
+      : childrenArr!.map((child, ci) => {
+          const activeLink = (lead.child_links ?? []).find((link) =>
+            link.child_index === ci && ['approved', 'onboarded'].includes(link.link_status),
+          );
+          const linked = ci === 0
+            ? primaryLinked
+            : !!(additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci) || !!activeLink;
+          const name = ci === 0
+            ? (primaryName || child.name)
+            : (activeLink?.student_name
+              ?? (additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci)?.studentName
+              ?? child.name);
+          return {
+            key: ci,
+            name: String(name || `Child ${ci + 1}`),
+            linked,
+            openName: child.name || '',
+          };
+        });
+
+    return (
+      <div className="flex flex-col items-stretch gap-3 text-left">
+        <div className="flex flex-wrap items-center gap-2">
+          {waNum && (
+            <a href={`https://wa.me/${waNum}`} target="_blank" rel="noopener noreferrer"
+              className={btnQuietMuted}
+              title="WhatsApp">
+              WhatsApp
+            </a>
+          )}
+          {hasEmail && (
+            <a href={`mailto:${lead.email ?? rd.parent_email}`}
+              className={btnQuietMuted}
+              title="Email">
+              Email
+            </a>
+          )}
+          {form && (
+            <button
+              onClick={() => printFilledForm(form, lead, appBase)}
+              className={btnQuietMuted}
+              title="Print submission"
+            >
+              <PrinterIcon className="w-3.5 h-3.5" />
+              Print
+            </button>
+          )}
+        </div>
+
+        {hasEmail && (
+          hasAccount ? (
+            <div className="space-y-1.5 border-t border-border/60 pt-2">
+              <div>
+                <p className={metaLabel}>Parent portal</p>
+                <p className={`${metaOk} mt-0.5`}>Linked</p>
+                <p className={`mt-0.5 ${credsSent ? metaOk : metaWarn}`}>
+                  {credsSent ? 'Login sent' : 'Login not sent'}
+                </p>
+                {(lead.email || rd.parent_email) && (
+                  <p className="mt-1 text-[11px] font-mono text-muted-foreground break-all">
+                    {lead.email ?? rd.parent_email}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  disabled={resendingPortalId === lead.id}
+                  onClick={() => resendCredentials(lead.id, parentName)}
+                  className={btnQuiet}
+                  title="Send or resend login credentials"
+                >
+                  {resendingPortalId === lead.id ? 'Sending…' : 'Send login'}
+                </button>
+                <button
+                  disabled={deletingPortalId === lead.id}
+                  onClick={() => deletePortalAccount(lead.id, parentName)}
+                  className={btnQuietDanger}
+                  title="Remove portal account"
+                >
+                  {deletingPortalId === lead.id ? 'Removing…' : 'Remove'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="border-t border-border/60 pt-2">
+              <p className={metaLabel}>Portal accounts</p>
+              <button
+                disabled={creatingPortalId === lead.id}
+                onClick={() => openClassPicker(lead.id, parentName)}
+                className={`${btnQuiet} mt-1.5`}
+                title="Create parent and student portal accounts"
+              >
+                {creatingPortalId === lead.id
+                  ? (creatingPhase === 'students' ? 'Creating student…' : 'Creating parent…')
+                  : 'Create parent + student'}
+              </button>
+            </div>
+          )
+        )}
+
+        {lead.matched_parent_id && (
+          <div className="space-y-1.5 border-t border-border/60 pt-2">
+            <p className={metaLabel}>{childCount > 1 ? 'Children' : 'Child'}</p>
+            {childRows.map((row) => (
+              <div key={row.key} className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className={`${metaValue} truncate`}>{row.name}</p>
+                  <p className={row.linked ? metaOk : metaWarn}>
+                    {row.linked ? 'Linked' : 'Not linked'}
+                  </p>
+                </div>
+                {!row.linked && (
+                  <button
+                    onClick={() => openLinkChild(lead.id, row.openName, row.key)}
+                    className={btnQuiet}
+                    title={`Link ${row.name} to a student record`}
+                  >
+                    Link
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-1 border-t border-border/60 pt-2">
+          {(lead.matched_parent_id || lead.matched_student_id) && (
+            <button
+              disabled={revertingLeadId === lead.id}
+              onClick={() => revertLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
+              className={btnQuietMuted}
+              title="Undo account creation but keep the submission"
+            >
+              {revertingLeadId === lead.id ? 'Reverting…' : 'Revert'}
+            </button>
+          )}
+          <button
+            disabled={deletingLeadId === lead.id}
+            onClick={() => deleteLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
+            className={btnQuietDanger}
+            title="Permanently delete this submission and related accounts"
+          >
+            {deletingLeadId === lead.id ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-8 space-y-5 sm:space-y-6">
 
         {/* Header */}
-        <div className="flex items-start gap-4">
-          <button
-            onClick={() => router.push('/dashboard/consent-forms')}
-            className="mt-0.5 p-2 rounded-md hover:bg-muted transition-colors shrink-0"
-          >
-            <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] font-medium text-muted-foreground">Consent Forms</span>
-              <span className="text-muted-foreground text-xs">/</span>
-              <span className="text-[11px] font-medium text-muted-foreground">Responses</span>
-            </div>
-            {loading ? (
-              <div className="h-7 w-64 bg-muted animate-pulse rounded-md" />
-            ) : (
-              <h1 className="text-2xl font-semibold tracking-tight truncate">{form?.title ?? 'Responses'}</h1>
-            )}
-            {form && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
-                {form.schools?.name && <span>{form.schools.name}</span>}
-                {form.form_type !== 'general' && (
-                  <span>
-                    {form.form_type === 'assessment' ? 'Assessment' : 'Registration'}
-                  </span>
-                )}
-                {form.due_date && (
-                  <span>
-                    Due {new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
-                )}
-                {form.is_public && <span>Public form</span>}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <button
+              onClick={() => router.push('/dashboard/consent-forms')}
+              className="mt-0.5 p-2 rounded-md hover:bg-muted transition-colors shrink-0"
+            >
+              <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] font-medium text-muted-foreground">Consent Forms</span>
+                <span className="text-muted-foreground text-xs">/</span>
+                <span className="text-[11px] font-medium text-muted-foreground">Responses</span>
               </div>
-            )}
+              {loading ? (
+                <div className="h-7 w-48 sm:w-64 bg-muted animate-pulse rounded-md" />
+              ) : (
+                <h1 className="text-xl sm:text-2xl font-semibold tracking-tight break-words">{form?.title ?? 'Responses'}</h1>
+              )}
+              {form && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[11px] text-muted-foreground">
+                  {form.schools?.name && <span>{form.schools.name}</span>}
+                  {form.form_type !== 'general' && (
+                    <span>
+                      {form.form_type === 'assessment' ? 'Assessment' : 'Registration'}
+                    </span>
+                  )}
+                  {form.due_date && (
+                    <span>
+                      Due {new Date(form.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                  {form.is_public && <span>Public form</span>}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end shrink-0 pl-11 sm:pl-0">
             <button
               onClick={load}
               className={btnSecondary}
               title="Refresh"
             >
               <ArrowPathIcon className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden xs:inline sm:inline">Refresh</span>
             </button>
             {form && (
               <>
@@ -1229,11 +1489,11 @@ export default function ResponsesPage() {
                   title="Download leads as CSV"
                 >
                   <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                  {exporting ? 'Exporting…' : 'Export CSV'}
+                  {exporting ? 'Exporting…' : 'Export'}
                 </button>
                 <button
                   onClick={() => printDataSheet(form, leads, sigs, appBase)}
-                  className={btnSecondary}
+                  className={`${btnSecondary} hidden sm:inline-flex`}
                 >
                   <PrinterIcon className="w-3.5 h-3.5" />
                   Data sheet
@@ -1244,7 +1504,7 @@ export default function ResponsesPage() {
                   className={btnSecondary}
                   title="Download branded QR code for this form"
                 >
-                  {downloadingQr ? 'Preparing…' : 'Download QR'}
+                  {downloadingQr ? '…' : 'QR'}
                 </button>
               </>
             )}
@@ -1252,7 +1512,7 @@ export default function ResponsesPage() {
               <button
                 onClick={runDedup}
                 disabled={deduping}
-                className={btnSecondary}
+                className={`${btnSecondary} hidden md:inline-flex`}
                 title="Merge duplicate CRM contacts"
               >
                 {deduping ? 'Deduping…' : 'Dedup CRM'}
@@ -1332,22 +1592,22 @@ export default function ResponsesPage() {
         {(() => {
           const portalLogLeads = leads.filter(l => !!(l.response_data as Record<string, unknown>)?.portal_created_at);
           return (
-            <div className="flex gap-1 p-1 bg-muted rounded-md w-fit">
+            <div className="flex gap-1 p-1 bg-muted rounded-md w-full sm:w-fit overflow-x-auto">
               <button
                 onClick={() => setActiveTab('leads')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'leads' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'leads' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Registrations ({leads.length})
               </button>
               <button
                 onClick={() => setActiveTab('signed')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'signed' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'signed' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Signatures ({sigs.length})
               </button>
               <button
                 onClick={() => setActiveTab('portal-log')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${activeTab === 'portal-log' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'portal-log' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Portal log{portalLogLeads.length > 0 ? ` (${portalLogLeads.length})` : ''}
               </button>
@@ -1356,15 +1616,15 @@ export default function ResponsesPage() {
         })()}
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-48">
+        <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+          <div className="relative flex-1 min-w-0 w-full sm:min-w-48 basis-full sm:basis-auto">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="search"
               placeholder="Search by name, email, phone…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full bg-card border border-border text-foreground pl-9 pr-4 py-2 rounded-md text-sm focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-card border border-border text-foreground pl-9 pr-4 py-2.5 rounded-md text-sm focus:outline-none focus:border-primary transition-colors"
             />
           </div>
 
@@ -1501,7 +1761,137 @@ export default function ResponsesPage() {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+                {/* Mobile card list */}
+                <div className="md:hidden divide-y divide-border/40">
+                  {filteredLeads.map((lead, i) => {
+                    const rd = lead.response_data as Record<string, string>;
+                    const waNum = rd.parent_whatsapp?.replace(/\D/g, '');
+                    const status = lead.status ?? 'new';
+                    const cfg = STATUS_CFG[status];
+                    const isPending = lead.match_status === 'pending_review';
+                    const isApproved = lead.match_status === 'approved';
+                    const { label: scoreLabel, tone: scoreTone } = leadScore(lead);
+
+                    return (
+                      <article
+                        key={lead.id}
+                        className={`p-4 space-y-3 ${isPending ? 'bg-amber-500/5' : ''} ${selected.has(lead.id) ? 'bg-primary/5' : ''}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(lead.id)}
+                            onChange={() => toggleSelect(lead.id)}
+                            className="mt-1 rounded accent-primary cursor-pointer shrink-0"
+                          />
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground leading-snug">
+                                  {rd.parent_name || '—'}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  #{i + 1} · {fmtDate(lead.submitted_at)} {fmtTime(lead.submitted_at)}
+                                </p>
+                              </div>
+                              <select
+                                value={status}
+                                disabled={updatingId === lead.id}
+                                onChange={e => updateStatus(lead.id, e.target.value as FormLead['status'])}
+                                className={`text-xs font-medium px-2 py-1 rounded-md border cursor-pointer disabled:opacity-50 outline-none shrink-0 ${cfg.cls}`}
+                                style={{ background: 'transparent' }}
+                              >
+                                {Object.entries(STATUS_CFG).map(([val, c]) => (
+                                  <option key={val} value={val} className="bg-card text-foreground">{c.label}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {(lead.email || rd.parent_email) && (
+                              <a
+                                href={`mailto:${lead.email ?? rd.parent_email}`}
+                                className="block text-[11px] font-mono text-muted-foreground break-all"
+                              >
+                                {lead.email ?? rd.parent_email}
+                              </a>
+                            )}
+                            {rd.parent_whatsapp && (
+                              <a
+                                href={`https://wa.me/${waNum}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-[11px] text-muted-foreground"
+                              >
+                                {rd.parent_whatsapp}
+                              </a>
+                            )}
+
+                            <div className="pt-1">
+                              <p className="text-sm font-medium text-foreground">{rd.child_name || '—'}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {[
+                                  rd.child_age ? `Age ${rd.child_age}` : null,
+                                  rd.child_class,
+                                  lead.child_current_school || rd.child_current_school,
+                                ].filter(Boolean).join(' · ') || '—'}
+                              </p>
+                              <p className={`text-[11px] font-medium mt-0.5 ${scoreTone}`}>
+                                {[
+                                  rd.program_category === 'young_innovators'
+                                    ? 'Young Innovators'
+                                    : rd.program_category === 'teen_developers'
+                                      ? 'Teen Developers'
+                                      : rd.program_category || null,
+                                  scoreLabel,
+                                ].filter(Boolean).join(' · ')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {isPending && lead.match_candidate ? (
+                          <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                            <div>
+                              <p className={metaLabel}>Possible match</p>
+                              <p className="text-xs font-medium text-foreground mt-0.5">
+                                {lead.match_candidate.full_name}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {[lead.match_candidate.section_class, lead.match_confidence ? `${lead.match_confidence} confidence` : null]
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                              </p>
+                            </div>
+                            <div className="flex gap-1.5">
+                              <button
+                                disabled={reviewingId === lead.id}
+                                onClick={() => reviewLead(lead.id, 'approve')}
+                                className={btnQuiet}
+                              >
+                                {reviewingId === lead.id ? '…' : 'Confirm'}
+                              </button>
+                              <button
+                                disabled={reviewingId === lead.id}
+                                onClick={() => reviewLead(lead.id, 'reject')}
+                                className={btnQuietMuted}
+                              >
+                                Dismiss
+                              </button>
+                            </div>
+                          </div>
+                        ) : isApproved ? (
+                          <p className={metaOk}>Match approved</p>
+                        ) : null}
+
+                        {renderLeadActions(lead)}
+                      </article>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border/50 bg-muted/30">
@@ -1714,184 +2104,15 @@ export default function ResponsesPage() {
 
                           {/* Actions */}
                           <td className="px-4 py-3 min-w-[220px]">
-                            <div className="flex flex-col items-stretch gap-3 text-left">
-                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {waNum && (
-                                  <a href={`https://wa.me/${waNum}`} target="_blank" rel="noopener noreferrer"
-                                    className={btnQuietMuted}
-                                    title="WhatsApp">
-                                    WhatsApp
-                                  </a>
-                                )}
-                                {(lead.email || rd.parent_email) && (
-                                  <a href={`mailto:${lead.email ?? rd.parent_email}`}
-                                    className={btnQuietMuted}
-                                    title="Email">
-                                    Email
-                                  </a>
-                                )}
-                                {form && (
-                                  <button
-                                    onClick={() => printFilledForm(form, lead, appBase)}
-                                    className={btnQuietMuted}
-                                    title="Print submission"
-                                  >
-                                    <PrinterIcon className="w-3.5 h-3.5" />
-                                    Print
-                                  </button>
-                                )}
-                              </div>
-
-                              {(lead.email || rd.parent_email) && (() => {
-                                const ps = portalStatus[lead.id];
-                                const hasAccount = ps === 'created' || ps === 'exists' || !!(lead.matched_parent_id);
-                                const parentName  = rd.parent_name || 'Parent/Guardian';
-                                const credsSent = Array.isArray(rd.portal_credentials_sent) && rd.portal_credentials_sent.length > 0;
-
-                                if (hasAccount) {
-                                  return (
-                                    <div className="space-y-1.5 border-t border-border/60 pt-2">
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                          <p className={metaLabel}>Parent portal</p>
-                                          <p className={`${metaOk} mt-0.5`}>Linked</p>
-                                          <p className={`mt-0.5 ${credsSent ? metaOk : metaWarn}`}>
-                                            {credsSent ? 'Login sent' : 'Login not sent'}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        <button
-                                          disabled={resendingPortalId === lead.id}
-                                          onClick={() => resendCredentials(lead.id, parentName)}
-                                          className={btnQuiet}
-                                          title="Send or resend login credentials"
-                                        >
-                                          {resendingPortalId === lead.id ? 'Sending…' : 'Send login'}
-                                        </button>
-                                        <button
-                                          disabled={deletingPortalId === lead.id}
-                                          onClick={() => deletePortalAccount(lead.id, parentName)}
-                                          className={btnQuietDanger}
-                                          title="Remove portal account"
-                                        >
-                                          {deletingPortalId === lead.id ? 'Removing…' : 'Remove'}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-
-                                return (
-                                  <div className="border-t border-border/60 pt-2">
-                                    <p className={metaLabel}>Parent portal</p>
-                                    <button
-                                      disabled={creatingPortalId === lead.id}
-                                      onClick={() => openClassPicker(lead.id, parentName)}
-                                      className={`${btnQuiet} mt-1.5`}
-                                      title="Create parent and student portal accounts"
-                                    >
-                                      {creatingPortalId === lead.id ? 'Creating…' : 'Create account'}
-                                    </button>
-                                  </div>
-                                );
-                              })()}
-
-                              {lead.matched_parent_id && (() => {
-                                const childrenArr = Array.isArray(rd.children)
-                                  ? (rd.children as Array<Record<string, string>>)
-                                  : null;
-                                const count = childrenArr ? childrenArr.length : 1;
-                                const primaryLink = (lead.child_links ?? []).find((link) =>
-                                  link.child_index === 0 && ['approved', 'onboarded'].includes(link.link_status),
-                                );
-                                const primaryLinked = !!lead.matched_student_id || !!primaryLink;
-                                const primaryName = primaryLink?.student_name
-                                  ?? lead.match_candidate?.full_name
-                                  ?? rd.child_name
-                                  ?? 'Child';
-
-                                const rows = count === 1
-                                  ? [{
-                                      key: 0,
-                                      name: String(primaryName),
-                                      linked: primaryLinked,
-                                      openName: rd.child_name || '',
-                                    }]
-                                  : childrenArr!.map((child, ci) => {
-                                      const activeLink = (lead.child_links ?? []).find((link) =>
-                                        link.child_index === ci && ['approved', 'onboarded'].includes(link.link_status),
-                                      );
-                                      const linked = ci === 0
-                                        ? primaryLinked
-                                        : !!(additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci) || !!activeLink;
-                                      const name = ci === 0
-                                        ? (primaryName || child.name)
-                                        : (activeLink?.student_name
-                                          ?? (additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci)?.studentName
-                                          ?? child.name);
-                                      return {
-                                        key: ci,
-                                        name: String(name || `Child ${ci + 1}`),
-                                        linked,
-                                        openName: child.name || '',
-                                      };
-                                    });
-
-                                return (
-                                  <div className="space-y-1.5 border-t border-border/60 pt-2">
-                                    <p className={metaLabel}>{count > 1 ? 'Children' : 'Child'}</p>
-                                    {rows.map((row) => (
-                                      <div key={row.key} className="flex items-center justify-between gap-2">
-                                        <div className="min-w-0">
-                                          <p className={`${metaValue} truncate`}>{row.name}</p>
-                                          <p className={row.linked ? metaOk : metaWarn}>
-                                            {row.linked ? 'Linked' : 'Not linked'}
-                                          </p>
-                                        </div>
-                                        {!row.linked && (
-                                          <button
-                                            onClick={() => openLinkChild(lead.id, row.openName, row.key)}
-                                            className={btnQuiet}
-                                            title={`Link ${row.name} to a student record`}
-                                          >
-                                            Link
-                                          </button>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                );
-                              })()}
-
-                              <div className="flex flex-wrap gap-1 border-t border-border/60 pt-2">
-                                {(lead.matched_parent_id || lead.matched_student_id) && (
-                                  <button
-                                    disabled={revertingLeadId === lead.id}
-                                    onClick={() => revertLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
-                                    className={btnQuietMuted}
-                                    title="Undo account creation but keep the submission"
-                                  >
-                                    {revertingLeadId === lead.id ? 'Reverting…' : 'Revert'}
-                                  </button>
-                                )}
-                                <button
-                                  disabled={deletingLeadId === lead.id}
-                                  onClick={() => deleteLead(lead.id, rd.parent_name || rd.child_name || lead.email || 'this lead')}
-                                  className={btnQuietDanger}
-                                  title="Permanently delete this submission and related accounts"
-                                >
-                                  {deletingLeadId === lead.id ? 'Deleting…' : 'Delete'}
-                                </button>
-                              </div>
-                            </div>
+                            {renderLeadActions(lead)}
                           </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -1919,7 +2140,7 @@ export default function ResponsesPage() {
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <p className="text-muted-foreground text-sm font-medium">No portal accounts have been created yet</p>
                   <p className="text-[11px] text-muted-foreground text-center max-w-xs leading-relaxed">
-                    Select leads and use <strong>Create portals</strong> in the bulk bar, or <strong>Create account</strong> on an individual lead.
+                    Select leads and use <strong>Create portals</strong> in the bulk bar, or <strong>Create parent + student</strong> on an individual lead.
                   </p>
                 </div>
               ) : (
@@ -2074,51 +2295,128 @@ export default function ResponsesPage() {
 
       {/* ── Class picker (before creating portal accounts) ─────────────────── */}
       {classModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => !creatingPortalId && setClassModal(null)}>
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm" onClick={() => !creatingPortalId && setClassModal(null)}>
+          <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Choose a class for {classModal.parentName.split(' ')[0]}&apos;s child</h3>
-              <p className="text-xs text-muted-foreground mt-1">Pick an existing class (preferred) or type a new one. Leave blank to auto-assign by programme.</p>
+              <h3 className="text-lg font-semibold text-foreground">Create portal accounts</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                {classModal.parentExists
+                  ? 'Parent already has an account — this will create the student login(s) and assign a class.'
+                  : 'This creates a parent login and a student login for each child below.'}
+              </p>
             </div>
 
-            {classesLoading ? (
-              <div className="py-4 text-center text-xs text-muted-foreground">Loading classes…</div>
-            ) : schoolClasses.length > 0 ? (
-              <div className="space-y-1.5 max-h-44 overflow-y-auto">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Existing classes</p>
-                {schoolClasses.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setClassChoice(c.name)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors ${classChoice === c.name ? 'bg-primary/15 border-primary/40 text-foreground' : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'}`}
-                  >
-                    {c.name}
-                  </button>
-                ))}
+            {/* What will be created */}
+            <div className="space-y-2">
+              <div className={`rounded-md border px-3 py-2.5 ${
+                creatingPhase === 'parent'
+                  ? 'border-primary/40 bg-primary/5'
+                  : classModal.parentExists
+                    ? 'border-border bg-muted/20 opacity-80'
+                    : 'border-border bg-muted/30'
+              }`}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-foreground">1. Parent account</p>
+                  {creatingPhase === 'parent' ? (
+                    <span className="text-[10px] font-medium text-primary">Creating…</span>
+                  ) : classModal.parentExists ? (
+                    <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400">Already exists</span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-muted-foreground">Will create</span>
+                  )}
+                </div>
+                <p className="text-sm text-foreground mt-1">{classModal.parentName}</p>
+                {classModal.parentEmail && (
+                  <p className="text-[11px] font-mono text-muted-foreground break-all mt-0.5">{classModal.parentEmail}</p>
+                )}
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No classes yet for this school — type one below to create it.</p>
-            )}
 
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class name</label>
-              <input
-                value={classChoice}
-                onChange={e => setClassChoice(e.target.value)}
-                placeholder="e.g. Young Innovators or auto-assign"
-                className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:border-primary"
-              />
+              <div className={`rounded-md border px-3 py-2.5 ${
+                creatingPhase === 'students'
+                  ? 'border-primary/40 bg-primary/5'
+                  : 'border-border bg-muted/30'
+              }`}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-foreground">
+                    2. Student account{classModal.childNames.length > 1 ? 's' : ''}
+                  </p>
+                  {creatingPhase === 'students' ? (
+                    <span className="text-[10px] font-medium text-primary">Creating…</span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-muted-foreground">Will create</span>
+                  )}
+                </div>
+                <ul className="mt-1.5 space-y-1">
+                  {classModal.childNames.map((name) => (
+                    <li key={name} className="text-sm text-foreground">{name}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
+
+            <div className="border-t border-border/60 pt-3 space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Student class</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Pick an existing class or type a new one. Leave blank to auto-assign by programme.
+                </p>
+              </div>
+
+              {classesLoading ? (
+                <div className="py-4 text-center text-xs text-muted-foreground">Loading classes…</div>
+              ) : schoolClasses.length > 0 ? (
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  <p className={metaLabel}>Existing classes</p>
+                  {schoolClasses.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      disabled={!!creatingPortalId}
+                      onClick={() => setClassChoice(c.name)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm border transition-colors disabled:opacity-50 ${classChoice === c.name ? 'bg-primary/15 border-primary/40 text-foreground' : 'bg-muted/40 border-border text-muted-foreground hover:text-foreground'}`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No classes yet for this school — type one below to create it.</p>
+              )}
+
+              <div>
+                <label className={metaLabel}>Class name</label>
+                <input
+                  value={classChoice}
+                  onChange={e => setClassChoice(e.target.value)}
+                  disabled={!!creatingPortalId}
+                  placeholder="e.g. Young Innovators or leave blank"
+                  className="w-full mt-1 px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:border-primary disabled:opacity-50"
+                />
+              </div>
+            </div>
+
+            {creatingPortalId && (
+              <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2.5">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                <p className="text-xs text-foreground">
+                  {creatingPhase === 'students'
+                    ? `Creating student account${classModal.childNames.length > 1 ? 's' : ''}…`
+                    : 'Creating parent account…'}
+                </p>
+              </div>
+            )}
 
             <div className="flex gap-2 pt-1">
               <button
+                type="button"
                 onClick={() => setClassModal(null)}
                 disabled={!!creatingPortalId}
-                className="flex-1 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
+                className={`${btnSecondary} flex-1`}
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => {
                   const m = classModal;
                   if (!m) return;
@@ -2127,9 +2425,13 @@ export default function ResponsesPage() {
                   createPortalAccount(m.leadId, m.parentName, existing ? { classId: existing.id } : (name ? { className: name } : undefined));
                 }}
                 disabled={!!creatingPortalId}
-                className={btnPrimary + ' flex-[2] text-sm'}
+                className={`${btnPrimary} flex-[2]`}
               >
-                {creatingPortalId ? 'Creating…' : classChoice.trim() ? 'Create & Assign Class' : 'Create & Auto-Assign'}
+                {creatingPortalId
+                  ? (creatingPhase === 'students' ? 'Creating student…' : 'Creating parent…')
+                  : classModal.parentExists
+                    ? 'Create student account'
+                    : 'Create parent + student'}
               </button>
             </div>
           </div>
@@ -2137,77 +2439,161 @@ export default function ResponsesPage() {
       )}
 
       {/* ── Credentials modal ─────────────────────────────────────────────── */}
-      {credsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
-            {/* Header */}
-            <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-lg shrink-0">🔑</div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Portal account created</p>
-                <p className="text-[11px] text-muted-foreground">For {credsModal.parentName}</p>
-              </div>
-            </div>
+      {credsModal && (() => {
+        const loginUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : 'https://rillcod.com/login';
+        const copyText = [
+          `Rillcod portal logins for ${credsModal.parentName}`,
+          '',
+          credsModal.email && credsModal.password
+            ? `Parent account\nUsername: ${credsModal.email}\nPassword: ${credsModal.password}`
+            : null,
+          ...credsModal.students.map((s) =>
+            `Student: ${s.name}\nUsername: ${s.email}\nPassword: ${s.password}`,
+          ),
+          '',
+          `Login: ${loginUrl}`,
+          'Please change temporary passwords after first login.',
+        ].filter(Boolean).join('\n\n');
 
-            {/* Body */}
-            <div className="px-5 py-4 space-y-3">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Credentials have been sent via WhatsApp and email. Copy them below to share manually if needed.
-              </p>
-
-              {/* Email */}
-              <div className="space-y-1">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Email</p>
-                <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
-                  <span className="flex-1 text-sm font-mono text-foreground select-all">{credsModal.email}</span>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(credsModal.email)}
-                    className="text-[10px] font-bold text-primary hover:text-primary/80 transition-colors shrink-0"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              {/* Password */}
-              <div className="space-y-1">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Temporary Password</p>
-                <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5">
-                  <span className="flex-1 text-sm font-mono font-black text-amber-400 select-all tracking-wide">{credsModal.password}</span>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(credsModal.password)}
-                    className="text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors shrink-0"
-                  >
-                    Copy
-                  </button>
-                </div>
-              </div>
-
-              {/* WhatsApp share */}
-              <div className="pt-1">
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Hello ${credsModal.parentName}!\n\nYour Rillcod Parent Portal account is ready.\n\n📧 Email: ${credsModal.email}\n🔑 Temp Password: ${credsModal.password}\n\nLog in at: ${typeof window !== 'undefined' ? window.location.origin : 'https://rillcod.com'}\n\nPlease change your password after first login.`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/20 transition-colors"
+        const CredRow = ({
+          label,
+          username,
+          password,
+        }: { label: string; username: string; password: string }) => (
+          <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2.5">
+            <p className="text-xs font-semibold text-foreground">{label}</p>
+            <div className="space-y-1">
+              <p className={metaLabel}>Username</p>
+              <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2.5">
+                <span className="flex-1 text-sm sm:text-base font-mono text-foreground break-all select-all">{username}</span>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(username)}
+                  className={btnQuietMuted}
                 >
-                  Share via WhatsApp
-                </a>
+                  Copy
+                </button>
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="px-5 pb-5">
-              <button
-                onClick={() => setCredsModal(null)}
-                className="w-full py-2.5 bg-muted hover:bg-muted/80 text-foreground text-xs font-medium rounded-md transition-colors"
-              >
-                Done
-              </button>
+            <div className="space-y-1">
+              <p className={metaLabel}>Password</p>
+              <div className="flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2.5">
+                <span className="flex-1 text-base sm:text-lg font-mono font-semibold text-foreground break-all select-all tracking-wide">{password}</span>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(password)}
+                  className={btnQuietMuted}
+                >
+                  Copy
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+              <div className="sticky top-0 z-10 bg-card border-b border-border/50 px-5 pt-5 pb-4">
+                <p className="text-sm font-semibold text-foreground">Account credentials</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">For {credsModal.parentName} — copy or share below</p>
+                {credsModal.created && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {credsModal.created.parent && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10">
+                        {credsModal.created.mode === 'resent' ? 'Parent password refreshed' : 'Parent created'}
+                      </span>
+                    )}
+                    {!credsModal.created.parent && credsModal.email && credsModal.created.mode !== 'resent' && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-border text-muted-foreground bg-muted/40">
+                        Parent existed
+                      </span>
+                    )}
+                    {credsModal.created.studentNames.map((name) => (
+                      <span
+                        key={name}
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-md border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10"
+                      >
+                        {credsModal.created?.mode === 'resent' ? `Student refreshed · ${name}` : `Student created · ${name}`}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="px-5 py-4 space-y-3">
+                {credsModal.note && (
+                  <p className="text-xs text-muted-foreground leading-relaxed">{credsModal.note}</p>
+                )}
+
+                {credsModal.email && credsModal.password && (
+                  <CredRow
+                    label="Parent account"
+                    username={credsModal.email}
+                    password={credsModal.password}
+                  />
+                )}
+
+                {credsModal.email && !credsModal.password && (
+                  <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
+                    <p className="text-xs font-semibold text-foreground">Parent account</p>
+                    <p className={metaLabel}>Username</p>
+                    <p className="text-sm font-mono text-foreground break-all select-all">{credsModal.email}</p>
+                    <p className="text-[11px] text-muted-foreground pt-1">
+                      Password not changed. Use <span className="font-medium text-foreground">Send login</span> to generate a fresh one.
+                    </p>
+                  </div>
+                )}
+
+                {credsModal.students.map((student) => (
+                  <CredRow
+                    key={`${student.email}-${student.name}`}
+                    label={`Student account · ${student.name}`}
+                    username={student.email}
+                    password={student.password}
+                  />
+                ))}
+
+                {!credsModal.password && credsModal.students.length === 0 && !credsModal.email && (
+                  <p className="text-xs text-muted-foreground">No temporary passwords were returned for this action.</p>
+                )}
+
+                <div className="rounded-md border border-border px-3 py-2">
+                  <p className={metaLabel}>Login page</p>
+                  <p className="text-xs font-mono text-foreground break-all mt-0.5">{loginUrl}</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(copyText)}
+                    className={`${btnSecondary} w-full sm:flex-1`}
+                  >
+                    Copy all
+                  </button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(copyText)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${btnSecondary} w-full sm:flex-1`}
+                  >
+                    Share via WhatsApp
+                  </a>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 z-10 bg-card border-t border-border/50 px-5 py-4">
+                <button
+                  onClick={() => setCredsModal(null)}
+                  className={`${btnPrimary} w-full`}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Link Child modal (staff) ──────────────────────────────────────── */}
       {linkChildLeadId && (() => {
@@ -2219,8 +2605,8 @@ export default function ResponsesPage() {
         const displayClass = modalChild?.class  || (rd.child_class as string) || '';
         const isMulti      = (childArr?.length ?? 1) > 1;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto">
               <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/50">
                 <div>
                   <p className="text-sm font-semibold text-foreground">
@@ -2255,8 +2641,8 @@ export default function ResponsesPage() {
                         : `No student matches “${studentSearch}”.`}
                     </p>
                     <p className="text-[10px] text-muted-foreground/70 leading-relaxed px-2">
-                      <strong>{displayName}</strong> doesn’t have an account yet. Create one now — it makes the
-                      student login and links them to this parent automatically.
+                      <strong>{displayName}</strong> doesn’t have a student account yet. This creates a{' '}
+                      <strong>student</strong> login only (parent is already linked) and connects them automatically.
                     </p>
                     <button
                       disabled={!!creatingPortalId}
@@ -2269,7 +2655,9 @@ export default function ResponsesPage() {
                       }}
                       className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium rounded-md transition-colors disabled:opacity-50"
                     >
-                      {creatingPortalId ? 'Creating…' : `Create account for ${displayName.split(' ').slice(0, 2).join(' ')}`}
+                      {creatingPortalId
+                        ? 'Creating student…'
+                        : `Create student account · ${displayName.split(' ').slice(0, 2).join(' ')}`}
                     </button>
                   </div>
                 ) : (
