@@ -4,6 +4,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
+import { fetchClasses } from '@/services/dashboard.service';
 import Link from 'next/link';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { qrDataUrls } from '@/lib/cards/qr';
@@ -1197,33 +1198,27 @@ export default function BulkRegisterPage() {
   const refreshOwnedClasses = useCallback(async () => {
     if (!profile || !canAccess) return [] as ClassOption[];
 
-    // Same server API as Classes page. Do not pass school_id for teachers here —
-    // owned sections with a missing school_id must still appear, then we soft-filter.
-    const params = new URLSearchParams();
-    if (profile.role === 'teacher') params.set('mine', 'true');
-    else if (selectedSchoolId) params.set('school_id', selectedSchoolId);
+    // Restore the cea1f33 / band-placement load path that listed owned sections:
+    // fetchClasses(teacherId) via the shared dashboard service.
+    const teacherId = profile.role === 'teacher' ? profile.id : undefined;
+    const fromService = await fetchClasses(teacherId, undefined).catch(() => [] as any[]);
 
-    const mineRes = await fetch(`/api/classes?${params.toString()}`, { cache: 'no-store' });
-    const mineJson = mineRes.ok ? await mineRes.json() : { data: [] };
-    let rows: any[] = Array.isArray(mineJson.data) ? mineJson.data : [];
+    // Also merge Classes-page school list so sections still appear if client RLS
+    // or teacher_schools gaps hide rows from fetchClasses alone.
+    const schoolParams = new URLSearchParams();
+    if (selectedSchoolId) schoolParams.set('school_id', selectedSchoolId);
+    const schoolRes = await fetch(`/api/classes?${schoolParams.toString()}`, { cache: 'no-store' });
+    const schoolJson = schoolRes.ok ? await schoolRes.json() : { data: [] };
+    const fromApi = Array.isArray(schoolJson.data) ? schoolJson.data : [];
 
-    // If "mine" is empty, load school-scoped classes and keep ones this teacher
-    // can place into (owned by them, or not assigned to anyone yet).
-    if (profile.role === 'teacher' && rows.length === 0) {
-      const schoolParams = new URLSearchParams();
-      if (selectedSchoolId) schoolParams.set('school_id', selectedSchoolId);
-      const schoolRes = await fetch(`/api/classes?${schoolParams.toString()}`, { cache: 'no-store' });
-      const schoolJson = schoolRes.ok ? await schoolRes.json() : { data: [] };
-      rows = (Array.isArray(schoolJson.data) ? schoolJson.data : []).filter(
-        (c: any) => !c.teacher_id || c.teacher_id === profile.id,
-      );
+    const byId = new Map<string, any>();
+    for (const row of [...fromService, ...fromApi]) {
+      if (!row?.id) continue;
+      if (profile.role === 'teacher' && row.teacher_id && row.teacher_id !== profile.id) continue;
+      byId.set(row.id, row);
     }
 
-    if (profile.role === 'teacher') {
-      rows = rows.filter((c: any) => !c.teacher_id || c.teacher_id === profile.id);
-    }
-
-    const mapped: ClassOption[] = rows.map((c: any) => ({
+    const mapped: ClassOption[] = [...byId.values()].map((c: any) => ({
       id: c.id,
       name: c.name,
       section_class: c.section_class ?? c.name ?? null,
