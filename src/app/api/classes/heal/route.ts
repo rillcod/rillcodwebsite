@@ -1142,6 +1142,12 @@ export async function POST(req: NextRequest) {
     const dryRun = body.dryRun === true;
     const mergeDuplicates = body.mergeDuplicates === true;
     const onlySchoolId: string | null = body.schoolId || null;
+    // Optional allow-list: when provided, only those class IDs are renamed/merged.
+    // Lets admins keep free-typed names they want instead of forcing every change.
+    const onlyIds: Set<string> | null = Array.isArray(body.classIds) && body.classIds.length > 0
+      ? new Set(body.classIds.filter((id: unknown) => typeof id === 'string' && id))
+      : null;
+    const allow = (id: string) => !onlyIds || onlyIds.has(id);
 
     let q = db.from('classes').select('id, name, school_id, tier, band_lvl, band_low, band_high, qa_grade_band, program_id, teacher_id, term_id');
     if (onlySchoolId) q = q.eq('school_id', onlySchoolId) as any;
@@ -1187,7 +1193,7 @@ export async function POST(req: NextRequest) {
       arr.push(x);
     }
 
-    let renamed = 0, merged = 0, conflicts = 0, termsSet = 0;
+    let renamed = 0, merged = 0, conflicts = 0, termsSet = 0, skipped = 0;
     const changes: Array<{ id: string; from: string; to: string; action: string }> = [];
     const now = new Date().toISOString();
 
@@ -1205,6 +1211,7 @@ export async function POST(req: NextRequest) {
           const needsTerm = !!currentTermId && !c.term_id;
           if (needsRename || needsBand || needsTier || needsTerm) {
             changes.push({ id: c.id, from: c.name, to: needsRename ? canonical : `${canonical}${needsTerm ? `  ·  + ${currentTermLabel}` : ''}`, action: needsRename ? 'rename' : needsTerm ? 'set-term' : 'backfill' });
+            if (!allow(c.id)) { skipped++; continue; }
             if (!dryRun) {
               const patch: Record<string, unknown> = {
                 name: canonical,
@@ -1217,12 +1224,18 @@ export async function POST(req: NextRequest) {
               };
               if (needsTerm) patch.term_id = currentTermId;
               await db.from('classes').update(patch).eq('id', c.id);
+              // Keep student section_class in sync when the class is renamed.
+              if (needsRename) {
+                await db.from('portal_users').update({ section_class: canonical, updated_at: now }).eq('class_id', c.id);
+                await db.from('students').update({ section_class: canonical }).eq('class_id', c.id);
+              }
             }
             if (needsRename) renamed++;
             if (needsTerm) termsSet++;
           }
         } else if (mergeDuplicates) {
           changes.push({ id: c.id, from: c.name, to: canonical, action: 'merge' });
+          if (!allow(c.id)) { skipped++; continue; }
           if (!dryRun) {
             await db.from('portal_users').update({ class_id: survivor.c.id, section_class: canonical, updated_at: now }).eq('class_id', c.id);
             await db.from('students').update({ class_id: survivor.c.id, section_class: canonical }).eq('class_id', c.id);
@@ -1237,7 +1250,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, dryRun, scanned: computed.length, renamed, merged, conflicts, termsSet, currentTerm: currentTermLabel || null, needsReview, changes: changes.slice(0, 500) });
+    return NextResponse.json({
+      success: true,
+      dryRun,
+      scanned: computed.length,
+      renamed,
+      merged,
+      conflicts,
+      termsSet,
+      skipped,
+      selectedOnly: !!onlyIds,
+      currentTerm: currentTermLabel || null,
+      needsReview,
+      changes: changes.slice(0, 500),
+    });
   }
 
   // Add missing teacher_schools entries for a specific teacher (or all teachers).

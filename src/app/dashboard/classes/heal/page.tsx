@@ -60,6 +60,7 @@ export default function ClassHealPage() {
   const [noClassConfirmDelete, setNoClassConfirmDelete] = useState<string | null>(null);
   const [namingScan, setNamingScan] = useState<any>(null);
   const [namingBusy, setNamingBusy] = useState(false);
+  const [namingSelected, setNamingSelected] = useState<Set<string>>(new Set());
   const [noClassProgramme, setNoClassProgramme] = useState('');
   // Claim a class state
   const [claimClassId, setClaimClassId] = useState('');
@@ -192,23 +193,53 @@ export default function ClassHealPage() {
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Scan failed');
       setNamingScan(j);
+      // Start with nothing selected — admin opts in to each rename/merge to keep.
+      setNamingSelected(new Set());
     } catch (e: any) { setMsg({ type: 'err', text: e.message }); }
     finally { setNamingBusy(false); }
   }
 
+  function namingSelectableIds(): string[] {
+    return (namingScan?.changes ?? [])
+      .filter((c: any) => c.action !== 'backfill' && c.id)
+      .map((c: any) => c.id as string);
+  }
+
+  function toggleNamingSel(id: string) {
+    setNamingSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+
   async function fixNames(merge: boolean) {
-    const renameCount = (namingScan?.changes ?? []).filter((c: any) => c.action === 'rename').length;
-    const mergeCount = namingScan?.conflicts ?? 0;
-    if (!confirm(`Apply canonical class names?\n\n• ${renameCount} class(es) renamed to “School · Programme · Band”.${merge ? `\n• ${mergeCount} duplicate(s) merged — students & lessons moved to the survivor, empty class deleted.` : ''}\n\nThis can’t be auto-undone.`)) return;
+    const selectedIds = [...namingSelected];
+    if (selectedIds.length === 0) {
+      setMsg({ type: 'err', text: 'Select at least one class to rename (or leave unchecked to keep the current name).' });
+      return;
+    }
+    const selectedChanges = (namingScan?.changes ?? []).filter((c: any) => namingSelected.has(c.id));
+    const renameCount = selectedChanges.filter((c: any) => c.action === 'rename' || c.action === 'set-term').length;
+    const mergeCount = selectedChanges.filter((c: any) => c.action === 'merge' || c.action === 'conflict').length;
+    if (!confirm(`Apply canonical names to ${selectedIds.length} selected class(es)?\n\n• ${renameCount} rename / set-term\n${merge ? `• ${mergeCount} duplicate merge(s)\n` : ''}Unselected classes keep their current names.\n\nThis can’t be auto-undone.`)) return;
     setNamingBusy(true); setMsg(null);
     try {
       const res = await fetch('/api/classes/heal', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'canonicalize_class_names', dryRun: false, mergeDuplicates: merge }),
+        body: JSON.stringify({
+          action: 'canonicalize_class_names',
+          dryRun: false,
+          mergeDuplicates: merge,
+          classIds: selectedIds,
+        }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error || 'Fix failed');
-      setMsg({ type: 'ok', text: `Naming fixed — ${j.renamed} renamed${j.termsSet ? `, ${j.termsSet} term set` : ''}${merge ? `, ${j.merged} merged` : ''}${j.conflicts ? `, ${j.conflicts} duplicate conflict(s) left` : ''}${j.needsReview?.length ? `, ${j.needsReview.length} need review` : ''}.` });
+      setMsg({
+        type: 'ok',
+        text: `Naming updated — ${j.renamed} renamed${j.termsSet ? `, ${j.termsSet} term set` : ''}${merge ? `, ${j.merged} merged` : ''}${j.skipped ? `, ${j.skipped} left as-is` : ''}${j.conflicts ? `, ${j.conflicts} duplicate conflict(s) left` : ''}${j.needsReview?.length ? `, ${j.needsReview.length} need review` : ''}.`,
+      });
       await scanNames();
       await load();
     } catch (e: any) { setMsg({ type: 'err', text: e.message }); }
@@ -358,7 +389,9 @@ export default function ClassHealPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-black text-foreground">Class Naming Convention</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Rename every class to the standard <span className="font-mono text-foreground/70">School · Programme · Band</span> — fixes free-typed teacher names and stores tier + grade band. Scan first to preview.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Preview proposed <span className="font-mono text-foreground/70">School · Programme · Band</span> names, then tick only the ones you want to apply. Unchecked classes keep their current names.
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={scanNames} disabled={namingBusy}
@@ -367,14 +400,20 @@ export default function ClassHealPage() {
               </button>
               {namingScan && (
                 <>
-                  <button onClick={() => fixNames(false)} disabled={namingBusy || (namingScan.changes ?? []).filter((c: any) => c.action !== 'conflict').length === 0}
-                    className="px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-black rounded-xl transition">
-                    Fix all ({(namingScan.changes ?? []).filter((c: any) => c.action !== 'conflict').length})
+                  <button
+                    onClick={() => fixNames(false)}
+                    disabled={namingBusy || namingSelected.size === 0}
+                    className="px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-40 text-white text-xs font-black rounded-xl transition"
+                  >
+                    Fix selected ({namingSelected.size})
                   </button>
                   {namingScan.conflicts > 0 && (
-                    <button onClick={() => fixNames(true)} disabled={namingBusy}
-                      className="px-3 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition">
-                      Fix + merge dupes ({namingScan.conflicts})
+                    <button
+                      onClick={() => fixNames(true)}
+                      disabled={namingBusy || namingSelected.size === 0}
+                      className="px-3 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-black rounded-xl transition"
+                    >
+                      Fix selected + merge dupes
                     </button>
                   )}
                 </>
@@ -384,20 +423,49 @@ export default function ClassHealPage() {
 
           {namingScan && (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Scanned <strong className="text-foreground">{namingScan.scanned}</strong> · <strong className="text-primary">{(namingScan.changes ?? []).filter((c: any) => c.action === 'rename').length}</strong> to rename · <strong className="text-sky-400">{(namingScan.changes ?? []).filter((c: any) => c.action === 'set-term').length}</strong> missing term{namingScan.currentTerm ? ` (→ ${namingScan.currentTerm})` : ''} · <strong className="text-rose-400">{namingScan.conflicts}</strong> duplicate conflict(s) · <strong className="text-amber-400">{namingScan.needsReview?.length ?? 0}</strong> need review
-              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Scanned <strong className="text-foreground">{namingScan.scanned}</strong> · <strong className="text-primary">{(namingScan.changes ?? []).filter((c: any) => c.action === 'rename').length}</strong> to rename · <strong className="text-sky-400">{(namingScan.changes ?? []).filter((c: any) => c.action === 'set-term').length}</strong> missing term{namingScan.currentTerm ? ` (→ ${namingScan.currentTerm})` : ''} · <strong className="text-rose-400">{namingScan.conflicts}</strong> duplicate conflict(s) · <strong className="text-amber-400">{namingScan.needsReview?.length ?? 0}</strong> need review
+                </p>
+                {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').length > 0 && (
+                  <div className="flex gap-2 ml-auto">
+                    <button
+                      type="button"
+                      onClick={() => setNamingSelected(new Set(namingSelectableIds()))}
+                      className="text-[11px] font-bold text-primary hover:underline"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNamingSelected(new Set())}
+                      className="text-[11px] font-bold text-muted-foreground hover:underline"
+                    >
+                      Select none
+                    </button>
+                  </div>
+                )}
+              </div>
               {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').length === 0 ? (
                 <p className="text-xs text-emerald-400 font-bold">Every class already follows the convention. 🎉</p>
               ) : (
-                <div className="max-h-64 overflow-auto rounded-xl border border-border divide-y divide-border/60">
-                  {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').slice(0, 100).map((c: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-2 text-xs">
+                <div className="max-h-72 overflow-auto rounded-xl border border-border divide-y divide-border/60">
+                  {(namingScan.changes ?? []).filter((c: any) => c.action !== 'backfill').slice(0, 200).map((c: any) => (
+                    <label
+                      key={c.id}
+                      className={`flex items-center gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-muted/40 ${namingSelected.has(c.id) ? 'bg-primary/5' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={namingSelected.has(c.id)}
+                        onChange={() => toggleNamingSel(c.id)}
+                        className="rounded border-border shrink-0"
+                      />
                       <span className={`px-1.5 py-0.5 rounded font-black uppercase text-[9px] tracking-wider shrink-0 ${c.action === 'merge' || c.action === 'conflict' ? 'bg-rose-500/15 text-rose-400' : 'bg-primary/15 text-primary'}`}>{c.action}</span>
                       <span className="text-muted-foreground line-through truncate">{c.from}</span>
                       <span className="text-muted-foreground/50">→</span>
                       <span className="font-bold text-foreground truncate">{c.to}</span>
-                    </div>
+                    </label>
                   ))}
                 </div>
               )}
