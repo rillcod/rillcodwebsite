@@ -176,8 +176,29 @@ export default function ReportCard({ report, orgSettings }: {
     return (
         <div
             id="report-card"
-            className="bg-card text-foreground font-sans relative overflow-hidden shrink-0 flex flex-col"
-            style={{ width: 794, height: 1123, margin: '0 auto', fontSize: 13, border: '4px solid #1a1a2e', position: 'relative', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+            className="relative overflow-hidden shrink-0 flex flex-col font-sans"
+            style={{
+                width: 794,
+                height: 1123,
+                margin: '0 auto',
+                fontSize: 13,
+                border: '4px solid #1a1a2e',
+                position: 'relative',
+                background: '#ffffff',
+                color: '#0D1B2A',
+                // Keep classic report panels light even when the dashboard is in .dark mode.
+                ['--background' as string]: '#F8FAFC',
+                ['--foreground' as string]: '#0D1B2A',
+                ['--card' as string]: '#FFFFFF',
+                ['--card-foreground' as string]: '#0D1B2A',
+                ['--muted' as string]: '#F1F5F9',
+                ['--muted-foreground' as string]: '#64748B',
+                ['--border' as string]: '#E2E8F0',
+                ['--secondary' as string]: '#F1F5F9',
+                ['--secondary-foreground' as string]: '#0D1B2A',
+                WebkitPrintColorAdjust: 'exact',
+                printColorAdjust: 'exact',
+            } as React.CSSProperties}
         >
             {/* Background */}
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-50/50 rounded-full blur-3xl -z-10 -mr-40 -mt-40 print:opacity-100" />

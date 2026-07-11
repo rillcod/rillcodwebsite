@@ -153,11 +153,14 @@ export default function ModernReportCard({ report, orgSettings }: {
     return (
         <div
             id="modern-report-card"
-            className={cn('bg-card text-black relative overflow-hidden flex flex-col mx-auto', isIndustrial && 'font-mono')}
+            className={cn('relative overflow-hidden flex flex-col mx-auto text-black', isIndustrial && 'font-mono')}
             style={{
                 width: '210mm', height: '297mm',
                 paddingTop: '12mm', paddingLeft: '18mm', paddingRight: '18mm', paddingBottom: '10mm',
                 boxSizing: 'border-box',
+                // Always light paper — never inherit dashboard dark `bg-card`.
+                background: isExecutive ? '#FFFDF7' : '#ffffff',
+                color: '#111827',
                 WebkitPrintColorAdjust: 'exact',
                 printColorAdjust: 'exact',
                 fontFamily: isIndustrial ? "'Space Mono', monospace" : 'inherit',
@@ -169,7 +172,16 @@ export default function ModernReportCard({ report, orgSettings }: {
                 @media print {
                     @page { size: A4; margin: 0; }
                     body { margin: 0; padding: 0; }
-                    #modern-report-card { margin: 0 !important; width: 210mm !important; height: 297mm !important; padding-top: 12mm !important; }
+                    #modern-report-card {
+                        margin: 0 !important;
+                        width: 210mm !important;
+                        height: 297mm !important;
+                        padding-top: 12mm !important;
+                        background: ${isExecutive ? '#FFFDF7' : '#ffffff'} !important;
+                        color: #111827 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
                 }
             ` }} />
 

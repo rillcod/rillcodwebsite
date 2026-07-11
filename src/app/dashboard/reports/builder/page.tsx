@@ -3956,7 +3956,7 @@ function ReportBuilderInner() {
                     <div ref={previewContainerRef} className="flex-1 overflow-auto p-2 sm:p-6 bg-black/40">
                         {/* Outer wrapper sized to scaled A4 dimensions so scroll area is correct */}
                         <div style={{ width: Math.round(794 * previewScale), minHeight: Math.round(1122 * previewScale), margin: '0 auto' }}>
-                            <div className="bg-card overflow-hidden shadow-2xl"
+                            <div className="overflow-hidden bg-white shadow-2xl"
                                 style={{ width: '210mm', minHeight: '297mm', transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
                                 {reportStyle === 'modern' ? (
                                     <ModernReportCard report={deferredPreviewData} orgSettings={branding as any} />
