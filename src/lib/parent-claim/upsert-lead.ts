@@ -6,6 +6,8 @@ type AnySupabase = SupabaseClient<any>;
 
 export type LeadCaptureInput = {
   schoolId: string;
+  /** Display name of the school the QR belongs to — carried into lead + Records. */
+  schoolName?: string | null;
   studentUserId: string;
   parentId: string;
   email: string;
@@ -28,6 +30,7 @@ export async function upsertResultCheckerLead(admin: AnySupabase, input: LeadCap
   if (!formId) return null;
 
   const now = new Date().toISOString();
+  const schoolName = (input.schoolName || '').trim() || null;
   const responsePatch = {
     parent_name: input.fullName,
     parent_email: input.email,
@@ -35,6 +38,9 @@ export async function upsertResultCheckerLead(admin: AnySupabase, input: LeadCap
     relationship: input.relationship,
     child_name: input.childName,
     source: 'result_checker',
+    intake_channel: 'parent_qr_claim',
+    child_current_school: schoolName,
+    school_name: schoolName,
     _auto_linked: true,
     last_claim_at: now,
     ...(input.childGender ? { child_gender: input.childGender } : {}),
@@ -60,6 +66,8 @@ export async function upsertResultCheckerLead(admin: AnySupabase, input: LeadCap
       match_status: 'approved',
       match_confidence: 'high',
       match_notes: 'Refreshed via result/ID-card scan (parent re-linked).',
+      child_current_school: schoolName,
+      school_id: input.schoolId,
       response_data: { ...prior, ...responsePatch },
     }).eq('id', existing.id);
     await upsertLeadChildLink(admin, {
@@ -79,8 +87,11 @@ export async function upsertResultCheckerLead(admin: AnySupabase, input: LeadCap
     form_id: formId,
     school_id: input.schoolId,
     email: input.email,
+    child_current_school: schoolName,
     response_data: responsePatch,
     matched_parent_id: input.parentId,
+    matched_student_id: input.studentUserId,
+    matched_school_id: input.schoolId,
     match_status: 'approved',
     match_confidence: 'high',
     match_notes: 'Auto-linked via result/ID-card scan (exact child).',

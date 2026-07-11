@@ -170,6 +170,7 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
     try {
       const leadId = await upsertResultCheckerLead(admin, {
         schoolId: prov.schoolId,
+        schoolName: prov.schoolName ?? null,
         studentUserId: studentId,
         parentId: prov.parentId,
         email,
