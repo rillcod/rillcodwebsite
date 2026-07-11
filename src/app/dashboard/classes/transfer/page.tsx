@@ -227,24 +227,26 @@ export default function ClassTransferPage() {
   return (
     <div className="space-y-6 pb-40 sm:pb-20">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <ArrowsRightLeftIcon className="w-5 h-5 text-primary" />
-            <span className="text-xs font-bold text-primary uppercase tracking-widest">Class Management</span>
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center gap-2">
+            <ArrowsRightLeftIcon className="h-5 w-5 flex-shrink-0 text-primary" />
+            <span className="text-xs font-bold uppercase tracking-widest text-primary">Class Management</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground">Transfer Students</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <h1 className="text-2xl font-extrabold text-foreground sm:text-3xl">Transfer Students</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Move students from one class to their correct class. Pick a class, select students, choose the destination.
           </p>
         </div>
-        <Link href="/dashboard/classes/transfer-requests" className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-sm rounded-xl transition-colors self-start">
-          <ArrowsRightLeftIcon className="w-4 h-4" /> Ownership Requests
-        </Link>
-        <Link href="/dashboard/classes"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-xl transition-colors self-start">
-          <ArrowLeftIcon className="w-4 h-4" /> Back to Classes
-        </Link>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <Link href="/dashboard/classes/transfer-requests" className="inline-flex items-center gap-2 self-start rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-400 transition-colors">
+            <ArrowsRightLeftIcon className="h-4 w-4" /> Ownership Requests
+          </Link>
+          <Link href="/dashboard/classes"
+            className="inline-flex items-center gap-2 self-start rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground transition-colors hover:border-primary/50">
+            <ArrowLeftIcon className="h-4 w-4" /> Back to Classes
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -307,25 +309,25 @@ export default function ClassTransferPage() {
       {sourceId && (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           {/* Roster toolbar */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border-b border-border">
-            <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-              <UserGroupIcon className="w-4 h-4 text-primary" />
-              {sourceClass?.name}
-              <span className="text-muted-foreground font-medium">· {students.length} student{students.length !== 1 ? 's' : ''}</span>
+          <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-bold text-foreground">
+              <UserGroupIcon className="h-4 w-4 flex-shrink-0 text-primary" />
+              <span className="break-words">{sourceClass?.name}</span>
+              <span className="font-medium text-muted-foreground">· {students.length} student{students.length !== 1 ? 's' : ''}</span>
             </div>
-            <div className="relative flex-1 sm:max-w-xs sm:ml-auto">
-              <MagnifyingGlassIcon className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="relative min-w-0 flex-1 sm:ml-auto sm:max-w-xs">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search students…"
-                className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground outline-none focus:border-primary/50"
+                className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary/50"
               />
             </div>
             <button
               onClick={toggleAll}
               disabled={filteredStudents.length === 0}
-              className="px-3 py-2 text-xs font-bold rounded-lg border border-border hover:border-primary/50 text-foreground transition-colors disabled:opacity-40"
+              className="rounded-lg border border-border px-3 py-2 text-xs font-bold text-foreground transition-colors hover:border-primary/50 disabled:opacity-40"
             >
               {allVisibleSelected ? 'Clear all' : 'Select all'}
             </button>
@@ -384,32 +386,34 @@ export default function ClassTransferPage() {
       {/* Sticky action bar — on mobile it sits ABOVE the 64px bottom tab bar (bottom-16) so it
           never covers the nav's menu CTAs; static in the normal flow from sm up. */}
       {sourceId && (
-        <div className="fixed bottom-16 left-0 right-0 sm:static sm:bottom-auto z-20 bg-card/95 backdrop-blur border-t sm:border border-border sm:rounded-2xl p-4 flex items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-foreground truncate">
+        <div className="fixed bottom-16 left-0 right-0 z-20 flex flex-col gap-3 border-t border-border bg-card/95 p-4 backdrop-blur sm:static sm:bottom-auto sm:flex-row sm:items-center sm:rounded-2xl sm:border">
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-sm font-bold text-foreground">
               {selected.size} selected
-              {destClass ? <span className="text-muted-foreground font-medium"> → {destClass.name}</span> : ''}
+              {destClass ? <span className="font-medium text-muted-foreground"> → {destClass.name}</span> : ''}
             </p>
             {!destClass && selected.size > 0 && (
               <p className="text-xs text-amber-400">Choose a destination class to move them.</p>
             )}
           </div>
-          <button
-            onClick={deactivate}
-            disabled={moving || selected.size === 0}
-            title="Withdraw the selected students from this class (keeps their history)"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 font-bold text-sm rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-          >
-            Deactivate
-          </button>
-          <button
-            onClick={move}
-            disabled={moving || selected.size === 0 || !destId}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-primary/30 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-          >
-            {moving ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowsRightLeftIcon className="w-4 h-4" />}
-            {moving ? 'Moving…' : `Move${selected.size ? ` ${selected.size}` : ''}`}
-          </button>
+          <div className="flex w-full min-w-0 flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+            <button
+              onClick={deactivate}
+              disabled={moving || selected.size === 0}
+              title="Withdraw the selected students from this class (keeps their history)"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-card px-4 py-2.5 text-sm font-bold text-amber-400 transition-colors hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+            >
+              Withdraw
+            </button>
+            <button
+              onClick={move}
+              disabled={moving || selected.size === 0 || !destId}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/30 transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+            >
+              {moving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ArrowsRightLeftIcon className="h-4 w-4" />}
+              {moving ? 'Moving…' : `Move${selected.size ? ` ${selected.size}` : ''}`}
+            </button>
+          </div>
         </div>
       )}
     </div>

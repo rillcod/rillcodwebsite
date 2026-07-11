@@ -189,7 +189,14 @@ export async function POST(req: Request) {
                             sent_to: toEmail,
                         },
                     });
-                    if (pendingTxError) { warnings.push('Online payment link was omitted because its pending ledger record could not be saved.'); paystackUrl = null; }
+                    if (pendingTxError) {
+                        warnings.push('Online payment link was omitted because its pending ledger record could not be saved.');
+                        paystackUrl = defaultInvoicePaymentUrl({
+                            isSchool: isSchoolStream,
+                            invoiceId,
+                            appUrl: appBase,
+                        });
+                    }
                 }
             } catch (psErr) {
                 // Non-fatal â€” fall back to portal URL

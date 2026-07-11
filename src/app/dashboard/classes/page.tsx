@@ -89,65 +89,65 @@ export default function ClassesPage() {
   );
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="min-w-0 space-y-8 overflow-x-hidden pb-20">
 
       {/* ── My Classes Tab Bar ── */}
-      <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1 w-fit flex-wrap">
-        <span className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-black">
-          <UserGroupIcon className="w-4 h-4" /> Classes
+      <div className="flex w-full max-w-full flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1">
+        <span className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-black text-white">
+          <UserGroupIcon className="h-4 w-4" /> Classes
         </span>
         <Link href="/dashboard/timetable"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-          <CalendarDaysIcon className="w-4 h-4" /> Timetable
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground">
+          <CalendarDaysIcon className="h-4 w-4" /> Timetable
         </Link>
         <Link href="/dashboard/attendance"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm font-bold transition-all">
-          <ClipboardDocumentCheckIcon className="w-4 h-4" /> Attendance
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-muted-foreground transition-all hover:bg-muted/50 hover:text-foreground">
+          <ClipboardDocumentCheckIcon className="h-4 w-4" /> Attendance
         </Link>
       </div>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <AcademicCapIcon className="w-5 h-5 text-primary" />
-            <span className="text-xs font-bold text-primary uppercase tracking-widest">Class Management</span>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center gap-2">
+            <AcademicCapIcon className="h-5 w-5 flex-shrink-0 text-primary" />
+            <span className="text-xs font-bold uppercase tracking-widest text-primary">Class Management</span>
           </div>
           <h1 className="text-3xl font-extrabold text-foreground">My Classes</h1>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             Create and manage classes, track enrolment, and assign lessons and assessments.
           </p>
         </div>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3 sm:flex-shrink-0">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Link
             href="/dashboard/classes/transfer-requests"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-400 font-bold text-sm rounded-xl transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-bold text-amber-400 transition-colors hover:bg-amber-500/20"
           >
-            <ArrowsRightLeftIcon className="w-4 h-4" />
+            <ArrowsRightLeftIcon className="h-4 w-4" />
             Transfer Requests
           </Link>
           <Link
             href="/dashboard/classes/transfer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-xl transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground transition-colors hover:border-primary/50"
           >
-            <ArrowsRightLeftIcon className="w-4 h-4 text-primary" />
+            <ArrowsRightLeftIcon className="h-4 w-4 text-primary" />
             Transfer
           </Link>
           {profile?.role !== 'school' && (
             <Link
               href="/dashboard/reports/builder"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-card border border-border hover:border-primary/50 text-foreground font-bold text-sm rounded-xl transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground transition-colors hover:border-primary/50"
             >
-              <ChartBarIcon className="w-4 h-4 text-primary" />
+              <ChartBarIcon className="h-4 w-4 text-primary" />
               Reports
             </Link>
           )}
           {profile?.role !== 'school' && (
             <Link
               href="/dashboard/classes/add"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary text-white font-bold text-sm rounded-xl transition-colors shadow-lg shadow-primary/30"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/30 transition-colors hover:bg-primary"
             >
-              <PlusIcon className="w-4 h-4" />
+              <PlusIcon className="h-4 w-4" />
               Add Class
             </Link>
           )}
@@ -245,7 +245,7 @@ export default function ClassesPage() {
             const isFull = cls.max_students > 0 && (cls.current_students ?? 0) >= cls.max_students;
             const nearFull = !isFull && cls.max_students > 0 && (cls.current_students ?? 0) / cls.max_students >= 0.9;
             return (
-              <div key={cls.id} className="relative overflow-hidden bg-white/[0.01] backdrop-blur-md shadow-sm border border-border rounded-2xl flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20">
+              <div key={cls.id} className="relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white/[0.01] shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5">
 
                 {/* Card top accent by status */}
                 <div className={`h-1 w-full ${
@@ -256,22 +256,22 @@ export default function ClassesPage() {
                     : 'bg-primary'
                 }`} />
 
-                <div className="p-5 flex flex-col gap-4 flex-1">
+                <div className="flex flex-1 flex-col gap-4 p-5">
 
                   {/* Title row */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-base text-foreground truncate group-hover:text-primary transition-colors">{cls.name}</h3>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="break-words text-base font-bold text-foreground transition-colors">{cls.name}</h3>
                       {cls.programs?.name && (
-                        <p className="text-xs text-muted-foreground mt-0.5 font-medium">{cls.programs.name}</p>
+                        <p className="mt-0.5 break-words text-xs font-medium text-muted-foreground">{cls.programs.name}</p>
                       )}
-                      <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-primary">
                         {cls.academic_terms
                           ? `${cls.academic_terms.term_label} ${cls.academic_terms.academic_year}`
                           : 'No term assigned'}
                       </p>
                     </div>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border capitalize flex-shrink-0 ${
+                    <span className={`flex-shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider capitalize ${
                       STATUS_BADGE[cls.status] ?? 'bg-white/5 text-muted-foreground border-border'
                     }`}>
                       {cls.status}
@@ -295,17 +295,17 @@ export default function ClassesPage() {
                   {/* School & teacher */}
                   <div className="space-y-1.5">
                     {cls.schools?.name && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                        <BuildingOfficeIcon className="w-3.5 h-3.5 flex-shrink-0 text-primary/70" />
-                        <span className="truncate">{cls.schools.name}</span>
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <BuildingOfficeIcon className="h-3.5 w-3.5 flex-shrink-0 text-primary/70" />
+                        <span className="break-words">{cls.schools.name}</span>
                       </div>
                     )}
                     {cls.portal_users?.full_name && profile?.role !== 'school' && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                        <div className="w-4 h-4 bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary flex-shrink-0 rounded">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <div className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border border-primary/20 bg-primary/10 text-[9px] font-bold text-primary">
                           {cls.portal_users.full_name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="truncate">{cls.portal_users.full_name}</span>
+                        <span className="break-words">{cls.portal_users.full_name}</span>
                       </div>
                     )}
                   </div>
@@ -336,31 +336,31 @@ export default function ClassesPage() {
                 </div>
 
                 {/* Card footer actions */}
-                <div className="border-t border-white/5 bg-white/[0.01] flex items-center">
+                <div className="flex flex-wrap items-stretch border-t border-white/5 bg-white/[0.01]">
                   <Link
                     href={`/dashboard/classes/${cls.id}`}
-                    className="flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all border-r border-white/5"
+                    className="flex min-w-[33%] flex-1 items-center justify-center gap-2 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-primary/5 hover:text-primary"
                   >
-                    <EyeIcon className="w-3.5 h-3.5" />
+                    <EyeIcon className="h-3.5 w-3.5" />
                     View
                   </Link>
                   {profile?.role !== 'school' && (
                     <>
                       <Link
                         href={`/dashboard/classes/${cls.id}/edit`}
-                        className="flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all border-r border-white/5"
+                        className="flex min-w-[33%] flex-1 items-center justify-center gap-2 border-r border-white/5 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-white/5 hover:text-foreground"
                       >
-                        <PencilIcon className="w-3.5 h-3.5" />
+                        <PencilIcon className="h-3.5 w-3.5" />
                         Edit
                       </Link>
                       <button
                         onClick={() => setDeleteTarget({ id: cls.id, name: cls.name })}
                         disabled={deleting === cls.id}
-                        className="flex-1 flex items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground hover:text-rose-400 hover:bg-rose-500/5 transition-all disabled:opacity-40"
+                        className="flex min-w-[33%] flex-1 items-center justify-center gap-2 py-3.5 text-xs font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-rose-500/5 hover:text-rose-400 disabled:opacity-40"
                       >
                         {deleting === cls.id
-                          ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                          : <TrashIcon className="w-3.5 h-3.5" />}
+                          ? <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                          : <TrashIcon className="h-3.5 w-3.5" />}
                         Delete
                       </button>
                     </>

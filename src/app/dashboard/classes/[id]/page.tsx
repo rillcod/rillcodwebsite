@@ -1000,20 +1000,20 @@ export default function ClassDetailPage() {
   const pendingOutgoingTransfers = profile?.role === 'admin' ? [] : transferRequests.filter((request: any) => request.status === 'pending' && request.requested_by === profile?.id);
 
   return (
-    <div className="text-foreground">
+    <div className="min-w-0 overflow-x-hidden text-foreground">
       <div className="space-y-6 pb-20">
 
         {/* ── Class Operations Canvas ────────────────────────────────────────── */}
-        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+        <div className="overflow-x-clip rounded-3xl border border-border bg-card shadow-sm">
           <div className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-background p-5 sm:p-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-3">
-                  <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-xl transition-colors">
-                    <ArrowLeftIcon className="w-4 h-4 text-muted-foreground" />
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <button onClick={() => router.back()} className="rounded-xl p-1.5 transition-colors hover:bg-muted">
+                    <ArrowLeftIcon className="h-4 w-4 text-muted-foreground" />
                   </button>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                    <AcademicCapIcon className="w-3.5 h-3.5" />
+                    <AcademicCapIcon className="h-3.5 w-3.5" />
                     My Class Workspace
                   </span>
                   <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
@@ -1024,8 +1024,8 @@ export default function ClassDetailPage() {
                     {cls.status}
                   </span>
                 </div>
-                <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground">{cls.name}</h1>
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                <h1 className="break-words text-2xl font-black tracking-tight text-foreground sm:text-4xl">{cls.name}</h1>
+                <p className="mt-2 max-w-2xl break-words text-sm text-muted-foreground">
                   {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
                 </p>
               </div>
@@ -1119,19 +1119,22 @@ export default function ClassDetailPage() {
                       <div><h3 className="text-sm font-black text-foreground">Student transfer requests</h3><p className="text-xs text-muted-foreground">Moves happen only after the current owning teacher approves.</p></div>
                       {pendingIncomingTransfers.map((request: any) => (
                         <div key={request.id} className="rounded-xl border border-amber-500/20 bg-background p-3">
-                          <p className="text-sm font-bold text-foreground">{request.student?.full_name}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{request.requester?.full_name} requests transfer from <strong>{request.from_class?.name}</strong> to <strong>{request.to_class?.name}</strong>.</p>
-                          <p className="mt-2 rounded-lg bg-muted px-2 py-1.5 text-xs text-foreground">“{request.reason}”</p>
-                          <div className="mt-3 flex gap-2">
+                          <p className="break-words text-sm font-bold text-foreground">{request.student?.full_name}</p>
+                          <p className="mt-1 break-words text-xs text-muted-foreground">{request.requester?.full_name} requests transfer from <strong>{request.from_class?.name}</strong> to <strong>{request.to_class?.name}</strong>.</p>
+                          <p className="mt-2 break-words rounded-lg bg-muted px-2 py-1.5 text-xs text-foreground">“{request.reason}”</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
                             <button disabled={transferBusy === request.id} onClick={() => decideTransfer(request.id, 'approve')} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-50">Approve & Move</button>
                             <button disabled={transferBusy === request.id} onClick={() => { setDeclineCandidate(request); setDeclineNote(''); }} className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-black text-rose-300 disabled:opacity-50">Decline</button>
                           </div>
                         </div>
                       ))}
                       {pendingOutgoingTransfers.map((request: any) => (
-                        <div key={request.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-3">
-                          <div><p className="text-sm font-bold text-foreground">{request.student?.full_name}</p><p className="text-xs text-muted-foreground">Awaiting {request.from_teacher?.full_name} · {request.from_class?.name} → {request.to_class?.name}</p></div>
-                          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-300">Pending</span>
+                        <div key={request.id} className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                          <div className="min-w-0">
+                            <p className="break-words text-sm font-bold text-foreground">{request.student?.full_name}</p>
+                            <p className="break-words text-xs text-muted-foreground">Awaiting {request.from_teacher?.full_name} · {request.from_class?.name} → {request.to_class?.name}</p>
+                          </div>
+                          <span className="w-fit flex-shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-black uppercase text-amber-300">Pending</span>
                         </div>
                       ))}
                     </div>
@@ -1199,7 +1202,7 @@ export default function ClassDetailPage() {
                       <p className="text-sm font-semibold text-muted-foreground">No students match “{rosterSearch}”.</p>
                     </div>
                   ) : (
-                    <div className="max-h-[60vh] overflow-y-auto grid gap-2 xl:grid-cols-2 pr-1">
+                    <div className="grid max-h-[60vh] gap-2 overflow-y-auto overflow-x-hidden pr-1">
                       {visibleCurrent.map((student: any) => {
                         const offBand = isOffBand(student);
                         if (editingStudentId === student.id) {
@@ -1208,31 +1211,31 @@ export default function ClassDetailPage() {
                             ...SINGLE_GRADES,
                           ]));
                           return (
-                            <div key={student.id} className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2 xl:col-span-2">
-                              <div className="flex flex-col sm:flex-row gap-2">
+                            <div key={student.id} className="space-y-2 rounded-xl border border-primary/40 bg-primary/5 p-3">
+                              <div className="flex flex-col gap-2 sm:flex-row">
                                 <input
                                   value={editName}
                                   onChange={(e) => setEditName(e.target.value)}
                                   placeholder="Full name"
-                                  className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                                  className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                                 />
                                 <select
                                   value={editGrade}
                                   onChange={(e) => setEditGrade(e.target.value)}
                                   title="Grade (separate from the class/section)"
-                                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                                  className="min-w-0 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 sm:max-w-[10rem]"
                                 >
                                   <option value="">No grade</option>
                                   {gradeOpts.map((g) => <option key={g} value={g}>{g}</option>)}
                                 </select>
-                                <select value={editClassId} onChange={(e) => setEditClassId(e.target.value)} title="Registered section / class" className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                                <select value={editClassId} onChange={(e) => setEditClassId(e.target.value)} title="Registered section / class" className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                                   <option value={id || ''}>{cls.name} · current section</option>
                                   {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
                                 </select>
                               </div>
-                              <div className="flex items-center justify-between gap-2">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-[10px] text-muted-foreground">Grade and section are independent. Preview both choices, then Save Placement. Updates apply everywhere — portal, records &amp; login.</p>
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-2">
                                   <button onClick={() => setEditingStudentId(null)} disabled={savingIdentity} className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black text-muted-foreground">Cancel</button>
                                   <button onClick={() => saveIdentity(student.id)} disabled={savingIdentity} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground disabled:opacity-50">{savingIdentity ? 'Saving…' : 'Save'}</button>
                                 </div>
@@ -1241,72 +1244,81 @@ export default function ClassDetailPage() {
                           );
                         }
                         return (
-                          <div key={student.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
-                            <div className="relative flex-shrink-0">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
-                                {(student.full_name ?? '?')[0].toUpperCase()}
-                              </div>
-                              {/* Green = report published this term · Amber = still needs one. */}
-                              {reportIndicatorEnabled && (
-                                <span
-                                  title={student.has_published_report ? 'Progress report published this term' : student.has_draft_report ? 'Report drafted, not published — needs attention' : 'No report this term — needs attention'}
-                                  className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-card ${student.has_published_report ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                                />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              {/* Name + wrapping badges — badges live OUTSIDE the truncating name so
-                                  they never get clipped and can wrap on narrow screens. */}
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="truncate max-w-full text-sm font-bold text-foreground">{student.full_name}</span>
-                                {student.grade && (
-                                  <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{student.grade}</span>
-                                )}
-                                {/* Progress-report indicator (THIS term). Teachers get a one-tap link into
-                                    the report builder; schools/others just see the status. Admin-toggleable. */}
-                                {reportIndicatorEnabled && (() => {
-                                  const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
-                                  const title = student.has_published_report
-                                    ? `Progress report published for ${student.report_term ?? 'this term'}`
-                                    : student.has_draft_report
-                                      ? `Report drafted but NOT published for ${student.report_term ?? 'this term'} — needs attention`
-                                      : `No ${student.report_term ?? 'current-term'} progress report yet — needs attention`;
-                                  const reportBadgeClass = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`;
-                                  return isStaff ? (
-                                    <Link href={`/dashboard/reports/builder?student=${student.id}&class=${id}`} title={`${title} — click to open the report builder`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
-                                      {label}
-                                    </Link>
-                                  ) : (
-                                    <span title={title} className={reportBadgeClass}>{label}</span>
-                                  );
-                                })()}
-                                {offBand && (
-                                  <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400">
-                                    Off-band
-                                  </span>
+                          <div key={student.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:flex-row sm:items-start">
+                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                              <div className="relative flex-shrink-0">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-xs font-black text-primary">
+                                  {(student.full_name ?? '?')[0].toUpperCase()}
+                                </div>
+                                {reportIndicatorEnabled && (
+                                  <span
+                                    title={student.has_published_report ? 'Progress report published this term' : student.has_draft_report ? 'Report drafted, not published — needs attention' : 'No report this term — needs attention'}
+                                    className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-card ${student.has_published_report ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                                  />
                                 )}
                               </div>
-                              <p className="truncate text-xs text-muted-foreground">{student.email}</p>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="break-words text-sm font-bold text-foreground">{student.full_name}</span>
+                                  {student.grade && (
+                                    <span className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">{student.grade}</span>
+                                  )}
+                                  {reportIndicatorEnabled && (() => {
+                                    const label = student.has_published_report ? '✓ Report' : student.has_draft_report ? 'Draft only' : 'Needs report';
+                                    const title = student.has_published_report
+                                      ? `Progress report published for ${student.report_term ?? 'this term'}`
+                                      : student.has_draft_report
+                                        ? `Report drafted but NOT published for ${student.report_term ?? 'this term'} — needs attention`
+                                        : `No ${student.report_term ?? 'current-term'} progress report yet — needs attention`;
+                                    const reportBadgeClass = `inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${student.has_published_report ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`;
+                                    return isStaff ? (
+                                      <Link href={`/dashboard/reports/builder?student=${student.id}&class=${id}`} title={`${title} — click to open the report builder`} className={`${reportBadgeClass} hover:brightness-125`} onClick={(e) => e.stopPropagation()}>
+                                        {label}
+                                      </Link>
+                                    ) : (
+                                      <span title={title} className={reportBadgeClass}>{label}</span>
+                                    );
+                                  })()}
+                                  {offBand && (
+                                    <span title={`Grade "${studentGrade(student)}" is outside this class band (${classBand?.label}). Move to the matching class.`} className="inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400">
+                                      Off-band
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="truncate text-xs text-muted-foreground">{student.email}</p>
+                              </div>
                             </div>
                             {isStaff && (
-                              <div className="flex items-center gap-1 flex-shrink-0">
+                              <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:w-auto sm:max-w-[min(100%,28rem)] sm:justify-end">
                                 <button
                                   onClick={() => beginEditIdentity(student)}
                                   title="Edit name / grade"
-                                  className="rounded-lg border border-border bg-background p-1.5 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+                                  className="rounded-lg border border-border bg-background p-2 text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                                 >
                                   <PencilSquareIconOutline className="h-3.5 w-3.5" />
                                 </button>
-                                <select aria-label={`Change grade or section for ${student.full_name}`} value="" disabled={movingStudent === student.id} onChange={(event) => void moveStudentToClass(student, event.target.value)} className="max-w-[12rem] rounded-lg border border-border bg-background px-2 py-1.5 text-[10px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:max-w-[15rem]">
+                                <select
+                                  aria-label={`Change grade or section for ${student.full_name}`}
+                                  value=""
+                                  disabled={movingStudent === student.id}
+                                  onChange={(event) => void moveStudentToClass(student, event.target.value)}
+                                  className="min-w-0 flex-1 basis-[10rem] rounded-lg border border-border bg-background px-2 py-2 text-[10px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:flex-none sm:basis-auto sm:max-w-[14rem]"
+                                >
                                   <option value="">{movingStudent === student.id ? 'Moving…' : 'Change grade / section'}</option>
                                   {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.qa_grade_key || 'Grade'} · {destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
                                 </select>
-                                <Link href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`} title="Request a move to a class owned by another teacher" className="rounded-lg border border-border bg-background px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-foreground hover:border-primary/50 transition-colors">Transfer</Link>
+                                <Link
+                                  href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`}
+                                  title="Request a move to a class owned by another teacher"
+                                  className="inline-flex flex-shrink-0 items-center rounded-lg border border-border bg-background px-2.5 py-2 text-[10px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
+                                >
+                                  Transfer
+                                </Link>
                                 <button
                                   onClick={() => removeStudent(student.id)}
                                   disabled={processingStudent === student.id}
                                   title="Withdraw from this class (keeps class history)"
-                                  className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 transition-colors"
+                                  className="inline-flex flex-shrink-0 items-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-2 text-[10px] font-black uppercase tracking-wide text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
                                 >
                                   {processingStudent === student.id ? '…' : 'Withdraw'}
                                 </button>
@@ -1317,8 +1329,8 @@ export default function ClassDetailPage() {
                       })}
                       {/* Tick-and-wipe bar for withdrawn students — select then permanently delete everywhere. */}
                       {isStaff && visibleInactive.length > 0 && (
-                        <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5 sm:flex-row sm:items-center sm:justify-between backdrop-blur supports-[backdrop-filter]:bg-amber-500/10">
-                          <label className="flex items-center gap-2 text-[11px] font-bold text-amber-300/90 cursor-pointer select-none">
+                        <div className="sticky top-0 z-10 flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5 backdrop-blur supports-[backdrop-filter]:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
+                          <label className="flex cursor-pointer select-none items-center gap-2 text-[11px] font-bold text-amber-300/90">
                             <input
                               type="checkbox"
                               className="h-4 w-4 accent-red-600"
@@ -1334,7 +1346,7 @@ export default function ClassDetailPage() {
                           <button
                             onClick={() => bulkHardDelete(false)}
                             disabled={checkedWithdrawnIds.size === 0 || hardDeleting}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-red-300 hover:bg-red-600/25 disabled:opacity-40 transition-colors"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 bg-red-600/15 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-red-300 transition-colors hover:bg-red-600/25 disabled:opacity-40"
                           >
                             <TrashIcon className="h-3.5 w-3.5" />
                             {hardDeleting ? 'Wiping…' : 'Hard delete selected'}
@@ -1342,33 +1354,35 @@ export default function ClassDetailPage() {
                         </div>
                       )}
                       {visibleInactive.map((student: any) => (
-                        <div key={`${student.id}-${student.roster_status ?? 'former'}`} className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${checkedWithdrawnIds.has(student.id) ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/20 bg-amber-500/5'}`}>
-                          {isStaff && (
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-red-600 flex-shrink-0"
-                              checked={checkedWithdrawnIds.has(student.id)}
-                              onChange={() => toggleWithdrawn(student.id)}
-                              title="Select for permanent deletion"
-                            />
-                          )}
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-400 flex-shrink-0">
-                            {(student.full_name ?? '?')[0].toUpperCase()}
+                        <div key={`${student.id}-${student.roster_status ?? 'former'}`} className={`flex flex-col gap-3 rounded-xl border p-3 transition-colors sm:flex-row sm:items-center ${checkedWithdrawnIds.has(student.id) ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            {isStaff && (
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 flex-shrink-0 accent-red-600"
+                                checked={checkedWithdrawnIds.has(student.id)}
+                                onChange={() => toggleWithdrawn(student.id)}
+                                title="Select for permanent deletion"
+                              />
+                            )}
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-xs font-black text-amber-400">
+                              {(student.full_name ?? '?')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="break-words text-sm font-bold text-foreground">{student.full_name}</p>
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-amber-400/80">{student.roster_status ?? 'withdrawn'}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-bold text-foreground">{student.full_name}</p>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-400/80">{student.roster_status ?? 'withdrawn'}</p>
-                          </div>
                           {isStaff && (
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                              <button onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-2 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
                                 {processingStudent === student.id ? '…' : 'Reinstate'}
                               </button>
                               <button
                                 onClick={() => bulkHardDelete(false, [student.id])}
                                 disabled={hardDeleting}
                                 title="Permanently delete this student from the whole system"
-                                className="rounded-lg border border-red-500/30 bg-red-600/10 p-1.5 text-red-300 hover:bg-red-600/20 disabled:opacity-40 transition-colors"
+                                className="rounded-lg border border-red-500/30 bg-red-600/10 p-2 text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
                               >
                                 <TrashIcon className="h-3.5 w-3.5" />
                               </button>
