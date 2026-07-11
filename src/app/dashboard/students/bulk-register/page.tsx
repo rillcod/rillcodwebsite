@@ -1151,25 +1151,37 @@ export default function BulkRegisterPage() {
 
   const selectedRegisteredClass = registryClasses.find((candidate) => candidate.id === selectedRegistryClass);
   const effectiveClassCode = defaultClass.trim();
-  // Soft term/programme filters: owned classes often have null term_id/program_id
-  // or a different term than the batch selector — don't hide the teacher's own section.
+  // Keep programme filtering. Only include a class with no programme when metadata is missing.
+  // Term never hides owned sections — it only ranks preferred matches.
   const schoolRegistryClasses = registryClasses.filter((c) =>
     !selectedSchoolId || c.school_id === selectedSchoolId,
   );
-  const filteredRegistryClasses = schoolRegistryClasses.filter((c) => {
-    const programOk = !selectedProgramId || !c.program_id || c.program_id === selectedProgramId;
-    const termOk = !selectedTermId || !c.term_id || c.term_id === selectedTermId;
-    return programOk && termOk;
+  const programmeRegistryClasses = schoolRegistryClasses.filter((c) =>
+    !selectedProgramId || !c.program_id || c.program_id === selectedProgramId,
+  );
+  const preferredRegistryIds = new Set(
+    programmeRegistryClasses
+      .filter((c) => !selectedTermId || !c.term_id || c.term_id === selectedTermId)
+      .map((c) => c.id),
+  );
+  const placementPool = [...programmeRegistryClasses].sort((a, b) => {
+    const aPreferred = preferredRegistryIds.has(a.id) ? 0 : 1;
+    const bPreferred = preferredRegistryIds.has(b.id) ? 0 : 1;
+    if (aPreferred !== bPreferred) return aPreferred - bPreferred;
+    return (a.name || '').localeCompare(b.name || '');
   });
-  // Always fall back to every owned class at this school so placement never looks empty.
-  const placementPool = filteredRegistryClasses.length > 0 ? filteredRegistryClasses : schoolRegistryClasses;
 
-  // Clear registry class if it's no longer valid for the selected school
+  // Clear registry class when it is not at the school or does not belong to the programme
   useEffect(() => {
-    if (selectedRegistryClass && !filteredRegistryClasses.some(c => c.id === selectedRegistryClass)) {
-      setSelectedRegistryClass('');
-    }
-  }, [selectedSchoolId, filteredRegistryClasses, selectedRegistryClass]);
+    if (!selectedRegistryClass) return;
+    const stillValid = registryClasses.some((c) => {
+      if (c.id !== selectedRegistryClass) return false;
+      if (selectedSchoolId && c.school_id !== selectedSchoolId) return false;
+      if (selectedProgramId && c.program_id && c.program_id !== selectedProgramId) return false;
+      return true;
+    });
+    if (!stillValid) setSelectedRegistryClass('');
+  }, [selectedSchoolId, selectedProgramId, selectedRegistryClass, registryClasses]);
 
   // A school is the only batch-level placement prerequisite. Grade can come
   // from the pasted text; class placement is resolved per band in review.
@@ -1880,13 +1892,24 @@ export default function BulkRegisterPage() {
                               const destination = placementPool.find((candidate) => candidate.id === classId);
                               if (destination?.program_id) setSelectedProgramId(destination.program_id);
                             }}
-                            disabled={!selectedSchoolId || !selectedTermId}
+                            disabled={!selectedSchoolId}
                             className="w-full px-3 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground disabled:opacity-40"
                           >
                             <option value="">Suggest per grade band in review</option>
-                            {placementPool.map((candidate) => (
-                              <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                            ))}
+                            {placementPool.filter((c) => preferredRegistryIds.has(c.id)).length > 0 && (
+                              <optgroup label="Matches selected term">
+                                {placementPool.filter((c) => preferredRegistryIds.has(c.id)).map((candidate) => (
+                                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {placementPool.filter((c) => !preferredRegistryIds.has(c.id)).length > 0 && (
+                              <optgroup label="Your other classes in this programme">
+                                {placementPool.filter((c) => !preferredRegistryIds.has(c.id)).map((candidate) => (
+                                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
                           </select>
                         </div>
 
@@ -2073,7 +2096,7 @@ Yusuf Ibrahim SS1A`}
                   <div>
                     <h3 className="text-sm font-black text-foreground">Class placement by grade band</h3>
                     <p className="text-[11px] text-muted-foreground">
-                      Pick one of your existing classes for each band. Suggested matches appear first; your other owned classes for this school stay available below.
+                      Pick one of your existing classes for each band. Classes stay filtered by programme; suggested term matches appear first, and your other classes in that programme stay available below.
                     </p>
                   </div>
                   {previewBands.length === 0 ? (
@@ -2116,7 +2139,7 @@ Yusuf Ibrahim SS1A`}
                                 </optgroup>
                               )}
                               {others.length > 0 && (
-                                <optgroup label="Your other classes at this school">
+                                <optgroup label="Your other classes in this programme">
                                   {others.map((candidate) => (
                                     <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
                                   ))}
@@ -2128,7 +2151,7 @@ Yusuf Ibrahim SS1A`}
                             </select>
                             {!hasAnySection && (
                               <p className="mt-1 text-[10px] text-amber-400">
-                                No owned class found for this school. Create one, or check that the class is assigned to you and linked to this school.
+                                No owned class found for this school/programme. Create one, or check that the class is assigned to you and linked to this school and programme.
                               </p>
                             )}
                             {creatingBand === band && <p className="mt-1 text-[10px] text-primary">Creating class…</p>}

@@ -42,13 +42,11 @@ export function validateBulkClassPlacement(
   expected: { schoolId: string; programId?: string | null; termId?: string | null },
 ): string | null {
   if (cls.school_id !== expected.schoolId) return 'Selected class does not belong to the selected school.';
-  // Programme/term are soft when the class row has no value yet (legacy sections).
+  // Programme must match when the class has one. Missing programme is treated as legacy data.
   if (expected.programId && cls.program_id && cls.program_id !== expected.programId) {
     return 'Selected class does not belong to the selected programme.';
   }
-  if (expected.termId && cls.term_id && cls.term_id !== expected.termId) {
-    return 'Selected class does not belong to the selected academic term.';
-  }
+  // Term is soft — owned sections often sit on a prior term.
   return null;
 }
 
