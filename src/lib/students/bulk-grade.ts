@@ -1,4 +1,4 @@
-import { canonicalGrade } from '@/lib/classes/naming';
+import { cleanGrade } from '@/lib/classes/naming';
 
 // Canonical school-grade tokens accepted in pasted bulk-registration text.
 // The final optional letter/number is the arm and is stored separately.
@@ -13,7 +13,7 @@ export type ParsedBulkGrade = {
 export function parseBulkGrade(text: string): ParsedBulkGrade | null {
   const match = text.match(BULK_GRADE_RE);
   if (!match) return null;
-  const grade = canonicalGrade(match[1]);
+  const grade = cleanGrade(match[1]);
   if (!grade) return null;
   return { grade, arm: match[2]?.toUpperCase() ?? null };
 }

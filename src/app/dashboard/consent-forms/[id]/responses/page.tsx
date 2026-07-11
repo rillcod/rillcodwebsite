@@ -48,6 +48,19 @@ interface FormLead {
   prospect_id: string | null;
 }
 
+type AdditionalLink = {
+  childIndex: number;
+  studentId: string;
+  studentName: string;
+};
+
+type ParentLink = {
+  parent_id: string;
+  student_id: string;
+  studentName: string;
+  studentPortalId: string;
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function esc(s: string) {
@@ -485,7 +498,7 @@ strong{font-size:8pt}
 
 function isChildLinkedToParent(
   childName: string,
-  parentLinksForThisParent: Array<{ student_id: string; studentName: string; studentPortalId: string }>
+  parentLinksForThisParent: ParentLink[]
 ) {
   if (!childName) return null;
   const nameParts = childName.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
@@ -505,6 +518,54 @@ function isChildLinkedToParent(
     }
   }
   return null;
+}
+
+function hydrateAdditionalLinks(leads: FormLead[], parentLinks: ParentLink[]): Record<string, AdditionalLink[]> {
+  const hydrated: Record<string, AdditionalLink[]> = {};
+
+  for (const lead of leads) {
+    const rd = (lead.response_data ?? {}) as Record<string, unknown>;
+    const children = Array.isArray(rd.children) ? rd.children as Array<Record<string, string>> : null;
+    if (!children || children.length < 2) continue;
+
+    // child_matches is lead-scoped provenance and therefore authoritative whenever present.
+    // parentLinks is deliberately only a compatibility fallback for older lead records.
+    if (Array.isArray(rd.child_matches)) {
+      const links = (rd.child_matches as Array<Record<string, unknown>>)
+        .map((match): AdditionalLink | null => {
+          const childIndex = Number(match.childIndex);
+          const studentId = typeof match.studentId === 'string' ? match.studentId : '';
+          if (!Number.isInteger(childIndex) || childIndex < 1 || childIndex >= children.length || !studentId) return null;
+          return {
+            childIndex,
+            studentId,
+            studentName: typeof match.studentName === 'string' && match.studentName
+              ? match.studentName
+              : children[childIndex]?.name || 'Student',
+          };
+        })
+        .filter((link): link is AdditionalLink => link !== null);
+      if (links.length > 0) hydrated[lead.id] = links;
+      continue;
+    }
+
+    if (!lead.matched_parent_id) continue;
+    const linksForParent = parentLinks.filter(link => link.parent_id === lead.matched_parent_id);
+    const fallbackLinks: AdditionalLink[] = [];
+    for (let childIndex = 1; childIndex < children.length; childIndex++) {
+      const match = isChildLinkedToParent(children[childIndex]?.name || '', linksForParent);
+      if (match) {
+        fallbackLinks.push({
+          childIndex,
+          studentId: match.studentPortalId,
+          studentName: match.studentName,
+        });
+      }
+    }
+    if (fallbackLinks.length > 0) hydrated[lead.id] = fallbackLinks;
+  }
+
+  return hydrated;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -544,13 +605,14 @@ export default function ResponsesPage() {
   // Child link
   const [linkChildLeadId, setLinkChildLeadId]   = useState<string | null>(null);
   const [linkChildIndex, setLinkChildIndex]      = useState(0);
-  const [additionalLinks, setAdditionalLinks]    = useState<Record<string, Array<{ childIndex: number; studentId: string; studentName: string }>>>({});
+  const [additionalLinks, setAdditionalLinks]    = useState<Record<string, AdditionalLink[]>>({});
   const [studentSearch, setStudentSearch]        = useState('');
   type StudentOpt = { id: string; full_name: string; section_class: string | null; school_name?: string | null; suggested?: boolean; already_linked?: boolean; linked_parent?: string | null };
   const [studentOptions, setStudentOptions]      = useState<StudentOpt[]>([]);
   const [allStudentOptions, setAllStudentOptions] = useState<StudentOpt[]>([]);
   const [studentsLoading, setStudentsLoading]    = useState(false);
   const [linkingStudentId, setLinkingStudentId]  = useState<string | null>(null);
+  const activeLinkActions = useRef(new Set<string>());
 
   // Bulk selection
   const [selected, setSelected]         = useState<Set<string>>(new Set());
@@ -597,40 +659,54 @@ export default function ResponsesPage() {
       setLeads(json.leads ?? []);
       setSigs(json.data  ?? []);
 
-      // Populate initial additionalLinks from database parentLinks to survive page reloads
-      if (json.parentLinks && json.leads) {
-        const initialLinks: Record<string, Array<{ childIndex: number; studentId: string; studentName: string }>> = {};
-        for (const lead of json.leads) {
-          if (!lead.matched_parent_id) continue;
-          const rd = lead.response_data as Record<string, unknown>;
-          const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
-          if (childrenArr && childrenArr.length > 1) {
-            const linksForParent = (json.parentLinks as any[]).filter(pl => pl.parent_id === lead.matched_parent_id);
-            const leadAddLinks: Array<{ childIndex: number; studentId: string; studentName: string }> = [];
-            for (let ci = 1; ci < childrenArr.length; ci++) {
-              const child = childrenArr[ci];
-              const match = isChildLinkedToParent(child.name, linksForParent);
-              if (match) {
-                leadAddLinks.push({
-                  childIndex: ci,
-                  studentId: match.student_id,
-                  studentName: match.studentName,
-                });
-              }
-            }
-            if (leadAddLinks.length > 0) {
-              initialLinks[lead.id] = leadAddLinks;
-            }
-          }
-        }
-        setAdditionalLinks(initialLinks);
-      }
+      setAdditionalLinks(hydrateAdditionalLinks(
+        (json.leads ?? []) as FormLead[],
+        (json.parentLinks ?? []) as ParentLink[],
+      ));
     } finally {
       setLoading(false);
     }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  const refreshLeadState = useCallback(async (leadId: string) => {
+    try {
+      const res = await fetch(`/api/consent-forms/${id}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      const freshLead = ((json.leads ?? []) as FormLead[]).find(lead => lead.id === leadId);
+      if (!freshLead) return;
+
+      setLeads(prev => prev.map(lead => lead.id === leadId ? freshLead : lead));
+      const freshLinks = hydrateAdditionalLinks(
+        [freshLead],
+        (json.parentLinks ?? []) as ParentLink[],
+      )[leadId];
+      setAdditionalLinks(prev => {
+        const next = { ...prev };
+        if (freshLinks?.length) next[leadId] = freshLinks;
+        else delete next[leadId];
+        return next;
+      });
+    } catch {
+      // Keep the successful optimistic action visible if a background refresh fails.
+    }
+  }, [id]);
+
+  function clearLocalPortalLinks(leadId: string) {
+    setPortalStatus(prev => {
+      const next = { ...prev };
+      delete next[leadId];
+      return next;
+    });
+    setAdditionalLinks(prev => {
+      const next = { ...prev };
+      delete next[leadId];
+      return next;
+    });
+    setLinkChildLeadId(current => current === leadId ? null : current);
+  }
 
   // ── Lead status update ───────────────────────────────────────────────────
 
@@ -670,13 +746,24 @@ export default function ResponsesPage() {
     }
   }
 
-  async function createPortalAccount(leadId: string, parentName: string, classOpt?: { classId?: string; className?: string }) {
+  async function createPortalAccount(
+    leadId: string,
+    parentName: string,
+    options?: { classId?: string; className?: string; childIndex?: number },
+  ) {
+    const actionKey = `create:${leadId}`;
+    if (activeLinkActions.current.has(actionKey)) return;
+    activeLinkActions.current.add(actionKey);
     setCreatingPortalId(leadId);
     try {
+      const { childIndex, ...classOpt } = options ?? {};
       const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(classOpt ?? {}),
+        body: JSON.stringify({
+          ...classOpt,
+          ...(typeof childIndex === 'number' ? { child_index: childIndex } : {}),
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -694,7 +781,9 @@ export default function ResponsesPage() {
       } else {
         setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_parent_id: json.parentId ?? l.matched_parent_id } : l));
       }
+      await refreshLeadState(leadId);
     } finally {
+      activeLinkActions.current.delete(actionKey);
       setCreatingPortalId(null);
     }
   }
@@ -726,7 +815,8 @@ export default function ResponsesPage() {
       const json = await res.json();
       if (!res.ok) { alert(json.error ?? 'Failed to remove account'); return; }
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_parent_id: null } : l));
-      setPortalStatus(prev => { const next = { ...prev }; delete next[leadId]; return next; });
+      clearLocalPortalLinks(leadId);
+      await refreshLeadState(leadId);
     } finally {
       setDeletingPortalId(null);
     }
@@ -744,7 +834,8 @@ export default function ResponsesPage() {
       setLeads(prev => prev.map(l => l.id === leadId ? {
         ...l, matched_student_id: null, matched_parent_id: null, match_candidate_id: null, status: 'new',
       } : l));
-      setPortalStatus(prev => { const next = { ...prev }; delete next[leadId]; return next; });
+      clearLocalPortalLinks(leadId);
+      await refreshLeadState(leadId);
     } finally {
       setRevertingLeadId(null);
     }
@@ -760,6 +851,7 @@ export default function ResponsesPage() {
       if (!res.ok) { alert(json.error ?? 'Failed to delete lead'); return; }
       setLeads(prev => prev.filter(l => l.id !== leadId));
       setSelected(prev => { const next = new Set(prev); next.delete(leadId); return next; });
+      clearLocalPortalLinks(leadId);
     } finally {
       setDeletingLeadId(null);
     }
@@ -799,9 +891,17 @@ export default function ResponsesPage() {
   }
 
   async function linkStudentToParent(leadId: string, studentPortalId: string) {
-    setLinkingStudentId(studentPortalId);
     const thisChildIndex = linkChildIndex;
-    const studentName = studentOptions.find(s => s.id === studentPortalId)?.full_name ?? '';
+    const actionKey = `${leadId}:${thisChildIndex}`;
+    const option = studentOptions.find(s => s.id === studentPortalId);
+    if (option?.already_linked) {
+      toast.error('Unlink this student from their current parent before linking them here.');
+      return;
+    }
+    if (activeLinkActions.current.has(actionKey)) return;
+    activeLinkActions.current.add(actionKey);
+    setLinkingStudentId(studentPortalId);
+    const studentName = option?.full_name ?? '';
     const toastId = toast.loading(`Linking ${studentName} to parent portal account...`);
     try {
       const res = await fetch(`/api/consent-forms/leads/${leadId}/create-portal-account`, {
@@ -815,19 +915,24 @@ export default function ResponsesPage() {
         return;
       }
       if (thisChildIndex === 0) {
-        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, matched_student_id: json.student_id } : l));
+        // matched_student_id references portal_users.id, never the students row id.
+        setLeads(prev => prev.map(l => l.id === leadId
+          ? { ...l, matched_student_id: json.student_portal_id ?? studentPortalId }
+          : l));
       } else {
         setAdditionalLinks(prev => ({
           ...prev,
           [leadId]: [...(prev[leadId] ?? []).filter(l => l.childIndex !== thisChildIndex),
-                     { childIndex: thisChildIndex, studentId: json.student_id, studentName }],
+                     { childIndex: thisChildIndex, studentId: json.student_portal_id ?? studentPortalId, studentName }],
         }));
       }
+      await refreshLeadState(leadId);
       toast.success(`Linked ${studentName} to parent portal account!`, { id: toastId });
       setLinkChildLeadId(null);
     } catch (err: any) {
       toast.error(err.message ?? 'An error occurred while linking child', { id: toastId });
     } finally {
+      activeLinkActions.current.delete(actionKey);
       setLinkingStudentId(null);
     }
   }
@@ -1613,8 +1718,8 @@ export default function ResponsesPage() {
                                 </div>
                               </div>
                             ) : isApproved ? (
-                              <span title="A real portal account (student/parent) is linked to this response" className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                                ✓ Account linked
+                              <span title="The suggested student match was approved; portal links are shown separately" className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                ✓ Match approved
                               </span>
                             ) : lead.contact_id ? (
                               <span title="A CRM/marketing contact exists — no portal account created yet" className="text-[9px] font-black text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
@@ -1679,7 +1784,7 @@ export default function ResponsesPage() {
                                   return (
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                      ✓ Portal account
+                                      ✓ Parent portal linked
                                     </span>
                                     <span
                                       title={credsSent ? 'Login credentials have been sent to this parent' : 'Account created — login not sent yet'}
@@ -1766,7 +1871,7 @@ export default function ResponsesPage() {
                                 if (count === 1) {
                                   return lead.matched_student_id ? (
                                     <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                      {rd.child_gender === 'male' ? '👦' : rd.child_gender === 'female' ? '👧' : '🧒'} {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} linked
+                                      {rd.child_gender === 'male' ? '👦' : rd.child_gender === 'female' ? '👧' : '🧒'} {lead.match_candidate?.full_name ?? rd.child_name ?? 'Child'} · Portal linked
                                     </span>
                                   ) : (
                                     <button
@@ -1790,7 +1895,7 @@ export default function ResponsesPage() {
                                         : (additionalLinks[lead.id] ?? []).find(l => l.childIndex === ci)?.studentName ?? child.name;
                                       return isLinked ? (
                                         <span key={ci} className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                          {child.gender === 'male' ? '👦' : child.gender === 'female' ? '👧' : '🧒'} {linkedName} linked
+                                          {child.gender === 'male' ? '👦' : child.gender === 'female' ? '👧' : '🧒'} {linkedName} · Portal linked
                                         </span>
                                       ) : (
                                         <button key={ci}
@@ -2187,9 +2292,9 @@ export default function ResponsesPage() {
                       onClick={async () => {
                         const theLead = leads.find(l => l.id === linkChildLeadId);
                         const pn = ((theLead?.response_data as Record<string, unknown>)?.parent_name as string) || 'Parent/Guardian';
+                        const childIndex = linkChildIndex;
                         setLinkChildLeadId(null);
-                        await createPortalAccount(linkChildLeadId, pn);
-                        await load();
+                        await createPortalAccount(linkChildLeadId, pn, { childIndex });
                       }}
                       className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-xs font-black rounded-xl transition-colors disabled:opacity-50"
                     >
@@ -2197,13 +2302,22 @@ export default function ResponsesPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                  <div className="space-y-2">
+                    {studentOptions.some(student => student.already_linked) && (
+                      <p className="text-[10px] leading-relaxed text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                        Linked students are locked. Unlink them from their current parent first, then reopen this picker.
+                      </p>
+                    )}
+                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
                     {studentOptions.slice(0, 30).map(s => (
                       <button
                         key={s.id}
-                        disabled={linkingStudentId === s.id}
+                        disabled={!!linkingStudentId || s.already_linked}
                         onClick={() => linkStudentToParent(linkChildLeadId, s.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors disabled:opacity-50 group border ${s.suggested ? 'bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/15' : 'bg-muted border-transparent hover:bg-muted/80'}`}
+                        title={s.already_linked
+                          ? `Unlink from ${s.linked_parent || 'the current parent'} before linking here`
+                          : `Link ${s.full_name} to this parent`}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed group border ${s.suggested ? 'bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/15' : 'bg-muted border-transparent hover:bg-muted/80'}`}
                       >
                         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-xs shrink-0">👤</div>
                         <div className="flex-1 min-w-0">
@@ -2221,7 +2335,7 @@ export default function ResponsesPage() {
                           </p>
                           <p className="text-[10px] text-muted-foreground truncate">
                             {[s.section_class, s.school_name].filter(Boolean).join(' · ') || '—'}
-                            {s.already_linked && s.linked_parent && <span className="text-amber-500"> · linking here reassigns from {s.linked_parent}</span>}
+                            {s.already_linked && <span className="text-amber-500"> · unlink from {s.linked_parent || 'current parent'} first</span>}
                           </p>
                         </div>
                         <span className={`text-[9px] font-black text-primary transition-opacity shrink-0 flex items-center gap-1 ${linkingStudentId === s.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -2233,10 +2347,11 @@ export default function ResponsesPage() {
                               </svg>
                               <span>…</span>
                             </>
-                          ) : 'Link →'}
+                          ) : s.already_linked ? 'Unlink first' : 'Link →'}
                         </span>
                       </button>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>

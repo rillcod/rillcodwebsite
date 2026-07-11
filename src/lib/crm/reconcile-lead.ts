@@ -98,9 +98,16 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
   // ── 2. prospective_students (child) ──────────────────────────────────────
   try {
     let existingProspect: { id: string } | null = null;
-    if (email) {
-      const q = sb.from('prospective_students').select('id').eq('parent_email', email);
-      const { data } = await (schoolId ? q.eq('school_id', schoolId) : q).maybeSingle();
+    if (email && childName.trim()) {
+      // A parent may submit several children. Scope the CRM prospect by both
+      // parent and child so one sibling can never overwrite another.
+      const q = sb
+        .from('prospective_students')
+        .select('id')
+        .eq('parent_email', email)
+        .ilike('full_name', childName.trim());
+      const prospectSchoolId = matchedSchoolId ?? schoolId;
+      const { data } = await (prospectSchoolId ? q.eq('school_id', prospectSchoolId) : q).limit(1).maybeSingle();
       existingProspect = data;
     }
     const assessmentLines: string[] = [];

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { resolveStudentRowId } from '@/lib/parents/links';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -42,7 +43,7 @@ function responseDataMatchesStudent(responseData: unknown, studentUserId: string
     : [];
   return childMatches.some((match) =>
     match.studentId === studentUserId &&
-    (!match.confidence || match.confidence === 'high')
+    (!match.confidence || ['approved', 'high'].includes(match.confidence))
   );
 }
 
@@ -114,9 +115,31 @@ export async function getResultConsentAccessStatus(
     return statusOk && matchOk && studentMatches && parentMatches;
   });
 
+  let signedInPortal = false;
+  if (!matched && params.parentId) {
+    const studentRowId = await resolveStudentRowId(admin, params.studentUserId);
+    const [{ data: signed }, { data: explicitLink }] = await Promise.all([
+      admin
+        .from('consent_responses')
+        .select('form_id')
+        .eq('form_id', form.id)
+        .eq('parent_id', params.parentId)
+        .maybeSingle(),
+      studentRowId
+        ? admin
+          .from('parent_student_links')
+          .select('id')
+          .eq('parent_id', params.parentId)
+          .eq('student_id', studentRowId)
+          .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    signedInPortal = Boolean(signed && explicitLink);
+  }
+
   return {
     required: true,
-    complete: !!matched,
+    complete: Boolean(matched || signedInPortal),
     form,
     formUrl: `${appBaseUrl()}/forms/${form.id}`,
     matchedLeadId: matched?.id ?? null,

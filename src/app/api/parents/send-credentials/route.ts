@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
     const cleanEmail = email.trim().toLowerCase();
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://academy.rillcod.com').replace(/\/$/, '');
-    const loginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(cleanEmail)}&pw=${encodeURIComponent(password)}`;
+    const loginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(cleanEmail)}`;
 
     const html = buildWelcomeEmail({
       recipientName: full_name,

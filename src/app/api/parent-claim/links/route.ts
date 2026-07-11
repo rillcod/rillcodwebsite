@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { resolveOrCreateStudentRowId, syncExplicitParentStudentLink } from '@/lib/parents/links';
+import {
+  clearStudentFromParentConsentLeads,
+  isParentLinkConflict,
+  resolveOrCreateStudentRowId,
+  syncExplicitParentStudentLink,
+} from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -147,7 +152,10 @@ export async function POST(req: NextRequest) {
   try {
     await syncExplicitParentStudentLink(admin as any, parentId, studentRowId);
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Failed to create link' }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || 'Failed to create link', ...(isParentLinkConflict(e) ? { code: e.code } : {}) },
+      { status: isParentLinkConflict(e) ? 409 : 500 },
+    );
   }
 
   // Denormalise the parent onto the student registry so school-scoped lists show them.
@@ -198,7 +206,7 @@ export async function DELETE(req: NextRequest) {
   if (!link) return NextResponse.json({ error: 'Link not found' }, { status: 404 });
 
   // Scope check via the student's school.
-  const { data: srow } = await admin.from('students').select('school_id, school_name, parent_email').eq('id', link.student_id).maybeSingle();
+  const { data: srow } = await admin.from('students').select('user_id, school_id, school_name, parent_email').eq('id', link.student_id).maybeSingle();
   if (!inScope(profile, (srow as any)?.school_id ?? null, (srow as any)?.school_name ?? null)) {
     return NextResponse.json({ error: 'This student is outside your school scope' }, { status: 403 });
   }
@@ -214,9 +222,16 @@ export async function DELETE(req: NextRequest) {
     await admin.from('students').update({ parent_email: null, parent_name: null, parent_phone: null, updated_at: new Date().toISOString() }).eq('id', link.student_id);
   }
 
+  // Remove this student from consent provenance for the unlinked parent while
+  // preserving any sibling links on the same lead.
+  const studentUserId = (srow as any)?.user_id as string | null;
+  if (studentUserId) {
+    await clearStudentFromParentConsentLeads(admin as any, link.parent_id, studentUserId);
+  }
+
   try {
     await (admin as any).from('parent_claim_audit').insert({
-      student_id: null, parent_id: link.parent_id, email: parentEmail ?? null,
+      student_id: studentUserId, parent_id: link.parent_id, email: parentEmail ?? null,
       action: 'unlinked', note: `manual unlink by ${(profile as any).school_name || 'staff'}`,
     });
   } catch { /* best-effort */ }

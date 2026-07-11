@@ -8,7 +8,24 @@
 const INVISIBLE = /[​-‏‪-‮⁠﻿]/g;
 const INDEX_PREFIX = /^\s*\d+\s*[.)\-]\s*/; // "34. ", "7) ", "3 - "
 
-/** Clean a display name without changing legitimate content (initials, hyphens, case). */
+/** Title-case one name token, keeping hyphens and apostrophes ("Mary-Jane", "O'Brien"). */
+function titleCaseToken(token: string): string {
+  return token
+    .split(/([-'])/)
+    .map((part) => {
+      if (!part || part === '-' || part === "'") return part;
+      // Keep a bare initial as uppercase: "a" / "a." → "A" / "A."
+      if (/^[A-Za-z]\.?$/.test(part)) return part.toUpperCase();
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join('');
+}
+
+/**
+ * Clean and normalise a student display name for every registration path.
+ * Removes spreadsheet indexes, invisible paste junk, and stray whitespace, then
+ * Title Cases the result so bulk/single/edit all store the same casing.
+ */
 export function cleanStudentName(raw: string | null | undefined): string {
   let s = String(raw ?? '');
   s = s.replace(INVISIBLE, '');
@@ -21,7 +38,8 @@ export function cleanStudentName(raw: string | null | undefined): string {
   // Trailing period after a real word ("Jenika Jerry." → "Jenika Jerry") but keep a
   // single-letter initial's dot ("Edric Imuetinyan A.").
   s = s.replace(/([A-Za-z]{2,})\.\s*$/, '$1');
-  return s;
+  if (!s) return s;
+  return s.split(' ').map(titleCaseToken).join(' ');
 }
 
 /** True when the stored name has fixable damage. */

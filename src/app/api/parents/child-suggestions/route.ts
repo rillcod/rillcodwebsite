@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
-import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +79,18 @@ export async function GET(_req: NextRequest) {
   }
 
   // Score each candidate for relevance
+  const candidatePortalIds = candidates.map((candidate: any) => candidate.id);
+  const { data: studentRows } = await (sb as any)
+    .from('students')
+    .select('id, user_id')
+    .in('user_id', candidatePortalIds);
+  const studentRowByPortal = new Map((studentRows ?? []).map((row: any) => [row.user_id, row.id]));
+  const candidateStudentRowIds = [...studentRowByPortal.values()] as string[];
+  const { data: existingCandidateLinks } = candidateStudentRowIds.length
+    ? await (sb as any).from('parent_student_links').select('student_id, parent_id').in('student_id', candidateStudentRowIds)
+    : { data: [] };
+  const linkedByStudentRow = new Map((existingCandidateLinks ?? []).map((link: any) => [link.student_id, link.parent_id]));
+
   const scored = candidates.map((c: any) => {
     let score = 0;
     const cn = (c.full_name ?? '').toLowerCase();
@@ -91,7 +102,9 @@ export async function GET(_req: NextRequest) {
     // School match (current school the child is at, or Rillcod school)
     if (schoolName && c.school_name?.toLowerCase().includes(schoolName.toLowerCase())) score += 10;
     // Penalise if already linked elsewhere
-    return { ...c, score };
+    const studentRowId = studentRowByPortal.get(c.id);
+    const linkedParentId = studentRowId ? linkedByStudentRow.get(studentRowId) : null;
+    return { ...c, score, already_linked: Boolean(linkedParentId), linked_to_current_parent: linkedParentId === profile.id };
   }).filter((c: any) => c.score >= 10)
     .sort((a: any, b: any) => b.score - a.score)
     .slice(0, 5);
@@ -103,6 +116,8 @@ export async function GET(_req: NextRequest) {
       section_class: c.section_class,
       school_name:  c.school_name,
       score:        c.score,
+      already_linked: c.already_linked,
+      linked_to_current_parent: c.linked_to_current_parent,
     })),
     childName,
     childClass,
@@ -112,7 +127,8 @@ export async function GET(_req: NextRequest) {
 }
 
 // POST /api/parents/child-suggestions
-// Parent confirms a suggested student — creates the parent-child link.
+// Parent confirms a suggested student. This records a pending staff review;
+// public/self-service consent flows never create parent-child links directly.
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -132,41 +148,23 @@ export async function POST(req: NextRequest) {
 
   const sb = admin();
 
-  // Resolve portal_users.id → students.id
-  const { data: studentRow } = await (sb as any)
-    .from('students')
-    .select('id')
-    .eq('user_id', student_portal_id)
+  if (!lead_id) return NextResponse.json({ error: 'lead_id is required for staff review' }, { status: 400 });
+  const { data: ownedLead } = await (sb as any)
+    .from('form_leads')
+    .select('id, email, response_data')
+    .eq('id', lead_id)
     .maybeSingle();
-
-  if (!studentRow) {
-    return NextResponse.json({ error: 'Student record not found. Contact your school to complete the link.' }, { status: 404 });
+  const leadEmail = String(ownedLead?.email ?? ownedLead?.response_data?.parent_email ?? '').trim().toLowerCase();
+  if (!ownedLead || !profile.email || leadEmail !== profile.email.trim().toLowerCase()) {
+    return NextResponse.json({ error: 'This consent submission does not belong to your account.' }, { status: 403 });
   }
+  const { error: updateError } = await (sb as any).from('form_leads').update({
+    match_candidate_id: student_portal_id,
+    match_status: 'pending_review',
+    matched_student_id: null,
+    matched_parent_id: null,
+  }).eq('id', lead_id);
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
-  // Get gender from the lead if available
-  let leadGender: string | null = null;
-  if (lead_id) {
-    const { data: leadRow } = await (sb as any)
-      .from('form_leads').select('response_data').eq('id', lead_id).maybeSingle();
-    leadGender = (leadRow?.response_data as Record<string, string>)?.child_gender || null;
-  }
-
-  // Create parent_student_links
-  await syncExplicitParentStudentLink(sb as any, profile.id, studentRow.id);
-
-  // Denormalise parent info + gender onto the student row
-  await (sb as any).from('students').update({
-    parent_email: profile.email,
-    parent_name:  profile.full_name,
-    parent_phone: profile.phone ?? null,
-    ...(leadGender ? { gender: leadGender } : {}),
-    updated_at:   new Date().toISOString(),
-  }).eq('id', studentRow.id);
-
-  // If we know which lead this came from, update matched_student_id on it
-  if (lead_id) {
-    await (sb as any).from('form_leads').update({ matched_student_id: studentRow.id }).eq('id', lead_id);
-  }
-
-  return NextResponse.json({ success: true, student_id: studentRow.id });
+  return NextResponse.json({ success: true, pending_review: true });
 }

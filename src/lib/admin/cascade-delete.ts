@@ -113,6 +113,12 @@ async function deleteLeadDerivedAccounts(
     const rowIds = ((srows ?? []) as StudentRefRow[]).map(r => r.id);
     if (rowIds.length) {
       await admin.from('parent_student_links').delete().eq('parent_id', parentId).in('student_id', rowIds);
+      await admin.from('students').update({
+        parent_email: null,
+        parent_name: null,
+        parent_phone: null,
+        updated_at: new Date().toISOString(),
+      }).in('id', rowIds);
       unlinkedExisting = rowIds.length;
     }
   }

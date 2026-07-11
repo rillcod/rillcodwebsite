@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { buildClassName, parseGrades, formatGradeRange, gradeBand, bandForGrade, parseBandLabel, canonicalTier } from '@/lib/classes/naming';
+import { buildClassName, parseGrades, formatGradeRange, gradeBand, bandForGrade, parseBandLabel, canonicalTier, cleanClassName } from '@/lib/classes/naming';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
 
@@ -325,6 +325,10 @@ export async function POST(request: NextRequest) {
     if (!insertRow.name && insertRow.program_id) {
       return NextResponse.json({ error: 'Could not resolve the programme to compose a class name.' }, { status: 400 });
     }
+    if (!insertRow.name) {
+      return NextResponse.json({ error: 'Class name is required' }, { status: 400 });
+    }
+    insertRow.name = cleanClassName(String(insertRow.name));
     if (!insertRow.name) {
       return NextResponse.json({ error: 'Class name is required' }, { status: 400 });
     }

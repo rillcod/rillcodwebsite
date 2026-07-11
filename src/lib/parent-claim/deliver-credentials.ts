@@ -164,9 +164,9 @@ export async function deliverResultCheckerCredentials(
   sent.studentEmail = studentPU?.email ?? undefined;
   sent.parentPasswordSent = !!parentPw;
   sent.studentPasswordSent = !!studentPw;
-  sent.parentLoginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}${parentPw ? `&pw=${encodeURIComponent(parentPw)}` : ''}`;
+  sent.parentLoginUrl = `${appUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}`;
   if (studentPU?.email) {
-    sent.studentLoginUrl = `${appUrl}/login?type=student&email=${encodeURIComponent(studentPU.email)}${studentPw ? `&pw=${encodeURIComponent(studentPw)}` : ''}`;
+    sent.studentLoginUrl = `${appUrl}/login?type=student&email=${encodeURIComponent(studentPU.email)}`;
   }
 
   const firstName = (childName || studentPU?.full_name || 'your child').trim().split(/\s+/)[0];

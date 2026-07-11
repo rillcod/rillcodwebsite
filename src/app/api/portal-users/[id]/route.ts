@@ -4,7 +4,7 @@ import { logAudit } from '@/lib/audit/log';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
 import { cleanStudentName } from '@/lib/students/clean-name';
-import { canonicalGrade } from '@/lib/classes/naming';
+import { cleanGrade, cleanClassName } from '@/lib/classes/naming';
 import { getAccountValuables } from '@/lib/students/account-valuables';
 
 function adminClient() {
@@ -60,17 +60,17 @@ export async function PATCH(
     if (email         !== undefined) update.email         = email?.trim().toLowerCase() ?? null;
     if (is_deleted    !== undefined) update.is_deleted    = is_deleted;
     if (avatar_url    !== undefined) update.avatar_url    = avatar_url ?? null;
-    if (section_class !== undefined) update.section_class = section_class ?? null;
+    if (section_class !== undefined) update.section_class = section_class ? cleanClassName(section_class) || section_class : null;
     // grade is a specific single grade, kept separate from the section — normalise to the
     // canonical form so a hand-typed "jss1" becomes "JSS 1".
-    if (grade         !== undefined) update.grade         = grade ? (canonicalGrade(grade) ?? grade) : null;
+    if (grade         !== undefined) update.grade         = grade ? (cleanGrade(grade) ?? null) : null;
   } else if (isTeacher) {
     // Teachers can correct student profile details
     if ('full_name'     in body) update.full_name     = body.full_name;
-    if ('section_class' in body) update.section_class = body.section_class ?? null;
-    if ('grade'         in body) update.grade         = body.grade ? (canonicalGrade(body.grade) ?? body.grade) : null;
+    if ('section_class' in body) update.section_class = body.section_class ? cleanClassName(body.section_class) || body.section_class : null;
+    if ('grade'         in body) update.grade         = body.grade ? (cleanGrade(body.grade) ?? null) : null;
     if ('phone'         in body) update.phone         = body.phone ?? null;
-    if ('grade_level'   in body) update.grade_level   = body.grade_level ?? null;
+    if ('grade_level'   in body) update.grade_level   = body.grade_level ? (cleanGrade(body.grade_level) ?? null) : null;
     if ('school_id'     in body) update.school_id     = body.school_id ?? null;
     if ('school_name'   in body) update.school_name   = body.school_name ?? null;
     if ('gender'        in body) update.gender        = body.gender ?? null;
@@ -214,13 +214,39 @@ export async function DELETE(
   // ── Step 0: Role-specific pre-steps the DB function can't infer ──────────
   // Parent: clear the TEXT parent_* fields on students (not FK columns) and unlink leads.
   if (pu?.role === 'parent') {
+    const { data: explicitLinks } = await admin
+      .from('parent_student_links')
+      .select('student_id')
+      .eq('parent_id', id);
+    const linkedStudentRowIds = (explicitLinks ?? []).map((link: any) => link.student_id).filter(Boolean);
+    if (linkedStudentRowIds.length > 0) {
+      await admin.from('students').update({
+        parent_email: null, parent_name: null, parent_phone: null,
+        updated_at: new Date().toISOString(),
+      }).in('id', linkedStudentRowIds);
+    }
     if (pu.email) {
       await admin.from('students').update({
         parent_email: null, parent_name: null, parent_phone: null,
         updated_at: new Date().toISOString(),
       }).eq('parent_email', pu.email);
     }
-    await admin.from('form_leads').update({ matched_parent_id: null }).eq('matched_parent_id', id);
+    const { data: parentLeads } = await admin
+      .from('form_leads')
+      .select('id, response_data')
+      .eq('matched_parent_id', id);
+    for (const lead of parentLeads ?? []) {
+      await admin.from('form_leads').update({
+        matched_parent_id: null,
+        matched_student_id: null,
+        match_candidate_id: null,
+        match_status: 'new_prospect',
+        response_data: {
+          ...((lead.response_data ?? {}) as Record<string, unknown>),
+          child_matches: [],
+        },
+      }).eq('id', lead.id);
+    }
   }
   // School: detach students and delete the linked schools row (schools is not a
   // portal_users FK child, so the function won't touch it).

@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
-import { syncExplicitParentStudentLink, resolveStudentRowId, resolveOrCreateStudentRowId } from '@/lib/parents/links';
+import {
+  isParentLinkConflict,
+  getExistingParentLink,
+  resolveOrCreateStudentRowId,
+  resolveStudentRowId,
+  syncExplicitParentStudentLink,
+} from '@/lib/parents/links';
 import { canAccessSchool } from '@/lib/auth/school-scope';
 import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { generateTempPassword } from '@/lib/utils/password';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +36,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   const reqBody = await req.json().catch(() => ({} as Record<string, unknown>));
   const overrideClassId = (reqBody.classId as string) || null;
   const overrideClassName = (reqBody.className as string) || null;
+  const targetChildIndex = typeof reqBody.child_index === 'number' ? reqBody.child_index : null;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -98,12 +106,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       // staff override wins, else the class the form was created for.
       classId: overrideClassId || formClassId,
       className: overrideClassName,
+      targetChildIndex,
     });
 
   // PROVENANCE: write the onboarded children back onto the lead so a student created from
   // a consent form is traceable to its source form (matched_student_id + child_matches).
   // Re-reads the current response_data so it never clobbers the portal-creation log.
-  const linkChildrenToLead = async (kids: Array<{ name: string; studentPortalId: string }>) => {
+  const linkChildrenToLead = async (kids: Array<{ name: string; studentPortalId: string; childIndex?: number }>) => {
     const ids = kids.map((k) => k.studentPortalId).filter(Boolean);
     if (ids.length === 0) return;
     const { data: cur } = await (sb as any)
@@ -113,7 +122,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     const merged = [...existingMatches];
     kids.forEach((k) => {
       if (k.studentPortalId && !merged.some((m) => m.studentId === k.studentPortalId)) {
-        merged.push({ childIndex: merged.length, studentId: k.studentPortalId, studentName: k.name, studentClass: null, confidence: 'high' } as any);
+        merged.push({ childIndex: k.childIndex ?? merged.length, studentId: k.studentPortalId, studentName: k.name, studentClass: null, confidence: 'approved' } as any);
       }
     });
     await (sb as any).from('form_leads').update({
@@ -129,6 +138,24 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     .select('id, email, full_name')
     .eq('email', parentEmail)
     .maybeSingle();
+
+  // Preflight every already-matched child before creating or mutating a parent
+  // account. This avoids partial account creation when a child belongs elsewhere.
+  const matchedPortalIds = [...new Set([
+    lead.matched_student_id,
+    ...childMatches.map((match) => match.studentId),
+  ].filter(Boolean))] as string[];
+  for (const portalId of matchedPortalIds) {
+    const rowId = await resolveStudentRowId(sb as any, portalId);
+    if (!rowId) continue;
+    const currentLink = await getExistingParentLink(sb as any, rowId);
+    if (currentLink && currentLink.parentId !== existing?.id) {
+      return NextResponse.json({
+        error: 'This student is already linked to another parent. Unlink the current parent before creating or linking this portal.',
+        code: 'STUDENT_ALREADY_LINKED',
+      }, { status: 409 });
+    }
+  }
 
   if (existing) {
     // Account exists — still link student if needed
@@ -201,7 +228,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     }
 
     // Onboard any brand-new children into real student accounts + link to this parent.
-    const newStudents = await onboardUnmatchedChildren(existing.id);
+    let newStudents;
+    try {
+      newStudents = await onboardUnmatchedChildren(existing.id);
+    } catch (error) {
+      if (isParentLinkConflict(error)) {
+        return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
+      }
+      throw error;
+    }
 
     // Email the new student login(s) to the (already-registered) parent so the
     // credentials are actually delivered, not just created.
@@ -345,10 +380,20 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
 
   // Onboard any brand-new children (no existing match) into real student accounts
   // and link them to this parent — so they appear on the parent dashboard.
-  const newStudents = await onboardUnmatchedChildren(parentId);
+  let newStudents;
+  try {
+    newStudents = await onboardUnmatchedChildren(parentId);
+  } catch (error) {
+    if (isParentLinkConflict(error)) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
+    }
+    throw error;
+  }
 
   const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
-  const loginUrl  = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}&pw=${encodeURIComponent(tempPassword)}`;
+  // Credentials are delivered in the message body; never place passwords in a
+  // URL where browser history, referrers, proxies, or analytics can retain them.
+  const loginUrl  = `${portalUrl}/login`;
   const channelsSent: string[] = [];
 
   const studentCredsBlock = newStudents.length > 0
@@ -369,7 +414,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         `📧 Email: ${parentEmail}`,
         `🔑 Temp Password: ${tempPassword}`,
         ``,
-        `Tap to log in (email & password pre-filled):`,
+        `Open the secure login page:`,
         loginUrl,
         ``,
         `Please change your password after first login.`,
@@ -411,7 +456,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       eyebrow:    'Welcome home 🏠',
       title:      `Welcome to ${schoolLabel} on Rillcod`,
       bodyHtml,
-      cta:        { href: loginUrl, label: 'Log In — Email & Password Pre-Filled', color: '#10b981' },
+      cta:        { href: loginUrl, label: 'Open Secure Login', color: '#10b981' },
       footerNote: 'Rillcod Technologies · 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria · +234 811 660 0091',
     });
     await notificationsService.sendEmail('system', {
@@ -434,6 +479,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   }).eq('id', leadId);
 
   await linkChildrenToLead(newStudents);
+  await logAudit(sb as any, {
+    action: 'consent_portal_created',
+    actorId: user.id,
+    resourceType: 'form_lead',
+    resourceId: leadId,
+    newValues: { parent_id: parentId, students_onboarded: newStudents.length },
+  });
 
   return NextResponse.json({
     success: true, alreadyExisted: false, parentId, tempPassword, email: parentEmail,
@@ -493,6 +545,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   try {
     await syncExplicitParentStudentLink(sb as any, lead.matched_parent_id, studentRow.id);
   } catch (e: any) {
+    if (isParentLinkConflict(e)) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
+    }
     return NextResponse.json({ error: `Failed to create parent-student link: ${e.message}` }, { status: 500 });
   }
 
@@ -511,10 +566,36 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   // Record the link on the lead — only overwrite matched_student_id for the primary child (index 0).
   // form_leads.matched_student_id FK references portal_users(id), so store the PORTAL id
   // (not students.id, which would violate form_leads_matched_student_id_fkey).
+  const currentMatches = Array.isArray(leadRd.child_matches)
+    ? leadRd.child_matches as Array<Record<string, unknown>>
+    : [];
+  const childData = childrenArr?.[effectiveIdx];
+  const nextMatches = [
+    ...currentMatches.filter((match) => Number(match.childIndex) !== effectiveIdx),
+    {
+      childIndex: effectiveIdx,
+      studentId: student_portal_id,
+      studentName: childData?.name ?? null,
+      studentClass: childData?.class ?? null,
+      confidence: 'approved',
+    },
+  ];
+  const leadUpdate: Record<string, unknown> = {
+    response_data: { ...leadRd, child_matches: nextMatches },
+  };
   if (effectiveIdx === 0 || !lead.matched_student_id) {
-    const { error: leadErr } = await (sb as any).from('form_leads').update({ matched_student_id: student_portal_id }).eq('id', leadId);
-    if (leadErr) return NextResponse.json({ error: `Linked student but failed to update lead record: ${leadErr.message}` }, { status: 500 });
+    leadUpdate.matched_student_id = student_portal_id;
   }
+  const { error: leadErr } = await (sb as any).from('form_leads').update(leadUpdate).eq('id', leadId);
+  if (leadErr) return NextResponse.json({ error: `Linked student but failed to update lead record: ${leadErr.message}` }, { status: 500 });
+
+  await logAudit(sb as any, {
+    action: 'consent_child_linked',
+    actorId: user.id,
+    resourceType: 'form_lead',
+    resourceId: leadId,
+    newValues: { parent_id: lead.matched_parent_id, student_portal_id, child_index: effectiveIdx },
+  });
 
   return NextResponse.json({ success: true, student_id: studentRow.id, student_portal_id, child_index: effectiveIdx });
 }
@@ -538,7 +619,7 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
 
   const { data: lead } = await (sb as any)
     .from('form_leads')
-    .select('id, school_id, matched_parent_id, matched_student_id')
+    .select('id, school_id, matched_parent_id, matched_student_id, response_data')
     .eq('id', leadId)
     .single();
 
@@ -551,6 +632,45 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
   }
 
   const parentId = lead.matched_parent_id;
+  const leadResponse = (lead.response_data ?? {}) as Record<string, any>;
+  const parentCreatedByThisLead = Boolean(leadResponse.portal_created_at);
+
+  if (!parentCreatedByThisLead) {
+    // This lead reused a pre-existing parent account. Removing the lead's portal
+    // association must never delete that account or links belonging to siblings.
+    const childPortalIds = [...new Set([
+      lead.matched_student_id,
+      ...(Array.isArray(leadResponse.child_matches)
+        ? leadResponse.child_matches.map((match: any) => match.studentId)
+        : []),
+    ].filter(Boolean))] as string[];
+    const childRowIds: string[] = [];
+    for (const portalId of childPortalIds) {
+      const rowId = await resolveStudentRowId(sb as any, portalId);
+      if (rowId) childRowIds.push(rowId);
+    }
+    if (childRowIds.length > 0) {
+      await (sb as any).from('parent_student_links').delete().eq('parent_id', parentId).in('student_id', childRowIds);
+      await (sb as any).from('students').update({
+        parent_email: null, parent_name: null, parent_phone: null,
+        updated_at: new Date().toISOString(),
+      }).in('id', childRowIds);
+    }
+    await (sb as any).from('form_leads').update({
+      matched_parent_id: null,
+      matched_student_id: null,
+      match_status: 'new_prospect',
+      response_data: { ...leadResponse, child_matches: [] },
+    }).eq('id', leadId);
+    await logAudit(sb as any, {
+      action: 'consent_portal_unlinked',
+      actorId: user.id,
+      resourceType: 'form_lead',
+      resourceId: leadId,
+      oldValues: { parent_id: parentId },
+    });
+    return NextResponse.json({ success: true, parentDeleted: false });
+  }
 
   // Fetch parent email before deletion so we can wipe student denorm fields
   const { data: parentRow } = await (sb as any)
@@ -563,7 +683,8 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
     .eq('parent_id', parentId);
   const studentIdsToClear = (linkedStudents ?? []).map((row: any) => row.student_id).filter(Boolean);
   if (lead.matched_student_id) {
-    studentIdsToClear.push(lead.matched_student_id);
+    const primaryStudentRowId = await resolveStudentRowId(sb as any, lead.matched_student_id);
+    if (primaryStudentRowId) studentIdsToClear.push(primaryStudentRowId);
   }
 
   // Remove explicit parent-child link rows
@@ -596,7 +717,20 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
   await (sb as any).from('form_leads').update({
     matched_parent_id: null,
     matched_student_id: null,
+    match_status: 'new_prospect',
+    response_data: {
+      ...((lead.response_data ?? {}) as Record<string, unknown>),
+      child_matches: [],
+    },
   }).eq('id', leadId);
+
+  await logAudit(sb as any, {
+    action: 'consent_portal_removed',
+    actorId: user.id,
+    resourceType: 'form_lead',
+    resourceId: leadId,
+    oldValues: { parent_id: parentId },
+  });
 
   return NextResponse.json({ success: true });
 }
@@ -642,7 +776,7 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
   }
 
   const portalUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com').replace(/\/$/, '');
-  const loginUrl = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parent.email)}&pw=${encodeURIComponent(parentPw)}`;
+  const loginUrl = `${portalUrl}/login`;
   const channelsSent: string[] = [];
   const studentBlock = students.length
     ? students.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('')
@@ -657,7 +791,7 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
         `📧 Email: ${parent.email}`,
         `🔑 Password: ${parentPw}`,
         ``,
-        `Tap to log in (pre-filled):`,
+        `Open the secure login page:`,
         loginUrl,
         ``,
         `Please change your password after login. Questions? +234 811 660 0091`,
@@ -679,5 +813,12 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
     channelsSent.push('email');
   } catch { /* non-fatal */ }
 
+  await logAudit(sb as any, {
+    action: 'consent_credentials_resent',
+    actorId: user.id,
+    resourceType: 'form_lead',
+    resourceId: leadId,
+    newValues: { channels: channelsSent, students_sent: students.length },
+  });
   return NextResponse.json({ success: true, channels: channelsSent, studentsSent: students.length });
 }

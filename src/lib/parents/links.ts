@@ -2,6 +2,38 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 type AnySupabase = SupabaseClient<any>;
 
+export class ParentLinkConflictError extends Error {
+  readonly code = 'STUDENT_ALREADY_LINKED';
+  readonly status = 409;
+
+  constructor(
+    public readonly studentId: string,
+    public readonly existingParentId: string,
+  ) {
+    super('This student is already linked to another parent. Unlink the current parent before linking a new one.');
+    this.name = 'ParentLinkConflictError';
+  }
+}
+
+export function isParentLinkConflict(error: unknown): error is ParentLinkConflictError {
+  return error instanceof ParentLinkConflictError
+    || (
+      !!error
+      && typeof error === 'object'
+      && (error as { code?: string }).code === 'STUDENT_ALREADY_LINKED'
+    );
+}
+
+export function assertSingleParentLink(
+  studentId: string,
+  requestedParentId: string,
+  existingParentId?: string | null,
+): void {
+  if (existingParentId && existingParentId !== requestedParentId) {
+    throw new ParentLinkConflictError(studentId, existingParentId);
+  }
+}
+
 export type ParentLinkScope = {
   studentIds: string[];
   studentUserIds: string[];
@@ -152,11 +184,41 @@ export async function resolveOrCreateStudentRowId(
   return (inserted as { id: string } | null)?.id ?? null;
 }
 
+export async function getExistingParentLink(
+  admin: AnySupabase,
+  studentId: string,
+): Promise<{ parentId: string } | null> {
+  const { data, error } = await admin
+    .from('parent_student_links')
+    .select('parent_id')
+    .eq('student_id', studentId)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    if (isRelationMissing(error)) return null;
+    throw error;
+  }
+  return data?.parent_id ? { parentId: data.parent_id } : null;
+}
+
+export async function assertParentStudentLinkAllowed(
+  admin: AnySupabase,
+  parentId: string,
+  studentId: string,
+): Promise<void> {
+  const existing = await getExistingParentLink(admin, studentId);
+  assertSingleParentLink(studentId, parentId, existing?.parentId);
+}
+
 export async function syncExplicitParentStudentLink(
   admin: AnySupabase,
   parentId: string,
   studentId: string,
 ): Promise<void> {
+  // A student has one active parent link. This application guard provides a
+  // useful 409 before the database unique constraint handles concurrent races.
+  await assertParentStudentLinkAllowed(admin, parentId, studentId);
+
   const { error } = await admin
     .from('parent_student_links')
     .upsert(
@@ -165,6 +227,44 @@ export async function syncExplicitParentStudentLink(
     );
   if (error) {
     if (isRelationMissing(error)) return; // table not migrated yet — no-op
+    // The database invariant is the final guard against two concurrent link
+    // attempts that both passed the check above.
+    if ((error as { code?: string }).code === '23505') {
+      const { data: winner } = await admin
+        .from('parent_student_links')
+        .select('parent_id')
+        .eq('student_id', studentId)
+        .limit(1)
+        .maybeSingle();
+      if (winner?.parent_id && winner.parent_id !== parentId) {
+        throw new ParentLinkConflictError(studentId, winner.parent_id);
+      }
+    }
     throw new Error(`Failed to sync parent-student link: ${error.message}`);
+  }
+}
+
+/** Remove one unlinked child from the parent's consent provenance. */
+export async function clearStudentFromParentConsentLeads(
+  admin: AnySupabase,
+  parentId: string,
+  studentUserId: string,
+): Promise<void> {
+  const { data: leads, error } = await admin
+    .from('form_leads')
+    .select('id, matched_student_id, response_data')
+    .eq('matched_parent_id', parentId);
+  if (error) throw error;
+
+  for (const lead of leads ?? []) {
+    const rd = (lead.response_data ?? {}) as Record<string, any>;
+    const matches = Array.isArray(rd.child_matches) ? rd.child_matches : [];
+    const nextMatches = matches.filter((match: any) => match.studentId !== studentUserId);
+    if (lead.matched_student_id !== studentUserId && nextMatches.length === matches.length) continue;
+    const { error: updateError } = await admin.from('form_leads').update({
+      matched_student_id: lead.matched_student_id === studentUserId ? null : lead.matched_student_id,
+      response_data: { ...rd, child_matches: nextMatches },
+    }).eq('id', lead.id);
+    if (updateError) throw updateError;
   }
 }

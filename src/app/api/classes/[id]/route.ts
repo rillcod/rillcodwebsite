@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/log';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { cleanClassName } from '@/lib/classes/naming';
 
 function adminClient() {
   return createClient(
@@ -168,11 +169,14 @@ export async function PATCH(
   for (const f of allowedFields) {
     if (f in body) allowed[f] = body[f] ?? null;
   }
+  if (typeof allowed.name === 'string') {
+    allowed.name = cleanClassName(allowed.name);
+  }
   allowed.updated_at = new Date().toISOString();
 
   // If the class name changed, update section_class on all enrolled students
-  const newName: string | null = typeof body.name === 'string' ? body.name : null;
-  const nameChanged = newName && newName !== cls.name;
+  const newName: string | null = typeof allowed.name === 'string' ? allowed.name : null;
+  const nameChanged = !!newName && newName !== cls.name;
 
   const { error } = await admin
     .from('classes')

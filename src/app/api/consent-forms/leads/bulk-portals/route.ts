@@ -8,6 +8,7 @@ import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { generateTempPassword } from '@/lib/utils/password';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,13 +17,13 @@ const MAX_LEADS = 50;
 /** Merge freshly-onboarded children into a lead's child_matches (provenance back-link). */
 function mergeChildMatches(
   crd: Record<string, any>,
-  kids: Array<{ name: string; studentPortalId: string }>,
+  kids: Array<{ name: string; studentPortalId: string; childIndex?: number }>,
 ): Array<{ childIndex: number; studentId: string; studentName: string; studentClass: string | null; confidence: string }> {
   const existing = Array.isArray(crd.child_matches) ? crd.child_matches : [];
   const merged = [...existing];
   for (const k of kids) {
     if (k.studentPortalId && !merged.some((m: any) => m.studentId === k.studentPortalId)) {
-      merged.push({ childIndex: merged.length, studentId: k.studentPortalId, studentName: k.name, studentClass: null, confidence: 'high' });
+      merged.push({ childIndex: k.childIndex ?? merged.length, studentId: k.studentPortalId, studentName: k.name, studentClass: null, confidence: 'approved' });
     }
   }
   return merged;
@@ -114,11 +115,6 @@ export async function POST(req: NextRequest) {
     if (Date.now() > DEADLINE) { timedOut = true; break; }
     if (allowedSchools && !(lead.school_id && allowedSchools.has(lead.school_id))) {
       results.errors.push({ leadId: lead.id, error: 'Forbidden: lead belongs to a different school' });
-      continue;
-    }
-
-    if (lead.matched_parent_id) {
-      results.skipped++;
       continue;
     }
 
@@ -223,6 +219,13 @@ export async function POST(req: NextRequest) {
             } : {}),
           })
           .eq('id', lead.id);
+        await logAudit(sb as any, {
+          action: 'consent_bulk_portal_reused',
+          actorId: user.id,
+          resourceType: 'form_lead',
+          resourceId: lead.id,
+          newValues: { parent_id: existing.id, students_onboarded: newStudents.length },
+        });
         results.skipped++;
         continue;
       }
@@ -321,7 +324,7 @@ export async function POST(req: NextRequest) {
         ? `<div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;"><p style="margin:0 0 10px;font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Student Portal Login${newStudents.length > 1 ? 's' : ''}</p>${newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('')}</div>`
         : '';
 
-      const loginUrl = `${portalUrl}/login?type=parent&email=${encodeURIComponent(parentEmail)}&pw=${encodeURIComponent(tempPassword)}`;
+      const loginUrl = `${portalUrl}/login`;
       const channelsSent: string[] = [];
       const createdAt = new Date().toISOString();
 
@@ -335,7 +338,7 @@ export async function POST(req: NextRequest) {
             `📧 Email: ${parentEmail}`,
             `🔑 Temp Password: ${tempPassword}`,
             ``,
-            `Tap to log in (email & password pre-filled):`,
+            `Open the secure login page:`,
             loginUrl,
             ``,
             `Please change your password after first login.`,
@@ -369,7 +372,7 @@ export async function POST(req: NextRequest) {
         const html = buildRillcodTransactionalEmailHtml({
           title:      'Your Rillcod Portal Account is Ready',
           bodyHtml,
-          cta:        { href: loginUrl, label: 'Log In — Email & Password Pre-Filled', color: '#10b981' },
+          cta:        { href: loginUrl, label: 'Open Secure Login', color: '#10b981' },
           footerNote: 'Rillcod Technologies · 26 Ogiesoba Avenue, Off Airport Road, GRA, Benin City, Nigeria · +234 811 660 0091',
         });
         await notificationsService.sendEmail('system', {
@@ -396,6 +399,13 @@ export async function POST(req: NextRequest) {
         } : {}),
         response_data: newStudents.length ? { ...updatedRd, child_matches: mergeChildMatches(updatedRd, newStudents) } : updatedRd,
       }).eq('id', lead.id);
+      await logAudit(sb as any, {
+        action: 'consent_bulk_portal_created',
+        actorId: user.id,
+        resourceType: 'form_lead',
+        resourceId: lead.id,
+        newValues: { parent_id: parentId, students_onboarded: newStudents.length, channels: channelsSent },
+      });
 
       results.created++;
       results.log.push({ leadId: lead.id, email: parentEmail, name: parentName, channels: channelsSent, createdAt });

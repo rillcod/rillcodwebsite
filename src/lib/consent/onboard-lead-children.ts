@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { onboardStudentFromProspect } from '@/lib/students/onboard-from-prospect';
 import { canonicalGrade, SINGLE_GRADES } from '@/lib/classes/naming';
+import { isParentLinkConflict } from '@/lib/parents/links';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -29,6 +30,8 @@ export interface LeadChildContext {
   /** Optional staff class choice. */
   classId?: string | null;
   className?: string | null;
+  /** When set, onboard only this child from a multi-child submission. */
+  targetChildIndex?: number | null;
 }
 
 export const programLabel = (p?: string | null): string | null =>
@@ -44,7 +47,7 @@ export const registeredConsentGrade = (value: string | null): string | null => {
 export async function onboardLeadChildren(
   admin: AnySupabase,
   ctx: LeadChildContext,
-): Promise<Array<{ name: string; email: string; password: string; studentPortalId: string }>> {
+): Promise<Array<{ name: string; email: string; password: string; studentPortalId: string; childIndex: number }>> {
   const rd = (ctx.lead.response_data ?? {}) as Record<string, any>;
   const str = (k: string) => ((rd[k] as string) ?? '').trim();
   const childName = str('child_name');
@@ -55,24 +58,25 @@ export async function onboardLeadChildren(
     ? (rd.child_matches as Array<{ childIndex: number; studentId: string }>)
     : [];
 
-  const created: Array<{ name: string; email: string; password: string; studentPortalId: string }> = [];
+  const created: Array<{ name: string; email: string; password: string; studentPortalId: string; childIndex: number }> = [];
 
-  const tasks: Array<{ name: string; klass: string | null; age: string | null; gender: string | null; program: string | null }> = [];
+  const tasks: Array<{ childIndex: number; name: string; klass: string | null; age: string | null; gender: string | null; program: string | null }> = [];
 
   // Primary child — unmatched when the lead has no matched_student_id.
-  if (!ctx.lead.matched_student_id && childName) {
-    tasks.push({ name: childName, klass: childClass, age: str('child_age') || null, gender: childGender, program: str('program_category') || null });
+  if (!ctx.lead.matched_student_id && childName && (ctx.targetChildIndex == null || ctx.targetChildIndex === 0)) {
+    tasks.push({ childIndex: 0, name: childName, klass: childClass, age: str('child_age') || null, gender: childGender, program: str('program_category') || null });
   }
   // Additional children (index ≥ 1) not present in child_matches.
   if (childrenArr && childrenArr.length > 1) {
     const matchedIdx = new Set(childMatches.map((m) => m.childIndex));
     for (let ci = 1; ci < childrenArr.length; ci++) {
       const c = childrenArr[ci];
-      if (!c?.name?.trim() || matchedIdx.has(ci)) continue;
-      tasks.push({ name: c.name, klass: c.class || null, age: c.age || null, gender: c.gender || null, program: c.program || null });
+      if (!c?.name?.trim() || matchedIdx.has(ci) || (ctx.targetChildIndex != null && ctx.targetChildIndex !== ci)) continue;
+      tasks.push({ childIndex: ci, name: c.name, klass: c.class || null, age: c.age || null, gender: c.gender || null, program: c.program || null });
     }
   }
 
+  const failures: string[] = [];
   for (const t of tasks) {
     try {
       const res = await onboardStudentFromProspect(admin, {
@@ -95,11 +99,26 @@ export async function onboardLeadChildren(
         classId: ctx.classId,
         className: ctx.className,
       });
-      if (res.created) created.push({ name: t.name, email: res.studentEmail, password: res.studentPassword, studentPortalId: res.studentPortalId });
+      // Close the child-scoped CRM prospect once it has become an operational
+      // student so sweeps and health reports do not count a converted ghost.
+      let prospectUpdate = admin
+        .from('prospective_students')
+        .update({ status: 'converted', is_active: false, updated_at: new Date().toISOString() })
+        .eq('parent_email', ctx.parentEmail)
+        .ilike('full_name', t.name);
+      const prospectSchoolId = ctx.lead.school_id ?? ctx.lead.matched_school_id ?? null;
+      if (prospectSchoolId) prospectUpdate = prospectUpdate.eq('school_id', prospectSchoolId);
+      await prospectUpdate;
+      if (res.created) created.push({ childIndex: t.childIndex, name: t.name, email: res.studentEmail, password: res.studentPassword, studentPortalId: res.studentPortalId });
     } catch (e) {
+      if (isParentLinkConflict(e)) throw e;
       console.error('[onboardLeadChildren] failed for', t.name, e);
+      failures.push(t.name);
     }
   }
 
+  if (failures.length > 0) {
+    throw new Error(`Could not onboard ${failures.join(', ')}. No silent partial success was recorded.`);
+  }
   return created;
 }

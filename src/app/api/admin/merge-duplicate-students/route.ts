@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
+import { syncExplicitParentStudentLink } from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -152,15 +153,19 @@ export async function POST(req: NextRequest) {
       for (const d of dups) {
         // 1. Move parent links onto the canonical (idempotent), then they cascade
         //    away when the duplicate row is deleted.
+        let linkMoveFailed = false;
         try {
           const { data: links } = await admin.from('parent_student_links').select('parent_id').eq('student_id', d.id);
           for (const l of (links ?? []) as Array<{ parent_id: string }>) {
-            await admin.from('parent_student_links').upsert(
-              { parent_id: l.parent_id, student_id: canonical.id, updated_at: new Date().toISOString() },
-              { onConflict: 'parent_id,student_id' },
-            );
+            await syncExplicitParentStudentLink(admin as any, l.parent_id, canonical.id);
           }
-        } catch (e) { console.error('[merge-students] link move failed:', e); }
+        } catch (e) {
+          linkMoveFailed = true;
+          console.error('[merge-students] link move failed; duplicate preserved:', e);
+        }
+        // Never delete a duplicate row when its parent ownership could not be
+        // transferred under the one-parent invariant.
+        if (linkMoveFailed) continue;
 
         // 2. Repoint valuable references onto the canonical.
         for (const table of REPOINT_TABLES) {

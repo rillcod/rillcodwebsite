@@ -4,6 +4,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit/log';
 import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
 import { getAccountValuables } from '@/lib/students/account-valuables';
+import { cleanStudentName } from '@/lib/students/clean-name';
+import { cleanGrade } from '@/lib/classes/naming';
 
 function adminClient() {
     return createClient(
@@ -63,6 +65,15 @@ export async function PATCH(
         'gender', 'date_of_birth', 'enrollment_type', 'status'];
     fields.forEach(f => { if (f in body) allowed[f] = body[f]; });
     if (body.full_name) allowed.name = body.full_name; // keep name in sync
+    if (typeof allowed.full_name === 'string') {
+      allowed.full_name = cleanStudentName(allowed.full_name) || allowed.full_name.trim();
+      allowed.name = allowed.full_name;
+    } else if (typeof allowed.name === 'string') {
+      allowed.name = cleanStudentName(allowed.name) || allowed.name.trim();
+    }
+    if ('grade_level' in allowed) {
+      allowed.grade_level = allowed.grade_level ? cleanGrade(String(allowed.grade_level)) : null;
+    }
     allowed.updated_at = new Date().toISOString();
 
     const { data, error } = await adminClient().from('students').update(allowed).eq('id', id).select().single();

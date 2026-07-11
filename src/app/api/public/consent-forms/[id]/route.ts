@@ -3,13 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { notificationsService } from '@/services/notifications.service';
 import { buildFormLeadConfirmationEmail, buildLeadNotificationEmail } from '@/lib/email/rillcod-transactional-email';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
-import { resolveStudentRowId, syncExplicitParentStudentLink } from '@/lib/parents/links';
-import {
-  harmonizeStudentParentIdentity,
-  syncParentContactAcrossStores,
-  syncStudentFromLeadResponse,
-} from '@/lib/sync/student-parent-identity';
 import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -201,11 +196,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
   const { data: form, error: formErr } = await sb
     .from('consent_forms')
-    .select('id, title, school_id, form_type, is_public, schools(name, email)')
+    .select('id, title, school_id, form_type, is_public, due_date, schools(name, email)')
     .eq('id', id).single();
 
   if (formErr || !form || !form.is_public) {
     return NextResponse.json({ error: 'Form not found or no longer accepting submissions' }, { status: 404 });
+  }
+  if (form.due_date && new Date(form.due_date).getTime() < Date.now()) {
+    return NextResponse.json({ error: 'This consent form deadline has passed.' }, { status: 410 });
   }
 
   // Simple IP-based rate limiting — max 5 submissions per IP per 10 minutes
@@ -236,21 +234,40 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (!email?.trim() && !rawData.parent_email?.trim() && !rawData.parent_whatsapp?.trim()) {
     return NextResponse.json({ error: 'At least one contact method (email or WhatsApp) is required' }, { status: 400 });
   }
+  if (rawData.parent_whatsapp) {
+    const whatsappDigits = String(rawData.parent_whatsapp).replace(/\D/g, '');
+    if (whatsappDigits.length !== 13) {
+      return NextResponse.json({ error: 'WhatsApp number must contain exactly 13 digits, including country code.' }, { status: 400 });
+    }
+  }
+  const submittedChildren = Array.isArray(rawData.children)
+    ? rawData.children as Array<{ name?: string }>
+    : [{ name: rawData.child_name as string }];
+  const normalizedChildNames = submittedChildren
+    .map((child) => String(child?.name ?? '').toLowerCase().replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  if (new Set(normalizedChildNames).size !== normalizedChildNames.length) {
+    return NextResponse.json({ error: 'Each child may only appear once in a submission.' }, { status: 400 });
+  }
 
   // Stamp the IP into response_data for rate-limit tracking (not displayed to users)
   const response_data = { ...rawData, _ip: clientIp };
 
   // Duplicate detection — same email + child name + form within 30 days
   const parentEmail = (rawData.parent_email || email || '').trim().toLowerCase();
+  const submittedChildKey = String(rawData.child_name ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (parentEmail) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: existing } = await (sb as any)
+    const { data: existingForContact } = await (sb as any)
       .from('form_leads')
-      .select('id, submitted_at')
+      .select('id, submitted_at, response_data')
       .eq('form_id', id)
       .eq('email', parentEmail)
       .gte('submitted_at', thirtyDaysAgo)
-      .maybeSingle();
+      .limit(50);
+    const existing = (existingForContact ?? []).find((row: any) =>
+      String(row.response_data?.child_name ?? '').toLowerCase().replace(/\s+/g, ' ').trim() === submittedChildKey
+    );
     if (existing) {
       return NextResponse.json({
         success: true,
@@ -280,11 +297,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     matchedSchoolId: matched_school_id,
   });
 
-  // High confidence unlocks quick-check immediately; medium confidence still
-  // goes to staff review to avoid linking the wrong child.
-  const autoApproved = matchResult?.confidence === 'high';
-  const needsReview = !!matchResult && matchResult.confidence === 'medium';
-  const matchStatus = autoApproved ? 'approved' : needsReview ? 'pending_review' : 'new_prospect';
+  // A match is only a suggestion. No public submission may link a child or
+  // unlock result access until staff explicitly approves it.
+  const needsReview = !!matchResult && ['high', 'medium'].includes(matchResult.confidence);
+  const matchStatus = needsReview ? 'pending_review' : 'new_prospect';
 
   let matchNotes: string | null = null;
   if (matchResult) {
@@ -330,20 +346,14 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
   }
 
-  // Enrich response_data with child_matches if any were found
-  const enrichedResponseData = childMatchEntries.length > 0
-    ? { ...response_data, child_matches: childMatchEntries }
-    : response_data;
-
-  const parentEmailForMatch = (response_data.parent_email || email || '').trim().toLowerCase();
-  const { data: matchedParent } = parentEmailForMatch
-    ? await (sb as any)
-      .from('portal_users')
-      .select('id')
-      .eq('role', 'parent')
-      .ilike('email', parentEmailForMatch)
-      .maybeSingle()
-    : { data: null };
+  // These are match suggestions, not established links. Canonical child_matches
+  // is reserved for links explicitly approved by staff.
+  const immutableSubmission = { ...rawData };
+  const enrichedResponseData = {
+    ...response_data,
+    submission_snapshot: immutableSubmission,
+    ...(childMatchEntries.length > 0 ? { child_match_candidates: childMatchEntries } : {}),
+  };
 
   // ── Save form lead ────────────────────────────────────────────────────────
   const { data: lead, error: insertErr } = await (sb as any)
@@ -357,8 +367,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       response_data: enrichedResponseData,
       match_status:       matchStatus,
       match_candidate_id: needsReview ? matchResult!.candidate.id : null,
-      matched_student_id: autoApproved ? matchResult!.candidate.id : null,
-      matched_parent_id:  autoApproved ? matchedParent?.id ?? null : null,
+      matched_student_id: null,
+      matched_parent_id:  null,
       match_confidence:   matchResult?.confidence ?? null,
       match_notes:        matchNotes,
     })
@@ -369,28 +379,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     if (insertErr.code === '23505') return NextResponse.json({ success: true, duplicate: true });
     return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
+  await logAudit(sb as any, {
+    action: 'consent_submitted',
+    resourceType: 'form_lead',
+    resourceId: lead.id,
+    newValues: { form_id: id, school_id: form.school_id, match_status: matchStatus },
+    ip: clientIp === 'unknown' ? null : clientIp,
+    userAgent: req.headers.get('user-agent'),
+  });
 
-  if (autoApproved && matchedParent?.id && matchResult?.candidate.id) {
-    try {
-      const studentRowId = await resolveStudentRowId(sb as any, matchResult.candidate.id);
-      if (studentRowId) await syncExplicitParentStudentLink(sb as any, matchedParent.id, studentRowId);
-      await syncStudentFromLeadResponse(sb as any, matchResult.candidate.id, response_data as Record<string, unknown>, 'fill-only');
-      await syncParentContactAcrossStores(sb as any, matchedParent.id, {
-        full_name: response_data.parent_name || undefined,
-        email: response_data.parent_email || email?.trim() || undefined,
-        phone: response_data.parent_whatsapp || undefined,
-      });
-      await harmonizeStudentParentIdentity(sb as any, {
-        studentUserId: matchResult.candidate.id,
-        parentId: matchedParent.id,
-        parentPhone: response_data.parent_whatsapp || null,
-      });
-    } catch {
-      // Non-fatal: matched_student_id still unlocks quick-check.
-    }
-  }
-
-  // ── Back-patch child_matches onto the saved lead (post-insert update) ─────
+  // ── Back-patch match suggestions onto the saved lead ─────────────────────
   if (childMatchEntries.length > 0 && lead?.id) {
     try {
       await (sb as any)

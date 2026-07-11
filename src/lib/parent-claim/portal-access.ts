@@ -17,9 +17,9 @@ function appBaseUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || 'https://www.rillcod.com').replace(/\/$/, '');
 }
 
-function loginUrl(type: 'parent' | 'student', email: string, password?: string | null) {
-  const base = `${appBaseUrl()}/login?type=${type}&email=${encodeURIComponent(email)}`;
-  return password ? `${base}&pw=${encodeURIComponent(password)}` : base;
+function loginUrl(type: 'parent' | 'student', email: string, _password?: string | null) {
+  // Email may be preselected for convenience; passwords must never enter URLs.
+  return `${appBaseUrl()}/login?type=${type}&email=${encodeURIComponent(email)}`;
 }
 
 /** Login shortcuts for a child whose parent is already linked (re-scan — no temp password). */

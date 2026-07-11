@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
 import { getTeacherClassScope } from '@/lib/server/teacher-class-scope';
-import { canonicalGrade } from '@/lib/classes/naming';
+import { cleanGrade } from '@/lib/classes/naming';
 import { isAutoPortalsOn } from '@/lib/server/lms-policy';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     // Modern grade/section convention: grade_level = the SPECIFIC canonical grade
     // (Basic 2, JSS 1 …), section = the cohort/class label (Alpha, Gold …). They are
     // distinct — grade is never folded into the section, and vice-versa.
-    const specificGrade = canonicalGrade(body.grade_level || body.current_class) || null;
+    const specificGrade = cleanGrade(body.grade_level || body.current_class) || null;
     const sectionLabel = (body.section_class || body.section || '').trim() || null;
 
     // Map the incoming frontend fields cleanly to DB schema columns

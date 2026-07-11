@@ -1106,18 +1106,29 @@ export default function ConsentFormsPage() {
 
   async function signForm(id: string) {
     setSigningId(id);
+    let completed = false;
     try {
       const res = await fetch(`/api/consent-forms/${id}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response_data: regData }),
       });
-      if (res.ok || res.status === 409) {
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
         setForms(prev => prev.map(f => f.id === id ? { ...f, has_signed: true } : f));
+        completed = true;
+      } else if (res.status === 409) {
+        setForms(prev => prev.map(f => f.id === id ? { ...f, has_signed: true } : f));
+        alert('You already signed this consent form.');
+        completed = true;
+      } else {
+        alert(json.error ?? 'Could not submit the consent form. Please try again.');
       }
+    } catch {
+      alert('Network error while submitting consent. Please try again.');
     } finally {
       setSigningId(null);
-      setReadModalId(null);
+      if (completed) setReadModalId(null);
     }
   }
 

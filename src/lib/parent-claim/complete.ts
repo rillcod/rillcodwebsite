@@ -8,6 +8,7 @@ import { deliverResultCheckerCredentials, type CredentialDelivery } from '@/lib/
 import { applyParentRecordEnrichment, normaliseChildAge, validateParentSuppliedRecordGaps, type RecordEnrichmentResult } from '@/lib/parent-claim/record-enrichment';
 import { upsertResultCheckerLead } from '@/lib/parent-claim/upsert-lead';
 import { harmonizeStudentParentIdentity } from '@/lib/sync/student-parent-identity';
+import { getExistingParentLink, resolveOrCreateStudentRowId } from '@/lib/parents/links';
 
 type Db = SupabaseClient<Database>;
 
@@ -110,19 +111,32 @@ export async function completeParentClaim(admin: Db, studentId: string, details:
   });
   if (gapError) return { ok: false, error: gapError, status: 400 };
 
-  const { data: childStudent } = await admin
-    .from('students').select('id, parent_email, parent_phone').eq('user_id', studentId).maybeSingle();
+  const studentRowId = await resolveOrCreateStudentRowId(admin as any, studentId);
+  const { data: childStudent } = studentRowId
+    ? await admin.from('students').select('id, parent_email, parent_phone').eq('id', studentRowId).maybeSingle()
+    : { data: null };
   if (childStudent) {
     const exEmail = (childStudent.parent_email ?? '').trim().toLowerCase();
     const exPhone = (childStudent.parent_phone ?? '').replace(/\D/g, '');
     const inPhone = (phone ?? '').replace(/\D/g, '');
-    let hasParent = !!exEmail;
-    if (!hasParent) {
-      const { data: link } = await admin
-        .from('parent_student_links').select('id').eq('student_id', childStudent.id).limit(1).maybeSingle();
-      hasParent = !!link;
+    const existingLink = await getExistingParentLink(admin as any, childStudent.id);
+    let linkedParentEmail = '';
+    let linkedParentPhone = '';
+    if (existingLink) {
+      const { data: linkedParent } = await admin
+        .from('portal_users')
+        .select('email, phone')
+        .eq('id', existingLink.parentId)
+        .maybeSingle();
+      linkedParentEmail = (linkedParent?.email ?? '').trim().toLowerCase();
+      linkedParentPhone = (linkedParent?.phone ?? '').replace(/\D/g, '');
     }
-    const matchesExisting = (!!exEmail && exEmail === email) || (!!exPhone && !!inPhone && exPhone === inPhone);
+    const hasParent = Boolean(existingLink || exEmail);
+    const matchesExisting =
+      (!!exEmail && exEmail === email)
+      || (!!linkedParentEmail && linkedParentEmail === email)
+      || (!!exPhone && !!inPhone && exPhone === inPhone)
+      || (!!linkedParentPhone && !!inPhone && linkedParentPhone === inPhone);
     if (hasParent && !matchesExisting) {
       await logClaimAudit(admin, { student_id: studentId, email, phone, action: 'blocked', note: 'child already linked to a different parent' });
       return {

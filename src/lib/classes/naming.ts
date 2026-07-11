@@ -16,11 +16,51 @@ const FILLER_PHRASES = [
 const FILLER_WORDS = /\b(international|preparatory|secondary|comprehensive|montessori|montessorri|montesorri|nursery|grammar|model|academy|college|schools?|institute|education|centre|center|catholic|imperial|standard|section|coding|creative|class)\b/gi;
 const CONNECTORS = new Set(['of', 'and', 'the', 'to']);
 
+/** Title-case a word, keeping connectors lowercase and grade acronyms uppercase. */
+function titleCaseWord(w: string): string {
+  if (!w) return w;
+  const lower = w.toLowerCase();
+  if (CONNECTORS.has(lower)) return lower;
+  // Only short grade acronyms — never rewrite "Primary"/"Grade"/"Nursery" via LVL.
+  if (lower === 'jss' || lower === 'js') return 'JSS';
+  if (lower === 'sss' || lower === 'ss') return 'SS';
+  // Bare ranges / numbers ("1-3", "2") stay as typed
+  if (/^\d+(?:-\d+)?$/.test(w)) return w;
+  // Hyphenated tokens ("young-innovators")
+  if (w.includes('-') && !/^\d/.test(w)) {
+    return w.split('-').map(titleCaseWord).join('-');
+  }
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 function titleCase(s: string): string {
   return s.toLowerCase().replace(/\s+/g, ' ').trim()
     .split(' ')
-    .map((w) => (CONNECTORS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .map(titleCaseWord)
     .join(' ');
+}
+
+/**
+ * Normalise a class display name for every create/update path.
+ * Title-cases each " · " segment, keeps grade bands canonical ("jss 1-3" → "JSS 1-3"),
+ * and collapses accidental repeated prefixes.
+ */
+export function cleanClassName(raw: string | null | undefined): string {
+  if (raw == null || !String(raw).trim()) return '';
+  const cleaned = String(raw)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split('·')
+    .map((seg) => {
+      const t = seg.trim();
+      if (!t) return '';
+      const band = parseBandLabel(t);
+      if (band) return band.label;
+      return t.split(' ').map(titleCaseWord).join(' ');
+    })
+    .filter(Boolean)
+    .join(' · ');
+  return collapseRepeatedClassName(cleaned);
 }
 
 /** Concise, distinct school name derived from the full name. */
@@ -49,7 +89,7 @@ export function shortSchoolName(full: string | null | undefined): string {
 // Canonical school vocabulary: Grade→Basic, and the pre-primary level is "Nursery" (KG/
 // Kindergarten/Reception all map to Nursery). Year is context-dependent (see canonicalGrade).
 const LVL: Record<string, string> = {
-  js: 'JSS', jss: 'JSS', sss: 'SSS', ss: 'SS', basic: 'Basic', primary: 'Basic',
+  js: 'JSS', jss: 'JSS', sss: 'SS', ss: 'SS', basic: 'Basic', primary: 'Basic',
   pry: 'Basic', elementary: 'Basic', elem: 'Basic', grade: 'Basic', year: 'Year',
   nursery: 'Nursery', nur: 'Nursery', creche: 'Nursery',
   kg: 'Nursery', kindergarten: 'Nursery', reception: 'Nursery',
@@ -98,7 +138,8 @@ const PROG_SHORT: Record<string, string> = {
 };
 export function shortProgramme(p: string | null | undefined): string {
   if (!p) return '';
-  return PROG_SHORT[p.toLowerCase().trim()] || p.trim();
+  const key = p.toLowerCase().trim();
+  return PROG_SHORT[key] || titleCase(p.trim());
 }
 
 /** Infer the programme when a class has none, from its name then its grade level. */
@@ -142,7 +183,7 @@ export function buildClassName(opts: {
   const raw = opts.online
     ? [prog || 'Class', opts.cohort].filter(Boolean).join(' · ')
     : [shortSchoolName(opts.schoolName), prog, range].filter(Boolean).join(' · ');
-  return collapseRepeatedClassName(raw);
+  return cleanClassName(raw);
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -199,6 +240,22 @@ export function canonicalGrade(input: string | null | undefined): string | null 
   return `${lvl} ${low}`;
 }
 
+/**
+ * Write-path grade cleaner for every create/update. Prefer the canonical school
+ * vocabulary ("jss2" / "JSS 2" / "primary 4" → "JSS 2" / "Basic 4"); if the value is a
+ * band label keep that casing ("ss 1-3" → "SS 1-3"); otherwise Title Case free text.
+ */
+export function cleanGrade(input: string | null | undefined): string | null {
+  if (input == null || !String(input).trim()) return null;
+  const raw = String(input).replace(/\s+/g, ' ').trim();
+  const seg = raw.includes('·') ? raw.split('·').pop()!.trim() : raw;
+  const canonical = canonicalGrade(seg);
+  if (canonical) return canonical;
+  const band = parseBandLabel(seg);
+  if (band) return band.label;
+  return titleCase(seg) || null;
+}
+
 /** Fixed-band policy (the default): Basic/Primary split 1-3 / 4-6; JSS 1-3; SS 1-3. */
 export function fixedBand(grade: string | null | undefined): CanonicalBand | null {
   const g = parseGrade(grade);
@@ -252,7 +309,7 @@ export function parseBandLabel(label: string | null | undefined): CanonicalBand 
   const m = (label || '').trim().match(/^([A-Za-z]+)\s*0*(\d+)\s*(?:-\s*0*(\d+))?$/);
   if (!m) return null;
   const rawLvl = m[1].toUpperCase();
-  const lvl = LVL[rawLvl.toLowerCase()] || (rawLvl === 'JS' ? 'JSS' : rawLvl === 'SSS' ? 'SS' : m[1]);
+  const lvl = LVL[rawLvl.toLowerCase()] || (rawLvl === 'JS' ? 'JSS' : rawLvl === 'SSS' ? 'SS' : titleCaseWord(m[1]));
   const low = parseInt(m[2], 10);
   const high = m[3] ? parseInt(m[3], 10) : low;
   return { lvl, low: Math.min(low, high), high: Math.max(low, high), label: bandLabel(lvl, Math.min(low, high), Math.max(low, high)) };
@@ -297,5 +354,5 @@ export function canonicalTier(programme: string | null | undefined): string | nu
   if (/teen|developer|python/.test(p)) return 'Teen Developers';
   if (/web\s*dev/.test(p)) return 'Web Development Bootcamp';
   if (/data analy/.test(p)) return 'Data Analysis with Python';
-  return programme!.trim();
+  return titleCase(programme!.trim());
 }

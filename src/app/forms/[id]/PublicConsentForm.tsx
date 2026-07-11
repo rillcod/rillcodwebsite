@@ -194,10 +194,12 @@ export default function PublicConsentForm({ form, publicUrl, schoolsList = [] }:
   const allChildrenValid = children.every(c => c.name.trim() && c.gender && c.age && c.class_.trim() && c.program);
   const canSubmit =
     allChildrenValid &&
+    duplicateChildNames.size === 0 &&
     data.parent_name.trim() &&
-    data.parent_whatsapp.trim() &&
+    isValidWhatsApp(data.parent_whatsapp) &&
     data.parent_email.trim() &&
-    data.consent_acknowledged;
+    data.consent_acknowledged &&
+    (daysLeft === null || daysLeft > 0);
 
   // Count missing required groups for error summary
   const missingCount = (() => {

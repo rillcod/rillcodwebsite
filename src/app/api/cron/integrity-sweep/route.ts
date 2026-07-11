@@ -41,7 +41,18 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const admin = adminClient();
-  const report = { schoolNameResynced: 0, credentialsPurged: 0, batchesPruned: 0, danglingLinksRemoved: 0, studentsNoSchool: 0, studentsNoClass: 0, errors: [] as string[] };
+  const report = {
+    schoolNameResynced: 0,
+    credentialsPurged: 0,
+    batchesPruned: 0,
+    danglingLinksRemoved: 0,
+    duplicateParentLinks: 0,
+    legacyLinksBackfilled: 0,
+    staleLeadStudentRefs: 0,
+    studentsNoSchool: 0,
+    studentsNoClass: 0,
+    errors: [] as string[],
+  };
 
   try {
     // ── 1. Re-sync school_name to the real school name ──
@@ -86,6 +97,44 @@ async function handle(req: NextRequest) {
         if (!error) report.danglingLinksRemoved++;
       }
     }
+
+    // Report impossible multi-parent conflicts. The database migration blocks
+    // new ones; existing conflicts require a deliberate staff unlink decision.
+    const parentCountByStudent = new Map<string, Set<string>>();
+    for (const link of links) {
+      const parents = parentCountByStudent.get(link.student_id) ?? new Set<string>();
+      parents.add(link.parent_id);
+      parentCountByStudent.set(link.student_id, parents);
+    }
+    report.duplicateParentLinks = [...parentCountByStudent.values()].filter((parents) => parents.size > 1).length;
+
+    // Backfill the explicit junction for unambiguous legacy parent_email rows.
+    const parentRows = await fetchAll(admin, 'portal_users', 'id, email', (q: any) => q.eq('role', 'parent').neq('is_deleted', true));
+    const parentByEmail = new Map<string, string>(
+      parentRows
+        .map((parent: any) => [norm(parent.email), parent.id] as [string, string])
+        .filter(([email]) => Boolean(email)),
+    );
+    const linkedStudentIds = new Set(links.map((link: any) => link.student_id));
+    const legacyStudents = await fetchAll(admin, 'students', 'id, parent_email', (q: any) => q.not('parent_email', 'is', null));
+    for (const student of legacyStudents) {
+      if (linkedStudentIds.has(student.id)) continue;
+      const parentId = parentByEmail.get(norm(student.parent_email));
+      if (!parentId) continue;
+      const { error } = await admin.from('parent_student_links').insert({ parent_id: parentId, student_id: student.id });
+      if (!error) {
+        linkedStudentIds.add(student.id);
+        report.legacyLinksBackfilled++;
+      } else if (error.code !== '23505') {
+        report.errors.push(`legacy link ${student.id}: ${error.message}`);
+      }
+    }
+
+    // Leads store portal student IDs. Count stale references rather than
+    // silently changing consent provenance.
+    const studentPortalIds = new Set((await fetchAll(admin, 'portal_users', 'id', (q: any) => q.eq('role', 'student').neq('is_deleted', true))).map((student: any) => student.id));
+    const matchedLeads = await fetchAll(admin, 'form_leads', 'id, matched_student_id', (q: any) => q.not('matched_student_id', 'is', null));
+    report.staleLeadStudentRefs = matchedLeads.filter((lead: any) => !studentPortalIds.has(lead.matched_student_id)).length;
 
     // ── 4. Report (no change) students missing a school / class ──
     const { count: noSchool } = await admin.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').neq('is_deleted', true).is('school_id', null);

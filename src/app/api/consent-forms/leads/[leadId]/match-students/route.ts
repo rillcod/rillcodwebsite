@@ -62,13 +62,35 @@ export async function GET(req: NextRequest, context: { params: Promise<{ leadId:
   const candidateIds = ranked.map((s: any) => s.id);
   const linkedParent = new Map<string, string>();
   if (candidateIds.length > 0) {
-    const { data: linkedRows } = await (sb as any)
+    const { data: studentRows } = await (sb as any)
       .from('students')
-      .select('user_id, parent_email, parent_name')
-      .in('user_id', candidateIds)
-      .not('parent_email', 'is', null);
-    for (const r of linkedRows ?? []) {
-      if (r.user_id) linkedParent.set(r.user_id, r.parent_name || r.parent_email);
+      .select('id, user_id, parent_email, parent_name')
+      .in('user_id', candidateIds);
+    const portalByStudentRow = new Map<string, string>(
+      (studentRows ?? [])
+        .filter((row: any) => row.id && row.user_id)
+        .map((row: any) => [row.id, row.user_id] as [string, string]),
+    );
+    const studentRowIds = [...portalByStudentRow.keys()] as string[];
+    const { data: explicitLinks } = studentRowIds.length
+      ? await (sb as any).from('parent_student_links').select('student_id, parent_id').in('student_id', studentRowIds)
+      : { data: [] };
+    const parentIds = [...new Set((explicitLinks ?? []).map((link: any) => link.parent_id).filter(Boolean))] as string[];
+    const { data: parents } = parentIds.length
+      ? await (sb as any).from('portal_users').select('id, full_name, email').in('id', parentIds)
+      : { data: [] };
+    const parentLabel = new Map<string, string>(
+      (parents ?? []).map((parent: any) => [parent.id, parent.full_name || parent.email || 'Parent'] as [string, string]),
+    );
+    for (const link of explicitLinks ?? []) {
+      const portalId = portalByStudentRow.get(link.student_id);
+      if (portalId) linkedParent.set(portalId, parentLabel.get(link.parent_id) || 'Parent');
+    }
+    // Legacy denormalised records still count as linked until they are migrated.
+    for (const row of studentRows ?? []) {
+      if (row.user_id && row.parent_email && !linkedParent.has(row.user_id)) {
+        linkedParent.set(row.user_id, row.parent_name || row.parent_email);
+      }
     }
   }
 

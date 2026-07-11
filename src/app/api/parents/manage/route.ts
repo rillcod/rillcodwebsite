@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase';
-import { syncExplicitParentStudentLink } from '@/lib/parents/links';
+import {
+  clearStudentFromParentConsentLeads,
+  isParentLinkConflict,
+  syncExplicitParentStudentLink,
+} from '@/lib/parents/links';
 import { syncParentContactAcrossStores } from '@/lib/sync/student-parent-identity';
 import { generateTempPassword } from '@/lib/utils/password';
 
@@ -143,7 +147,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, auth_user_id: authUserId, existing: isExisting, email: cleanEmail, linked_count: studentIdList.length });
   } catch (err: any) {
     console.error('POST /api/parents/manage error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message, ...(isParentLinkConflict(err) ? { code: err.code } : {}) },
+      { status: isParentLinkConflict(err) ? 409 : 500 },
+    );
   }
 }
 
@@ -296,7 +303,10 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('PATCH /api/parents/manage error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message, ...(isParentLinkConflict(err) ? { code: err.code } : {}) },
+      { status: isParentLinkConflict(err) ? 409 : 500 },
+    );
   }
 }
 
@@ -322,20 +332,38 @@ export async function DELETE(req: Request) {
     const admin = createAdminClient();
 
     if (student_id) {
-      // 1. Clear the denormalised parent fields on the student row (legacy path).
-      const { error } = await (admin.rpc as any)('unlink_parent_from_student', { p_student_id: student_id });
-      if (error) throw error;
+      const { data: studentRow } = await admin
+        .from('students')
+        .select('id, user_id')
+        .eq('id', student_id)
+        .maybeSingle();
+      if (!studentRow) return NextResponse.json({ error: 'Student record not found' }, { status: 404 });
+      const { data: existingLink } = await admin
+        .from('parent_student_links')
+        .select('parent_id')
+        .eq('student_id', student_id)
+        .limit(1)
+        .maybeSingle();
+      const effectiveParentId = parent_id || existingLink?.parent_id || null;
 
-      // 2. Remove the EXPLICIT junction link too. The RPC only clears
-      //    students.parent_email, so without this the child stays linked on the
-      //    parent's own dashboard (getParentLinkScope reads parent_student_links) —
-      //    i.e. an "unlinked" child that never actually goes away. Scope to the given
-      //    parent when provided (co-parent safe); otherwise drop all links for the student.
+      // Clear both canonical junction ownership and legacy denormalised fields.
+      const { error: clearError } = await admin.from('students').update({
+        parent_email: null,
+        parent_name: null,
+        parent_phone: null,
+        parent_relationship: null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', student_id);
+      if (clearError) throw clearError;
+
       let linkDel = admin.from('parent_student_links').delete().eq('student_id', student_id);
       if (parent_id) linkDel = linkDel.eq('parent_id', parent_id);
       const { error: linkErr } = await linkDel;
-      // Ignore "relation does not exist" (table not migrated); surface anything else.
       if (linkErr && (linkErr as any).code !== '42P01') throw linkErr;
+
+      if (effectiveParentId && studentRow.user_id) {
+        await clearStudentFromParentConsentLeads(admin as any, effectiveParentId, studentRow.user_id);
+      }
     }
 
     if (deactivate && parent_id) {

@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
-import { syncExplicitParentStudentLink, resolveStudentRowId } from '@/lib/parents/links';
+import {
+  isParentLinkConflict,
+  resolveStudentRowId,
+  syncExplicitParentStudentLink,
+} from '@/lib/parents/links';
 import { canAccessSchool } from '@/lib/auth/school-scope';
 import {
   harmonizeStudentParentIdentity,
   syncParentContactAcrossStores,
   syncStudentFromLeadResponse,
 } from '@/lib/sync/student-parent-identity';
+import { logAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +72,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
       .update({ match_status: 'new_prospect', match_candidate_id: null } as any)
       .eq('id', leadId);
     if (rejectErr) return NextResponse.json({ error: rejectErr.message }, { status: 500 });
+    await logAudit(sb as any, {
+      action: 'consent_match_rejected',
+      actorId: user.id,
+      resourceType: 'form_lead',
+      resourceId: leadId,
+      oldValues: { candidate_id: lead.match_candidate_id },
+    });
     return NextResponse.json({ success: true, status: 'new_prospect' });
   }
 
@@ -74,6 +86,12 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
   const candidateId = lead.match_candidate_id;
   if (!candidateId) return NextResponse.json({ error: 'No candidate to approve' }, { status: 400 });
+  // match_candidate_id is portal_users.id; every students/junction query below
+  // must use the operational students.id instead.
+  const candidateStudentRowId = await resolveStudentRowId(sb as any, candidateId);
+  if (!candidateStudentRowId) {
+    return NextResponse.json({ error: 'The matched portal account has no student record.' }, { status: 409 });
+  }
 
   // Find existing parent portal_users by email or phone
   const parentEmail = rd.parent_email || (lead.email as string) || '';
@@ -97,17 +115,35 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     const { data: parentLink } = await sb
       .from('parent_student_links')
       .select('parent_id')
-      .eq('student_id', candidateId)
+      .eq('student_id', candidateStudentRowId)
       .maybeSingle();
 
     if (parentLink) {
+      const { data: linkedParent } = await sb
+        .from('portal_users')
+        .select('id, email, phone')
+        .eq('id', parentLink.parent_id)
+        .maybeSingle();
+      const linkedEmail = String(linkedParent?.email ?? '').trim().toLowerCase();
+      const linkedPhone = String(linkedParent?.phone ?? '').replace(/\D/g, '');
+      const submittedEmail = parentEmail.trim().toLowerCase();
+      const submittedPhone = parentPhone.replace(/\D/g, '');
+      const sameParent =
+        (!!submittedEmail && linkedEmail === submittedEmail)
+        || (!!submittedPhone && !!linkedPhone && linkedPhone.endsWith(submittedPhone.slice(-9)));
+      if (!sameParent) {
+        return NextResponse.json({
+          error: 'This student is already linked to another parent. Unlink the current parent before approving this match.',
+          code: 'STUDENT_ALREADY_LINKED',
+        }, { status: 409 });
+      }
       matchedParentId = parentLink.parent_id;
     } else {
       // 2. Try to find parent via parent_email on the student's own record
       const { data: student } = await sb
         .from('students')
         .select('parent_email')
-        .eq('id', candidateId)
+        .eq('id', candidateStudentRowId)
         .maybeSingle();
 
       if (student?.parent_email) {
@@ -125,13 +161,16 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     }
   }
 
-  // candidateId is a portal_users.id; the link junction + students table are
-  // keyed on students.id, so resolve the real student row before linking/updating.
-  const candidateStudentRowId = await resolveStudentRowId(sb as any, candidateId);
-
   // Sync the parent-student link if we resolved a parent and matched a student
   if (matchedParentId && candidateStudentRowId) {
-    await syncExplicitParentStudentLink(sb as any, matchedParentId, candidateStudentRowId);
+    try {
+      await syncExplicitParentStudentLink(sb as any, matchedParentId, candidateStudentRowId);
+    } catch (error) {
+      if (isParentLinkConflict(error)) {
+        return NextResponse.json({ error: error.message, code: error.code }, { status: 409 });
+      }
+      throw error;
+    }
   }
 
   // Link the lead and mark as contacted
@@ -143,6 +182,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
   } as any).eq('id', leadId);
 
   if (approveErr) return NextResponse.json({ error: approveErr.message }, { status: 500 });
+  await logAudit(sb as any, {
+    action: 'consent_match_approved',
+    actorId: user.id,
+    resourceType: 'form_lead',
+    resourceId: leadId,
+    newValues: { student_portal_id: candidateId, parent_id: matchedParentId },
+  });
 
   // Consent form is source of truth for name, gender, age, and class.
   await syncStudentFromLeadResponse(sb as any, candidateId, rd as Record<string, unknown>, 'overwrite');

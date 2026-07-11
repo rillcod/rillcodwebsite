@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { ensureStudentCardIssued } from '@/lib/cards/auto-issue';
-import { buildClassName, gradeBand, canonicalGrade } from '@/lib/classes/naming';
+import { buildClassName, gradeBand, cleanGrade } from '@/lib/classes/naming';
 import { ensureClassWithTutor } from '@/lib/summer-school/onboard';
 import { cleanStudentName, duplicateNameKey } from '@/lib/students/clean-name';
 import { validateBulkClassPlacement } from '@/lib/students/bulk-placement';
@@ -241,7 +241,7 @@ export async function POST(request: Request) {
           id: selectedClassId,
           name: selected.name,
           teacherId: selected.teacher_id ?? null,
-          grade: canonicalGrade(gradeOrClass) || canonicalGrade(batchGradeName) || null,
+          grade: cleanGrade(gradeOrClass) || cleanGrade(batchGradeName) || null,
           schoolId: selected.school_id ?? null,
           programId: selected.program_id ?? null,
           termId: selected.term_id ?? null,
@@ -252,7 +252,7 @@ export async function POST(request: Request) {
       if (!programName || !placementLabel || !resolvedSchoolName) {
         return {
           id: null, name: null, teacherId: null,
-          grade: canonicalGrade(placementLabel) || canonicalGrade(batchGradeName) || null,
+          grade: cleanGrade(placementLabel) || cleanGrade(batchGradeName) || null,
           schoolId: resolvedSchoolId, programId, termId: null,
         };
       }
@@ -292,7 +292,7 @@ export async function POST(request: Request) {
         id: classId,
         name: className,
         teacherId,
-        grade: canonicalGrade(placementLabel) || canonicalGrade(batchGradeName) || null,
+        grade: cleanGrade(placementLabel) || cleanGrade(batchGradeName) || null,
         schoolId: resolvedSchoolId,
         programId,
         termId: null,
@@ -932,11 +932,11 @@ export async function PATCH(request: Request) {
         .maybeSingle();
       if (existingUser && canAccessSchool(patchCaller, assignedSchoolIds, (existingUser as any).school_id)) {
         await supabaseAdmin.from('portal_users')
-          .update({ full_name: r.full_name, section_class: r.class_name || null, grade: canonicalGrade(r.class_name) })
+          .update({ full_name: r.full_name, section_class: r.class_name || null, grade: cleanGrade(r.class_name) })
           .eq('id', existingUser.id);
         // Keep students table in sync
         await supabaseAdmin.from('students')
-          .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, section: r.class_name || null, grade_level: canonicalGrade(r.class_name) })
+          .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, section: r.class_name || null, grade_level: cleanGrade(r.class_name) })
           .eq('user_id', existingUser.id);
       }
       return NextResponse.json({ success: true });
@@ -982,7 +982,7 @@ export async function PATCH(request: Request) {
         class_id: classId,
         school_id: cls.school_id,
         section_class: cls.name,
-        grade: canonicalGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
+        grade: cleanGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
         primary_teacher_id: cls.teacher_id ?? null,
         updated_at: new Date().toISOString(),
       }).in('id', allowedIds).eq('role', 'student');
@@ -991,8 +991,8 @@ export async function PATCH(request: Request) {
       // Keep students shadow table in sync
       await supabaseAdmin.from('students').update({
         current_class: cls.name,
-        grade: canonicalGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
-        grade_level: canonicalGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
+        grade: cleanGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
+        grade_level: cleanGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
         section: cls.name,
         school_id: cls.school_id,
       }).in('user_id', allowedIds);
@@ -1060,7 +1060,7 @@ export async function PATCH(request: Request) {
               .eq('id', existingUser.id);
             
             await supabaseAdmin.from('students')
-              .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, grade_level: canonicalGrade(r.class_name) })
+              .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, grade_level: cleanGrade(r.class_name) })
               .eq('user_id', existingUser.id);
           }
        }
