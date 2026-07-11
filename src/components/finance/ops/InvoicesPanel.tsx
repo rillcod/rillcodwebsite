@@ -62,6 +62,7 @@ interface StudentOption {
 
 const INVOICE_STATUS_STYLES: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground border-border',
+  pending: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
   sent: 'bg-primary/10 text-primary border-primary/30',
   partially_paid: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
   paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',

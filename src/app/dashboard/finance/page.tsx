@@ -67,9 +67,9 @@ function relDate(iso: string | null | undefined) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type SubStatus = 'active' | 'cancelled' | 'expired' | 'suspended';
-type InvoiceStatus = 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue' | 'void' | 'cancelled';
+type InvoiceStatus = 'draft' | 'pending' | 'sent' | 'partially_paid' | 'paid' | 'overdue' | 'void' | 'cancelled';
 type TxStatus = 'completed' | 'success' | 'pending' | 'processing' | 'failed' | 'refunded';
-type SettlementStatus = 'pending' | 'paid' | 'void';
+type SettlementStatus = 'pending' | 'processing' | 'paid' | 'void';
 
 interface Subscription {
   id: string;
@@ -193,6 +193,7 @@ const SUB_STATUS: Record<SubStatus, { label: string; cls: string }> = {
 
 const INV_STATUS: Record<InvoiceStatus, { label: string; cls: string }> = {
   draft:          { label: 'Draft',          cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
+  pending:        { label: 'Pending',        cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
   sent:           { label: 'Sent',           cls: 'bg-primary/20 text-primary border-primary/30' },
   partially_paid: { label: 'Partially paid', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
   paid:           { label: 'Paid',           cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
@@ -223,9 +224,10 @@ function isTerminalPaymentStatus(raw: string | null | undefined) {
 }
 
 const SETTLE_STATUS: Record<SettlementStatus, { label: string; cls: string }> = {
-  pending: { label: 'Pending', cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  paid:    { label: 'Paid',    cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  void:    { label: 'Void',    cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
+  pending:    { label: 'Pending',    cls: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  processing: { label: 'Processing', cls: 'bg-primary/20 text-primary border-primary/30' },
+  paid:       { label: 'Paid',       cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  void:       { label: 'Void',       cls: 'bg-zinc-500/20 text-muted-foreground/70 border-zinc-500/30' },
 };
 
 const NIGERIAN_BANKS = [
