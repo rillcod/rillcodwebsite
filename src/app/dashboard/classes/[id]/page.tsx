@@ -73,6 +73,7 @@ export default function ClassDetailPage() {
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editGrade, setEditGrade] = useState('');
+  const [editClassId, setEditClassId] = useState('');
   const [savingIdentity, setSavingIdentity] = useState(false);
 
   // Bulk-remove checkboxes for enrolled students list
@@ -488,6 +489,7 @@ export default function ClassDetailPage() {
     setEditingStudentId(s.id);
     setEditName(s.full_name || '');
     setEditGrade(s.grade || '');
+    setEditClassId(s.class_id || id || '');
   };
 
   // Save a corrected name/grade. The endpoint cleans the name, normalises the grade, and
@@ -496,7 +498,11 @@ export default function ClassDetailPage() {
     if (!editName.trim()) { alert('Name cannot be empty'); return; }
     setSavingIdentity(true);
     try {
-      const res = await fetch(`/api/portal-users/${studentId}`, {
+      if (editClassId && editClassId !== id) {
+        const moveRes = await fetch(`/api/classes/${editClassId}/enroll`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentId }) });
+        const moveJson = await moveRes.json();
+        if (!moveRes.ok) throw new Error(moveJson.error || 'Failed to change section');
+      }      const res = await fetch(`/api/portal-users/${studentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ full_name: editName.trim(), grade: editGrade || null }),
@@ -1219,9 +1225,13 @@ export default function ClassDetailPage() {
                                   <option value="">No grade</option>
                                   {gradeOpts.map((g) => <option key={g} value={g}>{g}</option>)}
                                 </select>
+                                <select value={editClassId} onChange={(e) => setEditClassId(e.target.value)} title="Registered section / class" className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                                  <option value={id || ''}>{cls.name} · current section</option>
+                                  {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
+                                </select>
                               </div>
                               <div className="flex items-center justify-between gap-2">
-                                <p className="text-[10px] text-muted-foreground">Grade is separate from the class. Saves update the student everywhere — portal, records &amp; login.</p>
+                                <p className="text-[10px] text-muted-foreground">Grade and section are independent. Preview both choices, then Save Placement. Updates apply everywhere — portal, records &amp; login.</p>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                   <button onClick={() => setEditingStudentId(null)} disabled={savingIdentity} className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-black text-muted-foreground">Cancel</button>
                                   <button onClick={() => saveIdentity(student.id)} disabled={savingIdentity} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground disabled:opacity-50">{savingIdentity ? 'Saving…' : 'Save'}</button>
