@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { getParentLinkScope } from '@/lib/parents/links';
+import { validateInvoiceInput } from '@/lib/finance/invoice-input';
 
 function adminClient() {
   return createClient(
@@ -99,6 +100,9 @@ export async function POST(request: NextRequest) {
     stream: streamFromBody, billing_cycle_id,
   } = body;
 
+  const validated = validateInvoiceInput({ amount, currency, status, due_date, items });
+  if (!validated.ok) return NextResponse.json({ error: validated.error }, { status: 400 });
+
   const admin = adminClient();
   const effectiveSchoolId = caller.role === 'admin' ? (school_id || null) : caller.school_id;
   if (caller.role !== 'admin' && !effectiveSchoolId) {
@@ -113,7 +117,8 @@ export async function POST(request: NextRequest) {
       .select('school_id')
       .eq('id', portal_user_id)
       .maybeSingle();
-    if (caller.role !== 'admin' && payer?.school_id && payer.school_id !== effectiveSchoolId) {
+    if (!payer) return NextResponse.json({ error: 'Payer not found' }, { status: 404 });
+    if (caller.role !== 'admin' && payer.school_id !== effectiveSchoolId) {
       return NextResponse.json({ error: 'Forbidden: payer belongs to another school' }, { status: 403 });
     }
   }
@@ -131,12 +136,12 @@ export async function POST(request: NextRequest) {
     .insert([{
       school_id: effectiveSchoolId || null,
       portal_user_id: portal_user_id || null,
-      amount: parseFloat(amount) || 0,
-      currency: currency || 'NGN',
+      amount: validated.amount,
+      currency: validated.currency,
       notes: notes || null,
-      due_date: due_date || null,
-      items: items || [],
-      status: status || 'sent',
+      due_date: validated.dueDate,
+      items: validated.items,
+      status: validated.status,
       stream,
       billing_cycle_id: billing_cycle_id || null,
     }])

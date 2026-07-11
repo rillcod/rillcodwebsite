@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyInvoiceStream } from '@/lib/finance/streams';
+import { validateInvoiceInput } from '@/lib/finance/invoice-input';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -11,16 +12,6 @@ async function getCaller() {
   return data ?? null;
 }
 
-function nextInvoiceNumber(existing: string[]): string {
-  const year = new Date().getFullYear();
-  const prefix = `INV-${year}-`;
-  const nums = existing
-    .filter(n => n?.startsWith(prefix))
-    .map(n => parseInt(n.replace(prefix, ''), 10))
-    .filter(n => !isNaN(n));
-  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
-  return `${prefix}${String(next).padStart(4, '0')}`;
-}
 
 /**
  * POST /api/finance/invoice
@@ -51,21 +42,31 @@ export async function POST(request: Request) {
 
   const school_id = caller.role === 'admin' ? rawSchoolId : caller.school_id;
 
-  if (!amount || !due_date) {
-    return NextResponse.json({ error: 'amount and due_date are required' }, { status: 400 });
-  }
+  const validated = validateInvoiceInput({ amount, currency, status: rawStatus ?? 'draft', due_date, items });
+  if (!validated.ok) return NextResponse.json({ error: validated.error }, { status: 400 });
+  if (!validated.dueDate) return NextResponse.json({ error: 'due_date is required' }, { status: 400 });
   if (!school_id && !portal_user_id) {
     return NextResponse.json({ error: 'school_id or portal_user_id required' }, { status: 400 });
   }
 
   const db = createAdminClient();
+  if (portal_user_id) {
+    const { data: payer } = await db.from('portal_users').select('id, school_id').eq('id', portal_user_id).maybeSingle();
+    if (!payer) return NextResponse.json({ error: 'Payer not found' }, { status: 404 });
+    if (caller.role !== 'admin' && payer.school_id !== school_id) return NextResponse.json({ error: 'Forbidden: payer belongs to another school' }, { status: 403 });
+  }
+  if (billing_cycle_id) {
+    const { data: cycle } = await db.from('billing_cycles').select('id, school_id, invoice_id').eq('id', billing_cycle_id).maybeSingle();
+    if (!cycle) return NextResponse.json({ error: 'Billing cycle not found' }, { status: 404 });
+    if (cycle.invoice_id) return NextResponse.json({ error: 'Billing cycle already has an invoice', invoice_id: cycle.invoice_id }, { status: 409 });
+    if (caller.role !== 'admin' && cycle.school_id !== school_id) return NextResponse.json({ error: 'Forbidden: billing cycle belongs to another school' }, { status: 403 });
+  }
 
-  // Build a unique invoice number
-  const { data: existing } = await db.from('invoices').select('invoice_number').order('created_at', { ascending: false }).limit(50);
-  const invoice_number = nextInvoiceNumber((existing ?? []).map((r: any) => r.invoice_number));
+  // Collision-resistant number; max+1 generation races under concurrent requests.
+  const invoice_number = INV--;
 
   const invoiceItems = items.length > 0 ? items : [
-    { description: description ?? (subscription_id ? 'Subscription Fee' : 'Invoice'), quantity: 1, unit_price: Number(amount), total: Number(amount) },
+    { description: description ?? (subscription_id ? 'Subscription Fee' : 'Invoice'), quantity: 1, unit_price: validated.amount, total: validated.amount },
   ];
   const stream = classifyInvoiceStream({
     school_id: school_id ?? null,
@@ -91,7 +92,14 @@ export async function POST(request: Request) {
 
   // Link invoice back to billing_cycle if provided
   if (billing_cycle_id && invoice) {
-    await db.from('billing_cycles').update({ invoice_id: (invoice as any).id }).eq('id', billing_cycle_id);
+    const { error: linkError } = await db.from('billing_cycles')
+      .update({ invoice_id: (invoice as any).id, updated_at: new Date().toISOString() })
+      .eq('id', billing_cycle_id)
+      .is('invoice_id', null);
+    if (linkError) {
+      await db.from('invoices').delete().eq('id', (invoice as any).id);
+      return NextResponse.json({ error: Invoice could not be linked to its billing cycle: ${linkError.message}` }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ data: invoice }, { status: 201 });
