@@ -15,7 +15,7 @@ interface Row {
 
 const naira = (n: number) => `₦${(n || 0).toLocaleString()}`;
 
-export default function BalanceRemindersPage() {
+export function BalanceRemindersPanel({ embedded = false }: { embedded?: boolean }) {
   const { profile, loading: authLoading } = useAuth();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [list, setList] = useState<Row[]>([]);
@@ -76,7 +76,7 @@ export default function BalanceRemindersPage() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className={embedded ? "space-y-6" : "max-w-6xl mx-auto px-4 py-8 space-y-6"}>
       <div>
         <h1 className="text-2xl font-black text-foreground tracking-tight">Balance Reminder Control</h1>
         <p className="text-sm text-muted-foreground mt-1">Regulate the summer-school balance reminders — turn them on/off, set cadence and cap, and manage individual parents.</p>
@@ -166,4 +166,9 @@ export default function BalanceRemindersPage() {
       </div>
     </div>
   );
+}
+
+
+export default function BalanceRemindersPage() {
+  return <BalanceRemindersPanel />;
 }

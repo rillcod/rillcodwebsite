@@ -167,13 +167,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
       hint: 'Payment Register & Attendance Roster — official documents for school billing',
       show: isAdmin,
     },
-    {
-      k: 'billing_cycles',
-      label: 'Billing Cycles',
-      Icon: CalendarDaysIcon,
-      hint: 'Termly billing cycles — create, track and manage school billing periods',
-      show: isAdmin,
-    },
+
     {
       k: 'accounts',
       label: 'Accounts',
@@ -273,7 +267,6 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices' }: Ope
         {tab === 'receipt_builder' && isAdmin && <ReceiptBuilderPanel />}
         {tab === 'school_invoice_builder' && isAdmin && <SchoolInvoiceBuilderPanel editInvoiceId={editInvoiceId ?? undefined} />}
         {tab === 'billing_docs' && isAdmin && <SchoolBillingDocsPanel />}
-        {tab === 'billing_cycles' && isAdmin && <BillingCyclesTab profile={profile} />}
         {tab === 'accounts' && isAdmin && <AccountsPanel />}
         {tab === 'diagnostics' && isAdmin && <DiagnosticsPanel />}
       </div>

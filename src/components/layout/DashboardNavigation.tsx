@@ -184,9 +184,8 @@ export default function DashboardNavigation() {
           { name: 'Activity Logs', href: '/dashboard/activity-logs', icon: ClipboardDocumentListIcon },
 
           { divider: true, label: 'Finance' },
-          { name: 'Platform Finance', href: '/dashboard/finance', icon: BanknotesIcon },
-          { name: 'Money Hub', href: '/dashboard/money', icon: CreditCardIcon },
-          { name: 'Balance Reminders', href: '/dashboard/balance-reminders', icon: EnvelopeIcon },
+          { name: 'Finance Center', href: '/dashboard/finance', icon: BanknotesIcon },
+          { name: 'Money Overview', href: '/dashboard/money', icon: CreditCardIcon },
 
           { divider: true, label: 'System' },
           { name: 'LMS Settings', href: '/dashboard/settings', icon: CogIcon },

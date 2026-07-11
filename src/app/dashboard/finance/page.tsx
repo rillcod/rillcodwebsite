@@ -17,6 +17,7 @@ import {
   DocumentArrowDownIcon, PaperClipIcon,
 } from '@/lib/icons';
 import { OperationsHub } from '@/components/finance/ops/OperationsHub';
+import { BalanceRemindersPanel } from '@/app/dashboard/balance-reminders/page';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
@@ -272,6 +273,7 @@ type TabKey =
   | 'subscriptions'
   | 'settlements'
   | 'automation'
+  | 'reminders'
   | 'setup';
 type FinanceOpsTab = 'approvals' | 'invoices' | 'receipts' | 'receipt_builder' | 'school_invoice_builder' | 'accounts' | 'diagnostics';
 
@@ -293,6 +295,7 @@ const ALL_TABS: TabDef[] = [
   { key: 'subscriptions', label: 'Subscriptions', icon: CreditCardIcon, roles: ['admin'] },
   { key: 'settlements', label: 'Settlements', icon: BuildingOfficeIcon, adminOnly: true },
   { key: 'automation', label: 'Automation', icon: BoltIcon, adminOnly: true },
+  { key: 'reminders', label: 'Balance reminders', icon: BoltIcon, adminOnly: true },
   { key: 'setup', label: 'Setup', icon: CreditCardIcon, roles: ['admin'] },
 ];
 
@@ -2006,6 +2009,7 @@ export default function FinancePage() {
           {tab === 'subscriptions' && <SubscriptionsTab profile={profile} />}
           {tab === 'settlements' && isAdmin && <SettlementsTab profile={profile} />}
           {tab === 'automation' && isAdmin && <AutomationTab />}
+          {tab === 'reminders' && isAdmin && <BalanceRemindersPanel embedded />}
           {tab === 'setup' && <SetupTab profile={profile} />}
         </div>
       </div>
