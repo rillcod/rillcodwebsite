@@ -932,6 +932,7 @@ export default function MoneyHubPage() {
                         {t.description || (t.invoices?.invoice_number
                           ? `Invoice ${t.invoices.invoice_number}`
                           : t.courses?.title || '—')}
+                      </p>
                       {isStaff && t.portal_users?.full_name && (
                         <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                           Payer: {t.portal_users.full_name}
