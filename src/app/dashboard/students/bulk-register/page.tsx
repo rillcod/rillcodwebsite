@@ -178,6 +178,21 @@ function buildStudentList(rawLines: string[], fallbackClass?: string): Generated
   return students;
 }
 
+const BATCH_SECTION_KEY = '__batch__';
+
+function resolveBulkSectionId(
+  student: Pick<GeneratedStudent, 'class_name' | 'class_id'>,
+  bandClassSelections: Record<string, string>,
+  selectedRegistryClass: string,
+): string | null {
+  if (student.class_id) return student.class_id;
+  const band = bulkGradeBand(student.class_name);
+  if (band && bandClassSelections[band]) return bandClassSelections[band];
+  if (bandClassSelections[BATCH_SECTION_KEY]) return bandClassSelections[BATCH_SECTION_KEY];
+  if (selectedRegistryClass) return selectedRegistryClass;
+  return null;
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function BulkRegisterPage() {
@@ -1449,6 +1464,12 @@ export default function BulkRegisterPage() {
         : pool.find((candidate) => bulkClassCoversGrade(candidate, grade));
       if (selected) nextSelections[band] = selected.id;
     }
+    if (selectedRegistryClass) {
+      nextSelections[BATCH_SECTION_KEY] = selectedRegistryClass;
+      for (const band of bandGrades.keys()) {
+        if (!nextSelections[band]) nextSelections[band] = selectedRegistryClass;
+      }
+    }
     setPreview(built);
     setBandClassSelections(nextSelections);
     setDbDupNames(new Set());
@@ -1547,18 +1568,17 @@ export default function BulkRegisterPage() {
       toast.error(`${noGrade.length} student${noGrade.length !== 1 ? 's have' : ' has'} no grade. Fill the Grade field or set a batch Grade Level.`);
       return;
     }
-    const withoutClass = valid.filter((student) => {
-      const band = bulkGradeBand(student.class_name);
-      return !band || !bandClassSelections[band];
-    });
+    const withoutClass = valid.filter((student) =>
+      !resolveBulkSectionId(student, bandClassSelections, selectedRegistryClass),
+    );
     if (withoutClass.length > 0) {
-      toast.error('Select or create a class for every grade band before registering.');
+      toast.error('Select a class section for every student before registering.');
       return;
     }
-    const placed = valid.map((student) => {
-      const band = bulkGradeBand(student.class_name)!;
-      return { ...student, class_id: bandClassSelections[band] };
-    });
+    const placed = valid.map((student) => ({
+      ...student,
+      class_id: resolveBulkSectionId(student, bandClassSelections, selectedRegistryClass)!,
+    }));
     const selectedClassIds = [...new Set(placed.map((student) => student.class_id))];
 
     // ── Pre-check for duplicate emails within the batch ───────────────────
@@ -1723,7 +1743,12 @@ export default function BulkRegisterPage() {
       others,
     };
   });
-  const missingClassBands = previewBands.filter(({ band }) => !bandClassSelections[band]);
+  const batchSectionId = bandClassSelections[BATCH_SECTION_KEY] || selectedRegistryClass || '';
+  const studentsMissingSection = preview.filter((student) =>
+    student.full_name.trim() &&
+    student.email.trim() &&
+    !resolveBulkSectionId(student, bandClassSelections, selectedRegistryClass),
+  );
 
   const successCount = results?.filter((r) => r.status === 'created' || r.status === 'updated' || r.status === 'reinstated').length ?? 0;
   const reinstateCount = results?.filter((r) => r.status === 'reinstated').length ?? 0;
@@ -1932,19 +1957,27 @@ export default function BulkRegisterPage() {
                               </option>
                             ))}
                           </select>
-                          <label className="mt-3 mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Existing class shortcut (optional)</label>
+                          <label className="mt-3 mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class section</label>
                           <select
                             value={selectedRegistryClass}
                             onChange={(event) => {
                               const classId = event.target.value;
                               setSelectedRegistryClass(classId);
+                              setBandClassSelections((current) => {
+                                if (!classId) {
+                                  const next = { ...current };
+                                  delete next[BATCH_SECTION_KEY];
+                                  return next;
+                                }
+                                return { ...current, [BATCH_SECTION_KEY]: classId };
+                              });
                               const destination = placementPool.find((candidate) => candidate.id === classId);
                               if (destination?.program_id) setSelectedProgramId(destination.program_id);
                             }}
                             disabled={!selectedSchoolId}
                             className="w-full px-3 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground disabled:opacity-40"
                           >
-                            <option value="">Suggest per grade band in review</option>
+                            <option value="">— Select your class section —</option>
                             {placementPool.filter((c) => preferredRegistryIds.has(c.id)).length > 0 && (
                               <optgroup label="Matches selected term">
                                 {placementPool.filter((c) => preferredRegistryIds.has(c.id)).map((candidate) => (
@@ -1960,6 +1993,12 @@ export default function BulkRegisterPage() {
                               </optgroup>
                             )}
                           </select>
+                          {!selectedSchoolId && (
+                            <p className="text-[11px] text-amber-400 mt-1">Select a school first to load your class sections.</p>
+                          )}
+                          {selectedSchoolId && placementPool.length === 0 && (
+                            <p className="text-[11px] text-amber-400 mt-1">No class sections found yet. Create one on Classes, or use Review to create a band class.</p>
+                          )}
                         </div>
 
                         {/* Fallback standard class code */}
@@ -2143,18 +2182,58 @@ Yusuf Ibrahim SS1A`}
 
                 <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
                   <div>
-                    <h3 className="text-sm font-black text-foreground">Class placement by grade band</h3>
+                    <h3 className="text-sm font-black text-foreground">Class section</h3>
                     <p className="text-[11px] text-muted-foreground">
-                      Pick one of your existing classes for each band. Classes stay filtered by programme; suggested term matches appear first, and your other classes in that programme stay available below.
+                      Choose the registered class section for these students. This is required before registration.
                     </p>
                     {usingProgrammeFallback && (
                       <p className="text-[11px] text-amber-400 mt-1">
-                        No class matched this programme exactly — showing all your classes at this school so you can still pick yours (e.g. Young Innov 3).
+                        No class matched this programme exactly — showing all your classes at this school so you can still pick yours.
                       </p>
                     )}
                   </div>
+
+                  {/* Always-visible batch section picker */}
+                  <div className="rounded-xl border border-border bg-card p-3">
+                    <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                      {previewBands.length > 0 ? 'Default section for all bands' : 'Section for this batch'}
+                    </label>
+                    <select
+                      value={batchSectionId}
+                      onChange={(event) => {
+                        const classId = event.target.value;
+                        setSelectedRegistryClass(classId);
+                        setBandClassSelections((current) => {
+                          const next = { ...current };
+                          if (!classId) {
+                            delete next[BATCH_SECTION_KEY];
+                            return next;
+                          }
+                          next[BATCH_SECTION_KEY] = classId;
+                          for (const { band } of previewBands) next[band] = classId;
+                          return next;
+                        });
+                        const destination = placementPool.find((candidate) => candidate.id === classId);
+                        if (destination?.program_id) setSelectedProgramId(destination.program_id);
+                      }}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground"
+                    >
+                      <option value="">— Select a class section —</option>
+                      {placementPool.map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                      ))}
+                    </select>
+                    {placementPool.length === 0 && (
+                      <p className="mt-1 text-[10px] text-amber-400">
+                        No class sections loaded. Confirm the school, or create the section on Classes and return to Review.
+                      </p>
+                    )}
+                  </div>
+
                   {previewBands.length === 0 ? (
-                    <p className="text-xs text-rose-400">Set a canonical grade for each student to see class suggestions.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Set a grade on each student below if you want band-specific section suggestions. You can still assign one section above for the whole batch.
+                    </p>
                   ) : (
                     <div className="grid gap-3 md:grid-cols-2">
                       {previewBands.map(({ band, count, matches, others }) => {
@@ -2205,7 +2284,7 @@ Yusuf Ibrahim SS1A`}
                             </select>
                             {!hasAnySection && (
                               <p className="mt-1 text-[10px] text-amber-400">
-                                No class available to place into for this school/programme. If you already created one, confirm you are the class owner on Classes, then refresh Review.
+                                No class available for this band yet. Use the default section above, or create one.
                               </p>
                             )}
                             {creatingBand === band && <p className="mt-1 text-[10px] text-primary">Creating class…</p>}
@@ -2213,6 +2292,11 @@ Yusuf Ibrahim SS1A`}
                         );
                       })}
                     </div>
+                  )}
+                  {studentsMissingSection.length > 0 && (
+                    <p className="text-xs text-rose-400">
+                      {studentsMissingSection.length} student{studentsMissingSection.length !== 1 ? 's' : ''} still need a class section.
+                    </p>
                   )}
                 </div>
 
@@ -2325,11 +2409,12 @@ Yusuf Ibrahim SS1A`}
                       <thead className="sticky top-0 bg-background z-10">
                         <tr className="text-muted-foreground uppercase tracking-wider text-[10px]">
                           <th className="text-left px-3 py-2.5 border-b border-border w-8">#</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[25%]">Full Name</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[22%]">Full Name</th>
                           <th className="text-left px-2 py-2.5 border-b border-border w-[10%]">Grade</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[10%]">Gender</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[26%]">Email</th>
-                          <th className="text-left px-2 py-2.5 border-b border-border w-[20%]">Temp Password</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[18%]">Section</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[8%]">Gender</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[22%]">Email</th>
+                          <th className="text-left px-2 py-2.5 border-b border-border w-[14%]">Temp Password</th>
                           <th className="px-2 py-2.5 border-b border-border w-8" />
                         </tr>
                       </thead>
@@ -2385,6 +2470,20 @@ Yusuf Ibrahim SS1A`}
                                 >
                                   <option value="">Grade</option>
                                   {SINGLE_GRADES.map((grade) => <option key={grade} value={grade}>{grade}</option>)}
+                                </select>
+                              </td>
+
+                              {/* Class section */}
+                              <td className="px-2 py-1.5 align-middle">
+                                <select
+                                  className={`${inp} ${!incomplete && !resolveBulkSectionId(s, bandClassSelections, selectedRegistryClass) ? 'border-rose-500/60 bg-rose-500/5' : ''}`}
+                                  value={s.class_id || resolveBulkSectionId(s, bandClassSelections, selectedRegistryClass) || ''}
+                                  onChange={(e) => updateField(s.id, 'class_id', e.target.value)}
+                                >
+                                  <option value="">Section</option>
+                                  {placementPool.map((candidate) => (
+                                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                                  ))}
                                 </select>
                               </td>
  
@@ -2477,6 +2576,16 @@ Yusuf Ibrahim SS1A`}
                                   {emailDup && <ExclamationTriangleIcon className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-rose-400" />}
                                 </div>
                               </div>
+                              <select
+                                className={`${inp} ${!incomplete && !resolveBulkSectionId(s, bandClassSelections, selectedRegistryClass) ? 'border-rose-500/60 bg-rose-500/5' : ''}`}
+                                value={s.class_id || resolveBulkSectionId(s, bandClassSelections, selectedRegistryClass) || ''}
+                                onChange={(e) => updateField(s.id, 'class_id', e.target.value)}
+                              >
+                                <option value="">Class section</option>
+                                {placementPool.map((candidate) => (
+                                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                                ))}
+                              </select>
                               <div className="flex items-center justify-between px-3 py-2 bg-card shadow-sm rounded-xl border border-border text-[10px]">
                                 <span className="text-muted-foreground uppercase font-bold">Password</span>
                                 <span className="font-mono text-yellow-400 font-bold">{s.password}</span>
@@ -2513,7 +2622,7 @@ Yusuf Ibrahim SS1A`}
                   <div className="flex-1 flex flex-col gap-2">
                     <button
                       onClick={handleRegister}
-                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || unresolvedNameExceptions.length > 0 || missingGradeRows.length > 0 || missingClassBands.length > 0 || checkingDups || validCount === 0}
+                      disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || unresolvedNameExceptions.length > 0 || missingGradeRows.length > 0 || studentsMissingSection.length > 0 || checkingDups || validCount === 0}
                       className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                     >
                       {registering
@@ -2528,8 +2637,8 @@ Yusuf Ibrahim SS1A`}
                                 ? 'Confirm each twin and enter a reason'
                                 : missingGradeRows.length > 0
                                   ? 'Set a grade for every student first'
-                                  : missingClassBands.length > 0
-                                    ? 'Select or create each band class'
+                                  : studentsMissingSection.length > 0
+                                    ? 'Select a class section first'
                                     : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
                     </button>
                     {registering && registerProgress && (
