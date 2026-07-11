@@ -75,7 +75,7 @@ export async function createInvoice(
           },
         ];
 
-  const itemTotal = invoiceItems.reduce((sum, raw) => {
+  const itemTotal = invoiceItems.reduce<number>((sum, raw) => {
     const item = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
     const quantity = Number(item.quantity ?? 1);
     const unitPrice = Number(item.unit_price ?? 0);
