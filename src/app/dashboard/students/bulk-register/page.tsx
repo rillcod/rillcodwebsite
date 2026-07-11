@@ -4,7 +4,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
-import { fetchClasses } from '@/services/dashboard.service';
 import Link from 'next/link';
 import { accessCardCodeForStudent } from '@/lib/access-card-code';
 import { qrDataUrls } from '@/lib/cards/qr';
@@ -14,7 +13,7 @@ import {
   composeClassName,
 } from '@/lib/classes/naming';
 import { isBulkGradeHeader, parseBulkGrade, stripBulkGrade } from '@/lib/students/bulk-grade';
-import { bulkClassCoversGrade, bulkGradeBand } from '@/lib/students/bulk-placement';
+import { bulkClassCoversGrade, bulkGradeBand, buildBulkPlacementPool } from '@/lib/students/bulk-placement';
 import { duplicateNameKey } from '@/lib/students/clean-name';
 import {
   UserGroupIcon,
@@ -1152,44 +1151,15 @@ export default function BulkRegisterPage() {
   const selectedRegisteredClass = registryClasses.find((candidate) => candidate.id === selectedRegistryClass);
   const effectiveClassCode = defaultClass.trim();
   const selectedProgName = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
-  // Soft school link: missing school_id still shows (broken/legacy rows).
-  const schoolRegistryClasses = registryClasses.filter((c) =>
-    !selectedSchoolId || !c.school_id || c.school_id === selectedSchoolId,
-  );
-  // Prefer programme match by id, then by class name (e.g. "Young Innov 3" ↔ Young Innovators).
-  // If nothing matches, fall back to every owned class at this school.
-  const programmeRegistryClasses = schoolRegistryClasses.filter((c) => {
-    if (!selectedProgramId) return true;
-    if (!c.program_id || c.program_id === selectedProgramId) return true;
-    if (!selectedProgName) return false;
-    const className = (c.name || '').toLowerCase();
-    const programme = selectedProgName.toLowerCase();
-    if (className.includes(programme)) return true;
-    const shortProgramme = programme
-      .replace(/\binnovators\b/g, 'innov')
-      .replace(/\bdevelopers\b/g, 'dev');
-    return shortProgramme !== programme && className.includes(shortProgramme);
-  });
-  const programmePool =
-    programmeRegistryClasses.length > 0 ? programmeRegistryClasses : schoolRegistryClasses;
-  const usingProgrammeFallback =
-    Boolean(selectedProgramId) &&
-    programmeRegistryClasses.length === 0 &&
-    schoolRegistryClasses.length > 0;
-  const preferredRegistryIds = new Set(
-    programmePool
-      .filter((c) => {
-        const programExact = !selectedProgramId || !c.program_id || c.program_id === selectedProgramId;
-        const termOk = !selectedTermId || !c.term_id || c.term_id === selectedTermId;
-        return programExact && termOk;
-      })
-      .map((c) => c.id),
-  );
-  const placementPool = [...programmePool].sort((a, b) => {
-    const aPreferred = preferredRegistryIds.has(a.id) ? 0 : 1;
-    const bPreferred = preferredRegistryIds.has(b.id) ? 0 : 1;
-    if (aPreferred !== bPreferred) return aPreferred - bPreferred;
-    return (a.name || '').localeCompare(b.name || '');
+  const {
+    pool: placementPool,
+    preferredIds: preferredRegistryIds,
+    usingProgrammeFallback,
+  } = buildBulkPlacementPool(registryClasses, {
+    schoolId: selectedSchoolId,
+    programId: selectedProgramId,
+    programName: selectedProgName,
+    termId: selectedTermId,
   });
 
   const placementPoolIds = placementPool.map((c) => c.id).join(',');
@@ -1211,12 +1181,37 @@ export default function BulkRegisterPage() {
 
   const refreshOwnedClasses = useCallback(async () => {
     if (!profile || !canAccess) return [] as ClassOption[];
-    const teacherId = profile.role === 'teacher' ? profile.id : undefined;
-    const clsData = await fetchClasses(teacherId, undefined);
-    const mapped: ClassOption[] = clsData.map((c: any) => ({
+
+    // Same server API as Classes page. Do not pass school_id for teachers here —
+    // owned sections with a missing school_id must still appear, then we soft-filter.
+    const params = new URLSearchParams();
+    if (profile.role === 'teacher') params.set('mine', 'true');
+    else if (selectedSchoolId) params.set('school_id', selectedSchoolId);
+
+    const mineRes = await fetch(`/api/classes?${params.toString()}`, { cache: 'no-store' });
+    const mineJson = mineRes.ok ? await mineRes.json() : { data: [] };
+    let rows: any[] = Array.isArray(mineJson.data) ? mineJson.data : [];
+
+    // If "mine" is empty, load school-scoped classes and keep ones this teacher
+    // can place into (owned by them, or not assigned to anyone yet).
+    if (profile.role === 'teacher' && rows.length === 0) {
+      const schoolParams = new URLSearchParams();
+      if (selectedSchoolId) schoolParams.set('school_id', selectedSchoolId);
+      const schoolRes = await fetch(`/api/classes?${schoolParams.toString()}`, { cache: 'no-store' });
+      const schoolJson = schoolRes.ok ? await schoolRes.json() : { data: [] };
+      rows = (Array.isArray(schoolJson.data) ? schoolJson.data : []).filter(
+        (c: any) => !c.teacher_id || c.teacher_id === profile.id,
+      );
+    }
+
+    if (profile.role === 'teacher') {
+      rows = rows.filter((c: any) => !c.teacher_id || c.teacher_id === profile.id);
+    }
+
+    const mapped: ClassOption[] = rows.map((c: any) => ({
       id: c.id,
       name: c.name,
-      section_class: c.section_class ?? null,
+      section_class: c.section_class ?? c.name ?? null,
       school_id: c.school_id ?? null,
       qa_grade_key: c.qa_grade_key ?? null,
       qa_grade_band: c.qa_grade_band ?? null,
@@ -1231,7 +1226,7 @@ export default function BulkRegisterPage() {
     }));
     setRegistryClasses(mapped);
     return mapped;
-  }, [profile, canAccess]);
+  }, [profile, canAccess, selectedSchoolId]);
 
   // ── Load schools and programmes ──────────────────────────────────────────
   useEffect(() => {
@@ -1302,6 +1297,12 @@ export default function BulkRegisterPage() {
 
     loadData().catch(console.error);
   }, [profile?.id, profile?.role, canAccess, refreshOwnedClasses]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the class list in sync when the selected school changes after first load.
+  useEffect(() => {
+    if (!profile || !canAccess || !selectedSchoolId) return;
+    refreshOwnedClasses().catch(console.error);
+  }, [selectedSchoolId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-fetch Unified Credentials on Tab active/Schools load ────────────────
   useEffect(() => {
@@ -1428,22 +1429,12 @@ export default function BulkRegisterPage() {
     if (!built.length) return;
 
     const progName = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
-    const schoolClasses = freshClasses.filter((c) =>
-      !selectedSchoolId || !c.school_id || c.school_id === selectedSchoolId,
-    );
-    const programmeClasses = schoolClasses.filter((c) => {
-      if (!selectedProgramId) return true;
-      if (!c.program_id || c.program_id === selectedProgramId) return true;
-      if (!progName) return false;
-      const className = (c.name || '').toLowerCase();
-      const programme = progName.toLowerCase();
-      if (className.includes(programme)) return true;
-      const shortProgramme = programme
-        .replace(/\binnovators\b/g, 'innov')
-        .replace(/\bdevelopers\b/g, 'dev');
-      return shortProgramme !== programme && className.includes(shortProgramme);
+    const { pool } = buildBulkPlacementPool(freshClasses, {
+      schoolId: selectedSchoolId,
+      programId: selectedProgramId,
+      programName: progName,
+      termId: selectedTermId,
     });
-    const pool = programmeClasses.length > 0 ? programmeClasses : schoolClasses;
     const selectedClass = pool.find((candidate) => candidate.id === selectedRegistryClass) ?? null;
 
     const nextSelections: Record<string, string> = {};
@@ -1473,6 +1464,7 @@ export default function BulkRegisterPage() {
     programmes,
     selectedProgramId,
     selectedSchoolId,
+    selectedTermId,
     selectedRegistryClass,
   ]);
 
@@ -2213,7 +2205,7 @@ Yusuf Ibrahim SS1A`}
                             </select>
                             {!hasAnySection && (
                               <p className="mt-1 text-[10px] text-amber-400">
-                                No owned class found for this school/programme. Create one, or check that the class is assigned to you and linked to this school and programme.
+                                No class available to place into for this school/programme. If you already created one, confirm you are the class owner on Classes, then refresh Review.
                               </p>
                             )}
                             {creatingBand === band && <p className="mt-1 text-[10px] text-primary">Creating class…</p>}

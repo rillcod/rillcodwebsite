@@ -1,6 +1,7 @@
 import { bandCoversGrade, canonicalGrade, fixedBand } from '@/lib/classes/naming';
 
 export type BulkPlacementClass = {
+  id?: string;
   name?: string | null;
   school_id?: string | null;
   program_id?: string | null;
@@ -37,6 +38,63 @@ export function bulkClassCoversGrade(cls: BulkPlacementClass, grade: string): bo
   return false;
 }
 
+/** Programme id match, or name match for legacy rows like "Young Innov 3". */
+export function bulkClassMatchesProgramme(
+  cls: BulkPlacementClass,
+  programId?: string | null,
+  programName?: string | null,
+): boolean {
+  if (!programId) return true;
+  if (!cls.program_id || cls.program_id === programId) return true;
+  if (!programName) return false;
+  const className = (cls.name || '').toLowerCase();
+  const programme = programName.toLowerCase();
+  if (className.includes(programme)) return true;
+  const shortProgramme = programme
+    .replace(/\binnovators\b/g, 'innov')
+    .replace(/\bdevelopers\b/g, 'dev');
+  return shortProgramme !== programme && className.includes(shortProgramme);
+}
+
+export function buildBulkPlacementPool<T extends BulkPlacementClass & { id: string }>(
+  classes: T[],
+  opts: {
+    schoolId?: string | null;
+    programId?: string | null;
+    programName?: string | null;
+    termId?: string | null;
+  },
+): { pool: T[]; preferredIds: Set<string>; usingProgrammeFallback: boolean } {
+  const schoolClasses = classes.filter(
+    (c) => !opts.schoolId || !c.school_id || c.school_id === opts.schoolId,
+  );
+  const programmeClasses = schoolClasses.filter((c) =>
+    bulkClassMatchesProgramme(c, opts.programId, opts.programName),
+  );
+  const programmePool = programmeClasses.length > 0 ? programmeClasses : schoolClasses;
+  const usingProgrammeFallback =
+    Boolean(opts.programId) && programmeClasses.length === 0 && schoolClasses.length > 0;
+
+  const preferredIds = new Set(
+    programmePool
+      .filter((c) => {
+        const programExact = !opts.programId || !c.program_id || c.program_id === opts.programId;
+        const termOk = !opts.termId || !c.term_id || c.term_id === opts.termId;
+        return programExact && termOk;
+      })
+      .map((c) => c.id),
+  );
+
+  const pool = [...programmePool].sort((a, b) => {
+    const aPreferred = preferredIds.has(a.id) ? 0 : 1;
+    const bPreferred = preferredIds.has(b.id) ? 0 : 1;
+    if (aPreferred !== bPreferred) return aPreferred - bPreferred;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  return { pool, preferredIds, usingProgrammeFallback };
+}
+
 export function validateBulkClassPlacement(
   cls: BulkPlacementClass,
   expected: { schoolId: string; programId?: string | null; termId?: string | null },
@@ -49,4 +107,3 @@ export function validateBulkClassPlacement(
   // should not block placing students into the teacher's own class.
   return null;
 }
-

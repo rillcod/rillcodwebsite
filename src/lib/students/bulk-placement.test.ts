@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { bulkClassCoversGrade, bulkGradeBand, validateBulkClassPlacement } from './bulk-placement';
+import {
+  bulkClassCoversGrade,
+  bulkClassMatchesProgramme,
+  bulkGradeBand,
+  buildBulkPlacementPool,
+  validateBulkClassPlacement,
+} from './bulk-placement';
 
 describe('bulk registration placement', () => {
   it('groups canonical grades into fixed bands', () => {
@@ -48,5 +54,26 @@ describe('bulk registration placement', () => {
     expect(bulkClassCoversGrade({ name: 'Greenfield — Basic 1-3' }, 'Basic 2')).toBe(true);
     expect(bulkClassCoversGrade({ name: 'JSS 2A Coding' }, 'JSS 2')).toBe(true);
   });
-});
 
+  it('matches Young Innov style class names to Young Innovators', () => {
+    expect(bulkClassMatchesProgramme(
+      { name: 'Young Innov 3', program_id: 'other' },
+      'yi',
+      'Young Innovators',
+    )).toBe(true);
+  });
+
+  it('falls back to school classes when programme metadata matches nothing', () => {
+    const classes = [
+      { id: '1', name: 'Young Innov 3', school_id: 's1', program_id: 'stale', term_id: 'old' },
+    ];
+    const { pool, usingProgrammeFallback } = buildBulkPlacementPool(classes, {
+      schoolId: 's1',
+      programId: 'yi',
+      programName: 'Teen Developers',
+      termId: 't1',
+    });
+    expect(usingProgrammeFallback).toBe(true);
+    expect(pool.map((c) => c.id)).toEqual(['1']);
+  });
+});

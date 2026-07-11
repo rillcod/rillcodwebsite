@@ -13,7 +13,12 @@ describe('teacher class isolation', () => {
     expect(isTeacherClassVisible({ teacher_id: 'other', school_id: 'hilltop' }, 'sulemani', assigned)).toBe(false);
   });
 
-  it('never crosses the assigned-school boundary', () => {
+  it('still shows owned classes when school metadata is missing or outside assignments', () => {
+    expect(isTeacherClassVisible({ teacher_id: 'sulemani', school_id: null }, 'sulemani', assigned)).toBe(true);
+    expect(isTeacherClassVisible({ teacher_id: 'sulemani', school_id: 'elsewhere' }, 'sulemani', assigned)).toBe(true);
+  });
+
+  it('never crosses the assigned-school boundary for unowned classes', () => {
     expect(isTeacherClassVisible({ teacher_id: null, school_id: 'elsewhere' }, 'sulemani', assigned)).toBe(false);
   });
 

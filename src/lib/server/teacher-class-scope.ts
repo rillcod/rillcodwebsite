@@ -14,14 +14,19 @@ export function isTeacherClassVisible(
   assignedSchoolIds: string[],
   includeAllAssignedClasses = false,
 ): boolean {
+  // Ownership always wins — even when school_id is missing or outside teacher_schools.
+  // Otherwise newly created sections disappear from mine=true pickers.
+  if (cls.teacher_id === teacherId) return true;
+
+  if (!includeAllAssignedClasses) return false;
   if (!cls.school_id || !assignedSchoolIds.includes(cls.school_id)) return false;
-  return includeAllAssignedClasses || cls.teacher_id === teacherId;
+  return true;
 }
 
 /**
  * Resolve the teacher's class boundary once for every consuming API.
  * Isolation ON: only classes owned by the teacher.
- * Isolation OFF: every class in assigned schools.
+ * Isolation OFF: every class in assigned schools, plus any class they own.
  */
 export async function getTeacherClassScope(
   admin: SupabaseClient<any>,
@@ -40,17 +45,31 @@ export async function getTeacherClassScope(
   for (const row of assignments ?? []) if (row.school_id) schoolIds.add(row.school_id);
 
   const assignedSchoolIds = [...schoolIds];
-  if (assignedSchoolIds.length === 0) {
-    return { assignedSchoolIds, classIds: [], classNames: [] };
+  const byId = new Map<string, ScopedClass>();
+
+  if (assignedSchoolIds.length > 0) {
+    const { data, error: classError } = await admin
+      .from('classes')
+      .select('id, name, teacher_id, school_id')
+      .in('school_id', assignedSchoolIds);
+    if (classError) throw classError;
+    for (const row of (data ?? []) as ScopedClass[]) {
+      if (row.id) byId.set(row.id, row);
+    }
   }
 
-  const { data, error: classError } = await admin
+  // Always include every class this teacher owns (null/other school_id included).
+  const { data: owned, error: ownedError } = await admin
     .from('classes')
     .select('id, name, teacher_id, school_id')
-    .in('school_id', assignedSchoolIds);
-  if (classError) throw classError;
-  const classes = ((data ?? []) as ScopedClass[]).filter((cls) =>
-    isTeacherClassVisible(cls, teacherId, assignedSchoolIds, includeAllAssignedClasses)
+    .eq('teacher_id', teacherId);
+  if (ownedError) throw ownedError;
+  for (const row of (owned ?? []) as ScopedClass[]) {
+    if (row.id) byId.set(row.id, row);
+  }
+
+  const classes = [...byId.values()].filter((cls) =>
+    isTeacherClassVisible(cls, teacherId, assignedSchoolIds, includeAllAssignedClasses),
   );
 
   return {
