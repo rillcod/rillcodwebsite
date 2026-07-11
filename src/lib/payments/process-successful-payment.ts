@@ -31,11 +31,24 @@ export async function processSuccessfulPayment(reference: string, method: string
     // 1. Idempotency check — return early if already processed
     const { data: existingTx } = await supabase
         .from('payment_transactions')
-        .select('id, payment_status, invoice_id')
+        .select('id, payment_status, invoice_id, receipt_url')
         .eq('transaction_reference', reference)
         .maybeSingle();
 
     if (['completed', 'success', 'paid'].includes(String(existingTx?.payment_status || '').toLowerCase())) {
+        // Repair required post-conditions left incomplete by an earlier attempt.
+        if (existingTx?.invoice_id) {
+            const { error: invoiceRepairError } = await supabase
+                .from('invoices')
+                .update({ status: 'paid', payment_transaction_id: existingTx.id, updated_at: new Date().toISOString() })
+                .eq('id', existingTx.invoice_id)
+                .neq('status', 'paid');
+            if (invoiceRepairError) throw new Error(`Failed to repair invoice settlement: ${invoiceRepairError.message}`);
+        }
+        if (!existingTx?.receipt_url) {
+            const { paymentsService } = await import('@/services/payments.service');
+            await paymentsService.generateReceipt(existingTx.id);
+        }
         return;
     }
 

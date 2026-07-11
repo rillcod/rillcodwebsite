@@ -74,7 +74,7 @@ export async function issueReceiptForTransaction(transactionId: string): Promise
     .single();
 
   if (error || !txn) throw new AppError('Transaction not found', 404);
-  if (txn.payment_status !== 'completed') {
+  if (!['completed', 'success', 'paid'].includes(String(txn.payment_status || '').toLowerCase())) {
     throw new AppError('Receipt can only be issued for completed payments', 400);
   }
 
