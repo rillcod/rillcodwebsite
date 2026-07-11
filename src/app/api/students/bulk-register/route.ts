@@ -185,6 +185,8 @@ export async function POST(request: Request) {
     const batchClassId: string | null = (body.class_id as string | undefined) ?? null;
     const batchClassName: string | null = (body.class_name as string | undefined) ?? null;
     const batchGradeName: string | null = (body.grade_name as string | undefined) ?? null;
+    const batchClassArm: string | null = typeof body.class_arm === 'string' && body.class_arm.trim() ? body.class_arm.trim().toUpperCase() : null;
+    if (batchClassArm && !/^[A-Z0-9]{1,4}$/.test(batchClassArm)) throw new HttpError('Class arm must be 1-4 letters or numbers.', 400);
 
     let programName: string | null = null;
     if (programId) {
@@ -495,6 +497,7 @@ export async function POST(request: Request) {
             school_name: resolvedSchoolName,
             section_class: effectiveClassName,
             grade: specificGrade,
+            class_arm: batchClassArm,
             class_id: effectiveClassId,
             enrollment_type: 'in_person',
             is_active: true,
@@ -558,6 +561,7 @@ export async function POST(request: Request) {
           school_name: resolvedSchoolName,
           current_class: effectiveClassName,
           grade_level: specificGrade,
+          class_arm: batchClassArm,
           enrollment_type: 'in_person',
           status: 'approved', // Bulk-registered students are pre-approved
           gender: gender || null,
@@ -733,6 +737,7 @@ export async function POST(request: Request) {
             email: r.email,
             password: r.password,
             class_name: r.class_name || null,
+            class_arm: batchClassArm,
             status: r.status,
             error: r.error || null
           }));

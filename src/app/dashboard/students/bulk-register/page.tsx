@@ -237,7 +237,8 @@ export default function BulkRegisterPage() {
   const [selectedSchoolName, setSelectedSchoolName] = useState('');
   const [selectedProgramId, setSelectedProgramId] = useState('');
   const [selectedRegistryClass, setSelectedRegistryClass] = useState(''); // class id
-  const [defaultClass, setDefaultClass] = useState(''); // fallback class code
+  const [defaultClass, setDefaultClass] = useState(''); // canonical academic grade
+  const [selectedArm, setSelectedArm] = useState(''); // separate school arm
   const [customBatchName, setCustomBatchName] = useState(''); // free-text name label
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [hasRecoverable, setHasRecoverable] = useState(false);
@@ -1489,6 +1490,7 @@ export default function BulkRegisterPage() {
           class_id: selectedRegistryClass || null,
           class_name: selectedRegisteredClass?.name || null,
           grade_name: effectiveClassCode || null,
+          class_arm: selectedArm || null,
         };
         if (selectedSchoolId) {
           body.school_id = selectedSchoolId;
@@ -1843,22 +1845,29 @@ export default function BulkRegisterPage() {
                           >
                             <option value="">— No default code —</option>
                             <optgroup label="Primary School">
-                              {classOptions.filter((c) => c.id.startsWith('std-kg') || c.id.startsWith('std-b')).map((c) => (
+                              {classOptions.filter((c) => (c.id.startsWith('std-kg') || c.id.startsWith('std-b')) && !/\\d[A-D]$/.test(c.section_class || '')).map((c) => (
                                 <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
                               ))}
                             </optgroup>
                             <optgroup label="Junior Secondary (JSS)">
-                              {classOptions.filter((c) => c.id.startsWith('std-jss')).map((c) => (
+                              {classOptions.filter((c) => c.id.startsWith('std-jss') && !/\\d[A-D]$/.test(c.section_class || '')).map((c) => (
                                 <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
                               ))}
                             </optgroup>
                             <optgroup label="Senior Secondary (SS / SSS)">
-                              {classOptions.filter((c) => c.id.startsWith('std-ss')).map((c) => (
+                              {classOptions.filter((c) => c.id.startsWith('std-ss') && !/\\d[A-D]$/.test(c.section_class || '')).map((c) => (
                                 <option key={c.id} value={c.section_class ?? c.name}>{c.name}</option>
                               ))}
                             </optgroup>
                           </select>
-                          {defaultClass && !selectedRegistryClass && (
+                          <div className="mt-3">
+                            <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Arm (separate)</label>
+                            <select value={selectedArm} onChange={(event) => setSelectedArm(event.target.value)} className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50">
+                              <option value="">No arm</option>
+                              {['A', 'B', 'C', 'D'].map((arm) => <option key={arm} value={arm}>Arm {arm}</option>)}
+                            </select>
+                            <p className="mt-1 text-[11px] text-muted-foreground">Stored independently. Example display: {effectiveClassCode || 'JSS 2'}{selectedArm || ''}.</p>
+                          </div>                          {defaultClass && !selectedRegistryClass && (
                             <p className="text-emerald-400/60 text-[11px] mt-1.5">
                               Official grade: <span className="font-mono font-bold">{defaultClass}</span>.
                             </p>
