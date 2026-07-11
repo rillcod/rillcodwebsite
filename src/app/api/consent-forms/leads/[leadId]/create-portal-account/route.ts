@@ -7,9 +7,16 @@ import {
   resolveOrCreateStudentRowId,
   resolveStudentRowId,
   syncExplicitParentStudentLink,
+  unlinkExplicitParentStudentLink,
 } from '@/lib/parents/links';
 import { canAccessSchool } from '@/lib/auth/school-scope';
 import { onboardLeadChildren } from '@/lib/consent/onboard-lead-children';
+import {
+  clearLeadChildLinks,
+  collectLeadStudentPortalIds,
+  listLeadChildLinks,
+  upsertLeadChildLink,
+} from '@/lib/consent/lead-child-links';
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
@@ -81,9 +88,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
   const childGender  = str('child_gender') || null;
 
   const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
-  const childMatches = Array.isArray(rd.child_matches)
-    ? (rd.child_matches as Array<{ childIndex: number; studentId: string; studentName: string; studentClass: string | null; confidence: string }>)
-    : [];
+  const childMatches = (await listLeadChildLinks(sb as any, leadId)).map((link) => ({
+    childIndex: link.child_index,
+    studentId: link.student_portal_user_id,
+    studentName: link.student_name,
+    studentClass: link.student_class,
+    confidence: link.link_status,
+  }));
 
   if (!parentEmail || !parentEmail.includes('@')) {
     return NextResponse.json({ error: 'No valid email address on this lead' }, { status: 400 });
@@ -109,27 +120,24 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       targetChildIndex,
     });
 
-  // PROVENANCE: write the onboarded children back onto the lead so a student created from
-  // a consent form is traceable to its source form (matched_student_id + child_matches).
-  // Re-reads the current response_data so it never clobbers the portal-creation log.
+  // Canonical provenance: each onboarded child gets one relational slot.
   const linkChildrenToLead = async (kids: Array<{ name: string; studentPortalId: string; childIndex?: number }>) => {
-    const ids = kids.map((k) => k.studentPortalId).filter(Boolean);
-    if (ids.length === 0) return;
-    const { data: cur } = await (sb as any)
-      .from('form_leads').select('response_data, matched_student_id').eq('id', leadId).maybeSingle();
-    const crd = ((cur?.response_data ?? rd) as Record<string, any>) || {};
-    const existingMatches: Array<{ studentId: string }> = Array.isArray(crd.child_matches) ? crd.child_matches : [];
-    const merged = [...existingMatches];
-    kids.forEach((k) => {
-      if (k.studentPortalId && !merged.some((m) => m.studentId === k.studentPortalId)) {
-        merged.push({ childIndex: k.childIndex ?? merged.length, studentId: k.studentPortalId, studentName: k.name, studentClass: null, confidence: 'approved' } as any);
-      }
-    });
-    await (sb as any).from('form_leads').update({
-      matched_student_id: cur?.matched_student_id ?? ids[0],
-      match_status: 'approved',
-      response_data: { ...crd, child_matches: merged },
-    }).eq('id', leadId);
+    for (const kid of kids) {
+      if (!kid.studentPortalId) continue;
+      await upsertLeadChildLink(sb as any, {
+        lead_id: leadId,
+        child_index: kid.childIndex ?? 0,
+        student_portal_user_id: kid.studentPortalId,
+        student_name: kid.name || null,
+        student_class: null,
+        link_status: 'onboarded',
+        source: 'onboarded',
+        linked_by: user.id,
+      });
+    }
+    if (kids.length > 0) {
+      await (sb as any).from('form_leads').update({ match_status: 'approved' }).eq('id', leadId);
+    }
   };
 
   // Check if portal account already exists
@@ -563,31 +571,21 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     if (stuErr) console.error('[link-child] students update error:', stuErr.message);
   }
 
-  // Record the link on the lead — only overwrite matched_student_id for the primary child (index 0).
-  // form_leads.matched_student_id FK references portal_users(id), so store the PORTAL id
-  // (not students.id, which would violate form_leads_matched_student_id_fkey).
-  const currentMatches = Array.isArray(leadRd.child_matches)
-    ? leadRd.child_matches as Array<Record<string, unknown>>
-    : [];
   const childData = childrenArr?.[effectiveIdx];
-  const nextMatches = [
-    ...currentMatches.filter((match) => Number(match.childIndex) !== effectiveIdx),
-    {
-      childIndex: effectiveIdx,
-      studentId: student_portal_id,
-      studentName: childData?.name ?? null,
-      studentClass: childData?.class ?? null,
-      confidence: 'approved',
-    },
-  ];
-  const leadUpdate: Record<string, unknown> = {
-    response_data: { ...leadRd, child_matches: nextMatches },
-  };
-  if (effectiveIdx === 0 || !lead.matched_student_id) {
-    leadUpdate.matched_student_id = student_portal_id;
+  try {
+    await upsertLeadChildLink(sb as any, {
+      lead_id: leadId,
+      child_index: effectiveIdx,
+      student_portal_user_id: student_portal_id,
+      student_name: childData?.name ?? null,
+      student_class: childData?.class ?? null,
+      link_status: 'approved',
+      source: 'staff_link',
+      linked_by: user.id,
+    });
+  } catch (leadErr: any) {
+    return NextResponse.json({ error: `Linked student but failed to update lead record: ${leadErr.message}` }, { status: 500 });
   }
-  const { error: leadErr } = await (sb as any).from('form_leads').update(leadUpdate).eq('id', leadId);
-  if (leadErr) return NextResponse.json({ error: `Linked student but failed to update lead record: ${leadErr.message}` }, { status: 500 });
 
   await logAudit(sb as any, {
     action: 'consent_child_linked',
@@ -638,29 +636,21 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
   if (!parentCreatedByThisLead) {
     // This lead reused a pre-existing parent account. Removing the lead's portal
     // association must never delete that account or links belonging to siblings.
-    const childPortalIds = [...new Set([
-      lead.matched_student_id,
-      ...(Array.isArray(leadResponse.child_matches)
-        ? leadResponse.child_matches.map((match: any) => match.studentId)
-        : []),
-    ].filter(Boolean))] as string[];
+    const childPortalIds = await collectLeadStudentPortalIds(sb as any, leadId);
     const childRowIds: string[] = [];
     for (const portalId of childPortalIds) {
       const rowId = await resolveStudentRowId(sb as any, portalId);
       if (rowId) childRowIds.push(rowId);
     }
     if (childRowIds.length > 0) {
-      await (sb as any).from('parent_student_links').delete().eq('parent_id', parentId).in('student_id', childRowIds);
-      await (sb as any).from('students').update({
-        parent_email: null, parent_name: null, parent_phone: null,
-        updated_at: new Date().toISOString(),
-      }).in('id', childRowIds);
+      for (const rowId of childRowIds) {
+        await unlinkExplicitParentStudentLink(sb as any, parentId, rowId);
+      }
     }
+    await clearLeadChildLinks(sb as any, leadId);
     await (sb as any).from('form_leads').update({
       matched_parent_id: null,
-      matched_student_id: null,
       match_status: 'new_prospect',
-      response_data: { ...leadResponse, child_matches: [] },
     }).eq('id', leadId);
     await logAudit(sb as any, {
       action: 'consent_portal_unlinked',
@@ -687,8 +677,10 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
     if (primaryStudentRowId) studentIdsToClear.push(primaryStudentRowId);
   }
 
-  // Remove explicit parent-child link rows
-  await (sb as any).from('parent_student_links').delete().eq('parent_id', parentId);
+  // Remove explicit parent-child links through the shared lifecycle helper.
+  for (const studentId of [...new Set(studentIdsToClear)] as string[]) {
+    await unlinkExplicitParentStudentLink(sb as any, parentId, studentId);
+  }
 
   // Clear parent fields from ALL explicitly linked students
   const uniqueStudentIds = [...new Set(studentIdsToClear)];
@@ -714,14 +706,10 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ lea
   await sb.auth.admin.deleteUser(parentId);
 
   // Clear lead references so it no longer shows as linked
+  await clearLeadChildLinks(sb as any, leadId);
   await (sb as any).from('form_leads').update({
     matched_parent_id: null,
-    matched_student_id: null,
     match_status: 'new_prospect',
-    response_data: {
-      ...((lead.response_data ?? {}) as Record<string, unknown>),
-      child_matches: [],
-    },
   }).eq('id', leadId);
 
   await logAudit(sb as any, {
@@ -762,10 +750,7 @@ export async function PUT(_req: NextRequest, context: { params: Promise<{ leadId
   const parentPw = generateTempPassword();
   await sb.auth.admin.updateUserById(lead.matched_parent_id as string, { password: parentPw });
 
-  // Linked students come straight from the lead's provenance (matched_student_id + child_matches).
-  const rd = (lead.response_data ?? {}) as Record<string, any>;
-  const childMatchIds = Array.isArray(rd.child_matches) ? rd.child_matches.map((m: any) => m.studentId) : [];
-  const studentIds = [...new Set([lead.matched_student_id, ...childMatchIds].filter(Boolean))] as string[];
+  const studentIds = await collectLeadStudentPortalIds(sb as any, leadId);
   const students: Array<{ name: string; email: string; password: string }> = [];
   for (const sid of studentIds) {
     const { data: s } = await (sb as any).from('portal_users').select('email, full_name').eq('id', sid).eq('role', 'student').maybeSingle();

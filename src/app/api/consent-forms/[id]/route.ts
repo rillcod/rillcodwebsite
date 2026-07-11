@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { canAccessSchool } from '@/lib/auth/school-scope';
+import { listLeadChildLinksForLeads } from '@/lib/consent/lead-child-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +72,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       .order('submitted_at', { ascending: false });
     leads = fallback.data ?? [];
   }
+  const childLinksByLead = await listLeadChildLinksForLeads(
+    admin as any,
+    (leads ?? []).map((lead: any) => lead.id),
+  );
+  leads = (leads ?? []).map((lead: any) => ({
+    ...lead,
+    child_links: childLinksByLead[lead.id] ?? [],
+  }));
 
   // Find parent links to support multi-child persistence on frontend reload
   const parentIds = (leads ?? []).map((l: any) => l.matched_parent_id).filter(Boolean);

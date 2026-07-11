@@ -13,6 +13,7 @@ import {
   syncStudentFromLeadResponse,
 } from '@/lib/sync/student-parent-identity';
 import { logAudit } from '@/lib/audit/log';
+import { upsertLeadChildLink } from '@/lib/consent/lead-child-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -173,11 +174,21 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
     }
   }
 
-  // Link the lead and mark as contacted
+  await upsertLeadChildLink(sb as any, {
+    lead_id: leadId,
+    child_index: 0,
+    student_portal_user_id: candidateId,
+    student_name: String(rd.child_name ?? '').trim() || null,
+    student_class: String(rd.child_class ?? '').trim() || null,
+    link_status: 'approved',
+    source: 'match_review',
+    linked_by: user.id,
+  });
+
+  // The child-link trigger maintains matched_student_id as a derived cache.
   const { error: approveErr } = await sb.from('form_leads').update({
     match_status:       'approved',
     status:             'contacted',
-    matched_student_id: candidateId,
     matched_parent_id:  matchedParentId,
   } as any).eq('id', leadId);
 

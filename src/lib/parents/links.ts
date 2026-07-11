@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { removeStudentFromParentLeadLinks } from '@/lib/consent/lead-child-links';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -242,6 +243,22 @@ export async function syncExplicitParentStudentLink(
     }
     throw new Error(`Failed to sync parent-student link: ${error.message}`);
   }
+
+  const { data: parent, error: parentError } = await admin
+    .from('portal_users')
+    .select('full_name, email, phone')
+    .eq('id', parentId)
+    .maybeSingle();
+  if (parentError) throw parentError;
+  if (parent) {
+    const { error: mirrorError } = await admin.from('students').update({
+      parent_name: parent.full_name ?? null,
+      parent_email: parent.email?.trim().toLowerCase() || null,
+      parent_phone: parent.phone ?? null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', studentId);
+    if (mirrorError) throw mirrorError;
+  }
 }
 
 /** Remove one unlinked child from the parent's consent provenance. */
@@ -250,21 +267,37 @@ export async function clearStudentFromParentConsentLeads(
   parentId: string,
   studentUserId: string,
 ): Promise<void> {
-  const { data: leads, error } = await admin
-    .from('form_leads')
-    .select('id, matched_student_id, response_data')
-    .eq('matched_parent_id', parentId);
-  if (error) throw error;
+  await removeStudentFromParentLeadLinks(admin, parentId, studentUserId);
+}
 
-  for (const lead of leads ?? []) {
-    const rd = (lead.response_data ?? {}) as Record<string, any>;
-    const matches = Array.isArray(rd.child_matches) ? rd.child_matches : [];
-    const nextMatches = matches.filter((match: any) => match.studentId !== studentUserId);
-    if (lead.matched_student_id !== studentUserId && nextMatches.length === matches.length) continue;
-    const { error: updateError } = await admin.from('form_leads').update({
-      matched_student_id: lead.matched_student_id === studentUserId ? null : lead.matched_student_id,
-      response_data: { ...rd, child_matches: nextMatches },
-    }).eq('id', lead.id);
-    if (updateError) throw updateError;
+export async function unlinkExplicitParentStudentLink(
+  admin: AnySupabase,
+  parentId: string,
+  studentId: string,
+): Promise<void> {
+  const { data: student, error: studentError } = await admin
+    .from('students')
+    .select('user_id')
+    .eq('id', studentId)
+    .maybeSingle();
+  if (studentError) throw studentError;
+
+  const { error } = await admin
+    .from('parent_student_links')
+    .delete()
+    .eq('parent_id', parentId)
+    .eq('student_id', studentId);
+  if (error && !isRelationMissing(error)) throw error;
+
+  const { error: mirrorError } = await admin.from('students').update({
+    parent_name: null,
+    parent_email: null,
+    parent_phone: null,
+    parent_relationship: null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', studentId);
+  if (mirrorError) throw mirrorError;
+  if (student?.user_id) {
+    await removeStudentFromParentLeadLinks(admin, parentId, student.user_id);
   }
 }

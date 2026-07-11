@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { clearLeadChildLinks, listLeadChildLinks } from '@/lib/consent/lead-child-links';
+import { unlinkExplicitParentStudentLink } from '@/lib/parents/links';
 
 // Generic service-role client: the helper works across tables, so the row shapes are
 // typed locally (below) rather than via the full generated Database type.
@@ -82,29 +84,20 @@ async function deleteLeadDerivedAccounts(
   leadId: string,
 ): Promise<{ deletedStudents: number; unlinkedExisting: number; parentDeleted: boolean }> {
   const parentId: string | null = leadRow.matched_parent_id ?? null;
-  const rd = leadRow.response_data ?? {};
-  const childMatches: Array<{ studentId?: string }> = Array.isArray(rd.child_matches) ? rd.child_matches : [];
+  const childLinks = await listLeadChildLinks(admin, leadId);
 
-  // Students that were MATCHED to a PRE-EXISTING account (matched_student_id +
-  // child_matches). These already existed on the system before this lead — they must
-  // NEVER be deleted, only unlinked from the lead's parent.
-  const matchedExisting = new Set<string>();
-  if (leadRow.matched_student_id) matchedExisting.add(leadRow.matched_student_id);
-  for (const m of childMatches) if (m.studentId) matchedExisting.add(m.studentId);
-
-  // Students the lead CREATED = children linked to its parent via the junction,
-  // EXCLUDING the matched pre-existing ones. Only these are eligible for deletion.
-  const created = new Set<string>();
-  if (parentId) {
-    const { data: links } = await admin.from('parent_student_links').select('student_id').eq('parent_id', parentId);
-    const rowIds = ((links ?? []) as ParentLinkRow[]).map(l => l.student_id).filter(Boolean);
-    if (rowIds.length) {
-      const { data: srows } = await admin.from('students').select('user_id').in('id', rowIds);
-      for (const s of (srows ?? []) as Array<{ user_id: string | null }>) {
-        if (s.user_id && !matchedExisting.has(s.user_id)) created.add(s.user_id);
-      }
-    }
-  }
+  // Approved links refer to pre-existing accounts; onboarded links were created
+  // from this lead and may be deleted when they are not shared.
+  const matchedExisting = new Set(
+    childLinks
+      .filter((link) => link.link_status === 'approved')
+      .map((link) => link.student_portal_user_id),
+  );
+  const created = new Set(
+    childLinks
+      .filter((link) => link.link_status === 'onboarded')
+      .map((link) => link.student_portal_user_id),
+  );
 
   // 1. Pre-existing matched students: unlink from this lead's parent, keep the account.
   let unlinkedExisting = 0;
@@ -112,13 +105,9 @@ async function deleteLeadDerivedAccounts(
     const { data: srows } = await admin.from('students').select('id, user_id').in('user_id', [...matchedExisting]);
     const rowIds = ((srows ?? []) as StudentRefRow[]).map(r => r.id);
     if (rowIds.length) {
-      await admin.from('parent_student_links').delete().eq('parent_id', parentId).in('student_id', rowIds);
-      await admin.from('students').update({
-        parent_email: null,
-        parent_name: null,
-        parent_phone: null,
-        updated_at: new Date().toISOString(),
-      }).in('id', rowIds);
+      for (const rowId of rowIds) {
+        await unlinkExplicitParentStudentLink(admin, parentId, rowId);
+      }
       unlinkedExisting = rowIds.length;
     }
   }
@@ -134,7 +123,11 @@ async function deleteLeadDerivedAccounts(
       sharedWithOtherParent = ((otherLinks ?? []) as ParentLinkRow[]).some(l => l.parent_id && l.parent_id !== parentId);
     }
     if (sharedWithOtherParent) {
-      if (parentId && rowIds.length) await admin.from('parent_student_links').delete().eq('parent_id', parentId).in('student_id', rowIds);
+      if (parentId) {
+        for (const rowId of rowIds) {
+          await unlinkExplicitParentStudentLink(admin, parentId, rowId);
+        }
+      }
       continue;
     }
     await hardDeleteStudentAccount(admin, su);
@@ -166,15 +159,12 @@ export async function revertLeadAccounts(admin: AnySupabase, leadId: string): Pr
   const { deletedStudents, parentDeleted } = await deleteLeadDerivedAccounts(admin, leadRow, leadId);
 
   // Reset to the just-submitted state: keep the submission, drop the derived links.
-  const rd: Record<string, unknown> = { ...(leadRow.response_data ?? {}) };
-  delete rd.child_matches;
+  await clearLeadChildLinks(admin, leadId);
   await admin.from('form_leads').update({
-    matched_student_id: null,
     matched_parent_id: null,
     match_candidate_id: null,
     match_status: null,
     status: 'new',
-    response_data: rd,
   }).eq('id', leadId);
 
   return { ok: true, deletedStudents, parentDeleted };

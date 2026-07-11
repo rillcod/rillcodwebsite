@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { onboardStudentFromProspect } from '@/lib/students/onboard-from-prospect';
 import { canonicalGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 import { isParentLinkConflict } from '@/lib/parents/links';
+import { listLeadChildLinks } from '@/lib/consent/lead-child-links';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -17,6 +18,7 @@ type AnySupabase = SupabaseClient<any>;
  */
 export interface LeadChildContext {
   lead: {
+    id?: string;
     school_id?: string | null;
     matched_school_id?: string | null;
     matched_student_id?: string | null;
@@ -54,9 +56,7 @@ export async function onboardLeadChildren(
   const childClass = str('child_class') || null;
   const childGender = str('child_gender') || null;
   const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
-  const childMatches = Array.isArray(rd.child_matches)
-    ? (rd.child_matches as Array<{ childIndex: number; studentId: string }>)
-    : [];
+  const childLinks = ctx.lead.id ? await listLeadChildLinks(admin, ctx.lead.id) : [];
 
   const created: Array<{ name: string; email: string; password: string; studentPortalId: string; childIndex: number }> = [];
 
@@ -66,9 +66,9 @@ export async function onboardLeadChildren(
   if (!ctx.lead.matched_student_id && childName && (ctx.targetChildIndex == null || ctx.targetChildIndex === 0)) {
     tasks.push({ childIndex: 0, name: childName, klass: childClass, age: str('child_age') || null, gender: childGender, program: str('program_category') || null });
   }
-  // Additional children (index ≥ 1) not present in child_matches.
+  // Additional children (index ≥ 1) not present in canonical relational links.
   if (childrenArr && childrenArr.length > 1) {
-    const matchedIdx = new Set(childMatches.map((m) => m.childIndex));
+    const matchedIdx = new Set(childLinks.map((link) => link.child_index));
     for (let ci = 1; ci < childrenArr.length; ci++) {
       const c = childrenArr[ci];
       if (!c?.name?.trim() || matchedIdx.has(ci) || (ctx.targetChildIndex != null && ctx.targetChildIndex !== ci)) continue;

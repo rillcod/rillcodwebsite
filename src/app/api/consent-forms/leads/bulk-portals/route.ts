@@ -9,25 +9,11 @@ import { notificationsService } from '@/services/notifications.service';
 import { buildRillcodTransactionalEmailHtml } from '@/lib/email/rillcod-transactional-email';
 import { generateTempPassword } from '@/lib/utils/password';
 import { logAudit } from '@/lib/audit/log';
+import { listLeadChildLinksForLeads, upsertLeadChildLink } from '@/lib/consent/lead-child-links';
 
 export const dynamic = 'force-dynamic';
 
 const MAX_LEADS = 50;
-
-/** Merge freshly-onboarded children into a lead's child_matches (provenance back-link). */
-function mergeChildMatches(
-  crd: Record<string, any>,
-  kids: Array<{ name: string; studentPortalId: string; childIndex?: number }>,
-): Array<{ childIndex: number; studentId: string; studentName: string; studentClass: string | null; confidence: string }> {
-  const existing = Array.isArray(crd.child_matches) ? crd.child_matches : [];
-  const merged = [...existing];
-  for (const k of kids) {
-    if (k.studentPortalId && !merged.some((m: any) => m.studentId === k.studentPortalId)) {
-      merged.push({ childIndex: k.childIndex ?? merged.length, studentId: k.studentPortalId, studentName: k.name, studentClass: null, confidence: 'approved' });
-    }
-  }
-  return merged;
-}
 
 function adminClient() {
   return createAdminSupabase(
@@ -110,6 +96,28 @@ export async function POST(req: NextRequest) {
 
   // Resolve the staff member's allowed schools once (own school + teacher_schools).
   const allowedSchools = profile.role === 'admin' ? null : await getAllowedSchoolIds(user.id, profile);
+  const childLinksByLead = await listLeadChildLinksForLeads(
+    sb as any,
+    (leads ?? []).map((lead: any) => lead.id),
+  );
+
+  const recordOnboardedChildren = async (
+    leadId: string,
+    kids: Array<{ name: string; studentPortalId: string; childIndex?: number }>,
+  ) => {
+    for (const kid of kids) {
+      await upsertLeadChildLink(sb as any, {
+        lead_id: leadId,
+        child_index: kid.childIndex ?? 0,
+        student_portal_user_id: kid.studentPortalId,
+        student_name: kid.name || null,
+        student_class: null,
+        link_status: 'onboarded',
+        source: 'bulk_portal',
+        linked_by: user.id,
+      });
+    }
+  };
 
   for (const lead of (leads ?? [])) {
     if (Date.now() > DEADLINE) { timedOut = true; break; }
@@ -127,9 +135,13 @@ export async function POST(req: NextRequest) {
     const childGender = str('child_gender') || null;
 
     const childrenArr = Array.isArray(rd.children) ? (rd.children as Array<Record<string, string>>) : null;
-    const childMatches = Array.isArray(rd.child_matches)
-      ? (rd.child_matches as Array<{ childIndex: number; studentId: string; studentName: string; studentClass: string | null; confidence: string }>)
-      : [];
+    const childMatches = (childLinksByLead[lead.id] ?? []).map((link) => ({
+      childIndex: link.child_index,
+      studentId: link.student_portal_user_id,
+      studentName: link.student_name,
+      studentClass: link.student_class,
+      confidence: link.link_status,
+    }));
 
     if (!parentEmail || !parentEmail.includes('@')) {
       results.no_email++;
@@ -196,6 +208,7 @@ export async function POST(req: NextRequest) {
           classId: formClassById[lead.form_id] ?? null,
         });
         results.students_onboarded += newStudents.length;
+        await recordOnboardedChildren(lead.id, newStudents);
         if (!silent && newStudents.length > 0 && existing.email) {
           try {
             const block = newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('');
@@ -211,11 +224,8 @@ export async function POST(req: NextRequest) {
         await (sb as any).from('form_leads')
           .update({
             matched_parent_id: existing.id,
-            // PROVENANCE: newly-created children are traceable back to this source form.
             ...(newStudents.length ? {
-              matched_student_id: lead.matched_student_id ?? newStudents[0].studentPortalId,
               match_status: 'approved',
-              response_data: { ...rd, child_matches: mergeChildMatches(rd, newStudents) },
             } : {}),
           })
           .eq('id', lead.id);
@@ -320,6 +330,7 @@ export async function POST(req: NextRequest) {
         classId: formClassById[lead.form_id] ?? null,
       });
       results.students_onboarded += newStudents.length;
+      await recordOnboardedChildren(lead.id, newStudents);
       const studentCredsBlock = newStudents.length > 0
         ? `<div style="background:#1c1e22;border-left:4px solid #7c3aed;padding:16px 20px;margin:0 0 20px;border-radius:0 6px 6px 0;"><p style="margin:0 0 10px;font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:1.2px;font-weight:800;">Student Portal Login${newStudents.length > 1 ? 's' : ''}</p>${newStudents.map(s => `<p style="margin:0 0 10px;font-size:14px;color:#d4d4d8;"><strong style="color:#fff;">${s.name}</strong><br/>Email: <span style="font-family:monospace;">${s.email}</span><br/>Password: <span style="font-family:monospace;color:#f59e0b;">${s.password}</span></p>`).join('')}</div>`
         : '';
@@ -392,12 +403,10 @@ export async function POST(req: NextRequest) {
       };
       await (sb as any).from('form_leads').update({
         matched_parent_id: parentId,
-        // PROVENANCE: created children link back to this source form.
         ...(newStudents.length ? {
-          matched_student_id: lead.matched_student_id ?? newStudents[0].studentPortalId,
           match_status: 'approved',
         } : {}),
-        response_data: newStudents.length ? { ...updatedRd, child_matches: mergeChildMatches(updatedRd, newStudents) } : updatedRd,
+        response_data: updatedRd,
       }).eq('id', lead.id);
       await logAudit(sb as any, {
         action: 'consent_bulk_portal_created',

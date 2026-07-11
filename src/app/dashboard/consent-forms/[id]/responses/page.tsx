@@ -46,19 +46,18 @@ interface FormLead {
   matched_parent_id: string | null;
   contact_id: string | null;
   prospect_id: string | null;
+  child_links: Array<{
+    child_index: number;
+    student_portal_user_id: string;
+    student_name: string | null;
+    link_status: 'candidate' | 'approved' | 'onboarded' | 'unlinked' | 'reverted';
+  }>;
 }
 
 type AdditionalLink = {
   childIndex: number;
   studentId: string;
   studentName: string;
-};
-
-type ParentLink = {
-  parent_id: string;
-  student_id: string;
-  studentName: string;
-  studentPortalId: string;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -496,31 +495,7 @@ strong{font-size:8pt}
   win.document.close();
 }
 
-function isChildLinkedToParent(
-  childName: string,
-  parentLinksForThisParent: ParentLink[]
-) {
-  if (!childName) return null;
-  const nameParts = childName.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
-  if (nameParts.length === 0) return null;
-
-  for (const pl of parentLinksForThisParent) {
-    const plName = pl.studentName.toLowerCase().replace(/[^a-z0-9\s]/g, '');
-    // Exact or substring match first
-    if (plName === childName.toLowerCase() || plName.includes(childName.toLowerCase()) || childName.toLowerCase().includes(plName)) {
-      return pl;
-    }
-    // Token overlap match
-    const plParts = plName.split(/\s+/).filter(Boolean);
-    const overlap = nameParts.filter(part => plParts.includes(part)).length;
-    if (overlap >= 2 || (nameParts.length === 1 && overlap === 1)) {
-      return pl;
-    }
-  }
-  return null;
-}
-
-function hydrateAdditionalLinks(leads: FormLead[], parentLinks: ParentLink[]): Record<string, AdditionalLink[]> {
+function hydrateAdditionalLinks(leads: FormLead[]): Record<string, AdditionalLink[]> {
   const hydrated: Record<string, AdditionalLink[]> = {};
 
   for (const lead of leads) {
@@ -528,41 +503,24 @@ function hydrateAdditionalLinks(leads: FormLead[], parentLinks: ParentLink[]): R
     const children = Array.isArray(rd.children) ? rd.children as Array<Record<string, string>> : null;
     if (!children || children.length < 2) continue;
 
-    // child_matches is lead-scoped provenance and therefore authoritative whenever present.
-    // parentLinks is deliberately only a compatibility fallback for older lead records.
-    if (Array.isArray(rd.child_matches)) {
-      const links = (rd.child_matches as Array<Record<string, unknown>>)
-        .map((match): AdditionalLink | null => {
-          const childIndex = Number(match.childIndex);
-          const studentId = typeof match.studentId === 'string' ? match.studentId : '';
+    if (Array.isArray(lead.child_links)) {
+      const links = lead.child_links
+        .filter((link) => ['approved', 'onboarded'].includes(link.link_status))
+        .map((link): AdditionalLink | null => {
+          const childIndex = Number(link.child_index);
+          const studentId = link.student_portal_user_id;
           if (!Number.isInteger(childIndex) || childIndex < 1 || childIndex >= children.length || !studentId) return null;
           return {
             childIndex,
             studentId,
-            studentName: typeof match.studentName === 'string' && match.studentName
-              ? match.studentName
+            studentName: link.student_name
+              ? link.student_name
               : children[childIndex]?.name || 'Student',
           };
         })
         .filter((link): link is AdditionalLink => link !== null);
       if (links.length > 0) hydrated[lead.id] = links;
-      continue;
     }
-
-    if (!lead.matched_parent_id) continue;
-    const linksForParent = parentLinks.filter(link => link.parent_id === lead.matched_parent_id);
-    const fallbackLinks: AdditionalLink[] = [];
-    for (let childIndex = 1; childIndex < children.length; childIndex++) {
-      const match = isChildLinkedToParent(children[childIndex]?.name || '', linksForParent);
-      if (match) {
-        fallbackLinks.push({
-          childIndex,
-          studentId: match.studentPortalId,
-          studentName: match.studentName,
-        });
-      }
-    }
-    if (fallbackLinks.length > 0) hydrated[lead.id] = fallbackLinks;
   }
 
   return hydrated;
@@ -659,10 +617,7 @@ export default function ResponsesPage() {
       setLeads(json.leads ?? []);
       setSigs(json.data  ?? []);
 
-      setAdditionalLinks(hydrateAdditionalLinks(
-        (json.leads ?? []) as FormLead[],
-        (json.parentLinks ?? []) as ParentLink[],
-      ));
+      setAdditionalLinks(hydrateAdditionalLinks((json.leads ?? []) as FormLead[]));
     } finally {
       setLoading(false);
     }
@@ -679,10 +634,7 @@ export default function ResponsesPage() {
       if (!freshLead) return;
 
       setLeads(prev => prev.map(lead => lead.id === leadId ? freshLead : lead));
-      const freshLinks = hydrateAdditionalLinks(
-        [freshLead],
-        (json.parentLinks ?? []) as ParentLink[],
-      )[leadId];
+      const freshLinks = hydrateAdditionalLinks([freshLead])[leadId];
       setAdditionalLinks(prev => {
         const next = { ...prev };
         if (freshLinks?.length) next[leadId] = freshLinks;

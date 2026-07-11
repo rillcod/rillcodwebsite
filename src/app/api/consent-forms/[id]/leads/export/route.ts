@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminSupabase } from '@supabase/supabase-js';
 import { canAccessSchool } from '@/lib/auth/school-scope';
+import { listLeadChildLinksForLeads } from '@/lib/consent/lead-child-links';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
   const { data: leads, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const childLinksByLead = await listLeadChildLinksForLeads(
+    sb as any,
+    (leads ?? []).map((lead: any) => lead.id),
+  );
 
   const progLabel = (cat: string) =>
     cat === 'young_innovators' ? 'Young Innovators'
@@ -73,7 +78,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     'Parent / Guardian', 'Email', 'WhatsApp',
     'Child Name', 'Age', 'Class / Grade', 'Current School',
     'Programme', 'Status', 'Match Status', 'Confidence',
-    'CRM Contact', 'Prospect', 'Portal Linked',
+    'CRM Contact', 'Prospect', 'Portal Linked', 'Linked Children',
     'Prior Coding', 'Devices', 'Learning Goal', 'Schedule', 'Referral Source', 'Special Notes',
   ];
 
@@ -102,7 +107,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       lead.match_confidence ?? '',
       lead.contact_id ? 'Yes' : 'No',
       lead.prospect_id ? 'Yes' : 'No',
-      lead.matched_parent_id ? 'Yes' : 'No',
+      (childLinksByLead[lead.id] ?? []).length > 0 ? 'Yes' : 'No',
+      (childLinksByLead[lead.id] ?? []).map(link => `${link.student_name ?? link.student_portal_user_id} (${link.link_status})`).join('; '),
       rd.prior_coding ?? '',
       devicesVal,
       rd.learning_goal ?? '',

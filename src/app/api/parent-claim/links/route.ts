@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
-  clearStudentFromParentConsentLeads,
   isParentLinkConflict,
   resolveOrCreateStudentRowId,
   syncExplicitParentStudentLink,
+  unlinkExplicitParentStudentLink,
 } from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
@@ -211,23 +211,10 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'This student is outside your school scope' }, { status: 403 });
   }
 
-  const { error } = await admin.from('parent_student_links').delete().eq('id', link.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Clear the parent denorm on the student only if it belonged to THIS parent (avoid
-  // wiping another co-parent's details).
   const { data: parent } = await admin.from('portal_users').select('email').eq('id', link.parent_id).maybeSingle();
   const parentEmail = (parent as any)?.email?.toLowerCase();
-  if (parentEmail && (srow as any)?.parent_email?.toLowerCase() === parentEmail) {
-    await admin.from('students').update({ parent_email: null, parent_name: null, parent_phone: null, updated_at: new Date().toISOString() }).eq('id', link.student_id);
-  }
-
-  // Remove this student from consent provenance for the unlinked parent while
-  // preserving any sibling links on the same lead.
   const studentUserId = (srow as any)?.user_id as string | null;
-  if (studentUserId) {
-    await clearStudentFromParentConsentLeads(admin as any, link.parent_id, studentUserId);
-  }
+  await unlinkExplicitParentStudentLink(admin as any, link.parent_id, link.student_id);
 
   try {
     await (admin as any).from('parent_claim_audit').insert({

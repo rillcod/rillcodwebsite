@@ -5,8 +5,31 @@ import { buildFormLeadConfirmationEmail, buildLeadNotificationEmail } from '@/li
 import { sendWhatsApp } from '@/lib/whatsapp/send';
 import { reconcileLeadWithCrm } from '@/lib/crm/reconcile-lead';
 import { logAudit } from '@/lib/audit/log';
+import {
+  hashConsentSubmissionIp,
+  isConsentSubmissionThrottled,
+  recordConsentSubmissionAttempt,
+} from '@/lib/consent/submission-throttle';
+import { upsertLeadChildLink } from '@/lib/consent/lead-child-links';
 
 export const dynamic = 'force-dynamic';
+
+const SERVER_MANAGED_RESPONSE_KEYS = new Set([
+  '_ip',
+  'child_matches',
+  'child_match_candidates',
+  'submission_snapshot',
+]);
+
+function sanitizeSubmittedResponse(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeSubmittedResponse);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !SERVER_MANAGED_RESPONSE_KEYS.has(key))
+      .map(([key, nested]) => [key, sanitizeSubmittedResponse(nested)]),
+  );
+}
 
 function adminClient() {
   return createClient(
@@ -206,20 +229,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'This consent form deadline has passed.' }, { status: 410 });
   }
 
-  // Simple IP-based rate limiting — max 5 submissions per IP per 10 minutes
+  // Privacy-preserving rate limiting — the raw address is never persisted.
   const clientIp = req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  if (clientIp !== 'unknown') {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { count } = await (sb as any)
-      .from('form_leads')
-      .select('id', { count: 'exact', head: true })
-      .eq('form_id', id)
-      .gte('submitted_at', tenMinutesAgo)
-      .eq('response_data->>_ip', clientIp);
-    if ((count ?? 0) >= 5) {
-      return NextResponse.json({ error: 'Too many submissions. Please try again later.' }, { status: 429 });
-    }
+  const ipHash = hashConsentSubmissionIp(clientIp);
+  if (await isConsentSubmissionThrottled(sb as any, { formId: id, ipHash })) {
+    return NextResponse.json({ error: 'Too many submissions. Please try again later.' }, { status: 429 });
   }
+  await recordConsentSubmissionAttempt(sb as any, { formId: id, ipHash });
 
   const body = await req.json().catch(() => ({}));
   const { response_data: rawData = {}, child_current_school, email } = body;
@@ -250,8 +266,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Each child may only appear once in a submission.' }, { status: 400 });
   }
 
-  // Stamp the IP into response_data for rate-limit tracking (not displayed to users)
-  const response_data = { ...rawData, _ip: clientIp };
+  const response_data = sanitizeSubmittedResponse(rawData) as Record<string, any>;
 
   // Duplicate detection — same email + child name + form within 30 days
   const parentEmail = (rawData.parent_email || email || '').trim().toLowerCase();
@@ -346,9 +361,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     }
   }
 
-  // These are match suggestions, not established links. Canonical child_matches
-  // is reserved for links explicitly approved by staff.
-  const immutableSubmission = { ...rawData };
+  // These are immutable match suggestions, not established relational links.
+  const immutableSubmission = structuredClone(response_data);
   const enrichedResponseData = {
     ...response_data,
     submission_snapshot: immutableSubmission,
@@ -384,9 +398,37 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     resourceType: 'form_lead',
     resourceId: lead.id,
     newValues: { form_id: id, school_id: form.school_id, match_status: matchStatus },
-    ip: clientIp === 'unknown' ? null : clientIp,
+    ip: null,
     userAgent: req.headers.get('user-agent'),
   });
+
+  // Persist match suggestions as relational candidate slots — never as live child_matches.
+  try {
+    if (needsReview && matchResult?.candidate) {
+      await upsertLeadChildLink(sb as any, {
+        lead_id: lead.id,
+        child_index: 0,
+        student_portal_user_id: matchResult.candidate.id,
+        student_name: matchResult.candidate.full_name,
+        student_class: matchResult.candidate.section_class,
+        link_status: 'candidate',
+        source: 'match_review',
+        linked_by: null,
+      });
+    }
+    for (const entry of childMatchEntries) {
+      await upsertLeadChildLink(sb as any, {
+        lead_id: lead.id,
+        child_index: entry.childIndex,
+        student_portal_user_id: entry.studentId,
+        student_name: entry.studentName,
+        student_class: entry.studentClass,
+        link_status: 'candidate',
+        source: 'match_review',
+        linked_by: null,
+      });
+    }
+  } catch { /* non-fatal — staff can still review via match_candidate_id */ }
 
   // ── Back-patch match suggestions onto the saved lead ─────────────────────
   if (childMatchEntries.length > 0 && lead?.id) {

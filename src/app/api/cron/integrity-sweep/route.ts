@@ -20,6 +20,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { extractCronSecret, isValidCronSecret } from '@/lib/server/cron-auth';
+import { logAudit } from '@/lib/audit/log';
+import { resolveStudentRowId, syncExplicitParentStudentLink } from '@/lib/parents/links';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +51,11 @@ async function handle(req: NextRequest) {
     duplicateParentLinks: 0,
     legacyLinksBackfilled: 0,
     staleLeadStudentRefs: 0,
+    staleConsentLinksPruned: 0,
+    invalidApprovalsDowngraded: 0,
+    parentMirrorsResynced: 0,
+    ownershipConflicts: 0,
+    throttleRowsPurged: 0,
     studentsNoSchool: 0,
     studentsNoClass: 0,
     errors: [] as string[],
@@ -136,7 +143,96 @@ async function handle(req: NextRequest) {
     const matchedLeads = await fetchAll(admin, 'form_leads', 'id, matched_student_id', (q: any) => q.not('matched_student_id', 'is', null));
     report.staleLeadStudentRefs = matchedLeads.filter((lead: any) => !studentPortalIds.has(lead.matched_student_id)).length;
 
-    // ── 4. Report (no change) students missing a school / class ──
+    // ── 4. Reconcile canonical consent provenance and parent mirrors ──
+    const consentLinks = await fetchAll(
+      admin,
+      'form_lead_child_links',
+      'id, lead_id, student_portal_user_id, child_index',
+    );
+    for (const link of consentLinks) {
+      if (studentPortalIds.has(link.student_portal_user_id)) continue;
+      const { error } = await admin.from('form_lead_child_links').delete().eq('id', link.id);
+      if (!error) {
+        report.staleConsentLinksPruned++;
+        await logAudit(admin as any, {
+          action: 'integrity_consent_link_pruned',
+          resourceType: 'form_lead',
+          resourceId: link.lead_id,
+          oldValues: { student_portal_user_id: link.student_portal_user_id, child_index: link.child_index },
+        });
+      }
+    }
+
+    const activeConsentLinks = consentLinks.filter((link: any) => studentPortalIds.has(link.student_portal_user_id));
+    const childCountByLead = new Map<string, number>();
+    for (const link of activeConsentLinks) {
+      childCountByLead.set(link.lead_id, (childCountByLead.get(link.lead_id) ?? 0) + 1);
+    }
+    const approvedLeads = await fetchAll(
+      admin,
+      'form_leads',
+      'id, matched_parent_id, match_status, email, response_data',
+      (q: any) => q.in('match_status', ['approved', 'auto_matched', 'matched']),
+    );
+    for (const lead of approvedLeads) {
+      if ((childCountByLead.get(lead.id) ?? 0) > 0) continue;
+      const { error } = await admin.from('form_leads').update({
+        match_status: 'pending_review',
+        status: 'new',
+      }).eq('id', lead.id);
+      if (!error) {
+        report.invalidApprovalsDowngraded++;
+        await logAudit(admin as any, {
+          action: 'integrity_consent_approval_downgraded',
+          resourceType: 'form_lead',
+          resourceId: lead.id,
+        });
+      }
+    }
+
+    const leadById = new Map(approvedLeads.map((lead: any) => [lead.id, lead]));
+    for (const link of activeConsentLinks) {
+      const lead = leadById.get(link.lead_id);
+      if (!lead?.matched_parent_id) continue;
+      const studentRowId = await resolveStudentRowId(admin as any, link.student_portal_user_id);
+      if (!studentRowId) continue;
+      const owner = links.find((item: any) => item.student_id === studentRowId);
+      if (owner && owner.parent_id !== lead.matched_parent_id) {
+        report.ownershipConflicts++;
+        await admin.from('form_leads').update({
+          match_status: 'pending_review',
+          match_candidate_id: link.student_portal_user_id,
+        }).eq('id', lead.id);
+        await admin.from('form_lead_child_links').delete().eq('id', link.id);
+        await logAudit(admin as any, {
+          action: 'integrity_consent_ownership_conflict',
+          resourceType: 'form_lead',
+          resourceId: lead.id,
+          newValues: { verified_parent_id: owner.parent_id, proposed_parent_id: lead.matched_parent_id },
+        });
+        continue;
+      }
+      const parent = parentRows.find((row: any) => row.id === lead.matched_parent_id);
+      const rd = (lead.response_data ?? {}) as Record<string, unknown>;
+      const submittedEmail = norm(String(rd.parent_email ?? lead.email ?? ''));
+      if (!owner && (!submittedEmail || submittedEmail !== norm(parent?.email))) continue;
+      try {
+        await syncExplicitParentStudentLink(admin as any, lead.matched_parent_id, studentRowId);
+        report.parentMirrorsResynced++;
+      } catch (error: any) {
+        report.errors.push(`consent ownership ${lead.id}: ${error.message}`);
+      }
+    }
+
+    const { data: expiredThrottle, error: throttleError } = await admin
+      .from('consent_submission_throttle')
+      .delete()
+      .lt('expires_at', new Date().toISOString())
+      .select('id');
+    if (throttleError) report.errors.push(`throttle purge: ${throttleError.message}`);
+    else report.throttleRowsPurged = expiredThrottle?.length ?? 0;
+
+    // ── 5. Report (no change) students missing a school / class ──
     const { count: noSchool } = await admin.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').neq('is_deleted', true).is('school_id', null);
     const { count: noClass } = await admin.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').neq('is_deleted', true).is('class_id', null);
     report.studentsNoSchool = noSchool ?? 0;

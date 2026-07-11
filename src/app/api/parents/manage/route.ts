@@ -3,9 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase';
 import {
-  clearStudentFromParentConsentLeads,
   isParentLinkConflict,
   syncExplicitParentStudentLink,
+  unlinkExplicitParentStudentLink,
 } from '@/lib/parents/links';
 import { syncParentContactAcrossStores } from '@/lib/sync/student-parent-identity';
 import { generateTempPassword } from '@/lib/utils/password';
@@ -346,23 +346,8 @@ export async function DELETE(req: Request) {
         .maybeSingle();
       const effectiveParentId = parent_id || existingLink?.parent_id || null;
 
-      // Clear both canonical junction ownership and legacy denormalised fields.
-      const { error: clearError } = await admin.from('students').update({
-        parent_email: null,
-        parent_name: null,
-        parent_phone: null,
-        parent_relationship: null,
-        updated_at: new Date().toISOString(),
-      }).eq('id', student_id);
-      if (clearError) throw clearError;
-
-      let linkDel = admin.from('parent_student_links').delete().eq('student_id', student_id);
-      if (parent_id) linkDel = linkDel.eq('parent_id', parent_id);
-      const { error: linkErr } = await linkDel;
-      if (linkErr && (linkErr as any).code !== '42P01') throw linkErr;
-
-      if (effectiveParentId && studentRow.user_id) {
-        await clearStudentFromParentConsentLeads(admin as any, effectiveParentId, studentRow.user_id);
+      if (effectiveParentId) {
+        await unlinkExplicitParentStudentLink(admin as any, effectiveParentId, student_id);
       }
     }
 

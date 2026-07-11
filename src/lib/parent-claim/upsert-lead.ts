@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ensureResultIntakeForm } from './intake-form';
+import { upsertLeadChildLink } from '@/lib/consent/lead-child-links';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -61,6 +62,16 @@ export async function upsertResultCheckerLead(admin: AnySupabase, input: LeadCap
       match_notes: 'Refreshed via result/ID-card scan (parent re-linked).',
       response_data: { ...prior, ...responsePatch },
     }).eq('id', existing.id);
+    await upsertLeadChildLink(admin, {
+      lead_id: existing.id,
+      child_index: 0,
+      student_portal_user_id: input.studentUserId,
+      student_name: input.childName,
+      student_class: null,
+      link_status: 'approved',
+      source: 'result_scan',
+      linked_by: input.parentId,
+    });
     return existing.id;
   }
 
@@ -69,12 +80,23 @@ export async function upsertResultCheckerLead(admin: AnySupabase, input: LeadCap
     school_id: input.schoolId,
     email: input.email,
     response_data: responsePatch,
-    matched_student_id: input.studentUserId,
     matched_parent_id: input.parentId,
     match_status: 'approved',
     match_confidence: 'high',
     match_notes: 'Auto-linked via result/ID-card scan (exact child).',
   }).select('id').maybeSingle();
 
+  if (inserted?.id) {
+    await upsertLeadChildLink(admin, {
+      lead_id: inserted.id,
+      child_index: 0,
+      student_portal_user_id: input.studentUserId,
+      student_name: input.childName,
+      student_class: null,
+      link_status: 'approved',
+      source: 'result_scan',
+      linked_by: input.parentId,
+    });
+  }
   return inserted?.id ?? null;
 }

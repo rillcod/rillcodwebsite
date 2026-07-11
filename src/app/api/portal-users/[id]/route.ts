@@ -6,6 +6,7 @@ import { syncStudentIdentityAcrossStores, harmonizeStudentParentIdentity } from 
 import { cleanStudentName } from '@/lib/students/clean-name';
 import { cleanGrade, cleanClassName } from '@/lib/classes/naming';
 import { getAccountValuables } from '@/lib/students/account-valuables';
+import { clearLeadChildLinks } from '@/lib/consent/lead-child-links';
 
 function adminClient() {
   return createClient(
@@ -233,18 +234,14 @@ export async function DELETE(
     }
     const { data: parentLeads } = await admin
       .from('form_leads')
-      .select('id, response_data')
+      .select('id')
       .eq('matched_parent_id', id);
     for (const lead of parentLeads ?? []) {
+      await clearLeadChildLinks(admin as any, lead.id);
       await admin.from('form_leads').update({
         matched_parent_id: null,
-        matched_student_id: null,
         match_candidate_id: null,
         match_status: 'new_prospect',
-        response_data: {
-          ...((lead.response_data ?? {}) as Record<string, unknown>),
-          child_matches: [],
-        },
       }).eq('id', lead.id);
     }
   }

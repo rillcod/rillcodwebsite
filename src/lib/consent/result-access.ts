@@ -35,18 +35,6 @@ function formRank(form: RequiredConsentForm, classId?: string | null) {
   return classRank * 10 + typeRank;
 }
 
-function responseDataMatchesStudent(responseData: unknown, studentUserId: string) {
-  if (!responseData || typeof responseData !== 'object' || Array.isArray(responseData)) return false;
-  const data = responseData as Record<string, unknown>;
-  const childMatches = Array.isArray(data.child_matches)
-    ? data.child_matches as Array<{ studentId?: string | null; confidence?: string | null }>
-    : [];
-  return childMatches.some((match) =>
-    match.studentId === studentUserId &&
-    (!match.confidence || ['approved', 'high'].includes(match.confidence))
-  );
-}
-
 export async function resolveRequiredConsentForm(
   admin: AnySupabase,
   params: { schoolId?: string | null; classId?: string | null },
@@ -93,7 +81,7 @@ export async function getResultConsentAccessStatus(
 
   const { data, error } = await admin
     .from('form_leads')
-    .select('id, status, match_status, matched_parent_id, matched_student_id, response_data')
+    .select('id, status, match_status, matched_parent_id, matched_student_id')
     .eq('form_id', form.id)
     // form_leads is timestamped by submitted_at (there is no created_at column) — ordering
     // by a non-existent column threw 42703 and 500'd result access for every school that
@@ -102,15 +90,24 @@ export async function getResultConsentAccessStatus(
     .limit(1000);
 
   if (error) throw error;
+  const leadIds = (data ?? []).map((lead) => lead.id);
+  const { data: childLinks, error: childLinkError } = leadIds.length
+    ? await admin
+      .from('form_lead_child_links')
+      .select('lead_id, student_portal_user_id')
+      .in('lead_id', leadIds)
+      .eq('student_portal_user_id', params.studentUserId)
+      .in('status', ['approved', 'onboarded'])
+    : { data: [], error: null };
+  if (childLinkError) throw childLinkError;
+  const matchingLeadIds = new Set((childLinks ?? []).map((link) => link.lead_id));
 
   const validStatuses = new Set(['enrolled', 'contacted', 'new', null]);
   const validMatchStatuses = new Set(['approved', 'auto_matched', 'matched']);
   const matched = (data ?? []).find((lead: any) => {
     const statusOk = validStatuses.has(lead.status ?? null);
     const matchOk = validMatchStatuses.has(lead.match_status ?? null);
-    const studentMatches =
-      lead.matched_student_id === params.studentUserId ||
-      responseDataMatchesStudent(lead.response_data, params.studentUserId);
+    const studentMatches = matchingLeadIds.has(lead.id);
     const parentMatches = !params.parentId || !lead.matched_parent_id || lead.matched_parent_id === params.parentId;
     return statusOk && matchOk && studentMatches && parentMatches;
   });

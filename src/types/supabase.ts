@@ -2286,6 +2286,38 @@ export type Database = {
           },
         ]
       }
+      consent_submission_throttle: {
+        Row: {
+          expires_at: string
+          form_id: string
+          id: string
+          ip_hmac: string
+          submitted_at: string
+        }
+        Insert: {
+          expires_at: string
+          form_id: string
+          id?: string
+          ip_hmac: string
+          submitted_at?: string
+        }
+        Update: {
+          expires_at?: string
+          form_id?: string
+          id?: string
+          ip_hmac?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_submission_throttle_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "consent_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_library: {
         Row: {
           approved_at: string | null
@@ -4502,6 +4534,84 @@ export type Database = {
           {
             foreignKeyName: "flashcard_study_sessions_student_id_fkey"
             columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+        ]
+      }
+      form_lead_child_links: {
+        Row: {
+          child_index: number
+          created_at: string
+          id: string
+          lead_id: string
+          linked_at: string | null
+          linked_by: string | null
+          metadata: Json
+          source: string
+          status: string
+          student_portal_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          child_index: number
+          created_at?: string
+          id?: string
+          lead_id: string
+          linked_at?: string | null
+          linked_by?: string | null
+          metadata?: Json
+          source: string
+          status?: string
+          student_portal_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          child_index?: number
+          created_at?: string
+          id?: string
+          lead_id?: string
+          linked_at?: string | null
+          linked_by?: string | null
+          metadata?: Json
+          source?: string
+          status?: string
+          student_portal_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_lead_child_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "form_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_lead_child_links_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_lead_child_links_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "form_lead_child_links_student_portal_user_id_fkey"
+            columns: ["student_portal_user_id"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_lead_child_links_student_portal_user_id_fkey"
+            columns: ["student_portal_user_id"]
             isOneToOne: false
             referencedRelation: "student_performance_summary"
             referencedColumns: ["student_id"]
