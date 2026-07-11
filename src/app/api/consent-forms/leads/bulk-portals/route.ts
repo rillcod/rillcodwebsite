@@ -156,7 +156,18 @@ export async function POST(req: NextRequest) {
       const leadFormClassId = formClassById[lead.form_id] ?? null;
       if (leadFormClassId) {
         const matchedIds = [lead.matched_student_id, ...childMatches.map(m => m.studentId)].filter(Boolean) as string[];
-        if (matchedIds.length) await (sb as any).from('portal_users').update({ class_id: leadFormClassId }).in('id', matchedIds).is('class_id', null);
+        if (matchedIds.length) {
+          const { data: cls } = await (sb as any).from('classes').select('name').eq('id', leadFormClassId).maybeSingle();
+          const sectionLabel = (cls?.name as string | undefined)?.trim() || null;
+          await (sb as any)
+            .from('portal_users')
+            .update({
+              class_id: leadFormClassId,
+              ...(sectionLabel ? { section_class: sectionLabel } : {}),
+            })
+            .in('id', matchedIds)
+            .is('class_id', null);
+        }
       }
 
       const { data: existing } = await (sb as any)

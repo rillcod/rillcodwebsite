@@ -33,7 +33,7 @@ const SORT_LABELS: Record<SortKey, string> = {
   registered: 'Newest first',
   name: 'Name',
   school: 'School',
-  klass: 'Class',
+  klass: 'Grade',
   type: 'Type',
   status: 'Status',
   source: 'Source',
@@ -202,10 +202,10 @@ export default function RecordsPage() {
   function exportCsv() {
     let head: string[]; let lines: string[];
     if (tab === 'people') {
-      head = ['Name', 'Type', 'Email', 'School', 'Class', 'Program', 'Source', 'Status', 'Registered'];
+      head = ['Name', 'Type', 'Email', 'School', 'Grade', 'Program', 'Source', 'Status', 'Registered'];
       lines = peopleFiltered.map(r => [r.name, r.type, r.email, r.school, r.klass, r.program, r.source, r.status, r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : ''].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
     } else {
-      head = ['Name', 'Email', 'Password', 'Class', 'School', 'Registration Type', 'Batch', 'Status', 'Account', 'Registered'];
+      head = ['Name', 'Email', 'Password', 'Grade', 'School', 'Registration Type', 'Batch', 'Status', 'Account', 'Registered'];
       lines = regsFiltered.map(r => [r.name, r.email, r.password, r.klass, r.school, r.source, r.batchName, r.status, r.account, r.registered ? new Date(r.registered).toLocaleDateString('en-GB') : ''].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','));
     }
     const blob = new Blob([[head.join(','), ...lines].join('\n')], { type: 'text/csv' });
@@ -219,8 +219,8 @@ export default function RecordsPage() {
     if (data.length === 0) return;
     const title = isPeople ? 'People Records List' : 'Registration Credentials List';
     const columns = isPeople
-      ? ['#', 'Name', 'Type', 'Email', 'School', 'Class', 'Program', 'Source', 'Status', 'Registered']
-      : ['#', 'Name', 'Login Email', 'Password', 'Class', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered'];
+      ? ['#', 'Name', 'Type', 'Email', 'School', 'Grade', 'Program', 'Source', 'Status', 'Registered']
+      : ['#', 'Name', 'Login Email', 'Password', 'Grade', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered'];
     const rowsHtml = data.map((row: any, index) => {
       const cells = isPeople
         ? [index + 1, row.name, row.type, row.email, row.school, row.klass, row.program, row.source, row.status, fmtDate(row.registered)]
@@ -363,7 +363,7 @@ export default function RecordsPage() {
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search name or email…" className={INPUT + ' w-full pl-9'} />
         </div>
         <Select value={fSchool} onChange={setFSchool}><option value="all">All schools</option>{uniq(tab === 'people' ? rows : regs, 'school').map(s => <option key={s} value={s}>{s}</option>)}</Select>
-        <Select value={fClass} onChange={setFClass}><option value="all">All classes</option>{uniq(tab === 'people' ? rows : regs, 'klass').map(c => <option key={c} value={c}>{c}</option>)}</Select>
+        <Select value={fClass} onChange={setFClass}><option value="all">All grades</option>{uniq(tab === 'people' ? rows : regs, 'klass').map(c => <option key={c} value={c}>{c}</option>)}</Select>
         {tab === 'people' ? (
           <>
             <Select value={fSource} onChange={setFSource}><option value="all">All sources</option>{uniq(rows, 'source').map(s => <option key={s} value={s}>{s}</option>)}</Select>
@@ -430,7 +430,7 @@ export default function RecordsPage() {
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
                 <div><p className="text-muted-foreground text-[10px] uppercase font-black">School</p><p className="text-foreground truncate">{row.school || '—'}</p></div>
-                <div><p className="text-muted-foreground text-[10px] uppercase font-black">Class</p><p className="text-foreground truncate">{row.klass || '—'}</p></div>
+                <div><p className="text-muted-foreground text-[10px] uppercase font-black">Grade</p><p className="text-foreground truncate">{row.klass || '—'}</p></div>
                 {tab === 'registrations' && (
                   <>
                     <div><p className="text-muted-foreground text-[10px] uppercase font-black">Type</p><p className="text-foreground truncate">{row.source || '—'}</p></div>
@@ -472,7 +472,7 @@ export default function RecordsPage() {
           {tab === 'people' ? (
             <table className="w-full text-sm min-w-[820px]">
               <thead className="sticky top-0 z-10 bg-muted text-[10px] uppercase tracking-widest text-muted-foreground shadow-sm">
-                <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered records" /></th>{['Name', 'Type', 'Email', 'School', 'Class', 'Program', 'Source', 'Status', 'Registered'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
+                <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered records" /></th>{['Name', 'Type', 'Email', 'School', 'Grade', 'Program', 'Source', 'Status', 'Registered'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {peopleFiltered.map(r => (
@@ -495,7 +495,7 @@ export default function RecordsPage() {
           ) : (
             <table className="w-full text-sm min-w-[980px]">
               <thead className="sticky top-0 z-10 bg-muted text-[10px] uppercase tracking-widest text-muted-foreground shadow-sm">
-                <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered registrations" /></th>{['Name', 'Login Email', 'Password', 'Class', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered', 'Result Check'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
+                <tr><th className="px-3 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} className="accent-primary" aria-label="Select all filtered registrations" /></th>{['Name', 'Login Email', 'Password', 'Grade', 'School', 'Type', 'Batch', 'Status', 'Account', 'Registered', 'Result Check'].map(h => <th key={h} className="text-left font-black px-3 py-3 whitespace-nowrap">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {regsFiltered.map(r => (

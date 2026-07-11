@@ -56,6 +56,8 @@ async function handle(req: NextRequest) {
     parentMirrorsResynced: 0,
     ownershipConflicts: 0,
     throttleRowsPurged: 0,
+    gradesRepaired: 0,
+    sectionsSyncedFromClass: 0,
     studentsNoSchool: 0,
     studentsNoClass: 0,
     errors: [] as string[],
@@ -231,6 +233,68 @@ async function handle(req: NextRequest) {
       .select('id');
     if (throttleError) report.errors.push(`throttle purge: ${throttleError.message}`);
     else report.throttleRowsPurged = expiredThrottle?.length ?? 0;
+
+    // ── 4b. Repair grade vs section mix-ups from consent/registration ──
+    // If section_class holds a specific grade (Basic 2 / JSS 1) and grade is empty,
+    // move it into grade. If class_id is set, sync section_class from classes.name.
+    const { canonicalGrade, SINGLE_GRADES } = await import('@/lib/classes/naming');
+    const portalStudents = await fetchAll(
+      admin,
+      'portal_users',
+      'id, class_id, section_class, grade',
+      (q: any) => q.eq('role', 'student').neq('is_deleted', true),
+    );
+    const classIds = [...new Set(portalStudents.map((s: any) => s.class_id).filter(Boolean))];
+    const classNameById = new Map<string, string>();
+    for (let i = 0; i < classIds.length; i += 100) {
+      const chunk = classIds.slice(i, i + 100);
+      const { data: classes } = await admin.from('classes').select('id, name').in('id', chunk);
+      for (const c of classes ?? []) classNameById.set(c.id, (c.name || '').trim());
+    }
+    for (const s of portalStudents) {
+      const patch: Record<string, unknown> = {};
+      const section = String(s.section_class || '').trim();
+      const existingGrade = String(s.grade || '').trim();
+      const canon = canonicalGrade(section);
+      // Only treat as a misplaced grade when the label itself is a single grade
+      // (e.g. "JSS 2"), not a band ("JSS 1-3") or composed class name ("School · …").
+      const sectionIsSpecificGrade =
+        !!canon
+        && (SINGLE_GRADES as readonly string[]).includes(canon)
+        && !section.includes('·')
+        && !/\d+\s*[-–]\s*\d+/.test(section);
+
+      if (!existingGrade && sectionIsSpecificGrade) {
+        patch.grade = canon;
+      }
+
+      const className = s.class_id ? classNameById.get(s.class_id) : null;
+      if (className && (sectionIsSpecificGrade || !section)) {
+        patch.section_class = className;
+        report.sectionsSyncedFromClass++;
+      } else if (className && section && section !== className && sectionIsSpecificGrade) {
+        patch.section_class = className;
+        report.sectionsSyncedFromClass++;
+      }
+
+      if (Object.keys(patch).length === 0) continue;
+      const { error } = await admin.from('portal_users').update(patch).eq('id', s.id);
+      if (error) {
+        report.errors.push(`grade repair ${s.id}: ${error.message}`);
+        continue;
+      }
+      if (patch.grade) report.gradesRepaired++;
+      const studentPatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (patch.grade) {
+        studentPatch.grade = patch.grade;
+        studentPatch.grade_level = patch.grade;
+      }
+      if (patch.section_class) {
+        studentPatch.current_class = patch.section_class;
+        studentPatch.section = patch.section_class;
+      }
+      await admin.from('students').update(studentPatch).eq('user_id', s.id);
+    }
 
     // ── 5. Report (no change) students missing a school / class ──
     const { count: noSchool } = await admin.from('portal_users').select('id', { count: 'exact', head: true }).eq('role', 'student').neq('is_deleted', true).is('school_id', null);

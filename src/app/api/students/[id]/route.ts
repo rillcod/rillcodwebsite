@@ -84,7 +84,8 @@ export async function PATCH(
             gender: allowed.gender,
             date_of_birth: allowed.date_of_birth,
             full_name: allowed.full_name,
-            section_class: allowed.section_class ?? allowed.grade_level,
+            section_class: allowed.section_class,
+            grade: allowed.grade_level,
         }, 'overwrite');
         await harmonizeStudentParentIdentity(adminClient(), { studentUserId: data.user_id });
     }

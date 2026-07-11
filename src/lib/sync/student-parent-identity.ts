@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { resolveOrCreateStudentRowId } from '@/lib/parents/links';
+import { cleanGrade, canonicalGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -38,7 +39,10 @@ export type ChildIdentityInput = {
   age?: string | number | null;
   date_of_birth?: string | null;
   full_name?: string | null;
+  /** Cohort / registered class label — never the specific grade. */
   section_class?: string | null;
+  /** Specific canonical grade (Basic 2, JSS 1 …). */
+  grade?: string | null;
 };
 
 export type ParentContactInput = {
@@ -111,8 +115,8 @@ export async function syncStudentIdentityAcrossStores(
   if (!childRowId) return false;
 
   const [{ data: studentRow }, { data: portalRow }] = await Promise.all([
-    admin.from('students').select('gender, age, date_of_birth, full_name, current_class, section_class, grade_level').eq('id', childRowId).maybeSingle(),
-    admin.from('portal_users').select('gender, date_of_birth, full_name, section_class').eq('id', studentUserId).maybeSingle(),
+    admin.from('students').select('gender, age, date_of_birth, full_name, current_class, section_class, grade_level, grade').eq('id', childRowId).maybeSingle(),
+    admin.from('portal_users').select('gender, date_of_birth, full_name, section_class, grade').eq('id', studentUserId).maybeSingle(),
   ]);
 
   const gender = normaliseChildGender(input.gender);
@@ -153,9 +157,21 @@ export async function syncStudentIdentityAcrossStores(
   if (klass && shouldWrite(studentRow?.current_class ?? studentRow?.section_class, mode)) {
     studentPatch.current_class = klass;
     studentPatch.section = klass;
-    studentPatch.current_class = klass;
     portalPatch.section_class = klass;
     authMeta.section_class = klass;
+    changed = true;
+  }
+
+  const gradeCandidate = canonicalGrade(input.grade) || cleanGrade(input.grade);
+  const specificGrade =
+    gradeCandidate && (SINGLE_GRADES as readonly string[]).includes(gradeCandidate)
+      ? gradeCandidate
+      : null;
+  if (specificGrade && shouldWrite(studentRow?.grade_level ?? studentRow?.grade ?? portalRow?.grade, mode)) {
+    studentPatch.grade = specificGrade;
+    studentPatch.grade_level = specificGrade;
+    portalPatch.grade = specificGrade;
+    authMeta.grade = specificGrade;
     changed = true;
   }
 
@@ -260,12 +276,14 @@ export async function syncStudentFromLeadResponse(
   responseData: Record<string, unknown>,
   mode: SyncMode = 'fill-only',
 ): Promise<boolean> {
+  // child_class on the form is the SPECIFIC grade (labeled "Class / Grade"), not the
+  // registered section/cohort. Never write it into section_class.
   return syncStudentIdentityAcrossStores(admin, studentUserId, {
     gender: String(responseData.child_gender ?? ''),
     age: String(responseData.child_age ?? ''),
     date_of_birth: String(responseData.child_dob ?? ''),
     full_name: String(responseData.child_name ?? ''),
-    section_class: String(responseData.child_class ?? ''),
+    grade: String(responseData.child_class ?? ''),
   }, mode);
 }
 

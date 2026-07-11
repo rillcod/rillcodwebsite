@@ -67,7 +67,7 @@ export async function GET() {
   // ── Pull the source tables ──
   let usersQuery = sb
     .from('portal_users')
-    .select('id, email, full_name, role, school_id, school_name, section_class, enrollment_type, is_active, created_at')
+    .select('id, email, full_name, role, school_id, school_name, section_class, grade, enrollment_type, is_active, created_at')
     .neq('is_deleted', true);
   let leadsQuery = sb
     .from('form_leads')
@@ -116,7 +116,8 @@ export async function GET() {
       name: u.full_name || '(no name)',
       email: u.email || '',
       school: u.school_name || '',
-      klass: u.section_class || '',
+      // Prefer specific grade; fall back to section/cohort only when grade is missing.
+      klass: u.grade || u.section_class || '',
       program: '',
       source: role === 'student' ? sourceFor(u) : '—',
       status: u.is_active === false ? 'Inactive' : 'Active',

@@ -213,6 +213,19 @@ export async function onboardStudentFromProspect(
     classId = await ensureClassWithTutor(admin, school.id, school.name, className, undefined, prospect.grade);
   }
 
+  // Specific grade (Basic 2 / JSS 1 …) vs registered section/cohort (class name).
+  // Never fold the grade into section_class — Records and students UI keep them apart.
+  const specificGrade = canonicalGrade(prospect.grade) || null;
+  let sectionLabel: string | null = null;
+  if (classId) {
+    const { data: placed } = await admin
+      .from('classes')
+      .select('name, qa_grade_key, qa_grade_band')
+      .eq('id', classId)
+      .maybeSingle();
+    sectionLabel = (placed?.name || '').trim() || null;
+  }
+
   // Student account.
   let studentPortalId: string | null = priorUserId;
   let studentEmail = priorStudentEmail;
@@ -257,8 +270,8 @@ export async function onboardStudentFromProspect(
     // existing gender / dob / class on a reused account.
     ...(prospect.gender ? { gender: prospect.gender } : {}),
     ...(prospect.age ? { date_of_birth: `${new Date().getFullYear() - prospect.age}-01-01` } : {}),
-    ...(prospect.grade ? { section_class: prospect.grade } : {}),
-    ...(canonicalGrade(prospect.grade) ? { grade: canonicalGrade(prospect.grade) } : {}),
+    ...(sectionLabel ? { section_class: sectionLabel } : {}),
+    ...(specificGrade ? { grade: specificGrade } : {}),
     enrollment_type: recordEnrollmentType,
     phone: prospect.parent_phone || null,
     is_active: true,
@@ -278,7 +291,12 @@ export async function onboardStudentFromProspect(
     // empty form field must not wipe an existing student's gender/age/grade).
     ...(prospect.age != null ? { age: prospect.age } : {}),
     ...(prospect.gender ? { gender: prospect.gender } : {}),
-    ...(prospect.grade ? { grade: prospect.grade, grade_level: prospect.grade, current_class: prospect.grade } : {}),
+    ...(specificGrade
+      ? { grade: specificGrade, grade_level: specificGrade }
+      : {}),
+    ...(sectionLabel
+      ? { current_class: sectionLabel, section: sectionLabel }
+      : {}),
     school_id: school.id,
     school_name: school.name,
     // class_id intentionally omitted — the students table has no class_id column;

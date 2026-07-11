@@ -114,7 +114,7 @@ export async function PATCH(
   // Sync students shadow table when profile fields change
   const studentSync: Record<string, any> = {};
   if (update.full_name     !== undefined) { studentSync.full_name = update.full_name; studentSync.name = update.full_name; }
-  if (update.section_class !== undefined) { studentSync.current_class = update.section_class; studentSync.grade_level = update.section_class; }
+  if (update.section_class !== undefined) { studentSync.current_class = update.section_class; studentSync.section = update.section_class; }
   if (update.school_id     !== undefined) { studentSync.school_id = update.school_id; }
   if (update.school_name   !== undefined) { studentSync.school_name = update.school_name; }
   if (update.gender        !== undefined) { studentSync.gender = update.gender; }
