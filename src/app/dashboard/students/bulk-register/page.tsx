@@ -98,10 +98,11 @@ interface GeneratedStudent {
 }
 
 interface RegisterResult extends GeneratedStudent {
-  status: 'created' | 'updated' | 'skipped' | 'failed' | 'name_swap_conflict';
+  status: 'created' | 'updated' | 'skipped' | 'failed' | 'name_swap_conflict' | 'reinstated' | 'needs_transfer';
   error?: string;
-  batch_id?: string;
+  userId?: string;
   portal_user_id?: string;
+  batch_id?: string;
   cardIssued?: boolean;
   cardId?: string | null;
 }
@@ -1150,11 +1151,18 @@ export default function BulkRegisterPage() {
 
   const selectedRegisteredClass = registryClasses.find((candidate) => candidate.id === selectedRegistryClass);
   const effectiveClassCode = defaultClass.trim();
-  const filteredRegistryClasses = registryClasses.filter(c =>
-    (!selectedSchoolId || c.school_id === selectedSchoolId) &&
-    (!selectedProgramId || c.program_id === selectedProgramId) &&
-    (!selectedTermId || c.term_id === selectedTermId)
+  // Soft term/programme filters: owned classes often have null term_id/program_id
+  // or a different term than the batch selector — don't hide the teacher's own section.
+  const schoolRegistryClasses = registryClasses.filter((c) =>
+    !selectedSchoolId || c.school_id === selectedSchoolId,
   );
+  const filteredRegistryClasses = schoolRegistryClasses.filter((c) => {
+    const programOk = !selectedProgramId || !c.program_id || c.program_id === selectedProgramId;
+    const termOk = !selectedTermId || !c.term_id || c.term_id === selectedTermId;
+    return programOk && termOk;
+  });
+  // Always fall back to every owned class at this school so placement never looks empty.
+  const placementPool = filteredRegistryClasses.length > 0 ? filteredRegistryClasses : schoolRegistryClasses;
 
   // Clear registry class if it's no longer valid for the selected school
   useEffect(() => {
@@ -1174,7 +1182,8 @@ export default function BulkRegisterPage() {
     if (!profile || !canAccess) return;
 
     async function loadData() {
-      // Load registry classes via shared service (has fallback on RLS errors)
+      // Teachers only see classes they own. Soft filters below keep those owned
+      // sections visible even when term/programme metadata is incomplete.
       const teacherId = profile?.role === 'teacher' ? profile?.id : undefined;
       const clsData = await fetchClasses(teacherId, undefined);
       setRegistryClasses(clsData.map((c: any) => ({
@@ -1386,7 +1395,7 @@ export default function BulkRegisterPage() {
     for (const [band, grade] of bandGrades) {
       const selected = selectedRegisteredClass && bulkClassCoversGrade(selectedRegisteredClass, grade)
         ? selectedRegisteredClass
-        : filteredRegistryClasses.find((candidate) => bulkClassCoversGrade(candidate, grade));
+        : placementPool.find((candidate) => bulkClassCoversGrade(candidate, grade));
       if (selected) nextSelections[band] = selected.id;
     }
     setPreview(built);
@@ -1396,7 +1405,7 @@ export default function BulkRegisterPage() {
     setDbDupNameKeys(new Set());
     setDbEmailConflicts(new Map());
     setStep('preview');
-  }, [namesText, defaultClass, batchPlacementReady, filteredRegistryClasses, selectedRegisteredClass]);
+  }, [namesText, defaultClass, batchPlacementReady, placementPool, selectedRegisteredClass]);
 
   async function createBandClass(band: string) {
     if (!selectedProgramId) {
@@ -1642,15 +1651,22 @@ export default function BulkRegisterPage() {
     const current = previewBandGrades.get(band);
     previewBandGrades.set(band, { grade: student.class_name, count: (current?.count ?? 0) + 1 });
   });
-  const previewBands = [...previewBandGrades.entries()].map(([band, details]) => ({
-    band,
-    ...details,
-    matches: filteredRegistryClasses.filter((candidate) => bulkClassCoversGrade(candidate, details.grade)),
-  }));
+  const previewBands = [...previewBandGrades.entries()].map(([band, details]) => {
+    const matches = placementPool.filter((candidate) => bulkClassCoversGrade(candidate, details.grade));
+    const matchIds = new Set(matches.map((c) => c.id));
+    const others = placementPool.filter((candidate) => !matchIds.has(candidate.id));
+    return {
+      band,
+      ...details,
+      matches,
+      others,
+    };
+  });
   const missingClassBands = previewBands.filter(({ band }) => !bandClassSelections[band]);
 
-  const successCount = results?.filter((r) => r.status === 'created' || r.status === 'updated').length ?? 0;
-  const skipCount = results?.filter((r) => r.status === 'skipped').length ?? 0;
+  const successCount = results?.filter((r) => r.status === 'created' || r.status === 'updated' || r.status === 'reinstated').length ?? 0;
+  const reinstateCount = results?.filter((r) => r.status === 'reinstated').length ?? 0;
+  const skipCount = results?.filter((r) => r.status === 'skipped' || r.status === 'needs_transfer' || r.status === 'name_swap_conflict').length ?? 0;
   const failCount = results?.filter((r) => r.status === 'failed').length ?? 0;
 
   const selectedProgLabel = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
@@ -1861,14 +1877,14 @@ export default function BulkRegisterPage() {
                             onChange={(event) => {
                               const classId = event.target.value;
                               setSelectedRegistryClass(classId);
-                              const destination = filteredRegistryClasses.find((candidate) => candidate.id === classId);
+                              const destination = placementPool.find((candidate) => candidate.id === classId);
                               if (destination?.program_id) setSelectedProgramId(destination.program_id);
                             }}
                             disabled={!selectedSchoolId || !selectedTermId}
                             className="w-full px-3 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground disabled:opacity-40"
                           >
                             <option value="">Suggest per grade band in review</option>
-                            {filteredRegistryClasses.map((candidate) => (
+                            {placementPool.map((candidate) => (
                               <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
                             ))}
                           </select>
@@ -2057,14 +2073,14 @@ Yusuf Ibrahim SS1A`}
                   <div>
                     <h3 className="text-sm font-black text-foreground">Class placement by grade band</h3>
                     <p className="text-[11px] text-muted-foreground">
-                      Existing classes are suggested for the selected school, programme and term. Confirm creation only where a band class is missing.
+                      Pick one of your existing classes for each band. Suggested matches appear first; your other owned classes for this school stay available below.
                     </p>
                   </div>
                   {previewBands.length === 0 ? (
                     <p className="text-xs text-rose-400">Set a canonical grade for each student to see class suggestions.</p>
                   ) : (
                     <div className="grid gap-3 md:grid-cols-2">
-                      {previewBands.map(({ band, count, matches }) => {
+                      {previewBands.map(({ band, count, matches, others }) => {
                         const programmeName = programmes.find((programme) => programme.id === selectedProgramId)?.name ?? null;
                         const suggestedName = composeClassName({
                           schoolName: selectedSchoolName,
@@ -2072,6 +2088,7 @@ Yusuf Ibrahim SS1A`}
                           grade: band,
                           granularity: 'fixed',
                         }).name;
+                        const hasAnySection = matches.length + others.length > 0;
                         return (
                           <div key={band} className="rounded-xl border border-border bg-card p-3">
                             <div className="mb-2 flex items-center justify-between gap-2">
@@ -2091,13 +2108,29 @@ Yusuf Ibrahim SS1A`}
                               className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground disabled:opacity-50"
                             >
                               <option value="">— Select a class —</option>
-                              {matches.map((candidate) => (
-                                <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                              ))}
+                              {matches.length > 0 && (
+                                <optgroup label="Suggested for this band">
+                                  {matches.map((candidate) => (
+                                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {others.length > 0 && (
+                                <optgroup label="Your other classes at this school">
+                                  {others.map((candidate) => (
+                                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                                  ))}
+                                </optgroup>
+                              )}
                               <option value="__create__" disabled={!selectedProgramId}>
                                 {selectedProgramId ? `＋ Create ${suggestedName || band}` : 'Select a programme to create this class'}
                               </option>
                             </select>
+                            {!hasAnySection && (
+                              <p className="mt-1 text-[10px] text-amber-400">
+                                No owned class found for this school. Create one, or check that the class is assigned to you and linked to this school.
+                              </p>
+                            )}
                             {creatingBand === band && <p className="mt-1 text-[10px] text-primary">Creating class…</p>}
                           </div>
                         );
@@ -2455,11 +2488,17 @@ Yusuf Ibrahim SS1A`}
                   <div className="relative z-10">
                     <h2 className="text-3xl font-black text-foreground mb-2 uppercase tracking-tighter italic">Process Complete</h2>
                     <div className="flex items-center justify-center gap-4 font-black tracking-widest uppercase text-[10px] flex-wrap">
-                      <span className="text-emerald-400/80">Created: {successCount}</span>
+                      <span className="text-emerald-400/80">Created: {successCount - reinstateCount}</span>
+                      {reinstateCount > 0 && (
+                        <>
+                          <div className="w-1 h-1 bg-white/20 rounded-xl" />
+                          <span className="text-sky-400 font-bold">Reinstated: {reinstateCount}</span>
+                        </>
+                      )}
                       {skipCount > 0 && (
                         <>
                           <div className="w-1 h-1 bg-white/20 rounded-xl" />
-                          <span className="text-yellow-400 font-bold">Skipped (already exist): {skipCount}</span>
+                          <span className="text-yellow-400 font-bold">Skipped / needs transfer: {skipCount}</span>
                         </>
                       )}
                       {failCount > 0 && (
@@ -2539,11 +2578,11 @@ Yusuf Ibrahim SS1A`}
                       </thead>
                       <tbody className="divide-y divide-white/5">
                         {results.map((r, i) => (
-                          <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : r.status === 'skipped' ? 'bg-yellow-500/10' : 'hover:bg-white/[0.01]'}`}>
+                          <tr key={i} className={`group transition-colors ${r.status === 'failed' ? 'bg-rose-500/5' : r.status === 'skipped' || r.status === 'needs_transfer' || r.status === 'name_swap_conflict' ? 'bg-yellow-500/10' : r.status === 'reinstated' ? 'bg-sky-500/10' : 'hover:bg-white/[0.01]'}`}>
                             <td className="px-6 py-4 text-muted-foreground font-mono">{String(i + 1).padStart(2, '0')}</td>
                             <td className="px-4 py-4">
                               <span className="font-mono font-black text-primary text-[10px] tracking-wide">
-                                {r.portal_user_id ? accessCardCodeForStudent(r.portal_user_id) : '—'}
+                                {(r.portal_user_id || r.userId) ? accessCardCodeForStudent(r.portal_user_id || r.userId!) : '—'}
                               </span>
                             </td>
                             <td className="px-4 py-4">
@@ -2559,9 +2598,17 @@ Yusuf Ibrahim SS1A`}
                             <td className="px-4 py-4 font-mono text-muted-foreground">{r.email}</td>
                             <td className="px-4 py-4 font-mono font-bold text-primary text-[11px]">{r.password || '—'}</td>
                             <td className="px-6 py-4 text-right transform group-hover:scale-105 transition-transform">
-                              <span className={`inline-block px-2 py-1 rounded-xl text-[9px] font-black uppercase tracking-tighter ${r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : r.status === 'skipped' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 font-bold' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
+                              <span className={`inline-block px-2 py-1 rounded-xl text-[9px] font-black uppercase tracking-tighter ${
+                                r.status === 'failed' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                                  : r.status === 'reinstated' ? 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
+                                    : r.status === 'skipped' || r.status === 'needs_transfer' || r.status === 'name_swap_conflict' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 font-bold'
+                                      : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                              }`}>
                                 {r.status}
                               </span>
+                              {r.error && (r.status === 'reinstated' || r.status === 'needs_transfer' || r.status === 'skipped') && (
+                                <p className="mt-1 text-[9px] text-muted-foreground max-w-[220px] ml-auto text-right leading-snug">{r.error}</p>
+                              )}
                               {r.cardId && (
                                 <div className={`mt-1 inline-block px-2 py-0.5 rounded-xl text-[8px] font-black uppercase tracking-wider border ${r.cardIssued ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-primary/10 text-blue-300 border-primary/30'}`}>
                                   {r.cardIssued ? 'Card Ready' : 'Card Exists'}

@@ -14,6 +14,7 @@ import {
   loadSchoolStudentsForNameCheck,
   registerCreatedNameInMaps,
 } from '@/lib/students/duplicate-name-barricade';
+import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -317,7 +318,7 @@ export async function POST(request: Request) {
       password: string;
       class_name?: string;
       class_arm?: string | null;
-      status: 'created' | 'updated' | 'skipped' | 'failed' | 'name_swap_conflict';
+      status: 'created' | 'updated' | 'skipped' | 'failed' | 'name_swap_conflict' | 'reinstated' | 'needs_transfer';
       error?: string;
       userId?: string;
       cardIssued?: boolean;
@@ -405,13 +406,91 @@ export async function POST(request: Request) {
         }
       }
 
-      // Same-school name duplicate — emails do not matter. Twin exception needs ≥10 char reason.
+      // Same-school name duplicate — prefer reinstate into the selected class (keeps records
+      // + moves ownership/authorship) instead of creating a second account.
       const nameDup = findNameDuplicate(nameMaps, full_name);
       if (nameDup && !hasDuplicateException) {
+        let destClassId: string | null = class_id || batchClassId || null;
+        let destGrade: string | null = null;
+        try {
+          const resolvedForDup = await resolveClassForStudent(class_name || batchClassName || null, class_id);
+          destClassId = resolvedForDup.id || destClassId;
+          destGrade = resolvedForDup.grade;
+          if (resolvedForDup.id) touchedClassIds.add(resolvedForDup.id);
+        } catch (resolveErr: any) {
+          // Fall through to skip if class cannot be resolved
+          destClassId = destClassId;
+        }
+
+        if (destClassId) {
+          const reinstate = await reinstateStudentToClass(supabaseAdmin as any, {
+            studentId: nameDup.hit.id,
+            classId: destClassId,
+            actor: { id: user.id, role: caller.role },
+            grade: destGrade || class_name || batchGradeName || null,
+            classArm: class_arm || batchClassArm || null,
+            forceCrossTeacher: caller.role === 'admin',
+          });
+
+          if (reinstate.ok) {
+            registerCreatedNameInMaps(nameMaps, reinstate.fullName, {
+              id: reinstate.studentId,
+              email: reinstate.email,
+              full_name: reinstate.fullName,
+            });
+            if (reinstate.toClassId) {
+              const assignment = rosterAssignments.get(reinstate.toClassId) ?? {
+                cls: {
+                  id: reinstate.toClassId,
+                  name: reinstate.toClassName,
+                  teacherId: reinstate.ownerTeacherId,
+                  grade: destGrade,
+                  schoolId: resolvedSchoolId,
+                  programId,
+                  termId: selectedTermId,
+                },
+                studentIds: new Set<string>(),
+              };
+              assignment.studentIds.add(reinstate.studentId);
+              rosterAssignments.set(reinstate.toClassId, assignment);
+            }
+            results.push({
+              full_name,
+              email: reinstate.email || email,
+              password,
+              class_name: reinstate.toClassName || class_name,
+              status: 'reinstated',
+              error: reinstate.wasWithdrawn
+                ? `Reinstated existing withdrawn student into "${reinstate.toClassName}" with ownership moved (${reinstate.reportsTransferred} report${reinstate.reportsTransferred === 1 ? '' : 's'}).`
+                : `Existing student moved into "${reinstate.toClassName}" with ownership/authorship transferred (${reinstate.reportsTransferred} report${reinstate.reportsTransferred === 1 ? '' : 's'}).`,
+              userId: reinstate.studentId,
+            });
+            continue;
+          }
+
+          if (reinstate.code === 'OTHER_TEACHER') {
+            results.push({
+              full_name, email, password, class_name,
+              status: 'needs_transfer',
+              error: reinstate.error,
+              userId: nameDup.hit.id,
+            });
+            continue;
+          }
+
+          results.push({
+            full_name, email, password, class_name,
+            status: nameDup.kind === 'swap' ? 'name_swap_conflict' : 'skipped',
+            error: `${duplicateBlockMessage(nameDup.kind, full_name, nameDup.hit)} Reinstate failed: ${reinstate.error}`,
+            userId: nameDup.hit.id,
+          });
+          continue;
+        }
+
         results.push({
           full_name, email, password, class_name,
           status: nameDup.kind === 'swap' ? 'name_swap_conflict' : 'skipped',
-          error: duplicateBlockMessage(nameDup.kind, full_name, nameDup.hit),
+          error: `${duplicateBlockMessage(nameDup.kind, full_name, nameDup.hit)} Select a destination class to reinstate them with records intact.`,
           userId: nameDup.hit.id,
         });
         continue;
@@ -673,7 +752,7 @@ export async function POST(request: Request) {
     // Auto-enroll into programme if one was selected
     if (programId) {
       const successIds = results
-        .filter((r) => r.status === 'created' || r.status === 'updated')
+        .filter((r) => r.status === 'created' || r.status === 'updated' || r.status === 'reinstated')
         .filter((r) => r.userId)
         .map((r) => r.userId as string);
 

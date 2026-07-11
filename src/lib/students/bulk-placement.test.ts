@@ -38,5 +38,17 @@ describe('bulk registration placement', () => {
       { schoolId: 's1', programId: 'p1', termId: 't1' },
     )).toBeNull();
   });
+
+  it('accepts legacy classes with null programme or term', () => {
+    expect(validateBulkClassPlacement(
+      { school_id: 's1', program_id: null, term_id: null },
+      { schoolId: 's1', programId: 'p1', termId: 't1' },
+    )).toBeNull();
+  });
+
+  it('matches legacy class names that include the grade band', () => {
+    expect(bulkClassCoversGrade({ name: 'Greenfield — Basic 1-3' }, 'Basic 2')).toBe(true);
+    expect(bulkClassCoversGrade({ name: 'JSS 2A Coding' }, 'JSS 2')).toBe(true);
+  });
 });
 

@@ -5,6 +5,7 @@ import { queueService } from '@/services/queue.service';
 import { buildRillcodTransactionalEmailHtml, escapeHtml } from '@/lib/email/rillcod-transactional-email';
 import { defaultRosterBillingPayload } from '@/lib/rosters/billing-sync';
 import { requiresTeacherTransferRequest } from '@/lib/students/transfer-policy';
+import { reinstateStudentToClass } from '@/lib/students/reinstate-to-class';
 
 export const dynamic = 'force-dynamic';
 
@@ -252,149 +253,25 @@ export async function POST(
     );
   }
 
-  // ── School boundary guard (hard reject) ──────────────────────────────────
+  // ── School boundary + ownership handled inside reinstateStudentToClass ──
   if (caller.role === 'teacher' && cls.teacher_id !== caller.id) {
     return NextResponse.json({ error: 'Only the primary owner of this class can manage its roster' }, { status: 403 });
   }
 
-  let studentProfile: any = null;
-  if (caller.role !== 'admin' && cls.school_id) {
-    const { data: clsSchool } = await admin.from('schools').select('name').eq('id', cls.school_id).single();
-    const { data: student } = await admin
-      .from('portal_users')
-      .select('school_id, school_name, full_name, class_id')
-      .eq('id', studentId)
-      .single();
-    studentProfile = student;
+  const reinstate = await reinstateStudentToClass(admin as any, {
+    studentId,
+    classId,
+    actor: { id: caller.id, role: caller.role },
+    forceCrossTeacher: caller.role === 'admin',
+  });
 
-    const sameById   = student?.school_id === cls.school_id;
-    const sameByName = clsSchool?.name && student?.school_name === clsSchool.name;
-    if (!sameById && !sameByName) {
-      return NextResponse.json(
-        {
-          error: `School boundary violation: "${student?.full_name ?? studentId}" belongs to a different school and cannot be enrolled in this class.`,
-        },
-        { status: 403 },
-      );
-    }
-  }
-
-  // ── Teacher-class ownership guard (single enroll) ─────────────────────────
-  if (caller.role === 'teacher') {
-    const currentClassId = studentProfile?.class_id ?? null;
-    if (currentClassId && currentClassId !== classId) {
-      const { data: currentClass } = await admin
-        .from('classes')
-        .select('teacher_id, name')
-        .eq('id', currentClassId)
-        .maybeSingle();
-      if (currentClass?.teacher_id && currentClass.teacher_id !== caller.id) {
-        return NextResponse.json(
-          {
-            error: `"${studentProfile?.full_name ?? studentId}" is already in "${currentClass.name}" which belongs to another teacher. Send a transfer request to its current owner.`,
-          },
-          { status: 409 },
-        );
-      }
-    }
-  }
-
-  // ── Capacity guard ────────────────────────────────────────────────────────
-  if (cls.max_students != null && cls.max_students > 0) {
-    const { count: liveCount } = await admin
-      .from('portal_users')
-      .select('id', { count: 'exact', head: true })
-      .eq('class_id', classId)
-      .eq('role', 'student');
-    const occupied = liveCount ?? 0;
-    if (occupied >= cls.max_students) {
-      return NextResponse.json(
-        {
-          error: `Class "${cls.name}" is full (${occupied}/${cls.max_students} students). Increase the capacity or remove a student first.`,
-        },
-        { status: 409 },
-      );
-    }
-  }
-
-  // Capture previous class for count resync
-  const { data: studentBefore } = await admin
-    .from('portal_users')
-    .select('class_id')
-    .eq('id', studentId)
-    .single();
-  const prevClassId = studentBefore?.class_id ?? null;
-
-  // Assign student → class; keep section_class in sync. Set primary_teacher_id to
-  // the destination class teacher so the guard_student_class_division trigger
-  // treats this as an authorized transfer (see batch PUT for the full rationale).
-  const authorizedTeacher = cls.teacher_id ?? (caller.role === 'teacher' ? caller.id : null);
-  const movePayload: Record<string, unknown> = { class_id: classId, section_class: cls.name };
-  if (authorizedTeacher) movePayload.primary_teacher_id = authorizedTeacher;
-
-  const { error: updateErr } = await admin
-    .from('portal_users')
-    .update(movePayload)
-    .eq('id', studentId)
-    .eq('role', 'student');
-
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
-
-  const { data: canonicalStudent } = await admin.from('portal_users')
-    .select('school_id, school_name, section_class, grade')
-    .eq('id', studentId)
-    .single();
-  const { error: registrySyncError } = await admin.from('students').update({
-    school_id: canonicalStudent?.school_id ?? cls.school_id,
-    school_name: canonicalStudent?.school_name ?? null,
-    section: canonicalStudent?.section_class ?? cls.name,
-    current_class: canonicalStudent?.section_class ?? cls.name,
-    grade: canonicalStudent?.grade ?? null,
-    grade_level: canonicalStudent?.grade ?? null,
-  }).eq('user_id', studentId);
-  if (registrySyncError) return NextResponse.json({ error: `Student moved, but registry sync failed: ${registrySyncError.message}` }, { status: 500 });
-
-  await upsertClassTermRoster(admin, cls, [studentId], 'active', caller.id);
-
-  // Resync new class count (exact — never drift)
-  const { count: newCount } = await admin
-    .from('portal_users')
-    .select('id', { count: 'exact', head: true })
-    .eq('class_id', classId)
-    .eq('role', 'student');
-  await admin.from('classes').update({ current_students: newCount ?? 0 }).eq('id', classId);
-
-  // Resync old class count if student was moved from elsewhere
-  if (prevClassId && prevClassId !== classId) {
-    const { count: oldCount } = await admin
-      .from('portal_users')
-      .select('id', { count: 'exact', head: true })
-      .eq('class_id', prevClassId)
-      .eq('role', 'student');
-    await admin.from('classes').update({ current_students: oldCount ?? 0 }).eq('id', prevClassId);
-  }
-
-  // Ensure program enrollment record exists
-  if (cls.program_id) {
-    const { data: existing } = await admin
-      .from('enrollments')
-      .select('id, status')
-      .eq('user_id', studentId)
-      .eq('program_id', cls.program_id)
-      .maybeSingle();
-    if (!existing) {
-      await admin.from('enrollments').insert({
-        user_id: studentId,
-        program_id: cls.program_id,
-        role: 'student',
-        status: 'active',
-      });
-    } else if (existing.status !== 'active') {
-      await admin
-        .from('enrollments')
-        .update({ status: 'active', updated_at: new Date().toISOString() })
-        .eq('id', existing.id);
-    }
+  if (!reinstate.ok) {
+    const status =
+      reinstate.code === 'CAPACITY' || reinstate.code === 'OTHER_TEACHER' ? 409
+        : reinstate.code === 'FORBIDDEN' || reinstate.code === 'SCHOOL' ? 403
+          : reinstate.code === 'NOT_FOUND' ? 404
+            : 500;
+    return NextResponse.json({ error: reinstate.error, code: reinstate.code }, { status });
   }
 
   // Enrollment email notification
@@ -416,7 +293,12 @@ export async function POST(
     });
   })().catch(console.error);
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    reinstated: reinstate.wasWithdrawn,
+    reportsTransferred: reinstate.reportsTransferred,
+    ownerTeacherId: reinstate.ownerTeacherId,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -501,9 +383,8 @@ export async function PUT(
     }
   }
 
-  // ── Teacher-class ownership guard ─────────────────────────────────────────
-  // Teachers cannot silently poach students out of another teacher's class.
-  // Only admins can move students across teacher-owned classes.
+  // ── Teacher ownership: only block ACTIVE students under another teacher.
+  // Withdrawn students may be reinstated here with full ownership/authorship move.
   let rejectedOtherTeacher: string[] = [];
   if (caller.role === 'teacher' && allowedIds.length > 0) {
     const { data: studentsWithClass } = await admin
@@ -516,10 +397,14 @@ export async function PUT(
 
     if ((studentsWithClass ?? []).length > 0) {
       const occupiedClassIds = [...new Set((studentsWithClass ?? []).map((s: any) => s.class_id))];
-      const { data: occupiedClasses } = await admin
-        .from('classes')
-        .select('id, teacher_id')
-        .in('id', occupiedClassIds);
+      const [{ data: occupiedClasses }, { data: rosterRows }] = await Promise.all([
+        admin.from('classes').select('id, teacher_id').in('id', occupiedClassIds),
+        (admin as any)
+          .from('class_term_rosters')
+          .select('student_id, class_id, status')
+          .in('student_id', (studentsWithClass ?? []).map((s: any) => s.id))
+          .in('class_id', occupiedClassIds),
+      ]);
 
       const otherTeacherClassIds = new Set(
         (occupiedClasses ?? [])
@@ -527,16 +412,25 @@ export async function PUT(
           .map((c: any) => c.id),
       );
 
-      if (otherTeacherClassIds.size > 0) {
-        const protected_ = (studentsWithClass ?? []).filter((s: any) => otherTeacherClassIds.has(s.class_id));
-        const protectedIds = new Set(protected_.map((s: any) => s.id));
+      const activeOnOther = new Set<string>();
+      for (const s of studentsWithClass ?? []) {
+        if (!otherTeacherClassIds.has(s.class_id)) continue;
+        const roster = (rosterRows ?? []).find(
+          (r: any) => r.student_id === s.id && r.class_id === s.class_id,
+        );
+        const status = roster?.status ?? 'active';
+        if (status === 'active') activeOnOther.add(s.id);
+      }
+
+      if (activeOnOther.size > 0) {
+        const protected_ = (studentsWithClass ?? []).filter((s: any) => activeOnOther.has(s.id));
         rejectedOtherTeacher = protected_.map((s: any) => s.full_name ?? s.id);
-        allowedIds = allowedIds.filter((id) => !protectedIds.has(id));
+        allowedIds = allowedIds.filter((id) => !activeOnOther.has(id));
 
         if (allowedIds.length === 0) {
           return NextResponse.json(
             {
-              error: `Cannot move students: ${rejectedOtherTeacher.length} student(s) belong to another teacher's class. Send transfer requests to their current owners.`,
+              error: `Cannot move students: ${rejectedOtherTeacher.length} student(s) are still active in another teacher's class. Send transfer requests, or reinstate withdrawn students only.`,
               protectedStudents: rejectedOtherTeacher,
             },
             { status: 409 },
@@ -546,120 +440,31 @@ export async function PUT(
     }
   }
 
-  // ── Capacity guard ────────────────────────────────────────────────────────
-  if (cls.max_students != null && cls.max_students > 0) {
-    // Students already IN this class being re-assigned don't consume extra seats
-    const { data: alreadyIn } = await admin
-      .from('portal_users')
-      .select('id')
-      .in('id', allowedIds)
-      .eq('class_id', classId)
-      .eq('role', 'student');
-    const netNew = allowedIds.length - (alreadyIn ?? []).length;
-
-    const { count: liveCount } = await admin
-      .from('portal_users')
-      .select('id', { count: 'exact', head: true })
-      .eq('class_id', classId)
-      .eq('role', 'student');
-    const occupied = liveCount ?? 0;
-    const seatsLeft = cls.max_students - occupied;
-
-    if (netNew > seatsLeft) {
-      return NextResponse.json(
-        {
-          error: `Not enough seats: "${cls.name}" has ${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} available but you're trying to add ${netNew} new student${netNew !== 1 ? 's' : ''}. Reduce your selection or increase the class capacity.`,
-          seatsAvailable: seatsLeft,
-          netNewRequested: netNew,
-        },
-        { status: 409 },
-      );
+  const enrolledIds: string[] = [];
+  let reportsTransferred = 0;
+  for (const sid of allowedIds) {
+    const result = await reinstateStudentToClass(admin as any, {
+      studentId: sid,
+      classId,
+      actor: { id: caller.id, role: caller.role },
+      forceCrossTeacher: caller.role === 'admin',
+    });
+    if (result.ok) {
+      enrolledIds.push(sid);
+      reportsTransferred += result.reportsTransferred;
     }
   }
 
-  // Capture previous classes for count resync
-  const { data: studentsBefore } = await admin
-    .from('portal_users')
-    .select('id, class_id')
-    .in('id', allowedIds)
-    .eq('role', 'student');
-  const prevClassIds = [
-    ...new Set(
-      (studentsBefore ?? [])
-        .map((s: any) => s.class_id)
-        .filter((cid: any) => cid && cid !== classId),
-    ),
-  ];
-
-  // Batch-assign class_id and keep section_class in sync.
-  // Also set primary_teacher_id to the destination class teacher so the
-  // guard_student_class_division trigger treats this as an AUTHORIZED transfer
-  // (moving a student already owned by another teacher is otherwise blocked at
-  // the DB level). Falls back to the calling teacher when the class has no tutor.
-  const authorizedTeacher = cls.teacher_id ?? (caller.role === 'teacher' ? caller.id : null);
-  const movePayload: Record<string, unknown> = { class_id: classId, section_class: cls.name };
-  if (authorizedTeacher) movePayload.primary_teacher_id = authorizedTeacher;
-
-  const { error: updateErr } = await admin
-    .from('portal_users')
-    .update(movePayload)
-    .in('id', allowedIds)
-    .eq('role', 'student');
-
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
-
-  // Keep the legacy students table aligned so rosters, cards and reports resolve
-  // the same class no matter which table a downstream feature reads.
-  await admin.from('students').update({ class_id: classId }).in('user_id', allowedIds);
-
-  await upsertClassTermRoster(admin, cls, allowedIds, 'active', caller.id);
-
-  // Resync new class count (exact — never drift)
   const { count } = await admin
     .from('portal_users')
     .select('id', { count: 'exact', head: true })
     .eq('class_id', classId)
     .eq('role', 'student');
-  await admin.from('classes').update({ current_students: count ?? 0 }).eq('id', classId);
-
-  // Resync counts on all classes students were moved FROM
-  for (const prevCid of prevClassIds) {
-    const { count: oldCount } = await admin
-      .from('portal_users')
-      .select('id', { count: 'exact', head: true })
-      .eq('class_id', prevCid)
-      .eq('role', 'student');
-    await admin.from('classes').update({ current_students: oldCount ?? 0 }).eq('id', prevCid);
-  }
-
-  // Ensure program enrollment records exist
-  if (cls.program_id) {
-    for (const sid of allowedIds) {
-      const { data: existing } = await admin
-        .from('enrollments')
-        .select('id, status')
-        .eq('user_id', sid)
-        .eq('program_id', cls.program_id)
-        .maybeSingle();
-      if (!existing) {
-        await admin.from('enrollments').insert({
-          user_id: sid,
-          program_id: cls.program_id,
-          role: 'student',
-          status: 'active',
-        });
-      } else if (existing.status !== 'active') {
-        await admin
-          .from('enrollments')
-          .update({ status: 'active', updated_at: new Date().toISOString() })
-          .eq('id', existing.id);
-      }
-    }
-  }
 
   // Enrollment email notifications for batch (fire-and-forget)
   (async () => {
-    const { data: students } = await admin.from('portal_users').select('id, email, full_name').in('id', allowedIds).eq('role', 'student');
+    if (enrolledIds.length === 0) return;
+    const { data: students } = await admin.from('portal_users').select('id, email, full_name').in('id', enrolledIds).eq('role', 'student');
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://rillcod.com';
     for (const student of students ?? []) {
       if (!student.email) continue;
@@ -679,11 +484,12 @@ export async function PUT(
   })().catch(console.error);
 
   return NextResponse.json({
-    enrolled: allowedIds.length,
-    enrolledIds: allowedIds,            // precise ids actually moved — lets the UI update optimistically without name-guessing
-    skipped: studentIds.length - allowedIds.length,
+    enrolled: enrolledIds.length,
+    enrolledIds,
+    skipped: studentIds.length - enrolledIds.length,
     rejectedSchoolBoundary: rejectedNames,
     rejectedOtherTeacher,
+    reportsTransferred,
     total: count ?? 0,
   });
 }
