@@ -17,9 +17,9 @@ import {
   DocumentArrowDownIcon, PaperClipIcon,
 } from '@/lib/icons';
 import { OperationsHub } from '@/components/finance/ops/OperationsHub';
-import { BalanceRemindersPanel } from '@/app/dashboard/balance-reminders/page';
+import BalanceRemindersPanel from '@/components/finance/BalanceRemindersPanel';
 import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
-import { MoneyHubPage } from '@/app/dashboard/money/page';
+import MoneyHubPage from '@/components/finance/MoneyHub';
 
 // ─── Nigerian Term Helpers ────────────────────────────────────────────────────
 const TERMS = ['First Term', 'Second Term', 'Third Term'] as const;

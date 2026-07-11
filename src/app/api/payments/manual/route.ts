@@ -20,7 +20,7 @@ async function getCaller() {
  */
 export async function POST(request: Request) {
   const caller = await getCaller();
-  if (!caller || !['admin', 'school'].includes(caller.role)) {
+  if (!caller || !['admin', 'school', 'teacher'].includes(caller.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -60,9 +60,12 @@ export async function POST(request: Request) {
   }
 
   // School role can only record for their own school
+  const allowedSchoolIds = caller.role === 'admin'
+    ? []
+    : await getTeacherSchoolIds(caller.id, caller.school_id);
   const effectiveSchoolId = caller.role === 'admin'
     ? (school_id || caller.school_id)
-    : caller.school_id;
+    : (school_id && allowedSchoolIds.includes(school_id) ? school_id : caller.school_id || allowedSchoolIds[0] || null);
 
   const db = createAdminClient();
   const now = new Date().toISOString();
@@ -79,7 +82,6 @@ export async function POST(request: Request) {
         if (!invoiceScope) {
           return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
         }
-        const allowedSchoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
         let invoiceSchoolId = (invoiceScope as { school_id?: string | null; portal_user_id?: string | null }).school_id;
         const invoicePortalUserId = (invoiceScope as { portal_user_id?: string | null }).portal_user_id;
         if (!invoiceSchoolId && invoicePortalUserId) {

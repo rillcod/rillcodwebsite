@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit/log';
 import { processSuccessfulPayment } from '@/lib/payments/process-successful-payment';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 export async function POST(req: Request) {
     try {
@@ -28,6 +29,9 @@ export async function POST(req: Request) {
 
         const { transactionId, status = 'success' } = await req.json();
         if (!transactionId) return NextResponse.json({ error: 'Transaction ID required' }, { status: 400 });
+        if (!['success', 'failed'].includes(status)) {
+            return NextResponse.json({ error: 'status must be success or failed' }, { status: 400 });
+        }
 
         // 2. Get the transaction
         const { data: transaction, error: txError } = await admin
@@ -40,9 +44,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
         }
 
-        // Non-admin: only approve transactions belonging to their school
-        if (profile?.role !== 'admin' && (!profile?.school_id || transaction.school_id !== profile.school_id)) {
-            return NextResponse.json({ error: 'Forbidden: transaction belongs to a different school' }, { status: 403 });
+        // Non-admin: only approve transactions in their server-derived school scope.
+        if (profile?.role !== 'admin') {
+            const allowedSchoolIds = await getTeacherSchoolIds(user.id, profile?.school_id || null);
+            if (!transaction.school_id || !allowedSchoolIds.includes(transaction.school_id)) {
+                return NextResponse.json({ error: 'Forbidden: transaction belongs to a different school' }, { status: 403 });
+            }
         }
 
         if (transaction.payment_status === 'completed') {
