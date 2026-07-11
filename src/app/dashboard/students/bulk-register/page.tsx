@@ -193,6 +193,95 @@ function resolveBulkSectionId(
   return null;
 }
 
+function shortClassLabel(name: string | null | undefined): string {
+  const raw = (name || '').trim();
+  if (!raw) return 'Untitled class';
+  // Prefer the last segments after " · " so long school prefixes don't dominate mobile.
+  const parts = raw.split('·').map((part) => part.trim()).filter(Boolean);
+  return parts.length > 1 ? parts.slice(-2).join(' · ') : raw;
+}
+
+type ClassSectionOption = {
+  id: string;
+  name: string;
+  preferred?: boolean;
+};
+
+function ClassSectionPicker({
+  options,
+  value,
+  onChange,
+  disabled,
+  emptyMessage,
+}: {
+  options: ClassSectionOption[];
+  value: string;
+  onChange: (id: string) => void;
+  disabled?: boolean;
+  emptyMessage?: string;
+}) {
+  if (disabled) {
+    return (
+      <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-400">
+        {emptyMessage || 'Select a school first to load your class sections.'}
+      </p>
+    );
+  }
+  if (options.length === 0) {
+    return (
+      <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-400">
+        {emptyMessage || 'No classes found for this school. Create one on Classes, then refresh.'}
+      </p>
+    );
+  }
+
+  return (
+    <div className="max-h-56 sm:max-h-72 space-y-2 overflow-y-auto overscroll-contain rounded-xl border border-border bg-background/40 p-2">
+      {options.map((opt) => {
+        const selected = value === opt.id;
+        return (
+          <button
+            type="button"
+            key={opt.id}
+            onClick={() => onChange(opt.id)}
+            className={`w-full min-w-0 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+              selected
+                ? 'border-primary bg-primary/10 ring-1 ring-primary/25'
+                : 'border-border/70 bg-card hover:border-primary/40'
+            }`}
+          >
+            <div className="flex min-w-0 items-start gap-2.5">
+              <span
+                className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border ${
+                  selected ? 'border-primary bg-primary' : 'border-muted-foreground/40'
+                }`}
+                aria-hidden
+              >
+                {selected ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-semibold leading-snug text-foreground">{opt.name}</p>
+                {opt.preferred ? (
+                  <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">Best match</p>
+                ) : null}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="w-full py-1 text-center text-[11px] text-muted-foreground hover:text-foreground"
+        >
+          Clear selection
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function BulkRegisterPage() {
@@ -1737,6 +1826,14 @@ export default function BulkRegisterPage() {
     };
   });
   const batchSectionId = bandClassSelections[BATCH_SECTION_KEY] || selectedRegistryClass || '';
+  const classSectionOptions: ClassSectionOption[] = [
+    ...placementPool
+      .filter((candidate) => preferredRegistryIds.has(candidate.id))
+      .map((candidate) => ({ id: candidate.id, name: candidate.name, preferred: true })),
+    ...placementPool
+      .filter((candidate) => !preferredRegistryIds.has(candidate.id))
+      .map((candidate) => ({ id: candidate.id, name: candidate.name })),
+  ];
   const studentsMissingSection = preview.filter((student) =>
     student.full_name.trim() &&
     student.email.trim() &&
@@ -1755,24 +1852,24 @@ export default function BulkRegisterPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-background p-4 sm:p-6 md:p-8 font-sans">
+      <div className="min-h-screen overflow-x-hidden bg-background p-4 sm:p-6 md:p-8 font-sans">
 
         {/* Page Header */}
-        <div className="max-w-7xl mx-auto mb-6 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary flex items-center justify-center rotate-3 border border-primary/20 shadow-xl shadow-primary/10 hover:rotate-6 transition-transform flex-shrink-0">
-              <SparklesIcon className="w-5 h-5 text-white" />
+        <div className="mx-auto mb-6 flex max-w-7xl min-w-0 items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rotate-3 border border-primary/20 bg-primary shadow-xl shadow-primary/10 transition-transform hover:rotate-6">
+              <SparklesIcon className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black text-foreground italic tracking-tighter uppercase">Student Registration</h1>
-              <p className="text-muted-foreground text-[9px] uppercase font-bold tracking-[0.4em] mt-1">Add students individually or in bulk</p>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-black uppercase italic tracking-tighter text-foreground sm:text-2xl">Student Registration</h1>
+              <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground sm:tracking-[0.4em]">Add students individually or in bulk</p>
             </div>
           </div>
           <Link
             href="/dashboard/card-studio?mode=issuance&type=student"
-            className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-[9px] font-black uppercase tracking-[0.2em] transition-all"
+            className="hidden items-center gap-2 border border-primary/30 bg-primary/10 px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] text-primary transition-all hover:bg-primary/20 sm:inline-flex"
           >
-            <RectangleGroupIcon className="w-4 h-4" />
+            <RectangleGroupIcon className="h-4 w-4" />
             Card Studio
           </Link>
         </div>
@@ -1807,16 +1904,16 @@ export default function BulkRegisterPage() {
         </div>
 
         {activeTab === 'register' && (
-          <div className="max-w-4xl mx-auto space-y-12">
+          <div className="w-full max-w-5xl mx-auto space-y-8 sm:space-y-12 min-w-0 px-0">
 
             {/* ── Step Progress (Bulk Import only) ─────────────────────── */}
             {step !== 'single' && step !== 'registry' && (
-              <div className="max-w-4xl mx-auto mb-2">
-                <div className="flex items-center gap-0">
+              <div className="mb-2 w-full min-w-0">
+                <div className="flex min-w-0 items-stretch gap-0">
                   {([
-                    { key: 'input', label: '1. Configure & Add Names' },
-                    { key: 'preview', label: '2. Review Students' },
-                    { key: 'done', label: '3. Done' },
+                    { key: 'input', label: 'Setup' },
+                    { key: 'preview', label: 'Review' },
+                    { key: 'done', label: 'Done' },
                   ] as { key: typeof step; label: string }[]).map((s, i, arr) => {
                     const stepOrder = ['input', 'preview', 'done'];
                     const currentIdx = stepOrder.indexOf(step);
@@ -1824,15 +1921,14 @@ export default function BulkRegisterPage() {
                     const isActive = step === s.key;
                     const isDone = sIdx < currentIdx;
                     return (
-                      <div key={s.key} className="flex items-center flex-1 min-w-0">
-                        <div className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap border-y border-l ${i === arr.length - 1 ? 'border-r' : ''} transition-all flex-shrink-0 ${isActive ? 'bg-primary text-white border-primary' : isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-card text-muted-foreground border-border'}`}>
-                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${isActive ? 'bg-white/20' : isDone ? 'bg-emerald-500/30' : 'bg-muted'}`}>
+                      <div key={s.key} className="flex min-w-0 flex-1 items-center">
+                        <div className={`flex w-full min-w-0 items-center justify-center gap-1.5 border-y border-l px-2 py-2.5 text-[10px] font-black uppercase tracking-wider sm:px-3 ${i === arr.length - 1 ? 'border-r' : ''} ${isActive ? 'border-primary bg-primary text-white' : isDone ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-border bg-card text-muted-foreground'}`}>
+                          <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-black ${isActive ? 'bg-white/20' : isDone ? 'bg-emerald-500/30' : 'bg-muted'}`}>
                             {isDone ? '✓' : i + 1}
                           </span>
-                          <span className="hidden sm:inline">{s.label}</span>
-                          <span className="sm:hidden">{i + 1}</span>
+                          <span className="truncate">{s.label}</span>
                         </div>
-                        {i < arr.length - 1 && <div className="flex-1 h-px bg-border" />}
+                        {i < arr.length - 1 && <div className="h-px w-2 flex-shrink-0 bg-border sm:w-4" />}
                       </div>
                     );
                   })}
@@ -1851,18 +1947,18 @@ export default function BulkRegisterPage() {
               <div className="space-y-6">
 
                 {/* ── Batch Settings ──────────────────────────────────── */}
-                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="overflow-hidden rounded-xl border border-border bg-card">
                   <button
                     onClick={() => setSettingsOpen((o) => !o)}
-                    className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-white/[0.02] transition-colors"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-white/[0.02] sm:px-6"
                   >
-                    <div className="flex items-center gap-2 font-bold text-sm">
-                      <BuildingOffice2Icon className="w-4 h-4 text-primary" />
-                      <span className="text-foreground">Setup</span>
-                      <span className="text-muted-foreground font-normal text-xs ml-1">— choose school, class &amp; programme</span>
-                      <span className="px-2 py-0.5 text-[9px] font-black bg-primary/10 text-primary border border-primary/20 rounded-full uppercase tracking-widest ml-2">Required first</span>
+                    <div className="flex min-w-0 flex-1 items-center gap-2 font-bold text-sm">
+                      <BuildingOffice2Icon className="h-4 w-4 flex-shrink-0 text-primary" />
+                      <span className="flex-shrink-0 text-foreground">Setup</span>
+                      <span className="hidden min-w-0 truncate text-xs font-normal text-muted-foreground sm:inline">— school, class &amp; programme</span>
+                      <span className="ml-auto flex-shrink-0 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary sm:ml-2">Required</span>
                     </div>
-                    <ChevronDownIcon className={`w-4 h-4 text-muted-foreground transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDownIcon className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {settingsOpen && (
@@ -1950,11 +2046,17 @@ export default function BulkRegisterPage() {
                               </option>
                             ))}
                           </select>
-                          <label className="mt-3 mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class section</label>
-                          <select
+                          <label className="mb-1 mt-3 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Class section</label>
+                          <ClassSectionPicker
+                            options={classSectionOptions}
                             value={selectedRegistryClass}
-                            onChange={(event) => {
-                              const classId = event.target.value;
+                            disabled={!selectedSchoolId}
+                            emptyMessage={
+                              !selectedSchoolId
+                                ? 'Select a school first to load your class sections.'
+                                : 'No classes found for this school. Create one on Classes, then refresh.'
+                            }
+                            onChange={(classId) => {
                               setSelectedRegistryClass(classId);
                               setBandClassSelections((current) => {
                                 if (!classId) {
@@ -1967,33 +2069,11 @@ export default function BulkRegisterPage() {
                               const destination = placementPool.find((candidate) => candidate.id === classId);
                               if (destination?.program_id) setSelectedProgramId(destination.program_id);
                             }}
-                            disabled={!selectedSchoolId}
-                            className="w-full px-3 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground disabled:opacity-40"
-                          >
-                            <option value="">— Select your class section —</option>
-                            {placementPool.filter((c) => preferredRegistryIds.has(c.id)).length > 0 && (
-                              <optgroup label="Best match for programme/term">
-                                {placementPool.filter((c) => preferredRegistryIds.has(c.id)).map((candidate) => (
-                                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                                ))}
-                              </optgroup>
-                            )}
-                            {placementPool.filter((c) => !preferredRegistryIds.has(c.id)).length > 0 && (
-                              <optgroup label="All other classes at this school">
-                                {placementPool.filter((c) => !preferredRegistryIds.has(c.id)).map((candidate) => (
-                                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                                ))}
-                              </optgroup>
-                            )}
-                          </select>
-                          {!selectedSchoolId && (
-                            <p className="text-[11px] text-amber-400 mt-1">Select a school first to load your class sections.</p>
-                          )}
-                          {selectedSchoolId && placementPool.length === 0 && (
-                            <p className="text-[11px] text-amber-400 mt-1">No classes found for this school. Create one on Classes, then refresh.</p>
-                          )}
+                          />
                           {selectedSchoolId && placementPool.length > 0 && (
-                            <p className="text-[11px] text-muted-foreground mt-1">{placementPool.length} class section{placementPool.length !== 1 ? 's' : ''} available.</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              {placementPool.length} class section{placementPool.length !== 1 ? 's' : ''} available.
+                            </p>
                           )}
                         </div>
 
@@ -2053,8 +2133,20 @@ export default function BulkRegisterPage() {
 
                       {selectedRegisteredClass && (
                         <div className="grid gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
-                          <div><span className="block text-[9px] font-black uppercase text-muted-foreground">Section</span><strong>{selectedRegisteredClass.name}</strong></div>
-                          <div><span className="block text-[9px] font-black uppercase text-muted-foreground">Term</span><strong>{selectedRegisteredClass.academic_terms ? `${selectedRegisteredClass.academic_terms.term_label || ''} ${selectedRegisteredClass.academic_terms.academic_year || ''}` : selectedRegisteredClass.term_id ? 'Assigned term' : 'No term assigned'}</strong></div>
+                          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                            <span className="block text-[9px] font-black uppercase text-muted-foreground">Section</span>
+                            <strong className="break-words">{selectedRegisteredClass.name}</strong>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block text-[9px] font-black uppercase text-muted-foreground">Term</span>
+                            <strong className="break-words">
+                              {selectedRegisteredClass.academic_terms
+                                ? `${selectedRegisteredClass.academic_terms.term_label || ''} ${selectedRegisteredClass.academic_terms.academic_year || ''}`.trim()
+                                : selectedRegisteredClass.term_id
+                                  ? 'Assigned term'
+                                  : 'No term assigned'}
+                            </strong>
+                          </div>
                           <div><span className="block text-[9px] font-black uppercase text-muted-foreground">Grade</span><strong>{effectiveClassCode || 'Not set'}</strong></div>
                           <div><span className="block text-[9px] font-black uppercase text-muted-foreground">Arm</span><strong>{selectedArm || 'Not set'}</strong></div>
                         </div>
@@ -2136,7 +2228,7 @@ Yusuf Ibrahim SS1A`}
                 <button
                   onClick={handlePreview}
                   disabled={!namesText.trim() || !batchPlacementReady || loading}
-                  className="w-full py-3.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
+                  className="w-full rounded-xl bg-primary py-3.5 px-4 text-sm font-bold leading-snug text-foreground transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Continue to Review →
                 </button>
@@ -2149,49 +2241,50 @@ Yusuf Ibrahim SS1A`}
 
                 {/* Batch settings summary */}
                 {(selectedSchoolId || selectedProgramId || effectiveClassCode || selectedArm) && (
-                  <div className="flex flex-wrap gap-2 text-xs">
+                  <div className="flex min-w-0 flex-wrap gap-2 text-xs">
                     {selectedSchoolId && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-primary">
-                        <BuildingOffice2Icon className="w-3.5 h-3.5" />
-                        {selectedSchoolName || 'Selected school'}
+                      <span className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/10 px-3 py-1.5 text-primary">
+                        <BuildingOffice2Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="min-w-0 break-words">{selectedSchoolName || 'Selected school'}</span>
                       </span>
                     )}
                     {selectedProgramId && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-300">
-                        <BookOpenIcon className="w-3.5 h-3.5" />
-                        Auto-enrol: {selectedProgLabel}
+                      <span className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-emerald-300">
+                        <BookOpenIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="min-w-0 break-words">Auto-enrol: {selectedProgLabel}</span>
                       </span>
                     )}
                     {effectiveClassCode && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-xl text-foreground font-mono">
-                        <AcademicCapIcon className="w-3.5 h-3.5" />
+                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/10 px-3 py-1.5 font-mono text-foreground">
+                        <AcademicCapIcon className="h-3.5 w-3.5 flex-shrink-0" />
                         Grade: {effectiveClassCode}
                       </span>
                     )}
                     {selectedArm && (
-                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-300 font-mono">
+                      <span className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 font-mono text-sky-300">
                         Arm: {selectedArm}
                       </span>
                     )}
                   </div>
                 )}
 
-                <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-3">
-                  <div>
+                <div className="min-w-0 space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-3 sm:p-4">
+                  <div className="min-w-0">
                     <h3 className="text-sm font-black text-foreground">Class section</h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Pick your real class section, or use the grade-band suggestions below.
+                    <p className="break-words text-[11px] text-muted-foreground">
+                      Pick your class section below. Grade-band suggestions appear when grades are set.
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-border bg-card p-3">
-                    <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  <div className="min-w-0 rounded-xl border border-border bg-card p-3">
+                    <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                       {previewBands.length > 0 ? 'Default section for all bands' : 'Section for this batch'}
                     </label>
-                    <select
+                    <ClassSectionPicker
+                      options={classSectionOptions}
                       value={batchSectionId}
-                      onChange={(event) => {
-                        const classId = event.target.value;
+                      emptyMessage="No classes found for this school yet. Create one below, or on Classes."
+                      onChange={(classId) => {
                         setSelectedRegistryClass(classId);
                         setBandClassSelections((current) => {
                           const next = { ...current };
@@ -2209,22 +2302,12 @@ Yusuf Ibrahim SS1A`}
                         const destination = placementPool.find((candidate) => candidate.id === classId);
                         if (destination?.program_id) setSelectedProgramId(destination.program_id);
                       }}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground"
-                    >
-                      <option value="">— Select your class section —</option>
-                      {placementPool.map((candidate) => (
-                        <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                      ))}
-                    </select>
-                    {placementPool.length === 0 ? (
-                      <p className="mt-2 text-[11px] text-amber-400">
-                        No classes found for this school yet. Create one below, or on Classes.
-                      </p>
-                    ) : (
+                    />
+                    {placementPool.length > 0 ? (
                       <p className="mt-2 text-[11px] text-muted-foreground">
                         {placementPool.length} class section{placementPool.length !== 1 ? 's' : ''} available.
                       </p>
-                    )}
+                    ) : null}
                   </div>
 
                   {previewBands.length === 0 ? (
@@ -2232,7 +2315,7 @@ Yusuf Ibrahim SS1A`}
                       Set grades on students to see band suggestions (e.g. Basic 1-3, JSS 1-3).
                     </p>
                   ) : (
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid min-w-0 gap-3 md:grid-cols-2">
                       {previewBands.map(({ band, count, matches, others }) => {
                         const programmeName = programmes.find((programme) => programme.id === selectedProgramId)?.name ?? null;
                         const suggestedName = composeClassName({
@@ -2242,55 +2325,47 @@ Yusuf Ibrahim SS1A`}
                           granularity: 'fixed',
                         }).name;
                         const hasAnySection = matches.length + others.length > 0;
+                        const bandOptions: ClassSectionOption[] = [
+                          ...matches.map((candidate) => ({ id: candidate.id, name: candidate.name, preferred: true })),
+                          ...others.map((candidate) => ({ id: candidate.id, name: candidate.name })),
+                        ];
                         return (
-                          <div key={band} className="rounded-xl border border-border bg-card p-3">
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                              <div>
-                                <p className="text-xs font-black text-foreground">{band}</p>
+                          <div key={band} className="min-w-0 rounded-xl border border-border bg-card p-3">
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-black text-foreground">{band}</p>
                                 <p className="text-[10px] text-muted-foreground">{count} student{count !== 1 ? 's' : ''}</p>
                               </div>
-                              {bandClassSelections[band] && <CheckCircleIcon className="h-4 w-4 text-emerald-400" />}
+                              {bandClassSelections[band] ? <CheckCircleIcon className="h-4 w-4 flex-shrink-0 text-emerald-400" /> : null}
                             </div>
-                            <select
+                            <ClassSectionPicker
+                              options={bandOptions}
                               value={bandClassSelections[band] ?? ''}
-                              onChange={(event) => {
-                                if (event.target.value === '__create__') void createBandClass(band);
-                                else {
-                                  const classId = event.target.value;
-                                  setBandClassSelections((current) => ({ ...current, [band]: classId }));
-                                  setPreview((rows) => rows.map((row) => (
-                                    bulkGradeBand(row.class_name) === band ? { ...row, class_id: classId || undefined } : row
-                                  )));
-                                }
+                              emptyMessage="No matching class yet. Use the default section above, or create one."
+                              onChange={(classId) => {
+                                setBandClassSelections((current) => ({ ...current, [band]: classId }));
+                                setPreview((rows) => rows.map((row) => (
+                                  bulkGradeBand(row.class_name) === band ? { ...row, class_id: classId || undefined } : row
+                                )));
                               }}
-                              disabled={creatingBand === band}
-                              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground disabled:opacity-50"
+                            />
+                            <button
+                              type="button"
+                              disabled={!selectedProgramId || creatingBand === band}
+                              onClick={() => void createBandClass(band)}
+                              className="mt-2 w-full rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-left text-xs font-semibold leading-snug text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              <option value="">— Select a class —</option>
-                              {matches.length > 0 && (
-                                <optgroup label="Suggested for this band">
-                                  {matches.map((candidate) => (
-                                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              {others.length > 0 && (
-                                <optgroup label="Other classes at this school">
-                                  {others.map((candidate) => (
-                                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                                  ))}
-                                </optgroup>
-                              )}
-                              <option value="__create__" disabled={!selectedProgramId}>
-                                {selectedProgramId ? `＋ Create ${suggestedName || band}` : 'Select a programme to create this class'}
-                              </option>
-                            </select>
-                            {!hasAnySection && (
+                              {creatingBand === band
+                                ? 'Creating class…'
+                                : selectedProgramId
+                                  ? <>＋ Create <span className="break-words">{suggestedName || band}</span></>
+                                  : 'Select a programme to create this class'}
+                            </button>
+                            {!hasAnySection && selectedProgramId ? (
                               <p className="mt-1 text-[10px] text-amber-400">
-                                No matching class yet. Use the default section above, or create one.
+                                No matching class yet — create one above or pick the default section.
                               </p>
-                            )}
-                            {creatingBand === band && <p className="mt-1 text-[10px] text-primary">Creating class…</p>}
+                            ) : null}
                           </div>
                         );
                       })}
@@ -2311,11 +2386,13 @@ Yusuf Ibrahim SS1A`}
                     <span className="text-muted-foreground">students</span>
                   </div>
                   {previewClasses.length > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl border border-primary/20 text-sm">
-                      <AcademicCapIcon className="w-4 h-4 text-primary" />
-                      <span className="text-foreground font-bold">{previewClasses.length}</span>
-                      <span className="text-muted-foreground text-xs">class{previewClasses.length !== 1 ? 'es' : ''}:</span>
-                      <span className="text-foreground font-mono text-xs">{previewClasses.join(' · ')}</span>
+                    <div className="flex min-w-0 max-w-full items-start gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 py-2 text-sm">
+                      <AcademicCapIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                      <div className="min-w-0">
+                        <span className="font-bold text-foreground">{previewClasses.length}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">grade{previewClasses.length !== 1 ? 's' : ''}:</span>
+                        <span className="ml-1 break-words font-mono text-xs text-foreground">{previewClasses.join(' · ')}</span>
+                      </div>
                     </div>
                   )}
                   {dups.size > 0 && (
@@ -2485,7 +2562,9 @@ Yusuf Ibrahim SS1A`}
                                 >
                                   <option value="">Section</option>
                                   {placementPool.map((candidate) => (
-                                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                                    <option key={candidate.id} value={candidate.id} title={candidate.name}>
+                                      {shortClassLabel(candidate.name)}
+                                    </option>
                                   ))}
                                 </select>
                               </td>
@@ -2586,7 +2665,9 @@ Yusuf Ibrahim SS1A`}
                               >
                                 <option value="">Class section</option>
                                 {placementPool.map((candidate) => (
-                                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+                                  <option key={candidate.id} value={candidate.id} title={candidate.name}>
+                                    {shortClassLabel(candidate.name)}
+                                  </option>
                                 ))}
                               </select>
                               <div className="flex items-center justify-between px-3 py-2 bg-card shadow-sm rounded-xl border border-border text-[10px]">
@@ -2615,44 +2696,44 @@ Yusuf Ibrahim SS1A`}
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex gap-3">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
                   <button
                     onClick={handleReset}
-                    className="flex-1 py-3 bg-card shadow-sm hover:bg-muted text-muted-foreground font-bold rounded-xl transition-colors text-sm border border-border"
+                    className="w-full rounded-xl border border-border bg-card py-3 text-sm font-bold text-muted-foreground shadow-sm transition-colors hover:bg-muted sm:flex-1"
                   >
                     ← Edit Names
                   </button>
-                  <div className="flex-1 flex flex-col gap-2">
+                  <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-1">
                     <button
                       onClick={handleRegister}
                       disabled={registering || dups.size > 0 || dbEmailConflicts.size > 0 || unresolvedNameExceptions.length > 0 || missingGradeRows.length > 0 || studentsMissingSection.length > 0 || checkingDups || validCount === 0}
-                      className="w-full py-3 bg-[#7a0606] hover:bg-[#9a0808] disabled:opacity-50 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
+                      className="w-full rounded-xl bg-[#7a0606] px-3 py-3 text-sm font-bold leading-snug text-foreground transition-colors hover:bg-[#9a0808] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {registering
-                        ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}...`
+                        ? `Registering ${registerProgress?.done ?? 0} / ${registerProgress?.total ?? validCount}…`
                         : checkingDups
-                          ? 'Checking for duplicates…'
+                          ? 'Checking duplicates…'
                           : dups.size > 0
                             ? 'Fix duplicate emails first'
                             : dbEmailConflicts.size > 0
                               ? 'Fix email conflicts first'
                               : unresolvedNameExceptions.length > 0
-                                ? 'Confirm each twin and enter a reason'
+                                ? 'Confirm twins & enter a reason'
                                 : missingGradeRows.length > 0
-                                  ? 'Set a grade for every student first'
+                                  ? 'Set a grade for every student'
                                   : studentsMissingSection.length > 0
                                     ? 'Select a class section first'
-                                    : `Register ${validCount} Student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & Enrol' : ''}`}
+                                    : `Register ${validCount} student${validCount !== 1 ? 's' : ''}${selectedProgramId ? ' & enrol' : ''}`}
                     </button>
                     {registering && registerProgress && (
                       <div className="space-y-1">
-                        <div className="w-full h-1.5 bg-card shadow-sm rounded-xl overflow-hidden">
+                        <div className="h-1.5 w-full overflow-hidden rounded-xl bg-card shadow-sm">
                           <div
-                            className="h-full bg-[#7a0606] rounded-xl transition-all duration-300"
+                            className="h-full rounded-xl bg-[#7a0606] transition-all duration-300"
                             style={{ width: `${(registerProgress.done / registerProgress.total) * 100}%` }}
                           />
                         </div>
-                        <p className="text-[10px] text-muted-foreground truncate">
+                        <p className="truncate text-[10px] text-muted-foreground">
                           Processing: {registerProgress.current}
                         </p>
                       </div>
