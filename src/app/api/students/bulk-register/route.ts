@@ -85,7 +85,7 @@ async function requireBatchAccess(batchId: string, caller: CallerProfile, assign
 async function requireClassAccess(classId: string, caller: CallerProfile, assignedSchoolIds: Set<string>, userId: string) {
   const { data: cls, error } = await supabaseAdmin
     .from('classes')
-    .select('school_id, name, teacher_id')
+    .select('school_id, name, teacher_id, qa_grade_band')
     .eq('id', classId)
     .maybeSingle();
 
@@ -805,7 +805,7 @@ export async function PATCH(request: Request) {
           .eq('id', existingUser.id);
         // Keep students table in sync
         await supabaseAdmin.from('students')
-          .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, grade_level: r.class_name || null })
+          .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, section: r.class_name || null, grade_level: canonicalGrade(r.class_name) })
           .eq('user_id', existingUser.id);
       }
       return NextResponse.json({ success: true });
@@ -860,7 +860,7 @@ export async function PATCH(request: Request) {
       // Keep students shadow table in sync
       await supabaseAdmin.from('students').update({
         current_class: cls.name,
-        grade_level: cls.name,
+        grade_level: canonicalGrade(cls.qa_grade_band || cls.name),
         school_id: cls.school_id,
       }).in('user_id', allowedIds);
 
@@ -927,7 +927,7 @@ export async function PATCH(request: Request) {
               .eq('id', existingUser.id);
             
             await supabaseAdmin.from('students')
-              .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, grade_level: r.class_name || null })
+              .update({ full_name: r.full_name, name: r.full_name, current_class: r.class_name || null, grade_level: canonicalGrade(r.class_name) })
               .eq('user_id', existingUser.id);
           }
        }
