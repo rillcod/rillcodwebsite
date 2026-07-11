@@ -17,6 +17,7 @@ export type CreateInvoiceInput = {
   status?: string;
   stream?: 'school' | 'individual';
   invoice_number?: string;
+  metadata?: Record<string, unknown>;
 };
 
 function buildInvoiceNumber(prefix = 'INV'): string {
@@ -52,7 +53,7 @@ export async function createInvoice(
       .select('id, school_id, invoice_id')
       .eq('id', input.billing_cycle_id)
       .maybeSingle();
-    assertDbOk(cycleErr, 'lookup billing cycle');
+    if (cycleErr) return financeFail('db_error', 'Failed to look up billing cycle: ' + cycleErr.message);
     if (!cycle) return financeFail('not_found', 'Billing cycle not found');
     if (cycle.invoice_id) {
       return financeFail('conflict', 'Billing cycle already has an invoice', { invoice_id: cycle.invoice_id });
@@ -74,12 +75,25 @@ export async function createInvoice(
           },
         ];
 
+  const itemTotal = invoiceItems.reduce((sum, raw) => {
+    const item = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+    const quantity = Number(item.quantity ?? 1);
+    const unitPrice = Number(item.unit_price ?? 0);
+    const lineTotal = Number(item.total ?? quantity * unitPrice);
+    return sum + (Number.isFinite(lineTotal) ? lineTotal : Number.NaN);
+  }, 0);
+  if (!Number.isFinite(itemTotal)) return financeFail('validation', 'Every invoice line must have a valid numeric total');
+  if (Math.abs(itemTotal - amount) > 0.01) {
+    return financeFail('validation', Invoice amount () must equal line-item total ());
+  }
+
   const stream =
     input.stream ??
     classifyInvoiceStream({
       school_id: input.school_id ?? null,
       portal_user_id: input.portal_user_id ?? null,
       billing_cycle_id: input.billing_cycle_id ?? null,
+      metadata: input.metadata ?? {},
     });
 
   const invoice_number = input.invoice_number || buildInvoiceNumber();
@@ -101,6 +115,7 @@ export async function createInvoice(
       notes: input.notes ?? null,
       stream,
       billing_cycle_id: input.billing_cycle_id ?? null,
+      metadata: input.metadata ?? {},
     } as any)
     .select()
     .single();

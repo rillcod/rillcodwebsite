@@ -5,11 +5,11 @@
  *
  * Generates two official billing documents for partner schools:
  *
- * 1. Payment Register — for schools where students pay to the school account
+ * 1. Payment Register â€” for schools where students pay to the school account
  *    and the school then pays Rillcod (e.g. Word of Faith). Shows per-student
  *    name, class, amount, receipt number, and date of payment.
  *
- * 2. Attendance Billing Roster — for schools billed based on attendance.
+ * 2. Attendance Billing Roster â€” for schools billed based on attendance.
  *    Shows students who attended class sessions within a date range so the
  *    school can calculate and remit based on the agreed rate/percentage.
  *
@@ -251,32 +251,26 @@ export function SchoolBillingDocsPanel() {
   const fmt = (n: number, cur = 'NGN') =>
     cur === 'USD'
       ? `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-      : `₦${n.toLocaleString('en-NG')}`;
+      : `â‚¦${n.toLocaleString('en-NG')}`;
 
   const termLabel = `${TERM_LABELS[parseInt(termNumber) - 1]} ${academicYear}/${parseInt(academicYear) + 1}`;
   const school = schools.find(s => s.id === schoolId);
 
-  // ── Create school invoice from attendance roster total ────────────
+  // â”€â”€ Create school invoice from attendance roster total â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const createInvoiceFromRoster = useCallback(async () => {
     if (!rosterResult?.total || !schoolId) return;
     setCreatingInvoice(true);
     setInvoiceCreated(null);
     try {
-      const invoiceNumber = `SINV-${Date.now().toString(36).toUpperCase()}`;
       const dueDate = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
       const dateRange = dateFrom && dateTo
         ? ` (${new Date(dateFrom).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} – ${new Date(dateTo).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})`
         : '';
-      const { data, error } = await db
-        .from('invoices')
-        .insert({
-          invoice_number: invoiceNumber,
-          school_id: schoolId,
-          stream: 'school',
-          currency,
-          amount: rosterResult.total,
-          status: 'sent',
-          due_date: dueDate,
+      const response = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id: schoolId, stream: 'school', currency, amount: rosterResult.total, status: 'sent', due_date: dueDate,
           items: [{
             description: `Attendance-based STEM sessions${dateRange}`,
             quantity: rosterResult.studentCount,
@@ -284,20 +278,16 @@ export function SchoolBillingDocsPanel() {
             total: rosterResult.total,
           }],
           metadata: {
-            term_number: parseInt(termNumber),
-            academic_year: parseInt(academicYear),
-            term_label: termLabel,
-            payment_method: 'bank_transfer',
-            attendance_doc_ref: rosterResult.docRef,
-            date_from: dateFrom || null,
-            date_to: dateTo || null,
+            term_number: parseInt(termNumber), academic_year: parseInt(academicYear), term_label: termLabel,
+            payment_method: 'bank_transfer', attendance_doc_ref: rosterResult.docRef,
+            date_from: dateFrom || null, date_to: dateTo || null,
           },
           notes: `Auto-generated from Attendance Billing Roster ${rosterResult.docRef}`,
-        } as any)
-        .select('id, invoice_number')
-        .single();
-
-      if (error) throw error;
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Failed to create roster invoice');
+      const data = result.data;
       setInvoiceCreated({ id: data.id, invoice_number: data.invoice_number });
       setRosterResult(null);
       // Update the recent doc entry with the invoice number
@@ -315,7 +305,7 @@ export function SchoolBillingDocsPanel() {
     }
   }, [rosterResult, schoolId, currency, termNumber, academicYear, termLabel, dateFrom, dateTo, db]);
 
-  // ── Build and print Payment Register ─────────────────────────────
+  // â”€â”€ Build and print Payment Register â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const generatePaymentRegister = useCallback(async () => {
     if (!schoolId) return;
     setLoading(true);
@@ -367,14 +357,14 @@ export function SchoolBillingDocsPanel() {
         const status = rec ? 'PAID' : inv ? inv.status.toUpperCase() : 'NO RECORD';
         const statusColor = rec || inv?.status === 'paid'
           ? '#059669' : inv?.status === 'sent' ? '#d97706' : '#6b7280';
-        const receiptNo = rec?.receipt_number ?? '—';
-        const datePaid = rec?.issued_at ? fmtDate(rec.issued_at) : '—';
-        const cls = s.section_class || '—';
+        const receiptNo = rec?.receipt_number ?? 'â€”';
+        const datePaid = rec?.issued_at ? fmtDate(rec.issued_at) : 'â€”';
+        const cls = s.section_class || 'â€”';
         return `<tr>
           <td style="text-align:center;color:#9ca3af">${i + 1}</td>
           <td style="font-weight:700">${s.full_name}</td>
           <td style="text-align:center">${cls}</td>
-          <td style="text-align:right;font-weight:700">${amount ? fmt(amount, currency) : '—'}</td>
+          <td style="text-align:right;font-weight:700">${amount ? fmt(amount, currency) : 'â€”'}</td>
           <td style="text-align:center;font-family:monospace;font-size:10px">${receiptNo}</td>
           <td style="text-align:center">${datePaid}</td>
           <td style="text-align:center;font-weight:900;color:${statusColor}">${status}</td>
@@ -389,7 +379,7 @@ export function SchoolBillingDocsPanel() {
       }, 0);
 
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>Payment Register — ${school?.name}</title>
+<title>Payment Register â€” ${school?.name}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 26px;font-size:12px}
@@ -423,7 +413,7 @@ tbody td{padding:7px 10px;color:#374151}
   <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
   <div>
     <div class="org-name">RILLCOD TECHNOLOGIES</div>
-    <div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div>
+    <div class="org-sub">STEM, Robotics &amp; AI Education Partner Â· www.rillcod.com</div>
   </div>
   <div class="doc-badge">
     <div class="doc-type">Student Payment Register</div>
@@ -464,13 +454,13 @@ tbody td{padding:7px 10px;color:#374151}
 
 <div class="footer">
   <div>
-    <div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} &nbsp;·&nbsp; ${profile?.role ?? ''}</div>
+    <div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} &nbsp;Â·&nbsp; ${profile?.role ?? ''}</div>
   </div>
   <div style="text-align:center">
     <div class="sig-line">School Representative Signature</div>
   </div>
   <div style="text-align:right">
-    <div>Ref: ${docRef} &nbsp;·&nbsp; rillcod.com/verify</div>
+    <div>Ref: ${docRef} &nbsp;Â·&nbsp; rillcod.com/verify</div>
     <div>This document is confidential. For official use only.</div>
   </div>
 </div>
@@ -478,7 +468,7 @@ tbody td{padding:7px 10px;color:#374151}
 </body></html>`;
 
       const w = window.open('', '_blank', 'width=1100,height=820');
-      if (!w) { alert('Pop-up blocked — please allow pop-ups.'); return; }
+      if (!w) { alert('Pop-up blocked â€” please allow pop-ups.'); return; }
       w.document.write(html);
       w.document.close();
 
@@ -498,7 +488,7 @@ tbody td{padding:7px 10px;color:#374151}
     }
   }, [schoolId, termNumber, academicYear, flatRate, currency, school, profile, db, fmt, termLabel, linkedInvoice, saveRecentDoc]); // eslint-disable-line
 
-  // ── Build and print Attendance Roster ─────────────────────────────
+  // â”€â”€ Build and print Attendance Roster â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const generateAttendanceRoster = useCallback(async () => {
     if (!schoolId || !dateFrom || !dateTo) return;
     setLoading(true);
@@ -527,8 +517,8 @@ tbody td{padding:7px 10px;color:#374151}
         if (!uid) return;
         if (!byStudent[uid]) {
           byStudent[uid] = {
-            full_name: r.portal_users?.full_name ?? '—',
-            section_class: r.portal_users?.section_class ?? '—',
+            full_name: r.portal_users?.full_name ?? 'â€”',
+            section_class: r.portal_users?.section_class ?? 'â€”',
             sessions: new Set(),
           };
         }
@@ -564,7 +554,7 @@ tbody td{padding:7px 10px;color:#374151}
         ref: docRef,
         type: 'attendance_roster',
         school: school?.name ?? schoolId,
-        term: `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`,
+        term: `${fmtDate(dateFrom)} â€“ ${fmtDate(dateTo)}`,
         amount: totalOwed ?? undefined,
         currency,
         date: new Date().toISOString(),
@@ -574,7 +564,7 @@ tbody td{padding:7px 10px;color:#374151}
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
 
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>Attendance Billing Roster — ${school?.name}</title>
+<title>Attendance Billing Roster â€” ${school?.name}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 26px;font-size:12px}
@@ -607,7 +597,7 @@ tbody td{padding:7px 10px;color:#374151}
   <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
   <div>
     <div class="org-name">RILLCOD TECHNOLOGIES</div>
-    <div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div>
+    <div class="org-sub">STEM, Robotics &amp; AI Education Partner Â· www.rillcod.com</div>
   </div>
   <div class="doc-badge">
     <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">Attendance Billing Roster</div>
@@ -618,7 +608,7 @@ tbody td{padding:7px 10px;color:#374151}
 
 <div class="meta">
   <div class="meta-item"><div class="meta-lbl">Partner School</div><div class="meta-val">${school?.name}</div></div>
-  <div class="meta-item"><div class="meta-lbl">Period</div><div class="meta-val">${fmtDate(dateFrom)} – ${fmtDate(dateTo)}</div></div>
+  <div class="meta-item"><div class="meta-lbl">Period</div><div class="meta-val">${fmtDate(dateFrom)} â€“ ${fmtDate(dateTo)}</div></div>
   <div class="meta-item"><div class="meta-lbl">Students Present</div><div class="meta-val">${students.length}</div></div>
   <div class="meta-item"><div class="meta-lbl">Total Sessions</div><div class="meta-val">${totalSessions}</div></div>
   ${rate ? `<div class="meta-item"><div class="meta-lbl">Rate / Session</div><div class="meta-val">${fmt(rate, currency)}</div></div>` : ''}
@@ -632,7 +622,7 @@ tbody td{padding:7px 10px;color:#374151}
   <th style="width:18%;text-align:center">Class / Grade</th>
   <th style="width:14%;text-align:center">Sessions Attended</th>
   <th style="width:16%;text-align:right">Amount</th>
-  <th style="width:9%;text-align:center">Verified ✓</th>
+  <th style="width:9%;text-align:center">Verified âœ“</th>
 </tr></thead>
 <tbody>${rows}</tbody>
 </table>
@@ -650,18 +640,18 @@ ${totalOwed ? `
 </div>
 
 <div class="footer">
-  <div><div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} &nbsp;·&nbsp; Rillcod Technologies</div></div>
+  <div><div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} &nbsp;Â·&nbsp; Rillcod Technologies</div></div>
   <div style="text-align:center"><div class="sig-line">School Representative Signature &amp; Stamp</div></div>
   <div style="text-align:right">
-    <div>Ref: ${docRef} &nbsp;·&nbsp; rillcod.com/verify</div>
-    <div>Confidential — For Official Use Only</div>
+    <div>Ref: ${docRef} &nbsp;Â·&nbsp; rillcod.com/verify</div>
+    <div>Confidential â€” For Official Use Only</div>
   </div>
 </div>
 <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
 </body></html>`;
 
       const w = window.open('', '_blank', 'width=960,height=820');
-      if (!w) { alert('Pop-up blocked — please allow pop-ups for printing. Your result is saved below — click "Create Invoice" to continue.'); return; }
+      if (!w) { alert('Pop-up blocked â€” please allow pop-ups for printing. Your result is saved below â€” click "Create Invoice" to continue.'); return; }
       w.document.write(html);
       w.document.close();
     } catch (e: any) {
@@ -671,7 +661,7 @@ ${totalOwed ? `
     }
   }, [schoolId, dateFrom, dateTo, flatRate, currency, school, profile, db, fmt, saveRecentDoc]); // eslint-disable-line
 
-  // ── Build and print unified School Billing Statement ──────────────
+  // â”€â”€ Build and print unified School Billing Statement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const generateBillingStatement = useCallback(async () => {
     if (!schoolId) return;
     if (billStyle === 'attendance' && (!dateFrom || !dateTo)) return;
@@ -685,7 +675,7 @@ ${totalOwed ? `
       const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const docRef = `BS-${Date.now().toString(36).toUpperCase().slice(-6)}`;
 
-      // ── Collect student billing data ────────────────────────────────
+      // â”€â”€ Collect student billing data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       let students: StudentBillingData[] = [];
       let totalAmount = 0;
 
@@ -706,16 +696,16 @@ ${totalOwed ? `
           const inv = invMap[s.id]; const rec = recMap[s.id];
           const amt = rec?.amount ?? inv?.amount ?? (rate ?? null);
           if (amt) totalAmount += amt;
-          const status = rec ? 'PAID' : inv ? inv.status.toUpperCase() : '—';
+          const status = rec ? 'PAID' : inv ? inv.status.toUpperCase() : 'â€”';
           const col = rec || inv?.status === 'paid' ? '#059669' : inv?.status === 'sent' ? '#d97706' : '#6b7280';
-          return { name: s.full_name, cls: s.section_class || '—', amount: amt, receiptNumber: rec?.receipt_number ?? '—', status, statusColor: col };
+          return { name: s.full_name, cls: s.section_class || 'â€”', amount: amt, receiptNumber: rec?.receipt_number ?? 'â€”', status, statusColor: col };
         });
       } else {
         const { data: records } = await db.from('attendance').select(`student_id, status, class_sessions(session_date, classes(name)), portal_users!attendance_student_id_fkey(full_name, section_class)`).eq('status', 'present').gte('class_sessions.session_date', dateFrom).lte('class_sessions.session_date', dateTo);
         const byStudent: Record<string, { full_name: string; section_class: string; sessions: Set<string> }> = {};
         ((records ?? []) as any[]).filter((r: any) => r.portal_users && r.class_sessions).forEach((r: any) => {
           if (!r.student_id) return;
-          if (!byStudent[r.student_id]) byStudent[r.student_id] = { full_name: r.portal_users?.full_name ?? '—', section_class: r.portal_users?.section_class ?? '—', sessions: new Set() };
+          if (!byStudent[r.student_id]) byStudent[r.student_id] = { full_name: r.portal_users?.full_name ?? 'â€”', section_class: r.portal_users?.section_class ?? 'â€”', sessions: new Set() };
           if (r.class_sessions?.session_date) byStudent[r.student_id].sessions.add(r.class_sessions.session_date);
         });
         Object.values(byStudent).sort((a, b) => a.full_name.localeCompare(b.full_name)).forEach(s => {
@@ -734,31 +724,31 @@ ${totalOwed ? `
       const invoiceTotal = schoolInv ? Number(schoolInv.amount) : totalAmount;
       const invoiceRef = schoolInv?.invoice_number ?? docRef;
       const dueDate = schoolInv?.due_date ?? new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-      const periodLabel = billStyle === 'payment' ? termLabel : `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`;
+      const periodLabel = billStyle === 'payment' ? termLabel : `${fmtDate(dateFrom)} â€“ ${fmtDate(dateTo)}`;
 
       // Bank payment instructions
       const bankHtml = bankAccounts.length > 0
-        ? bankAccounts.slice(0, 2).map(a => `<div style="padding:10px 14px;border:1px solid #e5e7eb;border-radius:6px;margin-top:8px"><div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px">${a.label || a.bank_name}</div><div style="font-size:13px;font-weight:900;color:#4c1d95;font-family:monospace;margin:2px 0">${a.account_number}</div><div style="font-size:11px;color:#374151">${a.account_name} · ${a.bank_name}</div>${a.payment_note ? `<div style="font-size:9px;color:#6b7280;margin-top:2px">${a.payment_note}</div>` : ''}</div>`).join('')
+        ? bankAccounts.slice(0, 2).map(a => `<div style="padding:10px 14px;border:1px solid #e5e7eb;border-radius:6px;margin-top:8px"><div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px">${a.label || a.bank_name}</div><div style="font-size:13px;font-weight:900;color:#4c1d95;font-family:monospace;margin:2px 0">${a.account_number}</div><div style="font-size:11px;color:#374151">${a.account_name} Â· ${a.bank_name}</div>${a.payment_note ? `<div style="font-size:9px;color:#6b7280;margin-top:2px">${a.payment_note}</div>` : ''}</div>`).join('')
         : '<p style="color:#6b7280;font-size:11px">Contact Rillcod for bank details.</p>';
       const payLinkHtml = (schoolInv as any)?.payment_link
         ? `<div style="margin-top:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px"><div style="font-size:9px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.5px">Online Payment</div><div style="font-size:11px;color:#065f46;margin-top:2px;word-break:break-all">${(schoolInv as any).payment_link}</div></div>`
         : '';
 
-      // ── HTML builder: combined table document ───────────────────────
+      // â”€â”€ HTML builder: combined table document â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const buildCombinedHtml = (autoprint: boolean) => {
         const colHeaders = billStyle === 'payment'
           ? '<th style="width:5%;text-align:center">#</th><th style="width:35%">Student Name</th><th style="width:12%;text-align:center">Class</th><th style="width:16%;text-align:right">Amount</th><th style="width:16%;text-align:center">Receipt No.</th><th style="width:16%;text-align:center">Status</th>'
           : '<th style="width:5%;text-align:center">#</th><th style="width:40%">Student Name</th><th style="width:15%;text-align:center">Class</th><th style="width:15%;text-align:center">Sessions</th><th style="width:25%;text-align:right">Amount</th>';
         const rows = students.map((s, i) => billStyle === 'payment'
-          ? `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center">${s.cls}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : '—'}</td><td style="text-align:center;font-family:monospace;font-size:10px">${s.receiptNumber ?? '—'}</td><td style="text-align:center;font-weight:900;color:${s.statusColor}">${s.status}</td></tr>`
+          ? `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center">${s.cls}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : 'â€”'}</td><td style="text-align:center;font-family:monospace;font-size:10px">${s.receiptNumber ?? 'â€”'}</td><td style="text-align:center;font-weight:900;color:${s.statusColor}">${s.status}</td></tr>`
           : `<tr><td style="text-align:center;color:#9ca3af">${i + 1}</td><td style="font-weight:700">${s.name}</td><td style="text-align:center">${s.cls}</td><td style="text-align:center;font-weight:700">${s.sessions ?? 0}</td><td style="text-align:right;font-weight:700">${s.amount ? fmt(s.amount, currency) : `${s.sessions ?? 0} sessions`}</td></tr>`
         ).join('');
         const watermarkCss = autoprint ? '' : `body::before{content:'PREVIEW';position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:90px;font-weight:900;color:rgba(124,58,237,0.06);pointer-events:none;z-index:9999;letter-spacing:8px;white-space:nowrap;}`;
-        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>School Billing Statement — ${school?.name}</title>
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>School Billing Statement â€” ${school?.name}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;padding:22px 26px;font-size:12px}@page{size:A4 portrait;margin:12mm 14mm}@media print{body{padding:0}}${watermarkCss}.header{display:flex;align-items:center;gap:14px;border-bottom:4px solid #7c3aed;padding-bottom:12px;margin-bottom:14px}.logo{width:52px;height:52px;object-fit:contain}.org-name{font-size:18px;font-weight:900;color:#7c3aed}.org-sub{font-size:9px;color:#6b7280;font-weight:600;margin-top:1px}.doc-badge{margin-left:auto;text-align:right}.inv-block{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;padding:12px 14px;background:#f3f0ff;border-radius:8px;border:1px solid #7c3aed22}table{width:100%;border-collapse:collapse;font-size:11px}thead tr{background:#4c1d95;color:#fff}thead th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}tbody tr{border-bottom:1px solid #e5e7eb}tbody tr:nth-child(even){background:#f9fafb}tbody td{padding:6px 10px;color:#374151}.pay-section{margin-top:16px;padding:12px 14px;background:#faf5ff;border:1px solid #7c3aed22;border-radius:8px}.total-bar{margin-top:14px;display:flex;justify-content:flex-end}.total-box{padding:12px 20px;background:#4c1d95;color:#fff;border-radius:8px;text-align:right}.footer{margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-end;font-size:9px;color:#9ca3af}.sig-line{border-top:1px solid #374151;width:160px;padding-top:4px;color:#6b7280;margin-top:30px}</style></head><body>
 <div class="header">
   <img src="/logo.png" class="logo" onerror="this.style.display='none'" />
-  <div><div class="org-name">RILLCOD TECHNOLOGIES</div><div class="org-sub">STEM, Robotics &amp; AI Education Partner · www.rillcod.com</div></div>
+  <div><div class="org-name">RILLCOD TECHNOLOGIES</div><div class="org-sub">STEM, Robotics &amp; AI Education Partner Â· www.rillcod.com</div></div>
   <div class="doc-badge">
     <div style="font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px">School Billing Statement</div>
     <div style="font-size:20px;font-weight:900;color:#4c1d95">${invoiceRef}</div>
@@ -782,25 +772,25 @@ ${totalOwed ? `
   <div class="total-box">
     <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8">Total Amount Due to Rillcod Technologies</div>
     <div style="font-size:22px;font-weight:900;margin-top:2px">${fmt(invoiceTotal, currency)}</div>
-    <div style="font-size:9px;opacity:0.7;margin-top:2px">${students.length} students · ${periodLabel}</div>
+    <div style="font-size:9px;opacity:0.7;margin-top:2px">${students.length} students Â· ${periodLabel}</div>
   </div>
 </div>
 <div class="pay-section">
-  <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Payment Instructions — Remit to Rillcod Technologies</div>
+  <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Payment Instructions â€” Remit to Rillcod Technologies</div>
   ${bankHtml}
   ${payLinkHtml}
   <div style="font-size:10px;color:#6b7280;margin-top:10px">Please quote invoice reference <strong>${invoiceRef}</strong> in all payments. Contact accounts@rillcod.com for queries.</div>
 </div>
 <div class="footer">
-  <div><div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} · Rillcod Technologies</div></div>
+  <div><div class="sig-line">Prepared by: ${profile?.full_name ?? 'Staff'} Â· Rillcod Technologies</div></div>
   <div style="text-align:center"><div class="sig-line">School Authorised Signatory &amp; Stamp</div></div>
-  <div style="text-align:right"><div>Ref: ${docRef} · rillcod.com/verify</div><div>Confidential — For Official Use Only</div></div>
+  <div style="text-align:right"><div>Ref: ${docRef} Â· rillcod.com/verify</div><div>Confidential â€” For Official Use Only</div></div>
 </div>
 ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>' : ''}
 </body></html>`;
       };
 
-      // ── HTML builder: per-student slip pages ────────────────────────
+      // â”€â”€ HTML builder: per-student slip pages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const buildIndividualHtml = () => {
         const firstBankAcc = bankAccounts[0];
         const paymentLink = (schoolInv as any)?.payment_link ?? null;
@@ -834,20 +824,20 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
     <div style="background:#4c1d95;color:#fff;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <div>
         <div style="font-size:8px;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px;">Amount Due</div>
-        <div style="font-size:20px;font-weight:900;">${s.amount ? fmt(s.amount, currency) : '—'}</div>
+        <div style="font-size:20px;font-weight:900;">${s.amount ? fmt(s.amount, currency) : 'â€”'}</div>
         ${s.sessions !== undefined ? `<div style="font-size:9px;opacity:0.7;">${s.sessions} session${s.sessions !== 1 ? 's' : ''} attended</div>` : ''}
       </div>
       <div style="text-align:right;">
         <div style="font-size:8px;opacity:0.7;">Status</div>
         <div style="font-size:13px;font-weight:900;color:${s.statusColor === '#059669' ? '#4ade80' : s.statusColor === '#d97706' ? '#fbbf24' : '#d1d5db'};">${s.status}</div>
-        ${s.receiptNumber && s.receiptNumber !== '—' ? `<div style="font-size:8px;opacity:0.7;font-family:monospace;">Rcpt: ${s.receiptNumber}</div>` : ''}
+        ${s.receiptNumber && s.receiptNumber !== 'â€”' ? `<div style="font-size:8px;opacity:0.7;font-family:monospace;">Rcpt: ${s.receiptNumber}</div>` : ''}
       </div>
     </div>
     <div style="display:flex;gap:10px;margin-bottom:10px;">
       ${firstBankAcc ? `<div style="flex:1;border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;">
         <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px;">Pay to Rillcod Technologies</div>
         <div style="font-size:11px;font-weight:700;color:#4c1d95;font-family:monospace;">${firstBankAcc.account_number}</div>
-        <div style="font-size:9px;color:#374151;">${firstBankAcc.account_name} · ${firstBankAcc.bank_name}</div>
+        <div style="font-size:9px;color:#374151;">${firstBankAcc.account_name} Â· ${firstBankAcc.bank_name}</div>
         <div style="font-size:8px;color:#6b7280;margin-top:2px;">Ref: <strong>${invoiceRef}</strong></div>
       </div>` : ''}
       ${qrUrl ? `<div style="border:1px solid #e5e7eb;border-radius:6px;padding:6px;text-align:center;min-width:84px;">
@@ -862,23 +852,23 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
   </div>
 </div>`;
         }).join('');
-        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Student Fee Slips — ${school?.name}</title>
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Student Fee Slips â€” ${school?.name}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{background:#fff;color:#111}@page{size:A4 portrait;margin:6mm}@media print{body{padding:0}}</style></head>
 <body>${slips}<script>window.onload = () => { setTimeout(() => window.print(), 500); }</script></body></html>`;
       };
 
-      // ── Output based on printMode ───────────────────────────────────
+      // â”€â”€ Output based on printMode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (printMode === 'individual') {
         const html = buildIndividualHtml();
         const w = window.open('', '_blank', 'width=960,height=820');
-        if (!w) { alert('Pop-up blocked — please allow pop-ups for printing.'); } else { w.document.write(html); w.document.close(); }
+        if (!w) { alert('Pop-up blocked â€” please allow pop-ups for printing.'); } else { w.document.write(html); w.document.close(); }
       } else if (printMode === 'preview') {
         setPreviewHtml(buildCombinedHtml(false));
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
       } else {
         const html = buildCombinedHtml(true);
         const w = window.open('', '_blank', 'width=960,height=820');
-        if (!w) { alert('Pop-up blocked — please allow pop-ups for printing.'); } else { w.document.write(html); w.document.close(); }
+        if (!w) { alert('Pop-up blocked â€” please allow pop-ups for printing.'); } else { w.document.write(html); w.document.close(); }
       }
 
       setLastStatement({ docRef, invoiceRef, amount: invoiceTotal, studentCount: students.length, period: periodLabel, dueDate, currency });
@@ -900,7 +890,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
     }
   }, [schoolId, billStyle, termNumber, academicYear, flatRate, currency, dateFrom, dateTo, school, profile, db, fmt, termLabel, bankAccounts, printMode, saveRecentDoc]); // eslint-disable-line
 
-  // ── CSV export of last generated student list ─────────────────────
+  // â”€â”€ CSV export of last generated student list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const downloadCsv = useCallback(() => {
     if (!lastStudents.length) return;
     const headers = ['#', 'Name', 'Class', 'Amount', 'Sessions', 'Receipt No.', 'Status'];
@@ -916,7 +906,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
     URL.revokeObjectURL(url);
   }, [lastStudents, school, lastStatement]);
 
-  // ── Email billing statement to school ────────────────────────────
+  // â”€â”€ Email billing statement to school â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const sendToSchool = useCallback(async () => {
     if (!lastStatement || !schoolId) return;
     setSendingEmail(true);
@@ -967,11 +957,11 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
       </div>
 
-      {/* ── Overdue schools alert ──────────────────────────────────── */}
+      {/* â”€â”€ Overdue schools alert â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {overdueSchools.length > 0 && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-red-400 text-sm">⚠</span>
+            <span className="text-red-400 text-sm">âš </span>
             <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
               {overdueSchools.length} School{overdueSchools.length !== 1 ? 's' : ''} with Overdue Invoice{overdueSchools.length !== 1 ? 's' : ''}
             </p>
@@ -985,7 +975,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
                     <span className="text-[9px] font-mono text-muted-foreground">{ov.invoice_number}</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    {ov.currency === 'USD' ? '$' : '₦'}{ov.amount.toLocaleString('en-NG')} · {ov.daysOverdue}d overdue
+                    {ov.currency === 'USD' ? '$' : 'â‚¦'}{ov.amount.toLocaleString('en-NG')} Â· {ov.daysOverdue}d overdue
                   </p>
                 </div>
                 <button
@@ -1000,29 +990,29 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
       )}
 
-      {/* Step 1 — Document type */}
+      {/* Step 1 â€” Document type */}
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 1 — Choose Document Type</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 1 â€” Choose Document Type</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {([
             {
               id: 'billing_statement',
               label: 'School Billing Statement',
-              emoji: '🏫',
+              emoji: 'ðŸ«',
               sub: 'All-in-one: student list + invoice + payment instructions in one printable document. Send this to the school to collect payment.',
               badge: 'Recommended',
             },
             {
               id: 'payment_register',
               label: 'Payment Register',
-              emoji: '📋',
+              emoji: 'ðŸ“‹',
               sub: 'Student-by-student payment log with receipt numbers. For schools that collect fees and remit to Rillcod.',
             },
             {
               id: 'attendance_roster',
               label: 'Attendance Roster',
-              emoji: '📅',
-              sub: 'Sessions attended per student × agreed rate. For schools billed based on attendance.',
+              emoji: 'ðŸ“…',
+              sub: 'Sessions attended per student Ã— agreed rate. For schools billed based on attendance.',
             },
           ] as const).map(opt => (
             <button key={opt.id}
@@ -1043,14 +1033,14 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
       </div>
 
-      {/* Step 2 — Fill in details */}
+      {/* Step 2 â€” Fill in details */}
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 2 — Fill in Details</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 2 â€” Fill in Details</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="sm:col-span-2 lg:col-span-2">
             <Lbl>Partner School</Lbl>
             <Select value={schoolId} onChange={e => setSchoolId(e.target.value)}>
-              <option value="">— Select school —</option>
+              <option value="">â€” Select school â€”</option>
               {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
           </div>
@@ -1058,7 +1048,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
           <div>
             <Lbl>Currency</Lbl>
             <Select value={currency} onChange={e => setCurrency(e.target.value)}>
-              <option value="NGN">NGN (₦)</option>
+              <option value="NGN">NGN (â‚¦)</option>
               <option value="USD">USD ($)</option>
             </Select>
           </div>
@@ -1082,7 +1072,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
                 </Select>
               </div>
               <div>
-                <Lbl>Flat Fee Per Student <span className="text-muted-foreground/60 normal-case font-normal">(optional — auto-filled from invoice)</span></Lbl>
+                <Lbl>Flat Fee Per Student <span className="text-muted-foreground/60 normal-case font-normal">(optional â€” auto-filled from invoice)</span></Lbl>
                 <Input type="number" min={0} placeholder="e.g. 15000" value={flatRate} onChange={e => setFlatRate(e.target.value)} />
               </div>
             </>
@@ -1138,9 +1128,9 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
                 <Lbl>Output Mode</Lbl>
                 <div className="flex rounded-lg overflow-hidden border border-border text-[10px] font-black uppercase tracking-widest">
                   {([
-                    { id: 'combined', label: '📄 Combined', tip: 'All students in one table document' },
-                    { id: 'individual', label: '🗂 Individual Slips', tip: 'One printable slip per student — distribute physically' },
-                    { id: 'preview', label: '👁 Inline Preview', tip: 'Preview inside this panel — print from here' },
+                    { id: 'combined', label: 'ðŸ“„ Combined', tip: 'All students in one table document' },
+                    { id: 'individual', label: 'ðŸ—‚ Individual Slips', tip: 'One printable slip per student â€” distribute physically' },
+                    { id: 'preview', label: 'ðŸ‘ Inline Preview', tip: 'Preview inside this panel â€” print from here' },
                   ] as const).map((m, i) => (
                     <button
                       key={m.id}
@@ -1154,8 +1144,8 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
                 </div>
                 <p className="text-[9px] text-muted-foreground mt-1">
                   {printMode === 'combined' && 'Opens a full-page printable billing statement with all students listed.'}
-                  {printMode === 'individual' && 'Opens individual fee slips — one page per student — for physical distribution.'}
-                  {printMode === 'preview' && 'Shows the document inline below — inspect before printing with the Print button.'}
+                  {printMode === 'individual' && 'Opens individual fee slips â€” one page per student â€” for physical distribution.'}
+                  {printMode === 'preview' && 'Shows the document inline below â€” inspect before printing with the Print button.'}
                 </p>
               </div>
               {billStyle === 'attendance' && (
@@ -1173,7 +1163,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
               {bankAccounts.length > 0 && (
                 <div className="sm:col-span-2 lg:col-span-3">
                   <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded-lg">
-                    <span className="text-emerald-400 text-xs">✓</span>
+                    <span className="text-emerald-400 text-xs">âœ“</span>
                     <p className="text-[10px] text-emerald-400 font-black">
                       {bankAccounts.length} Rillcod bank account{bankAccounts.length !== 1 ? 's' : ''} will be included as payment instructions
                     </p>
@@ -1193,28 +1183,28 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
             <p className="text-sm font-black text-foreground">{school.name}</p>
             {lookingUp ? (
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <ArrowPathIcon className="w-3 h-3 animate-spin" /> Looking up school invoice…
+                <ArrowPathIcon className="w-3 h-3 animate-spin" /> Looking up school invoiceâ€¦
               </p>
             ) : linkedInvoice ? (
               <div className="mt-1 space-y-0.5">
                 <p className="text-[10px] text-emerald-400 font-black">
-                  ✓ Linked to invoice {linkedInvoice.invoice_number} · {linkedInvoice.status.toUpperCase()}
+                  âœ“ Linked to invoice {linkedInvoice.invoice_number} Â· {linkedInvoice.status.toUpperCase()}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
-                  {linkedInvoice.metadata?.term_label ?? termLabel} · Total ₦{Number(linkedInvoice.amount).toLocaleString('en-NG')}
-                  {flatRate ? ` · Rate/student auto-filled: ₦${Number(flatRate).toLocaleString('en-NG')}` : ''}
+                  {linkedInvoice.metadata?.term_label ?? termLabel} Â· Total â‚¦{Number(linkedInvoice.amount).toLocaleString('en-NG')}
+                  {flatRate ? ` Â· Rate/student auto-filled: â‚¦${Number(flatRate).toLocaleString('en-NG')}` : ''}
                 </p>
               </div>
             ) : (
-              <p className="text-[10px] text-amber-400">No matching school invoice found for this term — will use manual rate if provided.</p>
+              <p className="text-[10px] text-amber-400">No matching school invoice found for this term â€” will use manual rate if provided.</p>
             )}
           </div>
         </div>
       )}
 
-      {/* Step 3 — Generate */}
+      {/* Step 3 â€” Generate */}
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 3 — Generate &amp; Print</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Step 3 â€” Generate &amp; Print</p>
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={docType === 'payment_register' ? generatePaymentRegister : docType === 'attendance_roster' ? generateAttendanceRoster : generateBillingStatement}
@@ -1222,7 +1212,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
             className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 transition-all shadow-lg shadow-primary/20"
           >
             {loading ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <PrinterIcon className="w-4 h-4" />}
-            {loading ? 'Generating…' : docType === 'billing_statement' ? 'Generate Billing Statement' : docType === 'payment_register' ? 'Generate Payment Register' : 'Generate Attendance Roster'}
+            {loading ? 'Generatingâ€¦' : docType === 'billing_statement' ? 'Generate Billing Statement' : docType === 'payment_register' ? 'Generate Payment Register' : 'Generate Attendance Roster'}
           </button>
           {lastStudents.length > 0 && docType === 'billing_statement' && (
             <button
@@ -1244,7 +1234,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
         {!canGenerate && (
           <p className="text-[10px] text-muted-foreground mt-2">
-            {!schoolId ? '↑ Select a partner school to continue.' : 'Enter the date range to continue.'}
+            {!schoolId ? 'â†‘ Select a partner school to continue.' : 'Enter the date range to continue.'}
           </p>
         )}
 
@@ -1265,8 +1255,8 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
                 disabled={sendingEmail}
                 className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 transition-colors"
               >
-                {sendingEmail ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <span>✉</span>}
-                {sendingEmail ? 'Sending…' : 'Email Statement'}
+                {sendingEmail ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <span>âœ‰</span>}
+                {sendingEmail ? 'Sendingâ€¦' : 'Email Statement'}
               </button>
             </div>
             {emailSent && (
@@ -1278,20 +1268,20 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
               <p className="text-[10px] text-red-400 mt-2">{emailError}</p>
             )}
             <p className="text-[9px] text-muted-foreground mt-1.5">
-              Sends a branded email summary of ref <span className="font-mono">{lastStatement.invoiceRef}</span> · {lastStatement.period} to the school's billing contact.
+              Sends a branded email summary of ref <span className="font-mono">{lastStatement.invoiceRef}</span> Â· {lastStatement.period} to the school's billing contact.
             </p>
           </div>
         )}
       </div>
 
-      {/* ── Inline preview pane (billing_statement preview mode) ───── */}
+      {/* â”€â”€ Inline preview pane (billing_statement preview mode) â”€â”€â”€â”€â”€ */}
       {docType === 'billing_statement' && previewHtml && (
         <div ref={resultRef} className="rounded-xl border-2 border-primary/20 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2.5 bg-primary/5 border-b border-primary/20">
             <div className="flex items-center gap-2">
               <DocumentTextIcon className="w-4 h-4 text-primary" />
               <p className="text-[10px] font-black uppercase tracking-widest text-primary">Document Preview</p>
-              <span className="text-[9px] text-muted-foreground">(scroll to inspect · use Print to output)</span>
+              <span className="text-[9px] text-muted-foreground">(scroll to inspect Â· use Print to output)</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1319,7 +1309,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
       )}
 
-      {/* ── Roster result card ─────────────────────────────────────── */}
+      {/* â”€â”€ Roster result card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {rosterResult && (
         <div ref={resultRef} className="rounded-xl border-2 border-sky-500/30 bg-sky-500/5 p-4 space-y-3">
           <div className="flex items-start gap-3">
@@ -1337,13 +1327,13 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
             <div className="bg-card rounded-lg p-3 text-center border border-border">
               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Rate / Session</p>
               <p className="text-xl font-black text-foreground">
-                {rosterResult.rate ? fmt(rosterResult.rate, currency) : '—'}
+                {rosterResult.rate ? fmt(rosterResult.rate, currency) : 'â€”'}
               </p>
             </div>
             <div className={`rounded-lg p-3 text-center border ${rosterResult.total ? 'border-sky-500/30 bg-sky-500/10' : 'border-border bg-card'}`}>
               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Due</p>
               <p className="text-xl font-black text-sky-400">
-                {rosterResult.total ? fmt(rosterResult.total, currency) : '—'}
+                {rosterResult.total ? fmt(rosterResult.total, currency) : 'â€”'}
               </p>
             </div>
           </div>
@@ -1357,7 +1347,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
                 {creatingInvoice
                   ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
                   : <PlusIcon className="w-3.5 h-3.5" />}
-                {creatingInvoice ? 'Creating Invoice…' : 'Create School Invoice from This Roster'}
+                {creatingInvoice ? 'Creating Invoiceâ€¦' : 'Create School Invoice from This Roster'}
               </button>
               <p className="text-[10px] text-muted-foreground">
                 Creates a pre-filled school invoice sent directly to {school?.name}
@@ -1371,7 +1361,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
       )}
 
-      {/* ── Invoice created success ─────────────────────────────────── */}
+      {/* â”€â”€ Invoice created success â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {invoiceCreated && (
         <div ref={resultRef} className="rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 p-4 flex items-start gap-3">
           <CheckCircleIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
@@ -1385,7 +1375,7 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
         </div>
       )}
 
-      {/* ── Recent Documents ───────────────────────────────────────── */}
+      {/* â”€â”€ Recent Documents â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {recentDocs.length > 0 && (
         <div className="pt-2">
           <div className="flex items-center gap-2 mb-3">
@@ -1405,20 +1395,20 @@ ${autoprint ? '<script>window.onload = () => { setTimeout(() => window.print(), 
             {recentDocs.map(doc => (
               <div key={doc.ref} className="flex items-center gap-3 px-3 py-2.5 bg-card border border-border rounded-lg">
                 <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs ${doc.type === 'billing_statement' ? 'bg-violet-500/10' : doc.type === 'payment_register' ? 'bg-primary/10' : 'bg-sky-500/10'}`}>
-                  {doc.type === 'billing_statement' ? '🏫' : doc.type === 'payment_register' ? '📋' : '📅'}
+                  {doc.type === 'billing_statement' ? 'ðŸ«' : doc.type === 'payment_register' ? 'ðŸ“‹' : 'ðŸ“…'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs font-black text-foreground font-mono">{doc.ref}</p>
                     {doc.invoiceNumber && (
                       <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-widest">
-                        → {doc.invoiceNumber}
+                        â†’ {doc.invoiceNumber}
                       </span>
                     )}
                   </div>
                   <p className="text-[10px] text-muted-foreground truncate">
-                    {doc.school} · {doc.term}
-                    {doc.amount && doc.currency ? ` · ${doc.currency === 'USD' ? '$' : '₦'}${doc.amount.toLocaleString('en-NG')}` : ''}
+                    {doc.school} Â· {doc.term}
+                    {doc.amount && doc.currency ? ` Â· ${doc.currency === 'USD' ? '$' : 'â‚¦'}${doc.amount.toLocaleString('en-NG')}` : ''}
                   </p>
                 </div>
                 <p className="text-[9px] text-muted-foreground shrink-0">

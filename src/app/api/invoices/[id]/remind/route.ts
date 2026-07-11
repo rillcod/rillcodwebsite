@@ -85,7 +85,7 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to send reminder email', detail: e?.message }, { status: 500 });
   }
 
-  await admin
+  const { error: reminderWriteError } = await admin
     .from('invoices')
     .update({
       [`reminder_${reminderNumber}_sent_at`]: new Date().toISOString(),
@@ -98,6 +98,9 @@ export async function POST(
       ...(invoice.status === 'draft' ? { status: 'sent' } : {}),
     } as any)
     .eq('id', invoiceId);
+  if (reminderWriteError) {
+    return NextResponse.json({ success: false, error: 'Reminder delivered but audit state was not saved', code: 'audit_write_failed', detail: reminderWriteError.message }, { status: 500 });
+  }
 
   return NextResponse.json({
     success: true,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createInvoice } from '@/lib/finance/create-invoice';
 import { financeResultToResponse } from '@/lib/finance/write-result';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 
 async function getCaller() {
   const supabase = await createClient();
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
     notes: body.notes,
     description: body.description,
     status: body.status ?? 'draft',
+    stream: body.stream === 'school' || body.stream === 'individual' ? body.stream : undefined,
+    metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {},
   });
 
   const { body: payload, status } = financeResultToResponse(result);
@@ -64,8 +67,13 @@ export async function GET(request: Request) {
   const { createAdminClient } = await import('@/lib/supabase/admin');
   const db = createAdminClient();
   let q = db.from('invoices').select('*').order('created_at', { ascending: false }).limit(100);
-  if (caller.role !== 'admin' && caller.school_id) {
+  if (caller.role === 'school') {
+    if (!caller.school_id) return NextResponse.json({ success: false, error: 'No school scope', code: 'forbidden' }, { status: 403 });
     q = q.eq('school_id', caller.school_id) as typeof q;
+  } else if (caller.role === 'teacher') {
+    const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+    if (schoolIds.length === 0) return NextResponse.json({ success: true, data: [] });
+    q = q.in('school_id', schoolIds) as typeof q;
   }
   const status = searchParams.get('status');
   if (status) q = q.eq('status', status) as typeof q;

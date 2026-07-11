@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getTeacherSchoolIds } from '@/lib/auth-utils';
 import { NextResponse } from 'next/server';
 import { notificationsService } from '@/services/notifications.service';
 import { buildInvoiceIssueEmail, defaultInvoicePaymentUrl } from '@/lib/finance/invoice-email';
@@ -9,13 +11,15 @@ import { env } from '@/config/env';
 export async function POST(req: Request) {
     try {
         const supabase = await createClient();
+        const db = createAdminClient();
+        const warnings: string[] = [];
 
-        // ── Identify the staff member sending this email ──────────────
+        // â”€â”€ Identify the staff member sending this email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
-        const { data: caller } = await (supabase as any)
+        const { data: caller } = await (db as any)
             .from('portal_users')
             .select('id, full_name, role, school_id')
             .eq('id', user.id)
@@ -34,8 +38,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, message: 'Invoice ID is required' }, { status: 400 });
         }
 
-        // ── Fetch invoice with all related data ───────────────────────
-        const { data: invoice, error } = await (supabase as any)
+        // â”€â”€ Fetch invoice with all related data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        const { data: invoice, error } = await (db as any)
             .from('invoices')
             .select(`
                 *,
@@ -60,17 +64,20 @@ export async function POST(req: Request) {
             }, { status: 404 });
         }
 
-        // Non-admin staff can only send invoices belonging to their own school.
-        if (caller.role !== 'admin' && (!caller.school_id || invoice.school_id !== caller.school_id)) {
-            return NextResponse.json({ success: false, message: 'Forbidden — invoice is outside your school' }, { status: 403 });
+        // Non-admin staff are scoped to server-derived school assignments.
+        if (caller.role !== 'admin') {
+            const schoolIds = await getTeacherSchoolIds(caller.id, caller.school_id);
+            if (!invoice.school_id || !schoolIds.includes(invoice.school_id)) {
+                return NextResponse.json({ success: false, message: 'Forbidden - invoice is outside your assigned schools' }, { status: 403 });
+            }
         }
 
         let billingContact = null;
         if (invoice.school_id) {
-            const { data } = await (supabase as any).from('billing_contacts').select('*').eq('school_id', invoice.school_id).maybeSingle();
+            const { data } = await (db as any).from('billing_contacts').select('*').eq('school_id', invoice.school_id).maybeSingle();
             billingContact = data;
         } else if (invoice.portal_user_id) {
-            const { data } = await (supabase as any).from('billing_contacts').select('*').eq('owner_user_id', invoice.portal_user_id).maybeSingle();
+            const { data } = await (db as any).from('billing_contacts').select('*').eq('owner_user_id', invoice.portal_user_id).maybeSingle();
             billingContact = data;
         }
         invoice.billing_contacts = billingContact;
@@ -78,14 +85,14 @@ export async function POST(req: Request) {
         const isSchoolStream = invoice.stream === 'school' || (invoice.school_id && !invoice.portal_user_id);
         const portalUser = invoice.portal_users;
 
-        // ── Resolve TO address ────────────────────────────────────────
+        // â”€â”€ Resolve TO address â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let resolvedEmail: string | undefined;
 
         if (isSchoolStream) {
-            // School: billing contact → school portal user (role='school')
+            // School: billing contact â†’ school portal user (role='school')
             resolvedEmail = invoice.billing_contacts?.representative_email || undefined;
             if (!resolvedEmail && invoice.school_id) {
-                const { data: schoolUser } = await (supabase as any)
+                const { data: schoolUser } = await (db as any)
                     .from('portal_users')
                     .select('email')
                     .eq('school_id', invoice.school_id)
@@ -94,11 +101,11 @@ export async function POST(req: Request) {
                 resolvedEmail = schoolUser?.email || undefined;
             }
         } else {
-            // Individual: student email → parent email fallback
+            // Individual: student email â†’ parent email fallback
             resolvedEmail = portalUser?.email || undefined;
             if (!resolvedEmail && invoice.portal_user_id) {
                 // Check if there's a linked parent email via the students table
-                const { data: studentRow } = await (supabase as any)
+                const { data: studentRow } = await (db as any)
                     .from('students')
                     .select('parent_email')
                     .eq('user_id', invoice.portal_user_id)
@@ -114,7 +121,7 @@ export async function POST(req: Request) {
                 {
                     success: false,
                     message: isSchoolStream
-                        ? 'No school contact email found — please enter a recipient email address'
+                        ? 'No school contact email found â€” please enter a recipient email address'
                         : 'No email address found for this student or parent',
                 },
                 { status: 400 },
@@ -167,7 +174,7 @@ export async function POST(req: Request) {
                     paystackUrl = psData.data.authorization_url;
 
                     // Record the pending transaction for webhook reconciliation
-                    await (supabase as any).from('payment_transactions').insert({
+                    const { error: pendingTxError } = await (db as any).from('payment_transactions').insert({
                         portal_user_id: invoice.portal_user_id ?? caller?.id ?? null,
                         school_id: invoice.school_id ?? null,
                         amount: invoice.amount,
@@ -182,15 +189,16 @@ export async function POST(req: Request) {
                             sent_to: toEmail,
                         },
                     });
+                    if (pendingTxError) { warnings.push('Online payment link was omitted because its pending ledger record could not be saved.'); paystackUrl = null; }
                 }
             } catch (psErr) {
-                // Non-fatal — fall back to portal URL
+                // Non-fatal â€” fall back to portal URL
                 console.warn('Paystack init failed for invoice email, using portal URL:', psErr);
             }
         }
 
-        // ── Fetch bank accounts for transfer details ──────────────────
-        const { data: bankAccounts } = await (supabase as any)
+        // â”€â”€ Fetch bank accounts for transfer details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        const { data: bankAccounts } = await (db as any)
             .from('payment_accounts')
             .select('label, bank_name, account_number, account_name, payment_note')
             .eq('is_active', true)
@@ -205,7 +213,7 @@ export async function POST(req: Request) {
             appUrl: appBase,
         });
 
-        // ── Send ──────────────────────────────────────────────────────
+        // â”€â”€ Send â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         await notificationsService.sendEmail(caller?.id || 'system', {
             to: toEmail,
             subject,
@@ -214,21 +222,22 @@ export async function POST(req: Request) {
             replyTo: isSchoolStream ? 'partners@rillcod.com' : 'support@rillcod.com',
         });
 
-        // ── Post-send housekeeping ────────────────────────────────────
+        // â”€â”€ Post-send housekeeping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         // Mark draft invoices as sent
         if (invoice.status === 'draft') {
-            await (supabase as any)
+            const { error: sentStateError } = await (db as any)
                 .from('invoices')
                 .update({ status: 'sent' })
                 .eq('id', invoiceId);
+            if (sentStateError) warnings.push('Email sent, but invoice status could not be changed from draft to sent.');
         }
 
         // School invoices: save/update billing contact so recipient email pre-fills next time
         if (isSchoolStream && invoice.school_id && toEmail) {
             const existing = invoice.billing_contacts;
             if (!existing) {
-                await (supabase as any)
+                await (db as any)
                     .from('billing_contacts')
                     .insert({
                         school_id: invoice.school_id,
@@ -238,14 +247,14 @@ export async function POST(req: Request) {
                         owner_user_id: caller?.id || null,
                     });
             } else if (!existing.representative_email) {
-                await (supabase as any)
+                await (db as any)
                     .from('billing_contacts')
                     .update({ representative_email: toEmail })
                     .eq('school_id', invoice.school_id);
             }
         }
 
-        return NextResponse.json({ success: true, message: `Email sent to ${toEmail}` });
+        return NextResponse.json({ success: true, message: 'Email sent to ' + toEmail, effects: ['invoice_email_sent'], ...(warnings.length ? { warnings } : {}) });
     } catch (err: any) {
         console.error('Send invoice email error:', err);
         return NextResponse.json({

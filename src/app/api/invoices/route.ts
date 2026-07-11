@@ -131,6 +131,7 @@ export async function POST(request: NextRequest) {
     status,
     stream: streamFromBody === 'school' || streamFromBody === 'individual' ? streamFromBody : undefined,
     billing_cycle_id: billing_cycle_id || null,
+    metadata: metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : {},
   });
 
   const { body: payload, status: httpStatus } = financeResultToResponse(result);

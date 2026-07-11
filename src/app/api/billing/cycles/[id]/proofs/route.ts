@@ -47,28 +47,20 @@ export async function POST(
 
   let invoiceId = cycle.invoice_id as string | null;
   if (!invoiceId) {
-    const { data: invoice, error: invoiceErr } = await db
-      .from('invoices')
-      .insert({
-        invoice_number: `BCY-${Date.now().toString(36).toUpperCase()}`,
-        school_id: cycle.owner_type === 'school' ? (cycle.owner_school_id || cycle.school_id || null) : null,
-        portal_user_id: cycle.owner_type === 'individual' ? (cycle.owner_user_id || null) : null,
-        amount: Number(cycle.amount_due) || 0,
-        currency: cycle.currency || 'NGN',
-        due_date: cycle.due_date || null,
-        status: 'sent',
-        stream: cycle.owner_type === 'school' ? 'school' : 'individual',
-        billing_cycle_id: cycle.id,
-        notes: `Auto-generated from billing cycle: ${cycle.term_label || cycle.id}`,
-        items: Array.isArray(cycle.items) ? cycle.items : [],
-      } as any)
-      .select('id')
-      .single();
-    if (invoiceErr || !invoice?.id) {
-      return NextResponse.json({ error: `Could not create linked invoice: ${invoiceErr?.message || 'unknown error'}` }, { status: 500 });
-    }
-    invoiceId = invoice.id;
-    await db.from('billing_cycles').update({ invoice_id: invoiceId, updated_at: new Date().toISOString() }).eq('id', cycle.id);
+    const { createInvoice } = await import('@/lib/finance/create-invoice');
+    const amount = Number(cycle.amount_due) || 0;
+    const result = await createInvoice({
+      school_id: cycle.owner_type === 'school' ? (cycle.owner_school_id || cycle.school_id || null) : null,
+      portal_user_id: cycle.owner_type === 'individual' ? (cycle.owner_user_id || null) : null,
+      amount, currency: cycle.currency || 'NGN', due_date: cycle.due_date || null, status: 'sent',
+      stream: cycle.owner_type === 'school' ? 'school' : 'individual',
+      billing_cycle_id: cycle.id,
+      notes: `Auto-generated from billing cycle: ${cycle.term_label || cycle.id}`,
+      items: [{ description: cycle.term_label || 'Billing cycle', quantity: 1, unit_price: amount, total: amount }],
+      metadata: { source: 'billing_cycle_proof', term_label: cycle.term_label || null },
+    });
+    if (!result.ok) return NextResponse.json({ error: result.error.message, code: result.error.code }, { status: result.error.code === 'conflict' ? 409 : 500 });
+    invoiceId = String(result.data.id);
   }
 
   const formData = await req.formData();
@@ -127,7 +119,7 @@ export async function POST(
   void notifyStaffOfPayment({
     schoolId: cycle.school_id || cycle.owner_school_id,
     title: 'Payment Evidence Uploaded',
-    message: `${schoolName} uploaded payment proof for billing cycle (ref: ${id.slice(0, 8)}…). Please review and confirm.`,
+    message: `${schoolName} uploaded payment proof for billing cycle (ref: ${id.slice(0, 8)}â€¦). Please review and confirm.`,
     actionUrl: '/dashboard/finance?tab=billing_cycles',
   });
 

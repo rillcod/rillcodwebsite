@@ -60,20 +60,24 @@ export async function POST(req: NextRequest) {
     .eq('setting_key', SETTING_KEY)
     .maybeSingle();
 
+  let writeError: { message: string } | null = null;
   if (existing) {
-    await db.from('system_settings').update({
+    const { error } = await db.from('system_settings').update({
       setting_value: JSON.stringify(config),
       updated_at: new Date().toISOString(),
     }).eq('id', existing.id);
+    writeError = error;
   } else {
-    await db.from('system_settings').insert({
+    const { error } = await db.from('system_settings').insert({
       setting_key: SETTING_KEY,
       setting_value: JSON.stringify(config),
       category: 'billing',
       description: 'Automated billing reminder rules and schedule',
       is_public: false,
     });
+    writeError = error;
   }
+  if (writeError) return NextResponse.json({ success: false, error: 'Failed to save billing automation settings', code: 'db_error', detail: writeError.message }, { status: 500 });
 
   return NextResponse.json({ success: true, config });
 }
