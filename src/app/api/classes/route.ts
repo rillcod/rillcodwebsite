@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       .from('classes')
       .select(`
         id, name, description, status, max_students, current_students,
-        start_date, end_date, schedule, teacher_id, program_id, school_id, term_id, created_at,
+        start_date, end_date, schedule, teacher_id, program_id, current_course_id, school_id, term_id, created_at,
         qa_grade_key, qa_track_hint, qa_spine_lane,
         academic_terms ( id, academic_year, term_label, term_number ),
         programs ( id, name ),

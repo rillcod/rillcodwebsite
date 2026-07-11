@@ -56,6 +56,8 @@ interface SessionConfig {
     course_duration: string;
     learning_milestones: string[];
     school_id?: string;
+    class_id?: string;
+    term_id?: string;
     // School structure & optional payment info
     school_section: string;   // '' | 'basic' | 'secondary' | 'bootcamp' | 'online'
     fee_label: string;        // e.g. 'Coding Club Fee', 'Extra-Curricular Fee'
@@ -472,6 +474,8 @@ export default function ReportBuilderPage() {
 function ReportBuilderInner() {
     const searchParams = useSearchParams();
     const prefStudentId = searchParams.get('student') || searchParams.get('student_id');
+    const prefClassId = searchParams.get('class') || searchParams.get('class_id');
+    const prefTermId = searchParams.get('term') || searchParams.get('term_id');
 
     const { profile, loading: authLoading, profileLoading } = useAuth();
 
@@ -485,7 +489,7 @@ function ReportBuilderInner() {
     const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
     const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
     const [sessionProgramId, setSessionProgramId] = useState('');
-    const [teacherClasses, setTeacherClasses] = useState<{ id: string; name: string; school_id: string | null }[]>([]);
+    const [teacherClasses, setTeacherClasses] = useState<Array<{ id: string; name: string; school_id: string | null; term_id: string | null; program_id: string | null; current_course_id: string | null; qa_grade_key?: string | null; academic_terms?: { id: string; academic_year: string; term_label: string } | null }>>([]);
     const [search, setSearch] = useState('');
     const [editSearch, setEditSearch] = useState('');
     const [classFilter, setClassFilter] = useState('');
@@ -856,7 +860,7 @@ function ReportBuilderInner() {
             setCourses(coursesJson.data ?? []);
             setPrograms(progJson.data ?? []);
             setSchools(schoolsList);
-            setTeacherClasses((classesJson.data ?? []) as { id: string; name: string; school_id: string | null }[]);
+            setTeacherClasses(classesJson.data ?? []);
             // Note: school auto-fill is handled below in the instructor_name setSessionConfig call
             if (brandingData) {
                 setBranding({
@@ -925,8 +929,11 @@ function ReportBuilderInner() {
             const rows: { student_id: string | null }[] = [];
             for (let i = 0; i < ids.length; i += 300) {
                 let q = db.from('student_progress_reports').select('student_id').in('student_id', ids.slice(i, i + 300));
-                if (sessionConfig.report_term) q = q.eq('report_term', sessionConfig.report_term) as typeof q;
-                if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period) as typeof q;
+                if (sessionConfig.term_id) q = q.eq('term_id', sessionConfig.term_id) as typeof q;
+                else {
+                    if (sessionConfig.report_term) q = q.eq('report_term', sessionConfig.report_term) as typeof q;
+                    if (sessionConfig.report_period) q = q.eq('report_period', sessionConfig.report_period) as typeof q;
+                }
                 const { data } = await withTimeout(q, { data: [], error: null }, 'report coverage');
                 rows.push(...((data ?? []) as any));
             }
@@ -934,7 +941,7 @@ function ReportBuilderInner() {
             setReportedIds(new Set(rows.map(r => r.student_id).filter(Boolean) as string[]));
         })();
         return () => { cancelled = true; };
-    }, [students, sessionConfig.report_term, sessionConfig.report_period]); // eslint-disable-line
+    }, [students, sessionConfig.term_id, sessionConfig.report_term, sessionConfig.report_period]); // eslint-disable-line
 
     const filteredStudents = students.filter(s => {
         const matchesReport = pickReportFilter === 'all' ? true
@@ -952,7 +959,7 @@ function ReportBuilderInner() {
             || (!!sessionConfig.school_id && s.school_id === sessionConfig.school_id);
 
         // Class filter: match by section_class string OR by class_id for teacher-created classes
-        const activeClass = teacherClasses.find(c => c.name === classFilter);
+        const activeClass = teacherClasses.find(c => c.id === sessionConfig.class_id) || teacherClasses.find(c => c.name === classFilter);
         const matchesClass = !classFilter
             || (s as any).section_class === classFilter
             || (activeClass && (s as any).class_id === activeClass.id);
@@ -975,20 +982,46 @@ function ReportBuilderInner() {
         ...teacherClasses.filter((c) => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => c.name),
     ])].sort() as string[];
 
-    function selectReportSection(sectionName: string) {
-        const matchingClass = teacherClasses.find((c) => c.name === sectionName && (
-            !sessionConfig.school_id || c.school_id === sessionConfig.school_id
-        ));
-        const matchingSchool = matchingClass?.school_id
-            ? schools.find((school) => school.id === matchingClass.school_id)
-            : null;
+    function selectReportSection(classId: string) {
+        const matchingClass = teacherClasses.find((candidate) => candidate.id === classId);
+        if (!matchingClass) {
+            setSessionConfig((current) => ({ ...current, class_id: '', term_id: '', section_class: '' }));
+            return;
+        }
+        const matchingSchool = matchingClass.school_id ? schools.find((school) => school.id === matchingClass.school_id) : null;
+        const term = matchingClass.academic_terms;
+        const linkedCourse = courses.find((course) => course.id === matchingClass.current_course_id);
+        setSessionProgramId(matchingClass.program_id || linkedCourse?.program_id || '');
+        setGradeFilter(matchingClass.qa_grade_key || '');
+        setClassFilter(matchingClass.name);
         setSessionConfig((current) => ({
             ...current,
-            section_class: sectionName,
-            ...(matchingClass?.school_id ? { school_id: matchingClass.school_id } : {}),
-            ...(matchingSchool?.name ? { school_name: matchingSchool.name } : {}),
+            class_id: matchingClass.id,
+            term_id: matchingClass.term_id || term?.id || '',
+            section_class: matchingClass.name,
+            school_id: matchingClass.school_id || current.school_id,
+            school_name: matchingSchool?.name || current.school_name,
+            report_term: term?.term_label || current.report_term,
+            report_period: term?.academic_year || current.report_period,
+            course_id: linkedCourse?.id || '',
+            course_name: linkedCourse?.title || '',
         }));
     }
+    const appliedUrlScope = useRef(false);
+    useEffect(() => {
+        if (appliedUrlScope.current || !prefClassId || teacherClasses.length === 0) return;
+        const linkedClass = teacherClasses.find((candidate) => candidate.id === prefClassId);
+        if (!linkedClass) {
+            setError('The requested section is not registered or is outside your teaching scope.');
+            return;
+        }
+        if (prefTermId && linkedClass.term_id && linkedClass.term_id !== prefTermId) {
+            setError('The requested term does not match this registered section.');
+            return;
+        }
+        appliedUrlScope.current = true;
+        selectReportSection(linkedClass.id);
+    }, [prefClassId, prefTermId, teacherClasses]); // eslint-disable-line react-hooks/exhaustive-deps
     const distinctGrades = [...new Set(
         students.filter(schoolScoped).map(s => (s as any).grade_level).filter(Boolean)
     )].sort() as string[];
@@ -1348,7 +1381,7 @@ function ReportBuilderInner() {
         const issues: string[] = [];
         const isManual = selectedStudent?.id?.startsWith('manual-') || selectedStudent?.id?.startsWith('students-');
         const hasSchoolPeriod = isSchoolSection(sessionConfig.school_section)
-            ? !!(sessionConfig.report_term && sessionConfig.report_period)
+            ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionConfig.term_id && sessionConfig.course_id)
             : !!sessionConfig.course_duration;
 
         if (!selectedStudent) issues.push('Select a portal student.');
@@ -1993,12 +2026,11 @@ function ReportBuilderInner() {
                         </Field>
                         <Field label="Section">
                             <select
-                                value={sessionConfig.section_class}
+                                value={sessionConfig.class_id || ''}
                                 onChange={e => selectReportSection(e.target.value)}
                                 className={INPUT}>
                                 <option value="">— Select class —</option>
-                                {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
-                                {CLASS_PRESETS.filter(c => !distinctClasses.includes(c)).map(c => <option key={`preset-${c}`} value={c}>{c}</option>)}
+                                {teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => <option key={c.id} value={c.id}>{c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label} · ${c.academic_terms.academic_year}` : ''}</option>)}
                             </select>
                         </Field>
                         <SessionModuleFields config={sessionConfig} set={setSessionConfig} idPrefix="mod-bar" />
@@ -2343,12 +2375,11 @@ function ReportBuilderInner() {
                                 </Field>
                                 <Field label="Section *">
                                     <select
-                                        value={sessionConfig.section_class}
-                                        onChange={e => selectReportSection(e.target.value)}
+                                        value={sessionConfig.class_id || ''}
+                                onChange={e => selectReportSection(e.target.value)}
                                         className={INPUT}>
                                         <option value="">— Select class —</option>
-                                        {distinctClasses.map(c => <option key={c} value={c}>{c}</option>)}
-                                        {CLASS_PRESETS.filter(c => !distinctClasses.includes(c)).map(c => <option key={`preset-${c}`} value={c}>{c}</option>)}
+                                        {teacherClasses.filter(c => !sessionConfig.school_id || c.school_id === sessionConfig.school_id).map(c => <option key={c.id} value={c.id}>{c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label} · ${c.academic_terms.academic_year}` : ''}</option>)}
                                     </select>
                                 </Field>
                             </div>
@@ -2473,7 +2504,7 @@ function ReportBuilderInner() {
                         {(() => {
                             const ctx = sessionConfig.school_section;
                             const periodReady = !!ctx && (isSchoolSection(ctx)
-                                ? !!(sessionConfig.report_term && sessionConfig.report_period)
+                                ? !!(sessionConfig.report_term && sessionConfig.report_period && sessionConfig.class_id && sessionConfig.term_id && sessionConfig.course_id)
                                 : !!sessionConfig.course_duration);
                             const missing = !ctx
                                 ? 'Choose a report context in the Reporting Period card above'
