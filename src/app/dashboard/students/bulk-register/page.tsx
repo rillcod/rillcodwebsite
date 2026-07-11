@@ -137,6 +137,8 @@ interface ClassOption {
   school_id?: string | null;
   qa_grade_key?: string | null;
   term_id?: string | null;
+  program_id?: string | null;
+  academic_terms?: { term_label?: string; academic_year?: string } | null;
   isRegistry?: boolean; // from teacher's class registry
 }
 
@@ -1185,7 +1187,8 @@ export default function BulkRegisterPage() {
   // Grade/code and section are independent: this value is academic grade only.
   const effectiveClassCode = defaultClass || selectedRegisteredClass?.qa_grade_key || '';
   const filteredRegistryClasses = registryClasses.filter(c =>
-    !selectedSchoolId || c.school_id === selectedSchoolId
+    (!selectedSchoolId || c.school_id === selectedSchoolId) &&
+    (!selectedProgramId || !c.program_id || c.program_id === selectedProgramId)
   );
 
   // Clear registry class if it's no longer valid for the selected school
@@ -1194,6 +1197,8 @@ export default function BulkRegisterPage() {
       setSelectedRegistryClass('');
     }
   }, [selectedSchoolId, filteredRegistryClasses, selectedRegistryClass]);
+
+  const batchPlacementReady = Boolean(selectedSchoolId && selectedRegistryClass && effectiveClassCode);
 
   const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
 
@@ -1212,6 +1217,8 @@ export default function BulkRegisterPage() {
         school_id: c.school_id ?? null,
         qa_grade_key: c.qa_grade_key ?? null,
         term_id: c.term_id ?? null,
+        program_id: c.program_id ?? null,
+        academic_terms: c.academic_terms ?? null,
         isRegistry: true
       })));
 
@@ -1435,6 +1442,7 @@ export default function BulkRegisterPage() {
 
   // ── Build preview ────────────────────────────────────────────────────────
   const handlePreview = useCallback(async () => {
+    if (!batchPlacementReady) { toast.error('Select a school, registered section and grade before reviewing students.'); setSettingsOpen(true); return; }
     // Use only the standard class code (defaultClass) as the fallback arm label.
     // The registry class (Hilltop etc.) is an internal grouping — it must NOT
     // bleed into the printed credentials or the class_name field.
@@ -1445,7 +1453,7 @@ export default function BulkRegisterPage() {
     setDbSwapNames(new Map());
     setDbEmailConflicts(new Map());
     setStep('preview');
-  }, [namesText, defaultClass]);  
+  }, [namesText, defaultClass, batchPlacementReady]);
 
   // ── Register ─────────────────────────────────────────────────────────────
   const handleRegister = async () => {
@@ -1800,7 +1808,7 @@ export default function BulkRegisterPage() {
                               <option value="">— No class selected —</option>
                               {filteredRegistryClasses.map((c) => (
                                 <option key={c.id} value={c.id}>
-                                  {c.name}{c.section_class ? ` (${c.section_class})` : ''}
+                                  {c.name}{c.academic_terms ? ` · ${c.academic_terms.term_label || ''} ${c.academic_terms.academic_year || ''}` : c.term_id ? ' · assigned term' : ''}
                                 </option>
                               ))}
                             </select>
@@ -1813,7 +1821,7 @@ export default function BulkRegisterPage() {
                             const rc = filteredRegistryClasses.find((c) => c.id === selectedRegistryClass);
                             return rc ? (
                               <p className="text-primary/70 text-[11px] mt-1.5">
-                                Students will be tagged as <span className="font-mono font-bold">{rc.section_class ?? rc.name}</span>
+                                Official section: <span className="font-mono font-bold">{rc.section_class ?? rc.name}</span>
                               </p>
                             ) : null;
                           })()}
@@ -1852,7 +1860,7 @@ export default function BulkRegisterPage() {
                           </select>
                           {defaultClass && !selectedRegistryClass && (
                             <p className="text-emerald-400/60 text-[11px] mt-1.5">
-                              Students will be placed in <span className="font-mono font-bold">{defaultClass}</span>.
+                              Official grade: <span className="font-mono font-bold">{defaultClass}</span>.
                             </p>
                           )}
                           {selectedRegistryClass && defaultClass && (
@@ -1865,7 +1873,7 @@ export default function BulkRegisterPage() {
                       {/* Effective class preview */}
                       {effectiveClassCode && (
                         <div className="flex items-center gap-2 text-xs">
-                          <span className="text-muted-foreground">Students without inline class will be tagged:</span>
+                          <span className="text-muted-foreground">Official batch grade:</span>
                           <span className="px-2 py-0.5 bg-primary/15 text-foreground font-mono font-bold rounded-xl border border-primary/20">
                             {effectiveClassCode}
                           </span>
@@ -1924,21 +1932,21 @@ Yusuf Ibrahim SS1A`}
                   </div>
                   <div className="bg-primary/10 border border-primary/20 rounded-xl p-5">
                     <h3 className="text-foreground font-bold text-sm mb-3 flex items-center gap-2">
-                      <AcademicCapIcon className="w-4 h-4" /> How classes work
+                      <AcademicCapIcon className="w-4 h-4" /> How grade detection works
                     </h3>
                     <ul className="space-y-1.5 text-muted-foreground text-xs list-disc list-inside">
-                      <li>Header line: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A</span> — applies to names below</li>
+                      <li>Grade header: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A</span> — applies to names below</li>
                       <li>Inline: <span className="font-mono bg-primary/20 px-1 rounded">John Doe SS2B</span></li>
                       <li>Supported: <span className="font-mono bg-primary/20 px-1 rounded">JSS1–3 · SS1–3 · SSS1–3 · BASIC 1–6</span></li>
-                      <li>Section letters OK: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A · SS1C</span></li>
-                      <li>Fallback: use the <em>Default Class</em> setting above</li>
+                      <li>Grade-arm codes normalize to grade: <span className="font-mono bg-primary/20 px-1 rounded">JSS2A · SS1C</span></li>
+                      <li>Fallback: use the <em>Grade Level</em> setting above. Official section always comes from the registered section selector</li>
                     </ul>
                   </div>
                 </div>
 
                 <button
                   onClick={handlePreview}
-                  disabled={!namesText.trim()}
+                  disabled={!namesText.trim() || !batchPlacementReady || loading}
                   className="w-full py-3.5 bg-primary hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-colors text-sm"
                 >
                   Continue to Review →
