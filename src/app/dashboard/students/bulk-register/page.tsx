@@ -135,6 +135,8 @@ interface ClassOption {
   name: string;
   section_class: string | null;
   school_id?: string | null;
+  qa_grade_key?: string | null;
+  term_id?: string | null;
   isRegistry?: boolean; // from teacher's class registry
 }
 
@@ -1179,15 +1181,9 @@ export default function BulkRegisterPage() {
    * - Otherwise the manually picked standard code is used
    * Both fields can be set independently; registry class wins if both are filled
    */
-  const effectiveClassCode = (() => {
-    if (customBatchName.trim()) return customBatchName.trim();
-    if (selectedRegistryClass) {
-      const rc = registryClasses.find((c) => c.id === selectedRegistryClass);
-      return rc?.section_class || rc?.name || '';
-    }
-    return defaultClass;
-  })();
-
+  const selectedRegisteredClass = registryClasses.find((candidate) => candidate.id === selectedRegistryClass);
+  // Grade/code and section are independent: this value is academic grade only.
+  const effectiveClassCode = defaultClass || selectedRegisteredClass?.qa_grade_key || '';
   const filteredRegistryClasses = registryClasses.filter(c =>
     !selectedSchoolId || c.school_id === selectedSchoolId
   );
@@ -1214,6 +1210,8 @@ export default function BulkRegisterPage() {
         name: c.name,
         section_class: c.section_class ?? null,
         school_id: c.school_id ?? null,
+        qa_grade_key: c.qa_grade_key ?? null,
+        term_id: c.term_id ?? null,
         isRegistry: true
       })));
 
@@ -1481,7 +1479,8 @@ export default function BulkRegisterPage() {
           batch_id: persistentBatchId,
           students: batch,
           class_id: selectedRegistryClass || null,
-          class_name: effectiveClassCode || null,
+          class_name: selectedRegisteredClass?.name || null,
+          grade_name: effectiveClassCode || null,
         };
         if (selectedSchoolId) {
           body.school_id = selectedSchoolId;
@@ -1824,7 +1823,7 @@ export default function BulkRegisterPage() {
                         <div>
                           <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
                             <AcademicCapIcon className="w-3.5 h-3.5" />
-                            Class Code / Arm <span className="text-muted-foreground normal-case font-normal ml-1">(optional)</span>
+                            Grade Level <span className="text-muted-foreground normal-case font-normal ml-1">(optional)</span>
                           </label>
                           <p className="text-white/25 text-[11px] mb-2">
                             Select the arm (e.g. JSS2A, SS1B) — applies to any student whose name doesn&apos;t include a class code.

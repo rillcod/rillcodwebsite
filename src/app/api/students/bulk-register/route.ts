@@ -24,6 +24,7 @@ type ResolvedClass = {
   id: string | null;
   name: string | null;
   teacherId: string | null;
+  grade: string | null;
 };
 
 type CallerProfile = {
@@ -85,7 +86,7 @@ async function requireBatchAccess(batchId: string, caller: CallerProfile, assign
 async function requireClassAccess(classId: string, caller: CallerProfile, assignedSchoolIds: Set<string>, userId: string) {
   const { data: cls, error } = await supabaseAdmin
     .from('classes')
-    .select('school_id, name, teacher_id, qa_grade_band')
+    .select('school_id, name, teacher_id, term_id, program_id, qa_grade_key, qa_grade_band')
     .eq('id', classId)
     .maybeSingle();
 
@@ -183,6 +184,7 @@ export async function POST(request: Request) {
     const programId: string | null = (body.program_id as string | undefined) ?? null;
     const batchClassId: string | null = (body.class_id as string | undefined) ?? null;
     const batchClassName: string | null = (body.class_name as string | undefined) ?? null;
+    const batchGradeName: string | null = (body.grade_name as string | undefined) ?? null;
 
     let programName: string | null = null;
     if (programId) {
@@ -196,21 +198,22 @@ export async function POST(request: Request) {
 
     // Resolve the batch class's teacher — used to stamp primary_teacher_id on NEW students only
     let batchClassTeacherId: string | null = null;
+    let batchClass: any = null;
     if (batchClassId) {
-      const batchCls = await requireClassAccess(batchClassId, caller, assignedSchoolIds, user.id);
-      batchClassTeacherId = batchCls?.teacher_id ?? null;
+      batchClass = await requireClassAccess(batchClassId, caller, assignedSchoolIds, user.id);
+      if (batchClass.school_id !== resolvedSchoolId) throw new HttpError('Selected class does not belong to the selected school.', 400);
+      if (programId && batchClass.program_id && batchClass.program_id !== programId) throw new HttpError('Selected class does not belong to the selected programme.', 400);
+      batchClassTeacherId = batchClass.teacher_id ?? null;
     }
-
     const autoClassCache = new Map<string, ResolvedClass>();
     const resolveClassForStudent = async (gradeOrClass: string | null | undefined): Promise<ResolvedClass> => {
       if (batchClassId) {
-        const name = batchClassName || gradeOrClass || null;
-        return { id: batchClassId, name, teacherId: batchClassTeacherId };
+        return { id: batchClassId, name: batchClass.name, teacherId: batchClassTeacherId, grade: canonicalGrade(gradeOrClass) || canonicalGrade(batchGradeName) || canonicalGrade(batchClass.qa_grade_key) || null };
       }
 
       const placementLabel = (gradeOrClass || batchClassName || '').trim();
       if (!programName || !placementLabel || !resolvedSchoolName) {
-        return { id: null, name: placementLabel || batchClassName || null, teacherId: null };
+        return { id: null, name: null, teacherId: null, grade: canonicalGrade(placementLabel) || null };
       }
 
       const band = gradeBand(placementLabel);
@@ -244,7 +247,7 @@ export async function POST(request: Request) {
         className = (cls as any)?.name ?? standardName;
       }
 
-      const resolved = { id: classId, name: className, teacherId };
+      const resolved = { id: classId, name: className, teacherId, grade: canonicalGrade(placementLabel) || null };
       autoClassCache.set(cacheKey, resolved);
       return resolved;
     };
@@ -449,7 +452,7 @@ export async function POST(request: Request) {
         // Specific canonical grade = what the teacher typed per row (e.g. "Basic 2"), NOT the
         // resolved band-class name. Falls back to the class name only when no row label exists,
         // so grade stays separate from the section/cohort (modern convention).
-        const specificGrade = canonicalGrade(requestedClassLabel) || canonicalGrade(effectiveClassName) || null;
+        const specificGrade = resolvedClass.grade;
 
         // Ghost-row guard: if portal_users already has a NON-DELETED row with this email
         // but a DIFFERENT id (created outside the auth flow or by a stale import), that row
@@ -655,6 +658,20 @@ export async function POST(request: Request) {
       }
     }
 
+    // The selected registered section owns the batch roster for its canonical term.
+    if (batchClass?.id) {
+      const rosterStudentIds = results.filter((result) => ['created', 'updated'].includes(result.status) && result.userId).map((result) => result.userId as string);
+      for (const studentId of rosterStudentIds) {
+        let rosterQuery = (supabaseAdmin as any).from('class_term_rosters').select('id').eq('class_id', batchClass.id).eq('student_id', studentId).limit(1);
+        rosterQuery = batchClass.term_id ? rosterQuery.eq('term_id', batchClass.term_id) : rosterQuery.is('term_id', null);
+        const { data: existingRoster } = await rosterQuery.maybeSingle();
+        const rosterPayload = { class_id: batchClass.id, student_id: studentId, school_id: batchClass.school_id, program_id: batchClass.program_id, term_id: batchClass.term_id ?? null, status: 'active', ended_at: null, updated_by: user.id };
+        const { error: rosterError } = existingRoster?.id
+          ? await (supabaseAdmin as any).from('class_term_rosters').update({ ...rosterPayload, reinstated_at: new Date().toISOString() }).eq('id', existingRoster.id)
+          : await (supabaseAdmin as any).from('class_term_rosters').insert({ ...rosterPayload, started_at: new Date().toISOString(), created_by: user.id });
+        if (rosterError) throw new HttpError(`Student created but term roster sync failed: ${rosterError.message}`, 500);
+      }
+    }
     // Sync current_students count for every class touched by this import.
     for (const classId of touchedClassIds) {
       try {
@@ -851,7 +868,7 @@ export async function PATCH(request: Request) {
         class_id: classId,
         school_id: cls.school_id,
         section_class: cls.name,
-        grade: canonicalGrade(cls.name),
+        grade: canonicalGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
         primary_teacher_id: cls.teacher_id ?? null,
         updated_at: new Date().toISOString(),
       }).in('id', allowedIds).eq('role', 'student');
@@ -860,7 +877,9 @@ export async function PATCH(request: Request) {
       // Keep students shadow table in sync
       await supabaseAdmin.from('students').update({
         current_class: cls.name,
-        grade_level: canonicalGrade(cls.qa_grade_band || cls.name),
+        grade: canonicalGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
+        grade_level: canonicalGrade(cls.qa_grade_key || cls.qa_grade_band) || null,
+        section: cls.name,
         school_id: cls.school_id,
       }).in('user_id', allowedIds);
 
