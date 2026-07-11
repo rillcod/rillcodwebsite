@@ -41,12 +41,12 @@ export function validateBulkClassPlacement(
   cls: BulkPlacementClass,
   expected: { schoolId: string; programId?: string | null; termId?: string | null },
 ): string | null {
-  if (cls.school_id !== expected.schoolId) return 'Selected class does not belong to the selected school.';
-  // Programme must match when the class has one. Missing programme is treated as legacy data.
-  if (expected.programId && cls.program_id && cls.program_id !== expected.programId) {
-    return 'Selected class does not belong to the selected programme.';
+  // School must match when the class has a school. Missing school_id is legacy/broken data.
+  if (cls.school_id && cls.school_id !== expected.schoolId) {
+    return 'Selected class does not belong to the selected school.';
   }
-  // Term is soft — owned sections often sit on a prior term.
+  // Programme/term are soft for existing owned sections — stale or missing metadata
+  // should not block placing students into the teacher's own class.
   return null;
 }
 

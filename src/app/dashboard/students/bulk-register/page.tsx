@@ -1151,43 +1151,87 @@ export default function BulkRegisterPage() {
 
   const selectedRegisteredClass = registryClasses.find((candidate) => candidate.id === selectedRegistryClass);
   const effectiveClassCode = defaultClass.trim();
-  // Keep programme filtering. Only include a class with no programme when metadata is missing.
-  // Term never hides owned sections — it only ranks preferred matches.
+  const selectedProgName = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
+  // Soft school link: missing school_id still shows (broken/legacy rows).
   const schoolRegistryClasses = registryClasses.filter((c) =>
-    !selectedSchoolId || c.school_id === selectedSchoolId,
+    !selectedSchoolId || !c.school_id || c.school_id === selectedSchoolId,
   );
-  const programmeRegistryClasses = schoolRegistryClasses.filter((c) =>
-    !selectedProgramId || !c.program_id || c.program_id === selectedProgramId,
-  );
+  // Prefer programme match by id, then by class name (e.g. "Young Innov 3" ↔ Young Innovators).
+  // If nothing matches, fall back to every owned class at this school.
+  const programmeRegistryClasses = schoolRegistryClasses.filter((c) => {
+    if (!selectedProgramId) return true;
+    if (!c.program_id || c.program_id === selectedProgramId) return true;
+    if (!selectedProgName) return false;
+    const className = (c.name || '').toLowerCase();
+    const programme = selectedProgName.toLowerCase();
+    if (className.includes(programme)) return true;
+    const shortProgramme = programme
+      .replace(/\binnovators\b/g, 'innov')
+      .replace(/\bdevelopers\b/g, 'dev');
+    return shortProgramme !== programme && className.includes(shortProgramme);
+  });
+  const programmePool =
+    programmeRegistryClasses.length > 0 ? programmeRegistryClasses : schoolRegistryClasses;
+  const usingProgrammeFallback =
+    Boolean(selectedProgramId) &&
+    programmeRegistryClasses.length === 0 &&
+    schoolRegistryClasses.length > 0;
   const preferredRegistryIds = new Set(
-    programmeRegistryClasses
-      .filter((c) => !selectedTermId || !c.term_id || c.term_id === selectedTermId)
+    programmePool
+      .filter((c) => {
+        const programExact = !selectedProgramId || !c.program_id || c.program_id === selectedProgramId;
+        const termOk = !selectedTermId || !c.term_id || c.term_id === selectedTermId;
+        return programExact && termOk;
+      })
       .map((c) => c.id),
   );
-  const placementPool = [...programmeRegistryClasses].sort((a, b) => {
+  const placementPool = [...programmePool].sort((a, b) => {
     const aPreferred = preferredRegistryIds.has(a.id) ? 0 : 1;
     const bPreferred = preferredRegistryIds.has(b.id) ? 0 : 1;
     if (aPreferred !== bPreferred) return aPreferred - bPreferred;
     return (a.name || '').localeCompare(b.name || '');
   });
 
-  // Clear registry class when it is not at the school or does not belong to the programme
+  const placementPoolIds = placementPool.map((c) => c.id).join(',');
+
+  // Clear registry class only when it leaves the visible placement pool
   useEffect(() => {
     if (!selectedRegistryClass) return;
-    const stillValid = registryClasses.some((c) => {
-      if (c.id !== selectedRegistryClass) return false;
-      if (selectedSchoolId && c.school_id !== selectedSchoolId) return false;
-      if (selectedProgramId && c.program_id && c.program_id !== selectedProgramId) return false;
-      return true;
-    });
-    if (!stillValid) setSelectedRegistryClass('');
-  }, [selectedSchoolId, selectedProgramId, selectedRegistryClass, registryClasses]);
+    const visibleIds = placementPoolIds ? placementPoolIds.split(',') : [];
+    if (!visibleIds.includes(selectedRegistryClass)) {
+      setSelectedRegistryClass('');
+    }
+  }, [selectedSchoolId, selectedProgramId, selectedRegistryClass, placementPoolIds]);
 
   // A school is the only batch-level placement prerequisite. Grade can come
   // from the pasted text; class placement is resolved per band in review.
   const batchPlacementReady = Boolean(selectedSchoolId && selectedTermId);
 
   const canAccess = profile?.role === 'admin' || profile?.role === 'teacher';
+
+  const refreshOwnedClasses = useCallback(async () => {
+    if (!profile || !canAccess) return [] as ClassOption[];
+    const teacherId = profile.role === 'teacher' ? profile.id : undefined;
+    const clsData = await fetchClasses(teacherId, undefined);
+    const mapped: ClassOption[] = clsData.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      section_class: c.section_class ?? null,
+      school_id: c.school_id ?? null,
+      qa_grade_key: c.qa_grade_key ?? null,
+      qa_grade_band: c.qa_grade_band ?? null,
+      band_lvl: c.band_lvl ?? null,
+      band_low: c.band_low ?? null,
+      band_high: c.band_high ?? null,
+      teacher_id: c.teacher_id ?? null,
+      term_id: c.term_id ?? null,
+      program_id: c.program_id ?? null,
+      academic_terms: c.academic_terms ?? null,
+      isRegistry: true,
+    }));
+    setRegistryClasses(mapped);
+    return mapped;
+  }, [profile, canAccess]);
 
   // ── Load schools and programmes ──────────────────────────────────────────
   useEffect(() => {
@@ -1196,24 +1240,7 @@ export default function BulkRegisterPage() {
     async function loadData() {
       // Teachers only see classes they own. Soft filters below keep those owned
       // sections visible even when term/programme metadata is incomplete.
-      const teacherId = profile?.role === 'teacher' ? profile?.id : undefined;
-      const clsData = await fetchClasses(teacherId, undefined);
-      setRegistryClasses(clsData.map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        section_class: c.section_class ?? null,
-        school_id: c.school_id ?? null,
-        qa_grade_key: c.qa_grade_key ?? null,
-        qa_grade_band: c.qa_grade_band ?? null,
-        band_lvl: c.band_lvl ?? null,
-        band_low: c.band_low ?? null,
-        band_high: c.band_high ?? null,
-        teacher_id: c.teacher_id ?? null,
-        term_id: c.term_id ?? null,
-        program_id: c.program_id ?? null,
-        academic_terms: c.academic_terms ?? null,
-        isRegistry: true
-      })));
+      await refreshOwnedClasses();
 
       if (profile?.role === 'admin') {
         // Admin sees all approved schools
@@ -1274,7 +1301,7 @@ export default function BulkRegisterPage() {
     }
 
     loadData().catch(console.error);
-  }, [profile?.id, profile?.role, canAccess]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile?.id, profile?.role, canAccess, refreshOwnedClasses]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-fetch Unified Credentials on Tab active/Schools load ────────────────
   useEffect(() => {
@@ -1396,8 +1423,29 @@ export default function BulkRegisterPage() {
   // ── Build preview ────────────────────────────────────────────────────────
   const handlePreview = useCallback(async () => {
     if (!batchPlacementReady) { toast.error('Select a school and academic term before reviewing students.'); setSettingsOpen(true); return; }
+    const freshClasses = await refreshOwnedClasses();
     const built = buildStudentList(namesText.split('\n'), defaultClass.trim() || undefined);
     if (!built.length) return;
+
+    const progName = programmes.find((p) => p.id === selectedProgramId)?.name ?? '';
+    const schoolClasses = freshClasses.filter((c) =>
+      !selectedSchoolId || !c.school_id || c.school_id === selectedSchoolId,
+    );
+    const programmeClasses = schoolClasses.filter((c) => {
+      if (!selectedProgramId) return true;
+      if (!c.program_id || c.program_id === selectedProgramId) return true;
+      if (!progName) return false;
+      const className = (c.name || '').toLowerCase();
+      const programme = progName.toLowerCase();
+      if (className.includes(programme)) return true;
+      const shortProgramme = programme
+        .replace(/\binnovators\b/g, 'innov')
+        .replace(/\bdevelopers\b/g, 'dev');
+      return shortProgramme !== programme && className.includes(shortProgramme);
+    });
+    const pool = programmeClasses.length > 0 ? programmeClasses : schoolClasses;
+    const selectedClass = pool.find((candidate) => candidate.id === selectedRegistryClass) ?? null;
+
     const nextSelections: Record<string, string> = {};
     const bandGrades = new Map<string, string>();
     for (const student of built) {
@@ -1405,9 +1453,9 @@ export default function BulkRegisterPage() {
       if (band && student.class_name) bandGrades.set(band, student.class_name);
     }
     for (const [band, grade] of bandGrades) {
-      const selected = selectedRegisteredClass && bulkClassCoversGrade(selectedRegisteredClass, grade)
-        ? selectedRegisteredClass
-        : placementPool.find((candidate) => bulkClassCoversGrade(candidate, grade));
+      const selected = selectedClass && bulkClassCoversGrade(selectedClass, grade)
+        ? selectedClass
+        : pool.find((candidate) => bulkClassCoversGrade(candidate, grade));
       if (selected) nextSelections[band] = selected.id;
     }
     setPreview(built);
@@ -1417,7 +1465,16 @@ export default function BulkRegisterPage() {
     setDbDupNameKeys(new Set());
     setDbEmailConflicts(new Map());
     setStep('preview');
-  }, [namesText, defaultClass, batchPlacementReady, placementPool, selectedRegisteredClass]);
+  }, [
+    namesText,
+    defaultClass,
+    batchPlacementReady,
+    refreshOwnedClasses,
+    programmes,
+    selectedProgramId,
+    selectedSchoolId,
+    selectedRegistryClass,
+  ]);
 
   async function createBandClass(band: string) {
     if (!selectedProgramId) {
@@ -2098,6 +2155,11 @@ Yusuf Ibrahim SS1A`}
                     <p className="text-[11px] text-muted-foreground">
                       Pick one of your existing classes for each band. Classes stay filtered by programme; suggested term matches appear first, and your other classes in that programme stay available below.
                     </p>
+                    {usingProgrammeFallback && (
+                      <p className="text-[11px] text-amber-400 mt-1">
+                        No class matched this programme exactly — showing all your classes at this school so you can still pick yours (e.g. Young Innov 3).
+                      </p>
+                    )}
                   </div>
                   {previewBands.length === 0 ? (
                     <p className="text-xs text-rose-400">Set a canonical grade for each student to see class suggestions.</p>

@@ -222,9 +222,8 @@ export async function POST(request: Request) {
     let batchClass: any = null;
     if (batchClassId) {
       batchClass = await requireClassAccess(batchClassId, caller, assignedSchoolIds, user.id);
-      if (batchClass.school_id !== resolvedSchoolId) throw new HttpError('Selected class does not belong to the selected school.', 400);
-      if (programId && batchClass.program_id && batchClass.program_id !== programId) {
-        throw new HttpError('Selected class does not belong to the selected programme.', 400);
+      if (batchClass.school_id && batchClass.school_id !== resolvedSchoolId) {
+        throw new HttpError('Selected class does not belong to the selected school.', 400);
       }
       batchClassTeacherId = batchClass.teacher_id ?? null;
     }

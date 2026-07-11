@@ -15,31 +15,31 @@ describe('bulk registration placement', () => {
     expect(bulkClassCoversGrade(lowerBasic, 'Basic 5')).toBe(false);
   });
 
-  it('rejects a class from another school or programme', () => {
+  it('rejects a class from another school', () => {
     expect(validateBulkClassPlacement(
       { school_id: 'other', program_id: 'p1', term_id: 't1' },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
     )).toBe('Selected class does not belong to the selected school.');
-    expect(validateBulkClassPlacement(
-      { school_id: 's1', program_id: 'other', term_id: 't1' },
-      { schoolId: 's1', programId: 'p1', termId: 't1' },
-    )).toBe('Selected class does not belong to the selected programme.');
   });
 
-  it('accepts a class in the selected school, programme and term', () => {
+  it('accepts a class in the selected school', () => {
     expect(validateBulkClassPlacement(
       { school_id: 's1', program_id: 'p1', term_id: 't1' },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
     )).toBeNull();
   });
 
-  it('accepts legacy null programme and term mismatch for owned classes', () => {
+  it('accepts owned classes with missing or mismatched programme/term metadata', () => {
     expect(validateBulkClassPlacement(
       { school_id: 's1', program_id: null, term_id: null },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
     )).toBeNull();
     expect(validateBulkClassPlacement(
-      { school_id: 's1', program_id: 'p1', term_id: 'other' },
+      { school_id: null, program_id: 'other', term_id: 'other' },
+      { schoolId: 's1', programId: 'p1', termId: 't1' },
+    )).toBeNull();
+    expect(validateBulkClassPlacement(
+      { school_id: 's1', program_id: 'other', term_id: 'other' },
       { schoolId: 's1', programId: 'p1', termId: 't1' },
     )).toBeNull();
   });
