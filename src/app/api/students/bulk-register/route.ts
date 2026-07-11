@@ -15,7 +15,8 @@ interface StudentEntry {
   full_name: string;
   email: string;
   password: string;
-  class_name?: string; // maps to portal_users.section_class
+  class_name?: string; // incoming grade/header code; never the official section
+  class_arm?: string | null;
   gender?: string | null;
   duplicate_exception_reason?: string | null;
 }
@@ -260,6 +261,7 @@ export async function POST(request: Request) {
       email: string;
       password: string;
       class_name?: string;
+      class_arm?: string | null;
       status: 'created' | 'updated' | 'skipped' | 'failed' | 'name_swap_conflict';
       error?: string;
       userId?: string;
@@ -313,7 +315,7 @@ export async function POST(request: Request) {
     }
 
     for (const student of students) {
-      const { full_name, email, password, class_name, gender } = student;
+      const { full_name, email, password, class_name, class_arm, gender } = student;
       const duplicateExceptionReason = student.duplicate_exception_reason?.trim() || null;
       const hasDuplicateException = !!duplicateExceptionReason && duplicateExceptionReason.length >= 10;
 
@@ -497,7 +499,7 @@ export async function POST(request: Request) {
             school_name: resolvedSchoolName,
             section_class: effectiveClassName,
             grade: specificGrade,
-            class_arm: batchClassArm,
+            class_arm: class_arm || batchClassArm || null,
             class_id: effectiveClassId,
             enrollment_type: 'in_person',
             is_active: true,
@@ -561,7 +563,7 @@ export async function POST(request: Request) {
           school_name: resolvedSchoolName,
           current_class: effectiveClassName,
           grade_level: specificGrade,
-          class_arm: batchClassArm,
+          class_arm: class_arm || batchClassArm || null,
           enrollment_type: 'in_person',
           status: 'approved', // Bulk-registered students are pre-approved
           gender: gender || null,
@@ -620,7 +622,7 @@ export async function POST(request: Request) {
           if (keyNew) existingByKey.set(keyNew, rec);
         }
 
-        results.push({ full_name, email, password, class_name: effectiveClass, status, userId: authUserId, cardIssued, cardId });
+        results.push({ full_name, email, password, class_name: effectiveClass, class_arm: class_arm || batchClassArm || null, status, userId: authUserId, cardIssued, cardId });
       } catch (err: any) {
         results.push({ full_name, email, password, class_name, status: 'failed', error: err.message });
       }
@@ -737,7 +739,7 @@ export async function POST(request: Request) {
             email: r.email,
             password: r.password,
             class_name: r.class_name || null,
-            class_arm: batchClassArm,
+            class_arm: r.class_arm || batchClassArm || null,
             status: r.status,
             error: r.error || null
           }));

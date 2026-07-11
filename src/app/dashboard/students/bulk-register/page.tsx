@@ -58,6 +58,10 @@ function detectClass(text: string): string | null {
   return base + section;
 }
 
+function detectArm(text: string): string | null {
+  const match = text.match(CLASS_RE);
+  return match?.[2] ? match[2].toUpperCase() : null;
+}
 function isClassHeader(line: string): boolean {
   const clean = line.trim().replace(/[:\-–—.]/g, '').trim();
   return CLASS_RE.test(clean) && clean.replace(CLASS_RE, '').trim() === '';
@@ -106,6 +110,7 @@ interface GeneratedStudent {
   email: string;
   password: string;
   class_name?: string;
+  class_arm?: string;
   gender?: 'male' | 'female' | '';
   duplicate_exception_reason?: string;
   duplicate_exception_confirmed?: boolean;
@@ -187,6 +192,7 @@ function buildStudentList(rawLines: string[], fallbackClass?: string): Generated
   const usedEmails = new Set<string>();
   const students: GeneratedStudent[] = [];
   let contextClass: string | null = null;
+  let contextArm: string | null = null;
 
   for (const raw of rawLines) {
     const line = raw.trim();
@@ -207,7 +213,7 @@ function buildStudentList(rawLines: string[], fallbackClass?: string): Generated
     const email = makeEmail(first, usedEmails);
     usedEmails.add(email);
 
-    students.push({ id: nextId(), full_name: namePart, email, password: generatePassword(), class_name: resolvedClass || undefined });
+    students.push({ id: nextId(), full_name: namePart, email, password: generatePassword(), class_name: resolvedClass || undefined, class_arm: detectArm(line) || contextArm || undefined });
   }
   return students;
 }
@@ -1443,7 +1449,7 @@ export default function BulkRegisterPage() {
 
   // ── Build preview ────────────────────────────────────────────────────────
   const handlePreview = useCallback(async () => {
-    if (!batchPlacementReady) { toast.error('Select a school, registered section and grade before reviewing students.'); setSettingsOpen(true); return; }
+    if (!batchPlacementReady) { toast.error('Select a school, registered section and grade before reviewing students. Arm is optional.'); setSettingsOpen(true); return; }
     // Use only the standard class code (defaultClass) as the fallback arm label.
     // The registry class (Hilltop etc.) is an internal grouping — it must NOT
     // bleed into the printed credentials or the class_name field.
@@ -1756,7 +1762,7 @@ export default function BulkRegisterPage() {
                         {/* Programme */}
                         <div>
                           <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <BookOpenIcon className="w-3.5 h-3.5" /> Programme
+                            <BookOpenIcon className="w-3.5 h-3.5" /> Programme <span className="normal-case font-normal text-[10px]">(from section)</span>
                           </label>
                           <select
                             value={selectedProgramId}
@@ -1803,7 +1809,13 @@ export default function BulkRegisterPage() {
                           {filteredRegistryClasses.length > 0 ? (
                             <select
                               value={selectedRegistryClass}
-                              onChange={(e) => setSelectedRegistryClass(e.target.value)}
+                              onChange={(e) => {
+                                const classId = e.target.value;
+                                setSelectedRegistryClass(classId);
+                                const destination = filteredRegistryClasses.find((candidate) => candidate.id === classId);
+                                if (destination?.program_id) setSelectedProgramId(destination.program_id);
+                                if (!defaultClass && destination?.qa_grade_key) setDefaultClass(destination.qa_grade_key);
+                              }}
                               disabled={!selectedSchoolId}
                               className="w-full px-3 py-2.5 bg-card border border-primary/20 rounded-xl text-sm text-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
@@ -1833,7 +1845,7 @@ export default function BulkRegisterPage() {
                         <div>
                           <label className="block text-muted-foreground text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-1.5">
                             <AcademicCapIcon className="w-3.5 h-3.5" />
-                            Grade Level <span className="text-muted-foreground normal-case font-normal ml-1">(optional)</span>
+                            Grade Level <span className="text-rose-400/80 normal-case font-normal ml-1">(required)</span>
                           </label>
                           <p className="text-white/25 text-[11px] mb-2">
                             Select the arm (e.g. JSS2A, SS1B) — applies to any student whose name doesn&apos;t include a class code.
@@ -1879,6 +1891,14 @@ export default function BulkRegisterPage() {
 
                       </div>
 
+                      {selectedRegisteredClass && (
+                        <div className="grid gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                          <div><span className="block text-[9px] font-black uppercase text-muted-foreground">Section</span><strong>{selectedRegisteredClass.name}</strong></div>
+                          <div><span className="block text-[9px] font-black uppercase text-muted-foreground">Term</span><strong>{selectedRegisteredClass.academic_terms ? `${selectedRegisteredClass.academic_terms.term_label || ''} ${selectedRegisteredClass.academic_terms.academic_year || ''}` : selectedRegisteredClass.term_id ? 'Assigned term' : 'No term assigned'}</strong></div>
+                          <div><span className="block text-[9px] font-black uppercase text-muted-foreground">Grade</span><strong>{effectiveClassCode || 'Not set'}</strong></div>
+                          <div><span className="block text-[9px] font-black uppercase text-muted-foreground">Arm</span><strong>{selectedArm || 'Not set'}</strong></div>
+                        </div>
+                      )}
                       {/* Effective class preview */}
                       {effectiveClassCode && (
                         <div className="flex items-center gap-2 text-xs">
