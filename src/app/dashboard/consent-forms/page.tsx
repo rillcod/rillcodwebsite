@@ -1479,16 +1479,18 @@ export default function ConsentFormsPage() {
                         onChange={e => setNewForm(f => ({ ...f, school_id: e.target.value, class_id: '' }))}
                         className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
                       >
-                        <option value="">— Auto (first school) —</option>
+                        <option value="">— Select registered school —</option>
                         {schools.map(s => (
                           <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
                       </select>
                     </div>
                   )}
-                  <div>
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
+                    <strong className="text-foreground">Placement source:</strong> school and section come from these registered selections. A parent&apos;s typed class or grade is retained for review and cannot overwrite the official section.
+                  </div>                  <div>
                     <label className="text-xs font-black text-muted-foreground uppercase tracking-widest block mb-1.5">
-                      Class <span className="normal-case font-normal text-muted-foreground/70">(optional — students from this form join this class)</span>
+                      Class <span className="normal-case font-normal text-muted-foreground/70">(optional — official destination section)</span>
                     </label>
                     <select
                       value={newForm.class_id}
@@ -1496,7 +1498,7 @@ export default function ConsentFormsPage() {
                       disabled={classes.length === 0}
                       className="w-full bg-background border border-border text-foreground px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors disabled:opacity-50"
                     >
-                      <option value="">{classes.length === 0 ? '— No classes for this school —' : '— No specific class (use child’s grade) —'}</option>
+                      <option value="">{classes.length === 0 ? '— No registered classes for this school —' : '— Leave unassigned for staff review —'}</option>
                       {classes.map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
@@ -1516,7 +1518,7 @@ export default function ConsentFormsPage() {
                   </button>
                   <button
                     onClick={createForm}
-                    disabled={!newForm.title.trim() || !newForm.body.trim() || creating}
+                    disabled={!newForm.title.trim() || !newForm.body.trim() || (profile?.role === 'admin' && !newForm.school_id) || creating}
                     className="flex-1 py-2.5 bg-primary text-primary-foreground disabled:opacity-40 font-bold rounded-xl text-sm hover:opacity-90 transition-all"
                   >
                     {creating ? 'Publishing…' : 'Publish Form'}

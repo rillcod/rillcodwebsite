@@ -144,7 +144,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         updated_at:   new Date().toISOString(),
       };
       if (childName)   studentOverride.full_name     = childName;
-      if (childClass)  studentOverride.section_class = childClass;
       if (childGender) studentOverride.gender        = childGender;
 
       if (studentRowId) await (sb as any).from('students').update(studentOverride).eq('id', studentRowId);
@@ -152,7 +151,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       // Keep portal_users in sync for name / class / gender
       const portalStudentOverride: Record<string, unknown> = {};
       if (childName)   portalStudentOverride.full_name     = childName;
-      if (childClass)  portalStudentOverride.section_class = childClass;
       if (childGender) portalStudentOverride.gender        = childGender;
       if (Object.keys(portalStudentOverride).length > 0) {
         await (sb as any).from('portal_users').update(portalStudentOverride).eq('id', lead.matched_student_id);
@@ -176,14 +174,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
           updated_at:   new Date().toISOString(),
         };
         if (childData?.name)   siblingOverride.full_name     = childData.name;
-        if (childData?.class)  siblingOverride.section_class = childData.class;
         if (childData?.gender) siblingOverride.gender        = childData.gender;
 
         if (siblingRowId) await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
 
         const portalSiblingOverride: Record<string, unknown> = {};
         if (childData?.name)   portalSiblingOverride.full_name     = childData.name;
-        if (childData?.class)  portalSiblingOverride.section_class = childData.class;
         if (childData?.gender) portalSiblingOverride.gender        = childData.gender;
 
         if (Object.keys(portalSiblingOverride).length > 0) {
@@ -294,7 +290,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
       updated_at:   new Date().toISOString(),
     };
     if (childName)   studentOverride.full_name     = childName;
-    if (childClass)  studentOverride.section_class = childClass;
     if (childGender) studentOverride.gender        = childGender;
 
     if (studentRowId) await (sb as any).from('students').update(studentOverride).eq('id', studentRowId);
@@ -302,7 +297,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
     // Keep portal_users in sync for name / class / gender
     const portalStudentOverride: Record<string, unknown> = {};
     if (childName)   portalStudentOverride.full_name     = childName;
-    if (childClass)  portalStudentOverride.section_class = childClass;
     if (childGender) portalStudentOverride.gender        = childGender;
     if (Object.keys(portalStudentOverride).length > 0) {
       await (sb as any).from('portal_users').update(portalStudentOverride).eq('id', lead.matched_student_id);
@@ -327,14 +321,12 @@ export async function POST(req: NextRequest, context: { params: Promise<{ leadId
         updated_at:   new Date().toISOString(),
       };
       if (childData?.name)   siblingOverride.full_name     = childData.name;
-      if (childData?.class)  siblingOverride.section_class = childData.class;
       if (childData?.gender) siblingOverride.gender        = childData.gender;
 
       if (siblingRowId) await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
 
       const portalSiblingOverride: Record<string, unknown> = {};
       if (childData?.name)   portalSiblingOverride.full_name     = childData.name;
-      if (childData?.class)  portalSiblingOverride.section_class = childData.class;
       if (childData?.gender) portalSiblingOverride.gender        = childData.gender;
 
       if (Object.keys(portalSiblingOverride).length > 0) {

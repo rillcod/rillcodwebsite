@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { onboardStudentFromProspect } from '@/lib/students/onboard-from-prospect';
+import { canonicalGrade, SINGLE_GRADES } from '@/lib/classes/naming';
 
 type AnySupabase = SupabaseClient<any>;
 
@@ -30,10 +31,15 @@ export interface LeadChildContext {
   className?: string | null;
 }
 
-const programLabel = (p?: string | null): string | null =>
+export const programLabel = (p?: string | null): string | null =>
   p === 'young_innovators' ? 'Young Innovators'
     : p === 'teen_developers' ? 'Teen Developers'
       : (p || null);
+
+export const registeredConsentGrade = (value: string | null): string | null => {
+  const normalized = canonicalGrade(value);
+  return normalized && (SINGLE_GRADES as readonly string[]).includes(normalized) ? normalized : null;
+};
 
 export async function onboardLeadChildren(
   admin: AnySupabase,
@@ -50,6 +56,7 @@ export async function onboardLeadChildren(
     : [];
 
   const created: Array<{ name: string; email: string; password: string; studentPortalId: string }> = [];
+
   const tasks: Array<{ name: string; klass: string | null; age: string | null; gender: string | null; program: string | null }> = [];
 
   // Primary child — unmatched when the lead has no matched_student_id.
@@ -70,7 +77,8 @@ export async function onboardLeadChildren(
     try {
       const res = await onboardStudentFromProspect(admin, {
         full_name: t.name,
-        grade: t.klass,
+        // Submitted class text is intake evidence only; official grade must be registered.
+        grade: registeredConsentGrade(t.klass),
         age: t.age ? parseInt(t.age, 10) : null,
         gender: t.gender,
         course_interest: programLabel(t.program),

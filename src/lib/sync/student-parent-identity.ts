@@ -152,8 +152,8 @@ export async function syncStudentIdentityAcrossStores(
   const klass = input.section_class?.trim();
   if (klass && shouldWrite(studentRow?.current_class ?? studentRow?.section_class, mode)) {
     studentPatch.current_class = klass;
-    studentPatch.section_class = klass;
-    studentPatch.grade_level = klass;
+    studentPatch.section = klass;
+    studentPatch.current_class = klass;
     portalPatch.section_class = klass;
     authMeta.section_class = klass;
     changed = true;

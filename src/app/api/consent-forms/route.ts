@@ -120,16 +120,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Title and body are required' }, { status: 400 });
   }
 
-  // Resolve school_id: body override → profile → first school (admin fallback)
-  let schoolId: string | null = bodySchoolId ?? profile.school_id ?? null;
-  if (!schoolId) {
-    const { data: firstSchool } = await supabase.from('schools').select('id').limit(1).single();
-    schoolId = firstSchool?.id ?? null;
-  }
-  if (!schoolId) {
-    return NextResponse.json({ error: 'Could not determine school for this form.' }, { status: 400 });
+  // School and class are controlled selections. Never guess a school from table order.
+  const schoolId: string | null = bodySchoolId ?? profile.school_id ?? null;
+  if (!schoolId) return NextResponse.json({ error: 'Select a registered school for this form.' }, { status: 400 });
+
+  if (profile.role !== 'admin') {
+    const allowedSchools = new Set<string>(profile.school_id ? [profile.school_id] : []);
+    if (profile.role === 'teacher') {
+      const { data: assignments } = await supabase.from('teacher_schools').select('school_id').eq('teacher_id', user.id);
+      for (const row of assignments ?? []) if (row.school_id) allowedSchools.add(row.school_id);
+    }
+    if (!allowedSchools.has(schoolId)) return NextResponse.json({ error: 'You cannot create a form for this school.' }, { status: 403 });
   }
 
+  if (bodyClassId) {
+    const { data: selectedClass } = await supabase.from('classes').select('id, school_id, teacher_id, status').eq('id', bodyClassId).maybeSingle();
+    if (!selectedClass || selectedClass.school_id !== schoolId || selectedClass.status === 'archived') return NextResponse.json({ error: 'Select an active registered class belonging to the selected school.' }, { status: 400 });
+    if (profile.role === 'teacher' && selectedClass.teacher_id !== user.id) return NextResponse.json({ error: 'You can only target a class you own.' }, { status: 403 });
+  }
   const { data, error } = await (supabase as any)
     .from('consent_forms')
     .insert({

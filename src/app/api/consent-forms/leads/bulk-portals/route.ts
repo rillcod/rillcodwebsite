@@ -188,7 +188,6 @@ export async function POST(req: NextRequest) {
               updated_at:   new Date().toISOString(),
             };
             if (childData?.name)   siblingOverride.full_name     = childData.name;
-            if (childData?.class)  siblingOverride.section_class = childData.class;
             if (childData?.gender) siblingOverride.gender        = childData.gender;
 
             await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
@@ -306,7 +305,6 @@ export async function POST(req: NextRequest) {
             updated_at:   new Date().toISOString(),
           };
           if (childData?.name)   siblingOverride.full_name     = childData.name;
-          if (childData?.class)  siblingOverride.section_class = childData.class;
           if (childData?.gender) siblingOverride.gender        = childData.gender;
 
           await (sb as any).from('students').update(siblingOverride).eq('id', siblingRowId);
