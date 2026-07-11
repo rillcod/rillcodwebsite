@@ -1078,22 +1078,21 @@ export default function ClassDetailPage() {
   const pendingOutgoingTransfers = profile?.role === 'admin' ? [] : transferRequests.filter((request: any) => request.status === 'pending' && request.requested_by === profile?.id);
 
   return (
-    <div className="min-w-0 overflow-x-hidden text-foreground">
-      <div className="space-y-6 pb-20">
+    <div className="min-w-0 w-full max-w-full overflow-x-clip text-foreground">
+      <div className="space-y-4 pb-24 sm:space-y-6 sm:pb-20">
 
         {/* ── Class Operations Canvas ────────────────────────────────────────── */}
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:rounded-3xl">
-          <div className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-background p-4 sm:p-5 md:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 w-full max-w-full rounded-xl border border-border bg-card shadow-sm sm:rounded-2xl md:rounded-3xl">
+          <div className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-background p-3 sm:p-5 md:p-6">
+            <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2 sm:mb-3">
-                  <button type="button" onClick={() => router.back()} className="rounded-xl p-1.5 transition-colors hover:bg-muted" aria-label="Go back">
+                  <button type="button" onClick={() => router.back()} className="rounded-xl p-2 transition-colors hover:bg-muted" aria-label="Go back">
                     <ArrowLeftIcon className="h-4 w-4 text-muted-foreground" />
                   </button>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-primary">
                     <AcademicCapIcon className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Class Workspace</span>
-                    <span className="sm:hidden">Workspace</span>
+                    Workspace
                   </span>
                   <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
                     cls.status === 'active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' :
@@ -1103,58 +1102,58 @@ export default function ClassDetailPage() {
                     {cls.status}
                   </span>
                 </div>
-                <h1 className="break-words text-xl font-black tracking-tight text-foreground sm:text-2xl md:text-4xl">{cls.name}</h1>
-                <p className="mt-1.5 max-w-2xl break-words text-xs text-muted-foreground sm:mt-2 sm:text-sm">
+                <h1 className="break-words text-lg font-black leading-snug tracking-tight text-foreground sm:text-2xl md:text-4xl">{cls.name}</h1>
+                <p className="mt-1.5 max-w-2xl break-words text-xs leading-relaxed text-muted-foreground sm:mt-2 sm:text-sm">
                   {cls.programs?.name ?? 'No programme'} · {termLabel} · {cls.portal_users?.full_name ?? 'Teacher not assigned'}
                 </p>
               </div>
 
               {isStaff && (
-                <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap lg:justify-end">
+                <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap lg:justify-end">
                   <Link href={`/dashboard/classes/${id}/edit`}
-                    className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-2 py-2.5 text-[11px] font-black text-foreground transition-colors hover:border-primary/40 hover:bg-muted sm:gap-2 sm:px-4 sm:text-xs">
-                    <PencilIcon className="h-3.5 w-3.5 flex-shrink-0 text-primary sm:h-4 sm:w-4" /> Setup
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/40 hover:bg-muted sm:px-4">
+                    <PencilIcon className="h-4 w-4 flex-shrink-0 text-primary" /> Setup
                   </Link>
                   <button
                     type="button"
                     onClick={() => { setShowBroadcastModal(true); loadReachableStudents(); }}
-                    className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-2 py-2.5 text-[11px] font-black text-emerald-400 transition-colors hover:bg-emerald-500 hover:text-white sm:px-4 sm:text-xs">
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2.5 text-xs font-black text-emerald-400 transition-colors hover:bg-emerald-500 hover:text-white sm:px-4">
                     Broadcast
                   </button>
                   <Link href={`/dashboard/attendance?class_id=${id}`}
-                    className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-2 py-2.5 text-[11px] font-black text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5 sm:gap-2 sm:px-4 sm:text-xs">
-                    <ClipboardDocumentCheckIcon className="h-3.5 w-3.5 flex-shrink-0 sm:h-4 sm:w-4" />
-                    <span className="truncate">Attendance</span>
+                    className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5 sm:px-4">
+                    <ClipboardDocumentCheckIcon className="h-4 w-4 flex-shrink-0" />
+                    Attendance
                   </Link>
                 </div>
               )}
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3 lg:grid-cols-4">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3 lg:grid-cols-4">
               {[
                 { label: 'Active', value: currentTermStudents.length, hint: `${cls.max_students ?? '∞'} capacity`, tone: 'text-primary' },
                 { label: 'Withdrawn', value: inactiveTermStudents.length, hint: 'paused / former', tone: 'text-amber-400' },
                 { label: 'Open work', value: openAssignments + activeExamCount, hint: 'assignments + exams', tone: 'text-emerald-400' },
                 { label: 'Marked', value: gradedSubmissionCount, hint: 'submissions scored', tone: 'text-cyan-400' },
               ].map(metric => (
-                <div key={metric.label} className="min-w-0 rounded-xl border border-border bg-background/70 p-3 sm:rounded-2xl sm:p-4">
+                <div key={metric.label} className="min-w-0 rounded-xl border border-border bg-background/70 p-2.5 sm:rounded-2xl sm:p-4">
                   <p className={`text-xl font-black sm:text-2xl ${metric.tone}`}>{metric.value}</p>
-                  <p className="mt-1 truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
-                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-[11px]">{metric.hint}</p>
+                  <p className="mt-1 break-words text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
+                  <p className="mt-0.5 break-words text-[10px] text-muted-foreground sm:text-[11px]">{metric.hint}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {cls?.max_students > 0 && currentTermStudents.length >= cls?.max_students && (
-            <div className="border-b border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-400 sm:px-5">
+            <div className="border-b border-rose-500/20 bg-rose-500/10 px-3 py-3 text-sm font-semibold leading-snug text-rose-400 sm:px-5">
               Class capacity has been reached. Move students to another class or increase capacity before adding more.
             </div>
           )}
 
-          {/* Mobile work-mode tabs — horizontal, no truncation of labels */}
-          <div className="border-b border-border lg:hidden">
-            <div className="flex gap-1.5 overflow-x-auto px-3 py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* Mobile work-mode grid — full labels, no horizontal scroll truncation */}
+          <div className="border-b border-border p-2 sm:p-3 lg:hidden">
+            <div className="grid grid-cols-2 gap-2">
               {operationCards.map(card => {
                 const active = activeOperation === card.id;
                 return (
@@ -1162,15 +1161,17 @@ export default function ClassDetailPage() {
                     key={card.id}
                     type="button"
                     onClick={() => setActiveOperation(card.id)}
-                    className={`inline-flex flex-shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all ${
+                    className={`flex min-h-[3.25rem] min-w-0 items-center gap-2 rounded-xl border px-2.5 py-2.5 text-left transition-all ${
                       active
                         ? 'border-primary/40 bg-primary/10 text-foreground shadow-sm'
                         : 'border-border bg-background text-muted-foreground'
                     }`}
                   >
                     <card.icon className={`h-4 w-4 flex-shrink-0 ${active ? card.tone : ''}`} />
-                    <span className="text-xs font-black">{card.title}</span>
-                    <span className="hidden text-[10px] text-muted-foreground sm:inline">{card.stat}</span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-black leading-tight">{card.title}</span>
+                      <span className="mt-0.5 block break-words text-[10px] leading-tight text-muted-foreground">{card.stat}</span>
+                    </span>
                   </button>
                 );
               })}
@@ -1199,29 +1200,29 @@ export default function ClassDetailPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-black text-foreground">{card.title}</p>
-                        <p className="truncate text-[10px] text-muted-foreground">{card.stat}</p>
+                        <p className="break-words text-[10px] text-muted-foreground">{card.stat}</p>
                       </div>
                     </div>
-                    <p className="mt-2 line-clamp-2 text-[11px] text-muted-foreground">{card.desc}</p>
+                    <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{card.desc}</p>
                   </button>
                 ))}
               </div>
             </aside>
 
-            <div className="min-h-[280px] min-w-0 p-3 sm:min-h-[320px] sm:p-5 md:p-6">
-              <div className="mb-4 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-h-0 min-w-0 p-2 sm:min-h-[320px] sm:p-5 md:p-6">
+              <div className="mb-3 flex flex-col gap-2 sm:mb-5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Operations Canvas</p>
-                  <h2 className="mt-1 break-words text-lg font-black text-foreground sm:text-xl">{selectedOperation.title}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{selectedOperation.desc}</p>
+                  <h2 className="mt-1 break-words text-base font-black text-foreground sm:text-xl">{selectedOperation.title}</h2>
+                  <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground sm:text-sm">{selectedOperation.desc}</p>
                 </div>
-                <span className="w-fit flex-shrink-0 rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                <span className="w-fit max-w-full flex-shrink-0 break-words rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                   {termLabel}
                 </span>
               </div>
 
               {activeOperation === 'roster' && (
-                <div className="min-w-0 space-y-4 rounded-2xl border border-border bg-background p-3 sm:p-4">
+                <div className="min-w-0 space-y-3 sm:space-y-4 sm:rounded-2xl sm:border sm:border-border sm:bg-background sm:p-4">
                   {(pendingIncomingTransfers.length > 0 || pendingOutgoingTransfers.length > 0) && (
                     <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
                       <div>
@@ -1277,21 +1278,19 @@ export default function ClassDetailPage() {
                         </p>
                       </div>
                       {isStaff && (
-                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                          <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap">
+                          <Link href={`/dashboard/classes/transfer?from=${id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-xs font-black text-foreground transition-colors hover:border-primary/50">
                             <ArrowsRightLeftIcon className="h-3.5 w-3.5 text-primary" />
-                            <span className="sm:hidden">Transfer</span>
-                            <span className="hidden sm:inline">Transfer / Move</span>
+                            Transfer / Move
                           </Link>
-                          <Link href={`/dashboard/classes/transfer-requests?class=${id}`} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-black text-amber-400 transition-colors hover:bg-amber-500/20">
+                          <Link href={`/dashboard/classes/transfer-requests?class=${id}`} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-black text-amber-400 transition-colors hover:bg-amber-500/20">
                             <ArrowsRightLeftIcon className="h-3.5 w-3.5" />
-                            <span className="sm:hidden">Requests</span>
-                            <span className="hidden sm:inline">Ownership Requests</span>
+                            Ownership Requests
                           </Link>
                           <button
                             type="button"
                             onClick={() => { setShowStudentModal(true); setEnrolMode('current'); resetPasteClaimState(); loadAvailableStudents(); }}
-                            className="col-span-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground sm:col-span-1"
+                            className="min-h-11 rounded-xl bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground sm:col-span-2 lg:col-span-1"
                           >
                             Add Students
                           </button>
@@ -1321,7 +1320,7 @@ export default function ClassDetailPage() {
                       <p className="text-sm font-semibold text-muted-foreground">No students match “{rosterSearch}”.</p>
                     </div>
                   ) : (
-                    <div className="grid max-h-[min(70vh,40rem)] gap-2 overflow-y-auto overflow-x-hidden overscroll-contain pr-0.5 sm:pr-1">
+                    <div className="grid gap-2 md:max-h-[min(70vh,40rem)] md:overflow-y-auto md:overflow-x-hidden md:overscroll-contain md:pr-1">
                       {visibleCurrent.map((student: any) => {
                         const offBand = isOffBand(student);
                         if (editingStudentId === student.id) {
@@ -1406,16 +1405,16 @@ export default function ClassDetailPage() {
                                     </span>
                                   )}
                                 </div>
-                                <p className="mt-0.5 truncate text-xs text-muted-foreground">{student.email}</p>
+                                <p className="mt-0.5 break-all text-xs text-muted-foreground">{student.email}</p>
                               </div>
                             </div>
                             {isStaff && (
-                              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/60 pt-3 sm:flex sm:flex-wrap sm:items-center">
+                              <div className="mt-3 grid grid-cols-1 gap-2 border-t border-border/60 pt-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
                                 <button
                                   type="button"
                                   onClick={() => beginEditIdentity(student)}
                                   title="Edit name / grade"
-                                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                                 >
                                   <PencilSquareIconOutline className="h-3.5 w-3.5" />
                                   Edit
@@ -1425,7 +1424,7 @@ export default function ClassDetailPage() {
                                   value=""
                                   disabled={movingStudent === student.id}
                                   onChange={(event) => void moveStudentToClass(student, event.target.value)}
-                                  className="col-span-2 min-w-0 rounded-lg border border-border bg-background px-2 py-2.5 text-[10px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:col-span-1 sm:min-w-[10rem] sm:flex-1 sm:max-w-[16rem]"
+                                  className="min-h-11 min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black text-foreground outline-none hover:border-primary/50 disabled:opacity-50 sm:col-span-1 lg:min-w-[10rem] lg:flex-1 lg:max-w-[16rem]"
                                 >
                                   <option value="">{movingStudent === student.id ? 'Moving…' : 'Change grade / section'}</option>
                                   {destinationClasses.map((destination: any) => <option key={destination.id} value={destination.id}>{destination.qa_grade_key || 'Grade'} · {destination.name}{destination.academic_terms ? ` · ${destination.academic_terms.term_label} ${destination.academic_terms.academic_year}` : ''}</option>)}
@@ -1433,7 +1432,7 @@ export default function ClassDetailPage() {
                                 <Link
                                   href={`/dashboard/classes/transfer?from=${id}&student=${student.id}`}
                                   title="Request a move to a class owned by another teacher"
-                                  className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-2.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
+                                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-background px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-foreground transition-colors hover:border-primary/50"
                                 >
                                   Transfer
                                 </Link>
@@ -1442,7 +1441,7 @@ export default function ClassDetailPage() {
                                   onClick={() => removeStudent(student.id)}
                                   disabled={processingStudent === student.id}
                                   title="Withdraw from this class (keeps class history)"
-                                  className="inline-flex items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-2.5 text-[10px] font-black uppercase tracking-wide text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
+                                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide text-amber-400 transition-colors hover:bg-amber-500/10 disabled:opacity-50"
                                 >
                                   {processingStudent === student.id ? '…' : 'Withdraw'}
                                 </button>
@@ -1498,8 +1497,8 @@ export default function ClassDetailPage() {
                             </div>
                           </div>
                           {isStaff && (
-                            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-amber-500/20 pt-3">
-                              <button type="button" onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
+                            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-amber-500/20 pt-3 sm:grid-cols-2">
+                              <button type="button" onClick={() => assignStudent(student.id)} disabled={processingStudent === student.id} className="min-h-11 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-primary disabled:opacity-50">
                                 {processingStudent === student.id ? '…' : 'Reinstate'}
                               </button>
                               <button
@@ -1507,7 +1506,7 @@ export default function ClassDetailPage() {
                                 onClick={() => bulkHardDelete(false, [student.id])}
                                 disabled={hardDeleting}
                                 title="Permanently delete this student from the whole system"
-                                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-600/10 px-2.5 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
+                                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-600/10 px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-red-300 transition-colors hover:bg-red-600/20 disabled:opacity-40"
                               >
                                 <TrashIcon className="h-3.5 w-3.5" />
                                 Delete
