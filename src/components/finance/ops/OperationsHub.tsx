@@ -5,16 +5,14 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import {
-  BanknotesIcon,
   CheckBadgeIcon,
   DocumentTextIcon,
-  ArrowTrendingUpIcon,
+  ReceiptPercentIcon,
 } from '@/lib/icons';
 import { ApprovalsPanel } from './ApprovalsPanel';
 import { InvoicesPanel } from './InvoicesPanel';
 import { ReceiptsPanel } from './ReceiptsPanel';
-import { BillingCyclesTab } from '@/components/finance/BillingCyclesTab';
-import { ReceiptPercentIcon, BuildingOfficeIcon, ShieldCheckIcon, CalendarDaysIcon } from '@/lib/icons';
+import BalanceRemindersPanel from '@/components/finance/BalanceRemindersPanel';
 
 type OpsTab =
   | 'approvals'
@@ -122,7 +120,7 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
   type TabDef = {
     k: OpsTab;
     label: string;
-    Icon: typeof BanknotesIcon;
+    Icon: typeof DocumentTextIcon;
     hint: string;
     show: boolean;
   };
@@ -193,8 +191,17 @@ export function OperationsHub({ embedded = false, defaultTab = 'invoices', works
         })}
       </div>
 
-      <div className="pt-2">
-        {tab === 'approvals' && <ApprovalsPanel />}
+      <div className="pt-2 space-y-8">
+        {tab === 'approvals' && (
+          <>
+            <ApprovalsPanel />
+            {isAdmin && workspace === 'collections' && (
+              <div className="pt-2 border-t border-border">
+                <BalanceRemindersPanel embedded variant="queue" />
+              </div>
+            )}
+          </>
+        )}
         {tab === 'invoices' && <InvoicesPanel editInvoiceId={editInvoiceId} />}
         {tab === 'receipts' && <ReceiptsPanel />}
       </div>

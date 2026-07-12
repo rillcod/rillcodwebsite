@@ -326,7 +326,7 @@ const LEGACY_PATH_WORKSPACE: Record<string, TabKey> = {
   '/dashboard/billing-automation': 'collections',
   '/dashboard/school-billing': 'billing',
   '/dashboard/subscriptions': 'billing',
-  '/dashboard/balance-reminders': 'settings',
+  '/dashboard/balance-reminders': 'collections',
   '/dashboard/my-payments': 'today',
   '/dashboard/parent-invoices': 'today',
   '/dashboard/money': 'today',
@@ -340,7 +340,7 @@ const LEGACY_TAB_MAP: Record<string, TabKey> = {
   subscriptions: 'billing',
   settlements: 'reconciliation',
   automation: 'collections',
-  reminders: 'settings',
+  reminders: 'collections',
   setup: 'settings',
   invoices: 'invoices',
   transactions: 'today',
@@ -2088,7 +2088,7 @@ export default function FinancePage() {
           {tab === 'settings' && (
             <>
               <SetupTab profile={profile} />
-              {isAdmin && <BalanceRemindersPanel embedded />}
+              {isAdmin && <BalanceRemindersPanel embedded variant="rules" />}
             </>
           )}
         </div>
