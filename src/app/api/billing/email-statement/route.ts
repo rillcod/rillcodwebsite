@@ -11,8 +11,8 @@ export async function POST(req: Request) {
       ? await (supabase as any).from('portal_users').select('id, full_name, role').eq('id', user.id).single()
       : { data: null };
 
-    if (!caller || !['admin', 'teacher'].includes(caller.role)) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 403 });
+    if (!caller || caller.role !== 'admin') {
+      return NextResponse.json({ success: false, message: 'Admin access required' }, { status: 403 });
     }
 
     const {
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
         { label: 'Due Date', value: dueDate ? fmtDate(dueDate) : '—', highlight: true },
         { label: 'Total Due', value: fmtAmt, highlight: true },
       ],
-      cta: { href: `${appUrl}/dashboard/money`, label: 'View Account Portal', color: '#7c3aed' },
+      cta: { href: `${appUrl}/dashboard/finance?workspace=reports`, label: 'Open Finance Reports', color: '#0f766e' },
       footerNote: `Sent by ${escapeHtml(caller.full_name)} · Rillcod Technologies. Contact partners@rillcod.com for billing queries.`,
     });
 

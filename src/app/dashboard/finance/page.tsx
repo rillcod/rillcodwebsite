@@ -437,9 +437,22 @@ function InvoiceProofUpload({ invoiceId, onUploaded }: { invoiceId: string; onUp
   );
 }
 
+type ArchivedBillingDoc = {
+  doc_ref: string;
+  doc_type: string;
+  school_name?: string | null;
+  term_label?: string | null;
+  period_label?: string | null;
+  amount?: number | null;
+  currency?: string | null;
+  invoice_number?: string | null;
+  created_at?: string;
+};
+
 function OverviewTab({ profile }: { profile: any }) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [archivedDocs, setArchivedDocs] = useState<ArchivedBillingDoc[]>([]);
   const [loading, setLoading] = useState(true);
 
   const isAdmin = profile?.role === 'admin';
@@ -448,9 +461,12 @@ function OverviewTab({ profile }: { profile: any }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [invRes, analyticsRes] = await Promise.all([
+      const [invRes, analyticsRes, archiveRes] = await Promise.all([
         fetch('/api/invoices?limit=200', { cache: 'no-store' }),
         fetch('/api/payments/analytics', { cache: 'no-store' }),
+        isSchoolView
+          ? fetch('/api/billing/docs/archive?limit=20', { cache: 'no-store' })
+          : Promise.resolve(null),
       ]);
       if (invRes.ok) {
         const j = await invRes.json();
@@ -461,9 +477,15 @@ function OverviewTab({ profile }: { profile: any }) {
         // API wraps KPIs under `{ success, data }` — never read the envelope as metrics.
         setAnalytics(j?.data ?? j);
       }
+      if (archiveRes?.ok) {
+        const j = await archiveRes.json();
+        setArchivedDocs((j.data ?? []) as ArchivedBillingDoc[]);
+      } else if (isSchoolView) {
+        setArchivedDocs([]);
+      }
     } catch { /* ignore */ }
     setLoading(false);
-  }, [profile?.id]); // eslint-disable-line
+  }, [profile?.id, isSchoolView]); // eslint-disable-line
 
   useEffect(() => { load(); }, [load]);
 
@@ -597,6 +619,48 @@ function OverviewTab({ profile }: { profile: any }) {
           </div>
         )}
       </div>
+
+      {isSchoolView && (
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="font-black text-foreground text-sm uppercase tracking-widest">
+              Statements sent to your school
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Billing documents archived by Rillcod for your records.
+            </p>
+          </div>
+          {archivedDocs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No archived statements yet. When Rillcod emails a statement, it will appear here.
+            </p>
+          ) : (
+            <div className="divide-y divide-border">
+              {archivedDocs.map((doc) => (
+                <div key={doc.doc_ref} className="px-5 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate">
+                      {doc.invoice_number || doc.doc_ref}
+                      <span className="ml-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        {doc.doc_type.replace(/_/g, ' ')}
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {doc.term_label || doc.period_label || '—'}
+                      {doc.created_at ? ` · ${relDate(doc.created_at)}` : ''}
+                    </p>
+                  </div>
+                  {doc.amount != null && (
+                    <p className="text-sm font-black text-foreground flex-shrink-0">
+                      {fmt(doc.currency || 'NGN', Number(doc.amount))}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -2002,6 +2066,13 @@ export default function FinancePage() {
           )}
           {tab === 'reconciliation' && isAdmin && (
             <>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Close the books</p>
+                <h2 className="text-xl font-black text-foreground mt-0.5">Reconciliation &amp; settlements</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Find ledger gaps and record school payouts. Glance KPIs live on Today; summaries on Reports.
+                </p>
+              </div>
               <ReconciliationFindingsPanel />
               <SettlementsTab profile={profile} />
             </>
