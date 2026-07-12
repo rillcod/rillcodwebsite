@@ -21,6 +21,9 @@ export type BillingDocsReceipt = {
   receipt_number: string;
   amount: number;
   issued_at: string;
+  /** Canonical FK on receipts — portal student id */
+  student_id: string | null;
+  /** Alias of student_id for payment-register maps keyed by portal user */
   portal_user_id: string | null;
   metadata?: { payment_method?: string } | null;
 };
@@ -76,7 +79,7 @@ export async function loadPaymentRegisterData(schoolId: string) {
       .not('portal_user_id', 'is', null),
     db
       .from('receipts')
-      .select('id, receipt_number, amount, issued_at, portal_user_id, metadata')
+      .select('id, receipt_number, amount, issued_at, student_id, metadata')
       .eq('school_id', schoolId),
   ]);
 
@@ -91,7 +94,15 @@ export async function loadPaymentRegisterData(schoolId: string) {
       currency: i.currency ?? 'NGN',
       amount: Number(i.amount) || 0,
     })) as BillingDocsInvoice[],
-    receipts: (recRes.data ?? []) as BillingDocsReceipt[],
+    receipts: ((recRes.data ?? []) as any[]).map((r) => ({
+      id: r.id,
+      receipt_number: r.receipt_number,
+      amount: Number(r.amount) || 0,
+      issued_at: r.issued_at,
+      student_id: r.student_id ?? null,
+      portal_user_id: r.student_id ?? null,
+      metadata: r.metadata ?? null,
+    })) as BillingDocsReceipt[],
   };
 }
 

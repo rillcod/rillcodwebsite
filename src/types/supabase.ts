@@ -854,6 +854,7 @@ export type Database = {
       billing_cycles: {
         Row: {
           amount_due: number
+          archived_at: string | null
           created_at: string
           currency: string
           due_date: string
@@ -878,6 +879,7 @@ export type Database = {
         }
         Insert: {
           amount_due?: number
+          archived_at?: string | null
           created_at?: string
           currency?: string
           due_date: string
@@ -902,6 +904,7 @@ export type Database = {
         }
         Update: {
           amount_due?: number
+          archived_at?: string | null
           created_at?: string
           currency?: string
           due_date?: string
@@ -972,6 +975,82 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_document_archive: {
+        Row: {
+          amount: number | null
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          doc_ref: string
+          doc_type: string
+          due_date: string | null
+          id: string
+          invoice_number: string | null
+          metadata: Json
+          period_label: string | null
+          school_id: string | null
+          school_name: string | null
+          student_count: number | null
+          term_label: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          doc_ref: string
+          doc_type: string
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          metadata?: Json
+          period_label?: string | null
+          school_id?: string | null
+          school_name?: string | null
+          student_count?: number | null
+          term_label?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          doc_ref?: string
+          doc_type?: string
+          due_date?: string | null
+          id?: string
+          invoice_number?: string | null
+          metadata?: Json
+          period_label?: string | null
+          school_id?: string | null
+          school_name?: string | null
+          student_count?: number | null
+          term_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_document_archive_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_document_archive_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "student_performance_summary"
+            referencedColumns: ["student_id"]
+          },
+          {
+            foreignKeyName: "billing_document_archive_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -11620,6 +11699,23 @@ export type Database = {
         }
         Returns: Json
       }
+      create_invoice_atomic: {
+        Args: {
+          p_amount: number
+          p_billing_cycle_id: string
+          p_currency: string
+          p_due_date: string
+          p_invoice_number: string
+          p_items: Json
+          p_metadata: Json
+          p_notes: string
+          p_portal_user_id: string
+          p_school_id: string
+          p_status: string
+          p_stream: string
+        }
+        Returns: Json
+      }
       create_parent_and_link: {
         Args: {
           p_auth_user_id?: string
@@ -11663,6 +11759,42 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      ensure_settled_invoice_atomic: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_invoice_number: string
+          p_items: Json
+          p_metadata: Json
+          p_portal_user_id: string
+          p_school_id: string
+          p_stream: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
+      finalize_full_refund_atomic: {
+        Args: {
+          p_actor_id?: string
+          p_gateway_refund?: Json
+          p_reason: string
+          p_transaction_id: string
+        }
+        Returns: Json
+      }
+      find_school_student_name_conflicts: {
+        Args: {
+          p_name_keys: string[]
+          p_school_id: string
+          p_school_name: string
+        }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          name_key: string
+        }[]
       }
       get_at_risk_students:
         | {
@@ -11761,10 +11893,22 @@ export type Database = {
         Args: { p_lane: number; p_week: number }
         Returns: string
       }
+      recompute_invoice_balances_atomic: {
+        Args: { p_invoice_id: string }
+        Returns: Json
+      }
       refresh_dashboard_stats: { Args: never; Returns: undefined }
       resolve_academic_term: {
         Args: { p_term: string; p_year: string }
         Returns: string
+      }
+      settle_billing_cycle_payment_atomic: {
+        Args: {
+          p_actor_id?: string
+          p_billing_cycle_id: string
+          p_transaction_id: string
+        }
+        Returns: Json
       }
       student_duplicate_name_key: {
         Args: { raw_name: string }
@@ -11774,6 +11918,22 @@ export type Database = {
       unlink_parent_from_student: {
         Args: { target_student_id: string }
         Returns: undefined
+      }
+      update_billing_cycle_with_invoice: {
+        Args: {
+          p_amount_due: number
+          p_currency: string
+          p_cycle_id: string
+          p_due_date: string
+          p_status: string
+          p_term_label: string
+          p_term_start_date: string
+        }
+        Returns: Json
+      }
+      withdraw_receipt_atomic: {
+        Args: { p_actor_id: string; p_reason: string; p_receipt_id: string }
+        Returns: Json
       }
     }
     Enums: {
