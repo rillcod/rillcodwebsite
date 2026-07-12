@@ -48,7 +48,7 @@ export async function runReconciliationRules(opts?: {
   // Completed payments missing receipts
   let missingQ = db
     .from('payment_transactions')
-    .select('id, amount, invoice_id, receipt_url, school_id')
+    .select('id, amount, currency, invoice_id, receipt_url, school_id, transaction_reference, invoices(invoice_number), schools(name)')
     .in('payment_status', ['completed', 'success', 'paid'])
     .is('receipt_url', null)
     .limit(limit);
@@ -56,20 +56,30 @@ export async function runReconciliationRules(opts?: {
   const { data: missingReceipts, error: missErr } = await missingQ;
   assertDbOk(missErr, 'reconciliation missing receipts');
   for (const row of missingReceipts ?? []) {
+    const invNo = (row as any).invoices?.invoice_number;
+    const schoolName = (row as any).schools?.name;
     findings.push({
       kind: 'missing_receipt',
       severity: 'warning',
       entity_type: 'payment_transaction',
       entity_id: row.id,
-      message: 'Completed payment has no receipt_url',
-      meta: { invoice_id: row.invoice_id, amount: row.amount },
+      message: `Paid ${Number(row.amount).toLocaleString('en-NG')} ${(row as any).currency || 'NGN'}${invNo ? ` on ${invNo}` : ''}${schoolName ? ` · ${schoolName}` : ''} — receipt PDF not linked yet`,
+      meta: {
+        invoice_id: row.invoice_id,
+        invoice_number: invNo,
+        amount: row.amount,
+        currency: (row as any).currency,
+        reference: (row as any).transaction_reference,
+        school_name: schoolName,
+        fix: 'Generate/link receipt PDF for this completed payment',
+      },
     });
   }
 
   // Unmatched: completed with no invoice_id
   let unmatchedQ = db
     .from('payment_transactions')
-    .select('id, amount, school_id')
+    .select('id, amount, currency, school_id, transaction_reference, schools(name)')
     .in('payment_status', ['completed', 'success', 'paid'])
     .is('invoice_id', null)
     .limit(limit);
@@ -82,15 +92,21 @@ export async function runReconciliationRules(opts?: {
       severity: 'warning',
       entity_type: 'payment_transaction',
       entity_id: row.id,
-      message: 'Completed payment is not linked to an invoice',
-      meta: { amount: row.amount },
+      message: `Paid ${Number(row.amount).toLocaleString('en-NG')} ${(row as any).currency || 'NGN'}${(row as any).schools?.name ? ` · ${(row as any).schools.name}` : ''} has no invoice link`,
+      meta: {
+        amount: row.amount,
+        currency: (row as any).currency,
+        reference: (row as any).transaction_reference,
+        school_name: (row as any).schools?.name,
+        fix: 'Link this payment to an invoice, or leave if it was intentional standalone',
+      },
     });
   }
 
   // Allocation sum vs transaction amount
   const { data: txs, error: txErr } = await db
     .from('payment_transactions')
-    .select('id, amount, invoice_id')
+    .select('id, amount, currency, invoice_id, invoices(invoice_number, status, amount_remaining)')
     .in('payment_status', ['completed', 'success', 'paid'])
     .not('invoice_id', 'is', null)
     .limit(limit);
@@ -108,14 +124,25 @@ export async function runReconciliationRules(opts?: {
     }
     const allocated = (allocs ?? []).reduce((s: number, r: { amount: number }) => s + Number(r.amount || 0), 0);
     const txAmount = Number(tx.amount || 0);
+    const invNo = (tx as any).invoices?.invoice_number;
+    const invStatus = (tx as any).invoices?.status;
     if ((allocs ?? []).length === 0 && tx.invoice_id) {
       findings.push({
         kind: 'under_allocated',
-        severity: 'info',
+        severity: invStatus === 'paid' ? 'info' : 'warning',
         entity_type: 'payment_transaction',
         entity_id: tx.id,
-        message: 'Payment linked to invoice but has no allocation rows (legacy)',
-        meta: { invoice_id: tx.invoice_id, amount: txAmount },
+        message: invStatus === 'paid'
+          ? `Legacy gap: ${invNo || 'invoice'} is paid but missing an allocation row — Repair will backfill safely`
+          : `Payment ${txAmount.toLocaleString('en-NG')} linked to ${invNo || 'invoice'} has no allocation rows`,
+        meta: {
+          invoice_id: tx.invoice_id,
+          invoice_number: invNo,
+          invoice_status: invStatus,
+          amount: txAmount,
+          currency: (tx as any).currency,
+          fix: invStatus === 'paid' ? 'Backfill allocation (no balance change)' : 'Create allocation against remaining balance',
+        },
       });
     } else if (allocated + 0.01 < txAmount) {
       findings.push({
@@ -123,8 +150,8 @@ export async function runReconciliationRules(opts?: {
         severity: 'warning',
         entity_type: 'payment_transaction',
         entity_id: tx.id,
-        message: `Allocated ${allocated} is less than payment ${txAmount}`,
-        meta: { allocated, amount: txAmount },
+        message: `${invNo || 'Payment'}: allocated ₦${allocated.toLocaleString('en-NG')} is less than paid ₦${txAmount.toLocaleString('en-NG')}`,
+        meta: { allocated, amount: txAmount, invoice_id: tx.invoice_id, invoice_number: invNo },
       });
     } else if (allocated > txAmount + 0.01) {
       findings.push({
@@ -132,8 +159,8 @@ export async function runReconciliationRules(opts?: {
         severity: 'error',
         entity_type: 'payment_transaction',
         entity_id: tx.id,
-        message: `Allocated ${allocated} exceeds payment ${txAmount}`,
-        meta: { allocated, amount: txAmount },
+        message: `${invNo || 'Payment'}: allocated ₦${allocated.toLocaleString('en-NG')} exceeds paid ₦${txAmount.toLocaleString('en-NG')}`,
+        meta: { allocated, amount: txAmount, invoice_id: tx.invoice_id, invoice_number: invNo, fix: 'Manual review — cannot auto-repair over-allocation' },
       });
     }
   }
@@ -141,7 +168,7 @@ export async function runReconciliationRules(opts?: {
   // Invoice balance self-check
   const { data: invoices, error: invErr } = await db
     .from('invoices')
-    .select('id, original_amount, amount, amount_paid, amount_remaining, status')
+    .select('id, invoice_number, original_amount, amount, amount_paid, amount_remaining, status')
     .in('status', ['sent', 'partially_paid', 'paid', 'overdue'])
     .limit(limit);
   if (invErr && /amount_paid|original_amount|amount_remaining/i.test(invErr.message)) {
@@ -158,7 +185,14 @@ export async function runReconciliationRules(opts?: {
           severity: 'error',
           entity_type: 'invoice',
           entity_id: inv.id,
-          message: `Balance mismatch: paid(${paid}) + remaining(${remaining}) != original(${original})`,
+          message: `${(inv as any).invoice_number || 'Invoice'}: paid(${paid}) + remaining(${remaining}) ≠ original(${original})`,
+          meta: {
+            invoice_number: (inv as any).invoice_number,
+            paid,
+            remaining,
+            original,
+            fix: 'Recompute balances from allocation rows',
+          },
         });
       }
     }
