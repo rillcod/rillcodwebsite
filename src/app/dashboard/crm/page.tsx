@@ -360,7 +360,7 @@ export default function CRMPage() {
       tlRes.json(), attRes.json(), taskRes.json(), oppRes.json(), detailRes.json(),
     ]);
 
-    setTimeline(tlJson.timeline || []);
+    setTimeline(tlJson.timeline || tlJson.data || []);
     setAttachments(attJson.attachments || []);
     setTasks(taskJson.data || []);
     setOpps(oppJson.opportunities || []);
@@ -387,7 +387,7 @@ export default function CRMPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contact_id: selected.id,
-        contact_type: selected.role === 'external' ? 'external' : 'portal_user',
+        contact_type: selected.role === 'external' ? 'external' : selected.role === 'lead' ? 'form_lead' : 'portal_user',
         contact_name: selected.full_name,
         stage: pipelineStage,
         pipeline_notes: pipelineNotes,
@@ -460,7 +460,7 @@ export default function CRMPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contact_id: selected.id,
-        contact_type: selected.role === 'external' ? 'external' : 'portal_user',
+        contact_type: selected.role === 'external' ? 'external' : selected.role === 'lead' ? 'form_lead' : 'portal_user',
         contact_name: selected.full_name,
         type: intType,
         direction: intDir,
@@ -521,7 +521,7 @@ export default function CRMPage() {
     fd.append('file', file);
     fd.append('contact_id', selected.id);
     fd.append('contact_name', selected.full_name);
-    fd.append('contact_type', selected.role === 'external' ? 'external' : 'portal_user');
+    fd.append('contact_type', selected.role === 'external' ? 'external' : selected.role === 'lead' ? 'form_lead' : 'portal_user');
     const res = await fetch('/api/crm/attachments', { method: 'POST', body: fd });
     const json = await res.json();
     if (json.attachment) setAttachments(prev => [json.attachment, ...prev]);

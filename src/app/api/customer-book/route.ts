@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database, Tables } from '@/types/supabase';
+import { assertCrmContactAccess, getCallerSchoolIds } from '@/lib/crm/scope';
 
 function adminClient() {
   return createSupabase<Database>(
@@ -21,6 +22,29 @@ async function getCaller() {
     .maybeSingle();
   if (!data || !['admin', 'teacher', 'school'].includes(data.role)) return null;
   return data;
+}
+
+/** School-name filters for non-admin callers (contact book has text school_name, not FK). */
+async function schoolNameNeedlesForCaller(
+  admin: ReturnType<typeof adminClient>,
+  caller: { id: string; role: string; school_id: string | null },
+): Promise<string[] | 'all' | 'none'> {
+  if (caller.role === 'admin') return 'all';
+  const schoolIds = await getCallerSchoolIds(admin as any, caller);
+  if (schoolIds === 'all') return 'all';
+  if (!schoolIds.length) return 'none';
+  const { data: schools } = await admin.from('schools').select('id, name').in('id', schoolIds);
+  const names = (schools ?? []).map((s: any) => String(s.name || '').trim()).filter(Boolean);
+  return names.length ? names : 'none';
+}
+
+function rowMatchesSchoolNames(row: { school_name?: string | null }, needles: string[]): boolean {
+  const sn = String(row.school_name || '').toLowerCase();
+  if (!sn) return false;
+  return needles.some((n) => {
+    const x = n.toLowerCase();
+    return sn.includes(x) || x.includes(sn);
+  });
 }
 
 function toCsv(rows: Tables<'customer_contact_book'>[]) {
@@ -47,6 +71,7 @@ function toCsv(rows: Tables<'customer_contact_book'>[]) {
 export async function GET(req: NextRequest) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const admin = adminClient();
   const url = new URL(req.url);
   const role = url.searchParams.get('role') || 'all';
   const source = url.searchParams.get('source') || 'all';
@@ -57,7 +82,25 @@ export async function GET(req: NextRequest) {
   const asCsv  = format === 'csv';
   const asPrint = format === 'print';
 
-  let query = adminClient()
+  const scope = await schoolNameNeedlesForCaller(admin, caller);
+  if (scope === 'none') {
+    if (asCsv) {
+      return new NextResponse(toCsv([]), {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="rillcod-customer-book-${new Date().toISOString().slice(0, 10)}.csv"`,
+        },
+      });
+    }
+    if (asPrint) {
+      return new NextResponse('<!DOCTYPE html><html><body><p>No contacts in your school scope.</p></body></html>', {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
+    return NextResponse.json({ data: [], total: 0 });
+  }
+
+  let query = admin
     .from('customer_contact_book')
     .select('*')
     .order('confirmed_at', { ascending: false })
@@ -68,14 +111,13 @@ export async function GET(req: NextRequest) {
   if (school.trim()) query = query.ilike('school_name', `%${school.trim()}%`);
   if (className.trim()) query = query.ilike('class_name', `%${className.trim()}%`);
   if (q.trim()) query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
-  if (caller.role === 'school' && caller.school_id) {
-    const { data: schoolRow } = await adminClient().from('schools').select('name').eq('id', caller.school_id).maybeSingle();
-    if (schoolRow?.name) query = query.ilike('school_name', `%${schoolRow.name}%`);
-  }
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const rows = data ?? [];
+  let rows = data ?? [];
+  if (scope !== 'all') {
+    rows = rows.filter((r) => rowMatchesSchoolNames(r, scope));
+  }
 
   if (asCsv) {
     return new NextResponse(toCsv(rows), {
@@ -138,6 +180,14 @@ export async function PATCH(req: NextRequest) {
   }
 
   const admin = adminClient();
+  const targetAccess = await assertCrmContactAccess(admin as any, caller, targetId);
+  const sourceAccess = await assertCrmContactAccess(admin as any, caller, sourceId);
+  if (!targetAccess.ok) return NextResponse.json({ error: targetAccess.error }, { status: targetAccess.status });
+  if (!sourceAccess.ok) return NextResponse.json({ error: sourceAccess.error }, { status: sourceAccess.status });
+  if (targetAccess.kind !== 'book' || sourceAccess.kind !== 'book') {
+    return NextResponse.json({ error: 'Both records must be customer-book contacts' }, { status: 400 });
+  }
+
   const { data: rows } = await admin
     .from('customer_contact_book')
     .select('*')
@@ -187,6 +237,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'full_name is required' }, { status: 400 });
   }
 
+  // Non-admins must stamp a school they belong to (blocks forging another school's leads).
+  let resolvedSchoolName = school_name?.trim() || null;
+  if (caller.role !== 'admin') {
+    const scope = await schoolNameNeedlesForCaller(adminClient(), caller);
+    if (scope === 'none' || scope === 'all') {
+      return NextResponse.json({ error: 'No school assignment' }, { status: 403 });
+    }
+    if (resolvedSchoolName) {
+      if (!rowMatchesSchoolNames({ school_name: resolvedSchoolName }, scope)) {
+        return NextResponse.json({ error: 'School is outside your assignment' }, { status: 403 });
+      }
+    } else {
+      resolvedSchoolName = scope[0];
+    }
+  }
+
   const now = new Date().toISOString();
   const { data, error } = await adminClient()
     .from('customer_contact_book')
@@ -195,7 +261,7 @@ export async function POST(req: NextRequest) {
       email: email?.trim().toLowerCase() || null,
       phone: phone?.trim() || null,
       role: role || 'parent',
-      school_name: school_name?.trim() || null,
+      school_name: resolvedSchoolName,
       class_name: class_name?.trim() || null,
       source: 'manual',
       last_channel: 'manual',

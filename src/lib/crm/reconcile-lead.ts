@@ -1,9 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeCrmStage } from '@/lib/crm/scope';
 
 type AnySupabase = SupabaseClient<any>;
 
 export interface ReconcileResult {
   contactId: string | null;
+  portalContactId: string | null;
   prospectId: string | null;
 }
 
@@ -19,12 +21,60 @@ export interface ReconcileLeadParams {
   learningGoal?: string; specialNotes?: string;
 }
 
+async function upsertPipeline(
+  sb: AnySupabase,
+  contactId: string,
+  parentName: string,
+  contactType: string,
+  now: string,
+) {
+  const { data: pipe } = await sb.from('crm_pipeline').select('id, stage').eq('contact_id', contactId).maybeSingle();
+  const stageOrder = ['prospect', 'active', 'at_risk', 'won', 'churned'];
+  // Legacy lead stages normalize into the UI vocabulary.
+  const current = normalizeCrmStage(pipe?.stage);
+  const payload = {
+    contact_id: contactId,
+    contact_name: parentName,
+    contact_type: contactType,
+    updated_at: now,
+  };
+  if (pipe) {
+    // Never demote an already-won / active contact on a new form submit.
+    if (stageOrder.indexOf(current) <= stageOrder.indexOf('prospect')) {
+      await sb.from('crm_pipeline').update({ ...payload, stage: 'prospect' }).eq('contact_id', contactId);
+    } else {
+      await sb.from('crm_pipeline').update(payload).eq('contact_id', contactId);
+    }
+  } else {
+    await sb.from('crm_pipeline').insert({ ...payload, stage: 'prospect', created_at: now });
+  }
+}
+
+async function insertFormInteraction(
+  sb: AnySupabase,
+  contactId: string,
+  parentName: string,
+  contactType: string,
+  content: string,
+  now: string,
+) {
+  await sb.from('crm_interactions').insert({
+    contact_id: contactId,
+    contact_name: parentName,
+    contact_type: contactType,
+    type: 'form_submission',
+    direction: 'inbound',
+    content,
+    created_at: now,
+  });
+}
+
 /**
  * Mine a lead's parent + child into the CRM: upsert the parent into
  * customer_contact_book (with their children array), the child into
- * prospective_students, and advance the crm_pipeline. Shared by the public consent
- * submission AND the result/ID-card self-service intake so both capture identical,
- * complete contact data. Each step is best-effort — CRM capture never blocks the flow.
+ * prospective_students, and advance the crm_pipeline. When a matching
+ * portal_users parent exists (same email), dual-write pipeline + interaction
+ * onto that portal id so the CRM UI (which lists portal contacts) stays in sync.
  */
 export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLeadParams): Promise<ReconcileResult> {
   const {
@@ -45,6 +95,7 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
     programCategory || null;
 
   let contactId: string | null = null;
+  let portalContactId: string | null = null;
   let prospectId: string | null = null;
 
   // ── 1. customer_contact_book (parent) ────────────────────────────────────
@@ -95,12 +146,23 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
     }
   } catch { /* non-fatal */ }
 
+  // ── 1b. Link to existing portal_users parent (same email) ────────────────
+  if (email) {
+    try {
+      const { data: portal } = await sb
+        .from('portal_users')
+        .select('id')
+        .eq('email', email)
+        .eq('role', 'parent')
+        .maybeSingle();
+      portalContactId = portal?.id ?? null;
+    } catch { /* non-fatal */ }
+  }
+
   // ── 2. prospective_students (child) ──────────────────────────────────────
   try {
     let existingProspect: { id: string } | null = null;
     if (email && childName.trim()) {
-      // A parent may submit several children. Scope the CRM prospect by both
-      // parent and child so one sibling can never overwrite another.
       const q = sb
         .from('prospective_students')
         .select('id')
@@ -142,33 +204,28 @@ export async function reconcileLeadWithCrm(sb: AnySupabase, params: ReconcileLea
     }
   } catch { /* non-fatal */ }
 
-  // ── 3. CRM pipeline ──────────────────────────────────────────────────────
+  const interactionContent =
+    `Submitted public form: "${formTitle}". Child: ${childName}${childGender ? ` (${childGender})` : ''}, Age ${childAge}, Class ${childClass}. Programme: ${courseLabel ?? 'not specified'}.`;
+
+  // ── 3–4. Pipeline + interaction on book contact ───────────────────────────
   if (contactId) {
     try {
-      const { data: pipe } = await sb.from('crm_pipeline').select('id, stage').eq('contact_id', contactId).maybeSingle();
-      const stageOrder = ['lead', 'enquiry', 'contacted', 'trial', 'enrolled'];
-      const payload = { contact_id: contactId, contact_name: parentName, contact_type: 'form_lead', updated_at: now };
-      if (pipe) {
-        if (stageOrder.indexOf(pipe.stage) < stageOrder.indexOf('enquiry')) {
-          await sb.from('crm_pipeline').update({ ...payload, stage: 'enquiry' }).eq('contact_id', contactId);
-        }
-      } else {
-        await sb.from('crm_pipeline').insert({ ...payload, stage: 'enquiry', created_at: now });
-      }
+      await upsertPipeline(sb, contactId, parentName, 'form_lead', now);
+    } catch { /* non-fatal */ }
+    try {
+      await insertFormInteraction(sb, contactId, parentName, 'form_lead', interactionContent, now);
     } catch { /* non-fatal */ }
   }
 
-  // ── 4. CRM interaction ───────────────────────────────────────────────────
-  if (contactId) {
+  // ── 5. Dual-write onto matching portal_users parent ──────────────────────
+  if (portalContactId && portalContactId !== contactId) {
     try {
-      await sb.from('crm_interactions').insert({
-        contact_id: contactId, contact_name: parentName, contact_type: 'form_lead',
-        type: 'form_submission', direction: 'inbound',
-        content: `Submitted public form: "${formTitle}". Child: ${childName}${childGender ? ` (${childGender})` : ''}, Age ${childAge}, Class ${childClass}. Programme: ${courseLabel ?? 'not specified'}.`,
-        created_at: now,
-      });
+      await upsertPipeline(sb, portalContactId, parentName, 'parent', now);
+    } catch { /* non-fatal */ }
+    try {
+      await insertFormInteraction(sb, portalContactId, parentName, 'parent', interactionContent, now);
     } catch { /* non-fatal */ }
   }
 
-  return { contactId, prospectId };
+  return { contactId, portalContactId, prospectId };
 }

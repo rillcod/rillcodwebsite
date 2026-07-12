@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database, Tables } from '@/types/supabase';
+import { isCrmPlatformRole } from '@/lib/server/api-rbac';
+import { assertCrmContactAccess } from '@/lib/crm/scope';
 
 function adminClient() {
   return createSupabase<Database>(
@@ -19,7 +21,7 @@ async function requireCrmStaff() {
     .select('id, role, school_id')
     .eq('id', user.id)
     .maybeSingle();
-  if (!profile || !['admin', 'teacher', 'school'].includes(profile.role)) return null;
+  if (!profile || !isCrmPlatformRole(profile.role)) return null;
   return profile;
 }
 
@@ -52,16 +54,17 @@ export async function GET(req: NextRequest) {
   const contactId = new URL(req.url).searchParams.get('contact_id');
   if (!contactId) return NextResponse.json({ error: 'contact_id is required' }, { status: 400 });
 
-  const { data: contact } = await admin
-    .from('portal_users')
-    .select('id, full_name, phone, school_id')
-    .eq('id', contactId)
-    .maybeSingle();
+  const access = await assertCrmContactAccess(admin, caller, contactId);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
+  const contact = access.kind === 'portal'
+    ? { id: access.row.id, full_name: access.row.full_name, phone: access.row.phone, school_id: access.row.school_id }
+    : access.kind === 'book'
+      ? { id: access.row.id, full_name: access.row.full_name, phone: access.row.phone, school_id: access.schoolId }
+      : { id: access.row.id, full_name: access.row.contact_name, phone: access.row.phone_number, school_id: null };
 
   const normalizedPhone = String(contact?.phone ?? '').replace(/\D/g, '');
-  const contactSchoolId = contact?.school_id ?? null;
-  const scopedSchoolOk = caller.role === 'admin' || !caller.school_id || !contactSchoolId || caller.school_id === contactSchoolId;
-  if (!scopedSchoolOk) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const phoneTail = normalizedPhone.length >= 10 ? normalizedPhone.slice(-10) : normalizedPhone;
 
   const [crmRes, waConvRes, inappRes] = await Promise.all([
     admin
@@ -73,16 +76,23 @@ export async function GET(req: NextRequest) {
     normalizedPhone
       ? admin
           .from('whatsapp_conversations')
-          .select('id')
-          .eq('phone_number', normalizedPhone)
+          .select('id, phone_number')
+          .or(
+            phoneTail && phoneTail !== normalizedPhone
+              ? `phone_number.eq.${normalizedPhone},phone_number.ilike.%${phoneTail}`
+              : `phone_number.eq.${normalizedPhone},phone_number.ilike.%${normalizedPhone}`,
+          )
+          .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null as { id: string } | null }),
-    admin
-      .from('messages')
-      .select('id, sender_id, recipient_id, message, created_at, sender:portal_users!messages_sender_id_fkey(full_name), recipient:portal_users!messages_recipient_id_fkey(full_name)')
-      .or(`sender_id.eq.${contactId},recipient_id.eq.${contactId}`)
-      .order('created_at', { ascending: false })
-      .limit(200),
+    access.kind === 'portal'
+      ? admin
+          .from('messages')
+          .select('id, sender_id, recipient_id, message, created_at, sender:portal_users!messages_sender_id_fkey(full_name), recipient:portal_users!messages_recipient_id_fkey(full_name)')
+          .or(`sender_id.eq.${contactId},recipient_id.eq.${contactId}`)
+          .order('created_at', { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: [] as InAppMessageRow[] }),
   ]);
 
   const waConversationId = waConvRes.data?.id ?? undefined;
@@ -133,5 +143,7 @@ export async function GET(req: NextRequest) {
   }
 
   timeline.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  return NextResponse.json({ data: timeline.slice(0, 500) });
+  const items = timeline.slice(0, 500);
+  // Return both keys so older clients and the CRM UI both work.
+  return NextResponse.json({ data: items, timeline: items });
 }

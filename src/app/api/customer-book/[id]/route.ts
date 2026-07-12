@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabase } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
+import { assertCrmContactAccess, getCallerSchoolIds } from '@/lib/crm/scope';
 
 function adminClient() {
   return createSupabase<Database>(
@@ -23,6 +24,22 @@ async function getCaller() {
   return data;
 }
 
+async function schoolNameAllowed(
+  admin: ReturnType<typeof adminClient>,
+  caller: { id: string; role: string; school_id: string | null },
+  schoolName: string | null,
+): Promise<boolean> {
+  if (caller.role === 'admin') return true;
+  const schoolIds = await getCallerSchoolIds(admin as any, caller);
+  if (schoolIds === 'all') return true;
+  if (!schoolIds.length) return false;
+  const { data: schools } = await admin.from('schools').select('name').in('id', schoolIds);
+  const needles = (schools ?? []).map((s: any) => String(s.name || '').toLowerCase()).filter(Boolean);
+  const sn = String(schoolName || '').toLowerCase();
+  if (!sn) return false;
+  return needles.some((n) => sn.includes(n) || n.includes(sn));
+}
+
 // PATCH /api/customer-book/[id] — update any contact fields
 export async function PATCH(
   req: NextRequest,
@@ -32,6 +49,13 @@ export async function PATCH(
   if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { id } = await context.params;
+  const admin = adminClient();
+  const access = await assertCrmContactAccess(admin as any, caller, id);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  if (access.kind !== 'book') {
+    return NextResponse.json({ error: 'Not a customer-book contact' }, { status: 404 });
+  }
+
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const { full_name, email, phone, role, school_name, class_name } = body as Record<string, string>;
 
@@ -43,7 +67,12 @@ export async function PATCH(
   if (school_name !== undefined) updates.school_name = school_name?.trim() || null;
   if (class_name !== undefined) updates.class_name = class_name?.trim() || null;
 
-  const { data, error } = await (adminClient() as any)
+  if (caller.role !== 'admin' && school_name !== undefined) {
+    const ok = await schoolNameAllowed(admin, caller, updates.school_name);
+    if (!ok) return NextResponse.json({ error: 'School is outside your assignment' }, { status: 403 });
+  }
+
+  const { data, error } = await (admin as any)
     .from('customer_contact_book')
     .update(updates)
     .eq('id', id)

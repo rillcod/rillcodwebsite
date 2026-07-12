@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isCrmPlatformRole } from '@/lib/server/api-rbac';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { generateTempPassword } from '@/lib/utils/password';
+import { normalizeCrmStage } from '@/lib/crm/scope';
 
 async function requireCrmStaff() {
   const supabase = await createClient();
@@ -104,7 +105,10 @@ export async function GET(req: NextRequest) {
       (pipes || []).forEach((p: any) => { stageMap[p.contact_id] = p.stage; });
     }
 
-    let contacts: any[] = (portalUsers || []).map((u: any) => ({ ...u, pipeline_stage: stageMap[u.id] }));
+    let contacts: any[] = (portalUsers || []).map((u: any) => ({
+      ...u,
+      pipeline_stage: normalizeCrmStage(stageMap[u.id]),
+    }));
 
     // CRM carries GENUINE, contactable people only — exclude system-generated student
     // logins (e.g. mike123@rillcod.com) and no-email placeholders (@noemail.local), so
@@ -118,16 +122,24 @@ export async function GET(req: NextRequest) {
     contacts = contacts.filter((c: any) => !isSystemEmail(c.email));
 
     // Enrich parents: resolve school_name from their linked students (consent-form flow)
-    // and compute children_count. One query covers both.
+    // and compute children_count. One query covers both. Teachers only see children
+    // in schools they are assigned to (avoids cross-school child counts leaking).
     const parentContacts = contacts.filter(c => c.role === 'parent' && c.email);
     if (parentContacts.length > 0) {
       const parentEmails = parentContacts.map((c: any) => c.email as string);
-      const { data: studentRows } = await db
+      let studentQ = db
         .from('students')
         .select('parent_email, school_name, school_id, full_name')
         .in('parent_email', parentEmails);
+      if (profile.role === 'teacher') {
+        const schoolIds: string[] = [];
+        if (profile.school_id) schoolIds.push(profile.school_id);
+        const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+        (ts ?? []).forEach((r: any) => { if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id); });
+        studentQ = studentQ.in('school_id', schoolIds.length ? schoolIds : ['00000000-0000-0000-0000-000000000000']);
+      }
+      const { data: studentRows } = await studentQ;
 
-      // Build per-email: first school found + count of children
       const schoolByEmail: Record<string, { school_name: string; school_id: string }> = {};
       const childCountByEmail: Record<string, number> = {};
       (studentRows || []).forEach((s: any) => {
@@ -146,9 +158,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // External WA contacts — unlinked conversations with a phone number
+    // External WA contacts — admin only (no school to scope unlinked chats).
     let external: any[] = [];
-    if (role === 'all' || role === 'external') {
+    if (profile.role === 'admin' && (role === 'all' || role === 'external')) {
       let waQ = db.from('whatsapp_conversations')
         .select('id, contact_name, phone_number, last_message_at')
         .is('portal_user_id', null)
@@ -163,10 +175,75 @@ export async function GET(req: NextRequest) {
         role: 'external',
         source: 'whatsapp',
         last_message_at: c.last_message_at,
+        _type: 'external',
       }));
     }
 
-    const allContacts = [...contacts, ...external];
+    // Form / consent leads from customer_contact_book (same CRM surface as portal contacts).
+    let bookLeads: any[] = [];
+    if (role === 'all' || role === 'lead' || role === 'external') {
+      let bookQ = db
+        .from('customer_contact_book')
+        .select('id, full_name, email, phone, role, school_name, class_name, source, confirmed_at, created_at, metadata')
+        .order('confirmed_at', { ascending: false })
+        .limit(300);
+      if (search) bookQ = bookQ.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`) as any;
+
+      const { data: rawBookRows } = await bookQ;
+      let bookRows = rawBookRows || [];
+
+      if (profile.role === 'teacher') {
+        const schoolIds: string[] = [];
+        if (profile.school_id) schoolIds.push(profile.school_id);
+        const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
+        (ts ?? []).forEach((r: any) => { if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id); });
+        if (!schoolIds.length) {
+          bookRows = [];
+        } else {
+          const { data: schools } = await db.from('schools').select('id, name').in('id', schoolIds);
+          const names = (schools ?? []).map((s: any) => String(s.name || '').toLowerCase()).filter(Boolean);
+          bookRows = bookRows.filter((b: any) => {
+            const sn = String(b.school_name || '').toLowerCase();
+            if (!sn || !names.length) return false;
+            return names.some((n) => sn.includes(n) || n.includes(sn));
+          });
+        }
+      }
+
+      bookRows = bookRows.slice(0, 150);
+      const bookIds = bookRows.map((b: any) => b.id);
+      const bookStage: Record<string, string> = {};
+      if (bookIds.length) {
+        const { data: pipes } = await db.from('crm_pipeline').select('contact_id, stage').in('contact_id', bookIds);
+        (pipes || []).forEach((p: any) => { bookStage[p.contact_id] = p.stage; });
+      }
+      const portalEmails = new Set(
+        contacts.map((c: any) => String(c.email || '').trim().toLowerCase()).filter(Boolean),
+      );
+      bookLeads = bookRows
+        .filter((b: any) => {
+          const e = String(b.email || '').trim().toLowerCase();
+          // Prefer portal_users row when the same parent already exists there.
+          return !e || !portalEmails.has(e);
+        })
+        .map((b: any) => ({
+          id: b.id,
+          full_name: b.full_name,
+          email: b.email,
+          phone: b.phone,
+          role: 'lead',
+          school_name: b.school_name,
+          section_class: b.class_name,
+          source: b.source || 'contact_book',
+          pipeline_stage: normalizeCrmStage(bookStage[b.id]),
+          created_at: b.confirmed_at || b.created_at,
+          metadata: b.metadata,
+          _type: 'book',
+          children_count: Array.isArray(b.metadata?.children) ? b.metadata.children.length : 0,
+        }));
+    }
+
+    const allContacts = [...contacts, ...bookLeads, ...external];
 
     if (format === 'csv') {
       const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
