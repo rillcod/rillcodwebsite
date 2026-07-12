@@ -71,6 +71,8 @@ export default function ClassDetailPage() {
   const [pasteMatching, setPasteMatching] = useState(false);
   const [pasteClaiming, setPasteClaiming] = useState(false);
   const [pasteResult, setPasteResult] = useState<any | null>(null);
+  const [pasteStep, setPasteStep] = useState<'paste' | 'review' | 'done'>('paste');
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const [rosterSearch, setRosterSearch] = useState(''); // Search/filter on the class roster itself
   const [showNeedsReportOnly, setShowNeedsReportOnly] = useState(false); // roster: only students needing a report
   const [reportIndicatorEnabled, setReportIndicatorEnabled] = useState(true); // admin setting: show report status?
@@ -423,15 +425,20 @@ export default function ClassDetailPage() {
     setPasteResult(null);
     setPasteMatching(false);
     setPasteClaiming(false);
+    setPasteStep('paste');
+    setPasteError(null);
   };
+
+  const pasteLineCount = pasteNamesText.split(/\r?\n/).filter((l) => l.trim()).length;
 
   const matchPastedNames = async () => {
     if (!id || !pasteNamesText.trim()) {
-      alert('Paste at least one student name (one per line).');
+      setPasteError('Paste at least one student name (one per line).');
       return;
     }
     setPasteMatching(true);
     setPasteResult(null);
+    setPasteError(null);
     try {
       const res = await fetch(`/api/classes/${id}/enroll/by-names`, {
         method: 'POST',
@@ -441,9 +448,11 @@ export default function ClassDetailPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to match names');
       setPastePreview(json);
+      setPasteStep('review');
     } catch (e: any) {
-      alert(e.message || 'Failed to match names');
+      setPasteError(e.message || 'Failed to match names');
       setPastePreview(null);
+      setPasteStep('paste');
     } finally {
       setPasteMatching(false);
     }
@@ -453,14 +462,15 @@ export default function ClassDetailPage() {
     if (!id || !pasteNamesText.trim()) return;
     const claimCount = pastePreview?.claimable?.length ?? 0;
     if (claimCount === 0) {
-      alert('No claimable matches. Run Match first, or fix ambiguous / unmatched names.');
+      setPasteError('No claimable matches. Fix ambiguous / unmatched names, then match again.');
       return;
     }
     if (!confirm(
-      `Move ${claimCount} student${claimCount === 1 ? '' : 's'} into this class now?\n\nThis makes you the owner immediately — even if they are currently in another teacher's class.`,
+      `Claim ${claimCount} student${claimCount === 1 ? '' : 's'} into “${cls?.name ?? 'this class'}” now?\n\nThey move here with full ownership — wherever they are today (other teacher, withdrawn, or inactive).`,
     )) return;
 
     setPasteClaiming(true);
+    setPasteError(null);
     try {
       const res = await fetch(`/api/classes/${id}/enroll/by-names`, {
         method: 'POST',
@@ -470,20 +480,10 @@ export default function ClassDetailPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to claim students');
       setPasteResult(json);
-      setPastePreview(null);
-      await Promise.all([fetchData(), loadAvailableStudents()]);
-      const s = json.summary ?? {};
-      const parts = [
-        s.claimed ? `${s.claimed} claimed` : null,
-        s.alreadyHere ? `${s.alreadyHere} already here` : null,
-        s.ambiguous ? `${s.ambiguous} ambiguous` : null,
-        s.unmatched ? `${s.unmatched} not found` : null,
-        s.failed ? `${s.failed} failed` : null,
-        json.capacityStopped ? 'stopped at capacity' : null,
-      ].filter(Boolean);
-      alert(parts.length ? `Claim complete: ${parts.join(' · ')}` : 'Claim complete.');
+      setPasteStep('done');
+      await Promise.all([fetchData(), loadAvailableStudents(), loadTransferRequests()]);
     } catch (e: any) {
-      alert(e.message || 'Failed to claim students');
+      setPasteError(e.message || 'Failed to claim students');
     } finally {
       setPasteClaiming(false);
     }
@@ -2439,7 +2439,7 @@ export default function ClassDetailPage() {
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => { setShowStudentModal(false); resetPasteClaimState(); }} />
-            <div className={`bg-card border border-border rounded-xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh] ${enrolMode === 'paste' ? 'max-w-2xl' : 'max-w-lg'}`}>
+            <div className={`bg-card border border-border rounded-xl w-full shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[92vh] ${enrolMode === 'paste' ? 'max-w-3xl' : 'max-w-lg'}`}>
 
               {/* Header */}
               <div className="px-4 sm:px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0 gap-3">
@@ -2447,7 +2447,7 @@ export default function ClassDetailPage() {
                   <h3 className="font-bold text-foreground">Enrol Students</h3>
                   <p className="text-xs text-muted-foreground mt-0.5 break-words">
                     {enrolMode === 'paste'
-                      ? 'Paste existing names to claim them into this class'
+                      ? 'Emergency claim — pull existing kids here with full ownership'
                       : `${availableStudents.length} eligible · ${selectedStudentIds.size} selected${cls?.max_students ? ` (${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left)` : ''}`}
                   </p>
                 </div>
@@ -2472,7 +2472,7 @@ export default function ClassDetailPage() {
                 {pasteClaimEnabled && (
                   <button
                     type="button"
-                    onClick={() => { setEnrolMode('paste'); setPasteResult(null); }}
+                    onClick={() => { setEnrolMode('paste'); setPasteResult(null); setPasteStep('paste'); setPasteError(null); }}
                     className={`flex-1 min-w-[7rem] py-2 px-2 rounded-xl text-[10px] font-bold transition-all ${enrolMode === 'paste' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-900/30' : 'bg-card shadow-sm text-muted-foreground hover:bg-muted border border-border'}`}
                   >
                     Paste names
@@ -2695,108 +2695,272 @@ export default function ClassDetailPage() {
                 </>
               )}
 
-              {/* Paste names → claim into this class */}
-              {enrolMode === 'paste' && pasteClaimEnabled && (
+              {/* Paste names → full-ownership emergency claim */}
+              {enrolMode === 'paste' && pasteClaimEnabled && (() => {
+                const claimable = pastePreview?.claimable ?? [];
+                const alreadyHere = pastePreview?.alreadyHere ?? [];
+                const ambiguous = pastePreview?.ambiguous ?? [];
+                const unmatched = pastePreview?.unmatched ?? [];
+                const claimed = pasteResult?.claimed ?? [];
+                const failed = pasteResult?.failed ?? [];
+                const resultSummary = pasteResult?.summary ?? {};
+                const steps = [
+                  { id: 'paste', label: '1. Paste' },
+                  { id: 'review', label: '2. Review' },
+                  { id: 'done', label: '3. Done' },
+                ] as const;
+                return (
                 <div className="flex min-h-0 flex-1 flex-col">
                   <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4 pt-3 custom-scrollbar sm:px-6">
-                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
-                      Emergency data fix: paste names of kids who already exist at this school — including{' '}
-                      <strong className="text-amber-100">withdrawn / inactive</strong> accounts.
-                      Matches are moved into <strong className="text-amber-100">{cls?.name ?? 'this class'}</strong> immediately
-                      (ownership + active roster), even if they are under another teacher or soft-withdrawn here.
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Student names (one per line)</label>
-                      <textarea
-                        value={pasteNamesText}
-                        onChange={(e) => { setPasteNamesText(e.target.value); setPastePreview(null); setPasteResult(null); }}
-                        rows={10}
-                        placeholder={'Ada Okonkwo\nChinedu Eze\nFatima Abdullahi'}
-                        className="w-full resize-y rounded-xl border border-border bg-background px-3 py-3 font-mono text-sm leading-relaxed text-foreground outline-none focus:border-amber-500/50"
-                      />
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        {pasteNamesText.split(/\r?\n/).filter((l) => l.trim()).length} line{pasteNamesText.split(/\r?\n/).filter((l) => l.trim()).length !== 1 ? 's' : ''}
-                        {cls?.max_students ? ` · ${seatsLeft} seat${seatsLeft !== 1 ? 's' : ''} left` : ''}
-                      </p>
+                    {/* Step rail */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {steps.map((step) => {
+                        const active = pasteStep === step.id;
+                        const done =
+                          (step.id === 'paste' && (pasteStep === 'review' || pasteStep === 'done'))
+                          || (step.id === 'review' && pasteStep === 'done');
+                        return (
+                          <div
+                            key={step.id}
+                            className={`rounded-xl border px-2.5 py-2 text-center text-[10px] font-black uppercase tracking-widest ${
+                              active
+                                ? 'border-amber-500/40 bg-amber-500/15 text-amber-200'
+                                : done
+                                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                  : 'border-border bg-muted/20 text-muted-foreground'
+                            }`}
+                          >
+                            {step.label}
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    {pastePreview && (
-                      <div className="space-y-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Match preview</p>
-                        {(pastePreview.claimable?.length ?? 0) > 0 && (
-                          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-emerald-400">Will claim ({pastePreview.claimable.length})</p>
-                            <ul className="max-h-36 space-y-1 overflow-y-auto text-xs text-foreground">
-                              {pastePreview.claimable.map((row: any) => (
-                                <li key={`c-${row.input}`} className="break-words">
-                                  <span className="font-bold">{row.input}</span>
-                                  {row.student?.full_name && row.student.full_name !== row.input ? (
-                                    <span className="text-muted-foreground"> → {row.student.full_name}</span>
-                                  ) : null}
-                                  {row.student?.email ? <span className="text-muted-foreground"> · {row.student.email}</span> : null}
-                                  {row.student?.dest_roster_status && row.student.dest_roster_status !== 'active' ? (
-                                    <span className="text-amber-300"> · reactivate ({row.student.dest_roster_status})</span>
-                                  ) : row.student?.is_active === false ? (
-                                    <span className="text-amber-300"> · reactivate inactive</span>
-                                  ) : null}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {(pastePreview.alreadyHere?.length ?? 0) > 0 && (
-                          <div className="rounded-xl border border-border bg-muted/30 p-3">
-                            <p className="mb-2 text-xs font-black text-muted-foreground">Already in this class ({pastePreview.alreadyHere.length})</p>
-                            <p className="break-words text-xs text-muted-foreground">{pastePreview.alreadyHere.map((r: any) => r.input).join(' · ')}</p>
-                          </div>
-                        )}
-                        {(pastePreview.ambiguous?.length ?? 0) > 0 && (
-                          <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-amber-400">Ambiguous — skipped ({pastePreview.ambiguous.length})</p>
-                            <ul className="space-y-2 text-xs">
-                              {pastePreview.ambiguous.map((row: any) => (
-                                <li key={`a-${row.input}`} className="break-words">
-                                  <span className="font-bold text-foreground">{row.input}</span>
-                                  <span className="text-muted-foreground"> matches {[...(row.candidates ?? [])].map((c: any) => c.full_name).join(', ')}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {(pastePreview.unmatched?.length ?? 0) > 0 && (
-                          <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
-                            <p className="mb-2 text-xs font-black text-rose-300">Not found — register as new ({pastePreview.unmatched.length})</p>
-                            <p className="mb-2 break-words text-xs text-muted-foreground">{pastePreview.unmatched.map((r: any) => r.input).join(' · ')}</p>
-                            <Link
-                              href="/dashboard/students/bulk-register"
-                              className="inline-flex text-xs font-black text-primary hover:underline"
+                    <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent p-4">
+                      <p className="text-sm font-black text-amber-100">Full ownership claim</p>
+                      <p className="mt-1.5 text-xs leading-relaxed text-amber-100/80">
+                        Wherever they are now — another teacher, withdrawn, inactive, or soft-paused —
+                        matched kids land in <strong className="text-amber-50">{cls?.name ?? 'this class'}</strong> as
+                        active roster members with ownership, reports authorship, and programme enrollment corrected.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {['Bypass transfer wait', 'Reactivate withdrawn', 'Take ownership', 'Same school only'].map((chip) => (
+                          <span key={chip} className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-200">
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {pasteError && (
+                      <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2.5 text-xs font-semibold text-rose-300">
+                        {pasteError}
+                      </div>
+                    )}
+
+                    {(pasteStep === 'paste' || pasteStep === 'review') && (
+                      <div>
+                        <div className="mb-1.5 flex items-end justify-between gap-2">
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Student names (one per line)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => { setPasteNamesText(''); setPastePreview(null); setPasteResult(null); setPasteStep('paste'); setPasteError(null); }}
+                            className="text-[10px] font-bold text-muted-foreground hover:text-foreground"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <textarea
+                          value={pasteNamesText}
+                          onChange={(e) => {
+                            setPasteNamesText(e.target.value);
+                            setPastePreview(null);
+                            setPasteResult(null);
+                            setPasteStep('paste');
+                            setPasteError(null);
+                          }}
+                          rows={pasteStep === 'review' ? 5 : 11}
+                          placeholder={'Ada Okonkwo\nChinedu Eze\nFatima Abdullahi'}
+                          className="w-full resize-y rounded-2xl border border-border bg-background px-3.5 py-3 font-mono text-sm leading-relaxed text-foreground outline-none focus:border-amber-500/50"
+                        />
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                          <span className="rounded-lg border border-border bg-card px-2 py-1 font-bold">{pasteLineCount} name{pasteLineCount !== 1 ? 's' : ''}</span>
+                          {cls?.max_students ? (
+                            <span className="rounded-lg border border-border bg-card px-2 py-1 font-bold">
+                              {seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left
+                            </span>
+                          ) : null}
+                          {pasteStep === 'review' && (
+                            <button
+                              type="button"
+                              onClick={() => { setPasteStep('paste'); setPastePreview(null); }}
+                              className="font-black text-primary hover:underline"
                             >
-                              Open Bulk Register for new students →
+                              Edit names
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {pasteStep === 'review' && pastePreview && (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          {[
+                            { label: 'Claim now', value: claimable.length, tone: 'text-emerald-400 border-emerald-500/25 bg-emerald-500/10' },
+                            { label: 'Already here', value: alreadyHere.length, tone: 'text-muted-foreground border-border bg-muted/30' },
+                            { label: 'Ambiguous', value: ambiguous.length, tone: 'text-amber-400 border-amber-500/25 bg-amber-500/10' },
+                            { label: 'Not found', value: unmatched.length, tone: 'text-rose-300 border-rose-500/25 bg-rose-500/10' },
+                          ].map((metric) => (
+                            <div key={metric.label} className={`rounded-xl border p-3 ${metric.tone}`}>
+                              <p className="text-xl font-black">{metric.value}</p>
+                              <p className="mt-1 text-[10px] font-black uppercase tracking-widest opacity-80">{metric.label}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {claimable.length > 0 && (
+                          <div className="overflow-hidden rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06]">
+                            <div className="border-b border-emerald-500/20 px-3 py-2.5">
+                              <p className="text-xs font-black text-emerald-400">Will claim with full ownership ({claimable.length})</p>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">Moved into this class · ownership transferred · roster set active</p>
+                            </div>
+                            <ul className="max-h-52 divide-y divide-border/60 overflow-y-auto">
+                              {claimable.map((row: any) => {
+                                const fromLabel = row.student?.current_class_name || (row.student?.class_id ? 'Another class' : 'Unassigned');
+                                const teacherLabel = row.student?.current_teacher_name;
+                                const reactivate = (row.student?.dest_roster_status && row.student.dest_roster_status !== 'active')
+                                  || row.student?.is_active === false;
+                                return (
+                                  <li key={`c-${row.input}`} className="flex items-start gap-3 px-3 py-2.5">
+                                    <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-[11px] font-black text-emerald-400">
+                                      {(row.student?.full_name || row.input || '?')[0].toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="break-words text-sm font-bold text-foreground">{row.student?.full_name || row.input}</p>
+                                      <p className="mt-0.5 break-all text-[11px] text-muted-foreground">{row.student?.email || 'No email on file'}</p>
+                                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                        <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                          From: {fromLabel}
+                                        </span>
+                                        {teacherLabel ? (
+                                          <span className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                                            Owner: {teacherLabel}
+                                          </span>
+                                        ) : null}
+                                        {reactivate ? (
+                                          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-amber-300">
+                                            Reactivate
+                                          </span>
+                                        ) : (
+                                          <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-black uppercase text-emerald-400">
+                                            Take ownership
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+
+                        {alreadyHere.length > 0 && (
+                          <div className="rounded-xl border border-border bg-muted/25 p-3">
+                            <p className="mb-1.5 text-xs font-black text-muted-foreground">Already active here ({alreadyHere.length})</p>
+                            <p className="break-words text-xs text-muted-foreground">{alreadyHere.map((r: any) => r.input).join(' · ')}</p>
+                          </div>
+                        )}
+
+                        {ambiguous.length > 0 && (
+                          <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3">
+                            <p className="mb-2 text-xs font-black text-amber-400">Ambiguous — skipped ({ambiguous.length})</p>
+                            <p className="mb-2 text-[11px] text-muted-foreground">More than one student matched these names. Disambiguate with a unique spelling, then rematch.</p>
+                            <ul className="space-y-2 text-xs">
+                              {ambiguous.map((row: any) => (
+                                <li key={`a-${row.input}`} className="break-words rounded-lg border border-amber-500/15 bg-background/60 px-2.5 py-2">
+                                  <span className="font-bold text-foreground">{row.input}</span>
+                                  <span className="mt-1 block text-muted-foreground">
+                                    {[...(row.candidates ?? [])].map((c: any) => `${c.full_name}${c.email ? ` (${c.email})` : ''}`).join(' · ')}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {unmatched.length > 0 && (
+                          <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
+                            <p className="mb-2 text-xs font-black text-rose-300">Not found at this school ({unmatched.length})</p>
+                            <p className="mb-2 break-words text-xs text-muted-foreground">{unmatched.map((r: any) => r.input).join(' · ')}</p>
+                            <Link href="/dashboard/students/bulk-register" className="inline-flex text-xs font-black text-primary hover:underline">
+                              Register these as new students in Bulk Register →
                             </Link>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {pasteResult && (
-                      <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs text-foreground">
-                        <p className="font-black">Last claim result</p>
-                        <p className="mt-1 text-muted-foreground">
-                          {pasteResult.summary?.claimed ?? 0} claimed · {pasteResult.summary?.alreadyHere ?? 0} already here · {pasteResult.summary?.failed ?? 0} failed
-                          {pasteResult.capacityStopped ? ' · stopped at capacity' : ''}
-                        </p>
-                        {(pasteResult.failed?.length ?? 0) > 0 && (
-                          <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-rose-300">
-                            {pasteResult.failed.map((row: any, i: number) => (
-                              <li key={`fail-${i}`} className="break-words">
-                                <span className="font-bold">{row.input || row.fullName || 'Student'}</span>
-                                {row.error ? ` — ${row.error}` : ''}
-                              </li>
-                            ))}
-                          </ul>
+                    {pasteStep === 'done' && pasteResult && (
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center sm:p-6">
+                          <CheckCircleIcon className="mx-auto h-10 w-10 text-emerald-400" />
+                          <p className="mt-3 text-lg font-black text-foreground">
+                            {resultSummary.claimed ?? claimed.length} student{(resultSummary.claimed ?? claimed.length) === 1 ? '' : 's'} claimed
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            They are now active in {cls?.name ?? 'this class'} with full ownership.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          {[
+                            { label: 'Claimed', value: resultSummary.claimed ?? 0, tone: 'text-emerald-400' },
+                            { label: 'Already here', value: resultSummary.alreadyHere ?? 0, tone: 'text-muted-foreground' },
+                            { label: 'Failed', value: resultSummary.failed ?? 0, tone: 'text-rose-300' },
+                            { label: 'Not found', value: resultSummary.unmatched ?? 0, tone: 'text-amber-400' },
+                          ].map((metric) => (
+                            <div key={metric.label} className="rounded-xl border border-border bg-background p-3">
+                              <p className={`text-xl font-black ${metric.tone}`}>{metric.value}</p>
+                              <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{metric.label}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {pasteResult.capacityStopped && (
+                          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300">
+                            Stopped at class capacity — free seats or raise capacity, then claim the rest.
+                          </div>
+                        )}
+                        {claimed.length > 0 && (
+                          <div className="rounded-xl border border-border bg-background p-3">
+                            <p className="mb-2 text-xs font-black text-foreground">Successfully claimed</p>
+                            <ul className="max-h-36 space-y-1 overflow-y-auto text-xs text-muted-foreground">
+                              {claimed.map((row: any) => (
+                                <li key={row.studentId || row.input} className="break-words">
+                                  <span className="font-bold text-foreground">{row.fullName || row.input}</span>
+                                  {row.fromClassId ? ' · moved from another class' : ' · placed / reactivated'}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {failed.length > 0 && (
+                          <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3">
+                            <p className="mb-2 text-xs font-black text-rose-300">Failed</p>
+                            <ul className="max-h-28 space-y-1 overflow-y-auto text-xs text-rose-200/90">
+                              {failed.map((row: any, i: number) => (
+                                <li key={`fail-${i}`} className="break-words">
+                                  <span className="font-bold">{row.input || row.fullName || 'Student'}</span>
+                                  {row.error ? ` — ${row.error}` : ''}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         )}
                         {(pasteResult.unmatched?.length ?? 0) > 0 && (
-                          <Link href="/dashboard/students/bulk-register" className="mt-2 inline-flex font-black text-primary hover:underline">
+                          <Link href="/dashboard/students/bulk-register" className="inline-flex text-xs font-black text-primary hover:underline">
                             Register unmatched names in Bulk Register →
                           </Link>
                         )}
@@ -2804,39 +2968,73 @@ export default function ClassDetailPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-shrink-0 flex-col gap-2 border-t border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <div className="flex flex-shrink-0 flex-col gap-2 border-t border-border bg-card/80 px-4 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <button
                       type="button"
-                      onClick={() => { setShowStudentModal(false); setEnrolMode('current'); resetPasteClaimState(); }}
-                      className="rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                      onClick={() => {
+                        if (pasteStep === 'done') {
+                          resetPasteClaimState();
+                          setShowStudentModal(false);
+                          setEnrolMode('current');
+                          return;
+                        }
+                        setShowStudentModal(false);
+                        setEnrolMode('current');
+                        resetPasteClaimState();
+                      }}
+                      className="min-h-11 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
-                      Cancel
+                      {pasteStep === 'done' ? 'Close' : 'Cancel'}
                     </button>
                     <div className="flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => void matchPastedNames()}
-                        disabled={pasteMatching || pasteClaiming || !pasteNamesText.trim()}
-                        className="rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground disabled:opacity-40"
-                      >
-                        {pasteMatching ? 'Matching…' : 'Match names'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void claimPastedNames()}
-                        disabled={pasteClaiming || pasteMatching || !(pastePreview?.claimable?.length > 0) || isFull}
-                        className="rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-black text-slate-950 disabled:opacity-40"
-                      >
-                        {pasteClaiming
-                          ? 'Claiming…'
-                          : isFull
-                            ? 'Class full'
-                            : `Claim into my class${pastePreview?.claimable?.length ? ` (${pastePreview.claimable.length})` : ''}`}
-                      </button>
+                      {pasteStep === 'paste' && (
+                        <button
+                          type="button"
+                          onClick={() => void matchPastedNames()}
+                          disabled={pasteMatching || !pasteNamesText.trim()}
+                          className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-foreground disabled:opacity-40"
+                        >
+                          {pasteMatching ? 'Matching…' : `Match ${pasteLineCount || ''} name${pasteLineCount === 1 ? '' : 's'}`.trim()}
+                        </button>
+                      )}
+                      {pasteStep === 'review' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => void matchPastedNames()}
+                            disabled={pasteMatching || pasteClaiming || !pasteNamesText.trim()}
+                            className="min-h-11 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-black text-foreground disabled:opacity-40"
+                          >
+                            {pasteMatching ? 'Rematching…' : 'Rematch'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void claimPastedNames()}
+                            disabled={pasteClaiming || pasteMatching || claimable.length === 0 || isFull}
+                            className="min-h-11 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-black text-slate-950 disabled:opacity-40"
+                          >
+                            {pasteClaiming
+                              ? 'Claiming ownership…'
+                              : isFull
+                                ? 'Class full'
+                                : `Claim ${claimable.length} with full ownership`}
+                          </button>
+                        </>
+                      )}
+                      {pasteStep === 'done' && (
+                        <button
+                          type="button"
+                          onClick={() => { resetPasteClaimState(); setPasteStep('paste'); }}
+                          className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-foreground"
+                        >
+                          Claim more names
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* Create-new-class mode */}
               {enrolMode === 'create' && (

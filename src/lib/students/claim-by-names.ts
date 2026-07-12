@@ -9,6 +9,8 @@ export type ClaimNameStudent = {
   /** Roster status on the destination class, if any. */
   dest_roster_status: string | null;
   is_active: boolean | null;
+  current_class_name: string | null;
+  current_teacher_name: string | null;
 };
 
 export type ClaimNameMatch =
@@ -49,8 +51,19 @@ export async function loadSchoolStudentsForClaim(
   schoolName: string | null,
   destinationClassId?: string | null,
 ): Promise<ClaimNameStudent[]> {
-  const cols = 'id, full_name, email, school_id, school_name, class_id, is_active, is_deleted';
+  const cols = 'id, full_name, email, school_id, school_name, class_id, is_active, is_deleted, section_class, primary_teacher_id';
   const byId = new Map<string, ClaimNameStudent>();
+
+  const toClaimStudent = (row: any): ClaimNameStudent => ({
+    id: row.id,
+    full_name: row.full_name,
+    email: row.email ?? '',
+    class_id: row.class_id ?? null,
+    dest_roster_status: null,
+    is_active: row.is_active ?? null,
+    current_class_name: row.section_class ?? null,
+    current_teacher_name: null,
+  });
 
   const fetchAll = async (apply: (q: any) => any) => {
     for (let from = 0; ; from += PAGE) {
@@ -66,14 +79,7 @@ export async function loadSchoolStudentsForClaim(
       const rows = data ?? [];
       for (const row of rows) {
         if (!row?.id || !row.full_name) continue;
-        byId.set(row.id, {
-          id: row.id,
-          full_name: row.full_name,
-          email: row.email ?? '',
-          class_id: row.class_id ?? null,
-          dest_roster_status: null,
-          is_active: row.is_active ?? null,
-        });
+        byId.set(row.id, toClaimStudent(row));
       }
       if (rows.length < PAGE) break;
     }
@@ -111,14 +117,7 @@ export async function loadSchoolStudentsForClaim(
             .or('is_deleted.eq.false,is_deleted.is.null');
           for (const row of data ?? []) {
             if (!row?.id || !row.full_name) continue;
-            byId.set(row.id, {
-              id: row.id,
-              full_name: row.full_name,
-              email: row.email ?? '',
-              class_id: row.class_id ?? null,
-              dest_roster_status: null,
-              is_active: row.is_active ?? null,
-            });
+            byId.set(row.id, toClaimStudent(row));
           }
         }
       }
@@ -149,6 +148,28 @@ export async function loadSchoolStudentsForClaim(
       }
     } catch (e) {
       console.warn('[claim-by-names] dest roster enrich failed', e);
+    }
+  }
+
+  // Resolve current class + teacher labels for the claim preview UX.
+  const classIds = [...new Set([...byId.values()].map((s) => s.class_id).filter(Boolean))] as string[];
+  if (classIds.length) {
+    const { data: classes } = await admin
+      .from('classes')
+      .select('id, name, teacher_id')
+      .in('id', classIds);
+    const teacherIds = [...new Set((classes ?? []).map((c: any) => c.teacher_id).filter(Boolean))];
+    const { data: teachers } = teacherIds.length
+      ? await admin.from('portal_users').select('id, full_name').in('id', teacherIds)
+      : { data: [] as any[] };
+    const teacherMap = new Map((teachers ?? []).map((t: any) => [t.id, t.full_name]));
+    const classMap = new Map((classes ?? []).map((c: any) => [c.id, c]));
+    for (const student of byId.values()) {
+      if (!student.class_id) continue;
+      const c = classMap.get(student.class_id);
+      if (!c) continue;
+      student.current_class_name = c.name ?? student.current_class_name;
+      student.current_teacher_name = c.teacher_id ? (teacherMap.get(c.teacher_id) ?? null) : null;
     }
   }
 

@@ -237,7 +237,22 @@ export async function reinstateStudentToClass(
     }
   }
 
+  // Full ownership always lands on the destination class owner.
+  // If the class has no teacher assigned yet, the claiming teacher becomes the owner.
   const ownerTeacherId = cls.teacher_id ?? (actor.role === 'teacher' ? actor.id : null);
+
+  // When force-claiming into an unowned class as a teacher, also stamp the class owner
+  // so subsequent ownership checks stay coherent.
+  if (force && actor.role === 'teacher' && !cls.teacher_id) {
+    await admin
+      .from('classes')
+      .update({ teacher_id: actor.id, updated_at: new Date().toISOString() })
+      .eq('id', classId)
+      .is('teacher_id', null);
+  }
+
+  const effectiveOwnerId = ownerTeacherId ?? (force && actor.role === 'teacher' ? actor.id : null);
+
   const portalUpdate: Record<string, unknown> = {
     class_id: classId,
     section_class: cls.name,
@@ -245,7 +260,8 @@ export async function reinstateStudentToClass(
     updated_at: new Date().toISOString(),
     is_active: true,
   };
-  if (ownerTeacherId) portalUpdate.primary_teacher_id = ownerTeacherId;
+  // Always stamp ownership on force claim / when we know the destination owner.
+  if (effectiveOwnerId) portalUpdate.primary_teacher_id = effectiveOwnerId;
   if (grade?.trim()) portalUpdate.grade = grade.trim();
   if (classArm?.trim()) portalUpdate.class_arm = classArm.trim().toUpperCase();
   if (cls.school_id) {
@@ -319,12 +335,12 @@ export async function reinstateStudentToClass(
 
   // Full authorship move: progress reports for this student → destination class owner
   let reportsTransferred = 0;
-  if (ownerTeacherId) {
+  if (effectiveOwnerId) {
     const { data: transferred, error: reportErr } = await admin
       .from('student_progress_reports')
-      .update({ teacher_id: ownerTeacherId, updated_at: new Date().toISOString() })
+      .update({ teacher_id: effectiveOwnerId, updated_at: new Date().toISOString() })
       .eq('student_id', studentId)
-      .neq('teacher_id', ownerTeacherId)
+      .neq('teacher_id', effectiveOwnerId)
       .select('id');
     if (reportErr) {
       console.warn('[reinstate] report authorship transfer failed', reportErr);
@@ -366,10 +382,10 @@ export async function reinstateStudentToClass(
       from_class_id: prevClassId,
       to_class_id: classId,
       to_class_name: cls.name,
-      owner_teacher_id: ownerTeacherId,
+      owner_teacher_id: effectiveOwnerId,
       reports_transferred: reportsTransferred,
       was_withdrawn: wasWithdrawn,
-      primary_teacher_id: ownerTeacherId,
+      primary_teacher_id: effectiveOwnerId,
       force_cross_teacher: force,
       previous_owner_teacher_id: prevOwnerTeacherId,
     },
@@ -383,7 +399,7 @@ export async function reinstateStudentToClass(
     fromClassId: prevClassId,
     toClassId: classId,
     toClassName: cls.name,
-    ownerTeacherId,
+    ownerTeacherId: effectiveOwnerId,
     reportsTransferred,
     wasWithdrawn,
   };
