@@ -11,6 +11,12 @@ import {
   Target, Briefcase, Tag, UserPlus, RefreshCw, ExternalLink,
   ArrowLeft, MoreVertical, CheckSquare, Circle,
 } from 'lucide-react';
+import {
+  CRM_PIPELINE_STAGE_META,
+  crmContactTypeFromRole,
+  normalizeCrmStage,
+  type CrmPipelineStage,
+} from '@/lib/crm/stages';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,18 +93,12 @@ type Opportunity = {
   created_at: string;
 };
 
-type PipelineStage = 'prospect' | 'active' | 'at_risk' | 'churned' | 'won';
+type PipelineStage = CrmPipelineStage;
 type Tab = 'overview' | 'timeline' | 'tasks' | 'opportunities' | 'files';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const PIPELINE_STAGES: { value: PipelineStage; label: string; color: string; dot: string }[] = [
-  { value: 'prospect',  label: 'Prospect',  color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20',   dot: 'bg-blue-500' },
-  { value: 'active',   label: 'Active',    color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20', dot: 'bg-emerald-500' },
-  { value: 'at_risk',  label: 'At Risk',   color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20', dot: 'bg-amber-500' },
-  { value: 'won',      label: 'Won',       color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20', dot: 'bg-indigo-500' },
-  { value: 'churned',  label: 'Churned',   color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',   dot: 'bg-rose-500' },
-];
+const PIPELINE_STAGES = CRM_PIPELINE_STAGE_META;
 
 const OPP_STAGES = ['lead', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
 const OPP_STAGE_COLOR: Record<string, string> = {
@@ -119,6 +119,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 const ROLE_LABELS: Record<string, string> = {
   parent: 'Parent/Guardian', student: 'Student', teacher: 'Teacher',
   school: 'School Partner', admin: 'Admin', external: 'External (WhatsApp)',
+  lead: 'Lead (Form)',
 };
 
 const INTERACTION_TYPES = ['note', 'call', 'email', 'meeting', 'whatsapp'] as const;
@@ -332,17 +333,10 @@ export default function CRMPage() {
     setEditClass(c.section_class || '');
     setEditTags((c.metadata?.tags || []).join(', '));
     setEditNotes(c.metadata?.notes || '');
+    setPipelineStage(normalizeCrmStage(c.pipeline_stage));
+    setPipelineNotes('');
 
-    // Pipeline
-    const { data: pipe } = await supabase
-      .from('crm_pipeline')
-      .select('stage, pipeline_notes')
-      .eq('contact_id', c.id)
-      .maybeSingle();
-    setPipelineStage((pipe?.stage as PipelineStage) || 'prospect');
-    setPipelineNotes(pipe?.pipeline_notes || '');
-
-    // Load all tab data in parallel
+    // Load all tab data in parallel (pipeline comes from detail API — normalized)
     setTimelineLoading(true);
     setAttachLoading(true);
     setTasksLoading(true);
@@ -365,6 +359,12 @@ export default function CRMPage() {
     setTasks(taskJson.data || []);
     setOpps(oppJson.opportunities || []);
     setChildren(detailJson.children || []);
+    if (detailJson.pipeline?.stage) {
+      setPipelineStage(normalizeCrmStage(detailJson.pipeline.stage));
+      setPipelineNotes(detailJson.pipeline.pipeline_notes || '');
+    } else if (detailJson.contact?.pipeline_stage) {
+      setPipelineStage(normalizeCrmStage(detailJson.contact.pipeline_stage));
+    }
 
     // Aggregate pipeline value
     const totalValue = (oppJson.opportunities || [])
@@ -376,7 +376,7 @@ export default function CRMPage() {
     setAttachLoading(false);
     setTasksLoading(false);
     setOppsLoading(false);
-  }, [supabase]);
+  }, []);
 
   // ─── Save pipeline ─────────────────────────────────────────────────────────
   const savePipeline = async () => {
@@ -387,7 +387,7 @@ export default function CRMPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contact_id: selected.id,
-        contact_type: selected.role === 'external' ? 'external' : selected.role === 'lead' ? 'form_lead' : 'portal_user',
+        contact_type: crmContactTypeFromRole(selected.role),
         contact_name: selected.full_name,
         stage: pipelineStage,
         pipeline_notes: pipelineNotes,
@@ -460,7 +460,7 @@ export default function CRMPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contact_id: selected.id,
-        contact_type: selected.role === 'external' ? 'external' : selected.role === 'lead' ? 'form_lead' : 'portal_user',
+        contact_type: crmContactTypeFromRole(selected.role),
         contact_name: selected.full_name,
         type: intType,
         direction: intDir,
@@ -521,7 +521,7 @@ export default function CRMPage() {
     fd.append('file', file);
     fd.append('contact_id', selected.id);
     fd.append('contact_name', selected.full_name);
-    fd.append('contact_type', selected.role === 'external' ? 'external' : selected.role === 'lead' ? 'form_lead' : 'portal_user');
+    fd.append('contact_type', crmContactTypeFromRole(selected.role));
     const res = await fetch('/api/crm/attachments', { method: 'POST', body: fd });
     const json = await res.json();
     if (json.attachment) setAttachments(prev => [json.attachment, ...prev]);
@@ -769,6 +769,7 @@ export default function CRMPage() {
                 <option value="all">Parents &amp; Students</option>
                 <option value="parent">Parents only</option>
                 <option value="student">Students only</option>
+                <option value="lead">Form leads</option>
                 <option value="external">External (WhatsApp)</option>
                 <option value="everyone">Everyone (all users)</option>
               </select>

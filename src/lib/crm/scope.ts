@@ -5,6 +5,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
+export { normalizeCrmStage, CRM_PIPELINE_STAGES, crmContactTypeFromRole } from '@/lib/crm/stages';
+export type { CrmPipelineStage } from '@/lib/crm/stages';
 
 export type CrmCaller = {
   id: string;
@@ -60,6 +62,41 @@ export async function getIsolatedTeacherContactIds(
     }
   }
   return idSet;
+}
+
+/** School-name needles for filtering customer_contact_book (text school_name, no FK). */
+export async function schoolNameNeedlesForCaller(
+  admin: AnySupabase,
+  caller: CrmCaller,
+): Promise<string[] | 'all' | 'none'> {
+  if (caller.role === 'admin') return 'all';
+  const schoolIds = await getCallerSchoolIds(admin, caller);
+  if (schoolIds === 'all') return 'all';
+  if (!schoolIds.length) return 'none';
+  const { data: schools } = await admin.from('schools').select('id, name').in('id', schoolIds);
+  const names = (schools ?? []).map((s: any) => String(s.name || '').trim()).filter(Boolean);
+  return names.length ? names : 'none';
+}
+
+export function rowMatchesSchoolNames(
+  row: { school_name?: string | null },
+  needles: string[],
+): boolean {
+  const sn = String(row.school_name || '').toLowerCase();
+  if (!sn) return false;
+  return needles.some((n) => {
+    const x = n.toLowerCase();
+    return sn.includes(x) || x.includes(sn);
+  });
+}
+
+export async function resolveSchoolIdsByName(admin: AnySupabase, schoolName: string | null): Promise<string[]> {
+  if (!schoolName?.trim()) return [];
+  const { data } = await admin
+    .from('schools')
+    .select('id')
+    .ilike('name', schoolName.trim());
+  return (data ?? []).map((s: any) => s.id).filter(Boolean);
 }
 
 export type ContactAccess =
@@ -121,7 +158,6 @@ export async function assertCrmContactAccess(
     .maybeSingle();
 
   if (wa) {
-    // Unlinked WA: admin only (no school to scope). Linked: follow portal user.
     if (wa.portal_user_id) {
       return assertCrmContactAccess(admin, caller, wa.portal_user_id);
     }
@@ -140,15 +176,6 @@ export async function assertCrmContactAccess(
   return { ok: false, status: 404, error: 'Contact not found' };
 }
 
-async function resolveSchoolIdsByName(admin: AnySupabase, schoolName: string | null): Promise<string[]> {
-  if (!schoolName?.trim()) return [];
-  const { data } = await admin
-    .from('schools')
-    .select('id')
-    .ilike('name', schoolName.trim());
-  return (data ?? []).map((s: any) => s.id).filter(Boolean);
-}
-
 async function callerMayAccessSchool(
   admin: AnySupabase,
   caller: CrmCaller,
@@ -165,7 +192,7 @@ async function callerMayAccessSchool(
     }
     const schoolIds = await getCallerSchoolIds(admin, caller);
     if (schoolIds === 'all') return true;
-    if (!schoolId) return false; // unscoped contact: teachers cannot open
+    if (!schoolId) return false;
     return schoolIds.includes(schoolId);
   }
 
@@ -191,28 +218,14 @@ async function callerMayAccessBookRow(
 
   if (schoolIdsFromName.some((id) => allowedSchools.includes(id))) return true;
 
-  // Fallback: school-name substring match against caller's school names
   if (schoolName?.trim()) {
-    const { data: schools } = await admin
-      .from('schools')
-      .select('id, name')
-      .in('id', allowedSchools);
-    const needle = schoolName.trim().toLowerCase();
-    return (schools ?? []).some((s: any) => String(s.name ?? '').toLowerCase().includes(needle)
-      || needle.includes(String(s.name ?? '').toLowerCase()));
+    const needles = await schoolNameNeedlesForCaller(admin, caller);
+    if (needles === 'all') return true;
+    if (needles === 'none') return false;
+    return rowMatchesSchoolNames({ school_name: schoolName }, needles);
   }
 
   return false;
-}
-
-/** Map lead/pipeline stages into the CRM UI vocabulary. */
-export function normalizeCrmStage(stage: string | null | undefined): string {
-  const s = (stage || 'prospect').toLowerCase();
-  if (s === 'enquiry' || s === 'lead') return 'prospect';
-  if (s === 'contacted' || s === 'trial') return 'active';
-  if (s === 'enrolled') return 'won';
-  if (['prospect', 'active', 'at_risk', 'won', 'churned'].includes(s)) return s;
-  return 'prospect';
 }
 
 /** Require contact_id on list endpoints for non-admins (blocks global dumps). */

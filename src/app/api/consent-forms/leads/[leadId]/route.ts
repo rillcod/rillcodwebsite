@@ -84,39 +84,22 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
           rd.program_category || 'coding programme';
 
         if (lead.contact_id) {
-          const stageOrder = ['lead', 'enquiry', 'contacted', 'trial', 'enrolled'];
-
-          const { data: pipe } = await (sb as any)
-            .from('crm_pipeline')
-            .select('id, stage')
-            .eq('contact_id', lead.contact_id)
-            .maybeSingle();
-
-          if (pipe && stageOrder.indexOf(pipe.stage) < stageOrder.indexOf('enrolled')) {
-            await (sb as any)
-              .from('crm_pipeline')
-              .update({ stage: 'enrolled', updated_at: now })
-              .eq('contact_id', lead.contact_id);
-          } else if (!pipe) {
-            await (sb as any).from('crm_pipeline').insert({
-              contact_id:   lead.contact_id,
-              contact_name: rd.parent_name || 'Parent',
-              contact_type: 'form_lead',
-              stage:        'enrolled',
-              created_at:   now,
-              updated_at:   now,
-            });
-          }
-
-          // Log enrollment interaction
-          await (sb as any).from('crm_interactions').insert({
-            contact_id:   lead.contact_id,
-            contact_name: rd.parent_name || 'Parent',
-            contact_type: 'form_lead',
-            type:         'enrolled',
-            direction:    'internal',
-            content:      `Student enrolled: ${rd.child_name || 'Child'} — ${progLabel}. Marked enrolled by staff.`,
-            created_at:   now,
+          const { upsertCrmPipeline, insertCrmInteraction } = await import('@/lib/crm/pipeline');
+          const parentName = rd.parent_name || 'Parent';
+          await upsertCrmPipeline(sb as any, {
+            contactId: lead.contact_id,
+            contactName: parentName,
+            contactType: 'form_lead',
+            stage: 'won',
+            promoteOnly: true,
+          });
+          await insertCrmInteraction(sb as any, {
+            contactId: lead.contact_id,
+            contactName: parentName,
+            contactType: 'form_lead',
+            type: 'enrolled',
+            direction: 'internal',
+            content: `Student enrolled: ${rd.child_name || 'Child'} — ${progLabel}. Marked enrolled by staff.`,
           });
         }
 

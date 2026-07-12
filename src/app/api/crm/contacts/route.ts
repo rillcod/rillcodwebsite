@@ -1,38 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { isCrmPlatformRole } from '@/lib/server/api-rbac';
-import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
 import { generateTempPassword } from '@/lib/utils/password';
-import { normalizeCrmStage } from '@/lib/crm/scope';
+import { isTeacherIsolationOn } from '@/lib/server/teacher-scope';
+import { crmAuthErrorResponse, requireCrmStaff } from '@/lib/crm/auth';
+import { upsertCrmPipeline } from '@/lib/crm/pipeline';
+import {
+  assertCrmContactAccess,
+  getCallerSchoolIds,
+  getIsolatedTeacherContactIds,
+  normalizeCrmStage,
+  schoolNameNeedlesForCaller,
+  rowMatchesSchoolNames,
+} from '@/lib/crm/scope';
 
-async function requireCrmStaff() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
-  const db = createAdminClient();
-  const { data: profile } = await db.from('portal_users').select('id, role, full_name, school_id').eq('id', user.id).single();
-  if (!profile || !isCrmPlatformRole(profile.role)) throw new Error('Forbidden');
-  return { profile, db };
-}
+const EMPTY_ID = '00000000-0000-0000-0000-000000000000';
 
-// GET /api/crm/contacts?search=&role=all|parent|student|external|everyone&format=json|print|csv
-//
-// role=all (default) — parents + students who have a phone number on file
-// role=parent        — parents with a phone number
-// role=student       — students with a phone number
-// role=external      — unlinked WhatsApp conversations
-// role=everyone      — all portal_users regardless of role or phone (admin view)
+// GET /api/crm/contacts?search=&role=all|parent|student|external|lead|everyone&format=json|print|csv
 export async function GET(req: NextRequest) {
   try {
-    const { profile, db } = await requireCrmStaff();
+    const { caller, db } = await requireCrmStaff();
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || 'all';
     const format = searchParams.get('format') || 'json';
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), format === 'json' ? 300 : 3000);
 
-    // Primary CRM targets: parents + students with actual phone numbers
     const isPrimary = role === 'all' || role === 'parent' || role === 'student';
     const isEveryone = role === 'everyone';
 
@@ -42,101 +33,62 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (isPrimary) {
-      // Restrict to parents and/or students, and require a real phone number
-      if (role === 'parent') {
-        q = q.eq('role', 'parent');
-      } else if (role === 'student') {
-        q = q.eq('role', 'student');
-      } else {
-        // role === 'all': parents, students, and school owners with a phone
-        q = q.in('role', ['parent', 'student', 'school']);
-      }
+      if (role === 'parent') q = q.eq('role', 'parent');
+      else if (role === 'student') q = q.eq('role', 'student');
+      else q = q.in('role', ['parent', 'student', 'school']);
       q = q.not('phone', 'is', null).neq('phone', '');
-    } else if (!isEveryone && role !== 'external') {
-      // Explicit single role requested (e.g. teacher, school)
+    } else if (!isEveryone && role !== 'external' && role !== 'lead') {
       q = q.eq('role', role);
     }
-    // isEveryone → no role filter, no phone filter
 
     if (search) q = q.ilike('full_name', `%${search}%`);
 
-    // Teacher scoping. Never unscoped (a teacher with no assignment sees nothing).
-    //  • Class privacy OFF → contacts within the schools they're assigned to (teacher_schools).
-    //  • Class privacy ON  → only their OWN-class students and those students' parents.
-    if (profile.role === 'teacher') {
+    if (caller.role === 'teacher') {
       const isolated = await isTeacherIsolationOn(db);
       if (isolated) {
-        const idSet = new Set<string>();
-        const { data: ownClasses } = await db.from('classes').select('id').eq('teacher_id', profile.id);
-        const classIds = (ownClasses ?? []).map((c: any) => c.id);
-        if (classIds.length) {
-          const { data: studs } = await db.from('portal_users').select('id').in('class_id', classIds).eq('role', 'student');
-          const studentPortalIds = (studs ?? []).map((s: any) => s.id);
-          studentPortalIds.forEach((id: string) => idSet.add(id));
-          if (studentPortalIds.length) {
-            const { data: srows } = await db.from('students').select('id').in('user_id', studentPortalIds);
-            const studentRowIds = (srows ?? []).map((s: any) => s.id);
-            if (studentRowIds.length) {
-              const { data: links } = await db.from('parent_student_links').select('parent_id').in('student_id', studentRowIds);
-              (links ?? []).forEach((l: any) => { if (l.parent_id) idSet.add(l.parent_id); });
-            }
-          }
-        }
-        q = q.in('id', idSet.size ? Array.from(idSet) : ['00000000-0000-0000-0000-000000000000']);
+        const idSet = await getIsolatedTeacherContactIds(db, caller.id);
+        q = q.in('id', idSet.size ? Array.from(idSet) : [EMPTY_ID]);
       } else {
-        const schoolIds: string[] = [];
-        if (profile.school_id) schoolIds.push(profile.school_id);
-        const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
-        (ts ?? []).forEach((r: any) => { if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id); });
-        q = q.in('school_id', schoolIds.length ? schoolIds : ['00000000-0000-0000-0000-000000000000']);
+        const schoolIds = await getCallerSchoolIds(db, caller);
+        const ids = schoolIds === 'all' ? null : schoolIds;
+        q = q.in('school_id', ids?.length ? ids : [EMPTY_ID]);
       }
     }
 
-    const { data: portalUsers } = await q.limit(limit);
+    // Skip portal query when only leads/externals requested
+    const skipPortal = role === 'external' || role === 'lead';
+    const { data: portalUsers } = skipPortal ? { data: [] as any[] } : await q.limit(limit);
 
-    // Fetch pipeline stages in one query
     const ids = (portalUsers || []).map((u: any) => u.id);
     const stageMap: Record<string, string> = {};
     if (ids.length > 0) {
-      const { data: pipes } = await db
-        .from('crm_pipeline')
-        .select('contact_id, stage')
-        .in('contact_id', ids);
+      const { data: pipes } = await db.from('crm_pipeline').select('contact_id, stage').in('contact_id', ids);
       (pipes || []).forEach((p: any) => { stageMap[p.contact_id] = p.stage; });
     }
 
     let contacts: any[] = (portalUsers || []).map((u: any) => ({
       ...u,
       pipeline_stage: normalizeCrmStage(stageMap[u.id]),
+      _type: 'portal',
     }));
 
-    // CRM carries GENUINE, contactable people only — exclude system-generated student
-    // logins (e.g. mike123@rillcod.com) and no-email placeholders (@noemail.local), so
-    // staff always know these are real records to contact. Phone-only contacts (no
-    // email) are kept. The auto-generated logins live in the operational Records sheet
-    // (/dashboard/records → Registrations & Logins), not here.
     const isSystemEmail = (e?: string | null) => {
       const x = (e || '').trim().toLowerCase();
       return x.endsWith('@rillcod.com') || x.endsWith('@noemail.local');
     };
     contacts = contacts.filter((c: any) => !isSystemEmail(c.email));
 
-    // Enrich parents: resolve school_name from their linked students (consent-form flow)
-    // and compute children_count. One query covers both. Teachers only see children
-    // in schools they are assigned to (avoids cross-school child counts leaking).
-    const parentContacts = contacts.filter(c => c.role === 'parent' && c.email);
+    const parentContacts = contacts.filter((c) => c.role === 'parent' && c.email);
     if (parentContacts.length > 0) {
       const parentEmails = parentContacts.map((c: any) => c.email as string);
       let studentQ = db
         .from('students')
         .select('parent_email, school_name, school_id, full_name')
         .in('parent_email', parentEmails);
-      if (profile.role === 'teacher') {
-        const schoolIds: string[] = [];
-        if (profile.school_id) schoolIds.push(profile.school_id);
-        const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
-        (ts ?? []).forEach((r: any) => { if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id); });
-        studentQ = studentQ.in('school_id', schoolIds.length ? schoolIds : ['00000000-0000-0000-0000-000000000000']);
+      if (caller.role === 'teacher') {
+        const schoolIds = await getCallerSchoolIds(db, caller);
+        const ids = schoolIds === 'all' ? null : schoolIds;
+        studentQ = studentQ.in('school_id', ids?.length ? ids : [EMPTY_ID]);
       }
       const { data: studentRows } = await studentQ;
 
@@ -158,9 +110,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // External WA contacts — admin only (no school to scope unlinked chats).
     let external: any[] = [];
-    if (profile.role === 'admin' && (role === 'all' || role === 'external')) {
+    if (caller.role === 'admin' && (role === 'all' || role === 'external')) {
       let waQ = db.from('whatsapp_conversations')
         .select('id, contact_name, phone_number, last_message_at')
         .is('portal_user_id', null)
@@ -168,7 +119,7 @@ export async function GET(req: NextRequest) {
         .order('last_message_at', { ascending: false });
       if (search) waQ = waQ.ilike('contact_name', `%${search}%`);
       const { data: waContacts } = await waQ.limit(80);
-      external = (waContacts || []).map(c => ({
+      external = (waContacts || []).map((c) => ({
         id: c.id,
         full_name: c.contact_name || c.phone_number,
         phone: c.phone_number,
@@ -179,7 +130,6 @@ export async function GET(req: NextRequest) {
       }));
     }
 
-    // Form / consent leads from customer_contact_book (same CRM surface as portal contacts).
     let bookLeads: any[] = [];
     if (role === 'all' || role === 'lead' || role === 'external') {
       let bookQ = db
@@ -192,25 +142,13 @@ export async function GET(req: NextRequest) {
       const { data: rawBookRows } = await bookQ;
       let bookRows = rawBookRows || [];
 
-      if (profile.role === 'teacher') {
-        const schoolIds: string[] = [];
-        if (profile.school_id) schoolIds.push(profile.school_id);
-        const { data: ts } = await db.from('teacher_schools').select('school_id').eq('teacher_id', profile.id);
-        (ts ?? []).forEach((r: any) => { if (r.school_id && !schoolIds.includes(r.school_id)) schoolIds.push(r.school_id); });
-        if (!schoolIds.length) {
-          bookRows = [];
-        } else {
-          const { data: schools } = await db.from('schools').select('id, name').in('id', schoolIds);
-          const names = (schools ?? []).map((s: any) => String(s.name || '').toLowerCase()).filter(Boolean);
-          bookRows = bookRows.filter((b: any) => {
-            const sn = String(b.school_name || '').toLowerCase();
-            if (!sn || !names.length) return false;
-            return names.some((n) => sn.includes(n) || n.includes(sn));
-          });
-        }
+      const needles = await schoolNameNeedlesForCaller(db, caller);
+      if (needles === 'none') bookRows = [];
+      else if (needles !== 'all') {
+        bookRows = bookRows.filter((b: any) => rowMatchesSchoolNames(b, needles));
       }
-
       bookRows = bookRows.slice(0, 150);
+
       const bookIds = bookRows.map((b: any) => b.id);
       const bookStage: Record<string, string> = {};
       if (bookIds.length) {
@@ -223,7 +161,6 @@ export async function GET(req: NextRequest) {
       bookLeads = bookRows
         .filter((b: any) => {
           const e = String(b.email || '').trim().toLowerCase();
-          // Prefer portal_users row when the same parent already exists there.
           return !e || !portalEmails.has(e);
         })
         .map((b: any) => ({
@@ -291,7 +228,7 @@ export async function GET(req: NextRequest) {
 <table><thead><tr>
   <th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>School</th><th>Class</th><th>Pipeline</th>
 </tr></thead><tbody>${rowsHtml}</tbody></table>
-<div class="footer">Rillcod Technologies · 26 Ogiesoba Avenue, GRA, Benin City · +234 811 660 0091 · rillcod.com</div>
+<div class="footer">Rillcod Technologies · Confidential</div>
 <script>window.onload=()=>window.print()</script>
 </body></html>`;
       return new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
@@ -299,15 +236,14 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ contacts: allContacts });
   } catch (e: any) {
-    const msg = e.message as string;
-    return NextResponse.json({ error: msg }, { status: msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }
 
 // POST /api/crm/contacts — create a manual contact (portal_users row)
 export async function POST(req: NextRequest) {
   try {
-    const { profile, db } = await requireCrmStaff();
+    const { caller, db } = await requireCrmStaff();
     const body = await req.json();
     const { full_name, email, phone, role: contactRole = 'parent', school_name, school_id, class_name, tags, notes } = body;
 
@@ -315,7 +251,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'full_name is required' }, { status: 400 });
     }
 
-    // Check email uniqueness if provided
     if (email) {
       const { data: existing } = await db
         .from('portal_users')
@@ -327,7 +262,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create auth user only if email provided
     let authId: string | null = null;
     if (email) {
       const tempPw = generateTempPassword();
@@ -351,10 +285,10 @@ export async function POST(req: NextRequest) {
       phone: phone?.trim() || null,
       role: contactRole,
       school_name: school_name?.trim() || null,
-      school_id: school_id || profile.school_id || null,
+      school_id: school_id || caller.school_id || null,
       section_class: class_name?.trim() || null,
       is_active: true,
-      metadata: { tags: tags || [], notes: notes || '', created_by: profile.id, source: 'manual_crm' },
+      metadata: { tags: tags || [], notes: notes || '', created_by: caller.id, source: 'manual_crm' },
       created_at: now,
       updated_at: now,
     }).select().single();
@@ -362,20 +296,38 @@ export async function POST(req: NextRequest) {
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
     return NextResponse.json({ contact }, { status: 201 });
   } catch (e: any) {
-    const msg = e.message as string;
-    return NextResponse.json({ error: msg }, { status: msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }
 
-// PUT /api/crm/contacts — update contact details
+// PUT /api/crm/contacts — update contact details (portal or book)
 export async function PUT(req: NextRequest) {
   try {
-    const { db } = await requireCrmStaff();
+    const { caller, db } = await requireCrmStaff();
     const body = await req.json();
     const { id, full_name, email, phone, school_name, grade, tags, notes } = body;
     if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
-    // Build updates with only known columns to satisfy Supabase types
+    const access = await assertCrmContactAccess(db, caller, id);
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
+    if (access.kind === 'book') {
+      const { data, error } = await db.from('customer_contact_book').update({
+        ...(full_name !== undefined && { full_name: full_name.trim() }),
+        ...(email !== undefined && { email: email?.trim().toLowerCase() || null }),
+        ...(phone !== undefined && { phone: phone?.trim() || null }),
+        ...(school_name !== undefined && { school_name: school_name?.trim() || null }),
+        ...(grade !== undefined && { class_name: grade?.trim() || null }),
+        updated_at: new Date().toISOString(),
+      }).eq('id', id).select().single();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ contact: data });
+    }
+
+    if (access.kind !== 'portal') {
+      return NextResponse.json({ error: 'Cannot edit this contact type here' }, { status: 400 });
+    }
+
     let metadataUpdate: Record<string, unknown> | undefined;
     if (tags !== undefined || notes !== undefined) {
       const { data: existing } = await db.from('portal_users').select('metadata').eq('id', id).single();
@@ -398,15 +350,14 @@ export async function PUT(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ contact: data });
   } catch (e: any) {
-    const msg = e.message as string;
-    return NextResponse.json({ error: msg }, { status: msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }
 
 // PATCH /api/crm/contacts — update pipeline stage
 export async function PATCH(req: NextRequest) {
   try {
-    const { profile, db } = await requireCrmStaff();
+    const { caller, db } = await requireCrmStaff();
     const body = await req.json();
     const { contact_id, contact_type, contact_name, stage, pipeline_notes } = body;
 
@@ -414,24 +365,22 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'contact_id and stage are required' }, { status: 400 });
     }
 
-    const { data: existing } = await db.from('crm_pipeline').select('id').eq('contact_id', contact_id).maybeSingle();
+    const access = await assertCrmContactAccess(db, caller, contact_id);
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
-    const payload = {
-      contact_id, contact_type: contact_type || 'portal_user', contact_name,
-      stage, pipeline_notes: pipeline_notes || null,
-      updated_by: profile.id, updated_by_name: profile.full_name,
-      updated_at: new Date().toISOString(),
-    };
+    const next = await upsertCrmPipeline(db, {
+      contactId: contact_id,
+      contactName: contact_name || access.row.full_name || access.row.contact_name || 'Contact',
+      contactType: contact_type || (access.kind === 'book' ? 'form_lead' : access.kind === 'whatsapp' ? 'external' : 'portal_user'),
+      stage,
+      promoteOnly: false,
+      pipelineNotes: pipeline_notes ?? null,
+      updatedBy: caller.id,
+      updatedByName: caller.full_name ?? null,
+    });
 
-    if (existing) {
-      await db.from('crm_pipeline').update(payload).eq('contact_id', contact_id);
-    } else {
-      await db.from('crm_pipeline').insert({ ...payload, created_at: new Date().toISOString() });
-    }
-
-    return NextResponse.json({ success: true, stage });
+    return NextResponse.json({ success: true, stage: next });
   } catch (e: any) {
-    const msg = e.message as string;
-    return NextResponse.json({ error: msg }, { status: msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }

@@ -1,38 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabase } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
-import type { Database } from '@/types/supabase';
-import { isCrmPlatformRole } from '@/lib/server/api-rbac';
+import { requireCrmStaffOrNull } from '@/lib/crm/auth';
 import { assertCrmContactAccess, requireContactIdForNonAdmin } from '@/lib/crm/scope';
 
-function adminClient() {
-  return createSupabase<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
-
-async function requireCrmStaff() {
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
-  const { data } = await adminClient()
-    .from('portal_users')
-    .select('id, role, full_name, school_id')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (!data || !isCrmPlatformRole(data.role)) return null;
-  return data;
-}
-
 export async function GET(req: NextRequest) {
-  const caller = await requireCrmStaff();
-  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const session = await requireCrmStaffOrNull();
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { caller, db: admin } = session;
 
   const url = new URL(req.url);
   const contact_id = url.searchParams.get('contact_id');
   const stage = url.searchParams.get('stage');
-  const admin = adminClient();
 
   const missing = requireContactIdForNonAdmin(caller, contact_id);
   if (missing) return NextResponse.json({ error: missing }, { status: 400 });
@@ -58,8 +35,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const caller = await requireCrmStaff();
-  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const session = await requireCrmStaffOrNull();
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { caller, db: admin } = session;
 
   const body = await req.json();
   const {
@@ -71,7 +49,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'contact_id and contact_name are required' }, { status: 400 });
   }
 
-  const admin = adminClient();
   const access = await assertCrmContactAccess(admin, caller, contact_id);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
@@ -88,7 +65,7 @@ export async function POST(req: NextRequest) {
       notes: notes ?? null,
       source: source ?? null,
       owner_id: caller.id,
-      owner_name: (caller as any).full_name ?? null,
+      owner_name: caller.full_name ?? null,
       created_at: now,
       updated_at: now,
     })
@@ -100,14 +77,14 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const caller = await requireCrmStaff();
-  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const session = await requireCrmStaffOrNull();
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { caller, db: admin } = session;
 
   const body = await req.json();
   const { id, stage, estimated_value, expected_close_at, close_probability, notes, source } = body;
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
 
-  const admin = adminClient();
   const { data: existing } = await admin.from('crm_opportunities').select('id, contact_id, owner_id').eq('id', id).maybeSingle();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -137,13 +114,13 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const caller = await requireCrmStaff();
-  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const session = await requireCrmStaffOrNull();
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { caller, db: admin } = session;
 
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  const admin = adminClient();
   const { data: existing } = await admin.from('crm_opportunities').select('id, contact_id, owner_id').eq('id', id).maybeSingle();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { isCrmPlatformRole } from '@/lib/server/api-rbac';
+import { crmAuthErrorResponse, requireCrmStaff } from '@/lib/crm/auth';
 import { assertCrmContactAccess, normalizeCrmStage } from '@/lib/crm/scope';
-
-async function requireCrmStaff() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
-  const db = createAdminClient();
-  const { data: profile } = await db
-    .from('portal_users')
-    .select('id, role, full_name, school_id')
-    .eq('id', user.id)
-    .single();
-  if (!profile || !isCrmPlatformRole(profile.role)) throw new Error('Forbidden');
-  return { profile, db };
-}
 
 // GET /api/crm/contacts/[id]
 export async function GET(
@@ -25,8 +9,8 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
-    const { profile, db } = await requireCrmStaff();
-    const access = await assertCrmContactAccess(db, profile, id);
+    const { caller, db } = await requireCrmStaff();
+    const access = await assertCrmContactAccess(db, caller, id);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     if (access.kind === 'whatsapp') {
@@ -123,10 +107,10 @@ export async function GET(
           .order('full_name')
       : null;
 
-    if (childrenQuery && profile.role === 'teacher' && access.schoolId) {
+    if (childrenQuery && caller.role === 'teacher' && access.schoolId) {
       childrenQuery = childrenQuery.eq('school_id', access.schoolId) as any;
-    } else if (childrenQuery && profile.role === 'teacher' && profile.school_id) {
-      childrenQuery = childrenQuery.eq('school_id', profile.school_id) as any;
+    } else if (childrenQuery && caller.role === 'teacher' && caller.school_id) {
+      childrenQuery = childrenQuery.eq('school_id', caller.school_id) as any;
     }
 
     const [pipelineRes, interactionsRes, tasksRes, opportunitiesRes, childrenRes] = await Promise.all([
@@ -170,8 +154,7 @@ export async function GET(
       })),
     });
   } catch (e: any) {
-    const msg = e.message as string;
-    return NextResponse.json({ error: msg }, { status: msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }
 
@@ -182,8 +165,8 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-    const { profile, db } = await requireCrmStaff();
-    const access = await assertCrmContactAccess(db, profile, id);
+    const { caller, db } = await requireCrmStaff();
+    const access = await assertCrmContactAccess(db, caller, id);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const body = await req.json();
@@ -233,7 +216,7 @@ export async function PATCH(
       ...(school_name !== undefined && { school_name: String(school_name).trim() || null }),
       ...(section_class !== undefined && { section_class: String(section_class).trim() || null }),
       ...(bio !== undefined && { bio: String(bio).trim() || null }),
-      ...(role !== undefined && profile.role === 'admin' && { role }),
+      ...(role !== undefined && caller.role === 'admin' && { role }),
       ...(metadataUpdate !== undefined && { metadata: metadataUpdate }),
       updated_at: new Date().toISOString(),
     }).eq('id', id).select().single();
@@ -241,8 +224,7 @@ export async function PATCH(
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ contact: data });
   } catch (e: any) {
-    const msg = e.message as string;
-    return NextResponse.json({ error: msg }, { status: msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }
 
@@ -253,12 +235,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await context.params;
-    const { profile, db } = await requireCrmStaff();
-    if (profile.role !== 'admin') {
+    const { caller, db } = await requireCrmStaff();
+    if (caller.role !== 'admin') {
       return NextResponse.json({ error: 'Only admins can remove contacts' }, { status: 403 });
     }
 
-    const access = await assertCrmContactAccess(db, profile, id);
+    const access = await assertCrmContactAccess(db, caller, id);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     if (access.kind === 'portal') {
@@ -276,7 +258,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    const msg = e.message as string;
-    return NextResponse.json({ error: msg }, { status: msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }

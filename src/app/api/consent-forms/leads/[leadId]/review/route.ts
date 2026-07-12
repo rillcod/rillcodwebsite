@@ -242,27 +242,23 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ leadI
 
   if (resolvedContactId) {
     try {
-      const stageOrder = ['lead', 'enquiry', 'contacted', 'trial', 'enrolled'];
-      const { data: pipe } = await (sb as any).from('crm_pipeline').select('id, stage').eq('contact_id', resolvedContactId).maybeSingle();
-      if (pipe) {
-        if (stageOrder.indexOf(pipe.stage) < stageOrder.indexOf('contacted')) {
-          await (sb as any).from('crm_pipeline').update({ stage: 'contacted', updated_at: now }).eq('contact_id', resolvedContactId);
-        }
-      } else {
-        await (sb as any).from('crm_pipeline').insert({
-          contact_id: resolvedContactId, contact_name: rd.parent_name || 'Parent/Guardian',
-          contact_type: 'form_lead', stage: 'contacted', created_at: now, updated_at: now,
-        });
-      }
-      await sb.from('crm_interactions').insert({
-        contact_id:   resolvedContactId,
-        contact_name: rd.parent_name || 'Parent/Guardian',
-        contact_type: 'form_lead',
-        type:         'match_approved',
-        direction:    'internal',
-        content:      `Staff matched form lead to existing student (approved by ${profile.full_name ?? profile.role}). Student ID: ${candidateId}.`,
-        created_at:   now,
-      } as any);
+      const { upsertCrmPipeline, insertCrmInteraction } = await import('@/lib/crm/pipeline');
+      const parentName = rd.parent_name || 'Parent/Guardian';
+      await upsertCrmPipeline(sb as any, {
+        contactId: resolvedContactId,
+        contactName: parentName,
+        contactType: 'form_lead',
+        stage: 'active',
+        promoteOnly: true,
+      });
+      await insertCrmInteraction(sb as any, {
+        contactId: resolvedContactId,
+        contactName: parentName,
+        contactType: 'form_lead',
+        type: 'match_approved',
+        direction: 'internal',
+        content: `Staff matched form lead to existing student (approved by ${profile.full_name ?? profile.role}). Student ID: ${candidateId}.`,
+      });
     } catch { /* non-fatal */ }
   }
 

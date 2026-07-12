@@ -1,29 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { r2Upload, r2SignedUrl, r2Delete } from '@/lib/r2/client';
-import { isCrmPlatformRole } from '@/lib/server/api-rbac';
+import { crmAuthErrorResponse, requireCrmStaff } from '@/lib/crm/auth';
 import { assertCrmContactAccess } from '@/lib/crm/scope';
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
-async function requireCrmStaff() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) throw new Error('Unauthorized');
-  const db = createAdminClient();
-  const { data: profile } = await db.from('portal_users').select('id, role, full_name, school_id').eq('id', user.id).single();
-  if (!profile || !isCrmPlatformRole(profile.role)) throw new Error('Forbidden');
-  return { profile, db };
-}
-
 export async function GET(req: NextRequest) {
   try {
-    const { profile, db } = await requireCrmStaff();
+    const { caller, db } = await requireCrmStaff();
     const contact_id = new URL(req.url).searchParams.get('contact_id');
     if (!contact_id) return NextResponse.json({ error: 'contact_id required' }, { status: 400 });
 
-    const access = await assertCrmContactAccess(db, profile, contact_id);
+    const access = await assertCrmContactAccess(db, caller, contact_id);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const { data, error } = await db
@@ -43,13 +31,13 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ attachments: withUrls });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: e.message === 'Unauthorized' ? 401 : e.message === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { profile, db } = await requireCrmStaff();
+    const { caller, db } = await requireCrmStaff();
     const formData = await req.formData();
 
     const file = formData.get('file') as File | null;
@@ -61,7 +49,7 @@ export async function POST(req: NextRequest) {
     if (!contact_id) return NextResponse.json({ error: 'contact_id is required' }, { status: 400 });
     if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: 'File exceeds 25 MB limit' }, { status: 413 });
 
-    const access = await assertCrmContactAccess(db, profile, contact_id);
+    const access = await assertCrmContactAccess(db, caller, contact_id);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -78,8 +66,8 @@ export async function POST(req: NextRequest) {
       file_key: key,
       file_type: file.type || 'application/octet-stream',
       file_size: file.size,
-      uploaded_by: profile.id,
-      uploaded_by_name: profile.full_name,
+      uploaded_by: caller.id,
+      uploaded_by_name: caller.full_name,
     }).select().single();
 
     if (error) {
@@ -90,20 +78,20 @@ export async function POST(req: NextRequest) {
     const signed_url = await r2SignedUrl(key, 3600, file.name).catch(() => '');
     return NextResponse.json({ attachment: { ...data, signed_url } }, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: e.message === 'Unauthorized' ? 401 : e.message === 'Forbidden' ? 403 : 500 });
+    return crmAuthErrorResponse(e);
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { profile, db } = await requireCrmStaff();
+    const { caller, db } = await requireCrmStaff();
     const id = new URL(req.url).searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
     const { data, error } = await db.from('crm_attachments').select('file_key, contact_id').eq('id', id).single();
     if (error || !data) return NextResponse.json({ error: 'Attachment not found' }, { status: 404 });
 
-    const access = await assertCrmContactAccess(db, profile, data.contact_id);
+    const access = await assertCrmContactAccess(db, caller, data.contact_id);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     await r2Delete(data.file_key).catch(() => {});
@@ -111,8 +99,6 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e: any) {
-    const msg = e.message as string;
-    const status = msg === 'Unauthorized' ? 401 : msg === 'Forbidden' ? 403 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    return crmAuthErrorResponse(e);
   }
 }

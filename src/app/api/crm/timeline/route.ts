@@ -1,29 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabase } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
-import type { Database, Tables } from '@/types/supabase';
-import { isCrmPlatformRole } from '@/lib/server/api-rbac';
+import type { Tables } from '@/types/supabase';
+import { requireCrmStaffOrNull } from '@/lib/crm/auth';
 import { assertCrmContactAccess } from '@/lib/crm/scope';
-
-function adminClient() {
-  return createSupabase<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
-
-async function requireCrmStaff() {
-  const supabase = await createServerClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return null;
-  const { data: profile } = await adminClient()
-    .from('portal_users')
-    .select('id, role, school_id')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (!profile || !isCrmPlatformRole(profile.role)) return null;
-  return profile;
-}
 
 type TimelineItem = {
   id: string;
@@ -48,9 +26,9 @@ type InAppMessageRow = {
 };
 
 export async function GET(req: NextRequest) {
-  const caller = await requireCrmStaff();
-  if (!caller) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  const admin = adminClient();
+  const session = await requireCrmStaffOrNull();
+  if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { caller, db: admin } = session;
   const contactId = new URL(req.url).searchParams.get('contact_id');
   if (!contactId) return NextResponse.json({ error: 'contact_id is required' }, { status: 400 });
 
@@ -144,6 +122,5 @@ export async function GET(req: NextRequest) {
 
   timeline.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const items = timeline.slice(0, 500);
-  // Return both keys so older clients and the CRM UI both work.
   return NextResponse.json({ data: items, timeline: items });
 }
